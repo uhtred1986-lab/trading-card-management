@@ -178,6 +178,7 @@ const SELECTOR_FLAG_DOCS: Record<keyof typeof SELECTOR_FLAGS, string> = {
   fromEnd: "count from the bottom of the area's order instead of the top",
   ignoringBarrier: "may target a card with [Barrier] all the same",
   notInBattle: "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)",
+  orSelf: "the card the skill is on is on offer too, beside the cards described — \"choose this card or up to 1 <Broly: Br> card in your Battle Area\" (P-092b)",
   atRandom: "which cards is the game's seeded RNG, never a player; for an \"up to\" the master picks how many (owner, 26 Oct 2026) —\"from your opponent's hand at random\" (BT1-073)",
   ownedByOpponent: "only cards you control whose owner is your opponent — a control exchange's loans (20-9); EX24-10's \"Battle Cards whose owner is your opponent\"",
   otherThanSelf: "excludes this card",

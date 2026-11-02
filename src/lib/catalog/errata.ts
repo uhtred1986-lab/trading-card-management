@@ -223,17 +223,10 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // "The current text of this card prevents it from being properly played" or "Read as the errata
   // when playing". Newest first, as the page lists them.
   //
-  // Held back, so the check still lists them (each is the owner's call, not a typo to fix here):
-  // - BT7-125…BT7-129 (2019-07-24): "You can't play this card from any area if you have cards …
-  //   that are any color other than <colour>" compiles to a ban with no condition (the trailing
-  //   "if" clause is dropped without being reported unread), so the card could never be played.
-  // - BT22-001 back (2023-08-25): "place up to 1 red <Son Gohan: SH> Z-Leader from your Z-Deck on
-  //   top of this card" compiles to moving this Leader under the Z-Deck card.
-  // - BT24-096 (2024-04-19): "{y}{y}, switch 5 of your yellow cards to Rest Mode:" compiles to 5
-  //   cards in play, energy left out and no Active Mode needed, against ruling R-010.
-  // - BT15-068 (2021-11-01): it names {Kaio-Ken Son Goku, Maximum Gains}, the official name of
-  //   BT15-067, which the catalog still calls "Son Goku, Maximum Gains"; corrected alone, the
-  //   play would find nothing.
+  // Eight were held back by errata-official-1 because the compiler misread their new wording, and are applied since
+  // errata-official-2 (2 Nov 2026), once it reads them: BT7-125…BT7-129's ban with its condition after it,
+  // BT22-001's placing from the Z-Deck, BT24-096's price (R-116), and BT15-068 once BT15-067 carries its official
+  // name (`FIELD_CORRECTIONS` below).
   // 2025-01-01 (the page heads it "Front"; it is the Leader's back): no Unisons.
   "BT25-001": [[/opponent's\s+Battle\s+Cards\s+or\s+Unisons\s+and\s+it\s+gets\s+-15000\s+power/g, "opponent's Battle Cards and it gets -15000 power"]],
   // 2024-09-27: the condition is the Leader's back side (a Leader whose front is not Gohan).
@@ -244,6 +237,9 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // 2024-08-02: the card is {SS Vegeta, Rescuing a Son} (BT25-074).
   "BT25-070": [[/\{Vegeta,\s+Rescuing\s+a\s+Son\}/g, "{SS Vegeta, Rescuing a Son}"]],
   "P-549": [[/the\s+attacking\s+card\s+gets\s+\+6000\s+power,\s+then\s+switch/g, "the attacking card gets +6000 power for the turn, then switch"]],
+  // 2024-04-19: switching the five cards is the price, no longer a condition — any 5 of your Active Mode yellow cards,
+  // the energy included (R-010, carried over by R-116).
+  "BT24-096": [[/\{y\}\{y\},\s+if\s+you\s+switch\s+5\s+yellow\s+cards\s+to\s+Rest\s+Mode:/g, "{y}{y}, switch 5 of your yellow cards to Rest Mode:"]],
   // 2024-03-01: the [Auto] is struck from the card.
   "BT21-097": [[/<br>\[Auto\]\s+If\s+your\s+Leader\s+is\s+a\s+green\s+&lt;Son\s+Gohan:\s+Childhood&gt;:\s+When\s+you\s+activate\s+this\s+card's\s+\[Counter\]\s+skill\s+from\s+your\s+hand,\s+draw\s+1\s+card\./g, ""]],
   "BT19-055": [[/\[Activate:\s+Main\]\s+Your\s+opponent\s+gains\s+control\s+of\s+this\s+card/g, "[Activate: Main] If your Leader is a blue <Son Gohan: SH> card: Your opponent gains control of this card"]],
@@ -255,6 +251,8 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "P-548": [[/KO\s+it:\s+When\s+your\s+opponent\s+discards\s+1\s+card\s+from\s+their\s+hand,\s+remove\s+this\s+card/g, "KO it: Your opponent discards 1 card from their hand, then remove this card"]],
   "BT22-113": [[/place\s+under\s+it\s+up\s+to\s+1\s+card/g, "place under this card up to 1 card"]],
   "BT21-091": [[/\{g\},\s+choose\s+up\s+to\s+1\s+of\s+your\s+opponent's\s+Earthling\s+Tokens/g, "{g}, choose 1 of your opponent's Earthling Tokens"]],
+  // 2023-08-25 (back): the Z-Leader is placed on top of this card, not played.
+  "BT22-001": [[/and\s+play\s+up\s+to\s+1\s+red\s+&lt;Son\s+Gohan:\s+SH&gt;\s+Z-Leader/g, "and place up to 1 red &lt;Son Gohan: SH&gt; Z-Leader"]],
   "BT22-086": [[/Remove\s+this\s+card\s+from\s+the\s+game:\s+Choose\s+up\s+to\s+1\s+of\s+your\s+opponent's\s+skill-less\s+Battle\s+Cards\s+and\s+KO\s+it\s+at\s+the\s+end\s+of\s+the\s+turn\./g, "Remove this card from the game: At the end of the turn, choose up to 1 of your opponent's skill-less Battle Cards and KO it."]],
   "BT22-124": [[/add\s+up\s+to\s+1\s+<Fu>\s+card\s+from\s+your\s+Z-Deck\s+face\s+up\s+to\s+your\s+hand/g, "add up to 1 face up <Fu> card from your Z-Deck to your hand"]],
   "BT22-125": [[/add\s+1\s+<Fu>\s+card\s+from\s+your\s+Z-Deck\s+face\s+up\s+to\s+your\s+hand/g, "add 1 face up <Fu> card from your Z-Deck to your hand"]],
@@ -286,7 +284,7 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "P-513": [[/play\s+up\s+to\s+1\s+copy\s+of\s+this\s+card\./g, "play up to 1 copy of this card from your hand."]],
   // 2023-06-02, the page's note: "This card negates strategies using 《God》 and 《Universe》 Special
   // Trait cards. Due to this wide-scale impact … we have decided to errata this card." Now an optional
-  // choice of 12, and the removal only "If you do".
+  // choice of 12, and the removal only "If you do" — only when all 12 were chosen (R-117).
   "P-493": [[/choose\s+up\s+to\s+12\s+of\s+your\s+opponent's\s+Battle\s+Cards\s+with\s+≪God≫\s+or\s+≪Universe≫\s+in\s+their\s+special\s+traits,\s+ignoring\s+\[barrier\],\s+negate/g, "you may choose 12 of your opponent's Battle Cards with ≪God≫ or ≪Universe≫ in their special traits, ignoring [barrier]. If you do, negate"]],
   // 2023-03-31, both sides. The page writes "battle cards"; the catalog capitalises the card type.
   "BT20-024": [[/you\s+can't\s+use\s+skills\s+to\s+play\s+Battle\s+Cards\./g, "you can't play Battle Cards by skills."]],
@@ -321,7 +319,7 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   ],
   "P-211": [[/When\s+your\s+life\s+is\s+at\s+4\s+or\s+less,\s+or\s+you\s+have\s+a\s+blue\s+Unison\s+Card\s+with\s+a\s+specified\s+cost\s+of\s+3\s+in\s+play:/g, "When your life is at 4 or less:"]],
   // 2022-05-20: the cost is red, red, blue on a red card — the page marks the orbs so, and the
-  // deckplanet feed's own errata text agrees ({r}{r}{u}).
+  // deckplanet feed's own errata text agrees ({r}{r}{u}); the owner kept it so (R-118).
   "P-394": [[/\[sparking\s+5\]\{r\},\s+if\s+your\s+Leader\s+Card/g, "[sparking 5]{r}{r}{u}, if your Leader Card"]],
   "BT12-082": [[/choose\s+1\s+card\s+in\s+your\s+life\s+and\s+flip\s+it\s+face\s+up/g, "choose 1 face-down card in your life and flip it face up"]],
   "P-398": [[/this\s+card\s+is\s+green\s+while\s+in\s+your\s+deck/g, "this card is also treated as mono-green while in your deck"]],
@@ -344,6 +342,8 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   ],
   // 2021-11-26: the whole sentence is reworded by the page.
   "BT15-057": [[/\[Activate:\s+Battle\]\s+Use\s+up\s+to\s+1\s+blue\s+≪Universe\s+6≫\s+card\s+from\s+your\s+Drop\s+Area\s+in\s+a\s+combo;\s+it\s+gets\s+-5000\s+combo\s+power\s+and\s+has\s+its\s+skills\s+negated\s+for\s+the\s+turn\./g, "[Activate: Battle] Choose up to 1 blue ≪Universe 6≫ Battle Card in your Drop Area. Negate its skills for the turn and use it in a combo, and it gets -5000 combo power for the turn."]],
+  // 2021-11-01: the card it plays is {Kaio-Ken Son Goku, Maximum Gains} (BT15-067, its name corrected below).
+  "BT15-068": [[/\{Son\s+Goku,\s+Maximum\s+Gains\}/g, "{Kaio-Ken Son Goku, Maximum Gains}"]],
   "P-337": [[/if\s+the\s+card\s+being\s+played/g, "if the Battle Card being played"]],
   "BT13-060": [[/≪Boujack\s+Brigade≫\s+card\s+or\s+a\s+mono-blue\s+card\s+and\s+you\s+choose/g, "≪Boujack Brigade≫ card and you choose"]],
   "BT11-028": [[/red\s+&lt;Broly:\s+Br&gt;\s+card\s+and\s+you\s+add\s+1\s+card/g, "red &lt;Broly: Br&gt; card, you have no Battle Cards in play, and you add 1 card"]],
@@ -402,6 +402,12 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT8-114": [[/\[ex-evolve\]\{r\}\{y\},\s+<Baby>/g, "[ex-evolve]{r}{y}: <Baby>"]],
   // 2019-11-01: [Energy-Exhaust] added.
   "XD2-09": [[/^\[Blocker\]<br>\[Auto\]/g, "[Blocker]<br>[Energy-Exhaust]<br>[Auto]"]],
+  // 2019-07-24, five cards: "any color other than <colour>" — a multicolour card with that colour in it counts too.
+  "BT7-125": [[/If\s+you\s+have\s+any\s+non-red\s+cards\s+in\s+areas\s+other\s+than\s+your\s+deck,\s+hand,\s+or\s+life,\s+you\s+can't\s+play\s+this\s+card\s+from\s+any\s+area\./g, "You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than red."]],
+  "BT7-126": [[/If\s+you\s+have\s+any\s+non-blue\s+cards\s+in\s+areas\s+other\s+than\s+your\s+deck,\s+hand,\s+or\s+life,\s+you\s+can't\s+play\s+this\s+card\s+from\s+any\s+area\./g, "You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than blue."]],
+  "BT7-127": [[/If\s+you\s+have\s+any\s+non-green\s+cards\s+in\s+areas\s+other\s+than\s+your\s+deck,\s+hand,\s+or\s+life,\s+you\s+can't\s+play\s+this\s+card\s+from\s+any\s+area\./g, "You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than green."]],
+  "BT7-128": [[/If\s+you\s+have\s+any\s+non-yellow\s+cards\s+in\s+areas\s+other\s+than\s+your\s+deck,\s+hand,\s+or\s+life,\s+you\s+can't\s+play\s+this\s+card\s+from\s+any\s+area\./g, "You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than yellow."]],
+  "BT7-129": [[/If\s+you\s+have\s+any\s+non-black\s+cards\s+in\s+areas\s+other\s+than\s+your\s+deck,\s+hand,\s+or\s+life,\s+you\s+can't\s+play\s+this\s+card\s+from\s+any\s+area\./g, "You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than black."]],
   "EX06-18": [[/Drop\s+Areas\s+by\s+your\s+skills\./g, "Drop Areas by your Leader Card's skills."]],
   "BT5-104": [[/for\s+the\s+duration\s+of\s+the\s+battle\.\s+If\s+it's\s+your\s+turn,/g, "for the duration of the battle, and if it's your turn,"]],
   "BT6-106": [[/and\s+choose\s+20\s+cards\s+from\s+your\s+Drop\s+Area/g, "and choose 30 Battle Cards from your Drop Area"]],
@@ -566,6 +572,73 @@ export function unmatchedCorrections(textsByCard: Map<string, string[]>): string
     for (const [wrong] of pairs) {
       if (!texts.some((t) => new RegExp(wrong.source).test(t))) out.push(`${cardId}: /${wrong.source}/ matches nothing`);
     }
+  }
+  return out;
+}
+
+// ── What a card *is*: names, character names, specified cost ────────────────
+
+/**
+ * Official errata to a card's identity rather than its skill text: its card name, its back's name and its character
+ * names (2-3, 2-10). The feed prints the misprint, as it prints the skill-text ones above, so the catalog sync
+ * corrects these on the way in the same way (`correctCardFields`, called by `shapeCatalog`) and re-checks every claim
+ * against the payload it just fetched (`unmatchedFieldCorrections`): each is a `[printed, official]` pair, and a
+ * printed side that no longer matches means the source was fixed upstream (delete the line) or moved (look at it).
+ *
+ * Names matter to play, not only to display: "{Kaio-Ken Son Goku, Maximum Gains}" (BT15-068's corrected text) finds a
+ * card by its card name, and "<Black Masked Saiyan>" a card by a character name.
+ */
+export const FIELD_CORRECTIONS: Record<string, { name?: [string, string]; backName?: [string, string]; characters?: [string[], string[]] }> = {
+  // 2025-01-17: "The character name is Sansyo, and the card is treated as <Sansyo, Interference>" (the feed already
+  // prints the character, not the card name).
+  "P-642": { name: ["Sansho, Interference", "Sansyo, Interference"] },
+  // 2020-06-03: "Character: 〈Vegeta/Trunks: Future〉".
+  "BT10-144": { characters: [["Vegeta", "Trunks"], ["Vegeta", "Trunks: Future"]] },
+  // 2019-06-28: "The correct character name is Evil Wizard Babidi".
+  "P-144": { characters: [["Babidi"], ["Evil Wizard Babidi"]] },
+  // 2018-11-09: "The correct character name is Black Masked Saiyan … just like any other <Black Masked Saiyan> card".
+  "P-075": { characters: [["Masked Saiyan"], ["Black Masked Saiyan"]] },
+  // Not on the errata page: Bandai's card list names BT15-067 "Kaio-Ken Son Goku, Maximum Gains" (checked 2026-11-02,
+  // https://www.dbs-cardgame.com/us-en/cardlist/index.php?free=BT15-067&search=true), and BT15-068's erratum of
+  // 2021-11-01 names it so; the feed drops the "Kaio-Ken". Without this the corrected BT15-068 would find no card.
+  "BT15-067": { name: ["Son Goku, Maximum Gains", "Kaio-Ken Son Goku, Maximum Gains"] },
+};
+
+/**
+ * Official specified costs, in `cards.specified_cost`'s own notation (`specified-cost.ts`). The feed carries no orbs,
+ * so the sync writes these over whatever is stored; `-` is "no colour at all", Bandai's "Color Cost: -".
+ */
+export const SPECIFIED_COST_CORRECTIONS: Record<string, string> = {
+  // 2023-12-08: "Color Cost: ● → -". Its cost of 2 is all generic; the fixed-cost convention (`specifiedCostOf`)
+  // would otherwise charge one black orb.
+  "BT19-140": "-",
+};
+
+const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** A card's name, back name and character names with the official errata applied. Safe to call twice. */
+export function correctCardFields<T extends { name: string; backName: string | null; characters: string[] }>(cardId: string, fields: T): T {
+  const fix = FIELD_CORRECTIONS[cardId];
+  if (!fix) return fields;
+  const out = { ...fields };
+  if (fix.name && out.name === fix.name[0]) out.name = fix.name[1];
+  if (fix.backName && out.backName === fix.backName[0]) out.backName = fix.backName[1];
+  if (fix.characters && sameList(out.characters, fix.characters[0])) out.characters = [...fix.characters[1]];
+  return out;
+}
+
+/**
+ * Which identity corrections no longer match the card as the source prints it (`${cardId}` → its uncorrected
+ * fields). A card absent from the payload is not reported, as in `unmatchedCorrections`.
+ */
+export function unmatchedFieldCorrections(fieldsByCard: Map<string, { name: string; backName: string | null; characters: string[] }>): string[] {
+  const out: string[] = [];
+  for (const [cardId, fix] of Object.entries(FIELD_CORRECTIONS)) {
+    const f = fieldsByCard.get(cardId);
+    if (!f) continue;
+    if (fix.name && f.name !== fix.name[0]) out.push(`${cardId}: name "${fix.name[0]}" is now "${f.name}"`);
+    if (fix.backName && f.backName !== fix.backName[0]) out.push(`${cardId}: back name "${fix.backName[0]}" is now "${f.backName}"`);
+    if (fix.characters && !sameList(f.characters, fix.characters[0])) out.push(`${cardId}: characters ${JSON.stringify(fix.characters[0])} are now ${JSON.stringify(f.characters)}`);
   }
   return out;
 }

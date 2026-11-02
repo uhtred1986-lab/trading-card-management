@@ -186,6 +186,12 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // battle. The mention test below took it for "this card".
   if (/^\s*(?:the |that )?(?:battle |leader |unison )?cards? (?:that )?this card (?:attacked|is attacking|has attacked)\s*$/i.test(mentions)) return { sel: { special: "guard" } };
   if (/^\s*(?:the |that )?(?:battle |leader |unison )?cards? that (?:attacked|is attacking|has attacked) this card\s*$/i.test(mentions)) return { sel: { special: "attacker" } };
+  // Errata-official-2: "Choose **this card or** up to 1 <Broly: Br> card in your Battle Area" (P-092b) is one choice
+  // among this card and the cards described (`orSelf`, `parseTarget`), not this card alone.
+  if (/^\s*(?:choose )?this card or\b/i.test(mentions)) {
+    const sel = parseTarget(mentions.replace(/^\s*choose\s+/i, ""));
+    return sel?.orSelf ? { sel } : null;
+  }
   // 9-1-3-2: "play this card from your hand" keeps the area it names (`selfFrom`).
   if (/\bthis card\b(?!'s)/i.test(mentions) || /\bthis card's\b/i.test(headOf(mentions))) return { sel: selfFrom(mentions) };
   // "…play up to 1 card from under this card, and place this card under the
@@ -1501,6 +1507,16 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       return [{ ...pick, sel: { ...pick.sel, count: undefined, upTo: true }, atMost: { attr: { sel: { special: "subject" } }, name: "specifiedCost" } }, base[1]];
     }
     const counted = compileForEach(t, c);
+    // Errata-official-2 (BT9-076's erratum of 18 Sep 2020): "…+1000 combo power for the duration of the turn for each
+    // card in your Drop Area and Warp **(up to a maximum of 12)**" — the parenthesis is the count's ceiling, not a
+    // reminder, so the amount is capped at 12 of its steps (`capped`). A count it cannot cap is refused: read without
+    // the ceiling it would be the reading the erratum replaced.
+    const maximum = counted ? /\(up to a maximum of (\d+)\)/i.exec(c.raw) : null;
+    if (counted && maximum) {
+      const op = counted.length === 1 ? counted[0] : null;
+      const amount = op && (op.op === "power" || op.op === "comboPower") && typeof op.amount === "object" && "count" in op.amount && !op.amount.per ? op.amount : null;
+      return op && amount ? [{ ...op, amount: { capped: [amount, Number(maximum[1]) * (amount.times ?? 1)] } } as Op] : null;
+    }
     if (counted) return counted;
     // "For each marker on this card, **it** gets +5000 power" (EX19-21):
     // `compileForEach` refused this one because "it" cannot be resolved, but
@@ -3287,9 +3303,21 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   if (/^place this card from under your (?:z-)?leader(?: card)? on top of your leader(?: card)?$/.test(t)) {
     return [{ op: "placeOnTop", target: { sel: { special: "self", area: "under", underHost: { side: "you", area: "leader" } } }, onto: { sel: { special: "leader" } } }];
   }
+  // Errata-official-2 (BT22-001's back, erratum of 25 Aug 2023): "…and **place** up to 1 red <Son Gohan: SH> Z-Leader
+  // from your Z-Deck on top of this card" — a Z-Leader from the Z-Deck becomes the top of this Leader's stack, placed
+  // and not played (as [Z-Awaken]'s own placing, 22-46-6; `placeOnTop`'s Leader stack). Read below as "this card goes
+  // under the card named", it moved the Leader under a card in the Z-Deck. One card, a Leader card, from the Z-Deck.
+  if ((m = /^(?:place|put) ((?:a|an|1|one|up to 1) .+? z-leader(?: card)?) from your z-deck on top of this card$/.exec(t))) {
+    const ref = refFor(`${m[1]} from your z-deck`, c);
+    if (!ref || !("sel" in ref) || ref.sel.area !== "zDeck" || ref.sel.count !== 1 || ref.sel.filter?.type !== "LEADER") return null;
+    return withChoice(ref, clause, c, (target) => ({ op: "placeOnTop", target }));
+  }
   // The same stack said from the other end: this card ends up underneath.
   if ((m = /^(?:place|put) (.+?) on top of this card$/.exec(t))) {
     const host = refFor(m[1], c);
+    // A card that is not in play — in a deck, a hand, a Drop, a Warp — has no stack to put this card under: refused
+    // rather than read as a move of this card under it (BT22-001's back read so before its own reader above).
+    if (host && "sel" in host && !host.sel.special && !host.sel.fromVar && (host.sel.areas ?? [host.sel.area]).some((a) => a && ["deck", "hand", "drop", "warp", "zDeck", "life", "zEnergy", "energy"].includes(a))) return null;
     // #930, [Union-Absorb] (22-13-6-3): "Choose up to 1 <Cell> from your deck
     // and place it on top of this card" (BT2-085, BT2-086, BT2-027, BT2-109,
     // BT3-020, BT3-022, BT3-048, BT3-050) is the Absorb's own play — the chosen
@@ -4850,7 +4878,8 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     // "During your turn, you can't use skills to play Battle Cards" (BT20-024):
     // a play by a skill (`bySkill`), of the cards it names. A declared play is
     // not this rule's.
-    if ((mm = /^use (?:card )?skills to play (.+?)(?:\s+(?:for|during|until)\b.*)?$/.exec(rest))) {
+    // Its erratum (31 Mar 2023) says it the other way round, "you can't play battle cards by skills": the same rule.
+    if ((mm = /^use (?:card )?skills to play (.+?)(?:\s+(?:for|during|until)\b.*)?$/.exec(rest)) || (mm = /^play (battle cards?|cards?) (?:by|using) (?:card )?skills(?:\s+(?:for|during|until)\b.*)?$/.exec(rest))) {
       const what = mm[1].trim();
       const type = /^battle cards?$/.test(what) ? "BATTLE" : /^cards?$/.test(what) ? null : undefined;
       if (type === undefined) return null;
@@ -4886,6 +4915,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       const butKeyword = keywordException(what.replace(/^this card from any area\s+/, ""));
       if (/^this card from any area\b/.test(what) && butKeyword) return [{ op: "forbid", what: "play", side, until: "game", target: { sel: { special: "self" } }, bySkill: true, exceptKeyword: butKeyword, ...withUnless }];
       if (/^this card\b/.test(what) && /\bskills?\b/.test(what)) return null;
+      // A condition after the ban ("…from any area if you have cards in areas …", the errata of BT7-125…129) is not
+      // a span or a place: read as part of "this card" it was dropped and the ban held always. The one shape the
+      // errata print is said the other way round before this (the normaliser); any other is refused.
+      if (/^this card\b/.test(what) && /\bif\b/.test(what)) return null;
       // "…this card from any area" (P-021) is a rule of the card wherever it is, for the game — read from the hand it is played from.
       if (/^this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until: /^this card from any area$/.test(what.trim()) ? "game" : until, target: { sel: { special: "self" } }, ...withUnless }];
       // "…play Battle Cards from their hand **with the skills of cards with
@@ -5555,6 +5588,13 @@ export function taxWordings(text: string): string {
     .replace(/(^|\]\s*|[.:]\s+)unless ([^,.]+?), (you can(?:'|no)t (?:place this card in your combo area|play this card) from any area)(?=\.|$)/gi, (_m, lead: string, escape: string, ban: string) => `${lead}${ban} unless ${escape}`)
     .replace(/(^|\]\s*|[.:]\s+)if (<[^>]+>|\{[^}]+\}) is not under this card, (?:it|this card) (can(?:'|no)t) attack(?=\.|$)/gi, (_m, lead: string, named: string, cant: string) => `${lead}this card ${cant} attack unless ${named} is under this card`)
     .replace(/(^|\]\s*|[.:]\s+)if you (?:don'?t|do not) have ((?:<[^>]+>,\s*)+<[^>]+>,? and <[^>]+>) in your (drop area|battle area|hand|warp), (you can(?:'|no)t play this card from any area)(?=\.|$)/gi, (_m, lead: string, names: string, area: string, ban: string) => `${lead}${ban} unless you have ${names} in your ${area}`)
+    // Errata-official-2: the errata of BT7-125…BT7-129 (24 Jul 2019) put the condition after the ban — "You can't
+    // play this card from any area if you have cards in areas other than your deck, hand, or life that are any color
+    // other than red." Said the way the printed cards said it ("If you have any non-red cards in areas other than …,
+    // you can't play this card from any area"), so it is the condition of the ban and not words after it, with the
+    // erratum's own measure: a card of any colour other than red, a red multicolour card included
+    // (`parseFilter`'s "with a colour other than").
+    .replace(/(^|\]\s*|[.:]\s+)(you can(?:'|no)t play this card from any area) if you have cards in areas other than your deck, hand,? or life that are any colou?r other than (red|blue|green|yellow|black|white)(?=\.|$)/gi, (_m, lead: string, ban: string, colour: string) => `${lead}if you have any cards with a color other than ${colour} in areas other than your deck, hand, or life, ${ban}`)
     // Prohibition batch 6: "…your opponent's [counter] skills and non-keyword
     // [auto]/[activate] skills cannot be activated unless they place 1 card
     // from their life in their Drop Area" (TB1-077): two activation prices,
@@ -6774,9 +6814,25 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       if (last?.op !== "moveTo" || !("sel" in last.target) || last.target.sel.special !== "self") return null;
       return last.to === "warp" || last.to === "drop" || last.to === "hand" || last.to === "deck" || last.to === "energy" ? last.to : null;
     })();
+    // R-117 (owner, 2 Nov 2026, P-493's erratum): "You **may choose 12** of your opponent's … Battle Cards …. If you
+    // do, …" holds only when all 12 were chosen — an offer of an exact count (not "up to") taken with fewer, as 5-2-3
+    // lets a choice be when fewer cards are there, is not "doing" it. So the offer is asked, and the count with it.
+    const offeredExact = (() => {
+      if (c.lastOp !== "may" || !c.last) return null;
+      const open = groups[groups.length - 1];
+      const host = open.sink ?? open.ops;
+      const offer = host[host.length - 1];
+      if (offer?.op !== "may" || !JSON.stringify(offer.ops).includes(`"as":"${c.last}"`)) return null;
+      // Only an offer that is the choice and nothing else — what "if you do" then asks is the choosing itself. An
+      // offer that chooses and then acts ("you may send 4 cards from your Drop to your Warp. If you do", EX13-34) is
+      // asked about its action, as before; R-117 decides the one shape only.
+      if (!offer.ops.every((o) => o.op === "choose")) return null;
+      const all = exactCount(c, c.last);
+      return all.atLeast ? ({ kind: "chose", var: c.last, atLeast: all.atLeast } as Cond) : null;
+    })();
     const decided: Cond | null =
       c.lastOp === "may"
-        ? { kind: "did", what: "may" }
+        ? offeredExact ? { kind: "all", conds: [{ kind: "did", what: "may" }, offeredExact] } : { kind: "did", what: "may" }
         // Phrasing batch 8: "…flip your opponent's Leader Card to the front. **If you do**, …" (BT9-093, BT7-079,
         // BT15-033): the flip happened — a Leader already on its front is not flipped, and what hangs on it does not happen.
         : c.lastOp === "flip"
@@ -6839,7 +6895,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // finer answer; otherwise it is the offer.
       if (open.delay && last?.op === "may" && decided) {
         const askedInside = decided.kind === "chose" && JSON.stringify(last.ops).includes(`"as":"${decided.var}"`);
-        if (decided.kind === "did" || askedInside) {
+        if (decided.kind === "did" || askedInside || (decided.kind === "all" && !!offeredExact)) {
           const branch: Op = { op: "if", cond: decided, then: [] };
           host.push(branch);
           open.sink = branch.then;

@@ -155,6 +155,12 @@ export interface Selector {
    */
   notInBattle?: true;
   /**
+   * "Choose **this card or** up to 1 <Broly: Br> card in your Battle Area" (P-092b's erratum, BT1-001b, EX03-01b,
+   * EX12-02, BT17-059b): the card the skill is on is on offer too, beside the cards the selector describes — one choice
+   * among them all. This card needs none of the selector's measures or areas.
+   */
+  orSelf?: true;
+  /**
    * "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
    * deck flags 26 Oct 2026): which cards is no player's choice — they are taken
    * with the game's own seeded RNG (official Q&A on BT1-073: "completely random

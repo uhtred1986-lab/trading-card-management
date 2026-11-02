@@ -965,6 +965,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "removedFromUnison":
       return /^when this card is removed from (?:a|the|your) unison area(?!\s+(?:by|due|because|using|during))(?:,|$)/.test(head.toLowerCase());
     case "markerRemoved":
+      // Errata-official-2: "…removed from this card **by a non-keyword skill**" (BT11-064's erratum of 25 Dec 2020)
+      // is a narrower moment than any removal — not a [Spirit Boost] price, not an attack (13-5-2) — and the moment
+      // says nothing about the cause, so it is not read here (unread rather than firing on every removal).
+      if (/when a marker is removed from [^,:]*\bby an? non-keyword skill/.test(t)) return false;
       return /when a marker is removed/.test(t);
     // 22-43-3: paying [Spirit Boost X] takes markers off your Unison. These
     // cards watch for that *cost* rather than for a marker leaving, so an

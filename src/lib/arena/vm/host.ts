@@ -258,10 +258,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // card — "place this card from under your Leader on top of your Leader" (BT20-058's Z-Leader).
       const leaderStack = at?.zone === SETUP_ZONES.leader;
       const leaderCard = /LEADER/.test(String(attrsNow(ctx, game, state, id).type ?? ""));
-      if (!top || !state.cards[id] || !top.under.includes(id) || !at || (leaderStack ? !leaderCard : game.zones[at.zone]?.host !== true)) return false;
+      const fromPile = !!top?.under.includes(id);
+      // Errata-official-2 (BT22-001's back, erratum of 25 Aug 2023): a Leader card from its owner's Z-Deck may be placed
+      // on top of that player's Leader, as [Z-Awaken] places one (22-46-6) — placed, not played. It arrives as a new
+      // card (3-1-4), so it is not carried as a pile card is.
+      const seat = findCard(state, id);
+      const fromZDeck = !fromPile && leaderStack && leaderCard && seat?.zone === SETUP_ZONES.zDeck && seat.owner === at?.owner;
+      if (!top || !state.cards[id] || !(fromPile || fromZDeck) || !at || (leaderStack ? !leaderCard : game.zones[at.zone]?.host !== true)) return false;
       const mode = top.mode;
       // A single-card area (the Leader Area) takes the new top card beside the old one only as a card placed onto it.
-      const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: true, ...(leaderStack ? { onto: host } : {}) });
+      const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: fromPile, ...(leaderStack ? { onto: host } : {}) });
       if (!up.ok) return false;
       const down = moveCard(state, game, host, at.zone, { under: id });
       if (!down.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${id}: ${down.refused}`);

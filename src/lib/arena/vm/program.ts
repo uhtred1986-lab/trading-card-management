@@ -1655,7 +1655,10 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
   }
   // #970: cards an earlier choice of this program bound are not on offer again.
   const chosenBefore = sel.notIn?.length ? new Set(sel.notIn.flatMap((v) => frame.vars[v] ?? [])) : null;
-  return out.filter((id) => {
+  // Errata-official-2 (`orSelf`): "choose this card or up to 1 …" — this card is on offer beside the cards described,
+  // needing none of their measures; only that it is still in play.
+  const self = sel.orSelf && frame.card && state.cards[frame.card] && inPlayZones(game).includes(zoneOf(state, frame.card) ?? "") && !chosenBefore?.has(frame.card) ? frame.card : null;
+  const kept = out.filter((id) => {
     if (matchesPrinted && !matchesPrinted(id)) return false;
     if (chosenBefore?.has(id)) return false;
     const card = state.cards[id];
@@ -1774,6 +1777,7 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.special !== "self" && immunityRefusing(ctx, game, state, id, frame.card, frame.master)) return false;
     return true;
   });
+  return self && !kept.includes(self) ? [self, ...kept] : kept;
 }
 
 export function resolveRef(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, ref: Ref): string[] {

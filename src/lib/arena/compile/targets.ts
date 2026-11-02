@@ -207,7 +207,9 @@ const COLOR_COUNT = /^(?:card )?colou?rs?(?: types?)?\s+(?:among|on|in)\s+(.+)$/
 const OWNED_PLACES = /^(your opponent's|your|their)\s+(.+)$/;
 export function colorCountSelector(counted: string): Selector | null | undefined {
   const t = counted.trim();
-  if (!COLOR_WORD.test(t)) return undefined;
+  // "…cards with a color other than red" (errata-official-2, BT7-125…129) counts cards, described by a colour they
+  // have: not a count of colours (`parseFilter` reads the description).
+  if (!COLOR_WORD.test(t.replace(/\bwith an? colou?r other than (?:red|blue|green|yellow|black|white)\b/gi, ""))) return undefined;
   const m = COLOR_COUNT.exec(t);
   if (!m) return null;
   // What the cards are ("mono-color cards", "≪God≫ cards"), then where.
@@ -674,6 +676,16 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // this shortcut: BT1-086's "place all Rest Mode Battle Cards except for this
   // card in the Drop Area" came back as *self*, so the card dropped itself and
   // left every card it was aimed at standing.
+  // Errata-official-2: "Choose **this card or** up to 1 <Broly: Br> card in your Battle Area" (P-092's back, erratum
+  // of 20 Jan 2020), "…or 1 of your Battle Cards" (BT1-001's back, EX12-02), "…or one of your ≪Universe 6≫ Battle
+  // Cards" (EX03-01's back), "…or up to 1 of your green Unison Cards" (BT17-059's back): one choice among this card and
+  // the cards the rest describes (`orSelf`). The shortcut below took it for this card alone and dropped the rest.
+  const orSelf = /^(?:choose\s+)?this card or (.+)$/i.exec(phrase.trim());
+  if (orSelf) {
+    const rest = parseTarget(orSelf[1]);
+    if (!rest || rest.special || rest.fromVar) return null;
+    return { ...rest, orSelf: true, count: rest.count ?? 1, ...(rest.upTo ? { upTo: true } : {}) };
+  }
   if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b|\bbesides\b/.test(t)) {
     // 9-1-3-2: "play this card **from your hand**", "discard this card from
     // your hand", "place this card from your Z-Energy …" — the text names the

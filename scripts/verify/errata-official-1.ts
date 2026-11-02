@@ -121,10 +121,7 @@ assert.deepEqual(grants.map((g) => [g.keyword!.name, g.keyword!.x, g.until]), [[
 // SD14-01: non-black is barred, so a black multicolour card may be played.
 assert.match(recs("SD14-01", { type: "LEADER", colors: ["Black"] })[0].reads, /you can't play non-black battle card/);
 
-// ── 3. held back (the check still lists them; each is the owner's call) ──────────────────────
-// BT7-125…129 would read as an unconditional ban; BT22-001's "place … on top of this card" as a move
-// of the Leader itself; BT24-096's price would drop the energy against R-010; BT15-068 names a card the
-// catalog calls by another name (BT15-067).
-for (const id of ["BT7-125", "BT7-126", "BT7-127", "BT7-128", "BT7-129", "BT22-001", "BT24-096", "BT15-068"]) assert.equal(CORRECTIONS[id], undefined, `${id}: held back, not corrected here`);
+// ── 3. the eight errata-official-1 held back are applied since errata-official-2 (scripts/verify/errata-official-2.ts) ──
+for (const id of ["BT7-125", "BT7-126", "BT7-127", "BT7-128", "BT7-129", "BT22-001", "BT24-096", "BT15-068"]) assert.ok(CORRECTIONS[id], `${id}: corrected since errata-official-2`);
 
-console.log(`errata-official-1: ${CASES.length} official errata through correctSkillText (After wording carried, Before gone, idempotent, drift reported), compiler and legality readings of 8, 8 held back`);
+console.log(`errata-official-1: ${CASES.length} official errata through correctSkillText (After wording carried, Before gone, idempotent, drift reported), compiler and legality readings of 8`);

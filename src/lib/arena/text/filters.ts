@@ -619,6 +619,17 @@ export function parseFilter(text: string): CardFilter {
   // narrows the first description by a second, alternative one — ≪Saiyan≫ and either universe — which one filter
   // cannot say: read flat, the three traits were any one of them. Refused rather than widened.
   if (/\bwhich (?:are|is)\b/i.test(text)) return { ...parseOneFilter(text), unreadable: true };
+  // Errata-official-2 (the errata of BT7-125…BT7-129, 24 Jul 2019): "cards … that are any color other than red", which
+  // the compiler says "cards with a color other than red" — a card that has a colour other than red: every non-red
+  // card, and a red multicolour card too (it is also another colour). "Non-red" alone lets the red multicolour card
+  // through, which is the reading the erratum replaced.
+  const otherColour = /\s*\b(?:with an? colou?r|that (?:are|is) (?:of )?any colou?r) other than (red|blue|green|yellow|black|white)\b/i.exec(text);
+  if (otherColour) {
+    const base = `${text.slice(0, otherColour.index)} ${text.slice(otherColour.index + otherColour[0].length)}`.trim().replace(/^(?:any|an?|1)\s+/i, "") || "card";
+    const alts = [parseOneFilter(`non-${otherColour[1]} ${base}`), parseOneFilter(`multicolor ${base}`)];
+    if (alts.some((a) => a.unreadable)) return { ...parseOneFilter(text), unreadable: true };
+    return { ...emptyFilter(), anyOf: alts };
+  }
   return eitherFilter(text) ?? parseOneFilter(text);
 }
 

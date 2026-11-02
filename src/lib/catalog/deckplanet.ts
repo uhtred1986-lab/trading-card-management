@@ -18,7 +18,7 @@ import { inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards } from "@/db/schema";
 import { applyMastersLeaderImages, applyOfficialImages, fetchOfficialImageNames, mastersLeaderCandidates } from "./bandai";
-import { correctSkillText, unmatchedCorrections } from "./errata";
+import { correctCardFields, correctSkillText, SPECIFIED_COST_CORRECTIONS, unmatchedCorrections, unmatchedFieldCorrections } from "./errata";
 import { staleSpecifiedCosts } from "@/lib/arena/specified-cost";
 import { GAMES, GAME_INFO, arenaPlays, type Game } from "./games";
 import { setCodeOfNumber, setLineFor, setNameFor, setSortKey } from "./sets";
@@ -202,6 +202,8 @@ export interface CatalogCard {
   backImageUrl: string | null;
   deckplanetId: number;
   searchText: string;
+  /** Only an official one (`SPECIFIED_COST_CORRECTIONS`): the feed carries no orbs, and a hand-entered value is kept. */
+  specifiedCost?: string;
 }
 
 export interface CatalogPrint {
@@ -286,11 +288,16 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
       });
     }
 
-    const characters = cleanList(c.card_character);
-    const backName = cleanText(c.card_back_name);
-    const name = cleanText(c.card_name) ?? base;
+    // Official errata to a card's name or character names (errata.ts), as the skill text gets its own below.
+    const { name, backName, characters } = correctCardFields(base, {
+      name: cleanText(c.card_name) ?? base,
+      backName: cleanText(c.card_back_name),
+      characters: cleanList(c.card_character),
+    });
     const rarity = normaliseRarity(cleanText(c.card_rarity), game);
     const searchText = [base, base.replace(/-/g, ""), name, backName ?? "", ...characters].join(" ").toLowerCase();
+    // An official specified cost (BT19-140's "Color Cost: -"): the one value the sync writes to the column.
+    const specifiedCost = SPECIFIED_COST_CORRECTIONS[base];
 
     cardsOut.push({
       id: base,
@@ -327,6 +334,7 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
       backImageUrl: backName ? imageFor(`${base}_b`, base, game) : null,
       deckplanetId: c.id,
       searchText,
+      ...(specifiedCost ? { specifiedCost } : {}),
     });
     printsOut.push(...g.prints.values());
   }
@@ -528,9 +536,10 @@ export async function importCatalog(db: Db, shaped: ShapedCatalog): Promise<Cata
           backImageUrl: sql`case when ${cards.backImageUrl} is null or starts_with(${cards.backImageUrl}, ${IMAGE_BASE})
             then excluded.back_image_url else coalesce(excluded.back_image_url, ${cards.backImageUrl}) end`,
           // The hand-entered cost orbs (issue #255): the feed never carries
-          // any, so `excluded.specified_cost` is always null and a plain
+          // any, so `excluded.specified_cost` is null (but for an official
+          // erratum's `SPECIFIED_COST_CORRECTIONS`, which wins) and a plain
           // overwrite would erase every entry on every sync. Coalesce keeps
-          // what was entered; only the workbench (or a migration) writes it.
+          // what was entered; otherwise only the workbench (or a migration) writes it.
           specifiedCost: sql`coalesce(excluded.specified_cost, ${cards.specifiedCost})`,
           deckplanetId: sql`excluded.deckplanet_id`,
           searchText: sql`excluded.search_text`,
@@ -608,6 +617,14 @@ export async function syncCatalogFor(db: Db, game: Game, opts: CatalogSyncOption
     if (texts.length) rawText.set(id, [...(rawText.get(id) ?? []), ...texts]);
   }
   for (const stale of unmatchedCorrections(rawText)) console.warn(`errata.ts is stale — ${stale}`);
+  // The same for the corrected names and character names, read off each card's own row (its base number).
+  const rawFields = new Map<string, { name: string; backName: string | null; characters: string[] }>();
+  for (const c of raw) {
+    const id = baseNumber(c.card_number.trim());
+    if (c.card_number.trim() !== id && rawFields.has(id)) continue;
+    rawFields.set(id, { name: cleanText(c.card_name) ?? id, backName: cleanText(c.card_back_name), characters: cleanList(c.card_character) });
+  }
+  for (const stale of unmatchedFieldCorrections(rawFields)) console.warn(`errata.ts is stale — ${stale}`);
 
   const shaped = shapeCatalog(raw, game);
   if (game === "fusion") {

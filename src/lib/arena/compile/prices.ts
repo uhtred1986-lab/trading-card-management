@@ -379,8 +379,11 @@ export const IF_YOU_ACTION_PRICE = /^if you (?:discard|place|send|remove|return)
  * P-106's official Q&A counts the Leader, the Battle Area and the energy for Rest Mode, and "switch 2 of your cards to
  * Rest Mode" (BT23-140) is any 2 Active Mode cards. So the price chooses that many from every area a card has a mode in
  * (the Leader, Battle and Unison Areas, and the energy) and rests them; with fewer than that many it cannot be paid.
+ * The owner's ruling of 2 Nov 2026 (R-116) carries this over to the wording BT24-096's erratum prints, "{y}{y}, **switch
+ * 5 of your yellow cards to Rest Mode**:" — the action stated as the price, with no "if you" — and to the cards that
+ * print it so ("Switch 1 of your yellow cards to Rest Mode:", EX25-24), which `splitPrice` reads first.
  */
-const IF_YOU_SWITCH_COLOUR_CARDS = /^if you switch (\d+) ((?:mono-)?(?:red|blue|green|yellow|black|white)) cards to rest mode$/i;
+const IF_YOU_SWITCH_COLOUR_CARDS = /^(?:if you )?switch (\d+) (?:of your )?((?:mono-)?(?:red|blue|green|yellow|black|white)) cards to rest mode$/i;
 function switchColourCardsPrice(said: string): Script | null {
   const m = IF_YOU_SWITCH_COLOUR_CARDS.exec(said.trim());
   if (!m) return null;
@@ -476,6 +479,9 @@ function readPrice(printed: string, skill: Skill): PriceSplit {
   // would keep the condition half-read: left unread whole.
   if (disjointMoveSpans(said).length && /[―—–]|--/.test(said)) return NO_PRICE;
   const cued = /^(?:if|when|while|during)\b/i.test(said);
+  // R-116: "switch 5 of your yellow cards to Rest Mode" (BT24-096's erratum) is R-010's price, not a choice of cards in play.
+  const switchedBare = cued ? null : switchColourCardsPrice(said);
+  if (switchedBare) return { conds: [], program: switchedBare };
   const whole = cued ? null : compileAction(said, skill);
   if (whole) return { conds: [], program: whole };
   // "If X, and you do Y": every place the sentence could be cut in two, the

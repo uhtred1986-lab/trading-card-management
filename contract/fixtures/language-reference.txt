@@ -3986,6 +3986,10 @@
       "part": "flag"
     },
     {
+      "field": "orSelf",
+      "part": "flag"
+    },
+    {
       "field": "atRandom",
       "part": "flag"
     },
@@ -4058,6 +4062,10 @@
     {
       "word": "notInBattle",
       "doc": "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)"
+    },
+    {
+      "word": "orSelf",
+      "doc": "the card the skill is on is on offer too, beside the cards described — \"choose this card or up to 1 <Broly: Br> card in your Battle Area\" (P-092b)"
     },
     {
       "word": "atRandom",
