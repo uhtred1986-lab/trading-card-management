@@ -518,6 +518,13 @@ function otherThanSelf(subject: string): { notSelf?: "card" } {
   return /\banother\b|\bother\b(?! than)|\bother than this card\b/.test(said) ? { notSelf: "card" } : {};
 }
 
+/** Audit lane C (R-163): two conditions that ask the same kind of question — two counts of one area, two Leader tests. */
+function sameQuestion(a: Cond, b: Cond): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "count" && b.kind === "count") return a.sel.area === b.sel.area && a.sel.side === b.sel.side;
+  return true;
+}
+
 function substitutable(ops: Op[]): boolean {
   return ops.length > 0 && !ops.some((o) => NOT_RUNNABLE.has(o.op));
 }
@@ -4964,7 +4971,18 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
         if (!exceptFilter || unreadFilterWords(otherThan[1], exceptFilter).length) return null;
         return [{ op: "forbid", what: "play", side, until, exceptFilter, ...withUnless }];
       }
-      if (/\bother than\b/.test(what)) return null;
+      // Audit lane C (2 Nov 2026): "…you can't play **Battle Cards that aren't red ≪Saiyan≫ cards** for the turn"
+      // (BT13-028) — the same exception said of one kind of card: plays of that kind (`filter`), the described ones let
+      // through (`exceptFilter`). Read before as the description banned, it banned the one kind the card allows.
+      const kindBut = /^(battle|unison|extra) cards? (?:other than|that (?:are|is)(?:n'?t| not)) (.+?)(?:\s+(?:for|during|until)\b.*)?$/.exec(what);
+      if (kindBut) {
+        const said = /\bcards?$/.test(kindBut[2]) ? kindBut[2] : `${kindBut[2]} card`;
+        const exceptFilter = filterFor(said, null);
+        if (!exceptFilter || unreadFilterWords(said, exceptFilter).length) return null;
+        const type = kindBut[1] === "battle" ? ("BATTLE" as const) : kindBut[1] === "unison" ? ("UNISON" as const) : ("EXTRA" as const);
+        return [{ op: "forbid", what: "play", side, until, filter: { ...parseFilter(""), type }, exceptFilter: { ...exceptFilter, type }, ...withUnless }];
+      }
+      if (/\bother than\b|\bthat (?:are|is)(?:n'?t| not)\b/.test(what)) return null;
       // "…and you can't play cards from your deck for the rest of the game"
       // (P-496, prohibition batch 6): any play of a card in that player's deck.
       if (side === "you" && /^cards from your deck(?:\s+(?:for|during|until)\b.*)?$/.test(what)) return [{ op: "forbid", what: "play", side, until, fromArea: "deck", ...withUnless }];
@@ -7272,6 +7290,20 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // from your energy …": the other half of the question the delayed part asks, asked at the same later moment.
       else if (open.delay && open.ops.length && !open.sink && JSON.stringify(cond.cond).includes(`"fromVar":"${PLACED_IN_ENERGY}"`) && JSON.stringify(open.innerConds ?? []).includes(`"fromVar":"${PLACED_IN_ENERGY}"`)) groups.push({ conds: [...open.conds], ops: [], delay: open.delay, innerConds: [cond.cond] });
       else if (chaining) open.conds.push(cond.cond);
+      // Audit lane C (2 Nov 2026): "If the Battle Card being played has 15000 power or less, it is placed in its owner's
+      // Drop Area instead of being played, **and if** it's your opponent's turn, choose up to 1 of your Leader Cards and
+      // it gets +5000 power" (BT8-022): the second "if", joined to the first's effect by "and" in the same sentence,
+      // is asked inside the first (Q&A BT8-022: with a card over 15000 power, the +5000 "won't resolve"). Read as a
+      // sibling it gave the +5000 whatever was played. A branch of the open group, so the first condition is asked
+      // once, before its own effect has changed what it asked about. R-163: the same kind of question twice ("if you
+      // have 2 or more red cards in your energy, …, and if you have 2 or more yellow cards in your energy, …",
+      // BT24-127) is two parallel conditions, as before.
+      else if (joined[i] && /^if\b/.test(clause.trim()) && open.conds.length && open.ops.length && !open.delay && !open.sink && !open.conds.some((oc) => sameQuestion(oc, cond.cond))) {
+        const branch: Op = { op: "if", cond: cond.cond, then: [] };
+        open.ops.push(branch);
+        open.sink = branch.then;
+        open.sinkCond = cond.cond;
+      }
       else groups.push({ conds: [cond.cond], ops: [] });
       if (cond.subject) c.lastTarget = cond.subject;
       // Phrasing batch 2: "[Permanent] While there are 2 or more cards under **this card**, **it** gets +15000 power"

@@ -483,6 +483,18 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
     [/\[energy-exhaust\]\s+\[arrival/g, "[energy-exhaust]<br>[arrival"],
     [/(\{Super\s+Baby\s+2,\s+Awakened\s+Malevolence\}):\s+\[permanent\]/g, "$1:<br>[permanent]"],
   ],
+
+  // Audit lane C (2 Nov 2026). NOT official errata: catalog misprints the compiler read literally, each a condition or
+  // a measure lost. A name no card has ("<Suepr 17>", "{Zen-Oh, Once Who Wipes Away}" — the Leader is {Zen-Oh, One
+  // Who Wipes Away}) made the skill unusable; a broken measure ("cost o 4", "power of less", "5or less") was dropped,
+  // so the choice took any card. P-020's copy breaks its one [Auto] sentence in two at a <br>, and the second half
+  // became a [Permanent] that gave [Double Strike] always.
+  "BT26-018": [[/<Suepr\s+17>/g, "<Super 17>"]],
+  "BT27-115": [[/\{Zen-Oh,\s+Once\s+Who\s+Wipes\s+Away\}/g, "{Zen-Oh, One Who Wipes Away}"]],
+  "BT27-045": [[/energy\s+cost\s+o\s+4/g, "energy cost of 4"]],
+  "BT30-008": [[/25000\s+power\s+of\s+less/g, "25000 power or less"]],
+  "P-606": [[/energy\s+cost\s+of\s+5or\s+less/g, "energy cost of 5 or less"]],
+  "P-020": [[/with\s+this\s+skill,\s*<br>\s*this\s+card\s+gains/g, "with this skill, this card gains"]],
 };
 
 /**

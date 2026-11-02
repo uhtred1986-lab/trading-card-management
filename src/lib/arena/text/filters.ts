@@ -634,7 +634,8 @@ export function hasEnergyBound(f: CardFilter): boolean {
   return f.costAtMostEnergy || f.costBelowEnergy || f.costAtLeastEnergy || f.costAboveEnergy;
 }
 
-export function parseFilter(text: string): CardFilter {
+export function parseFilter(text0: string): CardFilter {
+  const text = negativeClauses(text0);
   // Phrasing batch 2: "your other ≪Saiyan≫ Battle Cards in play **which are** ≪Universe 7≫ or ≪Universe 6≫" (TB1-004)
   // narrows the first description by a second, alternative one — ≪Saiyan≫ and either universe — which one filter
   // cannot say: read flat, the three traits were any one of them. Refused rather than widened.
@@ -651,6 +652,27 @@ export function parseFilter(text: string): CardFilter {
     return { ...emptyFilter(), anyOf: alts };
   }
   return eitherFilter(text) ?? parseOneFilter(text);
+}
+
+/**
+ * Audit lane C (2 Nov 2026): an exclusion said as a relative clause, rewritten into the words the filter reads it from.
+ * "…card with an energy cost of 5 or less **that isn't a <Tora> card**" (BT13-006), "…**that aren't <Announcer> cards**"
+ * (P-162) are "non-<Tora>"; "…**that doesn't have ≪Great Ape≫**" (BT18-096) "non-≪Great Ape≫"; "…**that don't have
+ * [Super Combo] skills**" (P-237) "non-[Super Combo]"; "…**that don't have <Lord Slug> in their character names**"
+ * (BT19-112) and "…**that does not include <Son Goku: GT>**" (BT21-035, the character name) "without <X> in their
+ * character names"; and "non- ≪Universe 7≫" with a space after the hyphen (SD11-03) the same "non-". Read before, the
+ * relative clause was dropped and its name or trait kept as a requirement — the very card it rules out, asked for.
+ * Only a bare name, trait or keyword is rewritten; anything more stays as printed.
+ */
+function negativeClauses(text: string): string {
+  const NAME = "(?:<[^>]+>|≪[^≫]+≫|\\{[^}]+\\}|\\[[^\\]]+\\])";
+  return text
+    .replace(/\bnon-\s+(?=[<≪{[])/gi, "non-")
+    .replace(new RegExp(`\\s*,?\\s*(?:that|which) (?:do(?:es)?\\s?n'?o?t|do(?:es)? not) (?:have|include) (<[^>]+>|\\{[^}]+\\}) in (?:its|their) (character|card) names?\\b`, "gi"), (_w, n: string, which: string) => ` without ${n} in their ${which} names`)
+    .replace(new RegExp(`\\s*,?\\s*(?:that|which) (?:do(?:es)?\\s?n'?o?t|do(?:es)? not) include (<[^>]+>)(?!\\s+in\\b)`, "gi"), (_w, n: string) => ` without ${n} in their character names`)
+    .replace(new RegExp(`\\s*,?\\s*(?:that|which) (?:is|are)(?:n'?t| not) (?:an? )?(${NAME})(?: cards?)?(?=\\s|$|[,.])`, "gi"), (_w, n: string) => ` non-${n}`)
+    .replace(new RegExp(`\\s*,?\\s*(?:that|which) (?:do(?:es)?\\s?n'?o?t|do(?:es)? not) have (?:an? |any )?(${NAME})(?: skills?)?(?=\\s|$|[,.])`, "gi"), (_w, n: string) => ` non-${n}`)
+    .replace(/\s{2,}/g, " ");
 }
 
 /**

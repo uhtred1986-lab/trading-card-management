@@ -335,6 +335,12 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
       // bare connective — so the condition was thrown away and everything
       // the sentence made conditional happened anyway (20-16).
       .replace(/^(if you (?:do|did))\s+so\b/i, "$1")
+      // Audit lane C (2 Nov 2026): a sentence that opens on "Then" keeps opening on a capital once the word is gone —
+      // "…if it's a green ≪Ginyu Force≫ card with an energy cost of 2, you may play it. **Then draw 1 card.**"
+      // (BT10-061): the clause list reads a capital as a new sentence, outside the condition the one before opened
+      // (the "Then," follow-up of BT3-043's FAQ). Stripped to "draw 1 card", the draw stayed inside the reveal's
+      // condition.
+      .replace(/^Then\s+([a-z])/, (_w, ch: string) => ch.toUpperCase())
       .replace(/^(?:then|and|if you do|if so)\s+/i, "")
       .trim();
     if (!c) return;

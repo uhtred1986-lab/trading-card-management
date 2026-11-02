@@ -236,6 +236,41 @@ const leaderFilters = (rec: Rec) => conds(rec).flatMap((c) => (c.kind === "leade
   records += 7;
 }
 
+// J. Exclusions said as a relative clause; a play exception of one kind of card.
+{
+  const pick = (rec: Rec) => ops(rec).filter((o): o is Extract<Op, { op: "choose" }> => o.op === "choose").map((o) => o.sel.filter!);
+  const tora = pick(record("[Auto] When this card is played from your hand, add up to 1 red ≪Bardock's Crew≫ card with an energy cost of 5 or less that isn't a <Tora> card from your Drop Area to your hand.", "BT13-006"))[0];
+  assert.ok(tora.notCharacters.includes("tora") && !tora.characters.length, "J: BT13-006 — not a <Tora>");
+  const slug = pick(record("[auto] When this card is played, play up to 2 ≪Slug's Army≫ cards with energy costs of 3 or less that don't have <Lord Slug> in their character names from your deck, then shuffle your deck.", "BT19-112"))[0];
+  assert.ok(slug.notCharactersIncluding.includes("lord slug") && !slug.charactersIncluding.length, "J: BT19-112 — without <Lord Slug> in the name");
+  const ape = pick(record("[auto] When this card is played, play up to 1 yellow <Son Goku: Childhood> card with an energy cost of 4 or less that doesn't have ≪Great Ape≫ from your Drop.", "BT18-096"))[0];
+  assert.ok(ape.notTraits.includes("great ape") && !ape.traits.length, "J: BT18-096 — not ≪Great Ape≫");
+  const combo = ops(record("[Auto] When this card is played, shuffle up to 7 mono-green Battle Cards with energy costs of 7 or less that don't have [Super Combo] skills from your Drop Area into your deck.", "P-237")).find((o) => o.op === "choose");
+  assert.ok(combo && combo.op === "choose" && combo.sel.filter?.notKeywords.includes("Super Combo"), "J: P-237 — not [Super Combo]");
+  const u7 = forbids(record("[Auto] When you play this card, it gets +10000 power and you can't play non- ≪Universe 7≫ Battle Cards for the duration of the turn.", "SD11-03"));
+  assert.ok(u7.length === 1 && u7[0].filter?.notTraits.includes("universe 7"), "J: SD11-03 — \"non- ≪Universe 7≫\" with its space");
+  const saiyan = forbids(record("[auto] At the start of your opponent's turn, draw 1 card. You can't play Battle Cards that aren't red ≪Saiyan≫ cards for the turn.", "BT13-028"));
+  assert.ok(saiyan.length === 1 && saiyan[0].filter?.type === "BATTLE" && saiyan[0].exceptFilter?.traits.includes("saiyan") && saiyan[0].exceptFilter.colors.includes("Red"), "J: BT13-028 — every Battle Card but the red ≪Saiyan≫ ones");
+  records += 6;
+}
+
+// K. What hangs on what: "if you do, choose one", "and if", a "Then" sentence, a trailing condition before a menu.
+{
+  const tree = (rec: Rec): string => JSON.stringify(rec.ops, (k, v) => (k === "sel" || k === "target" || k === "label" || k === "reason" || k === "filter" ? undefined : v));
+  const ifDo = record("[Auto] When you combo with this card, you may choose 1 card from your hand and place it in your Drop Area. If you do, choose one— ・Draw 1 card. ・Choose 1 Battle Card in your opponent's Drop Area, return it to your opponent's deck, then your opponent shuffles their deck.", "BT7-017");
+  assert.match(tree(ifDo), /"op":"if","cond":\{"kind":"chose","var":"c0"\},"then":\[\{"op":"chooseMode"/, "K: BT7-017 — the menu hangs on the discard");
+  const nested = record("[Counter: Play] If the Battle Card being played has 15000 power or less, it is placed in its owner's Drop Area instead of being played, and if it's your opponent's turn, choose up to 1 of your Leader Cards and it gets +5000 power for the duration of the turn.", "BT8-022");
+  // The lone outer condition is the record's own (`cond`); the turn's is inside it, beside the replacement.
+  assert.ok(nested.cond?.kind === "count" && nested.ops.some((o) => o.op === "resolvingPlay") && nested.ops.some((o) => o.op === "if" && o.cond.kind === "isTurnPlayer"), "K: BT8-022 — R-163: the +5000 is asked inside the 15000-power check (Q&A BT8-022)");
+  const parallel = record("[auto] When this card is played, if you have 2 or more red cards in your energy, choose up to 1 of your red Unisons and add 1 marker to it, and if you have 2 or more yellow cards in your energy, choose up to 1 of your opponent's Battle Cards or Unisons and switch it to Rest Mode.", "BT24-127");
+  assert.equal(parallel.ops.filter((o) => o.op === "if").length, 2, "K: BT24-127 — R-163: two parallel colour counts");
+  const then = record("[Auto] When this card attacks, reveal the top card of your deck; if it's a green ≪Ginyu Force≫ card with an energy cost of 2, you may play it. Then draw 1 card.", "BT10-061");
+  assert.equal(then.ops[then.ops.length - 1].op, "draw", "K: BT10-061 — \"Then draw 1 card.\" is outside the reveal's condition");
+  const turn = record("[Activate: Battle] If your Leader Card is a green <Vegito> card, it gets +15000 power for the duration of the battle, and if it is your turn, also choose one— ・Choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less and KO it. ・Choose up to 1 of your opponent's Battle Cards with an energy cost of 2 or less, ignoring [Barrier], and KO it.", "EX06-21");
+  assert.match(tree(turn), /"op":"if","cond":\{"kind":"isTurnPlayer"\},"then":\[\{"op":"chooseMode"/, "K: EX06-21 — the menu only on your turn");
+  records += 5;
+}
+
 // ── 2. the VM ────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,
@@ -254,6 +289,8 @@ const defs: Record<string, CardDef> = {
   HANDVS: card("HANDVS", { skill: "[Activate: Main] If your opponent has more cards in their hand than you, draw 1 card." }),
   GOHAN: card("GOHAN", { name: "Son Gohan, Awakened Hidden Power", characters: ["Son Gohan"] }),
   UNDEREITHER: card("UNDEREITHER", { skill: "[Activate: Main] If there is a {Son Gohan, Awakened Hidden Power} under your Leader or your opponent's Leader, draw 1 card." }),
+  // K: the menu hangs on the discard
+  IFDO: card("IFDO", { skill: "[Activate: Main] You may choose 1 card from your hand and place it in your Drop Area. If you do, choose one— ・Draw 2 cards. ・Draw 3 cards." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
@@ -424,6 +461,23 @@ for (const seat of ["p1", "p2"] as const) {
     assert.deepEqual(pick("any"), [atk, guard].sort(), `${seat}: I: either end`);
     assert.ok(!pick("notAttacker").includes(atk) && pick("notAttacker").includes(other), `${seat}: I: every card but the attacker`);
     cases += 3;
+  }
+
+  // K. "If you do, choose one": declining the discard is no menu at all.
+  {
+    let s = fresh(seat, seed(11));
+    const me = stage(s, seat, "IFDO", "battle");
+    s = take(s, offersOf(s, me)[0].action);
+    for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) {
+      const q = s.prompt;
+      const who = (q as { player: PlayerId }).player;
+      if (q.kind === "chooseCards") s = take(s, { type: "choose", player: who, cards: [] });
+      else if (q.kind === "chooseMode") assert.fail(`${seat}: K: no menu after declining`);
+      else if (q.kind === "payCost") s = take(s, { type: "payCost", player: who, option: 0 } as Action);
+      else s = take(s, { type: "pass", player: who } as Action);
+    }
+    assert.equal(s.sides[seat].zones.hand.length, 0, `${seat}: K: nothing drawn when nothing was discarded`);
+    cases++;
   }
 }
 console.log(`audit-conditions-1: ${records} records, ${cases} VM cases — ok`);
