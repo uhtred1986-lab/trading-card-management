@@ -7,7 +7,7 @@
  *     is their Charge Phase (DB3-099, P-469); "…at the start of your next Charge Phase" is yours (BT25-051); a list of
  *     grants said with commas shares the span at its end (BT26-138, BT27-061); a negation said before the play's place,
  *     or with no span at all, is not "for the turn" (EX23-37, DB2-088, BT21-063); "for the duration of your opponent's
- *     next turn, …" opens the rule at that turn (BT6-023); P-685's "until te end" (errata.ts). R-200 (pending): an
+ *     next turn, …" opens the rule at that turn (BT6-023); P-685's "until te end" (errata.ts). R-200 (RM 1-7-2-2): an
  *     untimed negation or grant lasts while its card stays.
  * B.  Cost changes say their orbs and span; "[Activate: Main]" / "[Activate: Battle]" reach that timing alone; a "next time
  *     you activate X on <described> card" waits for the next such activation on any card it describes (R-201, pending).
@@ -18,6 +18,9 @@
  * E.  Your own activation bans ("you can't activate {X} / {X}'s [kind] skill / [Counter: Attack] skills for the turn") are read.
  * F.  The describer: a move says the deck's end, the mode, whose area and the card it goes under; an "if" followed by more
  *     clauses says "(end if)".
+ * G.  The lane's review: a "for each … by / with / using this skill" tally no reader takes is unread, never flat (BT30-038,
+ *     EX19-21); "(… token has 10000 power)" (BT2-102); "your opponent shuffles their deck"; BT27-124's "Batte Area" and
+ *     BT1-081's run-on [Permanent] (errata.ts).
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where the engine learned something (`ownNextTurn`'s end).
@@ -280,6 +283,32 @@ for (const [id, text, rules] of [
   assert.doesNotMatch(describeScript([{ op: "draw", n: 2 }, gate]), /end if/, "F: …and an if that ends the reading needs no marker");
   // A stored reading carries it (BT9-127: the life card to energy in Rest Mode).
   assert.match(record("BT9-127", "[Auto] Choose 1 card in your hand and place it at the bottom of your deck: When this card attacks, choose 1 card in your life and place it in your energy in Rest Mode.").reads, /move the chosen cards to energy in Rest Mode$/, "F: BT9-127");
+}
+
+// G. The lane's review. A tally of what the skill (or its price) did that no reader takes is unread, never a flat
+// amount; a token's reminder in the singular; whose shuffle; two catalog texts fixed in `errata.ts`.
+{
+  const bt30 = skillRecords(card("BT30-038", { skill: "[permanent] This card can't attack.<br>[auto][burst 3] When this card is played, draw 2 cards.<br>[activate: main]{u}{u}{u}: Play this card from your hand.<br>[activate: main] Place this card into its owner's Drop, then place any number of cards from your hand into their owner's Drop: Choose up to 1 of your cards and it gets +3000 power until the end of your opponent's turn for each card placed into its owner's Drop by this skill." })).find((r) => r.skillIndex === 30);
+  assert.ok(bt30 && bt30.unread.length && !opsDeep(bt30.ops).some((o) => o.op === "power" && o.amount === 3000), `G: BT30-038 — the count of cards placed by this skill is unread, not a flat +3000 (${bt30?.reads})`);
+  const ex19 = skillRecords(card("EX19-21", { skill: "[-X][Auto] When your Leader Card is attacked, you may have it get +5000 power for the battle for each marker you removed from this card with this skill." }));
+  assert.ok(ex19.some((r) => r.unread.length) && !ex19.some((r) => opsDeep(r.ops).some((o) => o.op === "power")), `G: EX19-21 — the [-X] tally is unread, not "for each of this card" (${ex19.map((r) => r.reads).join(" | ")})`);
+  // The readers it must not take: the cards a price removed from the game (XD3-07) and a [Spirit Boost X]'s markers (BT14-029).
+  const bt14 = record("BT14-029", "[Counter: Attack][Spirit Boost X] If your Leader Card is mono-red: Choose up to 1 of your opponent's cards and it gets -5000 power for the turn. If you removed a marker from one of your red Unison Cards using this skill, choose up to 1 of your opponent's cards and it gets -5000 power for the turn for each marker you removed using this skill.");
+  assert.ok(opOf(bt14, "power").some((o) => typeof o.amount === "object" && "x" in o.amount), `G: BT14-029 — still X markers (${bt14.reads})`);
+  for (const id of ["BT2-102"]) {
+    const front = record(id, "[Auto] When this card attacks, play 1 Chilled's Army token. (Chilled's Army token has 10000 power)");
+    assert.equal(opOf(front, "token")[0]?.power, 10000, `G: ${id} — "token has 10000 power" (${front.reads})`);
+    const back = record(id, "[Auto] When this card attacks, draw 1 card and play 1 Chilled's Army token. (Chilled's Army token has 10000 power)");
+    assert.equal(opOf(back, "token")[0]?.power, 10000, `G: ${id} back — the same reminder`);
+  }
+  assert.equal(describeScript([{ op: "shuffle", side: "opponent" }]), "your opponent shuffles their deck", "G: whose shuffle");
+  assert.equal(describeScript([{ op: "shuffle" }]), "shuffle", "G: …your own, as before");
+  // errata.ts: BT27-124's "Batte Area" and BT1-081's [Permanent] run on into its [Field] line.
+  const bt27 = skillRecords(card("BT27-124", { skill: correctSkillText("BT27-124", "[Permanent] Negate the [Energy-Exhaust] skills on Blue/Green multicolor ≪Red Ribbon Army≫ cards in all of your areas.\n[br]\n[Auto] When this card is placed in a Batte Area, switch up to 1 of your blue ≪Red Ribbon Army≫ Leaders to Active Mode.") })).find((r) => r.skillIndex === 10);
+  assert.ok(bt27 && !bt27.unread.length && bt27.trigger.length, `G: BT27-124 — the [Auto]'s moment reads (${bt27?.unread})`);
+  const bt1 = skillRecords(card("BT1-081", { type: "EXTRA", skill: correctSkillText("BT1-081", "[Field] (Place and activate this card in the Battle Area. It remains in the Battle Area until you activate another [Field]. When you do, place this card in the Drop Area)[Permanent] Your hand is not affected by your  Leader Card Broly's skill.") }));
+  assert.ok(bt1.some((r) => r.kind === "permanent" && r.unread.length && /<Broly> Leader Card's skill/.test(r.printed)), `G: BT1-081 — its [Permanent] is its own line, and unread (${JSON.stringify(bt1.map((r) => [r.skillIndex, r.kind, r.unread]))})`);
+  records += 6;
 }
 
 console.log(`audit-effects-1: ${records} records read as printed`);

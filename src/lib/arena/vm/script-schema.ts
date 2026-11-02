@@ -433,7 +433,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'the master names a whole number, which the rest of the program reads as X ("the declared number"); asked as a "choose one" among the numbers',
   },
   win: { fields: [SIDE], sentence: "{side:your opponent wins|you win} the game", doc: "a skill ends the game with its master (or, with side, the other player) the winner; nothing after it in the program is played" },
-  shuffle: { fields: [SIDE, { name: "areas", type: { list: { enum: ["deck", "life"] } } }, { name: "inspectedOnly", type: "boolean" }], sentence: "shuffle" },
+  shuffle: {
+    fields: [SIDE, { name: "areas", type: { list: { enum: ["deck", "life"] } } }, { name: "inspectedOnly", type: "boolean" }],
+    // Audit lane E review (describe only): whose deck — "reveal the top 1 card in your opponent's deck, shuffle" read as
+    // if you shuffled your own (R-203's ≪Universe 10≫ reveals).
+    sentence: (raw) => {
+      const side = (raw as OpOf<"shuffle">).side;
+      return side === "opponent" ? "your opponent shuffles their deck" : side === "both" ? "each player shuffles their deck" : "shuffle";
+    },
+  },
   invokeSkill: {
     fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
     sentence: (raw) => {

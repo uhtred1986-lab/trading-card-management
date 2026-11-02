@@ -215,6 +215,8 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "P-683": [[/\[Barrier\]\s+until\s+he\s+end\s+of/g, "[Barrier] until the end of"]],
   // Audit lane E (2 Nov 2026): misspellings the compiler read literally.
   "P-685": [[/Active\s+Mode\s+until\s+te\s+end\s+of/g, "Active Mode until the end of"]],
+  // Audit lane E review: "When this card is placed in a Batte Area" left the [Auto]'s moment unread.
+  "BT27-124": [[/placed\s+in\s+a\s+Batte\s+Area/g, "placed in a Battle Area"]],
 
   // ── Official errata, all of them (errata-official-1, 2 Nov 2026) ──────────
   // Bandai's errata page (https://www.dbs-cardgame.com/us-en/rule/errata-cards.php), snapshot in
@@ -413,7 +415,12 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "EX06-18": [[/Drop\s+Areas\s+by\s+your\s+skills\./g, "Drop Areas by your Leader Card's skills."]],
   "BT5-104": [[/for\s+the\s+duration\s+of\s+the\s+battle\.\s+If\s+it's\s+your\s+turn,/g, "for the duration of the battle, and if it's your turn,"]],
   "BT6-106": [[/and\s+choose\s+20\s+cards\s+from\s+your\s+Drop\s+Area/g, "and choose 30 Battle Cards from your Drop Area"]],
-  "BT1-081": [[/affected\s+by\s+your\s+Leader\s+Card\s+Broly's\s+skill/g, "affected by your &lt;Broly&gt; Leader Card's skill"]],
+  "BT1-081": [
+    [/affected\s+by\s+your\s+Leader\s+Card\s+Broly's\s+skill/g, "affected by your &lt;Broly&gt; Leader Card's skill"],
+    // Audit lane E review: the catalog runs the [Permanent] on into the [Field] line ("…in the Drop Area)[Permanent]
+    // Your hand…"), so the keyword line swallowed it and it read as nothing. Its own line, as the card prints it.
+    [/Drop\s+Area\)\s*\[Permanent\]/g, "Drop Area)<br>[Permanent]"],
+  ],
   "TB2-008": [[/15000\s+or\s+less\s+power,\s+add\s+them\s+to\s+your\s+hand/g, "15000 or less power, add them from your deck to your hand"]],
   "BT4-003": [[/power\s+is\s+40000\s+or\s+more,\s+your\s+opponent/g, "power is 40000 or more and your Leader Card is a red ≪Saiyan≫ card, your opponent"]],
   "EX03-16": [[/and\s+KO\s+it\.\s+If\s+they\s+don't\s+KO\s+a\s+card\s+this\s+way/g, "and KO it, and if they don't KO a card this way"]],

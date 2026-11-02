@@ -937,6 +937,11 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
     const swapped = swapForEachAmount(op, (printed) => (printed === 1 ? { x: true } : { x: true, times: printed }));
     return swapped ? [swapped, ...rest] : null;
   }
+  // Audit lane E review: any other tally of what this skill (or its price) did — "+3000 power … for each card placed into
+  // its owner's Drop by this skill" (BT30-038, this card included by its Q&A), "+5000 power for the battle for each marker
+  // you removed from this card with this skill" ([-X], EX19-21) — is not a count of the board: read as one, "this card"
+  // anywhere in the phrase counted the card itself, a flat +5000. Refused, so the clause stays unread.
+  if ((lead || m![2] !== "equal to the number of") && /\b(?:by|with|using) this skill\b/.test(counted)) return null;
   const per = step > 1 ? { per: step } : {};
   // "For each marker on X" is a marker total, not a count of matching cards —
   // reading it as `count` asked how many cards are named "this card" (always
@@ -1536,6 +1541,10 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       return op && amount ? [{ ...op, amount: { capped: [amount, Number(maximum[1]) * (amount.times ?? 1)] } } as Op] : null;
     }
     if (counted) return counted;
+    // Audit lane E review: a "for each … by / with / using this skill" `compileForEach` refused is a tally no flat reading
+    // below may stand in for — BT30-038's "+3000 power … for each card placed into its owner's Drop by this skill" read as
+    // a flat +3000, the count dropped in silence.
+    if (/\bfor (?:each|every)\b(?:(?!\bfor (?:each|every)\b).)*\b(?:by|with|using) this skill\b/.test(t)) return null;
     // "For each marker on this card, **it** gets +5000 power" (EX19-21):
     // `compileForEach` refused this one because "it" cannot be resolved, but
     // falling through leaves "for each marker on this card, it" for the
@@ -1809,7 +1818,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const looked: Ref = { var: c.lastSeen };
     if (/^(?:place|put|return) them (?:back )?on (?:the )?top of (?:your|their|your opponent'?s) deck in any order$/.test(t)) return [{ op: "note", text: "the cards looked at go back on top of the deck, in any order" }];
     // Audit lane E (R-202): "…on the top **or** bottom … in any order" is one end for all of them (BT9-037's official
-    // Q&A); "top **and/or** bottom" stays each card's own end (R-007).
+    // Q&A); "top **and/or** bottom" stays each card's own end (R-202, carrying R-007's reading for "and/or").
     if ((m = /^(?:place|put|return) them (?:back )?(?:at|on) (?:the )?top (or|and\/or) (?:the )?bottom of (?:your|their|your opponent'?s|its owner'?s) deck(?: in any order)?$/.exec(t))) return m[1] === "or" ? topOrBottomAll(looked) : topOrBottomEach(c.lastSeen, c);
     if (/^(?:place|put|return) (?:it|the card|that card) (?:at|on) (?:the )?top or (?:the )?bottom of (?:your|their|your opponent'?s|its owner'?s) deck$/.test(t))
       return [{
@@ -1848,7 +1857,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // remainder (a best guess).
     // Audit lane E (R-202): said with "or", the remaining cards go to one end together — "The player who activates this
     // card must place all 3 cards on top of their deck in any order or all 3 cards on the bottom" (BT9-037's Q&A; BT9-026,
-    // BT9-106 print the same words). "And/or" stays per card (R-007).
+    // BT9-106 print the same words). "And/or" stays per card (R-202, as R-007 read it).
     if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(?:top|bottom) (or|and/or) (?:the )?(?:top|bottom)(?: of (?:your|its owner'?s?|their owners?'?s?|their) decks?)?(?: in any order)?$`).exec(t)))
       return m[1] === "or" ? topOrBottomAll(rest) : topOrBottomEach("looked", c);
     if (new RegExp(`^(?:place|put) ${REST} (?:in|into) (?:your |the |its owner'?s? |their owners?'?s? |their )?drop(?: area)?$`).test(t)) return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
@@ -5858,7 +5867,9 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // that is missed falls back to the default and loses the printed figure:
   // "(Ghost Tokens **have** 15000 power)" and, inline after the name, "play 1
   // Earthling Token **(1000 power**, 0 combo cost, 0 combo power)".
-  const said = /(?:tokens? have|\()\s*([\d,]+) power(?:[^.)]*?([\d,]+) combo cost)?(?:[^.)]*?([\d,]+) combo power)?/i.exec(c.raw);
+  // Audit lane E review: "(Chilled's Army token **has** 10000 power)" (BT2-102, both sides) is the same reminder in the
+  // singular; missed, the token arrived at the 5000 default.
+  const said = /(?:tokens? ha(?:s|ve)|\()\s*([\d,]+) power(?:[^.)]*?([\d,]+) combo cost)?(?:[^.)]*?([\d,]+) combo power)?/i.exec(c.raw);
   const power = said ? [said[0], said[1]] : null;
   const combo = said?.[2] != null && said[3] != null ? [said[0], said[2], said[3]] : null;
   // "...and **they** gain [Blocker] for the turn" (BT31-141) is about the tokens
@@ -6246,8 +6257,9 @@ function skillScopeOf(raw: string, c: Ctx, anySkill = false): SkillScope | null 
  *   Leader", "the [Activate: Main/Battle] skill on {X} in your Battle Area",
  *   "this card's [Activate: Main] skill", "[Arrival Red/Yellow] on a <Beerus>
  *   card in your hand", "an [EX-Evolve] skill on {X} from your hand", "that
- *   card's [Swap] skill". A tag's timing words are not kept: `skillKind` has
- *   the kind and no more, which reaches both timings of the line.
+ *   card's [Swap] skill". `skillKind` has the kind; "[Activate: Main]" or
+ *   "[Activate: Battle]" alone also keeps its timing (`activateTiming`, audit
+ *   lane E), and "[Activate: Main/Battle]" or "[Activate]" reach both.
  * - "energy cost": the card's own price, for a play or an Extra's activation
  *   (12-2-2) - the scope is then the cards themselves ("a green <World
  *   Tournament> Extra in your hand", "a red <Broly> card from your Z-Deck").
