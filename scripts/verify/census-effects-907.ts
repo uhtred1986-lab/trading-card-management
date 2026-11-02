@@ -59,11 +59,12 @@ const playCard = (s: EngineState, id: string) => pay(playG(s, { type: "play", pl
 
   const either = rest("[Auto] When this card is played, look at up to 2 cards from the top of your deck, add up to 1 mono-blue card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order. You can't play copies of this card for the turn.");
   assert.deepEqual(either.unsupported, [], "BT12-044: top or bottom");
-  // Owner's ruling of 26 Oct 2026 (phrasing batch 2): each remaining card to the end the player chooses — a choice
-  // of the cards for the top, the rest to the bottom — no longer one end for the whole remainder.
-  assert.deepEqual(find(either.ops, "chooseMode"), [], "BT12-044: no single end for the whole remainder");
-  const ends = find(either.ops, "moveTo").filter((m) => m.to === "deck").map((m) => m.position);
-  assert.deepEqual(ends, ["top", "bottom"], "BT12-044: the cards chosen to the top, the others to the bottom");
+  // Audit-effects-1 (R-202, superseding the owner's ruling R-007 of 26 Oct 2026 for "or"): "…at the top or bottom of
+  // your deck in any order" is one end for the whole remainder, as BT9-037's official Q&A answers the same words.
+  const end = find(either.ops, "chooseMode") as Extract<Op, { op: "chooseMode" }>[];
+  assert.equal(end.length, 1, "BT12-044: one end for the whole remainder");
+  const ends = end[0].modes.map((m) => (m.ops[0] as Extract<Op, { op: "moveTo" }>).position);
+  assert.deepEqual(ends, ["top", "bottom"], "BT12-044: all of them to the top, or all to the bottom");
   assert.equal(validateProgram(either.ops), true);
 }
 
@@ -109,9 +110,9 @@ const playCard = (s: EngineState, id: string) => pay(playG(s, { type: "play", pl
   assert.deepEqual(zoneOf(onTop.s, "p1", "deck").slice(0, 2).sort(), [...onTop.rest].sort(), "BT12-031: the other two are back on top");
   const drop = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card to your hand, then place the remaining cards into their owner's Drop.");
   assert.ok(onTop.rest.length === 2 && drop.rest.every((id) => zoneOf(drop.s, "p1", "drop").includes(id)), "BT29-014: the other two are in the Drop");
-  const bottom = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order.", [], "none");
+  const bottom = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order.", [{ type: "chooseMode", player: "p1", index: 1 } as Action]);
   assert.deepEqual(zoneOf(bottom.s, "p1", "deck").slice(-2).sort(), [...bottom.rest].sort(), "BT12-044: none kept on top, so they are last");
-  const top = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order.", [], "all");
+  const top = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards at the top or bottom of your deck in any order.", [{ type: "chooseMode", player: "p1", index: 0 } as Action]);
   assert.deepEqual(zoneOf(top.s, "p1", "deck").slice(0, 2).sort(), [...top.rest].sort(), "and both kept on top puts them first");
 }
 

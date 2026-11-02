@@ -26,7 +26,8 @@ const one = (text: string) => compileSkill(parseSkills(text)[0]);
   assert.deepEqual(bt31096.unsupported, []);
   const then96 = (bt31096.ops[0] as { op: string; then: unknown[] }).then;
   assert.deepEqual(then96[1], { op: "costReduction", target: { sel: { special: "leader" } }, amount: 1, what: "skill", skillKind: "activate", colors: ["Black"], until: "turn", uses: 1 });
-  assert.match(describeScript(bt31096.ops), /your leader's skill cost for \[Activate\] skills is 1 less the next time it is paid$/);
+  // Audit-effects-1: the reading says the orb and the span it is spent within.
+  assert.match(describeScript(bt31096.ops), /your leader's skill cost for \[Activate\] skills is 1 less \(\{Black\}\) the next time it is paid this turn$/);
 
   // BT31-092: the same, without the +5000.
   const bt31092 = one("[Auto] [Limit 1] If your Leader is a black <Vegito> card: When this card is played, the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}.");

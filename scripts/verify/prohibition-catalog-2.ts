@@ -93,8 +93,9 @@ const brief = (f: Extract<Op, { op: "forbid" }>) => [f.what, f.side ?? null, f.b
   assert.deepEqual(f.map((x) => [x.what, x.side, x.filter?.type ?? null, x.extraCardActivation ?? null, x.bySkill ?? null]), [["activateSkill", "you", "EXTRA", true, null], ["activateCounter", "you", "EXTRA", null, null], ["play", "you", "BATTLE", null, true]], "BT20-024");
   const s = script("[Permanent] You can't activate Extras, and during your turn, you can't use skills to play Battle Cards.");
   assert.equal(s.cond, undefined, "BT20-024: \"during your turn\" is the second rule's, not the line's");
-  // True reminder text is still skipped.
-  assert.deepEqual(script("[Auto] When you activate this card, you can't activate {Restrain} for the duration of the turn.").ops ?? [], [], "an Extra's own once-per-name reminder");
+  // Audit-effects-1: an Extra's own once-per-name rule is read — no rule of the game applies it otherwise, so the skip
+  // left BT7-098 and its six siblings blank.
+  assert.deepEqual(forbids(script("[Auto] When you activate this card, you can't activate {Restrain} for the duration of the turn.").ops ?? []).map((x) => [x.what, x.side, x.filter?.names, x.until]), [["activateSkill", "you", ["restrain"], "turn"], ["activateCounter", "you", ["restrain"], "turn"]], "an Extra's own once-per-name rule");
 }
 // B: EB1-21 — every one of the opponent's Clone Tokens.
 {

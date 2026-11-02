@@ -121,7 +121,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
  * `subject` — `modifyAttrAs` is what reads the two together.
  */
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "alsoNames", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
-export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "nextMain", "ownTurn", "game", "whileSourceInPlay", "battleOrTurn"] as const satisfies readonly Duration[];
+export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "nextMain", "ownTurn", "ownNextTurn", "game", "whileSourceInPlay", "battleOrTurn"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd", "damageStepEnd"] as const satisfies readonly DelayTiming[];
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge", "areaExtension"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
@@ -253,6 +253,7 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "amount", type: "amount", required: true },
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
+  { name: "activateTiming", type: { enum: ["main", "battle"] } },
   { name: "tag", type: "string" },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
@@ -432,7 +433,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'the master names a whole number, which the rest of the program reads as X ("the declared number"); asked as a "choose one" among the numbers',
   },
   win: { fields: [SIDE], sentence: "{side:your opponent wins|you win} the game", doc: "a skill ends the game with its master (or, with side, the other player) the winner; nothing after it in the program is played" },
-  shuffle: { fields: [SIDE, { name: "areas", type: { list: { enum: ["deck", "life"] } } }, { name: "inspectedOnly", type: "boolean" }], sentence: "shuffle" },
+  shuffle: {
+    fields: [SIDE, { name: "areas", type: { list: { enum: ["deck", "life"] } } }, { name: "inspectedOnly", type: "boolean" }],
+    // Audit lane E review (describe only): whose deck — "reveal the top 1 card in your opponent's deck, shuffle" read as
+    // if you shuffled your own (R-203's ≪Universe 10≫ reveals).
+    sentence: (raw) => {
+      const side = (raw as OpOf<"shuffle">).side;
+      return side === "opponent" ? "your opponent shuffles their deck" : side === "both" ? "each player shuffles their deck" : "shuffle";
+    },
+  },
   invokeSkill: {
     fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
     sentence: (raw) => {
@@ -519,12 +528,16 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const as = moveAs(raw as Op);
       if (as.op !== "moveTo" && as.op !== "note") return describeScript([as], r);
-      // Audit-selectors-1: where a card goes under, and which end of the deck — "move the chosen cards to under" said
-      // neither whose pile (BT20-026's "under your Leader") nor, for a deck, the top or bottom the record carries.
-      const move = raw as OpOf<"moveTo">;
-      if (move.to === "under") return renderTemplate(`move {target} under ${move.under ? "{under}" : "this card"}{faceUp? face up}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
-      if (move.to === "deck" && (move.position === "top" || move.position === "bottom")) return renderTemplate(`move {target} to the ${move.position} of the deck{faceUp? face up}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
-      return renderTemplate("move {target} to {to}{faceUp? face up}", raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
+      // Audit lane E (describe only): where the card lands, as the program says it — the end of the deck ("to the
+      // bottom of deck", BT9-127's "place it at the bottom of its owner's deck"), the mode ("in Rest Mode", BT20-028's
+      // energy), whose area it is ("your opponent's energy"), and the card it goes under ("under the chosen cards"). The
+      // reading said none of them, so a move to the bottom read like one to the top and a card put in Rest Mode like one
+      // in Active Mode. Audit-selectors-1 met the same gap (BT20-026's "under your Leader", BT5-044's "the bottom of
+      // their deck"); a deck's end reads "the top/bottom of the deck".
+      const op = raw as OpOf<"moveTo">;
+      const area = op.to === "under" ? `under ${op.under ? describeRef(op.under) : "this card"}` : `${op.owner === "opponent" ? "your opponent's " : ""}${op.to}`;
+      const place = op.position && op.to !== "under" ? `the ${op.position} of ${op.owner === "opponent" ? area : `the ${area}`}` : area;
+      return `move ${describeRef(op.target)} ${op.to === "under" ? place : `to ${place}`}${op.mode === "rest" ? " in Rest Mode" : op.mode === "active" ? " in Active Mode" : ""}${op.faceUp ? " face up" : ""}${op.random ? " in a random order" : ""}`;
     },
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
@@ -746,25 +759,24 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"costReduction">;
       if (op.what !== "specified") {
         if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
-          const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
           // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
           // 2 less" alone would not say.
-          const orbs = op.colors?.length ? ` (${op.colors.map((c) => `{${c}}`).join("")})` : "";
+          const orbs = costOrbs(op.colors);
           // The combo cost and the Z-Energy cost are other prices than the energy cost (20-21): the reading said
           // "costs 1 less" for "-1 combo cost" (BT22-055b), the same words as an energy reduction (#907 round 6).
           const price = op.what === "combo" ? " (combo cost)" : op.what === "zEnergy" ? " (Z-Energy cost)" : "";
-          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + price + orbs + once;
+          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + price + orbs + costSpan(op.uses, op.until, r);
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
-        const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
+        const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? `Activate${op.activateTiming === "main" ? ": Main" : op.activateTiming === "battle" ? ": Battle" : ""}` : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
         // EX03-16: a change scoped to the card the [Evolve] lands on.
         // "The next time you activate …" (BT31-096): spent by the activations it reaches.
-        const budget = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
-        if (op.onto) return `the ${noun}${scoped} of ${describeRef(op.target)} is ${describeCostChange(op.amount)} when evolving onto ${describeRef(op.onto)}${budget}`;
-        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}${budget}`;
+        const budget = costSpan(op.uses, op.until, r);
+        if (op.onto) return `the ${noun}${scoped} of ${describeRef(op.target)} is ${describeCostChange(op.amount)}${costOrbs(op.colors)} when evolving onto ${describeRef(op.onto)}${budget}`;
+        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}${costOrbs(op.colors)}${budget}`;
       }
-      if (op.all) return `${describeRef(op.target)} has no specified cost`;
-      const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
+      if (op.all) return `${describeRef(op.target)} has no specified cost${costSpan(op.uses, op.until, r)}`;
+      const once = costSpan(op.uses, op.until, r);
       const counts = new Map<string, number>();
       for (const c of op.colors ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
       const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");
@@ -973,13 +985,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "activateCounter" && (op.counterKind || op.otherCards || op.filter || op.unlessPay?.length)) {
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         const kind = op.counterKind ? `[Counter: ${op.counterKind === "battleCardAttack" ? "Battle Card Attack" : op.counterKind[0].toUpperCase() + op.counterKind.slice(1)}]` : "[Counter]";
-        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
+        // Audit lane E: "…the [Counter: Attack] skill on copies of this card" (BT13-035) says whose.
+        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.sameNameAsSelf ? " on copies of this card" : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
       }
       // #677: 12-1-3's "activating an Extra Card" (BT10-097), and the skills
       // of particular cards (BT23-140's "the skills of Battle Cards").
       if (op.what === "activateSkill" && !op.target && (op.extraCardActivation || op.filter)) {
         const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
-        const which = op.extraCardActivation ? "Extra Cards" : `the ${op.skillKinds?.length ? "non-keyword " : ""}skills of ${describeFilter(op.filter!, { plural: true })}`;
+        // Audit lane E: one kind of line is named ("{King Piccolo, Limitless Power}'s [Activate: Main] skill", P-153);
+        // several are the non-keyword ones.
+        const oneKind = op.skillKinds?.length === 1 ? ({ "activate:main": "[Activate: Main] ", "activate:battle": "[Activate: Battle] ", auto: "[Auto] " } as Record<string, string>)[op.skillKinds[0]] : undefined;
+        const which = op.extraCardActivation ? "Extra Cards" : `the ${oneKind ?? (op.skillKinds?.length ? "non-keyword " : "")}skills of ${describeFilter(op.filter!, { plural: true })}`;
         return `${who} can't activate ${which}${escape}${forThe(op.until, r)}`;
       }
       // Owner ruling 26 Oct 2026 (A2): the [Blocker] of the cards a "can't
@@ -3164,6 +3180,7 @@ const DURATION_IN_WORDS: Record<Duration, string> = {
   afterOpponentCharge: " through your opponent's next Charge Phase",
   nextMain: " until the start of your next Main Phase",
   ownTurn: " until the end of your turn",
+  ownNextTurn: " until the end of your next turn",
   game: " for the rest of the game",
   whileSourceInPlay: " while this card is in a Battle Area",
   battleOrTurn: " until the end of a battle or the end of the turn, whichever comes first",
@@ -3297,7 +3314,34 @@ function describeField(f: OpField, v: unknown, hint: string | undefined, r: Rend
 /** `costs {amount:less|more}`: 20-21 goes both ways, and "costs -2 less" is not English. */
 function describeCostChange(a: Amount): string {
   if (typeof a === "number" && a < 0) return `${-a} more`;
+  // Audit lane E: "increase this card's energy cost by the declared number" (BT24-105, P-535) is X more — it read "costs
+  // -1 for each X less". A counted change said with a negative multiplier is an increase too.
+  if (typeof a === "object" && "times" in a && typeof a.times === "number" && a.times < 0) {
+    const up = { ...a, times: -a.times } as Amount;
+    return `${"x" in a && a.times === -1 ? "X" : describeAmount(up)} more`;
+  }
+  if (typeof a === "object" && "x" in a && a.times === 1) return "X less";
   return `${describeAmount(a)} less`;
+}
+
+/**
+ * Audit lane E: the orbs a cost change takes off, as the card prints them — "by {g}" (EX24-26), "by {u}{1}" (EX23-11),
+ * "by {y}{y}" (EX23-29). A change said in a colour reaches only that colour's orbs and one said as {1} only the
+ * colourless ones (5-8-2-4), so "1 less" alone said less than the card.
+ */
+function costOrbs(colors: readonly string[] | undefined): string {
+  return colors?.length ? ` (${colors.map((c) => (c === "any" ? "{1}" : `{${c}}`)).join("")})` : "";
+}
+
+/**
+ * Audit lane E: how long a cost change lasts, and how many payments it reaches. Timed changes said no span (EX23-29's
+ * "during that turn", BT24-072's "for the turn"), so a reader could not tell them from a [Permanent]'s; a [Permanent]'s
+ * own still says none (`r.permanent`).
+ */
+function costSpan(uses: number | undefined, until: Duration | undefined, r: RenderOptions): string {
+  const span = r.permanent || !until ? "" : until === "turn" ? " this turn" : until === "battle" ? " this battle" : DURATION_IN_WORDS[until];
+  if (uses == null) return span === " this turn" ? " for the turn" : span === " this battle" ? " for the battle" : span;
+  return `${uses === 1 ? " the next time it is paid" : ` the next ${uses} times it is paid`}${span}`;
 }
 
 /**
@@ -3329,11 +3373,14 @@ function renderTemplate(template: string, op: Record<string, unknown>, fields: O
  */
 export function describeScript(ops: Op[], o: RenderOptions = {}): string {
   const parts: string[] = [];
-  for (const op of ops) {
+  for (const [i, op] of ops.entries()) {
     const spec = OP_SCHEMA[op.op];
     if (!spec) continue;
     const text = typeof spec.sentence === "function" ? spec.sentence(op, o) : renderTemplate(spec.sentence, op as unknown as Record<string, unknown>, spec.fields, o);
-    if (text) parts.push(text);
+    // Audit lane E (describe only): "if …:" governs the clauses after its colon up to this marker, and nothing after
+    // it — said only when something follows, since the end of the reading ends it anyway. Without it "if you took that
+    // choice: draw 1, this card gains [Double Strike]" read as if both depended on the choice (BT1-090).
+    if (text) parts.push(op.op === "if" && ops.slice(i + 1).some((next) => OP_SCHEMA[next.op]) ? `${text} (end if)` : text);
   }
   return parts.join(", ");
 }

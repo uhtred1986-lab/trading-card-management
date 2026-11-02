@@ -269,7 +269,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
       if (
         (ch === "," || ch === ";") &&
         !inNameList(text, i) &&
-        !(ch === "," && (inList(text, i) || commaJoinsMeasure(text, start, i) || joinsCardTypes(text, start, i, 1) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || (/^,\s*for (?:each|every)\b/i.test(text.slice(i)) && !TRIGGER_THEN_COUNT.test(text.slice(start, i).trim()) && !COUNT_LEADS_CLAUSE.test(text.slice(i)))))
+        !(ch === "," && (inList(text, i) || commaJoinsMeasure(text, start, i) || commaJoinsGrantList(text, start, i) || joinsCardTypes(text, start, i, 1) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || (/^,\s*for (?:each|every)\b/i.test(text.slice(i)) && !TRIGGER_THEN_COUNT.test(text.slice(start, i).trim()) && !COUNT_LEADS_CLAUSE.test(text.slice(i)))))
       ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3)) && !(/\bJr$/.test(text.slice(0, i)) && /^ Tokens?\b/.test(text.slice(i + 1)))))) {
@@ -526,6 +526,16 @@ function andJoinsTwoNamedCards(text: string, start: number, i: number): boolean 
  */
 function commaJoinsColours(text: string, comma: number): boolean {
   return /\b(?:red|blue|green|yellow|black|white)\s*$/i.test(text.slice(0, comma)) && /^,\s*(?:red|blue|green|yellow|black|white)\b/i.test(text.slice(comma));
+}
+
+/**
+ * Audit lane E: the list of things one card gets, said with commas — "it gets +15000 power, [Critical], and [Double
+ * Strike] for the battle" (BT27-061), "this card gains [Barrier], [Triple Attack], and [Blocker] until the end of your
+ * opponent's turn" (BT26-138). One clause: the span at its end closes every item. Cut at the commas, each item before
+ * the last read as its own clause with no span, and lasted "for the turn".
+ */
+function commaJoinsGrantList(text: string, start: number, comma: number): boolean {
+  return /\b(?:gets?|gains?)\s+(?:[+-]\d+\s+(?:combo\s+)?power|\[[^\]]+\])(?:,\s*\[[^\]]+\])*$/i.test(text.slice(start, comma)) && /^,\s*(?:and\s+)?\[[^\]]+\]/.test(text.slice(comma));
 }
 
 /**

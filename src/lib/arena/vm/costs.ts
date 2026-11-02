@@ -1107,7 +1107,7 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
   const either = (resources?.either ?? sk.energyEither).map((one) => [...one] as Color[]);
   total += either.length;
   const generic = { n: Math.max(0, total - orbCount(orbs) - either.length) };
-  const applies = (kind: string | undefined, tag?: string) => (!kind || sk.kind.startsWith(kind)) && skillTagMatches(sk, tag);
+  const applies = (kind: string | undefined, tag?: string, timing?: "main" | "battle") => (!kind || sk.kind.startsWith(kind)) && activateTimingReaches(sk, timing) && skillTagMatches(sk, tag);
   // 22-5: an [Evolve] line's orbs are changed on a channel of their own — the
   // legacy `orbTotals(…, "evolve")` — and a skill-cost change does not reach them.
   const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
@@ -1115,8 +1115,8 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
   // that base is the one the activation names — the legacy `orbTotals`' `onto`.
   const reaches = (e: { onto?: string[] }) => !e.onto || (onto !== undefined && e.onto.includes(onto));
   const changes = [
-    ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind, e.tag) && reaches(e)),
-    ...state.effects.filter((e) => e.kind === channel && onCard(ctx, game, state, e, card) && applies(e.skillKind, e.tag) && reaches(e) && (e.uses ?? 1) > 0),
+    ...staticsNow(ctx, game, state).filter((e) => e.kind === channel && e.target === card && applies(e.skillKind, e.tag, e.activateTiming) && reaches(e)),
+    ...state.effects.filter((e) => e.kind === channel && onCard(ctx, game, state, e, card) && applies(e.skillKind, e.tag, e.activateTiming) && reaches(e) && (e.uses ?? 1) > 0),
   ];
   for (const e of changes) {
     const by = e.value as number;
@@ -1155,7 +1155,15 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
  */
 export function spendSkillCostUses(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, sk: Skill): void {
   const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
-  spendUses(state, ev, state.effects.filter((e) => e.kind === channel && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)) && skillTagMatches(sk, e.tag) && onCard(ctx, game, state, e, card)));
+  spendUses(state, ev, state.effects.filter((e) => e.kind === channel && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)) && activateTimingReaches(sk, e.activateTiming) && skillTagMatches(sk, e.tag) && onCard(ctx, game, state, e, card)));
+}
+
+/**
+ * Audit lane E: a change about "[Activate: Main]" (or "[Activate: Battle]") skills alone reaches a line of that timing
+ * and an [Activate: Main/Battle] line, which is both; never the other timing's.
+ */
+export function activateTimingReaches(sk: Pick<Skill, "kind">, timing: "main" | "battle" | undefined): boolean {
+  return !timing || sk.kind === `activate:${timing}` || sk.kind === "activate:main/battle";
 }
 
 /**

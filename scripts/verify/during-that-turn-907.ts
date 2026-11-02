@@ -217,7 +217,7 @@ const def = (id: string, o: Partial<(typeof DEFS)[string]>) => {
   const act = (s: EngineState, id: string) => actsG(s).find((a) => a.type === "activate" && a.card === id) as Action | undefined;
   const pay = (s: EngineState) => (s.prompt.kind === "payCost" ? playG(s, { type: "payCost", player: "p1", option: 0 } as Action) : s);
   const rested = (s: EngineState, p: PlayerId) => zoneOf(s, p, "energy").filter((id) => s.cards[id].mode === "rest").length;
-  const inForce = (s: EngineState, id: string) => (s as unknown as { effects: ContinuousEffect[] }).effects.filter((e) => e.kind === "skillCost" && e.target === id);
+  const inForce = (s: EngineState, id: string) => (s as unknown as { effects: ContinuousEffect[] }).effects.filter((e) => e.kind === "skillCost" && (e.target === id || (!e.target && !!e.matching)));  // audit-effects-1 (R-201): a next-time change is keyed by its description (`matching`), not pinned to the card
   const start = () => arenaG({ hand: ["NT907-CUT", "NT907-EXTRA"], energy: ["NT907-GREEN", "NT907-GREEN", "NT907-GREEN", "NT907-GREEN"] });
   {
     // Without the change: the whole {g}{g}.

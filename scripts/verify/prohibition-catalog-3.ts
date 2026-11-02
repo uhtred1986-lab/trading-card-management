@@ -109,7 +109,12 @@ const SELF = { sel: { special: "self" } };
 }
 // Play taxes.
 {
-  assert.deepEqual(forbids(ops("[Activate: Main] Draw 1 card, and for the duration of your opponent's next turn, your opponent can't play Battle Cards with 20000 power or less unless they choose 3 cards from their hand and place them in their Drop Area as an additional cost.")).map((f) => [f.side, f.until, f.filter, f.unlessPay?.length]), [["opponent", "nextTurn", { type: "BATTLE", powerMax: 20000 }, 2]], "BT6-023");
+  // Audit-effects-1: the rule opens at the start of the opponent's next turn and lasts that turn (a delay), never from
+  // the moment it resolves.
+  const bt6 = ops("[Activate: Main] Draw 1 card, and for the duration of your opponent's next turn, your opponent can't play Battle Cards with 20000 power or less unless they choose 3 cards from their hand and place them in their Drop Area as an additional cost.");
+  const later = bt6.find((o): o is Extract<Op, { op: "delay" }> => o.op === "delay");
+  assert.ok(later && later.scope === "opponentNextTurn" && later.at === "turnStart", "BT6-023: at the start of the opponent's next turn");
+  assert.deepEqual(forbids(later.ops).map((f) => [f.side, f.until, f.filter, f.unlessPay?.length]), [["opponent", "turn", { type: "BATTLE", powerMax: 20000 }, 2]], "BT6-023");
   assert.deepEqual(forbids(ops("[Permanent] You and your opponent can't play Battle Cards with 30000 power or less unless they choose 4 cards from their life and place them in their Drop Area as they play the Battle Card.")).map((f) => [f.side, f.filter, f.unlessPay?.map((o) => o.op)]), [["both", { type: "BATTLE", powerMax: 30000 }, ["choose", "moveTo"]]], "BT6-017: both players, each paying for their own");
 }
 // Life, searches, activations, placing under, the game's end.
