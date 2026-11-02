@@ -996,7 +996,9 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   // clause said is now a condition on the same subject, and the effect sits
   // inside it.
   const other = one("[Auto] When your green ≪Turtle School≫ card with an energy cost of 5 or less attacks a Battle Card, it gets +10000 power for the turn.");
-  assert.deepEqual(other.unsupported, []);
+  // Moments batch 1: what it attacks is no part of `yourCardAttacks`, so the moment is not read and says so; the
+  // effect below is the same reading.
+  assert.deepEqual(other.unsupported, ["When your green ≪Turtle School≫ card with an energy cost of 5 or less attacks a Battle Card"]);
   const gate = other.ops[0] as { op: string; cond?: { sel?: { special?: string; filter?: { traits: string[]; costMax: number | null } } }; then?: { target: { sel?: { special?: string } } }[] };
   assert.equal(gate.op, "if");
   assert.equal(gate.cond?.sel?.special, "subject");

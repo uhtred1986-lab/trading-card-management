@@ -1125,6 +1125,54 @@ export type Trigger =
   | "yourCardKos"
   /** Phrasing batch 7: "When a <Pan> card or a card with <GT> in its character name—both green and without <Son Goku: GT>—is placed from your Battle Area in your Drop" (BT20-054b): another card of yours, any cause; it is the subject. */
   | "yourCardBattleToDrop"
+  // Moments batch 1 (2 Nov 2026): [Auto] moments of the triggerless list. A self-moment a skill caused hands that
+  // skill's card on as the subject, so the cause the card prints ("by your Leader's skill") is a condition on it.
+  /** "When this card is discarded from your hand by an opponent's skill" (BT13-098): 20-7-1, the opponent's skill. */
+  | "droppedFromHandByOpponent"
+  /** "When this card is switched to Active Mode by a <Dr. Hedo: SH> card skill" (BT22-019): a skill's switch; its card is the subject. */
+  | "activeBySkill"
+  /** "When your energy is switched to Active Mode by a skill" (BT22-137): each energy card a skill stands; it is the subject. */
+  | "yourEnergyActiveBySkill"
+  /** "When this card's power is increased by one of your <Paikuhan> card skills" (BT18-032): the skill's card is the subject. */
+  | "powerRaisedBySkill"
+  /** "When this card's power is decreased by a skill" (EX11-01b). */
+  | "powerLoweredBySkill"
+  /** "When your card's power is increased by one of your skills" (EX23-09): the card is the subject. */
+  | "yourCardPowerRaisedByYou"
+  /** "When your Leader Card's power is decreased" (BT15-064): one of your cards in play; it is the subject. */
+  | "yourCardPowerLowered"
+  /** "When the power of one of your opponent's Battle Cards is decreased" (BT9-002): once per decrease and card. */
+  | "opponentCardPowerLowered"
+  /** "…decreased by the skill of one of your Battle Cards" (BT9-002): the skill's card is your Battle Card in your Battle Area (20-1-2). */
+  | "opponentCardPowerLoweredByBattleCard"
+  /** "When the power of one of you or your opponent's Battle Cards is decreased" (P-517b). */
+  | "eitherCardPowerLowered"
+  /** "When this card is placed in your Drop Area from your deck by a skill" (BT16-009): the skill's card is the subject. */
+  | "deckToDropBySkill"
+  /** "…from your deck by one of your skills" (SD16-02). */
+  | "deckToDropByYou"
+  /** "When this card is revealed from the top of your deck and placed in your Drop Area" (BT14-095): a skill's revealed card, placed. */
+  | "revealedTopToDrop"
+  /** "When a card under this card is returned to its owner's hand" (BT26-050): this card's pile; the card returned is the subject. */
+  | "underReturnedToHand"
+  /** "When this card is placed from under a card into its owner's Drop by your {SS Vegito, …}" (BT28-092): the skill's card is the subject. */
+  | "underToDropBySkill"
+  /** "When your Leader Card's skill places this card in a Drop Area from under your Leader Card" (BT16-027): the pile is a Leader's. */
+  | "underLeaderToDropBySkill"
+  /** "When a card is placed from under this card in its owner's Drop by your Leader's skill" (BT20-073): this card's pile; the skill's card is the subject. */
+  | "pileToDropBySkill"
+  /** "When this card in your Energy Area is placed in your Drop Area by your Leader Card's skill" (EB1-16): the skill's card is the subject. */
+  | "energyToDropBySkill"
+  /** "When one of your energy is placed in your Drop by your Leader's skill" (EX22-03): your Leader's skill, the energy the subject. */
+  | "yourEnergyToDropByYourLeader"
+  /** "When this card is placed in your Drop from a Battle Area by one of your skills" (BT18-023). */
+  | "droppedFromBattleByYou"
+  /** "When this card is placed in your Drop by a skill" (P-421): from any area; the skill's card is the subject. */
+  | "toDropBySkill"
+  /** "When this card is placed into its owner's Drop by one of your skills" (P-701). */
+  | "toDropByYou"
+  /** "When this card is placed into its owner's Drop by an opponent's skill" (BT30-058). */
+  | "toDropByOpponent"
   | "yourCardReturnedToHand"
   /**
    * "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b): another

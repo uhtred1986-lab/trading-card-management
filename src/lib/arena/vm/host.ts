@@ -986,7 +986,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A watched move (phrasing batch 5) is pended once, about the moved card: every watcher the declaration names
   // answers — in play, and in a hand when its skill plays itself from there (DB2-174, `matchTriggers`' hand watchers).
   const watched = WATCHED_MOVE.has(trigger);
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 
@@ -1054,7 +1054,40 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // Phrasing batch 10 (owner's ruling of 27 Oct 2026): "…from a skill on one of your Battle Cards or Unison Cards" —
   // pended only when the skill's card is in its master's Battle or Unison Area; the three above for any skill's damage.
   opponentTookBoardSkillDamage: { event: "damage", args: { by: "skill" } },
+  // Moments batch 1: a skill's move, pended by `moveTo` (and `mill`) with the skill's card as the subject of a
+  // self-moment; the watched ones are pended once, about the card moved.
+  droppedFromHandByOpponent: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill", byOpponent: true } },
+  deckToDropBySkill: { event: "moved", args: { from: "deck", to: "drop", asPlay: false, by: "skill" } },
+  deckToDropByYou: { event: "moved", args: { from: "deck", to: "drop", asPlay: false, by: "skill", byOpponent: false } },
+  revealedTopToDrop: { event: "moved", args: { from: "deck", to: "drop", asPlay: false, by: "skill", revealed: true } },
+  underToDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", fromPile: true } },
+  underLeaderToDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", fromPile: "leader" } },
+  energyToDropBySkill: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill" } },
+  yourEnergyToDropByYourLeader: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill", byOpponent: false, byLeader: true } },
+  droppedFromBattleByYou: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill", byOpponent: false } },
+  toDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill" } },
+  toDropByYou: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", byOpponent: false } },
+  toDropByOpponent: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", byOpponent: true } },
+  // …and the host's side of a pile left (23-2): pended on the card on top, the card that left the subject.
+  underReturnedToHand: { event: "pileLeft", args: { to: "hand" } },
+  pileToDropBySkill: { event: "pileLeft", args: { to: "drop", by: "skill" } },
+  // Moments batch 1: a skill's `power` change, once per card and change (BT9-002's Q&A), pended by the op.
+  powerRaisedBySkill: { event: "powerChanged", args: { by: "skill", dir: "up" } },
+  powerLoweredBySkill: { event: "powerChanged", args: { by: "skill", dir: "down" } },
+  yourCardPowerRaisedByYou: { event: "powerChanged", args: { by: "skill", dir: "up", byOpponent: false } },
+  yourCardPowerLowered: { event: "powerChanged", args: { by: "skill", dir: "down" } },
+  opponentCardPowerLowered: { event: "powerChanged", args: { by: "skill", dir: "down" } },
+  opponentCardPowerLoweredByBattleCard: { event: "powerChanged", args: { by: "skill", dir: "down", byOpponent: true, fromBattleCard: true } },
+  eitherCardPowerLowered: { event: "powerChanged", args: { by: "skill", dir: "down" } },
 };
+
+/**
+ * Moments batch 1: the self-moments pended by name whose subject is the skill's card. It goes on the moment as its
+ * `source` (as `modeSwitched` carries one), so `pendAutos` can ask the cause the record names before pending (9-6-2).
+ */
+const BATCH1_SELF = new Set(["droppedFromHandByOpponent", "deckToDropBySkill", "deckToDropByYou", "revealedTopToDrop", "underToDropBySkill",
+  "underLeaderToDropBySkill", "energyToDropBySkill", "droppedFromBattleByYou", "toDropBySkill", "toDropByYou", "toDropByOpponent",
+  "pileToDropBySkill", "powerRaisedBySkill", "powerLoweredBySkill", "dropToWarpBySkill"]);
 
 /** Phrasing batch 8: the names pended on the cards of the side the moment is *not* about (see `pendByName`). */
 const ABOUT_THE_OTHER_SIDE = new Set(["opponentTookDamage", "opponentTookBoardSkillDamage"]);
@@ -1076,7 +1109,9 @@ const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "rest
 const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop", "zEnergyToDrop"]);
 /** Phrasing batch 5: the watched moves pended by name, once, about the moved card (`id` and the subject both), and answered by every watcher the declaration names. */
 // Phrasing batch 7: and a skill's damage, about the skill's card, answered by its master's watchers (BT9-104).
-const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill", "yourCardDealtDamage"]);
+// Moments batch 1: and a skill's power change, about the card changed; and your energy your Leader's skill dropped.
+const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader",
+  "yourCardPowerRaisedByYou", "yourCardPowerLowered", "opponentCardPowerLowered", "opponentCardPowerLoweredByBattleCard", "eitherCardPowerLowered"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */
 export { sideOf, arrivalMode };
