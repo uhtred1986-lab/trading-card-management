@@ -19,7 +19,10 @@ read correctly, with each decision recorded so it can be revisited.
    interactive and fun play.
 
 `npm run arena:errata-check -- --snapshot <catalog.json>` lists cards whose catalog text still
-carries an official errata's "before" text (2 Nov 2026: 50 stale, 89 to read by hand).
+carries an official errata's "before" text (2 Nov 2026: 50 stale, 89 to read by hand; after
+errata-official-1: 6 stale and 23 unclear — the errata held back, listed with the reason at the
+head of the official-errata block of `errata.ts`, and errata its word match cannot confirm: names,
+stats, keywords and orb-only changes).
 `npm run rules:sources` refreshes the general Q&A, errata and keyword snapshots from the official
 site (network, no database).
 
