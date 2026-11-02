@@ -14,7 +14,7 @@ import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
 import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
-import { AREA_WORDS, boardCount, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
+import { boardCount, namesAPlace, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
 /**
@@ -1887,7 +1887,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // #1208, FS03-13: "look at 5 cards from the top of your deck, **reveal up to 1 <Paragus> or up to 1 Extra** and add it to
     // your hand": after a look a description that names no area of its own is read from the cards looked at (20-12),
     // as the choose, play and add clauses already do. Read bare it was a card in play.
-    const lookedAt = c.lastOp === "look" && c.lastSeen && !AREA_WORDS.some(([re]) => re.test(m![1].toLowerCase())) ? parseTarget(m[1], c.lastSeen) : null;
+    const lookedAt = c.lastOp === "look" && c.lastSeen && !namesAPlace(m![1]) ? parseTarget(m[1], c.lastSeen) : null;
     // The player picks which of them is shown (a choice among the cards looked at), then it is revealed; "the rest" is
     // what that choice leaves of the look.
     if (lookedAt && !lookedAt.special && lookedAt.fromVar === c.lastSeen) {
@@ -1957,7 +1957,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // of an aside is run up against "to", so the space before it is optional (#907).
     const add = c.lastSeen ? /^add (.+?)\s*to your hand$/.exec(t) : null;
     const desc = add?.[1];
-    if (desc && !AREA_WORDS.some(([re]) => re.test(desc.toLowerCase()))) {
+    if (desc && !namesAPlace(desc)) {
       // Only a description that names a card of its own. "Add **it** to your
       // hand", "add the chosen card to your hand" and "add this card to your
       // hand" all point back at something the skill has already settled, and
@@ -3230,7 +3230,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // (P-703, #907): after a look, a description that names no area of its own is read from the cards looked at
     // (20-12), as the `play` and `add … to your hand` clauses already do. Read as an unqualified card it was
     // one already in play.
-    if (c.lastSeen && !from && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(m![1]))) {
+    if (c.lastSeen && !from && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !namesAPlace(m![1])) {
       const sel = parseTarget(m[1], c.lastSeen);
       if (sel && !sel.special) ref = { sel };
     }
@@ -3292,7 +3292,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     if (/^(?:all (?:of )?)?the chosen cards$/.test(m[1]) && priced.length > 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) {
       return priced.map((v): Op => ({ op: "moveTo", target: { var: v }, to: "under" }));
     }
-    const ref = refFor(m[1], c);
+    let ref = refFor(m[1], c);
+    // Audit-selectors-1: "look at up to 7 cards from the top of your deck, **place up to 1 green ≪Earthling≫ card under
+    // this card**" (BT29-044, BT31-115): after a look, a description that names no place is one of the cards looked at
+    // (20-12), as the Drop, Warp, hand and play clauses read it. Read bare it was a card already in play.
+    if (c.lastSeen && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !namesAPlace(m[1])) {
+      const sel = parseTarget(m[1], c.lastSeen);
+      if (sel && !sel.special) ref = { sel };
+    }
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under" })) : null;
   }
   // "Place a Z-Extra / 1 Z-Extra / a {Destroyed West City} from under this card
@@ -3701,7 +3708,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       // its owner's Drop**" (BT30-030, BT26-015): after a look, a description that names no area of its own is one of
       // the cards looked at (20-12), as the `play`, `add … to your hand` and combo clauses already read it — no
       // "among them" needed. Read bare it was a card already in play.
-      if ((to === "drop" || to === "warp") && c.lastSeen && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(m![1]))) {
+      // (Audit-selectors-1: and into the life or the energy — "…add up to 1 yellow card to your life", BT31-056.)
+      if ((to === "drop" || to === "warp" || to === "life" || to === "energy") && c.lastSeen && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !namesAPlace(m![1])) {
         const sel = parseTarget(m[1], c.lastSeen);
         if (sel && !sel.special) ref = { sel };
       }
@@ -3918,7 +3926,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // Only a description of its own that names no area — "play this card",
     // "play it" and "play up to 1 X from your hand" are what they say.
     const desc = m[1];
-    if (c.lastSeen && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(desc))) {
+    if (c.lastSeen && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !namesAPlace(desc)) {
       const sel = parseTarget(desc, c.lastSeen);
       if (sel && !sel.special) ref = { sel };
     }
@@ -4133,7 +4141,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // (20-12), as the `play`, `add … to your hand` and combo clauses already do. Read as an unqualified card
     // it was one already in play, and "the rest" then put the card just played back in the deck.
     // Not "choose up to 1 **of your** <Paikuhan> cards" (BT12-027, BT18-147, BT22-114): an owner is a place.
-    if (c.lastSeen && !sel.special && !sel.fromVar && sel.take == null && !AREA_WORDS.some(([re]) => re.test(t)) && !/\b(?:your|their|opponent'?s)\b/.test(t)) {
+    if (c.lastSeen && !sel.special && !sel.fromVar && sel.take == null && !namesAPlace(t) && !/\b(?:your|their|opponent'?s)\b/.test(t)) {
       const looked = parseTarget(clause, c.lastSeen);
       if (looked && !looked.special) sel = looked;
     }

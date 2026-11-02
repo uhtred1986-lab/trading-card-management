@@ -311,6 +311,26 @@ for (const [text, what, main, alt] of [
   }
 }
 
+// ── I. after a look, a description that names no place is one of the cards looked at ──
+for (const [text, what] of [
+  ["[Auto] When this card is played from your hand, look at up to 5 cards from the top of your deck, add up to 1 red Battle Card with an energy cost of 5 or less and <SH> in its character name to your hand, then shuffle your deck.", "BT22-014"],
+  ["[Auto] When you play this card, look at up to 5 cards from the top of your deck, choose up to 1 Battle Card with 15000 or less power and <GT> in its character name and play it, then shuffle your deck.", "BT4-009"],
+  ["[auto] Discard 1 card from your hand: When this card is played, look at up to 7 cards from the top of your deck, place up to 1 green ≪Earthling≫ card under this card, then shuffle your deck.", "BT29-044"],
+  ["[activate: main] [once per turn] Add 1 card from your life to your hand: Look at up to 5 cards from the top of your deck, add up to 1 yellow card to your life, then shuffle your deck.", "BT31-056"],
+] as const) {
+  const rec = record(text, what);
+  const pick = opOf(rec, "choose").find((o) => o.sel.fromVar);
+  assert.ok(pick && pick.sel.fromVar === "looked" && !pick.sel.area, `I: ${what} — one of the cards looked at (${JSON.stringify(opOf(rec, "choose").map((o) => o.sel))})`);
+  records++;
+}
+{
+  // An owner is a place: "choose up to 1 opponent Battle Card" after a reveal is theirs in play (EX01-06).
+  const rec = record("[Auto] When this card attacks, you may reveal 1 <Son Goten> from your hand. If you do so, choose up to 1 opponent Battle Card with an energy cost of 3 or less and KO that card.", "EX01-06");
+  const ko = opOf(rec, "choose").find((o) => o.sel.side === "opponent");
+  assert.ok(ko && ko.sel.area === "battle" && !ko.sel.fromVar, `I: EX01-06 — the opponent's Battle Area, not the revealed card (${JSON.stringify(ko?.sel)})`);
+  records++;
+}
+
 // ── VM ───────────────────────────────────────────────────────────────────────
 const vmDefs: Record<string, CardDef> = {
   ...DEFS,

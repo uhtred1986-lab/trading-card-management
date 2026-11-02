@@ -41,7 +41,7 @@ export function selfFrom(phrase: string): Selector {
   return areas.length === 1 ? { special: "self", area: areas[0] } : { special: "self", areas };
 }
 
-export const AREA_WORDS: [RegExp, ScriptArea][] = [
+const AREA_PLACE_WORDS: [RegExp, ScriptArea][] = [
   // "In your opponent's Drop" was the one possessive this line did not admit —
   // `in your` matched, then `drop` did not follow — so "up to 1 Battle Card in
   // your opponent's Drop" fell through to the Battle Area and chose a card in
@@ -72,6 +72,9 @@ export const AREA_WORDS: [RegExp, ScriptArea][] = [
   [/\bleader area\b/, "leader"],
   // (Audit-selectors-1: "in any Battle Areas", P-153 — the plural is the same area word.)
   [/\bbattle area\b|\b(?:any|either) battle areas\b/, "battle"],
+];
+/** Audit-selectors-1: the card types that stand for an area when no place is named — kept apart so a reader can tell a place from a description (`namesAPlace`). */
+const AREA_TYPE_WORDS: [RegExp, ScriptArea][] = [
   // Noun card types when no explicit area preposition was named
   // "your ≪Ginyu Force≫ Leader" (BT29-083, #1166), "your yellow Leader": a Leader
   // with a colour or a special trait in front is still the Leader Area.
@@ -85,6 +88,22 @@ export const AREA_WORDS: [RegExp, ScriptArea][] = [
   // 20-1-6: an unqualified "cards" means the Leader Area and the Battle Area.
   [/\b(?:your|their|opponent's) (?:[a-z-]+ )*cards\b/, "play"],
 ];
+export const AREA_WORDS: [RegExp, ScriptArea][] = [...AREA_PLACE_WORDS, ...AREA_TYPE_WORDS];
+
+/** A card type said with whose it is — "your Battle Cards", "1 of their Unisons", "your red <Beerus> Leader": a place, as an area word is. */
+const OWNED_TYPE = /\b(?:your|their|opponent(?:'?s)?)\s+(?:(?:[a-z/-]+|<[^>]+>|≪[^≫]+≫)\s+)*(?:(?:battle|unison|leader|extra)\s+cards?|unisons?|leaders?|cards)\b/i;
+
+/**
+ * Audit-selectors-1: does a description name a place of its own — an area ("in your Drop", "your hand"), or a card
+ * type said with whose it is ("your Battle Cards")? After a look, a description that names none is one of the cards
+ * looked at (20-12): "look at up to 5 cards …, add up to 1 red **Battle Card** … to your hand" (BT22-014, BT4-009,
+ * BT4-014, BT29-067), "…add up to 2 mono-green cards that are ≪Saiyan≫ cards or **Unisons** …" (BT31-041). The card
+ * type alone was read as its area, and the choice was of cards already in play.
+ */
+export function namesAPlace(text: string): boolean {
+  const t = text.toLowerCase();
+  return AREA_PLACE_WORDS.some(([re]) => re.test(t)) || OWNED_TYPE.test(t);
+}
 
 /**
  * Area words as the cards print them, for the phrases that name two of them
@@ -992,7 +1011,8 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // at all. Only an area a type noun stood for is set aside; an area the phrase
   // names ("…in your Battle Area") is the phrase's own, and the type stays on
   // the filter (`filterFor(…, null)` below keeps it).
-  if (namesPool && fromVar && area && areaMatch && !pair && !list && !/\barea\b|\bin play\b/.test(areaMatch[0]) && /\b(?:leaders?|battle cards?|unison cards?|unisons|cards)\b/.test(areaMatch[0])) {
+  // (Audit-selectors-1: and a description after a look that names no place of its own, `namesAPlace`.)
+  if ((namesPool || (!!looked && fromVar === looked && !namesAPlace(t))) && fromVar && area && areaMatch && !pair && !list && !/\barea\b|\bin play\b/.test(areaMatch[0]) && /\b(?:leaders?|battle cards?|unison cards?|unisons|cards)\b/.test(areaMatch[0])) {
     area = null;
     areaMatch = null;
   }
