@@ -176,6 +176,11 @@ const C: [string, string, string[], ((rec: Rec) => void)?][] = [
   ["[Auto] When your opponent activates a [Counter: Play] skill, they choose 2 cards in their hand and discard them.", "EX13-19", ["opponentCounterPlay"]],
   [`[Auto][Once per turn] When your opponent activates a [Counter: Attack] skill, ${DRAW}`, "BT12-059", ["opponentCounterAttack"]],
   [`[Auto] When your opponent activates a [Counter] skill, ${DRAW}`, "BT7-020", ["opponentCounter"]],
+  // a card played on the other side, whoever played it
+  [`[Auto][Once per turn] If it's your turn: When a skill-less Battle Card or skill-less Unison Card is played in your opponent's Battle Area or Unison Area, ${DRAW}`, "BT15-122", ["opponentPlayed"], (rec) => {
+    const c = chain(rec).find((x) => x.kind === "count" && x.sel.special === "subject");
+    assert.ok(c?.kind === "count" && c.sel.filter?.anyOf?.every((f) => f.skillLess), "C: BT15-122 — skill-less, either kind (its Q&A)");
+  }],
 ];
 for (const [text, what, trigger, more] of C) {
   const rec = record(text, what);
@@ -185,6 +190,9 @@ for (const [text, what, trigger, more] of C) {
 }
 for (const [text, what] of [
   ["[Auto] When you activate this card's [Villainous], negate this card's skills for the game.", "BT19-007"],
+  // an area the combo card came from, which no watched combo asks
+  [`[Auto][Once per turn] When you use a blue card from your hand in a combo, ${DRAW}`, "BT19-035"],
+  [`[auto] When you combo with a ≪Universe 7≫ from your Battle Area during your turn, ${DRAW}`, "TB1-025"],
   [`[auto] [limit 1] When this card is added to your Z-Energy by your <Gogeta: Br> card's skill, ${DRAW}`, "P-727"],
 ] as const) {
   assert.ok(unreadOf(text, what).length > 0, `C: ${what} — unread`);

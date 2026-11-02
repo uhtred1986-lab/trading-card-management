@@ -133,6 +133,8 @@ const DROP_FROM_Z_ENERGY = /^when this card is placed (?:in|into) (?:a|your|its 
  */
 /** Phrasing batch 9: "When one of your <Son Goku: Xeno> or <Vegeta: Xeno> cards is used in a combo" (BT24-112) — `youCombo`, the card used the subject. */
 export const YOUR_CARD_USED_IN_COMBO = /^when (?:one of your|your) ((?!opponent)(?!this card)[^,]{1,120}?) (?:is|are) used in a combo(?:,|$)/;
+/** Audit triggers 1: "When a skill-less Battle Card or skill-less Unison Card is played in your opponent's Battle Area or Unison Area" (BT15-122). */
+const PLAYED_IN_OPPONENTS_AREA = /^when (?:an?|1) ((?!this card)[^,]+?) (?:is|are) played in your opponent'?s (?:battle|unison) area(?: or (?:battle|unison) area)?(?:,|$)/;
 /** Audit triggers 1: BT10-038's "[Auto] If this card is removed from a Battle Area by an opponent's skill, …": the moment said with "if". */
 export const IF_REMOVED_BY_OPPONENT = /^if this card is removed from (?:a|the|your) battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?\s*,/;
 /** Audit triggers 1: "When one of your blue Battle Cards is added to your Z-Energy" (BT19-034b) — `yourCardToZEnergy`. */
@@ -909,6 +911,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // `opponentPlayedBySkill` reads the first two; the third (which skills
       // are keywords) and "… using a skill or activates a [Counter] skill" have
       // no moment to ask, and before this fired on every play the opponent made.
+      // Audit triggers 1: "When a skill-less Battle Card or skill-less Unison Card is played **in your opponent's Battle
+      // Area or Unison Area**" (BT15-122): a card arriving on their side, whoever played it — the subject described.
+      { const there = PLAYED_IN_OPPONENTS_AREA.exec(head.toLowerCase()); if (there) return readableSubject(effect, there[1]); }
       return /when your opponent plays (?:a|an|1|up to)\b|when your opponent's [a-z ]*card is played|when a card is played by your opponent/.test(t) && !OPPONENT_SKILL_PLAY_WORDS.test(head.toLowerCase());
     // #1015: "when your opponent uses a skill to play a Battle Card with an
     // energy cost greater than their current energy" (BT15-005, BT15-085,
@@ -945,7 +950,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
         return !/ or /.test(said.replace(/\b\d+(?: power)? or (?:less|fewer|more|greater|higher|lower)\b/g, "")) || readsOr(said);
       }
       if (/when (?:you play this card|this card is played)/.test(t)) return false;
-      if (/\bis played (?:by|using|from)\b|\bwhen you play [^,]*\b(?:using|from your)\b/.test(t)) return false;
+      // Audit triggers 1: "…is played **in your opponent's Battle Area or Unison Area**" (BT15-122) is a card arriving on the
+      // other side, whoever played it — not yours, and its "skill-less Battle Card or Unison Card" is not read whole.
+      if (/\bis played (?:by|using|from|in (?:your|an) opponent'?s)\b|\bwhen you play [^,]*\b(?:using|from your)\b/.test(t)) return false;
       const spoken = /when you play ((?:an?|1|up to \d+|\d+) [^,]{0,80}?)(?:,|$)/.exec(t);
       const passive = /when (a|an|your) ([^,]{0,120}?)(?:[-—–]\s*)?is played\b/.exec(t);
       if (!spoken && !passive) return false;
@@ -1023,6 +1030,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
         const said = effect.unmask(YOUR_CARD_USED_IN_COMBO.exec(head)![1]);
         return !/\bfrom\b|\busing\b|\bby\b/.test(said) && (!/ or /.test(said) || readsOr(said)) && !parseFilter(said).unreadable;
       }
+      // Audit triggers 1: an area the card came from ("…a blue card **from your hand** in a combo", BT19-035; "…from your
+      // Battle Area", TB1-025) is not asked of a watched combo: unread, rather than any combo.
+      if (/^when you (?:use|combo with) (?:an?|1|one of your) [^,]*?\bfrom (?:your|the|a|an) /.test(head)) return false;
       return (/when you (?:use a card in a combo|combo)\b/.test(t) || /^when you use (?:an?|1|one of your) [^,]+? in a combo\b/.test(head)) && !/when you combo with this card/.test(t);
     // 5-5-4: placed in a Battle Area, which a play is too (5-5-1, owner's
     // ruling of 2 Oct 2026) — the engines fire it for both. A skill that says
