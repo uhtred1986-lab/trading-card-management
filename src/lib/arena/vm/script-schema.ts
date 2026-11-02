@@ -1390,6 +1390,9 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // "all" is the count this borrows to name the cards; what is left says
       // which and where, noun included — "blue cards in your Drop Area" (#478).
       const what = describeSelector({ ...c.sel, count: 99 }).replace(/^all /, "");
+      // Audit lane C: a count over both sides is one total — "a total of 3 or more energy between you and your opponent"
+      // (EX19-28, EX19-35) — and "in each player's …" read as each one's own.
+      if (c.sel.side === "both" && !c.sel.special) return `there are ${bound(c)} ${what.replace(/\beach player's\b/, "both players'")} in total`;
       return `there are ${bound(c)} ${what}`;
     },
     doc: "how many cards a selector finds",
@@ -1403,6 +1406,14 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       if (c.atLeast != null) return `${whose} life is ${c.atLeast} or more`;
       return `${whose} life`;
     },
+  },
+  outnumbers: {
+    fields: [SEL, { name: "than", type: "selector", required: true }, { name: "by", type: "number" }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"outnumbers">;
+      return `there are ${c.by != null && c.by !== 1 ? `at least ${c.by} ` : ""}more ${describeSelector(c.sel, "")} than ${describeSelector(c.than, "")}`;
+    },
+    doc: "two counts against each other: the cards `sel` finds outnumber the cards `than` finds by at least `by` (1 when absent) — \"your opponent has more cards in their hand than you\" (BT16-067), \"you have less energy than your opponent\" (EX03-27, the sides swapped), \"2 or more energy than you\" (P-183)",
   },
   lifeVsOpponent: {
     fields: [
@@ -1435,7 +1446,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // and card names as `{…}`, the way the other name lists are.
       const allOf = [...(f.charactersAll ?? []).map((x) => `<${x}>`), ...(f.traitsAll ?? []).map((x) => `≪${x}≫`), ...(f.namesAll ?? []).map((x) => `{${x}}`)];
       // "or has <GT> in its character name" (BT31-049), said as `describeFilter` says it.
-      const including = (f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`);
+      const including = [...(f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`), ...(f.traitsIncluding?.length ? [`a card with ${f.traitsIncluding.map((x) => `≪${x}≫`).join(" or ")} in its special traits`] : [])];
       // Phrasing batch 7: every other measure the VM asks of the Leader is said too. "If your Leader Card is a red
       // {Champa} or red {Vados}" (EX06-03) read "your leader is Red, or your leader is Red": the card names were asked
       // and never said, and so were "mono-", "Z-", a name asked in part, an excluded trait and an original power.
@@ -1446,7 +1457,8 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       const notTraits = (f.notTraits ?? []).map((x) => `non-≪${x}≫`);
       const said0 = [...tone, ...f.colors, ...notTraits, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...names, ...kind, ...including];
       const bits = partly.length ? [...said0, ...(said0.length && !kind.length ? ["card"] : said0.length ? [] : ["a card"]), ...partly] : said0;
-      const originalPower = f.originalPowerMin != null ? `with an original power of ${f.originalPowerMin} or more` : f.originalPowerMax != null ? `with an original power of ${f.originalPowerMax} or less` : "";
+      // Audit lane C: "with an original power of 15000" (BT18-082, EX19-17) is that power exactly, and said so.
+      const originalPower = f.originalPowerMin != null && f.originalPowerMin === f.originalPowerMax ? `with an original power of ${f.originalPowerMin}` : f.originalPowerMin != null ? `with an original power of ${f.originalPowerMin} or more` : f.originalPowerMax != null ? `with an original power of ${f.originalPowerMax} or less` : "";
       // "with 10000 power or less" (#990): the bound is part of the Leader
       // description, and the VM asks it. Left out, the reading claims a wider
       // Leader than the card does.
@@ -1460,7 +1472,10 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
               : f.powerMin != null
                 ? `with ${f.powerMin} power or more`
                 : "";
-      const said = [bits.join(" ") || (power || originalPower ? "a card" : "a match"), power, originalPower].filter(Boolean).join(" ");
+      // Audit lane C: a keyword the Leader has to have — "a [Warrior of Universe 7] card" (EX21-21), "has [Warrior of
+      // Universe 7]" (SD21-07) — was asked and never said.
+      const keywords = (f.keywordsExact?.length ? f.keywordsExact : f.keywords).map((k) => `with [${k}]`).join(" ");
+      const said = [bits.join(" ") || (power || originalPower || keywords ? "a card" : "a match"), power, originalPower, keywords].filter(Boolean).join(" ");
       return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${said}`;
     },
     doc: '"If your Leader is a <Baby> card" — colour, character name and traits alike',
@@ -1722,6 +1737,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   count:          "primitive",
   life:           "macro over `count`",
   lifeVsOpponent: "macro over `count`",
+  outnumbers:     "macro over `count`",
   leaderColor:    "macro over `count`",
   leaderMatches:  "macro over `count`",
   markers:        "macro over `count`",
@@ -2223,6 +2239,9 @@ const SELECTOR_KEYS = {
   fromEnd: 1,
   ignoreBarrier: 1,
   notInBattle: 1,
+  battleRole: 1,
+  copyOfSelf: 1,
+  notAttackedThisTurn: 1,
   orSelf: 1,
   atRandom: 1,
   ownedByOpponent: 1,
@@ -2268,6 +2287,9 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.mode !== undefined && !is(v.mode, SELECTOR_MODES)) return wrong("mode", "active or rest");
   if (v.notSelf !== undefined && !is(v.notSelf, NOT_SELF)) return wrong("notSelf", "card, copies or name");
   if (v.notInBattle !== undefined && v.notInBattle !== true) return wrong("notInBattle", "true");
+  if (v.battleRole !== undefined && v.battleRole !== "any" && v.battleRole !== "attacker" && v.battleRole !== "notAttacker") return wrong("battleRole", "any, attacker or notAttacker");
+  if (v.copyOfSelf !== undefined && v.copyOfSelf !== true) return wrong("copyOfSelf", "true");
+  if (v.notAttackedThisTurn !== undefined && v.notAttackedThisTurn !== true) return wrong("notAttackedThisTurn", "true");
   if (v.orSelf !== undefined && v.orSelf !== true) return wrong("orSelf", "true");
   if (v.atRandom !== undefined && v.atRandom !== true) return wrong("atRandom", "true");
   if (v.ownedByOpponent !== undefined && v.ownedByOpponent !== true) return wrong("ownedByOpponent", "true");
@@ -2674,6 +2696,8 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   const partial = [
     ...f.charactersIncluding.map((x) => `with <${x}> in its character name`),
     ...f.namesIncluding.map((x) => `with {${x}} in its card name`),
+    // Audit lane C: either word, in a trait (`traitsIncluding`).
+    ...(f.traitsIncluding?.length ? [`with ${f.traitsIncluding.map((x) => `≪${x}≫`).join(" or ")} in its special traits`] : []),
     // "with both <A> and <B>" (#768): the parser reads exactly two tokens, so
     // the names go out in pairs (an odd one is repeated, which says the same).
     ...allOfPhrases(f.charactersAll ?? [], f.namesAll ?? []),
@@ -2687,7 +2711,7 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
     // same set of keywords it printed.
     // A family an exact name already covers ("Over Realm" under "Over Realm 2")
     // is not printed twice: the number is the narrower claim (#941).
-    ...f.keywords.filter((k) => !(f.keywordsExact ?? []).some((e) => e.toLowerCase().startsWith(k.toLowerCase()) || e.toLowerCase().startsWith(`dark ${k.toLowerCase()}`))).map((k) => `with [${k}]`),
+    ...f.keywords.filter((k) => !(f.keywordsExact ?? []).some((e) => e.toLowerCase().startsWith(k.toLowerCase()) || e.toLowerCase().startsWith(`dark ${k.toLowerCase()}`) || e.toLowerCase().endsWith(`-${k.toLowerCase()}`))).map((k) => `with [${k}]`),
     ...(f.keywordsExact ?? []).map((k) => `with [${k}]`),
     ...f.notKeywords.map((k) => `non-[${k}]`),
     ...(f.notKeywordsExact ?? []).map((k) => `non-[${k}]`),
@@ -2961,6 +2985,9 @@ const describeNotSelf = (sel: Selector): string =>
   // "for each card color in your Energy Area" (EX19-26): the colors, not the cards, are what is counted.
   (sel.distinctColors ? " (counting the different colors, not the cards)" : "") +
   (sel.notInBattle ? " that is not in a battle" : "") +
+  (sel.battleRole === "any" ? " that is in a battle" : sel.battleRole === "attacker" ? " that is attacking" : sel.battleRole === "notAttacker" ? " that is not attacking" : "") +
+  (sel.copyOfSelf ? " that is a copy of this card" : "") +
+  (sel.notAttackedThisTurn ? " that hasn't attacked this turn" : "") +
   // "Choose this card or up to 1 …" (errata-official-2): this card is on offer too.
   (sel.orSelf ? ", or this card" : "") +
   (sel.atRandom ? " at random" : "") +
@@ -3111,6 +3138,11 @@ const PILE_NAMES: Record<string, string> = { hand: "hand", deck: "deck", drop: "
  * whose skills they are. Null for anything else.
  */
 function passiveSentence(op: OpOf<"forbid">, escape: string, r: RenderOptions): string | null {
+  // Audit lane C: "…can't be negated by your opponent's skills" (DB1-021), "…by the skills of your red <Garlic Jr.>
+  // cards" (P-641): whose negation the rule stops.
+  if (op.what === "beNegated" && (op.side || op.byFilter)) {
+    return `${op.target ? describeRef(op.target) : op.filter ? describeFilter(op.filter, { plural: true }) : "cards"} can't have their skills negated by ${whoseSkillsSaid(op)}${escape}${forThe(op.until, r)}`;
+  }
   if (op.what !== "beMovedBySkill" && op.what !== "beKOdBySkill" && op.what !== "beRestedBySkill" && op.what !== "beChosen") return null;
   const by = ` by ${whoseSkillsSaid(op)}`;
   const except = op.exceptOwnSkills ? " other than this card's own" : op.exceptSourceName ? ` other than {${op.exceptSourceName}}'s` : "";

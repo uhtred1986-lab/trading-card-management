@@ -177,6 +177,9 @@ export function printSelector(sel: Selector): string {
   if (sel.hidden !== undefined) parts.push(sel.hidden ? "hidden" : "revealed");
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
   if (sel.notInBattle) parts.push("notInBattle");
+  if (sel.battleRole) parts.push(sel.battleRole === "any" ? "inBattle" : sel.battleRole === "attacker" ? "attacking" : "notAttacking");
+  if (sel.copyOfSelf) parts.push("copyOfSelf");
+  if (sel.notAttackedThisTurn) parts.push("notAttackedThisTurn");
   if (sel.orSelf) parts.push("orSelf");
   if (sel.atRandom) parts.push("atRandom");
   if (sel.ownedByOpponent) parts.push("ownedByOpponent");

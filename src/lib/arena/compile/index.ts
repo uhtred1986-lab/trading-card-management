@@ -872,6 +872,12 @@ function compileSkillText(skill: Skill): Script {
   const modal = splitModal(spoken);
   const split = splitClausesJoined(modal ? modal.head : spoken);
   const clauses = [...split.clauses];
+  // Audit lane C (2 Nov 2026): "you may choose 1 card from your hand and place it in your Drop Area. **If you do,
+  // choose one—** ・…" (BT7-017, BT7-036, BT7-063, BT11-030): the menu hangs on the head's own decision (20-16). The
+  // hinge is the head's last clause with nothing after it, which the clause list drops as an empty group, and the menu
+  // was then offered whether or not the card was placed.
+  const modalIfDone = !!modal && clauses.length > 1 && /^(?:then,? )?if (?:you do(?: so)?|so|you did)[,.]?$/i.test(clauses[clauses.length - 1].trim());
+  if (modalIfDone) clauses.pop();
   // BT3-096/098: keep the own-turn condition, but consume this battle's
   // cleanup timing as the Auto trigger rather than schedule another delay.
   const ownComboEnd = skill.kind === "auto" && comboBattleEndYourTurn(skill);
@@ -1054,17 +1060,21 @@ function compileSkillText(skill: Skill): Script {
     // (SD5-01, BT6-014, 8-1-3): the moment is the attack, and what it attacks
     // is a condition on the card being attacked. Dropped with the trigger, the
     // skill fired on every attack (owner's card review, 4 Oct 2026, #536).
-    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(leader|battle) card\b(.*)$/i.exec(trigger.trim());
+    // Audit lane C review (2 Nov 2026): the Leader is also said without "Card" — "When this card attacks **your
+    // opponent's Leader**" (P-027, front and back), "…attacks **a Leader**" (BT31-124): the same guard. Only the
+    // bare noun at the end of the moment; "a Leader or Unison" (BT18-059) names a second guard and is not this.
+    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(?:(leader|battle) card\b(.*)|(leader))$/i.exec(trigger.trim());
     if (attacking) {
+      const kind = (attacking[1] ?? attacking[3]).toLowerCase();
       // "…a Battle Card **with an energy cost of 8 or more**" (BT19-035b,
       // #1005): the tail describes the card attacked. Dropped, the skill fired
       // on every attack at a Battle Card; a tail the filter cannot read refuses
       // the skill rather than widening it.
-      const tail = attacking[2].trim().replace(/[.,]$/, "");
-      const guardFilter = tail ? filterFor(`${attacking[1]} card ${tail}`, null) : undefined;
+      const tail = (attacking[2] ?? "").trim().replace(/[.,]$/, "");
+      const guardFilter = tail ? filterFor(`${kind} card ${tail}`, null) : undefined;
       if (tail && (!guardFilter || !/^with\b/i.test(tail) || unreadFilterWords(tail, guardFilter).length)) return { ops: [], unsupported: [trigger, ...clauses] };
-      triggerCond = { kind: "inBattle", sel: { area: attacking[1].toLowerCase() === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
-      if (attacking[1].toLowerCase() === "battle") c.attacksBattleCard = true;
+      triggerCond = { kind: "inBattle", sel: { area: kind === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
+      if (kind === "battle") c.attacksBattleCard = true;
     }
     // Audit triggers 1: "At the end of the battle **for this card**" (BT25-039's wording), "…a battle **in which this card
     // attacked**", "…**after this card attacks**", "…**in which this card was attacked**" (8-5): the moment is every
@@ -1228,7 +1238,26 @@ function compileSkillText(skill: Skill): Script {
       const silent = modal.options.filter((_, i) => !modes[i].ops.length);
       return { ops: [], unsupported: unsupported.length ? unsupported : silent };
     }
-    if (modes.some((mode) => mode.ops.length)) ops.push({ op: "chooseMode", modes });
+    if (modes.some((mode) => mode.ops.length)) {
+      // What "if you do" reads (20-16): the offer taken, or the choice made, just before it.
+      const gate: Cond | null = !modalIfDone ? null : c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last } : null;
+      if (modalIfDone && !gate) return { ops: [], unsupported: [...unsupported, "If you do"] };
+      // Audit lane C: a head that ends on a condition hangs the menu on it — "…it gets +15000 power for the duration of
+      // the battle, **and if it is your turn, also choose one—**" (EX06-21). Nested in a condition the head opened, the
+      // condition is a branch still waiting for its effect (an `if` with nothing in it at the end of the head); on its
+      // own, a group the clause list drops for being empty, and the head's last clause says it again.
+      const dangling = (list: Op[]): Op[] | null => {
+        const last = list[list.length - 1];
+        if (last?.op !== "if" || last.else) return null;
+        return last.then.length ? dangling(last.then) : last.then;
+      };
+      const lastClause = clauses[clauses.length - 1]?.trim() ?? "";
+      const host = gate ? null : dangling(ops);
+      const trailing = gate || host || !/^if\b/i.test(lastClause) ? null : parseConditionClause(lastClause, true);
+      const menu: Op = { op: "chooseMode", modes };
+      if (host) host.push(menu);
+      else ops.push(gate ? { op: "if", cond: gate, then: [menu] } : trailing ? { op: "if", cond: trailing.cond, then: [menu] } : menu);
+    }
     // "If your Leader Card is a green <Cheelai: Br> card or yellow <Broly:
     // Br> card, choose one— ・…" (EX19-13, TB3-066): the head is nothing but
     // the condition that gates the whole menu, with no effect of its own for

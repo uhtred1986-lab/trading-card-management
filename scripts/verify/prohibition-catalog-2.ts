@@ -146,9 +146,11 @@ const brief = (f: Extract<Op, { op: "forbid" }>) => [f.what, f.side ?? null, f.b
   assert.deepEqual(script("[Permanent] During battles where this card is attacking a Battle Card in Rest Mode, your opponent can't combo.").cond, { kind: "all", conds: [{ kind: "inBattle", sel: { special: "self" }, role: "attacker" }, { kind: "inBattle", sel: { side: "opponent", area: "battle", filter: { type: "BATTLE" }, mode: "rest" }, role: "guard" }] }, "TB2-050");
   const bt1 = ops("[permanent] Your opponent cannot activate [counter] against this card's attack and cannot activate [blocker] during this card's attack.");
   assert.deepEqual(bt1.map((o) => (o.op === "if" ? [JSON.stringify(o.cond), forbids(o.then).map((f) => [f.what, f.side])] : null)), [
-    ['{"kind":"inBattle","sel":{"special":"self"},"role":"attacker"}', [["activateCounter", "opponent"]]],
+    // Audit lane C (R-160): "against this card's attack" is the two [Counter] kinds an attack makes pending.
+    ['{"kind":"inBattle","sel":{"special":"self"},"role":"attacker"}', [["activateCounter", "opponent"], ["activateCounter", "opponent"]]],
     ['{"kind":"inBattle","sel":{"special":"self"},"role":"attacker"}', [["block", "opponent"]]],
   ], "BT1-031");
+  assert.deepEqual(bt1.flatMap((o) => (o.op === "if" ? forbids(o.then).map((f) => f.counterKind ?? null) : [])), ["attack", "battleCardAttack", null], "BT1-031: [Counter: Attack] and [Counter: Battle Card Attack] (R-160)");
 }
 // BT31-111, placing under, attack negation, BT15-016's price.
 {

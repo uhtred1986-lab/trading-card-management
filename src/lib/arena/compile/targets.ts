@@ -457,6 +457,41 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     if (!sel || sel.special) return null;
     return { ...sel, notInBattle: true };
   }
+  // Audit lane C review (2 Nov 2026): "…your yellow <Son Goku: Childhood> cards in Rest Mode **that hasn't attacked this
+  // turn**" (SD20-05): only a card with no attack declared this turn (`notAttackedThisTurn`). Dropped, the choice took a
+  // card that had already attacked, and switched to Active Mode it could attack again.
+  const notAttacked = /\s*,?\s*(?:that|which) (?:has|have|did)(?:n['’]?t| not) attack(?:ed)? this turn\b/i.exec(phrase);
+  if (notAttacked) {
+    const sel = parseTarget(phrase.replace(notAttacked[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special) return null;
+    return { ...sel, notAttackedThisTurn: true };
+  }
+  // Audit lane C (2 Nov 2026): the rest of 8-1-2's ends. "…your cards **that's in a battle**" (BT24-078, BT28-069,
+  // BT29-055), "…your red ≪Alien≫ cards **in battle**" (DB1-017), "…your opponent's Battle Cards that's in a battle"
+  // (P-648): the attack card or the guard card. "…in Rest Mode **that isn't attacking**" (BT19-114): any card but the
+  // attack card. "1 of your **attacking** cards" (BT1-005, TB2-012), "…your attacking green ≪Android≫ cards" (BT5-070),
+  // "…attacking <Android 18> card" (BT8-030), "…your opponent's attacking Battle Cards" (BT2-097): the attack card.
+  // Dropped, the choice reached every card of that description in play.
+  {
+    // Read off the phrase with its names blanked (same length, so the match is cut from the phrase itself): "{SS Vegeta,
+    // Snowy Mountain Battle}" holds the words "in battle".
+    const plainPhrase = phrase.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, (n) => "x".repeat(n.length));
+    const notAttacking = /\s*,?\s*(?:that'?s|that is|that are|which (?:is|are)|that) (?:not|n'?t|isn'?t|aren'?t) attacking\b|\s*,?\s*that (?:isn'?t|is not|aren'?t|are not) attacking\b/i.exec(plainPhrase);
+    const inBattle = !notAttacking && /\s*,?\s*(?:that'?s|that is|that are|which (?:is|are))?\s*(?:currently )?in (?:a |the )?battle\b(?!\s+(?:areas?|against|by|with)\b)/i.exec(plainPhrase);
+    const attacking = !notAttacking && !inBattle && /\battacking\s+(?=(?:(?:mono-)?(?:red|blue|green|yellow|black|white)\s+|x|battle |leader |unison |cards?\b))/i.exec(plainPhrase);
+    const said = notAttacking ?? inBattle ?? attacking;
+    // A choice only — a count or a plural. "**The** attacking card" and "your card that's in a battle" name one card
+    // each, read elsewhere (`special`).
+    if (said && /\b(?:up to \d+|\d+ of|all|cards)\b/i.test(phrase) && !/\bthe attacking\b/i.test(phrase)) {
+      const sel = parseTarget(`${phrase.slice(0, said.index)} ${phrase.slice(said.index + said[0].length)}`.replace(/\s+/g, " ").trim(), looked, pool);
+      if (!sel || sel.special || sel.fromVar || sel.battleRole || sel.notInBattle) return null;
+      if (!sel.area && !sel.areas?.length) return null;
+      // No owner said ("choose up to 1 attacking Battle Card or Leader Card", BT10-030's [Counter: Attack]): the card
+      // in the battle is whoever's it is — the opponent's, on the counter — not one of yours by default.
+      const owned = /\b(?:your|their|opponent'?s?|owner'?s?)\b/i.test(plainPhrase);
+      return { ...sel, ...(owned ? {} : { side: "both" as const }), battleRole: notAttacking ? "notAttacker" : inBattle ? "any" : "attacker" };
+    }
+  }
   // "…Battle Cards **whose owner is your opponent**" (EX24-10): the cards you
   // control but do not own (20-9, a control exchange). Dropped, the choice
   // offered every Battle Card of yours, the ones you own included.
@@ -686,6 +721,18 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
     if (!rest || rest.special || rest.fromVar) return null;
     return { ...rest, orSelf: true, count: rest.count ?? 1, ...(rest.upTo ? { upTo: true } : {}) };
   }
+  // Audit lane C (2 Nov 2026): "a copy of this card", "copies of this card" — other cards of this card's name, wherever
+  // the phrase puts them (`copyOfSelf`). The shortcut below took the words for this card itself.
+  {
+    const copyOf = /\b(?:(?:a|an|any|no|1|the)\s+)?cop(y|ies) of this card\b/.exec(t);
+    if (copyOf && !/\bother\b|\bexcept\b|\bbesides\b|\banother\b/.test(t)) {
+      const before = phrase.slice(0, copyOf.index);
+      // Said as the plural the grammar reads with no description ("your cards in play"); a count drops the number.
+      const rest = parseTarget(`${before.trim() ? before : "your "} cards ${phrase.slice(copyOf.index + copyOf[0].length)}`.replace(/\s+/g, " ").trim(), looked, pool);
+      if (!rest || rest.special || rest.fromVar) return null;
+      return { ...rest, copyOfSelf: true };
+    }
+  }
   if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b|\bbesides\b/.test(t)) {
     // 9-1-3-2: "play this card **from your hand**", "discard this card from
     // your hand", "place this card from your Z-Energy …" — the text names the
@@ -737,6 +784,11 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // itself. "Other than this card" is the same thing spelled out and is read
   // below; "each other player" is a player, not a card.
   const otherAdj = /\bother\b/.test(t) && !/\bother than\b/.test(t) && !/\bother player/.test(t);
+  // Audit lane C (2 Nov 2026): "if **another** ≪Universe 6≫ is in play in your Battle Area" (TB1-016, TB1-037,
+  // TB1-084 …), "when **another** of your Battle Cards would be removed" (BT28-014): the same adjective with its
+  // article, and the same card ruled out. Read as nothing, a card of that trait satisfied its own condition. A name in
+  // brackets is not the word (≪Another World Budokai≫), and "another copy of this card" names this card's copies.
+  const anotherAdj = /\banother\b(?! (?:copy|copies|area|turn)\b)/.test(t.replace(/≪[^≫]*≫|<[^>]*>|\{[^}]*\}/g, " "));
 
   let side: Side = "you";
   // The sets write the possessive four ways — "your opponent's", "an
@@ -1022,8 +1074,10 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // Mode", "play it **in** Rest Mode" — which is not a description of what to
   // pick. The attributive reading is therefore taken only in front of a noun,
   // where a destination never stands.
+  // Audit lane C: a name may stand between the mode and the noun — "your **Rest Mode** <Vegito> cards" (BT23-096), "your
+  // Rest Mode ≪Hero≫ cards" (BT24-025).
   const modeSaid = (which: "rest" | "active"): boolean =>
-    new RegExp(`\\bin ${which} mode\\b|\\b${which} mode (?:[a-z-]+ )*cards?\\b`).test(t);
+    new RegExp(`\\bin ${which} mode\\b|\\b${which} mode (?:(?:[a-z-]+|<[^>]+>|≪[^≫]+≫|\\{[^}]+\\}) )*cards?\\b`).test(t);
   const mode = modeSaid("rest") ? "rest" : modeSaid("active") ? "active" : undefined;
   // 23-5: "Hidden Mode" is a card's face-down state, not the active/rest
   // orientation `mode` reads — a card is one of Active or Rest *and*
@@ -1040,8 +1094,9 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // "Choose all Battle Cards **other than this card**" — the card the phrase
   // rules out. Read as nothing it stayed among the candidates, so a clause
   // that shrank every Battle Card shrank this one too.
-  const excluded = /\b(?:other than|except for|besides) (copies of )?this card\b/.exec(t);
-  const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj ? "card" : undefined;
+  // "…other than **this one**" (BT5-082) is the same card in the old sets' words.
+  const excluded = /\b(?:other than|except for|besides) (copies of )?this (?:card|one)\b/.exec(t);
+  const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj || anotherAdj ? "card" : undefined;
   // "Battle Cards or Unisons" names two kinds, one per area, so neither type
   // word narrows the pair — the "play" reading drops it.
   const filter = filterFor(phrase, bothAreas ? "play" : area);

@@ -155,6 +155,27 @@ export interface Selector {
    */
   notInBattle?: true;
   /**
+   * Audit lane C (2 Nov 2026), the other half of `notInBattle` (8-1-2): "choose 1 of your **attacking** cards" (BT1-005,
+   * TB2-012) is the attack card (`attacker`); "…your cards **that's in a battle**" (BT24-078, BT29-055, DB1-017,
+   * P-648) the attack card or the guard card (`any`); "…in Rest Mode **that isn't attacking**" (BT19-114) any card but
+   * the attack card (`notAttacker`). Read as nothing, the choice reached every card of that description in play.
+   */
+  battleRole?: "any" | "attacker" | "notAttacker";
+  /**
+   * Audit lane C (2 Nov 2026): "**a copy of this card**" — another card with this card's card name (2-3): "if you don't
+   * have a copy of this card in play" (EB1-54, DB2-002), "if a copy of this card isn't in play in your Battle Area"
+   * (P-202), "no copies of this card in your Drop" (BT20-010). Read as this card itself, the count asked where the card
+   * printing it stood — in the hand, never in play — and the condition was always true or always false.
+   */
+  copyOfSelf?: true;
+  /**
+   * Audit lane C review (2 Nov 2026): "…your yellow <Son Goku: Childhood> cards in Rest Mode **that hasn't attacked this
+   * turn**" (SD20-05) — only a card that has declared no attack this turn (`VmCard.attacksThisTurn`, cleared with the
+   * turn and with a change of area, 3-1-4). Dropped, a card that had already attacked could be switched to Active Mode
+   * for a second attack.
+   */
+  notAttackedThisTurn?: true;
+  /**
    * "Choose **this card or** up to 1 <Broly: Br> card in your Battle Area" (P-092b's erratum, BT1-001b, EX03-01b,
    * EX12-02, BT17-059b): the card the skill is on is on offer too, beside the cards the selector describes — one choice
    * among them all. This card needs none of the selector's measures or areas.
@@ -420,6 +441,13 @@ export type Cond =
   | { kind: "life"; side: Side; atLeast?: number; atMost?: number }
   /** "When your life is less than or equal to your opponent's life" — the two counts against each other. */
   | { kind: "lifeVsOpponent"; atMost?: boolean; atLeast?: boolean }
+  /**
+   * Audit lane C (2 Nov 2026): "if your opponent has **more cards in their hand than you**" (BT16-067, BT19-152), "if
+   * you have **less energy than your opponent**" (EX03-27, DB3-035), "…has **2 or more energy than you**" (P-183): two
+   * counts against each other — `sel` finds at least `by` (1 when absent) more cards than `than` does. "Fewer" is the
+   * same question with the two sides swapped. Read as a count of one side alone it held almost always.
+   */
+  | { kind: "outnumbers"; sel: Selector; than: Selector; by?: number }
   | { kind: "leaderColor"; color: Color }
   /** "If your Leader is a <Baby> card" — colour, character name and traits alike. */
   | { kind: "leaderMatches"; filter: CardFilter; side?: Side; back?: boolean }
@@ -1969,6 +1997,15 @@ const INERT_OPS = new Set(["choose", "look", "reveal", "note", "hidden"]);
  * cards can't attack Leader Cards" — keeps what that choice bound when the rule
  * is made, since the escape is asked long after the skill has resolved.
  */
+/**
+ * Audit lane C (2 Nov 2026): who is negating, for 20-14's `beNegated` — "…can't be negated **by your opponent's
+ * skills**" (DB1-021, P-680) and "…by the skills of your red <Garlic Jr.> cards" (P-641, P-642) are asked of the
+ * skill doing it: its controller (the rule's `side`) and its card (the rule's `byFilter`).
+ */
+function negatedBy(frame: ScriptFrame): { player: PlayerId; source?: string } {
+  return { player: frame.master, ...(frame.card ? { source: frame.card } : {}) };
+}
+
 function escapeVars(cond: Cond, frame: ScriptFrame): { unlessVars?: Record<string, string[]> } {
   const names = new Set<string>();
   JSON.stringify(cond, (k, v) => {
@@ -3328,7 +3365,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           h.move(id, "combo", master, { reason: "combo", reveal: true, ...(frame.card ? { source: frame.card } : {}) });
           // #1117: a price's combo is paid by a card that really stands in the Combo Area now.
           if (frame.saveVarsAs && h.areaOf(id) !== "combo") frame.priceUnpaid ??= `${h.nameOf(id)} did not join the combo`;
-          if (op.negated) h.negateAll(id);
+          if (op.negated && !h.forbids("beNegated", { card: id, ...negatedBy(frame) })) h.negateAll(id);
           // 5-7-5-3: a card placed in a Combo Area is a combo entry for its own [Auto]s, whoever placed it (BT7-030 asks
           // for the skill that did). After the negation: a card used "with its skills negated" answers to nothing (9-1-5).
           h.pend("comboUsed", id);
@@ -3502,7 +3539,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         for (const id of h.resolveRef(frame, op.target)) {
           // 9-1-5: "This card's skills can't be negated in any area" beats the
           // instruction, like every other prohibition (0-2-5).
-          if (h.forbids("beNegated", { card: id })) continue;
+          if (h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
           if (op.until === "game") h.negateAll(id);
           else h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateSkills", value: 0, until: op.until });
         }
@@ -3514,7 +3551,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // negated one not — and negated on that card alone for the duration.
         const offered: { card: string; keyword: KeywordSkill["name"] }[] = [];
         for (const id of h.resolveRef(frame, op.target)) {
-          if (!h.exists(id) || h.forbids("beNegated", { card: id })) continue;
+          if (!h.exists(id) || h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
           for (const name of KEYWORD_NAMES) if (h.hasKeyword(id, name)) offered.push({ card: id, keyword: name });
         }
         if (!offered.length) break;
@@ -3544,7 +3581,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // `until`) is a [Permanent]'s and does nothing here — the statics walk reads it.
         if (op.until)
           for (const id of op.target ? h.resolveRef(frame, op.target) : [frame.card]) {
-            if (!h.exists(id) || h.forbids("beNegated", { card: id })) continue;
+            if (!h.exists(id) || h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
             h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateKeyword", value: op.keyword, until: op.until });
           }
         break;
@@ -3554,7 +3591,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // duration the card printed — "in all areas" compiles to the game,
         // and shortening that to a turn here was a silent change of rule.
         for (const id of h.resolveRef(frame, op.target)) {
-          if (h.forbids("beNegated", { card: id })) continue;
+          if (h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
           h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateSkillKind", value: op.kind, until: op.until });
         }
         break;
@@ -3876,7 +3913,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const card = h.resolvingCard();
           if (!card) break;
           if (op.mode === "rest") h.setPlayRest(card);
-          if (op.negated) h.setPlayNegated(card);
+          if (op.negated && !h.forbids("beNegated", { card, ...negatedBy(frame) })) h.setPlayNegated(card);
           break;
         }
         h.replaceResolvingPlay([{ op: "moveTo", target: { sel: { special: "resolving" } }, to: op.instead, ...(op.position ? { position: op.position } : {}) }]);
@@ -4044,7 +4081,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":

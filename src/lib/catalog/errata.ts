@@ -147,7 +147,11 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT31-006": [[/Z-Card\s+is\s+palyed\s+or\s+attacks/g, "Z-Card is played or attacks"]],
   "BT31-016": [[/from\s+its\s+owner'\s+Warp/g, "from its owner's Warp"]],
   "BT31-017": [[/at\s+5\s+or\s+lees/g, "at 5 or less"]],
-  "BT31-041": [[/Whe\s+this\s+card\s+attacks/g, "When this card attacks"]],
+  "BT31-041": [
+    [/Whe\s+this\s+card\s+attacks/g, "When this card attacks"],
+    // Review of audit lane C (2 Nov 2026): the [Awaken]'s "a green Unison **wth** a specified cost of 2" lost its measure.
+    [/green\s+Unison\s+wth\s+a\s+specified\s+cost/g, "green Unison with a specified cost"],
+  ],
   "BT31-053": [[/from\s+their\s+hnd/g, "from their hand"]],
   "BT31-080": [[/and\s+paly\s+a\s+\{/g, "and play a {"]],
   "BT31-094": [[/Whe\s+this\s+card\s+attacks/g, "When this card attacks"]],
@@ -487,6 +491,23 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
     [/\[energy-exhaust\]\s+\[arrival/g, "[energy-exhaust]<br>[arrival"],
     [/(\{Super\s+Baby\s+2,\s+Awakened\s+Malevolence\}):\s+\[permanent\]/g, "$1:<br>[permanent]"],
   ],
+
+  // Audit lane C (2 Nov 2026). NOT official errata: catalog misprints the compiler read literally, each a condition or
+  // a measure lost. A name no card has ("<Suepr 17>", "{Zen-Oh, Once Who Wipes Away}" — the Leader is {Zen-Oh, One
+  // Who Wipes Away}) made the skill unusable; a broken measure ("cost o 4", "power of less", "5or less") was dropped,
+  // so the choice took any card. P-020's copy breaks its one [Auto] sentence in two at a <br>, and the second half
+  // became a [Permanent] that gave [Double Strike] always.
+  "BT26-018": [[/<Suepr\s+17>/g, "<Super 17>"]],
+  "BT27-115": [[/\{Zen-Oh,\s+Once\s+Who\s+Wipes\s+Away\}/g, "{Zen-Oh, One Who Wipes Away}"]],
+  "BT27-045": [[/energy\s+cost\s+o\s+4/g, "energy cost of 4"]],
+  "BT30-008": [[/25000\s+power\s+of\s+less/g, "25000 power or less"]],
+  "P-606": [[/energy\s+cost\s+of\s+5or\s+less/g, "energy cost of 5 or less"]],
+  "P-020": [[/with\s+this\s+skill,\s*<br>\s*this\s+card\s+gains/g, "with this skill, this card gains"]],
+  // Review of lane C (2 Nov 2026), the same kind of misprint: "card **wth** 5000 combo power" (P-747) lost its measure
+  // (BT31-041's "wth" is with that card's other correction above), and "a red Unison with a **specific** cost of 3"
+  // (BT30-014) is the specified cost (1-2-4) — read as nothing, any card or Unison passed.
+  "P-747": [[/card\s+wth\s+5000\s+combo\s+power/g, "card with 5000 combo power"]],
+  "BT30-014": [[/red\s+Unison\s+with\s+a\s+specific\s+cost\s+of\s+3/g, "red Unison with a specified cost of 3"]],
 };
 
 /**
