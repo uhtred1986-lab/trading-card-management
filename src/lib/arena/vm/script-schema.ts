@@ -1444,7 +1444,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       const tone = [...(f.monoColor ? ["mono-colour"] : []), ...(f.multiColor ? ["multicolour"] : []), ...(f.notColors ?? []).map((x) => `non-${x.toLowerCase()}`)];
       const kind = f.z ? ["Z-Leader"] : [];
       const notTraits = (f.notTraits ?? []).map((x) => `non-≪${x}≫`);
-      const said0 = [...tone, ...f.colors, ...notTraits, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...names, ...kind, ...including];
+      const said0 = [...tone, ...(f.colors.length ? [colourList(f.colors, !!f.multiColor)] : []), ...notTraits, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...names, ...kind, ...including];
       const bits = partly.length ? [...said0, ...(said0.length && !kind.length ? ["card"] : said0.length ? [] : ["a card"]), ...partly] : said0;
       const originalPower = f.originalPowerMin != null ? `with an original power of ${f.originalPowerMin} or more` : f.originalPowerMax != null ? `with an original power of ${f.originalPowerMax} or less` : "";
       // "with 10000 power or less" (#990): the bound is part of the Leader
@@ -2603,6 +2603,11 @@ function anyOfNames(tokens: string[]): string[] {
   return tokens.length > 1 ? [tokens.join(" or ")] : tokens;
 }
 
+/** Colours as a filter asks them: any one ("red or black"), or every one of a multicolour card ("green and yellow"). */
+function colourList(colours: readonly string[], all: boolean): string {
+  return colours.length > 1 ? `${colours.slice(0, -1).join(", ")} ${all ? "and" : "or"} ${colours[colours.length - 1]}` : (colours[0] ?? "");
+}
+
 function allOfPhrases(characters: string[], names: string[]): string[] {
   const tokens = [...characters.map((x) => `<${x}>`), ...names.map((x) => `{${x}}`)];
   const out: string[] = [];
@@ -2633,7 +2638,11 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   const bits: string[] = [];
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");
-  bits.push(...f.colors.map((c) => c.toLowerCase()));
+  // Audit-selectors-1: several colours are *either* of them (`matchesAttrs`) unless the card must be multicolour, when
+  // it has every one — said so, "red or black ≪Saiyan≫", "multicolour green and yellow <Cell>". Side by side ("red
+  // black") the reading claimed a card of both colours for a filter that takes either. `parseFilter` reads both forms
+  // back to the same colours (an "or" between two colour words is not a second description).
+  if (f.colors.length) bits.push(colourList(f.colors.map((c) => c.toLowerCase()), f.multiColor));
   if (f.originalColors?.length) bits.push(`with original colours ${f.originalColors.map((c) => c.toLowerCase()).join(" or ")}`);
   // Every measure that *narrows by exclusion* was silent until 9 Sep 2026,
   // and a measure the reading drops always reads as the wider filter — the

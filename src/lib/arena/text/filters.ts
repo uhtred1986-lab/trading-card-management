@@ -925,6 +925,10 @@ function parseOneFilter(text: string): CardFilter {
   // one colour or several (2-2), so what is not multicoloured is mono.
   if (/\bnon-?multi-?colou?r(?:ed)?\b/.test(lower)) f.monoColor = true;
   else if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
+  // Audit-selectors-1: "a card that is **both red and green**" (BT7-117, EX04-02, P-124…), "a <Vegeta> card that is
+  // both red and green" (BT7-057): one card of every colour named, the multicolour card the "Red/Green multicolor"
+  // spelling asks for (2-2). Read as two colour words it took either — a mono-red or mono-green card answered.
+  else if (/\bboth (?:red|blue|green|yellow|black|white) and (?:red|blue|green|yellow|black|white)\b/.test(colourText)) f.multiColor = true;
   // "Use up to 1 face-up ≪Turles Crusher Corps≫ card from your life in a combo"
   // (3-9-2-1). "Face down" is never a way a card is picked out, so only the
   // one direction is read.
