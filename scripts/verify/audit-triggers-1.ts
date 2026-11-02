@@ -11,7 +11,11 @@
  * D.  The VM, both seats: a watched and a self coordinated moment, a described KO'd card, a KO by a described card's
  *     skill, and a [Permanent]'s standing power change starting to apply (R-132, R-134; Q&A BT13-002).
  *
- * Rulings: R-132 (owner), R-133 and R-134 (pending, best-guess).
+ * Rulings: R-132 (owner), R-133, R-134 and R-135 (pending, best-guess).
+ *
+ * Review: the whole head's own reading dropped once a head is read one by one (BT16-131); "would" not split (SD12-01);
+ * R-135 for "KO'd or removed … by an opponent's skill"; BT25-113's typo; "the attacking Battle Cards" is the attacker
+ * (P-409, P-203); the removed area only from an area (Q&A BT27-094, 23-2-5-1).
  */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
@@ -20,6 +24,7 @@ import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
+import { matchTriggers } from "../../src/lib/arena/vm/triggers";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { correctSkillText } from "../../src/lib/catalog/errata";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
@@ -114,6 +119,35 @@ for (const [text, what, why] of [
   ["[Auto] If it's your opponent's turn: At the end of the battle for this card or at the end of the turn, play 1 Majin Token in Rest Mode (Majin Tokens have 15000 power, 0 combo cost, and 5000 combo power), then remove this card from the game.", "BT25-039", "this card's battle on one moment"],
 ] as const) {
   assert.ok(unreadOf(text, what).length > 0, `A: ${what} — unread (${why})`);
+  records++;
+}
+
+// Review of audit triggers 1: what the whole head's readers made of coordinated words is dropped once the moments are
+// read one by one (BT16-131 answered every play); a replacement's "would" (9-10) is not split into moments.
+assert.deepEqual(only("[Auto] When this card is played from your hand or at the end of a battle in which this card was used in a combo from your hand, add up to 1 skill-less Battle Card with an energy cost of 2 from your deck or Drop Area to your hand, then shuffle your deck if you looked through it.", "BT16-131").trigger, ["playedFromHand", "comboed"], "A: BT16-131 — the play from the hand, never every play");
+for (const [text, what] of [
+  ["[Auto] If it's your opponent's turn: When one of your blue Unison Cards would be placed in your Drop Area or one of your blue Battle Cards is removed from your Battle Area by an opponent's skill or KO'd, you may flip this card over. If you do, draw 2 cards.", "SD12-01"],
+  ["[Auto][Limit 1] If your Leader is a red <Warriors of Universe 7> card, and you send 1 ≪Universe 7≫ card and this card from your Drop to your Warp: When one of your ≪Universe 7≫ cards would be removed from your Battle Area by an opponent's skill or KO'd, draw 1 card.", "BT20-141"],
+] as const) {
+  const rec = only(text, what);
+  assert.deepEqual(rec.trigger, [], `A: ${what} — "would" is a replacement's wording, no moment (${JSON.stringify(rec.trigger)})`);
+  assert.ok(rec.unread.length > 0, `A: ${what} — unread`);
+  records++;
+}
+// R-135 (pending): "KO'd or removed from a Battle Area by an opponent's skill" — any KO, the cause the removal's. BT25-113's
+// typo ("by and opponent's skill") is corrected where a sync stores it, and its two moments are read.
+const bt25113 = correctSkillText("BT25-113", "[Auto] When this card is removed from a Battle Area by and opponent's skill or KO'd, play up to 1 {Three-Star Ball, Negative Energy Overflow} from your Drop.");
+assert.equal(bt25113, "[Auto] When this card is removed from a Battle Area by an opponent's skill or KO'd, play up to 1 {Three-Star Ball, Negative Energy Overflow} from your Drop.", "A: BT25-113 — errata");
+assert.deepEqual(record(bt25113, "BT25-113").trigger, ["koed", "removedByOpponent"], "A: BT25-113 — both moments (R-135)");
+records += 2;
+// "…choose up to 1 of the attacking Battle Cards" is the battle's attacker (8-1), never one of your own Battle Cards.
+for (const [text, what, sel] of [
+  ["[auto]{u}, if your Leader is mono-blue and you discard this card from your hand: When one of your Battle Cards is KO'd by an opponent's attack, choose up to 1 of the attacking Battle Cards and place it on top of its owner's deck.", "P-409", '{"special":"attacker","count":1,"upTo":true}'],
+  ["[counter: battle card attack] Choose the attacking Battle Card, KO it, then play this card.", "P-203", '{"special":"attacker"}'],
+] as const) {
+  const rec = only(text, what);
+  assert.deepEqual(rec.unread, [], `A: ${what} — read (${rec.unread.join(" | ")})`);
+  assert.ok(JSON.stringify(rec.ops).includes(`"sel":${sel}`) && !JSON.stringify(rec.ops).includes('"side":"you","area":"battle"'), `A: ${what} — the attacker${sel.includes("upTo") ? ", up to 1" : ""}, not one of your Battle Cards (${rec.reads})`);
   records++;
 }
 
@@ -213,6 +247,11 @@ const defs: Record<string, CardDef> = {
   W_THEIRS: card("W_THEIRS", { skill: `[Auto] When the power of one of your opponent's Battle Cards is decreased, ${DRAW}` }),
   VEGKO: card("VEGKO", { characters: ["Vegeta"], skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it." }),
   W_BYVEGETA: card("W_BYVEGETA", { skill: `[Auto] When this card is KO'd by a <Vegeta> card's skill, ${DRAW}` }),
+  RFG: card("RFG", { skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and remove it from the game." }),
+  STRONG: card("STRONG", { power: 30000 }),
+  W_ATTACKED: card("W_ATTACKED", { skill: `[Auto] At the end of a battle in which this card attacked, ${DRAW}` }),
+  W_P409: card("W_P409", { skill: "[Auto] When one of your Battle Cards is KO'd by an opponent's attack, choose up to 1 of the attacking Battle Cards and place it on top of its owner's deck." }),
+  W_RFG: card("W_RFG", { skill: `[Auto] When this card is removed from the game, ${DRAW}` }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
@@ -337,6 +376,43 @@ for (const seat of ["p1", "p2"] as const) {
     s = play(s, seat, free);
     assert.equal(hand(s, seat), 2, `${seat}: D4: …and it going on applying is no moment`);
     cases += 2;
+  }
+  // D5. Removed from the game (20-10) from a Battle Area answers; a card under another card answers to no area-movement
+  // [Auto] (23-2-5-1; Q&A BT27-094, removed from under BT27-069), and a pile card's move names no area it came from.
+  {
+    let s = fresh(seat, seed(9));
+    const r = stage(s, seat, "RFG", "battle");
+    const w = stage(s, foe, "W_RFG", "battle");
+    s = activate(s, r, pick(w));
+    assert.ok(s.sides[foe].zones.removed.includes(w), `${seat}: D5: removed from the game`);
+    assert.equal(hand(s, foe), 1, `${seat}: D5: from a Battle Area — it answered (removedFromGame)`);
+    const fromPile = matchTriggers(game, s, { event: "moved", card: w, controller: foe, args: { to: "removed", asPlay: false, cause: "effect" } });
+    assert.ok(!fromPile.some((m) => m.trigger === "removedFromGame"), `${seat}: D5: from under a card — no moment (23-2-5-1)`);
+    cases += 2;
+  }
+  // D6. P-409's wording: one of their Battle Cards KO'd by an attack — "the attacking Battle Cards" is the attacker, back
+  // on top of its owner's deck (never one of the watcher's own Battle Cards).
+  {
+    let s = fresh(seat, seed(10));
+    const atk = stage(s, seat, "STRONG", "battle");
+    const watcher = stage(s, foe, "W_P409", "battle");
+    const guard = stage(s, foe, "V-BLUE", "battle");
+    s.cards[guard].mode = "rest";
+    s = settle(take(s, { type: "attack", player: seat, attacker: atk, target: guard } as Action));
+    assert.ok(s.sides[foe].zones.drop.includes(guard), `${seat}: D6: their Battle Card KO'd by the attack`);
+    assert.equal(s.sides[seat].zones.deck[0], atk, `${seat}: D6: the attacker on top of its owner's deck (yourCardKoedByAttack)`);
+    assert.ok(s.sides[foe].zones.battle.includes(watcher), `${seat}: D6: …and the watcher's own Battle Card stays`);
+    cases++;
+  }
+  // D7. "At the end of a battle in which this card attacked" (BT17-045): the copy that attacked answers, the copy beside
+  // it does not — read as a plain end of the battle, both did.
+  {
+    let s = fresh(seat, seed(11));
+    const a1 = stage(s, seat, "W_ATTACKED", "battle");
+    stage(s, seat, "W_ATTACKED", "battle");
+    s = settle(take(s, { type: "attack", player: seat, attacker: a1, target: s.sides[foe].zones.leader[0] } as Action));
+    assert.equal(hand(s, seat), 1, `${seat}: D7: only the attacker answered the battle's end (inBattle attacker)`);
+    cases++;
   }
 }
 

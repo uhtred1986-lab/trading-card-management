@@ -1263,6 +1263,9 @@ function momentClause(head: string): string {
  */
 export function momentParts(head: string): string[] | null {
   let clause = momentClause(head).replace(TURN_THEN_WHEN, "");
+  // "…would be placed in your Drop Area or …" (SD12-01, BT20-141) is a replacement's wording (9-10), no moment: the
+  // split re-said it as "would be is placed …", a head that is neither.
+  if (/\bwould\b/.test(clause)) return null;
   clause = clause.replace(/^when you play this card,? or (?:when you )?(?:use it in a combo|combo with it|use this card in a combo|combo with this card)\b/, "when this card is played or used in a combo");
   let subject: string, rest: string;
   const self = /^when (this card(?: in (?:your|a) (?:hand|battle area|drop(?: area)?|energy(?: area)?|deck or hand|hand or deck))?) (.+)$/.exec(clause);

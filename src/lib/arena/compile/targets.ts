@@ -697,7 +697,14 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
     // read — "from your Battle Area" is 9-1-3-1's own answer already.
     return selfFrom(t);
   }
-  if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
+  // Audit triggers 1 (review): "Choose the attacking **Battle Card**" (P-203), "…up to 1 of the attacking **Battle
+  // Cards**" (P-409, a KO by an opponent's attack), "…of the attacking cards" (BT24-060): a battle has one attacker
+  // (8-1), whatever the noun. Read as a description, these chose one of your own Battle Cards. "Up to 1 of" stays a
+  // choice the player may decline.
+  if (/\bthe attack(?:ing)? (?:battle |leader )?cards?\b/.test(t)) {
+    const upTo = /\bup to (\d+) of the attack/.exec(t);
+    return { special: "attacker", ...(upTo ? { count: Number(upTo[1]), upTo: true } : {}) };
+  }
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
   // "Your opponent's Leader", "your Leader Card": a player has exactly one
   // (3-1-2), so this names a card rather than describing a search — and the

@@ -230,7 +230,9 @@ export const TRIGGERS = Object.keys(TRIGGER_IN_WORDS) as Trigger[];
  * Audit triggers 1: a head that coordinates moments ("When this card attacks or is attacked") answers to each of them,
  * read one by one (`momentPartSkills`). The readers of the whole head already place some pairs ("played or attacks",
  * "attacks or activates [Blocker]"); where they place fewer moments than the head says, the moments said one by one
- * are added, and a moment no reader places alone is `unreadMoments`'.
+ * are what it answers to, and a moment no reader places alone is `unreadMoments`'. The whole head's own reading is
+ * then dropped: it was made of the coordinated words, so what it adds is wrong — "When this card is played from your
+ * hand or at the end of a battle in which…" (BT16-131) answered every play.
  */
 function coordinated(sk: Skill, whole: Trigger[]): { each: Trigger[][]; parts: Skill[] } | null {
   const parts = momentPartSkills(sk);
@@ -243,7 +245,7 @@ export function triggersOf(sk: Skill): Trigger[] {
   if (sk.kind !== "auto" && !sk.keyword && !triggeredPermanent(sk)) return [];
   const whole = TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t));
   const more = coordinated(sk, whole);
-  return more ? TRIGGERS.filter((t) => whole.includes(t) || more.each.some((e) => e.includes(t))) : whole;
+  return more ? TRIGGERS.filter((t) => more.each.some((e) => e.includes(t))) : whole;
 }
 
 /** Audit triggers 1: does this skill answer to moments the readers of its whole head do not place (read one by one)? */

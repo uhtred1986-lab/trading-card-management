@@ -509,8 +509,11 @@ DEFINE TRIGGER yourCardToZEnergy
 
 -- Audit triggers 1 — "When this card is placed in a Battle Area or removed
 -- from the game" (BT27-094): its move to the removed area (20-10), heard there.
+-- From an area only: a card under another card that moves answers to no
+-- area-movement [Auto] (23-2-5-1; Q&A BT27-094, removed from under BT27-069),
+-- and a pile card's move names no area it came from.
 DEFINE TRIGGER removedFromGame
-  ON moved(to: removed)
+  ON moved(from: [deck, hand, drop, battle, combo, energy, life, warp, unison, zDeck, zEnergy], to: removed)
   BIND "self"
   text: "when this card is removed from the game"
 
