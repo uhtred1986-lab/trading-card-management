@@ -213,6 +213,8 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT26-120": [[/Look\s+at\s+up\s+to\s+5cards\s+from/g, "Look at up to 5 cards from"]],
   "BT31-084": [[/Flip\s+up\s+ot\s+1\s+<Vegeta>/g, "Flip up to 1 <Vegeta>"]],
   "P-683": [[/\[Barrier\]\s+until\s+he\s+end\s+of/g, "[Barrier] until the end of"]],
+  // Audit lane E (2 Nov 2026): misspellings the compiler read literally.
+  "P-685": [[/Active\s+Mode\s+until\s+te\s+end\s+of/g, "Active Mode until the end of"]],
 
   // ── Official errata, all of them (errata-official-1, 2 Nov 2026) ──────────
   // Bandai's errata page (https://www.dbs-cardgame.com/us-en/rule/errata-cards.php), snapshot in

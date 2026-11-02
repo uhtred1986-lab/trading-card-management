@@ -329,6 +329,8 @@ export function untilWords(until: EffectUntil, o: { master: PlayerId | null; vie
     case "nextMain":
     // "Until the end of your turn" (#930): the master's own turn.
     case "ownTurn":
+    // "Until the end of your next turn" (audit lane E): the master's next turn.
+    case "ownNextTurn":
       return (mine && w.you ? w.you : w.text).replace("{them}", o.them);
     case "nextTurn":
     case "opponentTurn": {

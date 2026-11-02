@@ -914,8 +914,8 @@ export interface ContinuousEffect {
    * `target` alone.
    */
   matching?: { sel: Selector; vars: Record<string, string[]> };
-  /** "nextTurn" runs through the opponent's whole turn and ends as yours begins; "nextMain" runs one phase further, to the start of your next Main Phase (#1163); "ownTurn" ends at the end of the master's own turn (#930). */
-  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "game" | "whileSourceInPlay" | "battleOrTurn";
+  /** "nextTurn" runs through the opponent's whole turn and ends as yours begins; "nextMain" runs one phase further, to the start of your next Main Phase (#1163); "ownTurn" ends at the end of the master's own turn (#930); "ownNextTurn" at the end of the master's next turn after the one it was made on (audit lane E). */
+  until: "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "ownNextTurn" | "game" | "whileSourceInPlay" | "battleOrTurn";
   /**
    * The card whose skill made it, so a client can say "+5000 power from
    * Kaio-ken" and a refusal can name what forbids it. Absent on effects the

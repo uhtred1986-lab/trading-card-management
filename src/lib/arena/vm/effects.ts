@@ -428,7 +428,10 @@ export function endAfterChargeEffects(state: VmState, ev: GameEvent[], cards: st
  * on the opponent's. Called beside the "for the turn" expiry.
  */
 export function endOwnTurnEffects(state: VmState, ev: GameEvent[]): ContinuousEffect[] {
-  return dropEffects(state, ev, (e) => !(e.until === "ownTurn" && e.master === state.turnPlayer));
+  // Audit lane E: "…until the end of your **next** turn" (`ownNextTurn`) is the same end, on a turn of the master's
+  // later than the one it was made on — the very next turn when made on the opponent's, two turns on when made on
+  // the master's own.
+  return dropEffects(state, ev, (e) => !(e.master === state.turnPlayer && (e.until === "ownTurn" || (e.until === "ownNextTurn" && e.createdTurn < state.turn))));
 }
 
 /**

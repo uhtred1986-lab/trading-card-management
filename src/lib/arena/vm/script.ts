@@ -44,8 +44,15 @@ export type Side = "you" | "opponent" | "both";
  * the end of a turn of its controller's (7-4-5) — the turn it was made on
  * when that is theirs, or their next one when it was made on the opponent's
  * turn ("when this card is removed from a Unison Area" can happen then).
+ *
+ * `ownNextTurn` is "until the end of **your next** turn" (audit lane E: BT12-132,
+ * P-394, DB3-142, BT9-087): it ends at the end of a turn of its controller's
+ * that is later than the one it was made on — the very next turn when made on
+ * the opponent's (a [Counter], "when attacked"), the turn after the opponent's
+ * when made on the controller's own. Read as "for the turn" it lapsed at once on
+ * the opponent's turn, before the turn it names.
  */
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "game" | "whileSourceInPlay" | "battleOrTurn";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "ownNextTurn" | "game" | "whileSourceInPlay" | "battleOrTurn";
 
 /** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
 export type NegateScope = "skills" | "kind" | "keyword" | "own";

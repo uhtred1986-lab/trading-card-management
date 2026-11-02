@@ -451,11 +451,20 @@ function durationOf(clause: string): Duration {
   if (/until the (?:start|beginning) of your next main phase/.test(t)) return "nextMain";
   // Your *own* next Charge Phase is one step past "your next turn": the effect
   // has to be there when the Active Step runs (7-2-7).
-  if (/during your next charge phase/.test(t)) return "afterNextCharge";
+  // Audit lane E: "…can't switch to Active Mode **at the start of** your next Charge Phase" (BT25-051) is the same
+  // Active Step (7-2-7 opens the phase); read as "for the turn" the card stood up as usual.
+  if (/(?:during|at the (?:start|beginning) of) your next charge phase/.test(t)) return "afterNextCharge";
   // This phase belongs to the *opponent of the skill's controller*, even if
   // the locked card changes controller before it. It ends after that phase's
   // Active Step or as soon as the phase is skipped (20-13-5).
-  if (/during your opponent's next charge phase/.test(t)) return "afterOpponentCharge";
+  // Audit lane E: "…until the end of **their** next Charge Phase" (P-469) and "…during **their** next Charge Phase"
+  // (DB3-099), said of the opponent's card, are the same phase (the pronoun is the opponent the clause names; the
+  // forbid reader only passes it here when the skill names your opponent).
+  if (/(?:during|until the end of) your opponent's next charge phase/.test(t)) return "afterOpponentCharge";
+  // Audit lane E: "…until the end of **your next** turn" (BT12-132, BT20-134, DB2-032, P-394, DB3-142, EB1-28): the end
+  // of the controller's next turn (`ownNextTurn`) — the very next one when it resolves on the opponent's turn, the one
+  // after the opponent's when on their own. It used to fall through to "for the turn".
+  if (/until the end of your next turn/.test(t)) return "ownNextTurn";
   // Everything that has to survive the opponent's whole turn and end as yours
   // begins: the rest-lock wordings, which are the same duration said four ways.
   // "For the duration of your opponent's next turn" (BT6-023) is the same span
@@ -2494,7 +2503,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     return [{ op: "power", target, amount: { attr: { var: c.priceChoice }, name: "originalPower" }, until: durationOf(t) }];
   }
 
-  if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) (combo )?power,? and ((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
+  // Audit lane E: "…gets +15000 power, [Critical], and [Double Strike] for the battle" (BT27-061) is the same list said
+  // with commas, kept whole by the splitter (`commaJoinsGrantList`) so its span closes every item.
+  if ((m = /^(.*?) (?:gets?|gains?) ([+-]\d+) (combo )?power(?:,? and |, )((?:\[[^\]]+\][\s,]*(?:and\s+)?)+)$/.exec(q))) {
     const refs = refsFor(m[1], c);
     const kws = [...m[4].matchAll(/\[([^\]]+)\]/g)].map((x) => keywordOf(x[1]));
     if (refs && kws.length && kws.every((k) => k)) {
@@ -3856,6 +3867,10 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
         // skills negated" (EX25-14) says the mode before the place: the mode is the play's, as after it, and never the
         // cards' the choice looks for (it read as a choice of rested energy, played in Active Mode).
         .replace(/^(play .+?)(\s|--|[-—–―])in (rest|active) mode (from (?:your|their) (?:(?! with ).)+?)((?: with (?:its|their) .*)?)$/, (_w, a: string, gap: string, mode: string, from: string, rest: string) => `${a}${gap.trim() ? `${gap} ` : " "}${from} in ${mode} mode${rest}`)
+        // Audit lane E: "play up to 1 Battle Card with an energy cost of 5 or less **with its skills negated for the
+        // game** from your opponent's Warp in your Battle Area" (EX23-37) says the negation before the place; it is the
+        // play's, as after it. Left where it was, its span was lost and the negation lasted the turn.
+        .replace(/^(play .+?) (with (?:its|their) (?:(?:non-)?keyword )?skills negated(?: for (?:the )?(?:turn|game|battle))?) (from (?:your|their|your opponent'?s) .+)$/, "$1 $3 $2")
     : t;
   // Mechanism batch 3: "…and play them **to their owners' Battle Areas**" (BT13-096), "…in their owners' Battle Areas"
   // (EX21-15): each card goes to its own owner's side (`toOwners`) — read as a plain play, the opponent's card came back
@@ -3896,7 +3911,10 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // half, its keyword skills and [Counter]s (`negateHalf`); it used to read as every skill negated.
     const half = m[3] && /skills negated/.test(t) ? m[3].trim() : undefined;
     if (!half && / until the end of your opponent's next turn$/.test(tp)) return null;
-    const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !half ? (m[4] === "game" ? "game" : "turn") : undefined;
+    // Audit lane E: "…play it with its skills negated" with no span at all (DB2-088) holds while the card stays where it
+    // was played (9-9-2 ends it when the card leaves the area); the sets that mean the turn print "for the turn" (DB2-068,
+    // DB2-071, DB2-073). It used to last the turn.
+    const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !half ? (m[4] === "game" || /skills negated$/.test(tp) ? "game" : "turn") : undefined;
     const thenNegate = (target: Ref): Op[] => (half ? negateHalf(half, target, durationOf(t.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : []);
     let ref = refFor(m[1], c);
     if (!ref) return null;
@@ -4478,12 +4496,13 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // until the end of **their** next turn" (BT13-054): the pronoun is the
   // opponent the skill names, as `durationOf` reads it when the same clause
   // says "your opponent".
-  // "…until the end of your next turn" on a [Counter: Attack] (BT9-087): it
-  // resolves in the opponent's attack, on their turn, so the rule holds
-  // through it and through its controller's next turn (`ownTurn`, which ends
-  // with the first turn of its controller's after it is made).
-  const nextOwn = /\buntil the end of your next turn\b/.test(t) && c.skillKind === "counter:attack";
-  const until = nextOwn ? "ownTurn" : /\buntil the end of their(?: next)? turn\b/.test(t) && !/\byour opponent\b/.test(t) && /\byour opponent'?s?\b/i.test(c.raw) ? "nextTurn" : durationOf(t);
+  // "…until the end of your next turn" (BT9-087, a [Counter: Attack]; BT20-138, an [Activate: Battle] on the
+  // opponent's turn) is `durationOf`'s `ownNextTurn` for every skill kind since audit lane E: the end of its
+  // controller's next turn after the one it is made on. Only the [Counter] read it before (as `ownTurn`).
+  // Audit lane E: "…during / until the end of **their** next Charge Phase" said of your opponent's card (DB3-099,
+  // P-469) is your opponent's, read as `durationOf` reads "your opponent's next Charge Phase".
+  const theirs = !/\byour opponent\b/.test(t) && /\byour opponent'?s?\b/i.test(c.raw);
+  const until = theirs && /\buntil the end of their(?: next)? turn\b/.test(t) ? "nextTurn" : durationOf(theirs ? t.replace(/\b(during|until the end of) their next charge phase\b/, "$1 your opponent's next charge phase") : t);
   const q = stripQualifiers(t);
   // "Your opponent can only attack **this card**" (DB2-068), "your opponent's
   // Battle Cards can only attack this card" (TB1-035; #1005): every attack of
@@ -4683,7 +4702,9 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // which is as the play is declared, the moment a play tax is charged.
   const priceSaid = unlessTail
     ? taxOn === "activate"
-      ? unlessTail[1].trim().replace(/\s+as an additional (?:skill )?cost$/, "")
+      ? // Audit lane E: the span a leading "for the duration of the turn" hands the whole sentence (DB1-015) closes the
+        // price too; it is the rule's (`until`), never the price's.
+        unlessTail[1].trim().replace(/\s+as an additional (?:skill )?cost(?:\s+for the (?:duration of the )?turn)?$/, "")
       : taxOn === "play"
         ? unlessTail[1].trim().replace(/\s+(?:as an additional cost|as they play the (?:battle )?card)(?=\s+(?:until|for|during)\b|$)/, "").replace(/\s+for the duration of your opponent's next turn$/, "")
         : unlessTail[1].trim()
@@ -6285,6 +6306,13 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   const clauses = joinSplitPlacements(rawClauses);
   // Kept the same length as `clauses` at every splice below.
   const joined = clauses.map((_, k) => !!rawJoined[k]);
+  // Audit lane E: "…negate that card's non-keyword skills, **you gain control of it**, and that card gains [Servant]"
+  // (BT21-063) takes the card for good — an untimed gain of control, which only the card leaving ends (9-9-2) — and
+  // prints no span anywhere: its other effects on that card hold as long. Read one at a time, each lasted the turn.
+  if (clauses.some((k) => /^(?:and )?you gain control of (?:it|that card)[.]?$/i.test(k.trim())) && !clauses.some((k) => /\b(?:for the|for game|until|during|through|while)\b/i.test(k))) {
+    for (let k = 0; k < clauses.length; k++)
+      if (/^(?:and )?(?:negate (?:that card|it)'?s? (?:(?:non-)?keyword )?skills|(?:that card|it) gains? \[[^\]]+\])[.]?$/i.test(clauses[k].trim())) clauses[k] = `${clauses[k].trim().replace(/[.]$/, "")} for the game`;
+  }
   /**
    * 20-16: the offer pushed by the clause just before this one. "You may reveal
    * 1 card from your hand **and** place it at the bottom of your deck" is one
@@ -6609,6 +6637,14 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     if (i + 2 === clauses.length && !PURE_DURATION.test(clause.trim()) && /^for the duration of the (?:turn|battle)[.]?$/i.test(clauses[i + 1].trim()) && !DURATION_TAIL.test(clause.trim().replace(/[.,]$/, "").toLowerCase())) {
       clauses.splice(i, 2, `${clause.trim().replace(/[.,]$/, "")} ${clauses[i + 1].trim()}`);
       i--;
+      continue;
+    }
+    // Audit lane E: "Draw 1 card, and **for the duration of your opponent's next turn**, your opponent can't play Battle
+    // Cards … unless …" (BT6-023) opens the rule at that turn, not now: the same delay "during your opponent's next turn,
+    // …" is, whose rule then lasts that turn. Carried to the end of the rule as a span, the tax began at once and also
+    // taxed the opponent's plays during your own turn.
+    if (/^for the duration of your opponent's next turn[.,]?$/i.test(clause.trim()) && i + 1 < clauses.length && !joined[i + 1]) {
+      clauses[i + 1] = `during your opponent's next turn, ${clauses[i + 1].trim()}`;
       continue;
     }
     if (PURE_DURATION.test(clause.trim()) && i + 1 < clauses.length) {

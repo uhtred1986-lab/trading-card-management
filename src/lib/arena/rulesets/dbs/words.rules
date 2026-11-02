@@ -292,6 +292,13 @@ DEFINE WORDS untilOwnTurn
   you: "until the end of your turn"
   text: "until the end of {them}'s turn"
 
+-- "Until the end of your next turn" (audit lane E, BT12-132): ends at the end
+-- of the controller's next turn after the one it was made on.
+DEFINE WORDS untilOwnNextTurn
+  of: until
+  you: "until the end of your next turn"
+  text: "until the end of {them}'s next turn"
+
 -- Phrasing batch 7: "…until the end of a battle or the end of the turn,
 -- whichever comes first" (BT15-139): ends with the next battle's end or the
 -- turn's, the first of the two.
