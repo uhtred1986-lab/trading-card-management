@@ -645,6 +645,12 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // Refusing is ground rule 5: the clause goes to the referee, which is what
   // the card needs anyway.
   if (/\bby this skill\b|\bsent to\b/.test(t)) return null;
+  // Audit-selectors-1 review: two more a selector cannot say and a reading must not drop — a card's attacks this turn
+  // ("choose 1 of your yellow <Son Goku: Childhood> cards in Rest Mode **that hasn't attacked this turn**", SD20-05) and
+  // the battle a card is in, said positively ("choose 1 of your cards **in battle**", BT13-058; `notInBattle` reads only
+  // "that's not in a battle"). Read without them the choice took any card of the description.
+  if (/\b(?:has|have|did)(?:n'?t| not) attacked\b|\bthat (?:has )?attacked this turn\b/.test(t)) return null;
+  if (/\bcards? (?:that (?:is|are) )?in (?:a )?battle\b(?!\s+areas?\b)/.test(t) && !/\bnot in (?:a )?battle\b/.test(t)) return null;
   // 20-5: "up to **X** of your opponent's Battle Cards" — a count that is the
   // X the skill's price was paid at. A `Selector.count` is a plain number and
   // not an expression, so there is nothing here that can say it; read as it

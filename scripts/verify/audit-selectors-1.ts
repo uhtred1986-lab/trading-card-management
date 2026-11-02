@@ -208,6 +208,19 @@ for (const [text, what, side] of [
   const line = recs.find((r) => r.skillIndex === 20);
   assert.ok(line && line.unread.some((u) => /play the Leader/.test(u)), `R: EX15-01 — a play of the Leader is unread (${JSON.stringify(line?.unread)})`);
 }
+for (const [text, what, clause] of [
+  ["[Auto][Limit 1] If your Leader is a yellow Z-Leader or yellow <Son Goku: Childhood> card: When this card is switched to Rest Mode by one of your Leader skills, switch this card to Active Mode, then choose 1 of your yellow <Son Goku: Childhood> cards in Rest Mode that hasn't attacked this turn and switch it to Active Mode. If you do, draw 1 card.", "SD20-05", /hasn't attacked this turn/],
+  ["[Activate: Battle] If your Leader Card is a mono-blue ≪Saiyan≫ card: Choose 1 of your cards in battle, and it gets +10000 power for the battle; if it's a blue skill-less ≪Saiyan≫ card, draw 1 card and the chosen card gets an additional +10000 power for the battle.", "BT13-058", /cards in battle/],
+] as const) {
+  const [rec] = skillRecords(card(what, { skill: text }));
+  assert.ok(rec.unread.some((u) => clause.test(u)), `R: ${what} — the qualifier no selector says leaves the clause unread (${JSON.stringify(rec.unread)})`);
+}
+{
+  // …and "in a Battle Area", "not in a battle" are still read.
+  const rec = record("[Auto] When you play this card, you may choose 1 [Field] card in a Battle Area with an energy cost of 1 or less and place it in its owner's Drop Area. If you do, this card gets +5000 power for the duration of the turn.", "P-152");
+  assert.equal(opOf(rec, "choose")[0].sel.side, "both", "R: P-152 — a Battle Area is either player's, and still read");
+  records++;
+}
 
 // ── C. "the chosen card(s)" after a price ───────────────────────────────────────
 for (const [text, what, n, to] of [
