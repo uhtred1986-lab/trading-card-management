@@ -9,6 +9,8 @@
  *     or with no span at all, is not "for the turn" (EX23-37, DB2-088, BT21-063); "for the duration of your opponent's
  *     next turn, …" opens the rule at that turn (BT6-023); P-685's "until te end" (errata.ts). R-200 (pending): an
  *     untimed negation or grant lasts while its card stays.
+ * B.  Cost changes say their orbs and span; "[Activate: Main]" / "[Activate: Battle]" reach that timing alone; a "next time
+ *     you activate X on <described> card" waits for the next such activation on any card it describes (R-201, pending).
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where the engine learned something (`ownNextTurn`'s end).
@@ -19,6 +21,7 @@ import { skillRecords } from "../../src/lib/arena/draft";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import { correctSkillText } from "../../src/lib/catalog/errata";
 import { endOwnTurnEffects } from "../../src/lib/arena/vm/effects";
+import { activateTimingReaches } from "../../src/lib/arena/vm/costs";
 import type { CardDef } from "../../src/lib/arena/types";
 import type { Op } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -144,5 +147,37 @@ assert.ok(opOf(record("DB1-094", "[activate: battle] {1}, choose 1 of your ≪Un
   t.turnPlayer = "p1";
   assert.equal(endOwnTurnEffects(t, []).length, 1, "A6: …at the end of your next turn");
 }
+
+// B. Cost changes: the orbs, the span and the [Activate] timing they print (R-201 pending: "the next time you activate
+// X on <described> card" waits for the next such activation on any card the description finds).
+for (const [id, text, reads] of [
+  ["EX24-26", "[activate: main] Remove this card from the game: Reduce the [auto] skill cost of {Family Kamehameha, Emotions Delivered} in your Battle Area by {g} for the turn.", /\[Auto\] skills is 1 less \(\{Green\}\) for the turn$/],
+  ["EX23-29", "[activate: main][limit 1] If your Leader is a yellow <Gotenks: Adolescence> card, you have 3 or more energy, and you remove this card from the game: During that turn, the next time you activate the [union] skill on a yellow <Gotenks: Adolescence> card with an energy cost of 7 or less from your hand, reduce the skill cost by {y}{y}.", /is 2 less \(\{Yellow\}\{Yellow\}\) the next time it is paid this turn$/],
+  ["SD19-04", "[permanent] If your Leader is a Z-Leader or you have a Z-Battle Card in play, reduce the skill cost of this card's [union] skill in your hand by {g}.", /is 1 less \(\{Green\}\)$/],
+  ["BT24-072", "[Activate: Main][Limit 1] If your Leader is a green <Frieza> card and you discard this card from your hand: Choose up to 1 of your opponent's non-token Battle Cards and increase its energy cost by 1 for the turn.", /costs 1 more for the turn$/],
+  ["BT24-105", "[activate: main][once per turn] Declare 1 number that's 3 or less: Increase this card's energy cost by the declared number for the turn.", /this card costs X more for the turn$/],
+  ["EX24-03", "[activate: main][limit 1] If your Leader is a ≪Power Wish≫ card, you have 2 or more energy, and you add this card in your hand to your Z-Energy: During this turn, ignore the specified costs on ≪Shenron≫ Z-Unisons in your Z-Deck.", /has no specified cost for the turn$/],
+] as const) {
+  const rec = record(id, text);
+  assert.match(rec.reads, reads, `B: ${id} — ${rec.reads}`);
+  records++;
+}
+for (const [id, text, timing] of [
+  ["BT28-075", "[Activate: Main][Limit 1] Place this card into its owner's Drop: The next time you activate an [Activate: Main] skill on a <Son Goku> card with an [Alliance] skill from your hand during this turn, reduce the skill cost by {g}.", "main"],
+  ["BT28-056", "[Activate: Battle][Once per turn] If your opponent has 2 or more energy: The next time you activate an [Activate: Battle] skill on a green <Tien Shinhan> card in your hand during the battle, reduce the skill cost by {g}.", "battle"],
+  ["BT29-003", "[-3][activate: main/battle] If your Leader is a red <Krillin> card and you place 4 red ≪Earthling≫ Extras from your Drop at the bottom of their owner's deck: The next time you activate an [activate] skill on a red Extra from your hand during this turn, reduce the skill cost by {1}.", undefined],
+] as const) {
+  const cut = opOf(record(id, text), "costReduction")[0];
+  assert.ok(cut.skillKind === "activate" && cut.activateTiming === timing && cut.uses === 1, `B: ${id} — the [Activate${timing ? `: ${timing}` : ""}] lines, once (${JSON.stringify(cut)})`);
+  records++;
+}
+// The span of BT28-056's is the battle.
+assert.equal(opOf(record("BT28-056", "[Activate: Battle][Once per turn] If your opponent has 2 or more energy: The next time you activate an [Activate: Battle] skill on a green <Tien Shinhan> card in your hand during the battle, reduce the skill cost by {g}."), "costReduction")[0].until, "battle", "B: BT28-056 — during the battle");
+// The VM's reach: a timing reaches its own lines and the [Activate: Main/Battle] ones, never the other timing's.
+for (const [timing, kind, reaches] of [
+  ["main", "activate:main", true], ["main", "activate:main/battle", true], ["main", "activate:battle", false],
+  ["battle", "activate:battle", true], ["battle", "activate:main/battle", true], ["battle", "activate:main", false],
+  [undefined, "activate:battle", true],
+] as const) assert.equal(activateTimingReaches({ kind }, timing), reaches, `B: [Activate${timing ? `: ${timing}` : ""}] reaches a ${kind} line: ${reaches}`);
 
 console.log(`audit-effects-1: ${records} records read as printed`);

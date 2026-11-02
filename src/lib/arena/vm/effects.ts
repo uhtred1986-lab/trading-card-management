@@ -207,6 +207,8 @@ export interface VmStatic {
   value: number | KeywordSkill | KeywordSkill["name"] | CardIdentityGain | SpecifiedChange | Prohibition | PayerGrant | VmAltCost | Immunity | Replacement | StandingSkip | Permission;
   /** `skillCost`: the kind of skill line the change is about ("activate", "counter", …), or every line when absent — the legacy `StaticEffect`'s field. */
   skillKind?: SkillKindPrefix;
+  /** `skillCost`: "[Activate: Main]" or "[Activate: Battle]" alone (`ContinuousEffect.activateTiming`). */
+  activateTiming?: "main" | "battle";
   /** `skillCost`: the keyword skill the change is about (`ContinuousEffect.tag`). */
   tag?: string;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
@@ -1029,7 +1031,7 @@ function collect(
         // EX03-16: an [Evolve] price changed only when it is played onto these.
         const onto = kind === "evolveCost" && op.onto ? { onto: targets(frame, { ...op, target: op.onto }) } : {};
         for (const id of targets(frame, op))
-          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.tag ? { tag: op.tag } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
+          out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.skillKind ? { skillKind: op.skillKind } : {}), ...(op.activateTiming ? { activateTiming: op.activateTiming } : {}), ...(op.tag ? { tag: op.tag } : {}), ...(op.colors?.length ? { colors: op.colors } : {}), ...onto });
         continue;
       }
       const kind = op.what === "combo" ? "comboCost" : op.what === "zEnergy" ? "zEnergy" : "cost";

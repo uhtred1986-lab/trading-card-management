@@ -2273,6 +2273,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // list is two descriptions with a shared area, one reduction each (#907).
     const listed = kindWordTrim !== "skill" && kindWordTrim !== "evolve" && /\sand\s/.test(targetText) && /\bin all of your areas$/i.test(targetText) ? refsFor(targetText, c) : null;
     let skillKind: SkillKindPrefix | undefined;
+    let activateTiming: "main" | "battle" | undefined;
     let scopeTag: string | undefined;
     let scopeEvolve = false;
     if (kindWordTrim === "skill" || kindWordTrim === "evolve") {
@@ -2280,6 +2281,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       if (!scope) return null;
       ref = scope.target;
       skillKind = scope.skillKind;
+      activateTiming = scope.activateTiming;
       scopeTag = scope.tag;
       scopeEvolve = !!scope.evolve;
       // "{X} in your hand" is every copy, not a choice of one (the skill's own price is per line).
@@ -2334,7 +2336,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
             : kindWordTrim === "evolve"
               ? ({ what: "evolve" as const })
               : {};
-    return (listed && listed.length > 1 ? listed : [ref]).map((target) => ({ op: "costReduction", target, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(scopeTag ? { tag: scopeTag } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }) as Op);
+    return (listed && listed.length > 1 ? listed : [ref]).map((target) => ({ op: "costReduction", target, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(activateTiming ? { activateTiming } : {}), ...(scopeTag ? { tag: scopeTag } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }) as Op);
   }
 
   // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing
@@ -6100,6 +6102,8 @@ const WHEN_ACTIVATE = /^when (?:you )?(?:activate|activating) (.+)$/i;
 /** What a bracketed tag in a cost sentence names: a kind of line, the [Evolve] family, or one keyword skill. */
 export interface SkillTag {
   skillKind?: SkillKindPrefix;
+  /** Audit lane E: "[Activate: Main]" or "[Activate: Battle]" alone — "[Activate: Main/Battle]" and a bare "[Activate]" are every [Activate] line. */
+  activateTiming?: "main" | "battle";
   evolve?: true;
   tag?: string;
 }
@@ -6108,6 +6112,11 @@ const KEYWORD_NAMES: Record<string, KeywordSkill["name"]> = { arrival: "Arrival"
 const KEYWORD_TAGS = new Set(["arrival", "swap", "union", "successor", "z-awaken", "field", "revive", "aegis", "alliance", "overlord", "rejuvenate"]);
 export function skillTagOf(raw: string): SkillTag | null {
   const word = raw.trim().toLowerCase().split(/[:\s/]/)[0];
+  // Audit lane E: "the next time you activate an **[Activate: Main]** skill on …" (BT28-061, BT28-075, BT31-040) and
+  // "an **[Activate: Battle]** skill" (BT28-056b) name one timing of [Activate] line; read as every [Activate] line, the
+  // reduction was spent by the other timing's skill too.
+  const timing = /^activate\s*:\s*(main|battle)\s*$/i.exec(raw.trim());
+  if (word === "activate" && timing) return { skillKind: "activate", activateTiming: timing[1].toLowerCase() as "main" | "battle" };
   if (word === "activate" || word === "counter" || word === "auto" || word === "permanent") return { skillKind: word };
   // 22-5-2-2: "[Evolve] skills" are [Evolve], [EX-Evolve] and [Xeno-Evolve] alike.
   if (word === "evolve") return { evolve: true };
@@ -6247,6 +6256,7 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
       amount,
       what: scoped.evolve ? "evolve" : "skill",
       ...(scoped.skillKind ? { skillKind: scoped.skillKind } : {}),
+      ...(scoped.activateTiming ? { activateTiming: scoped.activateTiming } : {}),
       ...(scoped.tag ? { tag: scoped.tag } : {}),
       ...(colors ? { colors } : {}),
       until,

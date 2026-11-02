@@ -1008,6 +1008,8 @@ export type Op =
       what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
+      /** Audit lane E: with `skillKind: "activate"`, the one timing printed — "[Activate: Main]" or "[Activate: Battle]"; an "[Activate: Main/Battle]" line is either. */
+      activateTiming?: "main" | "battle";
       /**
        * With `what: "skill"`/`"evolve"`: the keyword skill the change reaches
        * ("reduce the [Z-Awaken] skill cost of ...", "the next time you activate
@@ -3738,7 +3740,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // So it is not pinned to the cards in the hand now: it is one change
         // keyed by the description (`matching`), read live where the line's
         // price is read and spent (`vm/costs.ts`' `onCard`).
-        if (kind === "skillCost" && uses !== undefined && op.tag === "union" && op.target && "sel" in op.target && op.target.sel.area === "hand" && !op.target.sel.areas?.length && !op.target.sel.special && !op.target.sel.fromVar) {
+        // Audit lane E (R-201, pending): the same wording about any other line — "the next time you activate a [Swap]
+        // skill on a ≪Goku's Lineage≫ card with an energy cost of 5 during this turn" (BT26-092), "[Arrival Red/Yellow]
+        // on a <Beerus> card … in your hand" (BT24-002), "an [Activate: Main] skill on {Tien Shinhan, …} from your hand"
+        // (BT28-061), "the [EX-Evolve] skill on a yellow … <Son Gohan: Youth> card from your hand" (EX25-26) — waits the
+        // same way for the next such activation this turn, wherever the description looks. Pinned to the cards there
+        // when it resolved, a card played or drawn later was never reached.
+        if ((kind === "skillCost" || kind === "evolveCost") && uses !== undefined && !op.onto && op.target && "sel" in op.target && !op.target.sel.areas?.length && !op.target.sel.special && !op.target.sel.fromVar) {
           // Every card it finds, not a count of them (the compiler's `count: 99`).
           const sel: Selector = { ...op.target.sel };
           delete sel.count;
@@ -3752,6 +3760,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             until: op.until ?? "turn",
             tag: op.tag,
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+            ...(op.activateTiming ? { activateTiming: op.activateTiming } : {}),
             ...(op.colors?.length ? { colors: op.colors } : {}),
             uses,
             matching: { sel, vars: Object.fromEntries(Object.entries(frame.vars).map(([name, ids]) => [name, [...ids]])) },
@@ -3769,6 +3778,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             value: by,
             until: op.until ?? "turn",
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+            ...(op.activateTiming ? { activateTiming: op.activateTiming } : {}),
             ...(op.colors?.length && (kind === "cost" || kind === "skillCost" || kind === "evolveCost") ? { colors: op.colors } : {}),
             ...(uses !== undefined ? { uses } : {}),
             ...(op.tag && (kind === "skillCost" || kind === "evolveCost") ? { tag: op.tag } : {}),

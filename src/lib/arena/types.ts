@@ -878,6 +878,8 @@ export interface ContinuousEffect {
   payAs?: "energy" | Color;
   /** Set when `kind` is "skillCost" or "evolveCost". */
   skillKind?: SkillKindPrefix;
+  /** Audit lane E: with `skillKind` "activate", the one [Activate] timing the change reaches (an [Activate: Main/Battle] line is either). */
+  activateTiming?: "main" | "battle";
   /** Printed orb kinds for `skillCost`/`evolveCost` modifiers, when colour-scoped. */
   colors?: (Color | "any")[];
   /** `evolveCost` only: the change holds only for an [Evolve] played onto one of these cards (`costReduction`'s `onto`, EX03-16). */

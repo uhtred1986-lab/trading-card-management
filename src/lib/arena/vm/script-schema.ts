@@ -253,6 +253,7 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "amount", type: "amount", required: true },
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
+  { name: "activateTiming", type: { enum: ["main", "battle"] } },
   { name: "tag", type: "string" },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
@@ -727,25 +728,24 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"costReduction">;
       if (op.what !== "specified") {
         if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
-          const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
           // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
           // 2 less" alone would not say.
-          const orbs = op.colors?.length ? ` (${op.colors.map((c) => `{${c}}`).join("")})` : "";
+          const orbs = costOrbs(op.colors);
           // The combo cost and the Z-Energy cost are other prices than the energy cost (20-21): the reading said
           // "costs 1 less" for "-1 combo cost" (BT22-055b), the same words as an energy reduction (#907 round 6).
           const price = op.what === "combo" ? " (combo cost)" : op.what === "zEnergy" ? " (Z-Energy cost)" : "";
-          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + price + orbs + once;
+          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + price + orbs + costSpan(op.uses, op.until, r);
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
-        const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
+        const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? `Activate${op.activateTiming === "main" ? ": Main" : op.activateTiming === "battle" ? ": Battle" : ""}` : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
         // EX03-16: a change scoped to the card the [Evolve] lands on.
         // "The next time you activate …" (BT31-096): spent by the activations it reaches.
-        const budget = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
-        if (op.onto) return `the ${noun}${scoped} of ${describeRef(op.target)} is ${describeCostChange(op.amount)} when evolving onto ${describeRef(op.onto)}${budget}`;
-        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}${budget}`;
+        const budget = costSpan(op.uses, op.until, r);
+        if (op.onto) return `the ${noun}${scoped} of ${describeRef(op.target)} is ${describeCostChange(op.amount)}${costOrbs(op.colors)} when evolving onto ${describeRef(op.onto)}${budget}`;
+        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}${costOrbs(op.colors)}${budget}`;
       }
-      if (op.all) return `${describeRef(op.target)} has no specified cost`;
-      const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
+      if (op.all) return `${describeRef(op.target)} has no specified cost${costSpan(op.uses, op.until, r)}`;
+      const once = costSpan(op.uses, op.until, r);
       const counts = new Map<string, number>();
       for (const c of op.colors ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
       const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");
@@ -3211,7 +3211,34 @@ function describeField(f: OpField, v: unknown, hint: string | undefined, r: Rend
 /** `costs {amount:less|more}`: 20-21 goes both ways, and "costs -2 less" is not English. */
 function describeCostChange(a: Amount): string {
   if (typeof a === "number" && a < 0) return `${-a} more`;
+  // Audit lane E: "increase this card's energy cost by the declared number" (BT24-105, P-535) is X more — it read "costs
+  // -1 for each X less". A counted change said with a negative multiplier is an increase too.
+  if (typeof a === "object" && "times" in a && typeof a.times === "number" && a.times < 0) {
+    const up = { ...a, times: -a.times } as Amount;
+    return `${"x" in a && a.times === -1 ? "X" : describeAmount(up)} more`;
+  }
+  if (typeof a === "object" && "x" in a && a.times === 1) return "X less";
   return `${describeAmount(a)} less`;
+}
+
+/**
+ * Audit lane E: the orbs a cost change takes off, as the card prints them — "by {g}" (EX24-26), "by {u}{1}" (EX23-11),
+ * "by {y}{y}" (EX23-29). A change said in a colour reaches only that colour's orbs and one said as {1} only the
+ * colourless ones (5-8-2-4), so "1 less" alone said less than the card.
+ */
+function costOrbs(colors: readonly string[] | undefined): string {
+  return colors?.length ? ` (${colors.map((c) => (c === "any" ? "{1}" : `{${c}}`)).join("")})` : "";
+}
+
+/**
+ * Audit lane E: how long a cost change lasts, and how many payments it reaches. Timed changes said no span (EX23-29's
+ * "during that turn", BT24-072's "for the turn"), so a reader could not tell them from a [Permanent]'s; a [Permanent]'s
+ * own still says none (`r.permanent`).
+ */
+function costSpan(uses: number | undefined, until: Duration | undefined, r: RenderOptions): string {
+  const span = r.permanent || !until ? "" : until === "turn" ? " this turn" : until === "battle" ? " this battle" : DURATION_IN_WORDS[until];
+  if (uses == null) return span === " this turn" ? " for the turn" : span === " this battle" ? " for the battle" : span;
+  return `${uses === 1 ? " the next time it is paid" : ` the next ${uses} times it is paid`}${span}`;
 }
 
 /**
