@@ -926,6 +926,147 @@ DEFINE TRIGGER addedToZEnergy
   BIND "self"
   text: "when this card is added to your Z-Energy"
 
+-- ── moments batch 1 (2 Nov 2026) ───────────────────────────────────────────
+-- The [Auto] moments of the triggerless list. Every one is pended by name by
+-- the program step that causes it (`vm/host.ts`'s `MOMENT_OF`), never by a
+-- native move: a skill's move from the hand, the deck, a pile, the energy or
+-- a Battle Area, a power change (`power`) and a pile left. A self-moment hands
+-- the skill's card on as the subject, so the cause a card prints ("by your
+-- Leader's skill", "by a <Dr. Hedo: SH> card skill") is a condition on it.
+
+-- §20-7-1 — when an opponent's skill discards this card (BT13-098)
+DEFINE TRIGGER droppedFromHandByOpponent
+  ON moved(by: skill, byOpponent: true, from: hand, to: drop)
+  BIND "self"
+  text: "when an opponent's skill sends this card from your hand to the Drop"
+
+-- §1-10-1 — when a skill switches this card to Active Mode (BT22-019). The
+-- switch carries the skill's card (`modeSwitched`'s source), the subject.
+DEFINE TRIGGER activeBySkill
+  ON modeSwitched(by: skill, mode: active, in: [battle, leader, unison])
+  BIND "self"
+  text: "when this card is switched to Active Mode by a skill"
+
+-- §1-10-1 — when a skill switches your energy to Active Mode (BT22-137), once
+-- per energy card switched
+DEFINE TRIGGER yourEnergyActiveBySkill
+  ON modeSwitched(by: skill, in: energy, mode: active, watcher: controller)
+  BIND "subject"
+  text: "when your energy is switched to Active Mode by a skill"
+
+-- Power changed by a skill's effect (`power` op, 5-6): once per card and per
+-- change (BT9-002's Q&A: -10000 and -5000 are two moments).
+DEFINE TRIGGER powerRaisedBySkill
+  ON powerChanged(by: skill, dir: up)
+  BIND "self"
+  text: "when this card's power is increased by a skill"
+
+DEFINE TRIGGER powerLoweredBySkill
+  ON powerChanged(by: skill, dir: down)
+  BIND "self"
+  text: "when this card's power is decreased by a skill"
+
+DEFINE TRIGGER yourCardPowerRaisedByYou
+  ON powerChanged(by: skill, byOpponent: false, dir: up, watcher: controller)
+  BIND "subject"
+  text: "when one of your skills increases the power of one of your cards"
+
+DEFINE TRIGGER yourCardPowerLowered
+  ON powerChanged(by: skill, dir: down, watcher: controller)
+  BIND "subject"
+  text: "when the power of one of your cards is decreased"
+
+DEFINE TRIGGER opponentCardPowerLowered
+  ON powerChanged(by: skill, dir: down, watcher: opponent)
+  BIND "subject"
+  text: "when the power of one of your opponent's cards is decreased"
+
+-- §20-1-2: "by the skill of one of your Battle Cards" — a Battle Card in your
+-- Battle Area (BT9-002's Q&A), pended only then.
+DEFINE TRIGGER opponentCardPowerLoweredByBattleCard
+  ON powerChanged(by: skill, byOpponent: true, dir: down, fromBattleCard: true, watcher: opponent)
+  BIND "subject"
+  text: "when the skill of one of your Battle Cards decreases the power of an opponent's card"
+
+DEFINE TRIGGER eitherCardPowerLowered
+  ON powerChanged(by: skill, dir: down, watcher: both)
+  BIND "subject"
+  text: "when the power of a card of either player is decreased"
+
+-- A skill's move out of the deck into the Drop (BT16-009, SD16-02), and the
+-- card a skill revealed from the top of the deck and placed there (BT14-095).
+DEFINE TRIGGER deckToDropBySkill
+  ON moved(by: skill, from: deck, to: drop)
+  BIND "self"
+  text: "when a skill places this card from your deck in the Drop"
+
+DEFINE TRIGGER deckToDropByYou
+  ON moved(by: skill, byOpponent: false, from: deck, to: drop)
+  BIND "self"
+  text: "when one of your skills places this card from your deck in the Drop"
+
+DEFINE TRIGGER revealedTopToDrop
+  ON moved(by: skill, from: deck, revealed: true, to: drop)
+  BIND "self"
+  text: "when this card is revealed from the top of your deck and placed in the Drop"
+
+-- §23-2: a pile is in no area, so its moments are its host's (`pileLeft`)
+-- and the card's own move out of it (`fromPile: true`).
+DEFINE TRIGGER underReturnedToHand
+  ON pileLeft(to: hand)
+  BIND "self"
+  text: "when a card under this card is returned to its owner's hand"
+
+DEFINE TRIGGER underToDropBySkill
+  ON moved(by: skill, fromPile: true, to: drop)
+  BIND "self"
+  text: "when a skill places this card from under a card in the Drop"
+
+DEFINE TRIGGER underLeaderToDropBySkill
+  ON moved(by: skill, fromPile: leader, to: drop)
+  BIND "self"
+  text: "when a skill places this card from under a Leader in the Drop"
+
+DEFINE TRIGGER pileToDropBySkill
+  ON pileLeft(by: skill, to: drop)
+  BIND "self"
+  text: "when a skill places a card from under this card in the Drop"
+
+-- A skill's move out of the Energy Area into the Drop (EB1-16, EX22-03).
+DEFINE TRIGGER energyToDropBySkill
+  ON moved(by: skill, from: energy, to: drop)
+  BIND "self"
+  text: "when a skill places this card from your energy in the Drop"
+
+DEFINE TRIGGER yourEnergyToDropByYourLeader
+  ON moved(by: skill, byLeader: true, byOpponent: false, from: energy, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when your Leader's skill places one of your energy in the Drop"
+
+-- §3-1: "by one of your skills" from a Battle Area (BT18-023), and the Drop
+-- reached from any area by a skill (P-421), yours (P-701), theirs (BT30-058).
+-- A skill's KO is a move to the Drop too (5-12-1): its native move carries the
+-- cause (`flow.ts`), so these answer it without a name.
+DEFINE TRIGGER droppedFromBattleByYou
+  ON moved(by: skill, byOpponent: false, from: battle, to: drop)
+  BIND "self"
+  text: "when one of your skills sends this card from a Battle Area to the Drop"
+
+DEFINE TRIGGER toDropBySkill
+  ON moved(by: skill, to: drop)
+  BIND "self"
+  text: "when a skill places this card in the Drop"
+
+DEFINE TRIGGER toDropByYou
+  ON moved(by: skill, byOpponent: false, to: drop)
+  BIND "self"
+  text: "when one of your skills places this card in the Drop"
+
+DEFINE TRIGGER toDropByOpponent
+  ON moved(by: skill, byOpponent: true, to: drop)
+  BIND "self"
+  text: "when an opponent's skill places this card in the Drop"
+
 -- ── the counter windows (4-3, 9-7) ─────────────────────────────────────────
 -- A [Counter] answers to a window rather than to a card's moment, so these
 -- five carry a name a card's WHEN never says. The shape is the same: the

@@ -78,7 +78,7 @@ import { findCard, inPlayZones } from "./zones";
 import { skillNegated, skillsNegated } from "./effects";
 import { usableFrom } from "./activate";
 import { keywordMomentOf } from "./keyword-do";
-import { attrsNow } from "./program";
+import { attrsNow, condHolds } from "./program";
 import type { Attrs } from "./cards";
 import { predicateOf } from "./filters";
 
@@ -399,6 +399,29 @@ function subjectGate(ops: readonly Op[] | undefined): CardFilter | null {
   return null;
 }
 
+/** Moments batch 1: the moments whose subject conditions are asked before pending (`subjectConditionsHold`). */
+const BATCH1_GATED = new Set<string>(["droppedFromHandByOpponent", "activeBySkill", "yourEnergyActiveBySkill", "powerRaisedBySkill", "powerLoweredBySkill",
+  "yourCardPowerRaisedByYou", "yourCardPowerLowered", "opponentCardPowerLowered", "opponentCardPowerLoweredByBattleCard", "eitherCardPowerLowered",
+  "deckToDropBySkill", "deckToDropByYou", "revealedTopToDrop", "underReturnedToHand", "underToDropBySkill", "underLeaderToDropBySkill",
+  "pileToDropBySkill", "energyToDropBySkill", "yourEnergyToDropByYourLeader", "droppedFromBattleByYou", "toDropBySkill", "toDropByYou",
+  "toDropByOpponent", "dropToWarpBySkill"]);
+
+/** A condition about the moment's subject alone: `count(subject …)`, or an any/all of such. */
+function aboutTheSubject(cond: Cond): boolean {
+  if (cond.kind === "all" || cond.kind === "any") return cond.conds.length > 0 && cond.conds.every(aboutTheSubject);
+  return cond.kind === "count" && cond.sel.special === "subject";
+}
+
+/** Every subject condition in the record's leading chain of lone IFs holds of this match's subject (none: true). */
+function subjectConditionsHold(ctx: EngineContext, game: GameDefinition, state: VmState, match: TriggerMatch, master: PlayerId, ops: readonly Op[] | undefined): boolean {
+  const frame = { ops: [], ip: 0, vars: {}, card: match.card, master, ...(match.subject ? { subject: match.subject } : {}) };
+  for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) {
+    const cond = at[0].cond;
+    if (aboutTheSubject(cond) && !condHolds(ctx, game, state, frame, cond)) return false;
+  }
+  return true;
+}
+
 /**
  * #930: the [Union] keyword an [Auto] on `played` asks its own play to have
  * been made by — "when this card is played using [Union]" (BT14-114), "…with
@@ -557,6 +580,11 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
         const filter = leadingSubjectFilter(showing.scripts.bySkill[sk.index]?.ops);
         if (filter && !predicateOf(filter, game)(subjectInfo ?? attrsNow(ctx, game, state, match.subject))) continue;
       }
+      // Moments batch 1: the cause a moment prints ("…by your Leader's skill", "…by a <Dr. Hedo: SH> card skill") and
+      // the card a watched power change is about ("…one of your opponent's Battle Cards") are trigger conditions: one
+      // that does not hold is no trigger (9-6-2), so the Auto is not pended and a [Once per turn] is not spent on it.
+      // Read off the record's leading chain of lone IFs, as each IF would read it.
+      if (sk.kind === "auto" && BATCH1_GATED.has(match.trigger) && !subjectConditionsHold(ctx, game, state, match, master, showing.scripts.bySkill[sk.index]?.ops)) continue;
       // 9-1-3-2: an [Auto] whose effect takes this card out of an area outside
       // play ("play this card from your hand") works from that area only
       // (9-6-3-1-1 lets its master leave it undeclared there). A hand copy is

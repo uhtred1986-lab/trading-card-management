@@ -470,6 +470,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   const printed = effectHead(effect.text).replace(/^\([^()]*\)\s*/, "").replace(TURN_THEN_WHEN, "");
   const trailing = trailingTrigger(sk);
   const head = trailing ? `${trailing}, ${printed}` : printed;
+  if (sk.kind === "auto" && momentsBatch1(head).some((m) => m.trigger === trigger)) return true;
   switch (trigger) {
     case "played":
       // 12-2: activating an Extra *is* playing it, and the sets print both.
@@ -541,7 +542,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // anywhere, so this cannot simply widen that one: a card bounced to the
     // hand is that moment and not this.
     case "droppedFromBattle":
-      return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill/.test(t)
+      return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your|the) battle area by (?:a|any) skill/.test(t)
         // "When you play this card or it is placed in a Drop Area from a Battle Area by a skill" (BT9-046 …, #969): the play, and this.
         || PLAYED_OR_DROPPED_FROM_BATTLE.test(head);
     // The same move by an opponent's skill (SD15-03, #728).
@@ -985,6 +986,112 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     default:
       return false;
   }
+}
+
+// ── moments batch 1 (2 Nov 2026) ─────────────────────────────────────────────
+
+/**
+ * Whose skill a printed cause names, and what it says about the skill's card: "by an opponent's skill" (opponent, no
+ * card), "by one of your blue card skills" (you, "blue card"), "by your Leader Card's skill" (you, "Leader Card"),
+ * "by the skills of a ≪Prison Planet≫ card in any of your areas" (you, the card and its area), "by a Battle Card's
+ * skill" (either, "Battle Card"). Lower-case, names masked, as `autoTriggerMatches` reads a head. Null for a cause
+ * this does not read whole ("…or by your [Revive] skill", a keyword's skill): no moment is better than a wider one.
+ */
+export interface MomentCause { side: "any" | "you" | "opponent"; desc: string | null }
+export function momentCauseOf(said: string | undefined): MomentCause | null {
+  if (said === undefined) return { side: "any", desc: null };
+  // The printed case is kept: the description goes on to the target grammar (`filterFor`).
+  let s = said.trim().replace(/\s+/g, " ").replace(/[.,]$/, "");
+  if (/\bor by\b|\[|\bother than\b/i.test(s)) return null;
+  if (/^(?:(?:a|any) skills?|skills|(?:one of )?you or your opponent'?s skills?)$/i.test(s)) return { side: "any", desc: null };
+  let side: MomentCause["side"] = "any";
+  let m: RegExpExecArray | null;
+  const opponent = /^(?:an?|one of your|your|one of their) opponent'?s (.+)$|^an? opponent'?s (.+)$/i;
+  const yours = /^(?:one of your|your) (.+)$/i;
+  const plain = /^(?:an?|1|one) (.+)$/i;
+  const owner = () => {
+    if ((m = opponent.exec(s))) { side = "opponent"; s = m[1] ?? m[2]; }
+    else if ((m = yours.exec(s))) { side = "you"; s = m[1]; }
+    else if ((m = plain.exec(s))) s = m[1];
+  };
+  // "in any of your areas" says whose and nothing about where (20-7-3); "in any area" says neither.
+  const anywhere = () => {
+    if (/ in any of your areas$/i.test(s)) { side = "you"; s = s.replace(/ in any of your areas$/i, ""); }
+    s = s.replace(/ in any areas?$/i, "");
+  };
+  const card = (d: string) => d.replace(/\bcards\b/gi, "card");
+  // "the skill(s) of X", "a skill on X": X is the card; the skill is the cause either way.
+  const of = /^(?:the |an? )?skills? (?:of|on) (.+)$/i.exec(s);
+  if (of) {
+    s = of[1];
+    owner();
+    anywhere();
+    return { side, desc: card(s) };
+  }
+  owner();
+  if (/^skills?$/i.test(s)) return { side, desc: null };
+  // "By your {Soul Punisher, …}" (BT22-039): the card named, its skill understood.
+  if (/^\{[^{}]+\}$/.test(s)) return { side, desc: s };
+  anywhere();
+  const named = /^(.+?)(?:'s)? skills?$/i.exec(s);
+  if (!named) return null;
+  s = named[1];
+  anywhere();
+  return { side, desc: card(s) };
+}
+
+/** "When this card is discarded from your hand [by …]", "…placed in your Drop from your hand [by …]" (20-7-1). */
+const B1_HAND_DROP = /^when this card (?:in your hand is discarded|is discarded from your hand|is placed (?:in|into) (?:your|its owner'?s) drop(?: area)? from your hand)(?: by (.+?))?(?:,|$)/;
+/** "When you use one of your yellow <Majin Buu> or yellow <Evil Wizard Babidi> card skills to discard this card from your hand" (BT20-104). */
+const B1_USE_TO_DISCARD = /^when you use (.+?) to discard this card from your hand(?:,|$)/;
+const B1_DROP_TO_WARP = /^when this card (?:in (?:your|a) drop(?: area)? is sent (?:from (?:your|a) drop(?: area)? )?|is sent from (?:your|a) drop(?: area)? )to (?:your|its owner'?s|a) warp by (.+?)(?:,|$)/;
+const B1_OPPONENT_POWER = /^when (?:the power of (?:one of )?your opponent'?s (battle )?cards? is (?:decreased|reduced)|your opponent'?s (battle )?card'?s power is (?:decreased|reduced))( by (?:the skill of one of your battle cards|your battle card'?s skill))?(?:,|$)/;
+const B1_PILE_TO_DROP = /^when a card is placed from under this card (?:in|into) (?:its owner'?s|your|a) drop(?: area)? by (.+?)(?:,|$)/;
+
+/**
+ * Moments batch 1: the [Auto] moments of the triggerless list of 2 Nov 2026, read off the head (lower-case, names
+ * masked). Each names its moment and the printed cause (`cause`, the words after "by"), which the compiler turns into
+ * a condition on the moment's subject (the skill's card). An unreadable cause names no moment.
+ */
+export function momentsBatch1(head: string): { trigger: Trigger; cause?: string; subject?: "battle" | "leader"; sided?: boolean }[] {
+  let m: RegExpExecArray | null;
+  const bySide = (said: string | undefined, any: Trigger, you: Trigger, opponent: Trigger): { trigger: Trigger; cause?: string; sided?: boolean }[] => {
+    const c = momentCauseOf(said);
+    if (!c) return [];
+    return [{ trigger: c.side === "you" ? you : c.side === "opponent" ? opponent : any, sided: true, ...(said ? { cause: said } : {}) }];
+  };
+  if ((m = B1_HAND_DROP.exec(head))) return bySide(m[1], "droppedFromHand", "droppedFromHandByYou", "droppedFromHandByOpponent");
+  if ((m = B1_USE_TO_DISCARD.exec(head))) return bySide(m[1], "droppedFromHand", "droppedFromHandByYou", "droppedFromHandByOpponent");
+  // 1-10-1: a card switched to Active Mode — any switch, the Charge Phase's included (BT31-029's Q&A) — or by a skill.
+  if (/^when this card is switched to active mode(?:,|$)/.test(head)) return [{ trigger: "selfRestToActive" }];
+  if ((m = /^when this card is switched to active mode by (.+?)(?:,|$)/.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "activeBySkill", cause: m[1] }] : [];
+  if (/^when your energy is switched (?:from rest mode )?to active mode by (?:a|any) skills?(?:,|$)/.test(head)) return [{ trigger: "yourEnergyActiveBySkill" }];
+  if ((m = B1_DROP_TO_WARP.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "dropToWarpBySkill", cause: m[1] }] : [];
+  // 5-6: power changed by a skill's effect.
+  if ((m = /^when this card'?s power is increased by (.+?)(?:,|$)/.exec(head))) {
+    const said = m[1].replace(/ during your turn$/, "");
+    return momentCauseOf(said) ? [{ trigger: "powerRaisedBySkill", cause: said }] : [];
+  }
+  if (/^when this card'?s power is (?:decreased|reduced) by (?:a|any) skills?(?:,|$)/.test(head)) return [{ trigger: "powerLoweredBySkill" }];
+  if (/^when your card'?s power is increased by one of your skills(?:,|$)/.test(head)) return [{ trigger: "yourCardPowerRaisedByYou" }];
+  if (/^when your leader(?: card)?'?s power is (?:decreased|reduced)(?: by (?:a|any) skills?)?(?:,|$)/.test(head)) return [{ trigger: "yourCardPowerLowered", subject: "leader" }];
+  if ((m = B1_OPPONENT_POWER.exec(head))) return [{ trigger: m[3] ? "opponentCardPowerLoweredByBattleCard" : "opponentCardPowerLowered", ...(m[1] || m[2] ? { subject: "battle" as const } : {}) }];
+  if ((m = /^when the power of one of you or your opponent'?s (battle )?cards is (?:decreased|reduced)(?:,|$)/.exec(head))) return [{ trigger: "eitherCardPowerLowered", ...(m[1] ? { subject: "battle" as const } : {}) }];
+  // A skill's move out of the deck into the Drop; "and you don't have a Unison Card in play" (SD14-02) rides on it.
+  if ((m = /^when this card is placed (?:in|into) (?:your|its owner'?s) drop(?: area)? from your deck(?: by (.+?))?(?: and [^,]+)?(?:,|$)/.exec(head))) return bySide(m[1], "deckToDropBySkill", "deckToDropByYou", "deckToDropBySkill");
+  if (/^when this card is revealed from the top of your deck and placed (?:in|into) (?:your|its owner'?s) drop(?: area)?(?:,|$)/.test(head)) return [{ trigger: "revealedTopToDrop" }];
+  // 23-2: a pile.
+  if (/^when (?:a|1) card under this card is return(?:ed)? to (?:its owner'?s|your) hand(?:,|$)/.test(head)) return [{ trigger: "underReturnedToHand" }];
+  if ((m = /^when this card is placed from under (?:an? |1 )?card (?:in|into) (?:its owner'?s|your|a) drop(?: area)? by (.+?)(?:,|$)/.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "underToDropBySkill", cause: m[1] }] : [];
+  if (/^when your leader(?: card)?'?s skill places this card in (?:a|your|its owner'?s) drop(?: area)? from under your leader(?: card)?(?:,|$)/.test(head)) return [{ trigger: "underLeaderToDropBySkill", cause: "your leader's skill" }];
+  if ((m = B1_PILE_TO_DROP.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "pileToDropBySkill", cause: m[1] }] : [];
+  // A skill's move out of the Energy Area into the Drop.
+  if ((m = /^when this card (?:in your energy(?: area)? is placed|is placed from your energy(?: area)?) (?:in|into) (?:your|its owner'?s|a) drop(?: area)? by (.+?)(?:,|$)/.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "energyToDropBySkill", cause: m[1] }] : [];
+  if (/^when (?:one of your energy|a card in your energy(?: area)?) is placed (?:in|into) your drop(?: area)? by your leader(?: card)?'?s skill(?:,|$)/.test(head)) return [{ trigger: "yourEnergyToDropByYourLeader" }];
+  // 3-1: from a Battle Area by one of your skills; and the Drop reached from anywhere by a skill.
+  if (/^when this card (?:in (?:your|a) battle area is placed (?:in|into) (?:your|its owner'?s|a) drop(?: area)?|is placed (?:in|into) (?:your|its owner'?s|a) drop(?: area)? from (?:a|your|the) battle area) by (?:one of )?your skills?(?:,|$)/.test(head)) return [{ trigger: "droppedFromBattleByYou" }];
+  if ((m = /^when this card is placed (?:in|into) (?:your|its owner'?s|a) drop(?: area)? by (.+?)(?:,|$)/.exec(head))) return bySide(m[1], "toDropBySkill", "toDropByYou", "toDropByOpponent");
+  return [];
 }
 
 /**

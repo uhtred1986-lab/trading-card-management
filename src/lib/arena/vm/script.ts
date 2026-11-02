@@ -2097,6 +2097,65 @@ function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "swi
 export const epochVar = (name: string): string => `${name}@epoch`;
 
 /** Mechanism batch 2: a card in a secret area nobody may read — the deck, or a face-down card in a life (3-2-2, 3-9-2). */
+/**
+ * Moments batch 1: the moments of a card a skill moved, named for `triggers.rules` (`vm/host.ts`'s `MOMENT_OF`).
+ * A self-moment hands the skill's card on as the subject, so what a card prints about the cause ("by your Leader's
+ * skill", 20-7-2/20-7-3) is a condition on it; "your" and "an opponent's" are the moved card's master against the
+ * skill's. Read with where the card was (`fromArea`; a pile is in no area, 23-2, so its `pileHost`) and whose it was,
+ * both taken before the move.
+ */
+function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { fromArea: Area | null; pileHost: string | null | undefined; movedMaster: PlayerId; revealed: boolean }): void {
+  const to = h.areaOf(id);
+  const yours = was.movedMaster === frame.master;
+  if (to === "drop") {
+    h.pend("toDropBySkill", id, frame.card);
+    h.pend(yours ? "toDropByYou" : "toDropByOpponent", id, frame.card);
+    // 20-7-1: a discard is any card placed from a hand in its owner's Drop.
+    if (was.fromArea === "hand" && !yours) h.pend("droppedFromHandByOpponent", id, frame.card);
+    if (was.fromArea === "battle" && yours) h.pend("droppedFromBattleByYou", id, frame.card);
+    if (was.fromArea === "deck") {
+      h.pend("deckToDropBySkill", id, frame.card);
+      if (yours) h.pend("deckToDropByYou", id, frame.card);
+      // 20-11-1: "revealed from the top of your deck and placed in your Drop" is a card the skill revealed as it moved
+      // it (`moveTo`'s `reveal`, which "reveal the top card of your deck and place it in your Drop" compiles to).
+      if (was.revealed) h.pend("revealedTopToDrop", id, frame.card);
+    }
+    if (was.fromArea === "energy") {
+      h.pend("energyToDropBySkill", id, frame.card);
+      if (yours && frame.card && h.areaOf(frame.card) === "leader" && h.masterOf(frame.card) === frame.master) h.pend("yourEnergyToDropByYourLeader", id, id);
+    }
+    if (was.pileHost) {
+      h.pend("underToDropBySkill", id, frame.card);
+      if (h.exists(was.pileHost) && h.areaOf(was.pileHost) === "leader") h.pend("underLeaderToDropBySkill", id, frame.card);
+      if (h.exists(was.pileHost)) h.pend("pileToDropBySkill", was.pileHost, frame.card);
+    }
+  }
+  if (to === "hand" && was.pileHost && h.exists(was.pileHost)) h.pend("underReturnedToHand", was.pileHost, id);
+}
+
+/**
+ * Moments batch 1: a skill's `power` change of a card in play, named for `triggers.rules` once per card and per change
+ * — BT9-002's Q&A: "-10000 and -5000 power" enters pending twice, and two cards decreased is two moments. The skill's
+ * card is the subject of the self-moments; the card changed is the subject of the watched ones. "By the skill of one
+ * of your Battle Cards" (BT9-002) asks that card to be in its master's Battle Area (20-1-2, BT9-002's Q&A).
+ * A [Permanent]'s standing change is not a skill's effect resolving and pends nothing here (see the glossary).
+ */
+function pendPowerChanged(h: ScriptHost, frame: ScriptFrame, id: string, n: number): void {
+  const at = h.areaOf(id);
+  if (at !== "battle" && at !== "leader" && at !== "unison") return;
+  const yours = h.masterOf(id) === frame.master;
+  if (n > 0) {
+    h.pend("powerRaisedBySkill", id, frame.card);
+    if (yours) h.pend("yourCardPowerRaisedByYou", id, id);
+    return;
+  }
+  h.pend("powerLoweredBySkill", id, frame.card);
+  h.pend("yourCardPowerLowered", id, id);
+  h.pend("opponentCardPowerLowered", id, id);
+  h.pend("eitherCardPowerLowered", id, id);
+  if (!yours && frame.card && h.exists(frame.card) && h.areaOf(frame.card) === "battle" && h.masterOf(frame.card) === frame.master) h.pend("opponentCardPowerLoweredByBattleCard", id, id);
+}
+
 function inSecretPile(h: ScriptHost, id: string): boolean {
   const area = h.areaOf(id);
   return area === "deck" || (area === "life" && !h.isFaceUp(id));
@@ -2280,7 +2339,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const n = h.amount(frame, op.n);
           for (let i = 0; i < n && h.zone(p, "deck").length; i++) {
             const id = h.zone(p, "deck")[0];
+            const movedMaster = h.masterOf(id);
             h.move(id, "drop", p, { reason: "effect", reveal: true });
+            // Moments batch 1: a skill's move out of the deck — "placed in your Drop from your deck by a skill" (BT16-009).
+            // Placed face up, but not a reveal (20-11-1): "revealed from the top of your deck" is a skill that says so.
+            if (h.areaOf(id) === "drop") pendMovedBySkill(h, frame, id, { fromArea: "deck", pileHost: undefined, movedMaster, revealed: false });
             milled.push(id);
             frame.acted = (frame.acted ?? 0) + 1;
           }
@@ -2983,6 +3046,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const fromTheirLife = h.areaOf(id) === "life" && h.masterOf(id) !== master;
           // Phrasing batch 5 (BT12-130): "…sent from your Drop Area to your Warp by a skill".
           const fromDrop = h.areaOf(id) === "drop";
+          // Moments batch 1: where the card was and whose it was, read before the move — a pile is in no area (23-2), so
+          // its host is what says where it was.
+          const fromArea = h.areaOf(id);
+          const pileHost = fromArea ? undefined : h.hostOf(id);
+          const movedMaster = h.masterOf(id);
           // 9-6-9-2: read before the move ends the effects on the card.
           const negatedThere = h.areaOf(id) === "battle" ? h.autosNegatedNow(id) : undefined;
           // Mechanism batch 2 (3-1-7): a card a description picked out of a secret area, moved on into another secret
@@ -3047,6 +3115,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // a condition the rule asks of it — the same way `restedBySkill`
           // hands on the card that rested it.
           if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
+          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal });
           if (op.mode) h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only
@@ -3336,8 +3405,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "power":
       case "comboPower": {
         const n = h.amount(frame, op.amount);
-        for (const id of h.resolveRef(frame, op.target))
-          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
+        for (const id of h.resolveRef(frame, op.target)) {
+          const made = h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
+          if (made && op.op === "power" && n !== 0) pendPowerChanged(h, frame, id, n);
+        }
         break;
       }
 

@@ -1687,7 +1687,8 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       const inPile = !!host && (!sel.underHost || resolveSelector(ctx, game, state, frame, sel.underHost).includes(host));
       if (!inPile && !wanted.includes(zoneOf(state, id) ?? "")) return false;
     }
-    if (sel.fromVar && sel.side && !sideOf(frame.master, sel.side).includes(masterOf(game, state, id))) return false;
+    // Moments batch 1: and the card a moment hands on — "by **your** Leader's skill" asks whose the skill's card is.
+    if ((sel.fromVar || sel.special === "subject") && sel.side && !sideOf(frame.master, sel.side).includes(masterOf(game, state, id))) return false;
     // 23-5-2 again: a Hidden Mode card has none of its front-side information
     // — so it answers no measure, except one that only says what type a card
     // is *not*: having no card type at all, it is a "non-Extra card" (BT28-150).
