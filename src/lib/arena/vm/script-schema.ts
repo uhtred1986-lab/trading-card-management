@@ -446,23 +446,26 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: CHOOSE_FIELDS,
     sentence: (raw, r) => {
       const op = raw as OpOf<"choose">;
+      // Audit-selectors-1: "your opponent chooses 1 of their Battle Cards" (SD16-02, BT28-030, TB1-072…): the record
+      // says who chooses (`chooser`), and the reading said "choose", which a player reads as their own pick.
+      const choose = op.chooser === "opponent" ? "your opponent chooses" : "choose";
       // "Any number of …, up to the number of …" (BT29-139): the selector's own
       // count is not read, so it is not said either.
       if (op.atMost !== undefined && op.owed) {
         // Phrasing batch 5 (BT23-109): a number owed, read off the board — "1 for every 5 cards in your Z-Energy".
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
-        return `choose ${cards}, ${describeAmount(op.atMost)} (as many as there are)`;
+        return `${choose} ${cards}, ${describeAmount(op.atMost)} (as many as there are)`;
       }
       if (op.atMost !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
         const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined && op.atMost.per === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
-        return `choose any number of ${cards}, up to ${bound}`;
+        return `${choose} any number of ${cards}, up to ${bound}`;
       }
       if (op.exactly !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
-        return `choose exactly ${describeAmount(op.exactly)} of ${cards}`;
+        return `${choose} exactly ${describeAmount(op.exactly)} of ${cards}`;
       }
-      return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
+      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
     },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
@@ -470,7 +473,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
     // #907 round 4: the reading said "the top" for a look the op takes from the bottom ("look at
     // the bottom card of your deck", BT11-062b, BT11-104, EB1-54) - the op was right, the words wrong.
-    sentence: (raw, r) => renderTemplate(`look at the ${(raw as OpOf<"look">).from === "bottom" ? "bottom" : "top"} {n}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r),
+    // Audit-selectors-1: and whose cards, and where — "look at your opponent's hand" (BT10-004, EX11-02) read "look at
+    // the top 99", "look at up to 1 card from the top of your opponent's deck" (P-530) as your own deck.
+    sentence: (raw, r) => {
+      const look = raw as OpOf<"look">;
+      const whose = look.side === "opponent" ? "your opponent's" : "your";
+      if (look.area && look.area !== "deck") {
+        const where = ZONE_NOUNS[look.area as keyof typeof ZONE_NOUNS] ?? look.area;
+        return look.n === 99 ? `look at ${whose} ${where}` : renderTemplate(`look at {n} cards in ${whose} ${where}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
+      }
+      return renderTemplate(`look at the ${look.from === "bottom" ? "bottom" : "top"} {n}${look.side === "opponent" ? " of your opponent's deck" : ""}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
+    },
     doc: "top of your deck, seen only by you; the cards are bound to the name in \"as\" (20-11)",
   },
   // `audience` (#137): who sees the cards. "you" is a look — 20-11's same
@@ -506,6 +519,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const as = moveAs(raw as Op);
       if (as.op !== "moveTo" && as.op !== "note") return describeScript([as], r);
+      // Audit-selectors-1: where a card goes under, and which end of the deck — "move the chosen cards to under" said
+      // neither whose pile (BT20-026's "under your Leader") nor, for a deck, the top or bottom the record carries.
+      const move = raw as OpOf<"moveTo">;
+      if (move.to === "under") return renderTemplate(`move {target} under ${move.under ? "{under}" : "this card"}{faceUp? face up}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
+      if (move.to === "deck" && (move.position === "top" || move.position === "bottom")) return renderTemplate(`move {target} to the ${move.position} of the deck{faceUp? face up}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
       return renderTemplate("move {target} to {to}{faceUp? face up}", raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
     },
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
@@ -2865,6 +2883,12 @@ export function describeSelector(sel: Selector, all = "all"): string {
   // <Majin Buu> on top of this card" and "the Leader on top of this card" are
   // different cards, and dropping the words would print them the same.
   if (sel.special === "onTop") return `the ${selectorNoun(sel, false)} on top of this card`;
+  // Audit-selectors-1: "choose up to 1 attacking Battle Card or Leader Card" (BT10-030), "the attacking Battle Card"
+  // (P-203) — the attacker with what the card says of it.
+  if (sel.special === "attacker" && (sel.filter || sel.upTo)) {
+    const what = sel.filter ? describeFilter(sel.filter, { plural: false }) : "card";
+    return sel.upTo ? `up to 1 attacking ${what}` : `the attacking ${what}`;
+  }
   if (sel.special)
     return {
       self: "this card",

@@ -898,6 +898,9 @@ function parseOneFilter(text: string): CardFilter {
   // "<Baby> or ≪Brainwashed≫", "≪Brainwashed≫ and/or <Baby>": one of each kind
   // joined by "or" is a choice between them, not both at once.
   if (f.characters.length && f.traits.length && /<[^>]+>\s*(?:or|and\/or)\s+(?:a |an )?≪[^≫]+≫|≪[^≫]+≫\s*(?:or|and\/or)\s+(?:a |an )?<[^>]+>/i.test(t)) f.characterOrTrait = true;
+  // Audit-selectors-1: "choose all **<Baby> and ≪Brainwashed≫ cards**" (EX08-03) — the plural "and" gathers both kinds,
+  // every <Baby> card and every ≪Brainwashed≫ one; it never asks one card to be both.
+  if (f.characters.length === 1 && f.traits.length === 1 && /<[^>]+>\s+and\s+≪[^≫]+≫\s+cards\b|≪[^≫]+≫\s+and\s+<[^>]+>\s+cards\b/i.test(t)) f.characterOrTrait = true;
   for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugykbw]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
   // "Cards other than Battle Cards" (BT23-140) says the same as "non-Battle
   // Cards" the long way, naming a *type* rather than the named cards `EXCLUDED`

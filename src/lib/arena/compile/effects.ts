@@ -226,7 +226,16 @@ function refFor(clause: string, c: Ctx): Ref | null {
     if (ref) return ref;
     // "Add a marker to the chosen card": nothing to tell them apart, so it is
     // the last choice, as it has always been.
-    if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+    // Audit-selectors-1: …unless the effect has chosen nothing itself and the price chose one card — "…and you choose
+    // 1 black <Cumber> card from your Drop or Warp: Play this card from your hand and place **the chosen card** under
+    // this card" (BT22-127, BT21-060, P-553), "…add **the chosen card** to your Z-Energy" (BT21-111): a play's choice of
+    // this card is the played card, not a chosen one (as BT23-007's reading has it), so the chosen card is the price's.
+    // Read as the last choice it was this card, moved under itself.
+    if (/\bthe chosen cards?\b/i.test(clause)) {
+      const priced = c.priceChosen ?? [];
+      if (priced.length === 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) return { var: priced[0] };
+      return c.last ? { var: c.last } : c.lastTarget;
+    }
     // Phrasing batch 3: "Choose 1 other ≪Namekian≫ card in your Battle Area: Place this card under **the chosen
     // Battle Card**" (TB3-058, TB3-059): the card type names nothing the one choice made did not, so with one choice
     // it is that one, as "the chosen card" is.
@@ -3390,7 +3399,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // its own (a play's choice is the played card, not a chosen one). Read as
     // "the last choice" it was the played card, under itself.
     const chosenNames = c.priceChosen ?? [];
-    if (/^all (?:of )?the chosen cards$/.test(m[1]) && chosenNames.length > 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) {
+    // (Audit-selectors-1: "…then place **the chosen cards** under it", BT15-048, BT24-007 — the same without "all".)
+    if (/^(?:all (?:of )?)?the chosen cards$/.test(m[1]) && chosenNames.length > 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) {
       const host = refFor(m[2], c);
       if (!host || ("var" in host && chosenNames.includes(host.var))) return null;
       return chosenNames.map((v): Op => ({ op: "moveTo", target: { var: v }, to: "under", under: host }));

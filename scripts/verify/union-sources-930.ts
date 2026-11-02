@@ -103,8 +103,8 @@ const defs: Record<string, CardDef> = { ...DEFS,
     const p = compileCostProgram(parseSkills(text)[0]);
     return p ? describeScript(p.ops) : null;
   };
-  assert.equal(program(BT3_070), "choose 1 <android 14> card in your Drop Area, move the chosen cards to under, choose 1 <android 15> card in your Drop Area, move the chosen cards to under", "BT3-070: both named cards, required, each placed under this card");
-  assert.equal(program("[Union Absorb] Choose 1 each of <Bizu> and <Ribet> from your hand or Battle Area and place them under this card: Play it."), "choose 1 <bizu> card in your hand or Battle Area, move the chosen cards to under, choose 1 <ribet> card in your hand or Battle Area, move the chosen cards to under", "BT3-022");
+  assert.equal(program(BT3_070), "choose 1 <android 14> card in your Drop Area, move the chosen cards under this card, choose 1 <android 15> card in your Drop Area, move the chosen cards under this card", "BT3-070: both named cards, required, each placed under this card");
+  assert.equal(program("[Union Absorb] Choose 1 each of <Bizu> and <Ribet> from your hand or Battle Area and place them under this card: Play it."), "choose 1 <bizu> card in your hand or Battle Area, move the chosen cards under this card, choose 1 <ribet> card in your hand or Battle Area, move the chosen cards under this card", "BT3-022");
   assert.match(program("[Union Absorb] Choose 1 each of <Nezi>, <Natt>, <Bizu>, and <Ribet> from your Drop Area and place them under this card: Play it.")!, /nezi.*natt.*bizu.*ribet/, "BT3-020: four names");
   // The pre-errata "up to" print is a different, optional wording and keeps its own reading.
   assert.equal(correctSkillText("BT3-070", "[union absorb] {g} , choose up to 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card: Play it."), "[union absorb] {g} , choose 1 each of <Android 14> and <Android 15> from your Drop Area and place them under this card: Play it.");
