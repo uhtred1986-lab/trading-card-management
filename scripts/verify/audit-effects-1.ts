@@ -11,6 +11,8 @@
  *     untimed negation or grant lasts while its card stays.
  * B.  Cost changes say their orbs and span; "[Activate: Main]" / "[Activate: Battle]" reach that timing alone; a "next time
  *     you activate X on <described> card" waits for the next such activation on any card it describes (R-201, pending).
+ * C.  "You can activate this card (or {X}) from your hand without paying its energy cost" is the `altCost` waiver; a skill
+ *     used from the energy or from under a card, or an Extra used for an action price, is unread — never a play.
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where the engine learned something (`ownNextTurn`'s end).
@@ -179,5 +181,38 @@ for (const [timing, kind, reaches] of [
   ["battle", "activate:battle", true], ["battle", "activate:main/battle", true], ["battle", "activate:main", false],
   [undefined, "activate:battle", true],
 ] as const) assert.equal(activateTimingReaches({ kind }, timing), reaches, `B: [Activate${timing ? `: ${timing}` : ""}] reaches a ${kind} line: ${reaches}`);
+
+// C. A [Permanent] that lets this card (or another) be used without its energy cost is the `altCost` waiver, never a play.
+for (const [id, text, forWhat] of [
+  ["BT15-090", "[permanent] If your Leader Card is a green ≪Saiyan≫ card, you can activate this card from your hand without paying its energy cost.", "play"],
+  ["BT12-120", "[Permanent] If you have 3 or more energy in Rest Mode, you can activate this card from your hand without paying its energy cost.", "play"],
+  ["BT8-020", "[Permanent] If you have a Red/Yellow multicolor card in your energy, you can activate this card from your hand without paying its energy cost.", "play"],
+  ["BT20-113", "[Permanent] If your Leader is a yellow <Majin Buu> Z-Leader, you can activate this card from your hand without paying its energy cost.", "play"],
+  ["BT11-118", "[Permanent] If you have 4 or more yellow ≪Demon Clan≫ cards in play, you can activate this card from your hand without paying its energy cost.", "play"],
+  ["BT23-122", "[Permanent] If you have 3 or more energy and you have a {Kale's Rampage} in your Battle Area, you may activate the [Counter] skill on this card in your hand without paying its energy cost.", undefined],
+] as const) {
+  const rec = record(id, text, { type: "EXTRA", power: null, comboCost: null, comboPower: null });
+  const alt = opOf(rec, "altCost");
+  assert.ok(alt.length === 1 && alt[0].pay === "none" && alt[0].for === forWhat && !alt[0].target, `C: ${id} — the waiver on this card (${JSON.stringify(rec.ops)})`);
+  assert.equal(opOf(rec, "play").length, 0, `C: ${id} — and no play`);
+  records++;
+}
+{
+  const rec = record("BT27-052", "[Permanent] If your <Son Goku: Childhood> card is in play, you may activate {Kamehameha Energy Release} from your hand without paying its energy cost.");
+  const alt = opOf(rec, "altCost")[0];
+  assert.ok(alt && alt.pay === "none" && alt.for === "play" && alt.target && "sel" in alt.target && alt.target.sel.area === "hand" && alt.target.sel.filter?.names.join() === "kamehameha energy release", `C: BT27-052 — the waiver on the named card in your hand (${JSON.stringify(rec.ops)})`);
+  records++;
+}
+// Areas no engine offers a skill from, and an action price for an Extra's use: unread, where each was a play.
+for (const [id, text] of [
+  ["BT17-055", "[Permanent] If your Leader Card is a blue ≪Red Ribbon Army≫ card, you can activate this card's [Counter] skill from your energy by paying its energy cost."],
+  ["BT19-093", "[Permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand."],
+  ["BT21-048", "[Permanent] If this card is under a {Universal Tuffleization Plan} in your Battle Area, you can activate this card's [Counter] skill under the same conditions as if it were in your hand."],
+  ["DB2-164", "[Permanent] If you have 4 or more energy, you can activate this card from your hand by placing 1 red card in your hand in your Drop Area instead of paying this card's energy cost."],
+  ["BT14-119", "[Permanent] You can activate the [Activate: Battle] skill on this card from your hand without paying its energy cost by placing 1 card from under one of your Battle Cards in its owner's Drop Area."],
+] as const) {
+  const recs = skillRecords(card(id, { skill: text, type: "EXTRA", power: null, comboCost: null, comboPower: null }));
+  assert.ok(recs.length === 1 && recs[0].unread.length > 0 && !opsDeep(recs[0].ops).some((o) => o.op === "play"), `C: ${id} — unread, never a play (${recs[0].reads})`);
+}
 
 console.log(`audit-effects-1: ${records} records read as printed`);

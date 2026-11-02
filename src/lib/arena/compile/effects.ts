@@ -2000,7 +2000,12 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   if (/^use this card to pay energy costs?(?: even)?(?: when (?:it's|it is|this card is) in your battle area)?$/.test(t)) {
     return [{ op: "payWith" }];
   }
-  if ((m = /^play this card from (?:your |their )?hand ((?:without|by) .+)$/.exec(t))) {
+  // Audit lane E: "you can **activate** this card from your hand without paying its energy cost" (an Extra: BT8-020,
+  // BT11-118, BT12-120, BT15-090, BT20-113) is the same waiver — using an Extra from the hand is how it is played (12-2),
+  // and the activation asks for the play's alternative price (`activationAlt`). It read as "choose this card, play the
+  // chosen cards", a [Permanent] that instructs and so is never run. "…by placing 1 red card in your hand in your Drop
+  // Area instead of paying this card's energy cost" (DB2-164) is an action price, which no play is offered at: unread.
+  if ((m = /^(?:play|activate) this card from (?:your |their )?hand ((?:without|by) .+)$/.exec(t))) {
     const how = m[1];
     if (/^without paying (?:its|the) energy cost$/.test(how)) return [{ op: "altCost", pay: "none", for: "play" }];
     let mm: RegExpExecArray | null;
@@ -2025,9 +2030,29 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // so that a wording `counterAltCost` cannot read stays unread rather than
   // falling through to the "activate … → play" rule below, which read every
   // one of the eleven as "choose this card, play the chosen cards".
-  if (/^activate this card's \[(?:counter[^\]]*|activate: ?battle)\](?: skill)? from your hand /.test(t)) {
-    const alt = counterAltCost(t, c);
+  // Audit lane E: the same offer said "activate **the [Counter] skill on this card in your hand** without paying its
+  // energy cost" (BT23-122) or "the [Activate: Battle] skill on this card from your hand …" (BT14-119) is read as the
+  // usual order; BT14-119's price ("by placing 1 card from under one of your Battle Cards in its owner's Drop Area") is
+  // an action price, refused below — unread, where it was a play of the card.
+  const onThis = /^activate the (\[(?:counter[^\]]*|activate: ?battle)\]) skill on this card (?:in|from) your hand (.+)$/.exec(t);
+  const tAlt = onThis ? `activate this card's ${onThis[1]} skill from your hand ${onThis[2]}` : t;
+  if (/^activate this card's \[(?:counter[^\]]*|activate: ?battle)\](?: skill)? from your hand /.test(tAlt)) {
+    const alt = counterAltCost(tAlt, c);
     return alt?.every((o) => o.op !== "altCost" || o.pay !== "program") ? alt : null;
+  }
+  // Audit lane E: "you can activate this card's [Counter] skill **from your energy** by paying its energy cost"
+  // (BT17-055) and "…this card's [Activate] / [Counter] skill **under the same conditions as if it were in your hand**"
+  // (BT19-093, BT19-095–098, BT21-048, BT23-098: from under a <Broly: Br> or a {Universal Tuffleization Plan}) let a skill
+  // be used from an area no engine offers one from. Read as "choose this card, play the chosen cards" they did nothing
+  // a [Permanent] can do; unread until those areas are offered (ground rule 5).
+  if (/^activate this card'?s? \[[^\]]+\] skills? (?:from your energy\b|under the same conditions as if it were in your hand)/.test(t)) return null;
+  // Audit lane E: "you may activate {Kamehameha Energy Release} from your hand without paying its energy cost"
+  // (BT27-052) grants another card the waiver: the same `altCost` on the cards it names in your hand (a [Permanent]'s
+  // `target`, read live). It read as "choose all your <Son Goku: Childhood> cards in play and play them".
+  if (c.permanent && (m = /^(?:play|activate) ((?:an? |the )?(?:\{[^}]+\}|<[^>]+>)(?: cards?)?) from your hand without paying (?:its|their) energy costs?$/.exec(t))) {
+    const ref = refFor(`${m[1]} in your hand`, c);
+    if (!ref || !("sel" in ref) || ref.sel.special) return null;
+    return [{ op: "altCost", pay: "none", for: "play", target: { sel: { ...ref.sel, count: 99, upTo: undefined } } }];
   }
 
   // "If …, you can activate this card's [Awaken] (skill) when your life is at 6 or less" (BT3-056,
