@@ -143,6 +143,8 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
     [/and\s+ngate\s+their\s+skills/g, "and negate their skills"],
     [/can't\s+witch\s+Battle\s+Cards/g, "can't switch Battle Cards"],
   ],
+  // Audit triggers 1: "When your red Z-Card is palyed or attacks" — the play half was lost to the typo.
+  "BT31-006": [[/Z-Card\s+is\s+palyed\s+or\s+attacks/g, "Z-Card is played or attacks"]],
   "BT31-016": [[/from\s+its\s+owner'\s+Warp/g, "from its owner's Warp"]],
   "BT31-017": [[/at\s+5\s+or\s+lees/g, "at 5 or less"]],
   "BT31-041": [[/Whe\s+this\s+card\s+attacks/g, "When this card attacks"]],
@@ -169,6 +171,8 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT6-081": [[/\[Activate:\s+Main\]\s+3,\s+choose\s+1\s+\{Display/g, "[Activate: Main] {3}, choose 1 {Display"]],
   "BT6-096": [[/\[Activate:\s+Main\]\s+1,\s+place\s+this\s+card/g, "[Activate: Main] {1}, place this card"]],
   "BT25-108": [[/to\s+your\s+hand,\s+the\s+shuffle\s+your\s+deck/g, "to your hand, then shuffle your deck"]],
+  // Audit triggers 1 (review): "removed from a Battle Area by and opponent's skill or KO'd" — the removal half was lost to the typo.
+  "BT25-113": [[/Battle\s+Area\s+by\s+and\s+opponent's\s+skill/g, "Battle Area by an opponent's skill"]],
   "BT25-141": [[/discards\s+1\s+card\s+their\s+hand/g, "discards 1 card from their hand"]],
   "BT26-022": [[/until\s+the\s+end\s+fo\s+your/g, "until the end of your"]],
   "BT26-044": [[/combo,\s+you\s+opponent\s+places/g, "combo, your opponent places"]],

@@ -404,7 +404,10 @@ const BATCH1_GATED = new Set<string>(["droppedFromHandByOpponent", "activeBySkil
   "yourCardPowerRaisedByYou", "yourCardPowerLowered", "opponentCardPowerLowered", "opponentCardPowerLoweredByBattleCard", "eitherCardPowerLowered",
   "deckToDropBySkill", "deckToDropByYou", "revealedTopToDrop", "underReturnedToHand", "underToDropBySkill", "underLeaderToDropBySkill",
   "pileToDropBySkill", "energyToDropBySkill", "yourEnergyToDropByYourLeader", "droppedFromBattleByYou", "toDropBySkill", "toDropByYou",
-  "toDropByOpponent", "dropToWarpBySkill"]);
+  "toDropByOpponent", "dropToWarpBySkill",
+  // Audit triggers 1: the card a KO by this card KO'd ("…KOs an opponent's Battle Card with an energy cost of 2 or more", P-384),
+  // and the card that KO'd this one ("…KO'd by a <Vegeta> card's skill", BT25-051).
+  "kos", "koedBySkill", "koedByYourSkill", "koedByOpponentSkill"]);
 
 /** A condition about the moment's subject alone: `count(subject …)`, or an any/all of such. */
 function aboutTheSubject(cond: Cond): boolean {
@@ -621,7 +624,10 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       if (combo && moment.card !== match.card) continue;
       if (combo?.turn === "controller" && state.turnPlayer !== master) continue;
       if (combo?.turn === "opponent" && state.turnPlayer === master) continue;
-      if (combo && (combo.timing === "battleEnd" || match.trigger === "comboUsed" || match.trigger === "comboed")) {
+      // Audit triggers 1: the qualification is the combo moment's; a skill that also names another moment ("When this
+      // card attacks or at the end of a battle in which this card was used in a combo from your hand", EX17-03) answers
+      // that one unqualified.
+      if (combo && (match.trigger === "comboUsed" || match.trigger === "comboed")) {
         if (combo.timing === "entry" && match.trigger !== "comboUsed") continue;
         if (combo.timing === "battleEnd") {
           if (match.trigger !== "comboed" || state.battle?.step !== "battleEnd"
@@ -640,7 +646,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // 5-5-1: a play into the Battle Area is also a placing (owner's ruling,
       // 2 Oct 2026), so one arrival matches `played` and `placed` both. A
       // skill whose record says both answers that arrival once, as `played`.
-      if (match.trigger === "placed" && pended.some((p) => p.card === match.card && p.skillIndex === sk.index && (p.trigger === "played" || p.trigger === "playedFromHand"))) continue;
+      if (match.trigger === "placed" && pended.some((p) => p.card === match.card && p.skillIndex === sk.index && (p.trigger === "played" || p.trigger === "playedFromHand" || p.trigger === "playedFromDrop"))) continue;
       // 22-11: a free [Once per turn] [Auto] that is already waiting for this
       // very moment cannot be activated a second time (#916: several energy
       // readied at once). The copy is not asked to order itself against its

@@ -228,7 +228,8 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
   assert.deepEqual(trig("[Auto] When your opponent plays a Battle Card with an energy cost greater than their current energy, return that card to its owner's hand."), ["opponentPlayed"], "no means said: any play");
   // A means the moment cannot tell apart: no trigger, where it used to fire on every play.
   assert.deepEqual(trig("[Auto][once per turn] If your Leader Card is black: When your opponent plays a Battle Card using a non-keyword skill, they choose 1 card from their hand and discard it."), []);
-  assert.deepEqual(trig("[Auto] When your opponent plays a Battle Card using a skill or activates a [Counter] skill, choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode."), []);
+  // Audit triggers 1: two moments, each read alone (the skill stays unread: "a Battle Card" describes one moment's card only).
+  assert.deepEqual(trig("[Auto] When your opponent plays a Battle Card using a skill or activates a [Counter] skill, choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode."), ["opponentPlayedBySkill", "opponentCounter"]);
 
   // The subject carries the comparison: a Battle Card costing more than the player's energy.
   const bt16023 = compile("[-3][auto] When your opponent plays a Battle Card with an energy cost greater than their current energy, return that card to its owner's hand.");

@@ -73,7 +73,7 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, staticsNow, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayPriceProgram, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { comboPriceOf } from "./costs";
@@ -221,7 +221,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // loop settled on — asked, or the one replacement there was — and
     // `null` when none answers; the KO honours it rather than looking again.
     ko: (id, by, opts) => {
-      koCard(ctx, game, state, ev, id, by, opts && "replaced" in opts ? (opts.replaced ?? null) : undefined);
+      koCard(ctx, game, state, ev, id, by, opts && "replaced" in opts ? (opts.replaced ?? null) : undefined, "skill");
     },
     // 23-2: `moveCard`'s own `under` option already carries 23-2-2 through
     // 23-2-6 (#152 taught it 23-2-5's "different area → Drop" half, which it
@@ -988,6 +988,42 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const watched = WATCHED_MOVE.has(trigger);
   const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
   if (subject) for (const p of pended) p.subject ??= subject;
+}
+
+/**
+ * Audit triggers 1 (R-132, Q&A BT13-002): a [Permanent]'s standing power change is a moment when it starts to apply —
+ * playing SS4 Broly, whose [Permanent] lowers the opponent's Battle Cards' power, answers "when the power of one of your
+ * opponent's cards is decreased"; the next turn, with Broly still there, does not. Each checkpoint compares the standing
+ * changes with the last look (`VmState.standingPower`) and pends the same names a resolving `power` op pends
+ * (`script.ts`'s `pendPowerChanged`) for each one that is new, the [Permanent]'s card the cause.
+ */
+export function pendStandingPower(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void {
+  if (state.game !== "dbs") return;
+  const now = new Map<string, { source: string; master: PlayerId; target: string; n: number }>();
+  for (const s of staticsNow(ctx, game, state)) {
+    if (s.kind !== "power" || typeof s.value !== "number" || s.value === 0) continue;
+    now.set(`${s.source}#${s.skillIndex ?? ""}>${s.target}:${s.value > 0 ? "+" : "-"}`, { source: s.source, master: s.master, target: s.target, n: s.value });
+  }
+  const before = state.standingPower;
+  state.standingPower = [...now.keys()];
+  if (!before) return;
+  const had = new Set(before);
+  for (const [key, s] of now) {
+    if (had.has(key) || !state.cards[s.target]) continue;
+    const at = zoneOf(state, s.target);
+    if (at !== "battle" && at !== "leader" && at !== "unison") continue;
+    const yours = masterOf(game, state, s.target) === s.master;
+    if (s.n > 0) {
+      pendByName(ctx, game, state, ev, "powerRaisedBySkill", s.target, s.source);
+      if (yours) pendByName(ctx, game, state, ev, "yourCardPowerRaisedByYou", s.target, s.target);
+      continue;
+    }
+    pendByName(ctx, game, state, ev, "powerLoweredBySkill", s.target, s.source);
+    pendByName(ctx, game, state, ev, "yourCardPowerLowered", s.target, s.target);
+    pendByName(ctx, game, state, ev, "opponentCardPowerLowered", s.target, s.target);
+    pendByName(ctx, game, state, ev, "eitherCardPowerLowered", s.target, s.target);
+    if (!yours && state.cards[s.source] && zoneOf(state, s.source) === "battle" && masterOf(game, state, s.source) === s.master) pendByName(ctx, game, state, ev, "opponentCardPowerLoweredByBattleCard", s.target, s.target);
+  }
 }
 
 /**

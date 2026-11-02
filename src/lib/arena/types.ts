@@ -982,6 +982,13 @@ export type Trigger =
    * `played` is any origin.
    */
   | "playedFromHand"
+  | "playedFromDrop"
+  | "koedByAttack"
+  | "yourCardKoedByAttack"
+  | "koedByOpponent"
+  | "koedBySkill"
+  | "koedByYourSkill"
+  | "koedByOpponentSkill"
   | "attacks"
   | "attacked"
   | "koed"
@@ -1105,6 +1112,8 @@ export type Trigger =
   | "yourCardPlayedFromDrop"
   /** Phrasing batch 6: "When one of your opponent's cards is added to their Z-Energy" (BT21-038). */
   | "opponentCardToZEnergy"
+  | "yourCardToZEnergy"
+  | "removedFromGame"
   /** Phrasing batch 6: "When your or your opponent's <Majin Buu> card is played" (BT28-100). */
   | "eitherCardPlayed"
   /** Phrasing batch 6: "When one of your cards deals damage to your opponent" (BT9-104): battle damage, the attacker the subject. */
@@ -1204,6 +1213,8 @@ export type Trigger =
   | "evolveFromHandActivated"
   /** "When your opponent activates a [Counter] skill" (4-3): watched by your cards in play. */
   | "opponentCounter"
+  | "opponentCounterPlay"
+  | "opponentCounterAttack"
   /** "When you activate this card's [Counter] from your hand without paying its energy cost" (22-10). */
   | "counterFreeFromHand"
   /** "At the start of your opponent's Main Phase" (7-3): the *other* player's cards watch it. */

@@ -997,7 +997,8 @@ function activateCounterSkill(
   moved(ctx, game, state, ev, card, "drop", { owner: player, reveal: true });
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
-  fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", from: "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
+  // Audit triggers 1: which [Counter] it is ("[Counter: Play]", "[Counter: Attack]"), for the moments that name one (EX13-19).
+  fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
   log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: !!b });
   // 9-7-2, 22-10-4 (#552): the activation is a counter motion, queued even
   // with no effect to run, so the opponent's [Counter: Counter] window
@@ -1349,7 +1350,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     const afterSkill = afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {};
     spendUse(state, action.player, card, sk);
     moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
-    fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
+    fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
     const key = counterVarsKey(card, sk.index);
     state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", pricedBy: { key, text: sk.raw }, counterMotion: { by: action.player }, ...afterSkill });
     return "done";
@@ -1702,7 +1703,7 @@ function koGuard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: G
     return "wait";
   }
   delete b.guardKo;
-  koCard(ctx, game, state, ev, guard, b.attacker, replaced);
+  koCard(ctx, game, state, ev, guard, b.attacker, replaced, "battle");
 }
 
 /**
@@ -1859,13 +1860,14 @@ export function resumeDamage(state: VmState): boolean {
  *   derived "fires while elsewhere"), and `cause` for the card that did it —
  *   only when that card is an *opponent's* and still exists, the legacy
  *   `kos` pend's own three conditions ("when this card KOs an opponent's
- *   Battle Card"). `cause` is absent for a KO no card caused.
+ *   Battle Card"). `cause` is absent for a KO no card caused. Audit triggers 1: the `cause` moment hands the
+ *   KO'd card on (`source`), so "…KOs an opponent's Battle Card **with an energy cost of 2 or more**" (P-384) asks it.
  *
  * The move itself carries no `by`: a KO by skill is not, on either engine,
  * the "removed from a Battle Area by a skill" moment (the legacy `ko` op pends
  * nothing of that family), only `leftBattleToDrop`'s causeless one.
  */
-export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, cause?: string, replaced?: ReplacementResult | null): void {
+export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, cause?: string, replaced?: ReplacementResult | null, how?: "battle" | "skill"): void {
   if (forbids(ctx, game, state, "beKOd", { card })) return;
   const owner = state.cards[card].owner;
   const master = masterOf(game, state, card);
@@ -1879,9 +1881,13 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   // `to: drop` matches `koed`'s own pattern (`triggers.rules`) — the card has
   // already landed there by the time this fires, and that field is what lets
   // it still answer about itself (9-1-3-1's derived "fires while elsewhere").
-  fire(ctx, game, state, { event: "ko", card, controller: owner, args: { role: "koed", to: "drop", ...(wasHidden ? { hidden: true } : {}) } });
+  // Audit triggers 1: how it was KO'd (8-4-6-2's battle or a skill's effect, 5-12) and whether by the other side, and the
+  // card that did it as the moment's subject — "When this card is KO'd by an opponent's attack" (EX21-05), "…by a
+  // <Vegeta> card's skill" (BT25-051) ask them.
+  const byOther = cause !== undefined && state.cards[cause] ? masterOf(game, state, cause) !== master : undefined;
+  fire(ctx, game, state, { event: "ko", card, controller: owner, ...(cause !== undefined && cause !== card ? { source: cause } : {}), args: { role: "koed", to: "drop", ...(how ? { by: how } : {}), ...(byOther !== undefined ? { byOpponent: byOther } : {}), ...(wasHidden ? { hidden: true } : {}) } });
   if (cause !== undefined && cause !== card && state.cards[cause] && masterOf(game, state, cause) !== master) {
-    fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), args: { role: "cause" } });
+    fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), source: card, args: { role: "cause" } });
   }
 }
 

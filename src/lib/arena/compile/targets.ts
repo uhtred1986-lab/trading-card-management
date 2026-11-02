@@ -697,7 +697,14 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
     // read — "from your Battle Area" is 9-1-3-1's own answer already.
     return selfFrom(t);
   }
-  if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
+  // Audit triggers 1 (review): "Choose the attacking **Battle Card**" (P-203), "…up to 1 of the attacking **Battle
+  // Cards**" (P-409, a KO by an opponent's attack), "…of the attacking cards" (BT24-060): a battle has one attacker
+  // (8-1), whatever the noun. Read as a description, these chose one of your own Battle Cards. "Up to 1 of" stays a
+  // choice the player may decline.
+  if (/\bthe attack(?:ing)? (?:battle |leader )?cards?\b/.test(t)) {
+    const upTo = /\bup to (\d+) of the attack/.exec(t);
+    return { special: "attacker", ...(upTo ? { count: Number(upTo[1]), upTo: true } : {}) };
+  }
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
   // "Your opponent's Leader", "your Leader Card": a player has exactly one
   // (3-1-2), so this names a card rather than describing a search — and the
@@ -1117,9 +1124,14 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     /^(?:an?|1) (.+? card) is played in your battle area\b/.exec(t)?.[1] ??
     // Phrasing batch 5: "when one of your … cards attacks", "when your Battle Cards **attack**" (BT2-003, `yourCardAttacks`).
     /^(?:your|your opponent's|one of your) (.+?) attacks?\b/.exec(t)?.[1] ??
+    // Audit triggers 1: "When a skill-less Battle Card or skill-less Unison Card is played in your opponent's Battle Area
+    // or Unison Area" (BT15-122, `opponentPlayed`): the card played.
+    /^(?:an?|1) (.+?) (?:is|are) played in your opponent'?s (?:battle|unison) area(?: or (?:battle|unison) area)?$/.exec(t)?.[1] ??
+    // Audit triggers 1: "When one of your blue Battle Cards is added to your Z-Energy" (BT19-034b, `yourCardToZEnergy`).
+    /^(?:one of your|your) ((?!opponent).+?) (?:is|are) added to (?:your|its owner'?s) z-energy$/.exec(t)?.[1] ??
     // Phrasing batch 5: "When one of your red or blue Battle Cards is removed from your Battle Area by an opponent's
     // skill" (DB2-174, `yourCardRemovedByOpponent`): the card removed.
-    /^(?:your|one of your) ((?!opponent).+?) (?:is|are) removed from your battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?$/.exec(t)?.[1] ??
+    /^(?:your|one of your) ((?!opponent).+?) (?:is|are) removed from your battle area by (?:(?:an? |one of )?(?:your )?opponent'?s? skills?|one of their skills)$/.exec(t)?.[1] ??
     // Phrasing batch 6: "When one of your ≪Namekian≫ cards activates [Union Absorb]" (BT17-089, `unionAbsorbUsed`).
     /^(?:one of your|your) ((?!opponent).+?) activates? (?:an? |the )?\[union[- ]absorb\](?: skill)?$/.exec(t)?.[1] ??
     // Phrasing batch 6: "When one of your opponent's Battle Cards is played by a skill" (BT21-105), "When your or your
