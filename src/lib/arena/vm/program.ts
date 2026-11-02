@@ -485,11 +485,10 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
     out[attr] = values;
   }
   for (const name of plan.layered) {
-    const refusedNegation = name === "keywords" && keywordNegationRefused(ctx, game, state, id, standing);
     const layerStatics = name === "keywords" && keywordSkillsNegated(state, id)
       ? mine.filter((e) => e.kind !== "keyword")
-      : refusedNegation
-        ? mine.filter((e) => e.kind !== "negateKeyword")
+      : name === "keywords"
+        ? mine.filter((e) => e.kind !== "negateKeyword" || !negationRefused(ctx, game, state, id, e))
         : mine;
     const layerTimed0 = name === "keywords" ? timed.filter((e) => e.kind !== "keyword" || (!keywordSkillsNegated(state, id) && !grantedSkillNegated(state, id, e.id))) : timed;
     // P-668 (prohibition batch 6): a reduction of this card's power by the
@@ -860,7 +859,7 @@ function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state
 function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"] | undefined, standing: readonly VmStatic[] = []): boolean {
   if (!name) return false;
   if (state.effects.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name)) return true;
-  return !keywordNegationRefused(ctx, game, state, id, standing) && standing.some((e) => e.kind === "negateKeyword" && e.target === id && (e.value === name || e.value === (KEYWORD_WILDCARD as unknown)));
+  return standing.some((e) => e.kind === "negateKeyword" && e.target === id && (e.value === name || e.value === (KEYWORD_WILDCARD as unknown)) && !negationRefused(ctx, game, state, id, e));
 }
 
 /**
@@ -872,19 +871,21 @@ function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmSt
 export function standingKindNegated(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, kind: string | undefined): boolean {
   if (!kind) return false;
   const standing = statics(ctx, game, state);
-  if (!standing.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as unknown as string))) return false;
-  return !forbids(ctx, game, state, "beNegated", { card: id });
+  return standing.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as unknown as string) && !negationRefused(ctx, game, state, id, e));
 }
 
-/** A standing negation is still subject to 20-14's `beNegated` prohibition. */
-function keywordNegationRefused(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, standing: readonly VmStatic[]): boolean {
-  if (!standing.some((e) => e.kind === "negateKeyword" && e.target === id)) return false;
+/**
+ * A standing negation is still subject to 20-14's `beNegated` prohibition, asked of the [Permanent] saying it — its
+ * controller and its card (audit lane C, 2 Nov 2026: "…by your opponent's skills", DB1-021; "…by the skills of your red
+ * <Garlic Jr.> cards", P-641).
+ */
+function negationRefused(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, e: VmStatic): boolean {
   let active = CHECKING_STATIC_NEGATION.get(state);
   if (!active) CHECKING_STATIC_NEGATION.set(state, active = new Set());
   if (active.has(id)) return false;
   active.add(id);
   try {
-    return forbids(ctx, game, state, "beNegated", { card: id });
+    return forbids(ctx, game, state, "beNegated", { card: id, player: e.master, source: e.source });
   } finally {
     active.delete(id);
   }

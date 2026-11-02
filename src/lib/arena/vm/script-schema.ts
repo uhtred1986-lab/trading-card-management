@@ -3111,6 +3111,11 @@ const PILE_NAMES: Record<string, string> = { hand: "hand", deck: "deck", drop: "
  * whose skills they are. Null for anything else.
  */
 function passiveSentence(op: OpOf<"forbid">, escape: string, r: RenderOptions): string | null {
+  // Audit lane C: "…can't be negated by your opponent's skills" (DB1-021), "…by the skills of your red <Garlic Jr.>
+  // cards" (P-641): whose negation the rule stops.
+  if (op.what === "beNegated" && (op.side || op.byFilter)) {
+    return `${op.target ? describeRef(op.target) : op.filter ? describeFilter(op.filter, { plural: true }) : "cards"} can't have their skills negated by ${whoseSkillsSaid(op)}${escape}${forThe(op.until, r)}`;
+  }
   if (op.what !== "beMovedBySkill" && op.what !== "beKOdBySkill" && op.what !== "beRestedBySkill" && op.what !== "beChosen") return null;
   const by = ` by ${whoseSkillsSaid(op)}`;
   const except = op.exceptOwnSkills ? " other than this card's own" : op.exceptSourceName ? ` other than {${op.exceptSourceName}}'s` : "";

@@ -730,6 +730,11 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // itself. "Other than this card" is the same thing spelled out and is read
   // below; "each other player" is a player, not a card.
   const otherAdj = /\bother\b/.test(t) && !/\bother than\b/.test(t) && !/\bother player/.test(t);
+  // Audit lane C (2 Nov 2026): "if **another** ≪Universe 6≫ is in play in your Battle Area" (TB1-016, TB1-037,
+  // TB1-084 …), "when **another** of your Battle Cards would be removed" (BT28-014): the same adjective with its
+  // article, and the same card ruled out. Read as nothing, a card of that trait satisfied its own condition. A name in
+  // brackets is not the word (≪Another World Budokai≫), and "another copy of this card" names this card's copies.
+  const anotherAdj = /\banother\b(?! (?:copy|copies|area|turn)\b)/.test(t.replace(/≪[^≫]*≫|<[^>]*>|\{[^}]*\}/g, " "));
 
   let side: Side = "you";
   // The sets write the possessive four ways — "your opponent's", "an
@@ -1033,8 +1038,9 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // "Choose all Battle Cards **other than this card**" — the card the phrase
   // rules out. Read as nothing it stayed among the candidates, so a clause
   // that shrank every Battle Card shrank this one too.
-  const excluded = /\b(?:other than|except for|besides) (copies of )?this card\b/.exec(t);
-  const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj ? "card" : undefined;
+  // "…other than **this one**" (BT5-082) is the same card in the old sets' words.
+  const excluded = /\b(?:other than|except for|besides) (copies of )?this (?:card|one)\b/.exec(t);
+  const notSelf = excluded ? (excluded[1] ? "copies" : "card") : otherAdj || anotherAdj ? "card" : undefined;
   // "Battle Cards or Unisons" names two kinds, one per area, so neither type
   // word narrows the pair — the "play" reading drops it.
   const filter = filterFor(phrase, bothAreas ? "play" : area);

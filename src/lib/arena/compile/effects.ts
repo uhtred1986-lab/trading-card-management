@@ -508,6 +508,16 @@ function oneAtATime(steps: Op[][], reason: string): Op[] {
   });
 }
 
+/**
+ * Audit lane C (2 Nov 2026): "When **another** of your Battle Cards would be removed …" (BT28-014), "if one of your
+ * **other** Battle Cards would …": the subject of a replacement rules out the card printing it. Read through
+ * `filterFor` alone, the adjective was dropped and the card could stand in for itself.
+ */
+function otherThanSelf(subject: string): { notSelf?: "card" } {
+  const said = subject.toLowerCase().replace(/≪[^≫]*≫|<[^>]*>|\{[^}]*\}/g, " ");
+  return /\banother\b|\bother\b(?! than)|\bother than this card\b/.test(said) ? { notSelf: "card" } : {};
+}
+
 function substitutable(ops: Op[]): boolean {
   return ops.length > 0 && !ops.some((o) => NOT_RUNNABLE.has(o.op));
 }
@@ -4543,14 +4553,23 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // it is about in the clause before it. Fifteen clauses.
   // BT1-031 [Permanent]: "Your opponent cannot activate [counter] against this
   // card's attack and cannot activate [blocker] during this card's attack":
-  // while this card is the attack card (8-1), no [Counter] of theirs (any kind
-  // — the battle is this attack) and no [Blocker]. The second half arrives
-  // without its subject, which is the opponent the sentence named.
+  // while this card is the attack card (8-1), no [Counter] of theirs against
+  // that attack and no [Blocker]. The second half arrives without its subject,
+  // which is the opponent the sentence named.
+  // Audit lane C (2 Nov 2026, R-160): "against this card's attack" is the two
+  // kinds an attack makes pending (22-10-3-2, 22-10-3-3) — [Counter: Attack]
+  // and [Counter: Battle Card Attack]. A [Counter: Play] answering a card
+  // played in that battle, or a [Counter: Counter], answers no attack and was
+  // refused with them (TB1-010, BT1-031).
   {
-    const during = /^(your opponent |the opponent )?(?:can'?t|cannot|may not) activate \[(counter|blocker)\](?: skills?)? (?:against|during) this card'?s attack$/.exec(t);
+    const during = /^(your opponent |the opponent )?(?:can'?t|cannot|may not) activate \[(counter|blocker)\](?: skills?)? (against|during) this card'?s attack$/.exec(t);
     if (during && c.permanent && (during[1] || /^your opponent\b/i.test(c.raw.replace(/^\s*\[[^\]]+\]\s*/, "")))) {
-      const rule: Op = during[2] === "counter" ? { op: "forbid", what: "activateCounter", side: "opponent", until: "game" } : { op: "forbid", what: "block", side: "opponent", until: "game" };
-      return [{ op: "if", cond: { kind: "inBattle", sel: { special: "self" }, role: "attacker" }, then: [rule] }];
+      const rules: Op[] = during[2] === "blocker"
+        ? [{ op: "forbid", what: "block", side: "opponent", until: "game" }]
+        : during[3] === "against"
+          ? (["attack", "battleCardAttack"] as const).map((counterKind): Op => ({ op: "forbid", what: "activateCounter", side: "opponent", until: "game", counterKind }))
+          : [{ op: "forbid", what: "activateCounter", side: "opponent", until: "game" }];
+      return [{ op: "if", cond: { kind: "inBattle", sel: { special: "self" }, role: "attacker" }, then: rules }];
     }
   }
   // "…your originally skill-less Battle Cards can't gain skills for the game"
@@ -5388,6 +5407,15 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       return [{ op: "forbid", what: "beMovedBySkill", until, target, ...scope, ...withUnless }];
     }
   }
+  // Audit lane C (2 Nov 2026): "This card cannot be attacked **by a Leader Card**" (BT1-066): the opponent's Leader may
+  // not attack it, and their Battle Cards still may — the attack rule on those attackers against this card, as "your
+  // opponent's skill-less cards can't attack this card" (BT15-122) is read. Read as `beAttacked` it was attacked by
+  // nothing. "…by your opponent's cards" names every attacker there is (8-1-1), so it stays the plain rule.
+  {
+    const by = /^be attacked by (?:an? |your opponent'?s |the opponent'?s )?leader(?: cards?)?(?=$|\s+(?:for|during|until)\b)/.exec(rest);
+    if (by && "sel" in target && target.sel.special === "self") return [{ op: "forbid", what: "attack", until, target: { sel: { side: "opponent", area: "leader", count: 99 } }, against: { sel: { special: "self" } }, ...withUnless }];
+  }
+  if (/^be attacked by (?!(?:your |an? )?opponent'?s? cards?(?:$|\s+(?:for|during|until)\b))/.test(rest)) return null;
   if (/^be attacked\b/.test(rest)) return [{ op: "forbid", what: "beAttacked", until, target, ...withUnless }];
   if (/^block\b/.test(rest)) return [{ op: "forbid", what: "block", until, target, ...withUnless }];
   if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) {
@@ -5424,6 +5452,33 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       { op: "forbid", what: "beKOdInBattle", until, target, ...withUnless },
       { op: "forbid", what: "beKOdBySkill", until, target, side: "opponent", ...withUnless },
     ];
+  }
+  // Audit lane C (2 Nov 2026): "This card can't be KO'd **in battle**" (BT1-020, BT12-040), "…in battle for the turn"
+  // (BT20-005): the battle's KO alone (8-4-6-2) — Bandai's BT1-020 answer: "Yes, it can [be KO-ed with skills]". The
+  // bare rule below took every KO.
+  if (/^be ko'?d in battle(?:$|\s+(?:for|during|until)\b)/.test(rest)) return [{ op: "forbid", what: "beKOdInBattle", until, target, ...withUnless }];
+  // "…can't be KO'd **once per turn**" (BT21-091, P-233, P-317, BT20-092's card above), "…can't be KO'd in battle once
+  // per turn" (P-345): the first such KO each turn does not happen, a later one does. A standing rule that stops one
+  // KO is the KO's replacement that spends its own line for the turn (`negateOwnSkill`), the shape "once per turn, this
+  // card can't be removed …" already has (P-638). A line that says anything besides would lose the rest with it, so it
+  // stays unread there (P-345's "also treated as yellow").
+  {
+    const once = /^be ko'?d( in battle)? once per turn$/.exec(rest);
+    if (once) {
+      if (!c.permanent || /\band (?:can'?t|cannot) be ko'?d\b/i.test(c.raw)) return null;
+      const self = "sel" in target && target.sel.special === "self";
+      return [{ op: "replace", event: "ko", ...(once[1] ? { by: "koInBattle" as const } : {}), with: [{ op: "negateOwnSkill", until: "turn" }], ...(self ? {} : { target }) }];
+    }
+  }
+  // "This card can't be KO'd **while it's in Rest Mode**" (BT20-101): the rule holds while the card is rested — the
+  // condition the leading form ("if this card is in Rest Mode, …") reads. Read without it, the card was never KO'd.
+  {
+    const whileMode = /^be ko'?d while (?:it'?s|it is|this card is) in (rest|active) mode$/.exec(rest);
+    if (whileMode) {
+      const rule = compileProhibition(t.replace(/\s+while (?:it'?s|it is|this card is) in (?:rest|active) mode\s*$/i, ""), c);
+      const held = parseConditionClause(`this card is in ${whileMode[1]} mode`, true);
+      return rule && held && "sel" in target && target.sel.special === "self" ? [{ op: "if", cond: held.cond, then: rule }] : null;
+    }
   }
   if (/^be ko'?d\b/.test(rest)) {
     // #907 round 4 (P-481, BT8-060): "can't be KO'd in battle **against Battle Cards with energy costs of 3 or
@@ -5529,7 +5584,23 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // already reads "in any area" as the game.
   if (/^be negated\b/.test(rest) && /\bskills?\b/.test(subject)) {
     const owner = refFor(subject.replace(/'?s skills?\b.*$/, ""), c);
-    return owner ? [{ op: "forbid", what: "beNegated", until, target: owner, ...withUnless }] : null;
+    // Audit lane C (2 Nov 2026): whose negation it stops. "…by your opponent's skills" (DB1-021, P-680) leaves the
+    // player's own negation working; "…by the skills of your red <Garlic Jr.> cards" (P-641, P-642) stops only the
+    // skills of those cards (`byFilter`, asked of the negating skill's card). Read without the words, both were immune
+    // to everything. Any other cause stays unread.
+    const by = /\bby (.+?)(?:\s+(?:for|during|until)\b.*)?$/.exec(rest.replace(/\s+in (?:any|all) areas?\b/, ""))?.[1];
+    let scope: { side?: Side; byFilter?: CardFilter } = {};
+    if (by) {
+      const of = /^the skills of (your opponent'?s|your) (.+?)$/.exec(by);
+      if (of) {
+        const said = /\bcards?$/.test(of[2]) ? of[2] : `${of[2]} card`;
+        const filter = filterFor(said, null);
+        if (!filter || unreadFilterWords(said, filter).length) return null;
+        scope = { side: /opponent/.test(of[1]) ? "opponent" : "you", byFilter: filter };
+      } else if (bySide) scope = { side: bySide };
+      else return null;
+    }
+    return owner ? [{ op: "forbid", what: "beNegated", until, target: owner, ...scope, ...withUnless }] : null;
   }
   return null;
 }
@@ -7393,7 +7464,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         // Combo Area" (BT18-122's back) is a combo card, "your Battle Card …
         // removed from a Battle Area or Combo Area" (BT31-055's back) either.
         const where = from?.length === 1 && from[0] === "combo" ? { area: "combo" as const } : from?.includes("combo") ? { area: "battle" as const, areas: ["battle", "combo"] as ScriptArea[] } : { area: "battle" as const };
-        const target: Ref = subject ? { sel: { side: subjectSide ?? "you", ...where, filter, count: 99 } } : only.target;
+        const target: Ref = subject ? { sel: { side: subjectSide ?? "you", ...where, filter, count: 99, ...otherThanSelf(subject) } } : only.target;
         // "…to your energy in Rest Mode instead" — the move said how it
         // arrives as well as where, and the replacement has to carry both.
         push([{ op: "replaceLeave", to: only.to, target, ...(from ? { from } : {}), ...(by ? { by } : {}), ...(bySide ? { bySide } : {}), ...(only.mode ? { mode: only.mode } : {}), ...(only.position ? { position: only.position } : {}), ...(requestedTo ? { requestedTo } : {}), ...(until ? { until } : {}), ...(offered ? { optional: true } : {}) }]);
@@ -7408,7 +7479,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // the other 46 leave it unapplied rather than half-running it.
       const filter = subject ? filterFor(subject, "battle") : undefined;
       if (filter !== null && substitutable(got)) {
-        const target: Ref | undefined = subject ? { sel: { side: "you", area: "battle", filter, count: 99 } } : lifeSelf ? { sel: { special: "self" } } : undefined;
+        const target: Ref | undefined = subject ? { sel: { side: "you", area: "battle", filter, count: 99, ...otherThanSelf(subject) } } : lifeSelf ? { sel: { special: "self" } } : undefined;
         // #272: "reveal it and add it to your hand instead" — the reveal is
         // what makes the arriving card's identity public (20-11-2), carried
         // onto the move as `faceUp` so it stays public once sitting in a
