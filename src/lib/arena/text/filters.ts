@@ -6,7 +6,7 @@
  * lets the engine offer the right candidates for Evolve, Union, Z-Stack,
  * Z-Awaken and Swap without a compiled script.
  */
-import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, identityKey, keywordName, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf, specifiedCostOf, specifiedCostUnknown } from "./cards";
+import { baseType, characterIncludes, hasCharacter, hasKeyword, hasTrait, identityKey, traitIncludes, keywordName, keywordOf, keywordsOf, nameIncludes, namesOf, skillsOf, specifiedCostOf, specifiedCostUnknown } from "./cards";
 import type { CardDef, Color, KeywordSkill, SkillKindPrefix } from "../types";
 
 export interface CardFilter {
@@ -86,6 +86,12 @@ export interface CardFilter {
    * printed, so a stored program without it reads as before.
    */
   traitsAll?: string[];
+  /**
+   * Audit lane C (2 Nov 2026): "a Battle Card with **≪Universe≫ in its special trait**" (P-189, P-203, BT16-004,
+   * BT28-137) — a trait that contains the word: ≪Universe 7≫, ≪Universe 11≫ … Shares the `some` with `traits`, as
+   * `charactersIncluding` does with `characters`. Written only when printed.
+   */
+  traitsIncluding?: string[];
   names: string[];
   /**
    * "Choose up to 1 Battle Card **other than** {Vegito, Powers Combined}" — a
@@ -419,6 +425,7 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   onlyCharacters: "boolean",
   onlyTraits: "boolean",
   traitsAll: "strings",
+  traitsIncluding: "strings",
   names: "strings",
   notNames: "strings",
   namesIncluding: "strings",
@@ -497,14 +504,27 @@ export function sparkingTags(skills: readonly { sparking: number | null }[]): st
   return skills.flatMap((sk) => (sk.sparking != null ? [`sparking ${sk.sparking}`] : []));
 }
 
+/**
+ * Is a keyword a filter names exactly (`keywordsExact`) among a card's? By its printed name; "Dark Over Realm" said with
+ * no number is every [Dark Over Realm X] (audit lane C).
+ */
+export function keywordMatchesExact(have: ReadonlySet<string>, name: string): boolean {
+  const k = name.toLowerCase();
+  return have.has(k) || (!/\d/.test(k) && [...have].some((h) => h.startsWith(`${k} `)));
+}
+
 function addKeyword(f: CardFilter, kw: KeywordSkill | { name: KeywordSkill["name"] }, printed: string, negated = false): void {
   // #930: "a card with a **[union-fusion]** skill" (EX13-14) names one variant
   // of [Union], so a [Union-Potara] or [Union-Absorb] card is not one; only the
   // bare "[Union]" is the family.
-  const exact = /\d/.test(printed) || (kw.name === "Union" && "variant" in kw && !!kw.variant);
+  // Audit lane C (2 Nov 2026): "with **[EX-Evolve]**" (BT19-009, BT19-014) names that variant — every [EX-Evolve] is an
+  // [Evolve] (Q&A BT19-005), not the other way round — and "with a **[Dark Over Realm]** skill" (BT27-094, BT27-104,
+  // BT27-108, BT27-111) the dark one, whatever its number (`keywordMatchesExact`). The family alone took plain ones.
+  const variantSaid = (kw.name === "Evolve" && "variant" in kw && kw.variant !== "Evolve") || (kw.name === "Over Realm" && "dark" in kw && kw.dark);
+  const exact = /\d/.test(printed) || (kw.name === "Union" && "variant" in kw && !!kw.variant) || variantSaid;
   if (exact) {
     const key = negated ? "notKeywordsExact" : "keywordsExact";
-    const name = keywordName(kw as KeywordSkill);
+    const name = kw.name === "Over Realm" && !/\d/.test(printed) ? "Dark Over Realm" : keywordName(kw as KeywordSkill);
     const list = (f[key] ??= []);
     if (!list.includes(name)) list.push(name);
     if (negated) return;
@@ -819,6 +839,12 @@ function parseOneFilter(text: string): CardFilter {
     return " ";
   });
   // "…a red ≪Great Ape≫ ≪Bardock's Crew≫ card": the trait twin of the line above.
+  // Audit lane C: "≪Universe≫ in its special trait(s)", "≪God≫ or ≪Universe≫ in their special traits" (P-493) — a trait
+  // containing the word (`traitsIncluding`); "includes ≪Universe≫ in its special traits" (BT30-096) the same.
+  t = t.replace(/(?:\bincludes?\s+)?(≪[^≫]+≫(?:\s+or\s+≪[^≫]+≫)*)\s+in (?:its|their) special traits?/gi, (_whole, list: string) => {
+    for (const m of list.matchAll(/≪([^≫]+)≫/g)) (f.traitsIncluding ??= []).push(m[1].trim());
+    return " ";
+  });
   t = t.replace(/\bboth\s+(≪[^≫]+≫)\s+and\s+(≪[^≫]+≫)/gi, (_whole, a: string, b: string) => {
     (f.traitsAll ??= []).push(a.slice(1, -1).trim(), b.slice(1, -1).trim());
     return " ";
@@ -1335,8 +1361,8 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   if (f.keywords.some((k) => !hasKeyword(d, k))) return false;
   if (f.keywordsExact?.length || f.notKeywordsExact?.length) {
     const have = new Set([...keywordsOf(d).map((k) => keywordName(k).toLowerCase()), ...sparkingTags(skillsOf(d))]);
-    if (f.keywordsExact?.some((k) => !have.has(k.toLowerCase()))) return false;
-    if (f.notKeywordsExact?.some((k) => have.has(k.toLowerCase()))) return false;
+    if (f.keywordsExact?.some((k) => !keywordMatchesExact(have, k))) return false;
+    if (f.notKeywordsExact?.some((k) => keywordMatchesExact(have, k))) return false;
   }
   if (f.skillKind && !skillsOf(d).some((sk) => sk.kind.startsWith(f.skillKind!))) return false;
   if (f.noKeywords && keywordsOf(d).length) return false;
@@ -1350,7 +1376,8 @@ export function matches(d: CardDef, given: CardFilter): boolean {
   const partChars = f.charactersIncluding ?? [];
   const partNames = f.namesIncluding ?? [];
   const characterOk = !(f.characters.length || partChars.length) || f.characters.some((c) => hasCharacter(d, c)) || partChars.some((c) => characterIncludes(d, c));
-  const traitOk = !f.traits.length || f.traits.some((c) => hasTrait(d, c));
+  const partTraits = f.traitsIncluding ?? [];
+  const traitOk = !(f.traits.length || partTraits.length) || f.traits.some((c) => hasTrait(d, c)) || partTraits.some((c) => traitIncludes(d, c));
   // "with both <A> and <B>" (#768): each one, where `characters` takes any.
   if (!(f.charactersAll ?? []).every((c) => hasCharacter(d, c))) return false;
   // "a ≪Great Ape≫ ≪Saiyan≫ card" (#907 round 5): every trait named.

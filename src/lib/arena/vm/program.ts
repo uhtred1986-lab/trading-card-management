@@ -1671,6 +1671,10 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.hidden != null && (movementInfo?.hidden ?? card.hidden) !== sel.hidden) return false;
     // "…that's not in a battle" (8-1-2, #537).
     if (sel.notInBattle && state.battle && (state.battle.attacker === id || state.battle.guard === id)) return false;
+    // Audit lane C: "your attacking cards", "…that's in a battle", "…that isn't attacking" (8-1-2).
+    if (sel.battleRole === "any" && !(state.battle && (state.battle.attacker === id || state.battle.guard === id))) return false;
+    if (sel.battleRole === "attacker" && state.battle?.attacker !== id) return false;
+    if (sel.battleRole === "notAttacker" && state.battle?.attacker === id) return false;
     // "…whose owner is your opponent" (EX24-10): owned by the other player.
     if (sel.ownedByOpponent && card.owner === frame.master) return false;
     if (sel.notSelf && frame.card) {
@@ -1959,6 +1963,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       return !condHolds(ctx, game, state, frame, c.cond);
     case "power":
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) => between(measureOf(ctx, game, state, id, "power", c.sel.special === "subject" && id === frame.subject ? frame.subjectInfo : undefined), c.atLeast, c.atMost));
+    case "outnumbers":
+      return resolveSelector(ctx, game, state, frame, c.sel).length >= resolveSelector(ctx, game, state, frame, c.than).length + (c.by ?? 1);
     case "lifeVsOpponent": {
       const mine = state.sides[frame.master].zones.life?.length ?? 0;
       const theirs = state.sides[other(frame.master)].zones.life?.length ?? 0;

@@ -1018,6 +1018,12 @@ export function nameIncludes(def: CardDef, part: string): boolean {
   return namesOf(def).some((n) => identityKey(n).includes(p));
 }
 
+/** Audit lane C: "≪Universe≫ in its special trait" (BT16-004, P-189, P-203) — a trait of the card contains the word. */
+export function traitIncludes(def: CardDef, part: string): boolean {
+  const p = identityKey(part);
+  return def.traits.some((c) => identityKey(c).includes(p));
+}
+
 export function hasTrait(def: CardDef, name: string): boolean {
   const n = identityKey(name);
   return def.traits.some((c) => identityKey(c) === n);

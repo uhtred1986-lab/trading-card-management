@@ -155,6 +155,13 @@ export interface Selector {
    */
   notInBattle?: true;
   /**
+   * Audit lane C (2 Nov 2026), the other half of `notInBattle` (8-1-2): "choose 1 of your **attacking** cards" (BT1-005,
+   * TB2-012) is the attack card (`attacker`); "…your cards **that's in a battle**" (BT24-078, BT29-055, DB1-017,
+   * P-648) the attack card or the guard card (`any`); "…in Rest Mode **that isn't attacking**" (BT19-114) any card but
+   * the attack card (`notAttacker`). Read as nothing, the choice reached every card of that description in play.
+   */
+  battleRole?: "any" | "attacker" | "notAttacker";
+  /**
    * "Choose **this card or** up to 1 <Broly: Br> card in your Battle Area" (P-092b's erratum, BT1-001b, EX03-01b,
    * EX12-02, BT17-059b): the card the skill is on is on offer too, beside the cards the selector describes — one choice
    * among them all. This card needs none of the selector's measures or areas.
@@ -420,6 +427,13 @@ export type Cond =
   | { kind: "life"; side: Side; atLeast?: number; atMost?: number }
   /** "When your life is less than or equal to your opponent's life" — the two counts against each other. */
   | { kind: "lifeVsOpponent"; atMost?: boolean; atLeast?: boolean }
+  /**
+   * Audit lane C (2 Nov 2026): "if your opponent has **more cards in their hand than you**" (BT16-067, BT19-152), "if
+   * you have **less energy than your opponent**" (EX03-27, DB3-035), "…has **2 or more energy than you**" (P-183): two
+   * counts against each other — `sel` finds at least `by` (1 when absent) more cards than `than` does. "Fewer" is the
+   * same question with the two sides swapped. Read as a count of one side alone it held almost always.
+   */
+  | { kind: "outnumbers"; sel: Selector; than: Selector; by?: number }
   | { kind: "leaderColor"; color: Color }
   /** "If your Leader is a <Baby> card" — colour, character name and traits alike. */
   | { kind: "leaderMatches"; filter: CardFilter; side?: Side; back?: boolean }

@@ -457,6 +457,32 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     if (!sel || sel.special) return null;
     return { ...sel, notInBattle: true };
   }
+  // Audit lane C (2 Nov 2026): the rest of 8-1-2's ends. "…your cards **that's in a battle**" (BT24-078, BT28-069,
+  // BT29-055), "…your red ≪Alien≫ cards **in battle**" (DB1-017), "…your opponent's Battle Cards that's in a battle"
+  // (P-648): the attack card or the guard card. "…in Rest Mode **that isn't attacking**" (BT19-114): any card but the
+  // attack card. "1 of your **attacking** cards" (BT1-005, TB2-012), "…your attacking green ≪Android≫ cards" (BT5-070),
+  // "…attacking <Android 18> card" (BT8-030), "…your opponent's attacking Battle Cards" (BT2-097): the attack card.
+  // Dropped, the choice reached every card of that description in play.
+  {
+    // Read off the phrase with its names blanked (same length, so the match is cut from the phrase itself): "{SS Vegeta,
+    // Snowy Mountain Battle}" holds the words "in battle".
+    const plainPhrase = phrase.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, (n) => "x".repeat(n.length));
+    const notAttacking = /\s*,?\s*(?:that'?s|that is|that are|which (?:is|are)|that) (?:not|n'?t|isn'?t|aren'?t) attacking\b|\s*,?\s*that (?:isn'?t|is not|aren'?t|are not) attacking\b/i.exec(plainPhrase);
+    const inBattle = !notAttacking && /\s*,?\s*(?:that'?s|that is|that are|which (?:is|are))?\s*(?:currently )?in (?:a |the )?battle\b(?!\s+(?:areas?|against|by|with)\b)/i.exec(plainPhrase);
+    const attacking = !notAttacking && !inBattle && /\battacking\s+(?=(?:(?:mono-)?(?:red|blue|green|yellow|black|white)\s+|x|battle |leader |unison |cards?\b))/i.exec(plainPhrase);
+    const said = notAttacking ?? inBattle ?? attacking;
+    // A choice only — a count or a plural. "**The** attacking card" and "your card that's in a battle" name one card
+    // each, read elsewhere (`special`).
+    if (said && /\b(?:up to \d+|\d+ of|all|cards)\b/i.test(phrase) && !/\bthe attacking\b/i.test(phrase)) {
+      const sel = parseTarget(`${phrase.slice(0, said.index)} ${phrase.slice(said.index + said[0].length)}`.replace(/\s+/g, " ").trim(), looked, pool);
+      if (!sel || sel.special || sel.fromVar || sel.battleRole || sel.notInBattle) return null;
+      if (!sel.area && !sel.areas?.length) return null;
+      // No owner said ("choose up to 1 attacking Battle Card or Leader Card", BT10-030's [Counter: Attack]): the card
+      // in the battle is whoever's it is — the opponent's, on the counter — not one of yours by default.
+      const owned = /\b(?:your|their|opponent'?s?|owner'?s?)\b/i.test(plainPhrase);
+      return { ...sel, ...(owned ? {} : { side: "both" as const }), battleRole: notAttacking ? "notAttacker" : inBattle ? "any" : "attacker" };
+    }
+  }
   // "…Battle Cards **whose owner is your opponent**" (EX24-10): the cards you
   // control but do not own (20-9, a control exchange). Dropped, the choice
   // offered every Battle Card of yours, the ones you own included.
@@ -1020,8 +1046,10 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // Mode", "play it **in** Rest Mode" — which is not a description of what to
   // pick. The attributive reading is therefore taken only in front of a noun,
   // where a destination never stands.
+  // Audit lane C: a name may stand between the mode and the noun — "your **Rest Mode** <Vegito> cards" (BT23-096), "your
+  // Rest Mode ≪Hero≫ cards" (BT24-025).
   const modeSaid = (which: "rest" | "active"): boolean =>
-    new RegExp(`\\bin ${which} mode\\b|\\b${which} mode (?:[a-z-]+ )*cards?\\b`).test(t);
+    new RegExp(`\\bin ${which} mode\\b|\\b${which} mode (?:(?:[a-z-]+|<[^>]+>|≪[^≫]+≫|\\{[^}]+\\}) )*cards?\\b`).test(t);
   const mode = modeSaid("rest") ? "rest" : modeSaid("active") ? "active" : undefined;
   // 23-5: "Hidden Mode" is a card's face-down state, not the active/rest
   // orientation `mode` reads — a card is one of Active or Rest *and*

@@ -215,6 +215,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `count` | primitive | A bound on how many cards a selector finds. §2.6 widens it to a bound on an *expression*, which is what the rest of this table lowers to. |
 | `life` | macro over `count` | The cards in a side's Life Area, counted. |
 | `lifeVsOpponent` | macro over `count` | Two counts against each other — the one shape §2.6 cannot write yet (#122). |
+| `outnumbers` | macro over `count` | The same for any two selectors, by a margin — "your opponent has more cards in their hand than you", "2 or more energy than you" (audit lane C). |
 | `leaderColor` | macro over `count` | `count(1 <colour> card IN you.leader) >= 1`. |
 | `leaderMatches` | macro over `count` | The same with a whole filter. `back: true` asks about the Leader's back face, which no selector can name yet (§2.5). |
 | `markers` | macro over `count` | `markers(SELECTOR)` is already an expression (§2.6); this row is a bound on it. |
