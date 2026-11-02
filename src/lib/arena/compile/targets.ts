@@ -712,6 +712,18 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
     if (!rest || rest.special || rest.fromVar) return null;
     return { ...rest, orSelf: true, count: rest.count ?? 1, ...(rest.upTo ? { upTo: true } : {}) };
   }
+  // Audit lane C (2 Nov 2026): "a copy of this card", "copies of this card" — other cards of this card's name, wherever
+  // the phrase puts them (`copyOfSelf`). The shortcut below took the words for this card itself.
+  {
+    const copyOf = /\b(?:(?:a|an|any|no|1|the)\s+)?cop(y|ies) of this card\b/.exec(t);
+    if (copyOf && !/\bother\b|\bexcept\b|\bbesides\b|\banother\b/.test(t)) {
+      const before = phrase.slice(0, copyOf.index);
+      // Said as the plural the grammar reads with no description ("your cards in play"); a count drops the number.
+      const rest = parseTarget(`${before.trim() ? before : "your "} cards ${phrase.slice(copyOf.index + copyOf[0].length)}`.replace(/\s+/g, " ").trim(), looked, pool);
+      if (!rest || rest.special || rest.fromVar) return null;
+      return { ...rest, copyOfSelf: true };
+    }
+  }
   if (/\bthis card\b(?!'s)/.test(t) && !/\bother\b|\bexcept\b|\bbesides\b/.test(t)) {
     // 9-1-3-2: "play this card **from your hand**", "discard this card from
     // your hand", "place this card from your Z-Energy …" — the text names the

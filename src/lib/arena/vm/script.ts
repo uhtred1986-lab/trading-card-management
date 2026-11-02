@@ -162,6 +162,13 @@ export interface Selector {
    */
   battleRole?: "any" | "attacker" | "notAttacker";
   /**
+   * Audit lane C (2 Nov 2026): "**a copy of this card**" — another card with this card's card name (2-3): "if you don't
+   * have a copy of this card in play" (EB1-54, DB2-002), "if a copy of this card isn't in play in your Battle Area"
+   * (P-202), "no copies of this card in your Drop" (BT20-010). Read as this card itself, the count asked where the card
+   * printing it stood — in the hand, never in play — and the condition was always true or always false.
+   */
+  copyOfSelf?: true;
+  /**
    * "Choose **this card or** up to 1 <Broly: Br> card in your Battle Area" (P-092b's erratum, BT1-001b, EX03-01b,
    * EX12-02, BT17-059b): the card the skill is on is on offer too, beside the cards the selector describes — one choice
    * among them all. This card needs none of the selector's measures or areas.

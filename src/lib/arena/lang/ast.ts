@@ -86,6 +86,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   ignoreBarrier: "flag",
   notInBattle: "flag",
   battleRole: "flag",
+  copyOfSelf: "flag",
   orSelf: "flag",
   atRandom: "flag",
   ownedByOpponent: "flag",

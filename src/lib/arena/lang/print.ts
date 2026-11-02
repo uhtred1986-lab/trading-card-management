@@ -178,6 +178,7 @@ export function printSelector(sel: Selector): string {
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
   if (sel.notInBattle) parts.push("notInBattle");
   if (sel.battleRole) parts.push(sel.battleRole === "any" ? "inBattle" : sel.battleRole === "attacker" ? "attacking" : "notAttacking");
+  if (sel.copyOfSelf) parts.push("copyOfSelf");
   if (sel.orSelf) parts.push("orSelf");
   if (sel.atRandom) parts.push("atRandom");
   if (sel.ownedByOpponent) parts.push("ownedByOpponent");

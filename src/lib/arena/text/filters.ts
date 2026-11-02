@@ -635,7 +635,13 @@ export function hasEnergyBound(f: CardFilter): boolean {
 }
 
 export function parseFilter(text0: string): CardFilter {
-  const text = negativeClauses(text0);
+  // Audit lane C (2 Nov 2026): the oldest sets' measures — "an energy cost of 4 **or lower**" (BT1-040), "**with power
+  // 15000 or less**" (BT1-008, DB1-008) — said the way the measures below read them; "or lower" was read as exactly
+  // 4 and "with power N or less" not at all.
+  const text = negativeClauses(text0)
+    .replace(/\b(\d+) or lower\b/gi, "$1 or less")
+    .replace(/\b(\d+) or higher\b/gi, "$1 or more")
+    .replace(/\bwith power (\d+) or (less|more)\b/gi, "with $1 power or $2");
   // Phrasing batch 2: "your other ≪Saiyan≫ Battle Cards in play **which are** ≪Universe 7≫ or ≪Universe 6≫" (TB1-004)
   // narrows the first description by a second, alternative one — ≪Saiyan≫ and either universe — which one filter
   // cannot say: read flat, the three traits were any one of them. Refused rather than widened.
@@ -1142,6 +1148,9 @@ function parseOneFilter(text: string): CardFilter {
   // a token called "non".
   if (/\bnon-tokens?\b/.test(lower)) f.notToken = true;
   const tok = f.notToken ? null : /\b([a-z0-9'.-]+(?: [a-z0-9'.-]+){0,2}) tokens?\b/.exec(lower);
+  // Audit lane C: "there are 1 or more **Tokens** in your Battle Area" (BT17-123, BT17-125) — the bare noun first, with
+  // no word before it to be a name or an owner: every token (19).
+  if (!tok && !f.notToken && /^\s*(?:(?:an?|any|all|the|no)\s+)?tokens?\b/.test(lower)) f.token = true;
   if (tok) {
     const words = tok[1].split(" ");
     while (words.length && (TOKEN_STOP.has(words[0]) || /^\d+$/.test(words[0]))) words.shift();

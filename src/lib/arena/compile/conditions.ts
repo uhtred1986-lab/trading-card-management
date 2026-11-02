@@ -1527,6 +1527,12 @@ function parseCountCondition(t: string): Cond | null {
       // Audit lane C (2 Nov 2026): "a blue Battle Card with an energy cost of 8 or more **or an original power of 30000
       // or more** in play" (P-454): a second measure of the same card, not a second card. Read alone it counted any
       // card of that power, of any colour or kind.
+      // …and "a yellow <Vegeta> card in play **or in your Z-Energy**" (SD22-05, SD22-06, SD22-07, EX24-36): the same card
+      // in a second place. Read alone the place was any card at all there.
+      if (i > 0 && /^in (?:play|your|their|the)\b/.test(part)) {
+        const desc = parts[i - 1].replace(/\s+in (?:play(?: in [a-z' -]+)?|(?:your|their|the) [a-z' -]+)$/, "");
+        if (desc !== parts[i - 1]) part = `${desc} ${part}`;
+      }
       const head = i > 0 ? /^(.+?\bwith)\s/.exec(parts[i - 1]) : null;
       if (head && /^(?:an?\s+)?(?:original power|energy cost|combo power|power|combo cost) (?:of )?\d/.test(part)) part = `${head[1]} ${part}`;
       // "If you have **a Z-Leader** or Z-Battle Card in play" (P-446): the Leader, which is the one card a Leader Area

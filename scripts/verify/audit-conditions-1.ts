@@ -271,6 +271,21 @@ const leaderFilters = (rec: Rec) => conds(rec).flatMap((c) => (c.kind === "leade
   records += 5;
 }
 
+// L. A copy of this card; a bare "Tokens"; the oldest sets' measures; one card in a second place.
+{
+  const copy = conds(record("[activate: main] If a copy of this card isn't in play in your Battle Area, choose 1 Clone Token in your opponent's Battle Area and remove it from the game: Play this card from your hand.", "P-202"));
+  assert.ok(copy.some((c) => c.kind === "count" && c.atMost === 0 && c.sel.copyOfSelf === true && c.sel.area === "battle" && !c.sel.special), "L: P-202 — another card of this name, not this card");
+  const tokens = conds(record("[activate: main]{b}, if your Leader Card is black and there are 1 or more Tokens in your Battle Area: Play this card from your hand.", "BT17-123"));
+  assert.ok(tokens.some((c) => c.kind === "count" && c.sel.filter?.token === true), "L: BT17-123 — Tokens");
+  const whis = ops(record("[Auto] When you play this card, choose up to 1 <Whis> with an energy cost of 4 or lower from your deck and add it to your hand.  Then, shuffle your deck.", "BT1-040")).find((o) => o.op === "choose");
+  assert.ok(whis && whis.op === "choose" && whis.sel.filter?.costMax === 4 && whis.sel.filter.costMin === null, "L: BT1-040 — 4 or lower");
+  const alien = ops(record("[Auto] When this card attacks, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Alien≫ with power 15000 or less among them and play it. Then, shuffle your deck.", "BT1-008")).find((o) => o.op === "choose");
+  assert.ok(alien && alien.op === "choose" && alien.sel.filter?.powerMax === 15000, "L: BT1-008 — with power 15000 or less");
+  const zEnergy = conds(record("[auto] If you have a yellow <Vegeta> card in play or in your Z-Energy: At the start of your opponent's Main Phase, switch this card to Active Mode.", "SD22-05"));
+  assert.ok(zEnergy.some((c) => c.kind === "any" && c.conds.every((x) => x.kind === "count" && x.sel.filter?.characters.includes("vegeta"))), "L: SD22-05 — a yellow <Vegeta> in either place");
+  records += 5;
+}
+
 // ── 2. the VM ────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,
@@ -290,6 +305,7 @@ const defs: Record<string, CardDef> = {
   GOHAN: card("GOHAN", { name: "Son Gohan, Awakened Hidden Power", characters: ["Son Gohan"] }),
   UNDEREITHER: card("UNDEREITHER", { skill: "[Activate: Main] If there is a {Son Gohan, Awakened Hidden Power} under your Leader or your opponent's Leader, draw 1 card." }),
   // K: the menu hangs on the discard
+  COPYGATE: card("COPYGATE", { name: "Copy Gate", skill: "[Activate: Main] If a copy of this card isn't in play in your Battle Area, draw 1 card." }),
   IFDO: card("IFDO", { skill: "[Activate: Main] You may choose 1 card from your hand and place it in your Drop Area. If you do, choose one— ・Draw 2 cards. ・Draw 3 cards." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
@@ -478,6 +494,22 @@ for (const seat of ["p1", "p2"] as const) {
     }
     assert.equal(s.sides[seat].zones.hand.length, 0, `${seat}: K: nothing drawn when nothing was discarded`);
     cases++;
+  }
+
+  // L. A copy of this card: the card itself in play is not one; a second card of its name is.
+  {
+    let s = fresh(seat, seed(12));
+    const me = stage(s, seat, "COPYGATE", "battle");
+    const before = s.sides[seat].zones.hand.length;
+    s = activate(s, me, "");
+    assert.equal(s.sides[seat].zones.hand.length, before + 1, `${seat}: L: alone, no copy in play — drawn`);
+    s = fresh(seat, seed(13));
+    const me2 = stage(s, seat, "COPYGATE", "battle");
+    stage(s, seat, "COPYGATE", "battle");
+    const had = s.sides[seat].zones.hand.length;
+    s = activate(s, me2, "");
+    assert.equal(s.sides[seat].zones.hand.length, had, `${seat}: L: a copy in play — nothing`);
+    cases += 2;
   }
 }
 console.log(`audit-conditions-1: ${records} records, ${cases} VM cases — ok`);

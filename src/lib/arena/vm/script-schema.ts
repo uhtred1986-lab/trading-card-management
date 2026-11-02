@@ -2240,6 +2240,7 @@ const SELECTOR_KEYS = {
   ignoreBarrier: 1,
   notInBattle: 1,
   battleRole: 1,
+  copyOfSelf: 1,
   orSelf: 1,
   atRandom: 1,
   ownedByOpponent: 1,
@@ -2286,6 +2287,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.notSelf !== undefined && !is(v.notSelf, NOT_SELF)) return wrong("notSelf", "card, copies or name");
   if (v.notInBattle !== undefined && v.notInBattle !== true) return wrong("notInBattle", "true");
   if (v.battleRole !== undefined && v.battleRole !== "any" && v.battleRole !== "attacker" && v.battleRole !== "notAttacker") return wrong("battleRole", "any, attacker or notAttacker");
+  if (v.copyOfSelf !== undefined && v.copyOfSelf !== true) return wrong("copyOfSelf", "true");
   if (v.orSelf !== undefined && v.orSelf !== true) return wrong("orSelf", "true");
   if (v.atRandom !== undefined && v.atRandom !== true) return wrong("atRandom", "true");
   if (v.ownedByOpponent !== undefined && v.ownedByOpponent !== true) return wrong("ownedByOpponent", "true");
@@ -2982,6 +2984,7 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.distinctColors ? " (counting the different colors, not the cards)" : "") +
   (sel.notInBattle ? " that is not in a battle" : "") +
   (sel.battleRole === "any" ? " that is in a battle" : sel.battleRole === "attacker" ? " that is attacking" : sel.battleRole === "notAttacker" ? " that is not attacking" : "") +
+  (sel.copyOfSelf ? " that is a copy of this card" : "") +
   // "Choose this card or up to 1 …" (errata-official-2): this card is on offer too.
   (sel.orSelf ? ", or this card" : "") +
   (sel.atRandom ? " at random" : "") +
