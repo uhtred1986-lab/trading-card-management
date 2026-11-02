@@ -304,7 +304,7 @@ export function resolvePlay(
   // — so from any other play (ordinary, failed, another variant) it is
   // withdrawn before anything sees it: not pended, nothing to order, no
   // [Once per turn] used (9-6-2). The gate is the record's (`unionPlayGate`).
-  const gated = state.pending.filter((p): p is VmPending => !pendedBefore.has(p) && p.card === card && p.kind !== "hook" && (p.trigger === "played" || p.trigger === "playedFromHand"));
+  const gated = state.pending.filter((p): p is VmPending => !pendedBefore.has(p) && p.card === card && p.kind !== "hook" && (p.trigger === "played" || p.trigger === "playedFromHand" || p.trigger === "playedFromDrop"));
   if (gated.length) {
     const scripts = skillsShowing(ctx, state, card).scripts;
     for (const p of gated) {

@@ -168,8 +168,8 @@ const triggers = (text: string, names: string[]) => names.filter((n) => autoTrig
   // BT8-030's company is a condition on the program: one of your <Android 18> cards is in the battle.
   const company = clean(BT8_030);
   assert.ok(JSON.stringify(company.ops).includes('"kind":"inBattle"'), "an <Android 18> card of yours in the battle");
-  // What nobody reads is still refused (#1042's guard).
-  assert.ok(compile("[Auto] When you combo with this card from a Drop Area, play this card at the end of the battle.").unsupported.length > 0);
+  // Audit triggers 1: an area list after the combo is read as the origin it asks (XD3-05), so this is read now.
+  assert.deepEqual(q("[Auto] When you combo with this card from a Drop Area, play this card at the end of the battle."), { origins: ["drop"] });
 }
 
 // ── 6. "after the battle" ────────────────────────────────────────────────────

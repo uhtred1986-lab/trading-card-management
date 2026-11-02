@@ -7,7 +7,7 @@
  * blanked, so like wordings sit together. Plus the moments an [Auto] skill can
  * answer to, in words, for the record's WHEN line.
  */
-import { autoTriggerMatches, keywordTriggers, triggeredPermanent } from "./text/triggers";
+import { autoTriggerMatches, keywordTriggers, momentPartSkills, triggeredPermanent } from "./text/triggers";
 import type { Skill, Trigger } from "./types";
 
 /** Ordered: the first bucket a clause matches wins, so put the specific first. */
@@ -79,6 +79,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   leaderPlaced: "when your Leader is placed",
   played: "when this card is played",
   playedFromHand: "when this card is played from your hand",
+  playedFromDrop: "when this card is played from your Drop",
   attacks: "when this card attacks",
   attacked: "when this card is attacked",
   koed: "when this card is KO'd",
@@ -135,6 +136,8 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   yourCardPlayedFromHand: "when one of your cards is played from your hand",
   yourCardPlayedFromDrop: "when one of your cards is played from your Drop",
   opponentCardToZEnergy: "when one of your opponent's cards is added to their Z-Energy",
+  yourCardToZEnergy: "when one of your cards is added to your Z-Energy",
+  removedFromGame: "when this card is removed from the game",
   eitherCardPlayed: "when a card is played by either player",
   yourCardDealtDamage: "when one of your cards deals damage",
   yourCardDealtBattleDamage: "when one of your cards deals damage by attacking",
@@ -215,10 +218,38 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
 };
 export const TRIGGERS = Object.keys(TRIGGER_IN_WORDS) as Trigger[];
 
+/**
+ * Audit triggers 1: a head that coordinates moments ("When this card attacks or is attacked") answers to each of them,
+ * read one by one (`momentPartSkills`). The readers of the whole head already place some pairs ("played or attacks",
+ * "attacks or activates [Blocker]"); where they place fewer moments than the head says, the moments said one by one
+ * are added, and a moment no reader places alone is `unreadMoments`'.
+ */
+function coordinated(sk: Skill, whole: Trigger[]): { each: Trigger[][]; parts: Skill[] } | null {
+  const parts = momentPartSkills(sk);
+  if (!parts || whole.length >= parts.length) return null;
+  return { parts, each: parts.map((p) => TRIGGERS.filter((t) => autoTriggerMatches(p, t))) };
+}
+
 /** The moments an [Auto] skill answers to. Empty for a skill that names a moment the engine does not know — the orphan `arena:gaps` counts. */
 export function triggersOf(sk: Skill): Trigger[] {
   if (sk.kind !== "auto" && !sk.keyword && !triggeredPermanent(sk)) return [];
-  return TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t));
+  const whole = TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t));
+  const more = coordinated(sk, whole);
+  return more ? TRIGGERS.filter((t) => whole.includes(t) || more.each.some((e) => e.includes(t))) : whole;
+}
+
+/** Audit triggers 1: does this skill answer to moments the readers of its whole head do not place (read one by one)? */
+export function readsMomentsOneByOne(sk: Skill): boolean {
+  if (sk.kind !== "auto") return false;
+  return coordinated(sk, TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t))) !== null;
+}
+
+/** Audit triggers 1: the moments of a coordinated head that no reader places, as printed (lower case) — the compiler leaves such a skill unread rather than answer half of it. */
+export function unreadMoments(sk: Skill): string[] {
+  if (sk.kind !== "auto") return [];
+  const whole = TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t));
+  const more = coordinated(sk, whole);
+  return more ? more.parts.filter((_, i) => !more.each[i].length).map((p) => p.effect.replace(/, \.$/, "")) : [];
 }
 
 /** The WHEN line: "when this card attacks or when this card is attacked". */

@@ -143,6 +143,8 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
     [/and\s+ngate\s+their\s+skills/g, "and negate their skills"],
     [/can't\s+witch\s+Battle\s+Cards/g, "can't switch Battle Cards"],
   ],
+  // Audit triggers 1: "When your red Z-Card is palyed or attacks" — the play half was lost to the typo.
+  "BT31-006": [[/Z-Card\s+is\s+palyed\s+or\s+attacks/g, "Z-Card is played or attacks"]],
   "BT31-016": [[/from\s+its\s+owner'\s+Warp/g, "from its owner's Warp"]],
   "BT31-017": [[/at\s+5\s+or\s+lees/g, "at 5 or less"]],
   "BT31-041": [[/Whe\s+this\s+card\s+attacks/g, "When this card attacks"]],

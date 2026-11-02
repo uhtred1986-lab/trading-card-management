@@ -74,9 +74,13 @@ export function keywordTriggers(sk: Skill, trigger: Trigger): boolean {
  * them can happen at a time (7-1), so it fires once per turn either way. The
  * same precedent as "when you play or combo with this card" below.
  */
-/** The combo card's own end-of-battle wording enters pending at 8-5-9. */
-const COMBO_BATTLE_END = /^(?:during your turn,\s*)?at the end of (?:the|a|this) battle(?: after| in which) you (?:combo|combod|comboed|used?) (?:with )?this card/;
-const COMBO_BATTLE_END_FROM_HAND = new RegExp(`${COMBO_BATTLE_END.source} from your hand\\b`);
+/**
+ * The combo card's own end-of-battle wording enters pending at 8-5-9. Audit triggers 1: the passive "at the end of a
+ * battle in which **this card was used in a combo** [from your hand]" (EX17-03, BT25-066) is the same moment; read as a
+ * plain `battleEnd` it answered every battle's end.
+ */
+const COMBO_BATTLE_END = /^(?:during your turn,\s*)?at the end of (?:the|a|this) battle(?: after| in which| where) (?:you (?:combo|combod|comboed|used?) (?:with )?this card|this card(?: in your hand)? (?:was|is) used in a combo)/;
+const COMBO_BATTLE_END_FROM_HAND = new RegExp(`(?:${COMBO_BATTLE_END.source}) from your hand\\b`);
 export function comboBattleEndSelf(sk: Skill): boolean {
   return COMBO_BATTLE_END.test(effectHead(maskNames(sk.effect).text));
 }
@@ -129,6 +133,10 @@ const DROP_FROM_Z_ENERGY = /^when this card is placed (?:in|into) (?:a|your|its 
  */
 /** Phrasing batch 9: "When one of your <Son Goku: Xeno> or <Vegeta: Xeno> cards is used in a combo" (BT24-112) — `youCombo`, the card used the subject. */
 export const YOUR_CARD_USED_IN_COMBO = /^when (?:one of your|your) ((?!opponent)(?!this card)[^,]{1,120}?) (?:is|are) used in a combo(?:,|$)/;
+/** Audit triggers 1: BT10-038's "[Auto] If this card is removed from a Battle Area by an opponent's skill, …": the moment said with "if". */
+export const IF_REMOVED_BY_OPPONENT = /^if this card is removed from (?:a|the|your) battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?\s*,/;
+/** Audit triggers 1: "When one of your blue Battle Cards is added to your Z-Energy" (BT19-034b) — `yourCardToZEnergy`. */
+export const YOUR_CARD_TO_Z_ENERGY = /^when (?:one of your|your) ((?!opponent)(?!energy\b)(?!this card)[^,]{1,120}?) (?:is|are) added to (?:your|its owner'?s) z-energy(?:,|$)/;
 const YOUR_CARD_ATTACKS = /^when (?:your|one of your) ((?!opponent)(?!leader)[^,]{1,120}?) (?:attacks|attack)(?:,|$)/;
 /**
  * Phrasing batch 9: "When your black card with a [Union] skill or black Z-Unison **attacks or activates the [Blocker]
@@ -216,6 +224,55 @@ export function comboBattleEndFromHand(sk: Skill): boolean {
   return COMBO_BATTLE_END_FROM_HAND.test(head);
 }
 
+/** The area words of "…from your hand or energy", as `VmBattle.comboOrigins` remembers a combo card's area. */
+const AREA_WORD: Record<string, string> = { hand: "hand", life: "life", energy: "energy", drop: "drop", battle: "battle", deck: "deck", warp: "warp" };
+const ORIGIN_LIST = /^ from (?:your |the |a |an )?(hand|life|energy|drop|battle|deck|warp)(?: area)?((?:,? or (?:your |the |a |an )?(?:hand|life|energy|drop|battle|deck|warp)(?: area)?)*)\b/;
+/**
+ * Audit triggers 1: the areas the combo card's own end-of-battle wording names — "…used in a combo **from your hand or
+ * energy**", "…**from your life**", "…after you combo with this card **from your Battle Area**", "…where this card
+ * **in your hand** is used in a combo" — or `null` when it names none (any combo). The hand alone was read before
+ * (`comboBattleEndFromHand`); another area was dropped, and the skill answered a combo from anywhere.
+ */
+export function comboBattleEndOrigins(sk: Skill): string[] | null {
+  const head = effectHead(maskNames(sk.effect).text);
+  const m = COMBO_BATTLE_END.exec(head);
+  if (!m) return null;
+  if (/\bthis card in your hand\b/.test(m[0])) return ["hand"];
+  const list = ORIGIN_LIST.exec(head.slice(m[0].length));
+  return list ? originsOf(list) : null;
+}
+function originsOf(list: RegExpExecArray): string[] {
+  const words = [list[1], ...[...list[2].matchAll(/(hand|life|energy|drop|battle|deck|warp)/g)].map((w) => w[1])];
+  return [...new Set(words.map((w) => AREA_WORD[w]))];
+}
+
+/** Audit triggers 1: the description in "…a battle in which your <description> attacked", as printed. */
+export function battleAttackerSaid(clause: string): string | null {
+  return /^at the end of (?:the|a|this) battle (?:in which|where) your (?!opponent)([^,]+?) attacked[,.]?$/i.exec(clause.trim())?.[1] ?? null;
+}
+
+/**
+ * Audit triggers 1: what "at the end of the battle …" (8-5) says about the battle, when it is not the combo card's own
+ * wording (`COMBO_BATTLE_END`): nothing (`any`), this card's part in it — "…the battle **for this card**" (`self`),
+ * "…a battle **in which this card attacked**", "…**after this card attacks**" (`attacker`), "…**in which this card was
+ * attacked**" (`guard`) — or something no reader keeps (`null`: the skill is unread rather than answering every
+ * battle's end). `undefined` for a head that is not this moment.
+ */
+export function battleEndPart(head: string): "any" | "self" | "attacker" | "guard" | "yourAttacker" | null | undefined {
+  if (COMBO_BATTLE_END.test(head)) return undefined;
+  const m = /^at the end of (?:the|a|this) battle\b(.*)$/.exec(momentClause(head));
+  if (!m) return undefined;
+  const said = m[1].trim();
+  if (!said) return "any";
+  if (/^for this card$/.test(said)) return "self";
+  if (/^(?:in which|where) this card (?:attacked|attacks)$|^after this card (?:attacks|attacked)$/.test(said)) return "attacker";
+  if (/^(?:in which|where) this card (?:was|is) attacked$/.test(said)) return "guard";
+  // "…a battle in which **your red <Android 18> Battle Card attacked**" (BT23-024): which of your cards attacked, a
+  // description the compiler reads (`battleAttackerSaid`).
+  if (/^(?:in which|where) your (?!opponent)[^,]+? attacked$/.test(said)) return "yourAttacker";
+  return null;
+}
+
 /** BT6-010 additionally limits that same battle to the other player's turn. */
 export function comboBattleEndOpponentTurn(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text);
@@ -287,6 +344,13 @@ export function comboEntryQualifier(sk: Skill): ComboEntryQualifier | null {
   if (/^when this card in (?:a|your) battle area is used in a combo\s*(?:,|$)/.test(head)) return { origins: ["battle"] };
   const company = /^when you combo with this card from your hand with (?:an?|1) (<[^>]+> card) in battle\s*(?:,|$)/.exec(head);
   if (company) return { origins: ["hand"], company: company[1] };
+  // Audit triggers 1: any list of areas said after the combo, the clause ending there — "…used in a combo **from your
+  // deck or hand**" (BT13-069), "When you combo with this card **from a Battle Area**" (BT5-085), "…**from your Drop
+  // Area**" (XD3-05). Read only as "the" Battle Area or "your" Drop before, these answered a combo from anywhere.
+  const combo = /^when (?:this card is used|you use this card) in a combo|^when you combo with this card/.exec(head);
+  const list = combo ? ORIGIN_LIST.exec(head.slice(combo[0].length)) : null;
+  // The hand alone, after "you combo with this card", keeps its own reader (`comboEntryFromHand`).
+  if (combo && list && /^\s*(?:,|$)/.test(head.slice(combo[0].length + list[0].length)) && originsOf(list).join() !== "hand") return { origins: originsOf(list) };
   return null;
 }
 /** The areas a self-combo entry Auto asks the card to have come from, or `null` when it asks none (any combo). */
@@ -312,7 +376,7 @@ const EVERY_MAIN_START =/^at the (?:beginning|start) of (?:(?:you|your) (?:and|o
  * its opening words are, these fired on an ordinary play too, so the phrase is
  * taken out before `played` is looked for and is `playedUsingOverRealm` alone.
  */
-const PLAYED_USING_OVER_REALM = /when (?:you play this card|this card is played) using \[(?:dark )?over realm[^\]]*\]/g;
+const PLAYED_USING_OVER_REALM = /when (?:you play this card|this card is played) (?:using|with) \[(?:dark )?over realm[^\]]*\]/g;
 
 /**
  * "When you play this card **from your hand**", "when this card is played from
@@ -369,7 +433,11 @@ export function triggeredPermanent(sk: Skill): boolean {
   if (sk.kind !== "permanent") return false;
   return PLACING_IN_ENERGY.test(effectHead(maskNames(sk.effect).text));
 }
-const PLAYED_FROM_HAND = new RegExp(String.raw`when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$)|\s+or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$)|\s+or ${DISCARDED_BY_SKILL})|${PLAYED_HAND_THEN_ENERGY}`);
+// Audit triggers 1: "…from your hand **and your Leader Card is a ≪Universe 6≫ card**" (XD1-04, BT7-010, BT6-063): a
+// condition riding on the moment (the compiler keeps it), so the play is still the one from the hand.
+const PLAYED_FROM_HAND = new RegExp(String.raw`when (?:you play this card|this card is played) from your hand(?=\s*(?:,|:|\.|$)|\s+and (?:if )?your leader\b|\s+or (?:when )?(?:this card |it )?attacks\s*(?:,|:|\.|$)|\s+or ${DISCARDED_BY_SKILL})|${PLAYED_HAND_THEN_ENERGY}`);
+/** Audit triggers 1: "When you play this card **from a Drop Area**" (TB3-039): the play from the Drop alone (`playedFromDrop`). */
+const PLAYED_FROM_DROP = /when (?:you play this card|this card is played) from (?:a|your) drop(?: area)?(?=\s*(?:,|:|\.|$))/g;
 /** The coordinated tail of "when you play this card or it is placed in a Drop Area from a Battle Area by a skill" (BT9-046, -059, -061, -120, -121, -122): a skill, whoever's, ends the sentence. */
 const PLAYED_OR_DROPPED_FROM_BATTLE = /^when (?:you play this card|this card is played),? or (?:when )?(?:it|this card) is placed in (?:a|your|its owner'?s|the) drop area from (?:a|your|the) battle area by (?:a|your|one of your) skill\s*(?:,|:|\.|$)/;
 const PLAYED_FROM_HAND_G = new RegExp(PLAYED_FROM_HAND.source, "g");
@@ -443,7 +511,9 @@ const OPPONENT_SKILL_PLAY_WORDS = /\buses? an? (?:non-keyword )?skill to play\b|
  */
 export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   // A {name} is one word here — its comma and its "by" are the name's (P-526).
-  const t = playTaxWording(maskNames(sk.cost + " " + sk.effect).text).toLowerCase();
+  // Audit triggers 1: a reminder in parentheses says what a keyword does, never when this skill happens — "this card
+  // gains [dual attack] (Once per turn, **when this card attacks**, …)" (SD1-03) answered every attack.
+  const t = playTaxWording(maskNames(sk.cost + " " + sk.effect).text).toLowerCase().replace(/\([^()]*\)/g, " ");
   /**
    * The timing triggers name a moment, and a card may equally well *mention*
    * that moment in the middle of an effect — "…, and at the end of the turn,
@@ -480,11 +550,13 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // Each fires at its own moment, and only one of them happens.
       // "…using [Over Realm]" is `playedUsingOverRealm`'s and is not this.
       // Phrasing batch 7: "When this card is activated" (BT10-058, a [Field] Extra) is the same moment said passively.
-      return /when (?:you play this card|this card is played)|when you activate this card(?!['’]s \[blocker\])|when this card is activated(?=\s*(?:,|:|\.|$))|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
-        t.replace(PLAYED_USING_OVER_REALM, "").replace(PLAYED_FROM_HAND_G, ""),
+      return /when (?:you play this card|this card is played)|when you activate this card(?!['’]s \[)|when this card is activated(?=\s*(?:,|:|\.|$))|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
+        t.replace(PLAYED_USING_OVER_REALM, "").replace(PLAYED_FROM_HAND_G, "").replace(PLAYED_FROM_DROP, ""),
       );
     case "playedFromHand":
       return new RegExp(PLAYED_FROM_HAND.source).test(t);
+    case "playedFromDrop":
+      return new RegExp(PLAYED_FROM_DROP.source).test(t);
     case "playedUsingOverRealm":
       return new RegExp(PLAYED_USING_OVER_REALM.source).test(t);
     case "attacks":
@@ -608,6 +680,13 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     }
     case "opponentCardToZEnergy":
       return /^when (?:one of )?your opponent'?s cards? (?:is|are) added to (?:their|its owner'?s) z-energy(?:,|$)/.test(head.toLowerCase());
+    // Audit triggers 1: your own side of it, the card added described (a condition the compiler reads), never "your energy".
+    case "yourCardToZEnergy": {
+      const m = YOUR_CARD_TO_Z_ENERGY.exec(head.toLowerCase());
+      return !!m && readableSubject(effect, m[1]);
+    }
+    case "removedFromGame":
+      return /^when this card is removed from the game(?:,|$)/.test(head);
     case "eitherCardPlayed": {
       const m = /^when your or your opponent'?s ([^,]{1,120}?) (?:is|are) played(?:,|$)/.exec(head.toLowerCase());
       return !!m && readableSubject(effect, m[1]);
@@ -644,7 +723,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "opponentCardKoed":
       return /^when (?:your opponent's|an opponent's|one of your opponent's) [^,]{0,70} (?:is|are) ko'd(?:,|$)/.test(head);
     case "removedByOpponent":
-      return /when this card is (?:played or )?removed from [a-z' ]*battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t);
+      // Audit triggers 1: an older card says the same moment with "if" — "[Auto] **If** this card is removed from a Battle
+      // Area by an opponent's skill, choose up to 1 {SSB Son Goku, Hope for Victory} in your hand and place it in your
+      // energy" (BT10-038) — as SD13-05 says its discard; only at the head of the effect, where a trigger is printed.
+      return /when this card is (?:played or )?removed from [a-z' ]*battle area by (?:an? |one of )?(?:your )?opponent'?s? skill/.test(t) || IF_REMOVED_BY_OPPONENT.test(effect.text.toLowerCase().trim());
     case "evolvedInto":
       return /when a card evolves into this card|when this card evolves\b/.test(t);
     case "evolveFromHandActivated":
@@ -782,8 +864,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when this card (?:in your deck is sent (?:from your deck )?|is sent from your deck )to (?:your|its owner'?s) warp by (?:one of )?your\b[^,.]{0,60}?\bskills?\b/.test(t);
     case "hiddenToDrop":
       return /when this hidden mode card(?: in (?:a|your) battle area)? is placed (?:in|into) (?:its owner'?s|your|a) drop/.test(t);
+    // Audit triggers 1: only the bare moment — "…by your <Gogeta: Br> card's skill" (P-727) names a cause this does not
+    // ask, and answered every way of arriving.
     case "addedToZEnergy":
-      return /when this card is added to (?:your )?z-energy|when you add this card to your z-energy/.test(t);
+      return /^when this card is added to (?:your )?z-energy(?:,|$)|^when you add this card to your z-energy(?:,|$)/.test(head);
     case "chargeStart":
       return /^at the (?:beginning|start) of (?:your|the|this) (?:turn|charge phase)\b/.test(head);
     case "dealtDamage":
@@ -793,8 +877,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return DEALT_BATTLE_DAMAGE.test(t);
     case "battleEnd":
       // "…after you combo with this card" is the combo card's own end of the
-      // battle, `comboed` below (#539).
-      return /^at the end of (?:the|a|this) battle\b/.test(head) && !COMBO_BATTLE_END.test(head);
+      // battle, `comboed` below (#539). Audit triggers 1: what else the words say about the battle is this card's part
+      // in it (a condition the compiler keeps) or nothing a reader keeps (`battleEndPart`).
+      return /^at the end of (?:the|a|this) battle\b/.test(head) && !COMBO_BATTLE_END.test(head) && battleEndPart(head) !== null;
     case "comboToDrop":
       return /^when (?:a|1) card in your combo area is (?:placed|put) (?:in|into) your drop(?: area)?\b/.test(head);
     case "comboUsed":
@@ -1098,6 +1183,104 @@ export function momentsBatch1(head: string): { trigger: Trigger; cause?: string;
   return [];
 }
 
+// ── audit triggers 1 (2 Nov 2026): one sentence, several moments ────────────
+
+/** The verb a card's moment starts with after its subject ("this card", "your red Z-Card", "your opponent"). */
+const MOMENT_VERB = /^(?:(?:is|are|gets) )?(?:attacks?|attacked|activates?|kos|ko'?s|ko'?d|used|played|plays|placed|removed|discarded|sent|returned|switched|leaves|deals|evolves|added|revealed)\b/;
+/** A whole moment said after "or": a "when …" of its own or a timing ("at the end of your opponent's turn"). */
+const MOMENT_START = /^(?:when |at the (?:end|start|beginning) of )/;
+/** A new subject after "or": "…or your opponent plays a Battle Card", "…or one of your <Goku Black> is added …", "…or it attacks". */
+const MOMENT_SUBJECT = /^(?:your opponent (?=plays?\b|attacks?\b|activates?\b|uses?\b|combos?\b)|one of your (?![^,]*\bskills?\b)|it |this card )/;
+/** Said alone after its subject, a participle takes its "is" back: "KO'd or removed …" is "is removed …". */
+const PARTICIPLE = /^(?:attacked|used|played|placed|removed|discarded|sent|returned|switched|added|revealed|ko'?d)\b/;
+
+/** Top-level positions in `s` (outside <…>, ≪…≫, […], (…)) where `at(i)` holds. */
+function topLevel(s: string, at: (i: number) => boolean): number[] {
+  const out: number[] = [];
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === "<" || c === "≪" || c === "[" || c === "(") depth++;
+    else if (c === ">" || c === "≫" || c === "]" || c === ")") depth = Math.max(0, depth - 1);
+    else if (depth === 0 && at(i)) out.push(i);
+  }
+  return out;
+}
+const nextMoment = (rest: string) => MOMENT_VERB.test(rest) || MOMENT_START.test(rest) || MOMENT_SUBJECT.test(rest);
+
+/**
+ * The moment clause of a head: up to its first comma or colon, read on past ", or" when another moment follows
+ * ("When this card attacks, or activates the [Blocker] skill" BT25-066; "At the end of your turn, or when this card
+ * activates its [blocker] skill" BT13-018).
+ */
+function momentClause(head: string): string {
+  const cut = topLevel(head, (i) => (head[i] === "," || head[i] === ":" || (head[i] === "." && /^\.\s/.test(head.slice(i)))) && !(head[i] === "," && /^,\s*or\s/.test(head.slice(i)) && nextMoment(head.slice(i).replace(/^,\s*or\s+/, ""))));
+  return (cut.length ? head.slice(0, cut[0]) : head).trim().replace(/[.]$/, "");
+}
+
+/**
+ * Audit triggers 1: a head that coordinates several moments — "When this card **attacks or is attacked**" (BT2-042),
+ * "…**is KO'd or removed** from your Battle Area by an opponent's skill" (BT23-056), "When **your opponent plays a card
+ * or attacks**" (BT21-021), "When this card attacks **or your opponent plays a Battle Card**" (BT4-016), "When your
+ * opponent plays a card **or at the end of your opponent's turn**" (BT21-074) — as the moments said one by one, each a
+ * whole head ("when this card is attacked"): the subject said once in front is said again before each predicate after
+ * it (9-6-2: one skill, a moment for each; only one of them happens at a time). Lower case, names masked, as
+ * `autoTriggerMatches` reads a head; `null` for a head that names one moment.
+ *
+ * "When you play this card or use it in a combo / combo with it [from your hand]" (EB1-64, P-169) is the same pair as
+ * "when this card is played or used in a combo [from your hand]"; a place said after the last predicate is that
+ * predicate's ("…or used in a combo from your hand": the combo; R-133).
+ */
+export function momentParts(head: string): string[] | null {
+  let clause = momentClause(head).replace(TURN_THEN_WHEN, "");
+  clause = clause.replace(/^when you play this card,? or (?:when you )?(?:use it in a combo|combo with it|use this card in a combo|combo with this card)\b/, "when this card is played or used in a combo");
+  let subject: string, rest: string;
+  const self = /^when (this card(?: in (?:your|a) (?:hand|battle area|drop(?: area)?|energy(?: area)?|deck or hand|hand or deck))?) (.+)$/.exec(clause);
+  if (self) [subject, rest] = [self[1], self[2]];
+  else if (/^at the (?:end|start|beginning) of /.test(clause)) [subject, rest] = ["", clause];
+  else {
+    const start = /^when (?=\S)/.exec(clause);
+    if (!start) return null;
+    const body = clause.slice(start[0].length);
+    // The subject runs to the first verb that starts a moment ("your opponent's battle card | is played or attacks").
+    const at = topLevel(body, (i) => i > 0 && body[i - 1] === " " && MOMENT_VERB.test(body.slice(i)))[0];
+    if (at === undefined) return null;
+    [subject, rest] = [body.slice(0, at).trim(), body.slice(at)];
+    if (!/^(?:your|one of your|an?|1|an opponent'?s)\b/.test(subject)) return null;
+  }
+  const splits = topLevel(rest, (i) => / or $/.test(rest.slice(Math.max(0, i - 4), i)) && rest[i - 1] === " " && rest[i] !== " " && nextMoment(rest.slice(i)));
+  if (!splits.length) return null;
+  const pieces: string[] = [];
+  let from = 0;
+  for (const at of splits) {
+    pieces.push(rest.slice(from, at).replace(/,?\s+or\s+$/, "").trim());
+    from = at;
+  }
+  pieces.push(rest.slice(from).trim());
+  const whole = (piece: string, first: boolean): string | null => {
+    if (MOMENT_START.test(piece)) return piece.replace(/^when (?:it|this card) /, "when this card ");
+    if (/^(?:it|this card) /.test(piece)) return `when this card ${piece.replace(/^(?:it|this card) /, "")}`;
+    if (/^(?:your opponent|one of your)\b/.test(piece)) return `when ${piece}`;
+    if (!subject) return first ? piece : null;
+    const card = subject !== "your opponent";
+    return `when ${subject} ${card && PARTICIPLE.test(piece) ? `is ${piece}` : piece}`;
+  };
+  const parts = pieces.map((p, i) => whole(p, i === 0));
+  return parts.some((p) => p === null || !p.trim()) ? null : (parts as string[]);
+}
+
+/**
+ * The moments of a coordinated head, each said alone as the skill it would be (for the trigger readers): `null` for a
+ * head that names one moment. Names are put back, so a description is read as printed.
+ */
+export function momentPartSkills(sk: Skill): Skill[] | null {
+  if (sk.kind !== "auto") return null;
+  const effect = maskNames(sk.effect);
+  const head = effectHead(effect.text).replace(/^\([^()]*\)\s*/, "").replace(TURN_THEN_WHEN, "");
+  const parts = momentParts(head);
+  return parts ? parts.map((part) => ({ ...sk, keyword: null, cost: "", effect: `${effect.unmask(part)}, .` })) : null;
+}
+
 /**
  * "When this card is played **or** …" (BT31-015, #940; #960) names two moments,
  * and the `played` half is all a reader that stops at "when this card is played"
@@ -1143,15 +1326,18 @@ export function playedOrUnplacedAlternative(sk: Skill): boolean {
 }
 
 /** Compile-time only: the executable record owns these facts after drafting. */
-export function compileComboQualification(sk: Skill): ComboQualification | null {
-  if (sk.kind !== "auto") return null;
+export function compileComboQualification(whole: Skill): ComboQualification | null {
+  if (whole.kind !== "auto") return null;
+  // Audit triggers 1: in a coordinated head ("When this card attacks or is used in a combo from your hand") the combo is
+  // one of the moments, and what it says about the combo is said in that moment alone.
+  const sk = momentPartSkills(whole)?.find((p) => comboBattleEndSelf(p) || comboEntrySelf(p)) ?? whole;
   const end = comboBattleEndSelf(sk);
   if (!end && !comboEntrySelf(sk)) return null;
-  const head = effectHead(maskNames(sk.effect).text);
+  const head = effectHead(maskNames(whole.effect).text);
   const turn = /\bduring your opponent'?s turn\b/.test(head) ? "opponent"
     : /\bduring your turn\b/.test(head) ? "controller" : "any";
   const entry = comboEntryQualifier(sk);
-  const origins = end ? (comboBattleEndFromHand(sk) ? ["hand"] : null) : comboEntryOrigins(sk);
+  const origins = end ? comboBattleEndOrigins(sk) : comboEntryOrigins(sk);
   return { version: 1, timing: end ? "battleEnd" : "entry", subject: "self",
     origins: origins ? [...origins] : null,
     turn, ...(entry?.viaSkillOf ? { viaSkillOf: entry.viaSkillOf } : {}) };

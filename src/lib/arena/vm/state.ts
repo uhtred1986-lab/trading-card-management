@@ -426,6 +426,12 @@ export interface VmState {
   carried?: { card: string; n: number } | null;
   /** 20-13: the turn being skipped whole ("skip your turn"), by number — every phase of it is entered skipped. Absent the rest of the time. */
   skippedTurn?: number;
+  /**
+   * Audit triggers 1 (R-132, Q&A BT13-002): the [Permanent] power changes standing at the last checkpoint, one key per
+   * source line, card changed and direction — a change not in it has just started to apply, which is a power-change
+   * moment (`pendStandingPower`). Absent on a state saved before it existed: the first look is the baseline.
+   */
+  standingPower?: string[];
   /** 21-6's stable simultaneous set, retained while a 9-10 replacement asks its owner. */
   ruleProcessing?: {
     nextEvent: number;

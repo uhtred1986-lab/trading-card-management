@@ -1117,6 +1117,8 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     /^(?:an?|1) (.+? card) is played in your battle area\b/.exec(t)?.[1] ??
     // Phrasing batch 5: "when one of your … cards attacks", "when your Battle Cards **attack**" (BT2-003, `yourCardAttacks`).
     /^(?:your|your opponent's|one of your) (.+?) attacks?\b/.exec(t)?.[1] ??
+    // Audit triggers 1: "When one of your blue Battle Cards is added to your Z-Energy" (BT19-034b, `yourCardToZEnergy`).
+    /^(?:one of your|your) ((?!opponent).+?) (?:is|are) added to (?:your|its owner'?s) z-energy$/.exec(t)?.[1] ??
     // Phrasing batch 5: "When one of your red or blue Battle Cards is removed from your Battle Area by an opponent's
     // skill" (DB2-174, `yourCardRemovedByOpponent`): the card removed.
     /^(?:your|one of your) ((?!opponent).+?) (?:is|are) removed from your battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?$/.exec(t)?.[1] ??

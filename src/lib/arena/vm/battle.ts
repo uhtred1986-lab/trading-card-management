@@ -1859,7 +1859,8 @@ export function resumeDamage(state: VmState): boolean {
  *   derived "fires while elsewhere"), and `cause` for the card that did it —
  *   only when that card is an *opponent's* and still exists, the legacy
  *   `kos` pend's own three conditions ("when this card KOs an opponent's
- *   Battle Card"). `cause` is absent for a KO no card caused.
+ *   Battle Card"). `cause` is absent for a KO no card caused. Audit triggers 1: the `cause` moment hands the
+ *   KO'd card on (`source`), so "…KOs an opponent's Battle Card **with an energy cost of 2 or more**" (P-384) asks it.
  *
  * The move itself carries no `by`: a KO by skill is not, on either engine,
  * the "removed from a Battle Area by a skill" moment (the legacy `ko` op pends
@@ -1881,7 +1882,7 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   // it still answer about itself (9-1-3-1's derived "fires while elsewhere").
   fire(ctx, game, state, { event: "ko", card, controller: owner, args: { role: "koed", to: "drop", ...(wasHidden ? { hidden: true } : {}) } });
   if (cause !== undefined && cause !== card && state.cards[cause] && masterOf(game, state, cause) !== master) {
-    fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), args: { role: "cause" } });
+    fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), source: card, args: { role: "cause" } });
   }
 }
 

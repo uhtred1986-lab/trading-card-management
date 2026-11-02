@@ -68,6 +68,14 @@ DEFINE TRIGGER playedFromHand
   BIND "self"
   text: "when this card is played from your hand"
 
+-- Audit triggers 1 — when this card is played from the Drop (TB3-039, "When you
+-- play this card from a Drop Area"): the same arrival as `playedFromHand`, asking
+-- for the Drop as the origin the move captured.
+DEFINE TRIGGER playedFromDrop
+  ON moved(asPlay: true, from: drop, to: [battle, unison])
+  BIND "self"
+  text: "when this card is played from your Drop"
+
 -- §22-15 — when this card is played using [Over Realm]: the same arrival,
 -- made by [Over Realm]'s own move, which says so on its `play` (`using:` in
 -- keywords.rules). An ordinary play carries no `using`, so it never matches.
@@ -450,6 +458,22 @@ DEFINE TRIGGER yourEnergyToDeck
   ON moved(from: energy, to: deck, watcher: controller)
   BIND "subject"
   text: "when your energy is placed in its owner's deck"
+
+-- Audit triggers 1 — "When one of your blue Battle Cards is added to your
+-- Z-Energy" (BT19-034's back), "…or one of your <Goku Black> is added to your
+-- Z-Energy" (EX22-05): any card of yours, any cause; the description is a
+-- condition on the card added.
+DEFINE TRIGGER yourCardToZEnergy
+  ON moved(to: zEnergy, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is added to your Z-Energy"
+
+-- Audit triggers 1 — "When this card is placed in a Battle Area or removed
+-- from the game" (BT27-094): its move to the removed area (20-10), heard there.
+DEFINE TRIGGER removedFromGame
+  ON moved(to: removed)
+  BIND "self"
+  text: "when this card is removed from the game"
 
 -- Phrasing batch 6 — "When one of your opponent's cards is added to their
 -- Z-Energy" (BT21-038): any card of theirs, any cause.

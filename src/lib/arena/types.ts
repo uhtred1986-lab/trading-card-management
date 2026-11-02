@@ -982,6 +982,7 @@ export type Trigger =
    * `played` is any origin.
    */
   | "playedFromHand"
+  | "playedFromDrop"
   | "attacks"
   | "attacked"
   | "koed"
@@ -1105,6 +1106,8 @@ export type Trigger =
   | "yourCardPlayedFromDrop"
   /** Phrasing batch 6: "When one of your opponent's cards is added to their Z-Energy" (BT21-038). */
   | "opponentCardToZEnergy"
+  | "yourCardToZEnergy"
+  | "removedFromGame"
   /** Phrasing batch 6: "When your or your opponent's <Majin Buu> card is played" (BT28-100). */
   | "eitherCardPlayed"
   /** Phrasing batch 6: "When one of your cards deals damage to your opponent" (BT9-104): battle damage, the attacker the subject. */
