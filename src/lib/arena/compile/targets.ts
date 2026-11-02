@@ -1121,7 +1121,7 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     /^(?:one of your|your) ((?!opponent).+?) (?:is|are) added to (?:your|its owner'?s) z-energy$/.exec(t)?.[1] ??
     // Phrasing batch 5: "When one of your red or blue Battle Cards is removed from your Battle Area by an opponent's
     // skill" (DB2-174, `yourCardRemovedByOpponent`): the card removed.
-    /^(?:your|one of your) ((?!opponent).+?) (?:is|are) removed from your battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?$/.exec(t)?.[1] ??
+    /^(?:your|one of your) ((?!opponent).+?) (?:is|are) removed from your battle area by (?:(?:an? |one of )?(?:your )?opponent'?s? skills?|one of their skills)$/.exec(t)?.[1] ??
     // Phrasing batch 6: "When one of your ≪Namekian≫ cards activates [Union Absorb]" (BT17-089, `unionAbsorbUsed`).
     /^(?:one of your|your) ((?!opponent).+?) activates? (?:an? |the )?\[union[- ]absorb\](?: skill)?$/.exec(t)?.[1] ??
     // Phrasing batch 6: "When one of your opponent's Battle Cards is played by a skill" (BT21-105), "When your or your

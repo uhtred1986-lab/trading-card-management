@@ -983,6 +983,12 @@ export type Trigger =
    */
   | "playedFromHand"
   | "playedFromDrop"
+  | "koedByAttack"
+  | "yourCardKoedByAttack"
+  | "koedByOpponent"
+  | "koedBySkill"
+  | "koedByYourSkill"
+  | "koedByOpponentSkill"
   | "attacks"
   | "attacked"
   | "koed"
@@ -1207,6 +1213,8 @@ export type Trigger =
   | "evolveFromHandActivated"
   /** "When your opponent activates a [Counter] skill" (4-3): watched by your cards in play. */
   | "opponentCounter"
+  | "opponentCounterPlay"
+  | "opponentCounterAttack"
   /** "When you activate this card's [Counter] from your hand without paying its energy cost" (22-10). */
   | "counterFreeFromHand"
   /** "At the start of your opponent's Main Phase" (7-3): the *other* player's cards watch it. */

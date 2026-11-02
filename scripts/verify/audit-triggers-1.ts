@@ -6,9 +6,10 @@
  * A.  Several moments in one sentence (9-6-2): each read alone, the skill answering to every one; a moment no reader
  *     places, or a condition one moment alone would carry, leaves the skill unread. Descriptions of a watched card.
  * B.  The battle's end (8-5): the combo card's own end of the battle with its areas; this card's part in a plain one.
- * C.  Played, combo areas, a described KO'd card, Z-Energy, the game's removed area, BT10-038's "if" moment, a reminder.
- * D.  The VM, both seats: a watched and a self coordinated moment, a described KO'd card, and a [Permanent]'s standing
- *     power change starting to apply (R-132, R-134; Q&A BT13-002).
+ * C.  Played, combo areas, a described KO'd card, Z-Energy, the removed area, BT10-038's "if" moment, a reminder; this
+ *     card KO'd by an attack, by your opponent, or by a skill (whose, and a described card's); a [Counter] by its window.
+ * D.  The VM, both seats: a watched and a self coordinated moment, a described KO'd card, a KO by a described card's
+ *     skill, and a [Permanent]'s standing power change starting to apply (R-132, R-134; Q&A BT13-002).
  *
  * Rulings: R-132 (owner), R-133 and R-134 (pending, best-guess).
  */
@@ -161,6 +162,20 @@ const C: [string, string, string[], ((rec: Rec) => void)?][] = [
   [`[Auto] If your Leader is black: When this card is placed in a Battle Area or removed from the game, ${DRAW}`, "BT27-094", ["placed", "removedFromGame"]],
   ["[Auto] If this card is removed from a Battle Area by an opponent's skill, choose up to 1 {SSB Son Goku, Hope for Victory} in your hand and place it in your energy.", "BT10-038", ["removedByOpponent"]],
   ["[auto] When a card evolves into this card, this card gains [dual attack] (Once per turn, when this card attacks, switch this card to Active Mode after the battle) for the duration of the turn.", "SD1-03", ["evolvedInto"]],
+  // KO'd, and how (5-12, 8-4-6-2)
+  [`[Auto] When this card is KO'd by an opponent's attack, ${DRAW}`, "BT15-071", ["koedByAttack"]],
+  [`[auto] {1}: When this card is KO'd by your opponent, ${DRAW}`, "BT15-006", ["koedByOpponent"]],
+  [`[Auto] When this card is KO'd by an opponent's skill, ${DRAW}`, "BT20-078", ["koedByOpponentSkill"]],
+  [`[Auto] When this card is KO'd by one of your skills, ${DRAW}`, "BT23-039", ["koedByYourSkill"]],
+  [`[Auto] When this card is KO'd by a <Vegeta> card's skill, ${DRAW}`, "BT25-051", ["koedBySkill"], (rec) => assert.ok(chain(rec).some((c) => c.kind === "count" && c.sel.special === "subject" && c.sel.filter?.characters.includes("Vegeta")), "C: BT25-051 — a <Vegeta> card's skill")],
+  [`[Auto] If your Leader is a blue <Majin Buu> card: When this card is KO'd by an opponent's attack or placed in your Drop by an opponent's skill, ${DRAW}`, "EX21-05", ["koedByAttack", "toDropByOpponent"]],
+  [`[Auto] When this card is KO'd, ${DRAW}`, "KO", ["koed"]],
+  [`[auto]{u}: When one of your Battle Cards is KO'd by an opponent's attack, ${DRAW}`, "P-409", ["yourCardKoedByAttack"], (rec) => assert.ok(chain(rec).some((c) => c.kind === "count" && c.sel.special === "subject" && c.sel.filter?.type === "BATTLE"), "C: P-409 — one of your Battle Cards")],
+  [`[Auto] When one of your yellow <Son Gohan: Future> cards is KO'd by an opponent's attack or removed from your Battle Area by one of their skills, ${DRAW}`, "BT13-103", ["yourCardKoedByAttack", "yourCardRemovedByOpponent"]],
+  // a [Counter] by its window (22-10-2-1)
+  ["[Auto] When your opponent activates a [Counter: Play] skill, they choose 2 cards in their hand and discard them.", "EX13-19", ["opponentCounterPlay"]],
+  [`[Auto][Once per turn] When your opponent activates a [Counter: Attack] skill, ${DRAW}`, "BT12-059", ["opponentCounterAttack"]],
+  [`[Auto] When your opponent activates a [Counter] skill, ${DRAW}`, "BT7-020", ["opponentCounter"]],
 ];
 for (const [text, what, trigger, more] of C) {
   const rec = record(text, what);
@@ -188,6 +203,8 @@ const defs: Record<string, CardDef> = {
   BROLY: card("BROLY", { energyCost: 0, skill: "[Permanent] Your opponent's Battle Cards get -5000 power." }),
   FREE: card("FREE", { energyCost: 0 }),
   W_THEIRS: card("W_THEIRS", { skill: `[Auto] When the power of one of your opponent's Battle Cards is decreased, ${DRAW}` }),
+  VEGKO: card("VEGKO", { characters: ["Vegeta"], skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it." }),
+  W_BYVEGETA: card("W_BYVEGETA", { skill: `[Auto] When this card is KO'd by a <Vegeta> card's skill, ${DRAW}` }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
@@ -286,6 +303,16 @@ for (const seat of ["p1", "p2"] as const) {
     s = activate(s, k, pick(t));
     assert.ok(s.sides[foe].zones.drop.includes(t), `${seat}: D3: KO'd`);
     assert.equal(hand(s, seat), drew, `${seat}: D3: KO'd a card with an energy cost of ${target === "V2" ? 2 : 1} — ${drew ? "answers" : "no trigger"}`);
+    cases++;
+  }
+  // D3b. KO'd by a <Vegeta> card's skill only (the card that KO'd it is the moment's subject).
+  for (const [actor, n, drew] of [["VEGKO", 7, 1], ["KOTHEIRS", 8, 0]] as const) {
+    let s = fresh(seat, seed(n));
+    const k = stage(s, seat, actor, "battle");
+    const w = stage(s, foe, "W_BYVEGETA", "battle");
+    s = activate(s, k, pick(w));
+    assert.ok(s.sides[foe].zones.drop.includes(w), `${seat}: D3b: KO'd`);
+    assert.equal(hand(s, foe), drew, `${seat}: D3b: by ${actor} — ${drew ? "answers (koedBySkill)" : "no trigger (9-6-2)"}`);
     cases++;
   }
   // D4. A standing power change starting to apply (R-132, R-134): playing the [Permanent] answers once per card it

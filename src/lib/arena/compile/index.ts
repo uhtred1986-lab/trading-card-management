@@ -1341,7 +1341,7 @@ function koedDescription(trigger: string): string {
 }
 
 /** This card's own moments that hand on no other card (no `source` on the moment): a description beside them is asked only of a card one hands on. */
-const SUBJECTLESS = new Set<string>(["attacks", "attacked", "played", "playedFromHand", "playedFromDrop", "comboUsed", "comboed", "blockerUsed", "koed", "turnEnd", "opponentTurnEnd", "battleEnd", "mainStart", "opponentMainStart"]);
+const SUBJECTLESS = new Set<string>(["attacks", "attacked", "played", "playedFromHand", "playedFromDrop", "comboUsed", "comboed", "blockerUsed", "turnEnd", "opponentTurnEnd", "battleEnd", "mainStart", "opponentMainStart"]);
 
 /**
  * Audit triggers 1: what a coordinated head (`momentPartSkills`) says about the card a moment hands on, read off the

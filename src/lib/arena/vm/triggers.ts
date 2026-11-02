@@ -405,8 +405,9 @@ const BATCH1_GATED = new Set<string>(["droppedFromHandByOpponent", "activeBySkil
   "deckToDropBySkill", "deckToDropByYou", "revealedTopToDrop", "underReturnedToHand", "underToDropBySkill", "underLeaderToDropBySkill",
   "pileToDropBySkill", "energyToDropBySkill", "yourEnergyToDropByYourLeader", "droppedFromBattleByYou", "toDropBySkill", "toDropByYou",
   "toDropByOpponent", "dropToWarpBySkill",
-  // Audit triggers 1: the card a KO by this card KO'd ("…KOs an opponent's Battle Card with an energy cost of 2 or more", P-384).
-  "kos"]);
+  // Audit triggers 1: the card a KO by this card KO'd ("…KOs an opponent's Battle Card with an energy cost of 2 or more", P-384),
+  // and the card that KO'd this one ("…KO'd by a <Vegeta> card's skill", BT25-051).
+  "kos", "koedBySkill", "koedByYourSkill", "koedByOpponentSkill"]);
 
 /** A condition about the moment's subject alone: `count(subject …)`, or an any/all of such. */
 function aboutTheSubject(cond: Cond): boolean {

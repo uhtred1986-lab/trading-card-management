@@ -137,14 +137,15 @@ export const YOUR_CARD_USED_IN_COMBO = /^when (?:one of your|your) ((?!opponent)
 export const IF_REMOVED_BY_OPPONENT = /^if this card is removed from (?:a|the|your) battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?\s*,/;
 /** Audit triggers 1: "When one of your blue Battle Cards is added to your Z-Energy" (BT19-034b) — `yourCardToZEnergy`. */
 export const YOUR_CARD_TO_Z_ENERGY = /^when (?:one of your|your) ((?!opponent)(?!energy\b)(?!this card)[^,]{1,120}?) (?:is|are) added to (?:your|its owner'?s) z-energy(?:,|$)/;
-const YOUR_CARD_ATTACKS = /^when (?:your|one of your) ((?!opponent)(?!leader)[^,]{1,120}?) (?:attacks|attack)(?:,|$)/;
+// Audit triggers 1: a description says no verb — "…cards is KO'd by an opponent's attack" is a KO, not an attack.
+const YOUR_CARD_ATTACKS = /^when (?:your|one of your) ((?!opponent)(?!leader)(?![^,]*\b(?:is|are)\b)[^,]{1,120}?) (?:attacks|attack)(?:,|$)/;
 /**
  * Phrasing batch 9: "When your black card with a [Union] skill or black Z-Unison **attacks or activates the [Blocker]
  * skill**" (BT24-112 back): two moments of another card of yours, as "this card attacks or activates [Blocker]" is two of
  * this card's — `yourCardAttacks`, and `yourCardBlockerUsed` (the blocker the subject).
  */
 const YOUR_CARD_ATTACKS_OR_BLOCKS = /^when (?:your|one of your) ((?!opponent)(?!leader)(?!this card)[^,]{1,120}?) attacks,? or activates (?:its |the |an? )?\[blocker\](?: skill)?(?:,|$)/;
-const YOUR_CARD_REMOVED_BY_OPPONENT = /^when (?:your|one of your) ((?!opponent)[^,]{1,160}?) (?:is|are) removed from your battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?(?:,|$)/;
+const YOUR_CARD_REMOVED_BY_OPPONENT = /^when (?:your|one of your) ((?!opponent)[^,]{1,160}?) (?:is|are) removed from your battle area by (?:(?:an? |one of )?(?:your )?opponent'?s? skills?|one of their skills)(?:,|$)/;
 /**
  * Phrasing batch 6: "When this card is discarded from your hand by a [Union] skill" (BT11-079, BT19-052), "When this
  * card is placed from a hand into its owner's Drop by a [Union] skill" (P-683) — and the [Union-Fusion] wordings:
@@ -603,7 +604,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // SD15-03 (#728) writes the same pair with "placed in your Drop Area from
       // your Battle Area by an opponent's skill or KO'd"; the first half is
       // `droppedByOpponent`.
-      return /when this card is (?:played or )?ko'?d|when this card is (?:played or )?removed from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d|when this card is (?:played or )?placed in [a-z' ]*drop area from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d/.test(t);
+      // Audit triggers 1: "…KO'd **by** …" names how or by whom, `koedBy…`'s (`momentsBatch1`), never every KO.
+      return /when this card is (?:played or )?ko'?d(?! by\b)|when this card is (?:played or )?removed from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d|when this card is (?:played or )?placed in [a-z' ]*drop area from [a-z' ]*battle area by [a-z' ]*skills? or ko'?d/.test(t);
     // 3-1: a move an effect caused, which is not a KO — the cards write "or
     // KO'd" when they mean both.
     case "removedFromBattle":
@@ -720,6 +722,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // says the sentence stopped there.
     case "yourCardKoed":
       return /^when (?:your|one of your) (?!opponent)[^,]{0,70} (?:is|are) ko'd(?:,|$)/.test(head);
+    // Audit triggers 1: "When one of your Battle Cards is KO'd by an opponent's attack" (P-409): the battle's KO only.
+    case "yourCardKoedByAttack": {
+      const m = /^when (?:your|one of your) ((?!opponent)[^,]{1,90}?) (?:is|are) ko'd by (?:an? |your )?opponent'?s attacks?(?:,|$)/.exec(head);
+      return !!m && readableSubject(effect, m[1]);
+    }
     case "opponentCardKoed":
       return /^when (?:your opponent's|an opponent's|one of your opponent's) [^,]{0,70} (?:is|are) ko'd(?:,|$)/.test(head);
     case "removedByOpponent":
@@ -731,8 +738,14 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return /when a card evolves into this card|when this card evolves\b/.test(t);
     case "evolveFromHandActivated":
       return /when using this card'?s \[evolve\] from your hand|when you (?:use|activate) this card'?s \[evolve\](?: skill)? from your hand/.test(t);
+    // Audit triggers 1: a [Counter] named by its window is that one only (EX13-19's [Counter: Play]); said with more
+    // after it ("…on an Extra Card"), it is not read.
     case "opponentCounter":
-      return /when your opponent activates a \[counter/.test(t);
+      return /when your opponent activates a \[counter\]/.test(t);
+    case "opponentCounterPlay":
+      return /^when your opponent activates an? \[counter: ?play\](?: skill)?(?:,|$)/.test(head);
+    case "opponentCounterAttack":
+      return /^when your opponent activates an? \[counter: ?attack\](?: skill)?(?:,|$)/.test(head);
     case "counterFreeFromHand":
       return /when you activate this card'?s \[counter[^\]]*\](?: skill)? from your hand without paying (?:its|the) energy cost/.test(t);
     case "kos":
@@ -1150,6 +1163,13 @@ export function momentsBatch1(head: string): { trigger: Trigger; cause?: string;
     return [{ trigger: c.side === "you" ? you : c.side === "opponent" ? opponent : any, sided: true, ...(said ? { cause: said } : {}) }];
   };
   if ((m = B1_HAND_DROP.exec(head))) return bySide(m[1], "droppedFromHand", "droppedFromHandByYou", "droppedFromHandByOpponent");
+  // Audit triggers 1: this card KO'd "by an opponent's attack" (a battle's KO, 8-4-6-2), "by your opponent" (either way),
+  // or by a skill — any, yours, an opponent's, or a described card's (BT25-051's "by a <Vegeta> card's skill").
+  if ((m = /^when this card is ko'?d by (.+?)(?:,|$)/.exec(head)) && !momentParts(head)) {
+    if (/^(?:an? |your |one of your )?opponent'?s (?:battle card'?s )?attacks?$|^an attack$/.test(m[1])) return [{ trigger: "koedByAttack" }];
+    if (/^your opponent$/.test(m[1])) return [{ trigger: "koedByOpponent" }];
+    return bySide(m[1], "koedBySkill", "koedByYourSkill", "koedByOpponentSkill");
+  }
   if ((m = B1_USE_TO_DISCARD.exec(head))) return bySide(m[1], "droppedFromHand", "droppedFromHandByYou", "droppedFromHandByOpponent");
   // 1-10-1: a card switched to Active Mode — any switch, the Charge Phase's included (BT31-029's Q&A) — or by a skill.
   if (/^when this card is switched to active mode(?:,|$)/.test(head)) return [{ trigger: "selfRestToActive" }];

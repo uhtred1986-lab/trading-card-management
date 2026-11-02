@@ -221,7 +221,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // loop settled on — asked, or the one replacement there was — and
     // `null` when none answers; the KO honours it rather than looking again.
     ko: (id, by, opts) => {
-      koCard(ctx, game, state, ev, id, by, opts && "replaced" in opts ? (opts.replaced ?? null) : undefined);
+      koCard(ctx, game, state, ev, id, by, opts && "replaced" in opts ? (opts.replaced ?? null) : undefined, "skill");
     },
     // 23-2: `moveCard`'s own `under` option already carries 23-2-2 through
     // 23-2-6 (#152 taught it 23-2-5's "different area → Drop" half, which it
