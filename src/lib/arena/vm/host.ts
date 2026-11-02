@@ -1045,10 +1045,13 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // Phrasing batch 9 (owner's ruling of 27 Oct 2026): "when you take damage from your opponent's skill" — pended by the
   // `damage` op only when the skill's master is the damaged player's opponent, so your own skill's damage to you is not it.
   youTookOpponentSkillDamage: { event: "damage", args: { by: "skill" } },
+  // Phrasing batch 10 (owner's ruling of 27 Oct 2026): "…from a skill on one of your Battle Cards or Unison Cards" —
+  // pended only when the skill's card is in its master's Battle or Unison Area; the three above for any skill's damage.
+  opponentTookBoardSkillDamage: { event: "damage", args: { by: "skill" } },
 };
 
 /** Phrasing batch 8: the names pended on the cards of the side the moment is *not* about (see `pendByName`). */
-const ABOUT_THE_OTHER_SIDE = new Set(["opponentTookDamage"]);
+const ABOUT_THE_OTHER_SIDE = new Set(["opponentTookDamage", "opponentTookBoardSkillDamage"]);
 
 /** The names `stepScript`'s `switchMode` pends whose moment `setMode` has already fired as `modeSwitched(by: …)` (`dbs/triggers.rules`). */
 const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "restedByAlliance"]);

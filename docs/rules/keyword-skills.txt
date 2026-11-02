@@ -1,0 +1,132 @@
+Snapshot of https://www.dbs-cardgame.com/us-en/rule/keyword-skills.php taken 2026-11-02 by scripts/rules-sources.mts. Do not edit; re-run the script.
+
+(last updated on Jul. 22, 2022)
+CONTENTS
+Activate Timing
+Keyword Skills
+Keywords
+Activate Timing
+[Permanent]
+This skill is always active.
+[Auto]
+This skill activates when its trigger conditions are met. If the skill has a skill cost, it must be paid to activate the skill.
+[Activate : Main]
+This skill can be activated during your Main Phase.
+[Activate : Battle]
+This skill can be activated during your Offense Step during your turn, and during your Defense Step during your opponent's turn.
+[Activate : Main/Battle]
+This skill can be activated during your Main Phase, during your Offense Step during your turn, and during your Defense Step during your opponent's turn.
+Keyword Skills
+[Ultimate]
+You can only include 1 copy of a card with [Ultimate] in your deck. If a card with [Ultimate] would leave your Battle Area, remove it from the game instead.
+[Super Combo]
+You can only include up to 4 cards with [Super Combo] in your deck.
+[Dragon Ball]
+You can include as many copies of cards with [Dragon Ball] in your deck as you like, as long as the total number doesn't exceed 7.
+[Energy-Exhaust]
+If this card is placed in an Energy Area from any area, it must be placed there in Rest Mode.
+[Deflect]
+This card isn't affected by [Counter : Play] skills.
+[Unique]
+Only 1 copy of this card can be played in your Battle Area.
+[Over Realm X]
+If you have at least X cards in your Drop, you can play this card by sending all cards from your Drop to your Warp. At the end of that turn, send this card from your Battle Area to its owner's Warp. [Over Realm] can be activated once per turn.
+[Dark Over Realm X]
+If you have at least X black cards in your Drop, you can play this card by sending all cards from your Drop to your Warp. [Over Realm] and [Dark Over Realm] can only be activated once per turn.
+[Evolve]
+Play this card on top of the specified card.
+[EX-Evolve]
+Play this card on top of the specified card.
+[Xeno-Evolve]
+Play this card in Active Mode by sending the specified cards from your Battle Area to its owner's Warp.
+[Union-Fusion]
+Place 1 each of the specified card(s) with the same power from your hand into your Drop and play this card.
+[Union-Potara]
+Place this card in Active Mode on top of the 2 specified cards stacked together.
+[Union-Absorb]
+Follow the effect and play the specified card from the specified area on top of this card.
+[Swap X]
+Play the specified card from your hand, then return this card to your hand.
+[Arrival X/Y]
+Play this card from your hand when you have X and Y cards in your Combo Area.
+[Successor]
+Choose any number of your mono-green, mono-yellow, or Green/Yellow multicolor Battle Cards whose energy costs add up to the energy cost of this card, place them in their owners' Drops, then play this card from your hand.
+[Empower ColorX]
+If this card replaces a Color Unison Card as it enters play, it carries over up to X of its markers.
+[Critical]
+When this card inflicts damage to your opponent's life, they place that many cards in their Drop instead of their hand.
+[Double Strike]
+This card inflicts 2 damage instead of 1 when attacking.
+[Triple Strike]
+This card inflicts 3 damage instead of 1 when attacking.
+[Quadruple Strike]
+This card inflicts 4 damage instead of 1 when attacking.
+[Indestructible]
+This card cannot be KO’d by your opponent’s card skills or battle and does not leave the Battle Area.
+[Barrier]
+This card can't be chosen by the skills of your opponent's cards.
+[Victory Strike]
+When you deal damage by attacking with this card, you win the game.
+[Warrior of Universe 7]
+Treat 《Universe 7》 cards in all areas as if they had no specified cost.
+[Wormhole]
+You can activate [Over Realm] and [Dark Over Realm] up to a total of 2 times a turn.
+[Invoker]
+When paying the energy cost for a Red/Blue multicolor Extra, you can switch 1 Red/Blue multicolor energy to Rest Mode instead.
+[Servant]
+This card gets +10000 power and can't be switched to Active Mode during your Charge Phase.
+[Offering]
+When you play this card, your opponent may choose 1 card from their life and place it in their Drop. If they don't, draw 2 cards.
+[Heroic]
+When you play another 《Heroic》 Battle Card or activate a 《Heroic》 Extra's skill, draw 1 card, then negate this skill for the turn.
+[Villainous]
+When you play another 《Villainous》 Battle Card or activate a 《Villainous》 Extra's skill, your opponent chooses 1 card in their hand and places it in their Drop, then negate this skill for the duration of the turn.
+[Dual Attack]
+Once per turn, when this card attacks, switch this card to Active Mode after the battle.
+[Triple Attack]
+Twice per turn, when this card attacks, switch this card to Active Mode after the battle.
+[Alliance X/Y]
+When this card attacks, you may activate this skill by choosing 1 or more X or Y Battle Cards in your Battle Area and switching them to Rest Mode.
+[Field]
+Place and activate this card in the Battle Area. It remains in the Battle Area until you activate another [Field]. When you do, place this card in its owner's Drop.
+[Overlord]
+Place 1 of your Battle Cards with [Servant] at the bottom of your deck : Draw 1 card.
+[Rejuvenate]
+Place 1 card from under this card in its owner's Drop and pay the skill cost : Place the top card of your deck in your life.
+[Blocker]
+When one of your other cards is attacked, you may switch this card to Rest Mode and change the target of the attack to this card.
+[Revenge]
+When this card is attacked, KO the attacking card after the battle.
+[Aegis X/Y]
+If it's your opponent's turn, you can activate this during the Defense Step by placing cards from your hand in your Drop that match all colors specified by [Aegis] : Choose up to 2 of your energy and switch them to Active Mode.
+[Counter : Play]
+When your opponent announces they're playing a card, or when your opponent activates or resolves a skill to play a card, you can announce the activation of this skill.
+[Counter : Attack]
+When your opponent attacks, you can announce the activation of this skill.
+[Counter : Counter]
+When your opponent activates a [Counter] skill, you can announce the activation of this skill.
+[Counter : Battle Card Attack]
+When your opponent attacks with a Battle Card, you can announce the activation of this skill.
+[Revive X/Y]
+Place cards from your hand in your Drop that match all colors specified by [Revive] : When this card is KO'd, play this card and negate this skill for the turn.
+[Awaken]
+Resolve the effect and flip this card to its back side.
+[Awaken : Surge]
+Resolve the effect and flip this card to its back side.
+[Wish]
+Resolve the effect and flip this card to its back side.
+[Z-Awaken]
+Pay the skill cost and Z-Energy, then place this card from your Z-Deck on top of the specified Leader's back side.
+Keywords
+[Limit X]
+You can only activate this skill once per turn across all copies of this card.
+[Once per Turn]
+This skill on this card can only be activated once per turn.
+[Bond X]
+This skill takes effect when you have X or more of the specified Battle Cards in play.
+[Sparking X]
+This skill takes effect when you have X or more cards in your Drop.
+[Burst X]
+You must place the top X cards of your deck in your Drop to activate this skill.
+[Spirit Boost X]
+You must remove a marker from your Unison Card to activate this skill.

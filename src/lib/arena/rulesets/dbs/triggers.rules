@@ -521,6 +521,17 @@ DEFINE TRIGGER opponentTookDamage
   BIND "subject"
   text: "when your opponent takes damage from a skill"
 
+-- Phrasing batch 10 (owner's ruling of 27 Oct 2026) — "When your opponent
+-- takes damage from (non-keyword) skill(s) on (one of) your Battle Cards or
+-- Unison Cards" (DB3-017, BT10-001b): a skill's damage whose skill's card sat
+-- in its master's Battle or Unison Area. Since the same ruling, the other skill
+-- damage moments are pended for any skill's damage, an Extra card's included;
+-- the `damage` op pends this one by name only when the card is on the board.
+DEFINE TRIGGER opponentTookBoardSkillDamage
+  ON damage(by: skill, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent takes damage from a skill on your Battle or Unison Cards"
+
 -- Phrasing batch 9 (owner's ruling of 27 Oct 2026) — "When you take damage
 -- from an opponent's non-keyword skill" (BT14-070): a skill's damage whose
 -- skill is the opponent's. The `damage` op pends it by name only then, so

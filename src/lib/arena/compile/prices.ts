@@ -246,6 +246,8 @@ function dropTheSubject(said: string): string {
  * energy can settle.
  */
 export function priceX(skill: Skill): XCost | null {
+  // Phrasing batch 10 (22-43): "[Spirit Boost X]" prices X markers off your Unison Card, chosen as the skill is used.
+  if (skill.tags.some((t) => /^spirit boost x$/i.test(t.trim()))) return { spiritBoost: true };
   const cost = stripNotes(skill.cost);
   return /\{x\}/i.test(cost) || /\bpay x energy\b/i.test(cost) ? {} : null;
 }
@@ -394,7 +396,9 @@ function switchColourCardsPrice(said: string): Script | null {
 export function priceIsUnread(skill: Skill): boolean {
   if (skill.keyword || !/^(?:activate|auto|counter)/.test(skill.kind)) return false;
   const said = priceText(skill);
-  if (!said || costIsOnlyOrbs(skill.cost) || priceX(skill)) return false;
+  // Phrasing batch 10: a [Spirit Boost X] tag is no reading of the words before the colon (BT14-071's "Green Unison Card").
+  const x = priceX(skill);
+  if (!said || costIsOnlyOrbs(skill.cost) || (x && !x.spiritBoost)) return false;
   const split = splitPrice(skill);
   return !split.conds.length && !split.program;
 }
@@ -558,7 +562,7 @@ export function compileCostRecord(skill: Skill): CostRecord {
   const absorb = absorbEffect && !absorbEffect.unsupported.length && !absorbPriceProblem(program, condition) && !absorbEffectProblem(absorbEffect.ops) ? { version: 1 as const, variant: "Absorb" as const, area: "battle" as const } : undefined;
   return {
     version: 1,
-    readable: costIsOnlyOrbs(skill.cost) || bondDescriptorOnly(skill) || condition !== null || !!program?.length || x !== null,
+    readable: costIsOnlyOrbs(skill.cost) || bondDescriptorOnly(skill) || condition !== null || !!program?.length || (x !== null && !x.spiritBoost),
     text: costText(skill.cost), orbs: { ...skill.energyCost }, either: skill.energyEither.map((group) => [...group]),
     marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost,
     condition, program, ...(fusion ? { fusion } : {}), ...(potara ? { potara } : {}), ...(evolution ? { evolution } : {}), ...(absorb ? { absorb } : {}), ...(x ? { x } : {}),

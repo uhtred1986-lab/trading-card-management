@@ -7,6 +7,8 @@
  *   full       typecheck, eslint, every script of package.json's `test`, then the build when a
  *              build-sensitive path changed (`--build` forces it)
  *   <paths>    like no args, for exactly these paths
+ *   --emit     with any scope: verify-arena rewrites the contract fixtures as it runs (one arena run
+ *              instead of `contract:emit` followed by `full`); review `git diff contract/` afterwards
  *
  * Prints only failures (first ~40 relevant lines each), then a pass/fail count with timings. Exits
  * non-zero on any failure. Children run in their own process groups, killed when they finish, on
@@ -14,6 +16,8 @@
  * in a cloud session that variable belongs to another app.
  */
 import { spawn, execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildGraph, isBuildSensitive, planSteps, readChain, type Scope, type Step } from "./lib/checks-plan.ts";
@@ -78,7 +82,9 @@ export function excerpt(r: Pick<Result, "step" | "out" | "timedOut">): string[] 
   if (r.step.kind === "tsc") picked = nonEmpty.filter((l) => /error TS\d+/.test(l));
   else if (r.step.kind === "eslint") picked = nonEmpty;
   else {
-    const at = lines.findIndex((l) => /^\s*(\w*Error\b|AssertionError|FAIL|not ok)|✗|\bfailed\b/i.test(l));
+    // verify-arena prints "  FAILED   <suite> — …"; a passing suite's description can contain the word "failed".
+    const suite = lines.findIndex((l) => /^\s*FAILED\s{2,}\S/.test(l));
+    const at = suite >= 0 ? suite : lines.findIndex((l) => /^\s*(\w*Error\b|AssertionError|FAIL|not ok)|✗|\bfailed\b/i.test(l));
     picked = at >= 0 ? lines.slice(Math.max(0, at - 2)).filter((l) => l.trim()) : nonEmpty.slice(-MAX_LINES);
   }
   if (picked.length === 0) picked = nonEmpty.slice(-MAX_LINES);
@@ -110,13 +116,15 @@ async function main() {
   if (args[0] === "full") { scope = "full"; label = "full"; }
   else if (args[0] === "quick") { scope = { kind: "quick", paths: changedPaths() }; label = "quick"; }
   else {
-    const paths = (args.length ? args : changedPaths()).map((p) => path.relative(root, path.resolve(root, p)).replace(/\\/g, "/"));
+    const named = args.filter((a) => !a.startsWith("--"));
+    const paths = (named.length ? named : changedPaths()).map((p) => path.relative(root, path.resolve(root, p)).replace(/\\/g, "/"));
     scope = { kind: "paths", paths };
     label = `${paths.length} path${paths.length === 1 ? "" : "s"}`;
   }
 
   const started = Date.now();
   const { steps, unknown, trimmed } = planSteps(scope, root, chain, buildGraph(root));
+  if (args.includes("--emit")) for (const s of steps) if (s.argv.some((a) => a.endsWith("verify-arena.ts"))) s.argv.push("--emit");
   // `full` builds only when the change can break the build; `--build` forces it.
   const skipBuild = scope === "full" && !args.includes("--build") && !isBuildSensitive(changedPaths());
   if (skipBuild) console.log("build skipped: no build-sensitive path changed (--build forces it)");
@@ -135,7 +143,10 @@ async function main() {
 
   const bad = all.filter((r) => !r.ok);
   for (const r of bad) {
-    console.log(`\n--- ${r.step.name}`);
+    // The whole output, so a long step never has to be re-run just to read its failure.
+    const log = path.join(os.tmpdir(), `checks-${r.step.name.replace(/[^\w.-]+/g, "_")}.log`);
+    fs.writeFileSync(log, r.out);
+    console.log(`\n--- ${r.step.name} (full output: ${log})`);
     for (const l of excerpt(r)) console.log(l);
   }
   const slow = [...all].sort((a, b) => b.ms - a.ms).slice(0, 3).map((r) => `${r.step.name.replace(/^verify\//, "")} ${sec(r.ms)}`);

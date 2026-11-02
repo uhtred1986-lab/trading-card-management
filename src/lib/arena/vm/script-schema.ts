@@ -534,6 +534,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         type: "boolean",
         offCard: "mechanism batch 3: \"play them to their owners' Battle Areas\" (BT13-096, EX21-15) - each card lands in its own owner's Battle Area rather than its master's",
       },
+      {
+        name: "ignoreOwnPermanent",
+        type: "boolean",
+        offCard: "mechanism batch 4: \"play … from your Drop, ignoring its [permanent] skill\" (EX21-31; owner's ruling of 27 Oct 2026) - a prohibition the played card's own [Permanent] puts on playing it does not refuse this play; every other card's rule still does",
+      },
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"play">;
@@ -548,6 +553,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         // "…on top of this card with its skills negated for the game" (BT31-088/089, BT10-073): where it lands and what it arrives with.
         + (op.onto ? ` on top of ${describeRef(op.onto)}` : "")
         + (op.toOwners ? " in their owners' Battle Areas" : "")
+        + (op.ignoreOwnPermanent ? ", ignoring its own [Permanent] skill" : "")
         + (op.negated ? ` with its skills negated${op.negated === "game" ? " for the game" : " for the turn"}` : "");
       // "…with a marker on it" (13-2-3, #980): what the card arrives with.
       const on = op.markers === undefined ? "" : ` with ${describeAmount(op.markers)} marker${op.markers === 1 ? "" : "s"} on it`;
@@ -1564,6 +1570,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: '"if the revealed card\'s energy cost is the same as the declared number" (BT22-090): the card a reveal or a look bound, measured against the X a `declare` bound',
   },
+  xAtLeast: {
+    fields: [{ name: "n", type: "number", required: true }],
+    sentence: (raw) => `X is ${(raw as CondOf<"xAtLeast">).n} or more`,
+    doc: 'phrasing batch 10 (22-43): "if you removed a marker from one of your red Unison Cards using this skill" on a [Spirit Boost X] line (BT14-029) — the X its price was paid at is at least n. False when nothing bound X',
+  },
   varMatches: {
     fields: [
       { name: "var", type: "string", required: true },
@@ -1729,6 +1740,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   choseFrom:      "primitive",
   varMatches:     "macro over `count`",
   varAttrIsX:     "primitive",
+  xAtLeast:       "primitive",
   isTurnPlayer:   "primitive",
   asking:         "primitive",
   countering:     "primitive",

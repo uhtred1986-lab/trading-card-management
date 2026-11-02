@@ -72,7 +72,7 @@ export function skillPriceProblem(value: unknown, depth = 0, path = "price"): st
   const x = p!.x;
   if (x !== undefined) {
     if (!x || typeof x !== "object" || Array.isArray(x)) return "invalid X price bounds";
-    for (const [key, n] of Object.entries(x)) if (!["min", "max"].includes(key) || !Number.isInteger(n) || n < 0) return "invalid X price bounds";
+    for (const [key, n] of Object.entries(x)) if (key === "spiritBoost" ? n !== true : !["min", "max"].includes(key) || !Number.isInteger(n) || n < 0) return "invalid X price bounds";
     if ((x.max ?? Infinity) < (x.min ?? 0)) return "invalid X price bounds";
   }
   if (p!.payWith !== undefined) {

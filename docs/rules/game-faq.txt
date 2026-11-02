@@ -1,0 +1,888 @@
+Snapshot of https://www.dbs-cardgame.com/us-en/rule/game_faq.php taken 2026-11-02 by scripts/rules-sources.mts. Do not edit; re-run the script.
+
+General Rules
+Q1.When a card’s skill contradicts the rules, what takes precedence?
+A1.The card’s skill takes precedence.
+Q2.Can players look at each other’s life and decks?
+A2.No, they can’t. The contents of both players’ decks, Z-Decks, life cards, and their opponent’s hands are hidden information, and cannot be looked at during a game. You cannot change the order of cards in your deck, either.
+Q3.Can players look at the cards in each other’s Drop Areas and Leader Areas?
+A3.Yes, they can. Players are free to look at all cards other than those in each player’s deck, Z-Deck, life, and opponent’s hand.
+Q4.How many cards can you have in your hand?
+A4.There is no limit to the number of cards you can have in your hand.
+Q5.Can I place cards from the Battle Area into the Drop Area whenever I feel like it?
+A5.No, you cannot.
+Q6.What does it mean to “draw a card”?
+A6.When you “draw a card,” you take the top card of your deck without revealing it to anyone and place it in your hand.
+Q7.When I move cards to a different Area, can I choose to move them to an opponent’s Area?
+A7.No, you can’t. When moving cards, you can only move them to your own areas, unless explicitly otherwise specified.
+Q8.When a card originally controlled by a different player moves to a different area from the Battle Area or Combo Area, which player’s area does it go to?
+A8.It returns to the area of the card’s original owner.
+Q9.Can you use a skill that says “choose one of your blue energy and switch it to Active Mode” to switch a Blue/Yellow multicolor card to Active Mode?
+A9.Yes, you can.
+Q10.Is a Red/Green multicolor card a “non-red card”?
+A10.No, it's a red card.
+Q11.What is the difference between “Place it in their Drop Area” and “discard it”?
+A11.The wording “Place it in their Drop Area” has been changed to “discard it” with the release of UW01 - Rise of the Unison Warrior-. Though the wording is different, rule processing remains unchanged.
+Example:
+Previous wording:
+“Choose up to 1 card in your opponent's hand and place it in their Drop Area.”
+Updated wording:
+“Choose up to 1 card in your opponent's hand and discard it.”
+Q12.Are face-up life cards treated as being in an open area?
+A12.Yes, they are. Life cards are treated as being in a secret area, while face-up cards are treated as being in an open area.
+Q13.Can you use skills to add cards to my life such that I end up with 9 or more cards in my life?
+A13.Yes, you can. There’s no limit on the number of cards you can have in your life.
+Q14.This card uses a horizontal orientation. Does it follow the same rules for Rest/Active Mode that standard cards use?
+A14.No, it uses different orientations depending on what area it’s in.
+Battle Area
+Active Mode: The card is placed horizontally from your perspective.
+Rest Mode: Card is placed upside down, horizontally, from your perspective.
+Outside of Battle Area (Same as cards placed vertically)
+Active Mode: Card is placed vertically from your perspective.
+Rest Mode: Card is placed horizontally from your perspective.
+Q15.Is black counted as a color by the game rules?
+A15.Yes, it is.
+Q16.Can I add cards from my Z-Deck to my hand?
+A16.No. You can’t add Z-Cards to your hand, regardless of area. When a Z-Card moves from your Leader Area or Battle Area to any other area, it’s removed from the game instead.
+Q17.Do Z-Leader Cards count as Leader Cards?
+A17.Excepting cases that refer specifically to “Z-Leaders”, all rules and skills that apply to “Leaders” and “Leader Cards” also apply to Z-Leader Cards.
+Q18.Do Z-Battle Cards count as Battle Cards?
+A18.Excepting cases that refer specifically to “Z-Battle Cards”, all rules and skills that apply to “Battle Cards” also apply to Z-Battle Cards.
+Q19.Are Z-Extras treated as Extras?
+A19.Unless [Z-Extra] is directly specified, all rules and skills related to [Extra] cards also apply to [Z-Extra] cards.
+Deck Creation
+Q1.How many cards can I have in my deck and Z-Deck?
+A1.Your deck must include 1 Leader Card and 50 to 60 Battle/Extra/Unison Cards. You cannot have more than 60 cards or less than 50 cards in your deck. Your Z-Deck can include between 0 and 7 Z-Leader Cards and/or Z-Battle Cards.
+Q2.How many Leader Cards can I use in a game?
+A2.You are allowed to use a single Leader Card.
+Q3.How many cards with the same name can I use in a deck or Z-Deck?
+A3.As many as you like. However, you can only have four copies of a card with the same card number in a deck or Z-Deck.
+Q4.How many cards with the same character name can I use in a deck and Z-Deck?
+A4.As many as you like. However, you can only have four copies of a card with the same card number in a deck or Z-Deck.
+Z-Deck
+Q1.Can I include standard (non-Z) cards in my Z-Deck during deck construction?
+A1.No. Your Z-Deck can only include Z-Cards.
+Q2.Can I include Z-Cards in my normal deck during deck construction?
+A2.No. Only your Z-Deck can include Z-Cards.
+Q3.Can I include Z-Cards in my Side Deck during deck construction?
+A3.Yes, you can.
+Q4.Can I check my Z-Deck mid-game?
+A4.You can check your Z-Deck at any point during a game. Your opponent’s Z-Deck is a hidden area, like their normal deck, which means you can’t check it during a game.
+Q5.Do I have to arrange my Z-Deck in a certain order?
+A5.No. The cards in your Z-Deck can be arranged in any order. You can also change the order of cards in your Z-Deck during games.
+Q6.Do I have to use a Z-Deck?
+A6.No. Your Z-Deck can include between 0 to 7 cards. You don’t have to use one.
+Z-Energy
+Q1.Can I use Z-Energy to pay standard energy costs?
+A1.No, you can’t.
+Q2.Can I use standard energy to pay Z-Energy costs?
+A2.No, you can’t.
+Q3.When paying Z-Energy costs, can I choose which Z-Energy to pay with?
+A3.Yes, you get to choose. You can also change the order of your Z-Energy at any time during a game.
+Q4.When paying Z-Energy costs, does the color of the Z-Energy matter?
+A4.No. Unless otherwise specified, you can use Z-Energy of any color.
+Q5.If I use a skill to place a card in my Combo Area, can I add that card to my Z-Energy?
+A5.Yes, you can.
+Q6.If an end-of-battle effect would move a card from my Combo Area to a different area, can I add it to my Z-Energy?
+A6.Yes, you can.
+Game Setup
+Q1.When starting a game, how should players decide who goes first?
+A1.Dice, rock-paper-scissors and other means of generating a random outcome are all acceptable.
+Q2.How many times can a player redraw their hand at the start of the game?
+A2.One time only.
+Q3.When redrawing your hand, is it necessary to return your entire starting hand to the deck?
+A3.No, it’s not necessary. You may return as many (or as few) cards as you like to the deck, then redraw that same number of cards.
+Q4.Do you have to place the cards in your Life Area in a set order?
+A4.No, you don’t. You may place the top eight cards of your deck in the Life Area in whatever order you choose.
+Charge Phase
+Q1.When going first, do you draw a card from the deck during your first turn’s Charge Phase?
+A1.No. Players who go first do not draw during their first turn’s Charge Phase.
+Q2.Can you choose not to switch your cards in Rest Mode to Active Mode during the Charge Phase?
+A2.No, you can’t. You must switch your cards in Rest Mode to Active Mode during the Charge Phase.
+Q3.Can you choose not to draw a card during your Charge Phase?
+A3.No, you must draw a card.
+Q4.Can you choose not to place a card in the Energy Area during your Charge Phase?
+A4.Yes, this is a valid option.
+Q5.Can I place a card in my Z-Energy Area during my Charge Phase?
+A5.No, you can’t.
+Q6.Do Extras placed in the Battle Area switch to Active Mode?
+A6.Yes, they do.
+Main Phase
+Q1.Can you take actions during the Main Phase in whatever order you choose?
+A1.Yes, you can.
+Q2.Can you play as many Battle Cards and Z-Battle Cards as you like during a single turn?
+A2.Yes, you can.
+Q3.Is there a limit to the number of Battle Cards and Z-Battle Cards you can play in the Battle Area?
+A3.There’s no limit. You can play as many Battle Cards and Z-Battle Cards as you like.
+Q4.Can you play as many cards with the same name and character name in the Battle Area as you want?
+A4.Yes. There’s no limit to the number of cards you can play in the Battle Area with the same name.
+Q5.Can you activate as many Extra Cards as you want during a single turn?
+A5.Yes, there’s no limit to the number of Extra Cards you can activate during a turn.
+Q6.Where do Extra Cards go after their skill activates?
+A6.Extra Cards are placed in the Drop Area when they activate.
+Q7.Can you activate [Activate: Main] as many times as you want during a single turn?
+A7.Yes, you can.
+Q8.Can the player who goes first start a battle on the first turn of the game?
+A8.No, they cannot. No battles can occur on the first turn of the game.
+Unison Cards
+Q1.You activate a Unison Card’s [-1] skill. Can you activate that card’s [+2] skill later in the same turn?
+A1.No, you can’t.
+Q2.You have a Unison Card with two markers on it. Can you activate its [-3] skill?
+A2.No, you can’t activate it, as you can’t pay for the [-3]’s skill cost.
+Q3.During a battle where your Unison Card is being attacked, can you combo?
+A3.No, you can’t. During battles where Unison Cards are attacked, there is no Defense Step.
+Q4.During a battle where your Unison Card is attacking, can you combo?
+A4.Yes, you can.
+Q5.If the skills on a Unison Card in your Unison Area are negated, are the markers placed on that card removed?
+A5.No, they’re not.
+Q6.Are Unison Cards treated as Leader Cards? Are they treated as Battle Cards?
+A6.No, they’re treated as neither. They are treated as Unison Cards only.
+Q7.If your opponent has a Unison Card in Active Mode, can you attack it?
+A7.Yes, you can. Unison Cards in Active Mode can be attacked, just like Leader Cards.
+Q8.Do Unison Cards have character names or special traits?
+A8.No, they don’t.
+Q9.How many copies of a Unison Card with the same card number can you include in your deck?
+A9.Up to 4 copies.
+Q10.You switch 4 energy to Rest Mode to play a Unison Card with a specified cost of 2. How many markers do you place on the Unison Card?
+A10.4 markers. Unison Cards come into play with a number of markers equal to the amount of energy paid to play it.
+Q11.If you already have a Unison Card in play, can you play a new one?
+A11.Yes, you can. The current Unison Card is placed in its owner’s Drop Area, and the new Unison Card enters play.
+Q12.If I have a Unison Card in my hand with the same card number as the Unison Card in my Unison Area, can I play it?
+A12.Once per turn, if a player has a Unison Card in their hand with the same card number as the Unison Card in their Unison Area, they can place that card under the Unison Card in their Unison Area. If they do, they add 1 marker to the Unison Card in their Unison Area. This is called “Unison Card Growth”. (Official Rules 13-3-2)
+Q13.If a Unison Card loses a battle, is it placed in its owner’s Drop Area?
+A13.No, it isn’t. When a Unison Card loses a battle, a marker is removed from it.
+Q14.How does the game handle a Unison Card being attacked by cards with [Double Strike], [Triple Strike], etc.?
+A14.If a Unison Card loses a battle against a card with [Double Strike], 2 markers are removed from it. With [Triple Strike] it would be 3 markers.
+Q15.If your Unison Card runs out of markers, do you add a card from your life to your hand?
+A15.No, you don’t. When a Unison Card has no markers left on it, it is placed in its owner’s Drop Area.
+Q16.One or more markers are removed from a Unison Card whose power has been modified. Does the Unison Card’s power revert to its original value?
+A16.Yes. Any continuous effects on the Unison Card end. If its power was being modified, its power reverts to its original value.
+Q17.Your opponent uses a skill to reduce your Unison Card’s power by 5000. You then use a skill on your Unison Card that reads: “[-1][Activate: Main] This card gets +5000 power for the turn.” What is your Unison Card’s power?
+A17.After paying the skill cost for the Unison Card’s [-1] skill, all continuous effects on the Unison Card end, and its modified power reverts to its original value. The Unison Card’s [Activate] skill then activates and resolves, giving the Unison Card +5000 power.
+Q18.When paying energy to play a Unison Card, when is the card’s cost determined?
+A18.The energy cost to be paid is determined when a player reveals the Unison Card they’re playing from their hand.
+Q19.Your opponent plays a Unison Card. Can you activate the [Counter: Play] skill on {BT7-058 Vegeta the Cruel} and activate its [Auto] skill?
+A19.Yes, you can. However, {BT7-058 Vegeta the Cruel}’s [Auto] skill only works against Battle Cards, and can’t be used against Unison Cards.
+Q20.If a Unison Card KOs a Battle Card that has [Revenge], what happens to it?
+A20.Unison Cards are not Battle Cards, so they can’t be KO’d by [Revenge].
+Q21.A player uses a marker skill on a Unison Card in play. Can a player activate a marker skill on a different Unison Card with the same name during that turn?
+A21.Yes, they can.
+Q22.If a card skill reduces a Unison Card’s power to zero or less, do you remove a marker from it?
+A22.Yes, you do. Then, all continuous effects modifying the card’s power are reset to normal.
+Z-Leader Cards
+Q1.Z-Leader Cards don’t have energy costs. How do I use them?
+A1.Choose 1 Leader Card in your Leader Area which a) is turned to its back side b) meets the Z-Card’s requirements, and c) isn’t a Z-Card. Then, pay the specified amount of Z-Energy, pay the skill cost for the requirements, and declare the activation of the Z-Leader’s [Z-Awaken].
+Q2.If my Leader is a Z-Leader, is it treated as if it’s turned to its back side?
+A2.No, it’s not.
+Q3.When a Z-Leader in my Leader Area is removed from the game, what happens to the Leader Card that was originally there?
+A3.The Leader remains in your Leader Area, back side up.
+Q4.If I use {BT7-079 Hit, Pride of Universe 6}’s [Auto] skill to force my Z-Leader to flip over, what happens to the Z-Leader?
+A4.Z-Leaders don’t have back sides, so it’s unaffected.
+Z-Battle Cards
+Q1.Can I activate a [Counter : Play] skill when my opponent declares they’re playing a Z-Battle Card?
+A1.Yes, you can.
+Q2.What happens to a Z-Battle Card that fails to come into play?
+A2.It’s removed from the game.
+Q3.What happens if a Z-Battle Card is placed under a Battle Card?
+A3.It’s not leaving the Battle Area, so it remains under the card.
+Q4.I have a Z-Battle Card under a Battle Card. If that Battle Card moves from my Battle Area to a different area, what happens to the Z-Battle Card?
+A4.It’s removed from the game.
+Q5.I have a Battle Card under a Z-Battle Card. If the Z-Battle Card moves from my Battle Area to a different area, what happens to the Battle Card?
+A5.If it’s not a Z-Card, it will be placed in its owner’s Drop.
+Skills
+Q1.Can you activate the skills of cards in the Drop Area or Energy Area?
+A1.No, you cannot. As a general rule, skills can only be activated on cards in the Battle Area unless specified otherwise.
+Q2.What do the different parentheses on card skills mean?
+A2.｛｝are used for card names, ＜＞ for character names, and 《》 for special traits.Cards and skills that refer to card text in parentheses affect cards with the same card text in the same kind of parentheses.
+Q3.How long are permanent skills active for?
+A3.Permanent skills remain active continuously from the moment they are valid.
+Q4.Do permanent skills remain active during your opponent’s turn as well?
+A4.Yes, unless otherwise specified.
+Q5.When do auto skills activate?
+A5.They automatically activate at the specified timing.
+Q6.Do auto skills activate even during your opponent’s turn?
+A6.Yes, they do.
+Q7.How do you resolve multiple auto skills activating at the same time?
+A7.You may resolve them one by one in the order of your choosing.
+Q8.What happens when both your and your opponent’s auto skills activate at the same time?
+A8.Resolve the auto skill of the player whose turn it is first, and then resolve the other player’s auto skill.
+Q9.What happens when an auto skill activates during the resolution of a skill?
+A9.Resolve the activated auto skill after fully resolving the current skill.
+Q10.Which activates first: auto skills or permanent skills?
+A10.Permanent skills become valid first.
+Q11.When the target of an attack during battle changes to a different card, do the “when attacked” auto skills on that card activate?
+A11.Yes, they do. “When attacked” skills activate the moment the attack target is changed to them, even if they weren’t originally the target of attack.
+Q12.When choosing “up to 1 card,” can you opt not to choose a card?
+A12.Yes, you can.
+When a card asks you to choose “up to” some number of cards, choosing zero cards is a valid option.
+Q13.When a card asks you to choose “one card,” can you opt not to choose a card?
+A13.No, you cannot.
+If the wording on the card does not include the words “up to,” you must choose the specified number if possible.
+Q14. If you could only choose 1 card for a skill that specifies to choose 2 cards, do you have to choose and apply the skill to that 1 card?
+A14.Yes, you must.
+If you can choose the specified number of cards, choose cards as close as you can to that number.
+Q15.Unless otherwise specified, do skills that affect Battle Cards affect Battle Cards in all areas?
+A15.No, they only affect Battle Cards in the Battle Area.
+Unless otherwise specified, such skills only affect Battle Cards in the Battle Area.
+Q16.You activate a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?
+A16.No, you cannot.
+Resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary.
+Q17.When you play a card onto cards placed in the Battle Area, in what position is it played in?
+A17.Unless specified otherwise, the card is played in the same position as the card it is being placed on.
+Q18.When you play a Battle Card onto Battle Cards placed in the Battle Area, are effects modifying the power of the Battle Card in play carried over to the new Battle Card?
+A18.Yes, they are.
+Q19.When you play a Battle Card onto Battle Cards placed in the Battle Area, are effects affecting the Battle Card in play carried over to the new Battle Card?
+A19.No, they are not.
+Q20. If you play a Battle Card onto a Battle Card under the effect of a “this card gains +5000 power and Double Strike” skill, does the new Battle Card gain Double Strike and +5000 power?
+A20. It gains +5000 power, but not Double Strike.
+Q21.What happens to Battle Cards that reach zero power or below as a result of effects that reduce power?
+A21.A Battle Card that drops to zero power or below is placed in its owner’s Drop Area.
+Q22.What happens to Leader Cards that reach zero power or below as a result of effects that reduce power?
+A22.Leader Cards can’t be KO’d, but their power can drop below zero (For example: -5000).
+Q23.You own a Battle Card with an auto skill that activates when it’s KO'd. If it’s KO'd in your opponent's Battle Area, which player gets to resolve the card's auto skill?
+A23.You get to resolve it.
+When the condition of the card being KO'd is fulfilled, you’re the master of the card, which means you’re also the master of the auto skill, which means you get to resolve it.
+Q24. A card’s energy cost has been reduced as a result of a permanent skill. Does this reduce its specified cost as well?
+A24.No, it doesn’t.
+Q25.When playing a card when its “play this card in your hand without paying its energy cost” permanent skill is in effect, do you have to pay that card’s specified cost?
+A25.No, you don’t.
+Q26.When there is a Red/Green card in my energy, can I switch that card to Rest Mode in order to play a Battle Card with an energy cost of 2 and a specified cost of 1 green energy?
+A26.No, you can’t.
+Q27.When do Permanent skills activate? Do they take effect in your hand, or only after being played?
+A27.Skills like those on {DB1-066 King Vegeta, the Majestic Ruler} apply the moment they are played in your Battle Area.
+Reference:
+Official Rules 9-5-1:
+[Permanent] skills are skills that constantly have some kind of effect on gameplay while they are active.
+Q28.When a trigger condition for an auto skill with a skill cost is fulfilled, does the auto skill have to be activated?
+A28.No. If it has a skill cost, you can choose not to pay it, thereby choosing not to activate the skill. If an auto skill has already had its skill costs fulfilled when its trigger condition is fulfilled, it activates. (See example below.)
+Example: [Auto] If your Leader Card is red : ＜Skill Text Goes Here＞”
+Q29.When face-down life gets turned face up, or when you add face-up cards to your life, are you required to shuffle your life?
+A29.Unless otherwise specified, you don’t need to shuffle your life.
+Q30.When face-up life gets turned face down, or when you add face-down cards to your life, are you required to shuffle your life?
+A30.Unless otherwise specified, you don’t need to shuffle your life.
+Q31.When adding a face-up card to your life with a skill, does it get turned face down after the skill resolves?
+A31.Unless otherwise specified, it remains face up.
+Q32.If a skill results in both players having zero cards in their deck, does the turn player lose the game?
+A32.Yes, the turn player loses the game.
+Battle
+Q1.Can you attack your own cards?
+A1.No, you can only attack your opponent’s cards. Generally, you can only attack Battle Cards in Rest Mode.
+Q2.Can you attack your opponent’s Battle Cards that are in Active Mode?
+A2.No, you cannot.
+Q3.Can you attack a Leader Card or a Unison Card in Active Mode?
+A3.Yes, you can.
+You can attack a Leader Card or a Unison Card regardless of what mode they are in.
+Offense Step & Defense Step
+Q1.Can you play Battle Cards during your Offense Step while attacking? Can you play Battle Cards during your Defense Step while being attacked?
+A1.No, you cannot.
+Q2.Can you activate [Activate: Main] skills during your Offense Step while attacking or being attacked?
+A2.No, you cannot.
+You can only activate [Activate: Battle] skills during the Offense Step and Defense Step before attacking or being attacked.
+Q3.Can you activate [Awaken] during the Offense Step or Defense Step?
+A3.Yes, you can.
+Combo
+Q1.When can you combo?
+A1.During your Offense Step while attacking, or Defense Step while being attacked.
+Q2.Do you have to combo during a battle?
+A2.No, you do not.
+Q3.How many cards can you combo with during a single battle?
+A3.As many as you wish.
+Q4.How many times can you combo during a single step?
+A4.As many times as you wish.
+Q5.Can you simultaneously combo with 2 or more cards?
+A5.No, you cannot.
+Combos fundamentally use 1 card at a time.
+Q6.What happens to cards in my Combo Area at the end of a battle?
+A6.During the Battle End Step, you can place 1 card from your Combo Area in your Z-Energy Area. The remaining cards are placed in their owners’ Drops.
+Q7.Can you activate [Counter: Attack] after you combo?
+A7.No you cannot.
+[Counter: Attack] activates when a player attacks.
+Q8.Can you activate [Blocker] after you combo?
+A8.No, you cannot.
+[Blocker] activates when a player attacks.
+Damage Step
+Q1.If the both cards in a battle have the same power, which one wins?
+A1.The attacking card wins.
+Q2.If the power of the attacking card is lower than the power of the attacked card, what happens to the attacking card?
+A2.Nothing happens when an attacking card loses a battle.
+Q3.When you are dealt damage and add a card from your Life Area to your hand, can you choose which card to add to your hand?
+A3.Yes, you can choose which card to add to your hand from your Life Area.
+Q4.What happens to a KO’d Battle Card?
+A4.It is placed in the Drop Area.
+Q5.Your opponent’s Leader Card has -15000 power. If you attack it using your Leader Card with 0 power, will your opponent take damage?
+A5.Yes, they will.
+Q6.What happens to a KO’d Z-Battle Card?
+A6.It’s removed from the game instead of being placed in a Drop.
+Z-Extras
+Q1.What are Z-Extras?
+A1.Z-Extras are cards that can be placed in your Battle Area by paying the energy cost and Z-Energy cost during your Main Phase.
+Q2.Can skills on Z-Extras activate from a Drop like they can for Extras?
+A2.No, skills on Z-Extras only activate from the Battle Area.
+Q3.Can you activate a [Counter : Play] skill when a Z-Extra is played on the field?
+A3.No, you can't.
+Q4.What happens if you want to play another Z-Extra when there's already a Z-Extra on the field?
+A4.You can place a new Z-Extra if you remove the existing Z-Extra on the field from the game.
+Q5.What happens if you can't place the Z-Extra in the Battle Area due to a skill?
+A5.You remove it from the game.
+Q6.If activation of an Extra is referenced in cases such as "can't activate Extras" or "when an Extra is activated," does it affect actions that place a Z-Extra in a Battle Area?
+A6.No, it doesn't. Unless otherwise specified, when a skill refers to “activating an Extra,” this is referring to actions that activate an [Auto] or [Activate] skill on an Extra card from a player’s hand.
+Q7.If activation of an Extra is referenced in cases such as "can't activate Extras" or "when an Extra is activated," does it affect actions that activate an [Auto] or [Activate] skill on a Z-Extra placed in a Battle Area?
+A7.No, it doesn't. Unless otherwise specified, when a skill refers to “activating an Extra,” this is referring to actions that activate an [Auto] or [Activate] skill on an Extra card from a player’s hand.
+Q8.If activation of an Extra is referenced in cases such as "can't activate Extra skills" or "when an Extra skill is activated," does it affect actions that activate an [Auto] or [Activate] skill on a Z-Extra placed in a Battle Area?
+A8.Yes, it does.
+Q9.If a Z-Extra is placed under a card in the Battle Area by a [Z-Stack] skill on a Z-Battle Card, does this meet the trigger conditions for [Auto] skills that read "when a Z-Extra is placed in the Battle Area"?
+A9.No, it doesn't.
+Z-Unisons
+Q1.If you already have a Z-Unison in play, can you play a new one?
+A1.Yes, you can. Your current Z-Unison will be removed from the game, then the new Z-Unison is played into the Unison Area.
+Q2.Can you strengthen a Unison Card by placing a Z-Unison with the same card number from your Z-Deck under a Z-Unison?
+A2.No, you can't.
+Q3.What happens if you use a skill that gains control of a Unison to move a Z-Unison to your opponent's Unison Area?
+A3.The card is removed from the game instead of being moved.
+Q4.If your opponent already has a Unison in their Unison Area, and you use a skill that gains control of a Unison to move your Z-Unison to your opponent's Unison Area, what happens to your opponent's Unison?
+A4.Your opponent's Unison remains in the Unison Area.
+Q5.If a card is under a Z-Unison and that Z-Unison moves from the Unison Area to another area, what happens to the card under it?
+A5.Unless it's a Z-Card, it's placed in its owner's Drop.
+Q6.If a Z-Unison with Empower is played when a Z-Unison is already in play, is it played with additional markers?
+A6.No, it isn't. Empower is a skill that adds markers when playing a Unison with this skill after placing the Unison already in play into its owner's Drop. But because Z-Unisons are removed from the game when they leave the Unison Area instead of being placed in the Drop, markers aren't added when using Empower.
+Q7.What happens to Z-Unisons that can't be played into the Unison Area due to skills like [Counter : Play]?
+A7.They're removed from the game.
+Keywords
+[Blocker]
+Q1.When you have a Battle Card with [Blocker] in play, do you have to activate its [Blocker] skill when the opponent attacks?
+A1.No, you can choose not to activate [Blocker] during attacks.
+Q2.Which resolves first: [Blocker], or an auto skill activated by attacking?
+A2.Resolve the auto skill activated by attacking first, then resolve [Blocker].
+[Strike] ([Double Strike] [Triple Strike] [Quadruple Strike])
+Q1.When you are dealt two or more damage, do you add two cards to your hand simultaneously?
+A1.No. Add them one at a time.
+Q2.How much damage does a card with both [Double Strike] and [Triple Strike] deal to your opponent’s life?
+A2.It deals three damage.
+If a card has multiple [Strike] skills, the [Strike] skill that does the most damage applies.
+Q3.If a card that originally had [Double Strike] gains [Double Strike] from another card or skill, does it gain [Triple Strike]?
+A3.No, it does not.
+[Dual Attack]
+Q1.A card with [Dual Attack] had its first attack negated. Can you still switch it to Active Mode after the attack?
+A1.Yes, you can.
+Even if an attack is negated, skills that activate at the end of a battle still resolve, allowing you to switch a card with [Dual Attack] to Active Mode.
+Q2.If a card that originally had [Dual Attack] gains [Dual Attack] from another card or skill, does it gain [Triple Attack]?
+A2.No, it does not.
+Q3.A card with [Dual Attack] attacks, activates [Dual Attack] at the end of the battle, and switches to Active Mode. Afterwards, that same card gains [Dual Attack] from another skill. If that card attacks again during the same turn, does this second [Dual Attack] activate at the end of the battle?
+A3.Yes, it does.
+In this case, the card can attack a total of three times during that turn.
+[Critical]
+Q1.If a card with [Critical] deals two or more points of damage, do that many cards get placed in the Drop Area from the opponent’s Life Area?
+A1.Yes, they do.
+[Revenge]
+Q1.A Battle Card with [Revenge] was KO-ed by an attack. Can you still KO the attacking card?
+A1.Yes, you can.
+Q2.A Battle Card with [Revenge] is attacked, and you activate the [Blocker] skill from another card to switch the target of the attack. Do you still get to KO the attacking card at the end of the battle?
+A2.Yes, you do.
+When a Battle Card with [Revenge] is attacked, [Revenge] is activated and waiting to be processed. So, even if the guarding card is changed to another one with [Blocker], the attacking Battle Card can still be KO’d by [Revenge] at the end of that battle.
+Q3.You negate an attack targeting one of your Battle Cards with [Revenge]. Can you still KO the attacking card at the end of the battle?
+A3.Yes, you can.
+At the moment an attack is declared on a Battle Card with [Revenge], it becomes the guarding card and [Revenge] is activated but waiting to be processed. So, even if the attack is later negated, the opponent’s Battle Card can still be KO’d by [Revenge] at the end of that battle.
+Q4.If one of your cards gains [Revenge] during your Defense Step, does the card that gained [Revenge] KO the Battle Card attacking it?
+A4.No, it doesn’t.
+[Revenge] is an [Auto] keyword skill which is described as, “This skill activates when this card becomes a guard card, KO’ing the attack card at the end of the battle,” so it won’t activate, even if a card gains [Revenge] during your Defense Step.
+Q5.If a Leader Card KOs a Battle Card that has [Revenge], what happens to it?
+A5.Leader Cards are not Battle Cards, so they can’t be KO’d by [Revenge].
+[Counter]
+Q1.Where can you activate [Counter]-type skills from?
+A1.Unlike other skills, [Counter] can only be activated from your hand.
+Q2.Can you activate a [Counter]-type skill in response to your own actions?
+A2.No, you cannot.
+[Counter] can only be activated in response to your opponent’s actions.
+Q3.Which resolves first, a [Counter]-type skill or an opponent’s auto skill that is activated by that Counter?
+A3.The [Counter]-type skill resolves first.
+Q4.Can you activate multiple [Counter]-type skills at once?
+A4.No, you cannot.
+Even if the specified timing is the same, you can only activate one counter per counter timing.
+Q5.When activating a Battle Card’s [Counter]-type skill, can you activate it without paying the card’s energy cost?
+A5.No, you must pay the energy cost.[Counter] skills can be activated from your hand by paying the card’s energy cost.
+Q6.What happens to energy spent to pay for an action negated by a [Counter]-type skill?
+A6.It remains spent.Even if the action was negated, you do not regain spent energy.
+Q7.When can I activate a [Counter: Play] skill against an opponent’s skill that puts a Battle Card into play?
+A7.[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play.
+Q8.Can you play [Counter: Play] skills against skills that mention “Evolve” in their card text?
+A8.Yes, you can.
+“Evolve”’s explanatory text includes the words “play this card,” so you can activate [Counter: Play] skills against it.
+Q9.When can you activate a [Counter] against your opponent’s [Counter]?
+A9.You can only activate it after your opponent activates their own [Counter] but before it resolves.
+[Counter] skills are activated and resolved during a special timing window called counter timing, but it ends as soon as one [Counter] skill begins to resolve. Once counter timing ends, [Counter] skills can no longer be activated, which means that new [Counter] skills can’t be activated once a [Counter] finishes resolving.
+Q10.When a Battle Card activates a skill with “[Counter : Attack] Negate the attack and play this card”, if you can’t play that card because of a card’s permanent skill, how does the [Counter : Attack] resolve?
+A10.After the opponent’s attack is negated with the [Counter : Attack] skill, the permanent skill makes it so the opponent can’t play the card with [Counter : Attack], so it’s sent to its owner’s Drop Area.
+Q11.Can you give more detailed explanations of [Counter: Play] card’s counter timings?
+A11.A: When paying energy to play a Battle Card from your hand:
+1) Declare that you’re playing a Battle Card.
+2) Your opponent activates and resolves a [Counter: Play] card.
+3) Play the Battle Card, and if it has a [Permanent] skill that would apply, it now takes effect.
+B: When paying energy to play a Z-Battle Card from your Z-Deck:
+1) Declare that you’re playing a Z-Battle Card.
+2) Your opponent activates and resolves a [Counter: Play] card.
+3) Play the Z-Battle Card, and if it has a [Permanent] skill that would apply, it now takes effect.
+C: When playing a Battle Card via a skill (First Counter Window):
+1) Activate the skill that plays a Battle Card.
+2) Your opponent activates and resolves a [Counter: Play] card.
+3) Play the Battle Card, and if it has a [Permanent] skill that would apply, it now takes effect.
+D: When playing a Battle Card via a skill (Second Counter Window):
+1) Activate the skill that plays a Battle Card.
+2) Play the Battle Card, and if it has a [Permanent] skill that would apply, it now takes effect.
+3) Once the Battle Card has been played, your opponent activates and resolves a [Counter: Play] card.
+[Evolve (EX-Evolve)]
+Q1.Where can [Evolve] ([EX-Evolve]) be activated from?
+A1.Unlike other skills, [Evolve] can only be activated from your hand.
+Q2.When can you activate [Evolve] ([EX-Evolve])?
+A2.During your Main Phase.
+Q3.When you play a card with [Evolve] ([EX-Evolve]), does its “when you play this card” skill(s) activate?
+A3.Yes, they do.
+Q4.You use [EX-Evolve] to play a card on top of a card in Rest Mode. What position does the evolved card enter play in?
+A4.It enters play in Rest Mode.
+Cards played on top of other cards have the same position as the cards placed below them.
+Q5.You use [Evolve] ([EX-Evolve]) to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card?
+A5.The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not.
+Q6.You use [Evolve] (EX-Evolve) to play a card on top of a card that had its skill negated for the duration of the turn. Are the skills on the card you just evolved into also negated?
+A6.They’re not.
+When playing cards on top of other cards, only changes to power carry over. Any effects on the bottom card are ignored.
+Q7.You play a card on top of another card using [Evolve] ([EX-Evolve]). What happens to the original card?
+A7.Both the bottom card and any card(s) placed on top of it are treated as a single card. Unless specified otherwise, any information on cards other than the top card are ignored. In addition, cards placed beneath other cards can’t participate in battle.
+Q8.Can you evolve a card that has already evolved from different card(s)?
+A8.Yes, you can.
+Place the new card on top of any previously evolved cards.
+Q9.Are you allowed to look at the cards placed under cards played with [Evolve]?
+A9.Yes, you are.
+Q10.If a card played with [Evolve] moves to a different area, what happens to the cards below it?
+A10.They are placed in the Drop Area.
+Q11.If you use [EX-Evolve] to play a card, does its “When a card evolves into this card” auto skill(s) activate?
+A11.Yes, they do.
+Q12.Can I declare an [Evolve] activation by specifying a Z-Battle Card?
+A12.Yes, as long as the card meets the [Evolve] requirements.
+[Awaken]
+Q1.Can you activate the skills from a Leader Card’s Awakened form before it awakens? How about the other way around?
+A1.No you cannot activate the skills from a Leader Card’s Awakened form before it awakens. You can only activate the skills currently visible on the card.
+Q2.You awaken your Leader Card after declaring an attack. At this point, can you activate the skills of your awakened leader card that activate when the card attacks?
+A2.No, you cannot.
+The Leader Card was not awakened at the time you declared your attack, so the skills do not activate.
+Q3.A card in Rest Mode activates [Awaken]. What position should it be in when it flips over?
+A3.It remains in Rest Mode.
+Q4.A card has received +5000 power and [Double Strike] for the duration of the turn. You activate [Awaken] on the card and flip it over. Do the power boosts and skills transfer now that the card has flipped over?
+A4.The card retains the +5000 power boost, but does not retain [Double Strike].
+[Awaken : Surge]
+Q1.When can you activate this skill?
+A1.You can activate it at [Activate : Main/Battle] timing.
+Q2.Does activating [Awaken : Surge] trigger skills that say “When you activate [Awaken]”?
+A2.Yes, it does.
+Q3.Are cards placed under my Leader Card for [Awaken : Surge]’s skill cost placed face up?
+A3.Yes, they are.
+Q4. If [Awaken : Surge]’s skill cost specifies two colors, can I use a single multicolor card to pay it?
+A4.No, you can’t.
+[Indestructible]
+Q1.Can you activate｛BT1-065 Furious Yell Vegeta｝’s activate skill targeting a Battle Card with [Indestructible]?
+A1.Yes, you can.
+In this case, the Battle Card with [Indestructible] is not KO-ed.
+Q2.Can you combo with cards which have [Indestructible] from the Battle Area?
+A2.Yes, you can.
+Q3.When you choose a Battle Card with [Indestructible] due to your opponent’s {BT1-057 Broly, The Legendary Super Saiyan}’s auto skill, is it placed in the Drop Area?
+A3.No, it is not.
+Cards with [Indestructible do not leave the Battle Area due to your opponent’s skills.
+Q4.When you choose a Battle Card with [Indestructible] with {BT1-057 Broly, The Legendary Super Saiyan}’s auto skill, is it placed in the Drop Area?
+A4.Yes, it is.
+[Indestructible] is a skill which prevents a card from being KO-ed or removed from the Battle Area due to opponent Effects, but not your own.
+Q5.Can you use a skill that gains control of an opponent’s Battle Card to gain control of an opponent’s Battle Card with [Indestructible]?
+A5.No, you can’t.
+Q6.If your Battle Card with [Indestructible] has its power lowered to 0 or less by an opponent’s skill, is it placed in your Drop Area?
+A6.Yes, it is placed in your Drop Area.
+Skills like [Indestructible] prevent cards from being removed from your Battle Area, but they still get placed in your Drop Area when an opponent’s skill reduces their power to zero or less. After you check to see if a card would be placed in the Drop Area by a skill, you then check to see if the card would be placed there by rules processing. The reason this is possible is because, in this instance, rules processing is what places cards in the Drop Area, not the skill itself.
+[Union-Fusion]
+Q1.From where can [Union-Fusion] be activated?
+A1.They are different from other skills and can only be activated from your hand.
+Q2.Can [Union-Fusion] be activated by placing the specified cards in the Drop Area from the Battle Area?
+A2.No, it cannot.
+[Union-Fusion] is activated by placing the specified cards in the Drop Area from your hand.
+Q3.When you play a card with [Union-Fusion], does its “When you play this card” auto skills activate?
+A3.Yes, they do.
+Q4.Can you activate [Union-Fusion] even if the specified card (which you choose to discard) do not have the same power?
+A4.No, you cannot.
+The cards you place in the Drop Area must be the specified cards with the same power.
+Q5.Can you activate [Union-Fusion] by placing only 1 of the specified cards in the Drop Area?
+A5.No, you cannot.
+You need all the specified cards to activate [Union-Fusion].
+Q6.When can you activate [Union-Fusion]?
+A6.During your Main Phase.
+Q7.Can you use [Union-Fusion] by placing the specified cards from your Battle Area into the Drop Area?
+A7.No, you can’t. [Union-Fusion] requires you to discard the specified cards from your hand.
+[Union-Potara]
+Q1.From where can [Union-Potara] be activated from?
+A1.[Union-Potara] is different from other skills and can only be activated from your hand.
+Q2.When you play a card with [Union-Potara], does its “When you play this card” auto skills activate?
+A2.Yes, it does.
+Q3.You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card?
+A3.The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not.
+Q4. What happens to cards stacked under a card which was played with [Union-Potara]?
+A4.They are treated as a single card along with the cards stacked above it. Unless a skill specifies otherwise, all card text contained on those cards is ignored, and none of the cards can participate in battle.
+Q5.Can you evolve cards which have been played with [Union-Potara] into other cards?
+A5.Yes, you can.
+Place the new card on top of the existing stack of cards.
+Q6.Are you allowed to look at the cards placed under cards played with[Union-Potara]?
+A6.Yes, you are.
+Q7.If a card played with [Union-Potara] moves to a different area, what happens to the cards below it?
+A7.They are placed in the Drop Area.
+Q8.When can you activate [Union-Potara]?
+A8.During your Main Phase.
+Q9.You use [Union-Potara] to play a card on top of a card that had its skill negated for the duration of the turn. Are the skills on the card you just played also negated?
+A9.They’re not.
+When playing cards on top of other cards, only changes to power carry over. Any effects on the bottom card are ignored.
+[Union-Absorb]
+Q1.From where can [Union-Absorb] be activated from?
+A1.[Union-Absorb] can only be activated by cards in play in the Battle Area.
+Q2.When you play a card with [Union-Absorb], does its “when you play this card” skills activate?
+A2.Yes, they do.
+Q3.You use [Union-Absorb] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card?
+A3.The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not.
+Q4.What happens to cards stacked under a card which was played with [Union-Absorb]?
+A4.They are treated as a single card along with the cards stacked above it. Unless a skill specifies otherwise, all card text contained on those cards is ignored, and none of the cards can participate in battle.
+Q5.Can you evolve cards which have been played with [Union-Potara] into other cards?
+A5.Yes, you can.
+Place the new card on top of the existing stack of cards.
+Q6.Are you allowed to look at the cards placed under cards played with [Union-Absorb]?
+A6.Yes, you are.
+Q7.If a card played with [Union-Absorb] moves to a different area, what happens to the cards below it?
+A7.They are placed in the Drop Area.
+Q8.When can you activate [Union-Absorb]?
+A8.During your Main Phase.
+Q9.You use [Union-Absorb] to play a card on top of a card in Rest Mode. What position does the evolved card enter play in?
+A9.It enters play in Rest Mode.
+Cards played on top of other cards retain the position of the cards placed below them.
+[Ultimate]
+Q1.Can you include 4 copies of a card with [Ultimate] in your deck?
+A1.No, you cannot.
+You can only include 1 card with [Ultimate] (even if it is the same card) in your deck.
+Q2.Can you include a total of 2 or more cards with [Ultimate] in your deck if they’re split between your deck and side deck?
+A2.No, you can’t.
+You can only include a total of 1 card with [Ultimate] combined between your deck and side deck.
+[Triple Attack]
+Q1.A card with [Triple Attack] had its attack negated. Can you still switch it to Active Mode after the attack?
+A1.Yes, you can.
+Even if an attack is negated, skills that activate at the end of a battle still resolve, allowing you to switch a card with [Triple Attack] to Active Mode.
+Q2.If a card with [Triple Attack] gains [Dual attack], is it able to attack 4 times?
+A2.No, it cannot.
+Q3.A card with [Dual Attack] attacks, activates [Dual Attack] at the end of the battle, and switches to Active Mode. Afterwards, that same card gains [Triple Attack] from another skill. If that card attacks again during the same turn, does its [Triple Attack] activate at the end of the battle?
+A3.Yes, it does.
+In this case, the card can attack a total of four times during that turn.
+[Over Realm]
+Q1.When can I activate [Over Realm]?
+A1.You can activate [Over Realm] during your main phase.
+Q2.Where can I activate [Over Realm] from?
+A2.You can activate [Over Realm] on cards in your hand.
+Q3.Can I combo with Battle Cards played using [Over Realm]?
+A3.Yes, you can.
+Q4.I have 4 cards in my Drop Area when I activate [Over Realm 3]. How many cards from my Drop Area do I place in my Warp?
+A4.Place 4 cards from your Drop Area into your Warp. [Over Realm] skills require you to place all cards in your Drop Area in your Warp upon activation.
+Q5.Do I have to pay a card’s energy cost when playing it with [Over Realm]?
+A5.No, you don’t.
+When you play a card using [Over Realm], you don’t have to pay its energy cost.
+Q6.After activating [Over Realm] on a card, can I activate [Over Realm] on another card during the same turn?
+A6.No, you can’t.
+You can only activate [Over Realm] once a turn.
+Q7.My opponent activates {BT1-107 Cold Bloodlust} in response to my [Over Realm] activation. At the end of the turn, is the Battle Card played with the [Over Realm] activation that was negated by {BT1-107 Cold Bloodlust} sent to my Warp?
+A7.The skills of the card played with [Over Realm] are negated, yet the [Over Realm] skill itself is not negated as it was activated before the activation of {BT1-107 Cold Bloodlust}.
+Q8.If a card played via [Over Realm] ends up in my Drop Area at the end of the turn, does it get sent to the Warp?
+A8.No, it doesn’t.
+It’s only sent to the Warp if it’s still in the Battle Area at the end of the turn.
+Q9.You activated {Cold Bloodlust} against the opponent’s [Over Realm]. Does the opponent still send cards in their Drop Area to the Warp?
+A9.Yes, they do.
+[Xeno-Evolve]
+Q1.Where can you activate [Xeno-Evolve] from?
+A1.You can activate it from your hand.
+Q2.When can you activate [Xeno-Evolve]?
+A2.During your Main Phase.
+Q3.When playing a card using [Xeno-Evolve], do “When a card evolves into this card” skills activate?
+A3.Yes, they do.
+Q4.Does a card played with [Xeno-Evolve] carry over changes to power or position on the card that was sent to the Warp as part of the cost of activating [Xeno-Evolve]?
+A4.No, it does not.
+[Barrier]
+Q1.Can you use cards with [Barrier] when combo-ing from the Battle Area?
+A1.Yes, you can.
+Q2.Can cards with [Barrier] be KO-ed by [Revenge]?
+A2.Yes. [Revenge] doesn’t require “choosing” cards, allowing it to KO cards with [Barrier].
+Q3.Your opponent activates {BT1-057 Broly, the Legendary Super Saiyan}’s auto skill. Can you choose one of your own Battle Cards with [Barrier]?
+A3.No, you can’t.
+If the skill requiring you to choose a card belongs to your opponent, you can’t choose a card with [Barrier].
+Q4.You activate your own {BT1-057 Broly, the Legendary Super Saiyan}’s auto skill. Can you choose one of your own Battle Cards with [Barrier]?
+A4.Yes, you can.
+Q5.Can cards with [Barrier] have their skills negated by {BT1-107 Cold Bloodlust}?
+A5.Yes, they can.
+{BT1-107 Cold Bloodlust} is not a skill that requires you to “choose” other cards.
+Q6.Can you force a card with [Barrier] to come into play in Rest Mode using {BT1-110 Crusher Ball}?
+A6.Yes, you can.
+{BT1-110 Crusher Ball} is not a skill that requires you to “choose” other cards.
+[Super Combo]
+Q1.Can you include one copy of four different cards with [Super Combo] in a deck?
+A1.Yes, you can.
+As long as the total number of cards with [Super Combo] in your deck doesn’t exceed four, you can include any number and type of cards with [Super Combo] as you like.
+Q2.Can you include a total of 5 or more cards with [Super Combo] in your deck if they’re split between your deck and side deck?
+A2.No, you can’t.
+You can only include a total of 4 cards with [Super Combo] combined between your deck and side deck.
+[Token]
+Q1.When tokens are played, where are they placed?
+A1.In the Battle Area.
+Q2.Are Tokens affected by skills which affect Battle Cards?
+A2.Yes, they are.
+Tokens in play in the Battle Area are treated as Battle Cards.
+Q3.In what position are tokens played?
+A3.They are played in Active Mode if not specified otherwise.
+Q4.Do Tokens in play have an energy cost?
+A4.No, they do not, if not specified otherwise.
+Q5.What happens when a token in play is to be placed in the Drop Area?
+A5.They are not placed in the Drop Area. Tokens are removed from the game whenever the move from the Battle Area or Combo Area to another area.
+Q6.Can tokens in play combo?
+A6.Yes, they can just like Battle Cards.
+However, they cannot combo if they do not have a combo cost and power.
+Q7.Can I place Clone Tokens in my Battle Area in the Combo Area to use them in combos?
+A7.No, you can’t. Cards without combo costs/combo power can’t be used in combos.
+[The Warp]
+Q1.What is the Warp
+A1.The Warp is a play area, and each player has one. When placing cards in the Warp, make sure to place them in a way that makes it clear that they’re separate from the deck, Drop Area, and other play areas.
+Cards are placed in the Warp face up, and its contents are considered open information that can be freely confirmed by any player.
+Q2.When cards are removed from the game, are they sent to the Warp?
+A2.No, they’re not.
+[Gaining Control]
+Q1.When a card you’ve gained control of leaves the Battle Area or Combo Area, which player’s area does it return to?
+A1. It returns to the area of the card’s original owner.
+Q2.What does it mean to “gain control” of another card?
+A2.“Gaining control” refers to moving the selected battle card from your opponent’s Battle Area to your own. Cards you gain control of do not change position, retain any effects on them, and can be used for attacks and combos as if they were one of your own Battle Cards.
+Q3.Can you [Evolve] a ＜Son Goku＞ you gained control of by placing cards on top of it?
+A3.Yes, you can.
+Q4.You gain control of a card that has cards placed beneath it. What happens to them?
+A4.You gain control of the card and all cards placed beneath it, and move them all to your side of the board in the same order they were in before.
+Q5.If I gain control of an opponent’s Z-Battle Card, is it removed from the game?
+A5.No, as it’s only moving between Battle Areas. If it moves to a non-Battle Area, it will be removed from the game.
+[Warrior of Universe 7]
+Q1.What does “all areas” refer to?
+A1.“All areas” refers to your Deck Area, Z-Deck Area, hand, Drop Area, Leader Area, Battle Area, Combo Area, Energy Area, Z-Energy Area, Life Area, and Warp.
+Q2.If you have a Leader Card with [Warrior of Universe 7], can you pay for a Battle Card with 《Universe 7》 and a specified yellow energy cost of 1 by switching a red card in your Energy Area to Rest Mode?
+A2.Yes, you can.
+The [Warrior of Universe 7] skill allows you to ignore the specified energy costs of cards that have 《Universe 7》.
+Q3.If you have a Leader Card with [Warrior of Universe 7], can you pay for an Extra Card with 《Universe 7》 and a specified yellow energy cost of 1 by switching a red card in your Energy Area to Rest Mode?
+A3.Yes, you can.
+The [Warrior of Universe 7] skill allows you to ignore the specified energy costs of cards that have 《Universe 7》.
+Q4.If you have a Leader Card with [Warrior of Universe 7], can you pay for a Z-Battle Card with 《Universe 7》 and a specified yellow energy cost of 1 by switching a red card in your Energy Area to Rest Mode?
+A4.Yes, you can.
+The [Warrior of Universe 7] skill allows you to ignore the specified energy costs of cards that have 《Universe 7》.
+Q5.If you have a Leader Card with [Warrior of Universe 7], can you pay for a Battle Card’s skill cost with 《Universe 7》 and a specified yellow energy cost of 1 by switching a red card in your Energy Area to Rest Mode?
+A5.No, [Warrior of Universe 7] only lets you ignore the specified costs of the cards themselves.
+[Victory Strike]
+Q1.What happens when you deal damage to an opponent’s life using a card that has both [Double Strike] and [Victory Strike]?
+A1.You win the game.
+Q2.If your opponent’s Leader Card is {BT2-034 Absolute God Fused Zamasu}, can you win the game using [Victory Strike]?
+A2.Yes, you can.
+[Deflect]
+Q1.Can you activate [Counter : Play] skills in response to Battle Cards with [Deflect] entering play?
+A1.Yes, you can.
+If you do, the Battle Card with [Deflect] is not affected by the [Counter : Play] skill.
+Q2. You activated a [Counter: Play] skill in response to a skill that puts a Battle Card into play. If the Battle Card being put into play has [Deflect], is it affected by the [Counter : Play] skill?
+A2.No, it’s not.
+[Bond]
+Q1.You gain control of one of your opponent’s Battle Cards. Are cards in your Battle Area that originally belonged to your opponent treated as “cards in your Battle Area”?
+A1.Yes, they are.
+Q2.Does [Bond 2] take effect when you have three Battle Cards?
+A2.Yes, it does.
+[Bond] is a keyword skill that only takes effect when the number of Battle Cards in your Battle Area are equal to or greater than the number of cards specified by the skill.
+[Swap]
+Q1.Where can you activate [Swap] from?
+A1.It can only be activated from the Battle Area.
+Q2.When can you activate [Swap]?
+A2.During your Main Phase.
+Q3.Does a card played with [Swap] carry over changes to power or position on the card that was returned to your hand as part of activating [Swap]?
+A3.No, it doesn’t.
+Q4.Can you choose not to play a Battle Card specified by [Swap]?
+A4.Yes, you can.
+If you do so, you still return the Battle Card that activated [Swap] to its owner’s hand.
+Q5.You gain control of one of your opponent’s Battle Cards. If you activate that card’s [Swap], what happens?
+A5.You choose a specified Battle Card from your hand and play it, then return the Battle Card that activated [Swap] to its owner’s hand.
+[Dark Over Realm]
+Q1.Where can [Dark Over Realm] be activated from?
+A1.From your hand.
+Q2.When can you activate [Dark Over Realm]?
+A2.During your Main Phase.
+Q3.Can you combo with Battle Cards played using [Dark Over Realm]?
+A3.Yes, you can.
+Q4.If you activate [Dark Over Realm 3] when there are 4 black cards in your Drop Area, do you send 3 black cards from your Drop Area to your Warp?
+A4.No, you send 4 cards to your Warp.
+When you activate [Dark Over Realm], you send all cards in your Drop Area to your Warp.
+Q5.When playing a card using [Dark Over Realm], do you pay its energy cost?
+A5.No, you don’t.
+When you play a card using [Dark Over Realm], you don’t have to pay its energy cost.
+Q6.After activating [Dark Over Realm], can you activate [Over Realm] during the same turn?
+A6.No, you can’t.
+[Over Realm] and [Dark Over Realm] can only be activated a combined total of once per turn.
+Q7.After activating [Dark Over Realm] on a card, can you activate [Dark Over Realm] on a different card during the same turn?
+A7.No, you can’t.
+[Over Realm] and [Dark Over Realm] can only be activated a combined total of once per turn.
+[Wormhole]
+Q1.You activate [Over Realm] when [Wormhole] isn’t in effect. Later that same turn, [Wormhole] comes into effect. Can you activate [Over Realm] a second time during that turn?
+A1.Yes, you can.
+Q2.You activate [Dark Over Realm] when [Wormhole] isn’t in effect. Later that same turn, [Wormhole] comes into effect. Can you activate [Dark Over Realm] a second time during that turn?
+A2.Yes, you can.
+Q3.You activate [Over Realm] when [Wormhole] isn’t in effect. Later that same turn, [Wormhole] comes into effect. Can you activate [Over Realm] two more times during that same turn?
+A3.No, you can’t.
+Q4.You activate [Dark Over Realm] when [Wormhole] isn’t in effect. Later that same turn, [Wormhole] comes into effect. Can you activate [Dark Over Realm] two more times during that same turn?
+A4.No, you can’t.
+[Wish]
+Q1.Can you activate the skills on the Wish side of a Leader Card before flipping it over by activating its [Wish] skill? What about activating the skills on the non-Wish side of a Leader Card after you’ve flipped it over by activating its [Wish] skill?
+A1.In both cases, the answer is no. You can only activate skills on the side currently facing up.
+Q2.A card in Rest Mode activates [Wish]. What position should it be in when it flips over?
+A2.It remains in Rest Mode.
+Q3.A card has received +5000 power and [Double Strike] for the duration of the turn. You activate [Wish] on the card and flip it over. Do the power boosts and skills transfer now that the card has flipped over?
+A3.The card retains the +5000 power boost, but does not retain [Double Strike].
+[Sparking]
+Q1.You have two cards in your Drop Area. Are your [Sparking 5] skills active?
+A1.No, they’re not.
+[Burst]
+Q1.Your deck has two cards left in it. Can you use [Burst 2] to place the top 2 cards of your deck into your Drop Area?
+A1.Yes, you can. However, since your deck now has zero cards in it, you will lose the game by doing so.
+Q2.A skill that reads “[Auto][Burst 2]” enters pending. Can you choose not to place two cards from the top of your deck in your Drop Area, therefore choosing not to activate the skill?
+A2.Yes, you can.
+Q3.Can you pay the skill cost on a skill with [Burst 2] by placing one card from the top of your deck in your Drop Area?
+A3.No, you can’t.
+You must pay the entirety of a skill’s skill cost.
+Q4.When paying the skill cost for a skill that reads “[Activate : Main][Burst 2] Switch this card to Rest Mode,” can you switch the card to Rest Mode without activating [Burst 2]?
+A4.No, you can’t.
+You must pay the entirety of a skill’s skill cost.
+[Dragon Ball]
+Q1.[Dragon Ball] can you include one copy each of three different cards with [Dragon Ball] in your deck?
+A1.Yes, you can.
+As long as you don’t include more than a total of seven cards with [Dragon Ball] in your deck, you can include as many copies of any cards with [Dragon Ball] as you like.
+Q2.Can you include 8 or more copies of cards with [Dragon Ball] between your deck and side deck?
+A2.No, you can’t.
+You can only include up to 7 cards with [Dragon Ball] between your deck and side deck.
+[Arrival]
+Q1.If I have a red/green multi-colored card in my Combo Area, can I activate [Arrival Red/Green]?
+A1.Yes, you can.
+Q2.If my Leader Card is {BT2-001 Vegito}, and I have {Furious Rush Super Saiyan 3 Son Goku} in my Combo Area, can I activate [Arrival Red/Green]?
+A2.No, you can’t.
+[Arrival] checks for the original colors of the cards in the Combo Area.
+Q3.If I wind up with Battle Cards in my Combo Area that fulfill the conditions of [Arrival] outside of the Offense Step or Defense Step via skills or other means, can I activate [Arrival Red/Green]?
+A3.No, you can’t.
+[Arrival] is an [Activate : Battle] skill.
+[Aegis]
+Q1.Can I place a blue/yellow multi-colored card from my hand to my Drop Area to pay the skill cost for [Aegis Blue/Yellow]?
+A1.Yes, you can.
+[Aegis] can be activated by placing a single blue/yellow multi-colored card from your hand to your Drop Area.
+Q2.If my Leader Card is {BT2-001 Vegito}, can I place a {Height of Mastery Son Goku} in my hand to my Drop Area to pay the skill cost for [Aegis Blue/Yellow]?
+A2.No, you can’t.
+Q3.Can I place 1 blue card and 1 blue/yellow multi-colored card from my hand to my Drop Area to pay the skill cost for [Aegis Blue/Yellow]?
+A3.No, you can’t.
+[Energy-Exhaust]
+Q1.If I use {Whis, The Resting Attendant}’s auto skill to place a card with [Energy-Exhaust] in my Energy Area, can I place that card in my Energy Area in Active Mode?
+A1.No. It must be placed there in Rest Mode.
+[Alliance]
+Q1.Will [Alliance] take effect if I place a red/green multi-colored card to Rest Mode in order to pay the skill cost for [Alliance Red/Green]?
+A1.Yes, it will.
+Q2.If my Leader Card is {BT2-001 Vegito}, and I have {Height of Mastery Son Goku} in play in my Battle Area, can I switch it to Rest Mode to pay the skill cost for [Alliance Red/Green]?
+A2.No, you can’t.
+You can only switch Battle Cards which have red or green as their original colors in order to pay the skill cost.
+[Offering]
+Q1.Which player draws 2 cards?
+A1.The player who played the Battle Card that has [Offering].
+[Revive]
+Q1.Can I activate [Revive] on a Battle Card that’s been sent to a Warp?
+A1.No, you can’t. [Revive] can only be activated when a card is KO’d.
+Q2.Can I activate [Revive] on a Battle Card that is sent to a Drop Area after having its power reduced to 0 or less?
+A2. No, you can’t. [Revive] can only be activated if a card is KO’d.
+[Heroic]
+Q1.If I have a Battle Card with [Heroic] in play, and another Battle Card with [Heroic] is sent to my Drop Area instead of being played, can I activate the [Heroic] skill on the card in my Battle Area?
+A1.No, you can’t.
+[Villainous]
+Q1.If I have a Battle Card with [Villainous] in play, and another Battle Card with [Villainous] is sent to my Drop Area instead of being played, can I activate the [Villainous] skill on the card in my Battle Area?
+A1.No, you can’t.
+[Invoker]
+Q1.If my Leader Card is {BT2-001 Fusion Warrior Super Saiyan Vegito} and I have a Battle Card with [Invoker] in play, can I switch a {BT2-004 Relentless Super Saiyan 3 Son Goku} in my energy area to Rest Mode to activate a Red/Blue multicolor Extra Card?
+A1.No, you can’t. In order to activate the Extra Card, the energy you switch to Rest Mode must originally be Red/Blue multicolor.
+[Successor]
+Q1.Can I place a {BT8-122 Android 21, Violent Predator} from my Battle Area in my Drop Area to activate the [Successor] skill on a {XD3-08 SS2 Son Gohan, Wounded Victor} in my hand?
+A1.No, you can’t. [Successor] can only be activated by placing Battle Cards in your Drop Area that are mono-green, mono-yellow, or Green/Yellow multicolor.
+Q2.If my Leader Card is {BT2-001 Fusion Warrior Super Saiyan Vegito}, can I place {BT2-0044 Relentless Super Saiyan 3 Son Goku} in my Drop Area to activate the [Successor] skill on a {BT9-121 Dyspo, Unprecedented Speed} in my hand?
+A2.No, you can’t. [Successor] can only be activated by placing Battle Cards in your Drop Area that are mono-green, mono-yellow, or Green/Yellow multicolor.
+Q3.If I have {BT2-099 Cell’s Birth} in my Battle Area, can I place {BT9-116 Android 13, Adamantine Avenger} in my Drop Area to activate the [Successor] skill on a {BT9-113 Cell, Unthinkable Perfection} in my hand?
+A3.No, you can’t. [Successor] can only be activated by placing Battle Cards in your Drop Area with a total energy cost equal to the original energy cost of the card with the skill.
+[Unique]
+Q1.If you have a card with [Unique] in play that’s had its skills negated, can you play a card with the same name as that card?
+A1.No, you can’t.
+Q2.When {BT2-064 Mafuba} is on top of a card with [Unique], you played a separate copy of this card. Afterwards, the {BT2-064 Mafuba} is placed in the Drop Area. You now have 2 copies of {BT3-077 Evil Psyche, Zamasu} in your Battle Area. What happens?
+A2.You choose 1 of the copies to leave in your Battle Area, then place the other copy in its owner’s Drop Area.
+[Servant]
+Q1.Can you use your {BT1-101 Zarbon, The Emperor’s Attendant}’s auto skill to switch one of your Battle Cards with [Servant] to Active Mode?
+A1.Yes, you can.
+[Once per turn]
+Q1.Can you use ｛BT6-057 Godstrike Beerus}’s auto skill to negate a skill with [Once per turn]?
+A1.No, you can’t.
+Q2.Can you use ｛BT6-057 Godstrike Beerus}’s auto skill to negate [Once per turn] on a card?
+A2.No, you can’t. [Once per turn] isn’t a keyword skill.
+[Rejuvenate]
+Q1.If {BT12-029 Frieza & Cell, a Match Made in Hell} has three markers, can you activate its [Rejuvenate] skill?
+A1. No, you can’t. You must remove the specified number of markers in order to activate the skill.
+Q2.If a Unison Card has no markers left on it after activating [Rejuvenate], is the skill negated?
+A2.No, it isn’t.
+Q3.Can I add more cards to my life if I have 8 life?
+A3.Yes, you can. There is no limit to the number of cards you can have in your life.
+[Spirit Boost]
+Q1.Can you use [Spirit Boost 1] to remove a marker from a Unison Card that only has 1 marker remaining?
+A1.Yes, you can. If you do, the Unison Card is placed in its owner’s Drop Area since it has no markers remaining.
+Q2.Can you use [Spirit Boost 2] to remove 2 markers from a Unison Card that only has 1 marker remaining?
+A2.No, you can’t. If you can’t remove the number of markers specified by [Spirit Boost], you can’t activate it.
+[Limit]
+Q1.Can you use {BT6-057 Godstrike Beerus}’s auto skill to negate {EX18-03 Trunks, Spirit Resonance}’s [Limit] skill?
+A1.No, you can’t.
+[Empower]
+Q1.You have a red Unison Card with a marker on it in your Unison Area, and you want to play {BT16-003 Golden Frieza & Android 17, Determined Tag Team}, which has [Empower R2]. If you play it by paying an X cost of 3, how many markers does it enter play with?
+A1.Between 3 and 4. You are paying an X cost of 3, and can carry over up to 2 additional markers with [Empower]. However, the Unison you are replacing only has 1 marker, so that is the maximum that can carry over.
+Q2.You have a black Unison Card with 5 markers on it in your Unison Area, and your {BT16-148 Super Mira, Diabolical Fusion} in your hand has both an [Activate : Main] skill that reads, “Play this card from your hand with 4 markers on it,” and [Empower Y3/B3]. If you use its [Activate : Main] skill to play it, how many markers does it enter play with?
+A2.Between 4 and 7. The [Activate : Main] skill plays the Unison with 4 markers, and using [Empower] you can carry over up to 3 additional markers. Even though the Unison you are replacing has 5 markers, [Empower Y3/B3] limits the amount to 3.
+Q3.You have a red Unison with 3 markers on it in your Unison Area. If you pay 1 energy to play {BT17-003 Spaceship, Vessel of Hope} and resolve [Empower] first to have it enter play with 4 markers on it, can you activate its [Auto] skill?
+A3.Yes, you can.
+[Z-Awaken]
+Q1.Can my Leader [Awaken] if it’s turned to its front side?
+A1.No, you can’t. Your Leader Card can only activate [Z-Awaken] if it’s turned to its back side, and isn’t currently a Z-Card.
+Q2.If my Leader is a Z-Leader, can it [Z-Awaken]?
+A2.No, it can’t. Your Leader Card can only activate [Z-Awaken] if it’s turned to its back side, and isn’t currently a Z-Card.
+Q3.When I activate [Z-Awaken], can I use [Auto] skills that activate when I [Awaken]?
+A3.No, you can’t.
+Q4.Can I activate [Counter : Play] when my opponent activates [Z-Awaken]?
+A4.No, you can’t.
+[Z-Stack X]
+Q1.What is [Z-Stack X]?
+A1.[Z-Stack X] activates when you play a Z-Battle Card or when activating an [Auto] skill that activates upon placing a Z-Leader in a Leader Area, then you place up to X number of the specified cards from your Z-Deck under that card.
+Hidden Mode/Revealed Mode Cards
+Q1.NEWHow do you treat Hidden Mode cards in the Battle Area or Energy Area?
+A1.Hidden Mode cards in the Battle Area aren't treated as Battle Cards or Extras, they are simply treated as normal cards. Hidden Mode cards in the Energy Area are treated as colorless energy.
+Q2.NEWCan both players look at the front sides of Hidden Mode cards in the Battle Area or Energy Area?
+A2.Yes, they can.
+Q3.NEWDo Hidden Mode cards in the Battle Area have energy costs?
+A3.No, they don't.
+Q4.NEWCan you choose a Hidden Mode card in your opponent's Battle Area for skills such as "choose up to 1 of your opponent’s Battle Cards and KO it"?
+A4.No, you can't.
+Q5.NEWCan you use Hidden Mode Battle Cards from the Battle Area in combos?
+A5.No, you can't.
+Q6.NEWWhen a Hidden Mode card is moved to another area, is it placed face down or face up?
+A6.Unless specified otherwise, the card is placed into the new area as a new card, and it's placed either face down or face up depending on the rules for that area.
+Q7.NEWCan you activate a skill on a Hidden Mode card in the Battle Area?
+A7.No, you can't.
+Q8.NEWCan you choose a Hidden Mode card in the Battle Area for a skill such as [Evolve] where a name or special trait is specified for activation?
+A8.No, you can't.
+Q9.NEWAre Hidden Mode cards in the Battle Area or Energy Area considered to have colors?
+A9.No, they aren't.
+Q10.NEWWhen a Hidden Mode card in the Battle Area is removed by a skill, do skills such as "[Auto] When this card is removed from a Battle Area by a skill..." activate?
+A10.No, they don't activate.
+Q11.NEWIs a Hidden Mode Z-Card in the Battle Area removed from the game if it's removed from the Battle Area?
+A11.Yes, it's removed from the game.
+Q12.NEWWhen a Hidden Mode card in the Battle Area or Unison Area is switched to Revealed Mode, do skills such as "[Auto] When this card is played..." activate?
+A12.No, they don't activate.
+Q13.NEWIf a card is switched to Hidden Mode while it's in a battle, does that battle end?
+A13.Yes, the battle ends.
+Q14.NEWIf cards are placed under a card in the Battle Area, then that card is switched to Hidden Mode, what happens to the cards under it?
+A14.Only the top card is switched to Hidden Mode. The cards under it are left face up.
+Q15.NEWIf a Battle Card gains a continuous effect, it's switched to Hidden Mode, then switched back to Revealed Mode, is the continuous effect carried over?
+A15.No, it isn't carried over.
+Q16.NEWIf you activate an "[Activate : Main][Once per turn] Draw 1 card" skill on your Battle Card, that card is switched to Hidden Mode by a skill during the same turn, then it's switched back to Revealed Mode by another skill, can you activate that Battle Card's [Activate : Main] skill?
+A16.Yes, you can.
