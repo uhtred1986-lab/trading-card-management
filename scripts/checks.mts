@@ -7,6 +7,8 @@
  *   full       typecheck, eslint, every script of package.json's `test`, then the build when a
  *              build-sensitive path changed (`--build` forces it)
  *   <paths>    like no args, for exactly these paths
+ *   --emit     with any scope: verify-arena rewrites the contract fixtures as it runs (one arena run
+ *              instead of `contract:emit` followed by `full`); review `git diff contract/` afterwards
  *
  * Prints only failures (first ~40 relevant lines each), then a pass/fail count with timings. Exits
  * non-zero on any failure. Children run in their own process groups, killed when they finish, on
@@ -110,13 +112,15 @@ async function main() {
   if (args[0] === "full") { scope = "full"; label = "full"; }
   else if (args[0] === "quick") { scope = { kind: "quick", paths: changedPaths() }; label = "quick"; }
   else {
-    const paths = (args.length ? args : changedPaths()).map((p) => path.relative(root, path.resolve(root, p)).replace(/\\/g, "/"));
+    const named = args.filter((a) => !a.startsWith("--"));
+    const paths = (named.length ? named : changedPaths()).map((p) => path.relative(root, path.resolve(root, p)).replace(/\\/g, "/"));
     scope = { kind: "paths", paths };
     label = `${paths.length} path${paths.length === 1 ? "" : "s"}`;
   }
 
   const started = Date.now();
   const { steps, unknown, trimmed } = planSteps(scope, root, chain, buildGraph(root));
+  if (args.includes("--emit")) for (const s of steps) if (s.argv.some((a) => a.endsWith("verify-arena.ts"))) s.argv.push("--emit");
   // `full` builds only when the change can break the build; `--build` forces it.
   const skipBuild = scope === "full" && !args.includes("--build") && !isBuildSensitive(changedPaths());
   if (skipBuild) console.log("build skipped: no build-sensitive path changed (--build forces it)");
