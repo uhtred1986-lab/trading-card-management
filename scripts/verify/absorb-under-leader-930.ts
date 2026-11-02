@@ -83,7 +83,7 @@ const back = skillRecords(defs.L082).filter((r) => r.side === "back");
   const abs = skillRecords(defs.ABS)[0];
   assert.deepEqual(abs.unread, []);
   assert.ok(abs.cost?.absorb, "BT17-091 keeps its typed Absorb procedure");
-  assert.equal(describeScript(abs.cost?.program ?? []), "choose 1 ≪Namekian≫ card in your hand or Battle Area, move the chosen cards to under");
+  assert.equal(describeScript(abs.cost?.program ?? []), "choose 1 ≪Namekian≫ card in your hand or Battle Area, move the chosen cards under this card"); // audit-effects-1: the describer names the host
   const two = skillRecords(defs.ABS2)[0];
   assert.deepEqual(two.unread, [], "the two-card fixture is read");
   assert.ok(two.cost?.absorb);

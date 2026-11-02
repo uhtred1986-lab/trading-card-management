@@ -105,7 +105,7 @@ const rowOf = (skillIndex: number) => {
   const mat = price[0] as Extract<Op, { op: "choose" }>;
   assert.deepEqual([mat.sel.side, mat.sel.areas, mat.sel.areaSides, mat.sel.filter?.type, mat.sel.count, mat.sel.upTo], [undefined, ["drop", "battle"], ["you", "opponent"], "BATTLE", 1, false], "1 Battle Card in YOUR Drop or YOUR OPPONENT'S Battle Area");
   assert.deepEqual(price[1], { op: "moveTo", target: { var: mat.as }, to: "under" }, "placed under this card");
-  assert.equal(describeScript(price), "choose 1 Battle Card in your Drop Area or in your opponent's Battle Area, move the chosen cards to under");
+  assert.equal(describeScript(price), "choose 1 Battle Card in your Drop Area or in your opponent's Battle Area, move the chosen cards under this card"); // audit-effects-1: the describer names the host
   assert.deepEqual(r10.ops.map((o) => o.op), ["choose", "play", "shuffle"], "search, play on top, shuffle");
   const search = r10.ops[0] as Extract<Op, { op: "choose" }>;
   assert.deepEqual([search.sel.side, search.sel.areas, search.sel.filter?.colors, search.sel.filter?.costMin, search.sel.filter?.costMax, search.sel.upTo], ["you", ["deck", "drop"], ["Green"], 6, 6, true], "up to 1 green <Majin Buu> of cost 6 from your deck or Drop");

@@ -507,7 +507,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const as = moveAs(raw as Op);
       if (as.op !== "moveTo" && as.op !== "note") return describeScript([as], r);
-      return renderTemplate("move {target} to {to}{faceUp? face up}", raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
+      // Audit lane E (describe only): where the card lands, as the program says it — the end of the deck ("to the
+      // bottom of deck", BT9-127's "place it at the bottom of its owner's deck"), the mode ("in Rest Mode", BT20-028's
+      // energy), whose area it is ("your opponent's energy"), and the card it goes under ("under the chosen cards"). The
+      // reading said none of them, so a move to the bottom read like one to the top and a card put in Rest Mode like one
+      // in Active Mode.
+      const op = raw as OpOf<"moveTo">;
+      const area = op.to === "under" ? `under ${op.under ? describeRef(op.under) : "this card"}` : `${op.owner === "opponent" ? "your opponent's " : ""}${op.to}`;
+      const place = op.position && op.to !== "under" ? `the ${op.position} of ${area}` : area;
+      return `move ${describeRef(op.target)} ${op.to === "under" ? place : `to ${place}`}${op.mode === "rest" ? " in Rest Mode" : op.mode === "active" ? " in Active Mode" : ""}${op.faceUp ? " face up" : ""}${op.random ? " in a random order" : ""}`;
     },
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
@@ -3274,11 +3282,14 @@ function renderTemplate(template: string, op: Record<string, unknown>, fields: O
  */
 export function describeScript(ops: Op[], o: RenderOptions = {}): string {
   const parts: string[] = [];
-  for (const op of ops) {
+  for (const [i, op] of ops.entries()) {
     const spec = OP_SCHEMA[op.op];
     if (!spec) continue;
     const text = typeof spec.sentence === "function" ? spec.sentence(op, o) : renderTemplate(spec.sentence, op as unknown as Record<string, unknown>, spec.fields, o);
-    if (text) parts.push(text);
+    // Audit lane E (describe only): "if …:" governs the clauses after its colon up to this marker, and nothing after
+    // it — said only when something follows, since the end of the reading ends it anyway. Without it "if you took that
+    // choice: draw 1, this card gains [Double Strike]" read as if both depended on the choice (BT1-090).
+    if (text) parts.push(op.op === "if" && ops.slice(i + 1).some((next) => OP_SCHEMA[next.op]) ? `${text} (end if)` : text);
   }
   return parts.join(", ");
 }

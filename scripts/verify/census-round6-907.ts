@@ -113,7 +113,7 @@ type Sel = { area?: string; areas?: string[]; fromVar?: string; filter?: Record<
   const plain = compile("[Auto] When this card attacks, this card gets +1000 power for each card in your Drop Area.");
   assert.match(describeScript(plain.ops), /for each of your cards in the Drop/, "a count with no description keeps the area noun");
   const rest = compile("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 ≪Slug's Army≫ card among them to your hand, and place the rest at the bottom of your deck in any order.");
-  assert.match(describeScript(rest.ops), /move the rest of the cards looked at to deck/, "'the rest' is said");
+  assert.match(describeScript(rest.ops), /move the rest of the cards looked at to the bottom of deck/, "'the rest' is said");
 }
 
 // ── a count over areas joined by "and" ──────────────────────────────────────

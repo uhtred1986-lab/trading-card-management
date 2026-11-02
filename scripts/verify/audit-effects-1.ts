@@ -16,6 +16,8 @@
  * D.  "Your opponent reveals the top card of their deck" is followed by their shuffle (R-203); "top or bottom … in any
  *     order" is one end for all of them (R-202, superseding R-007 for "or").
  * E.  Your own activation bans ("you can't activate {X} / {X}'s [kind] skill / [Counter: Attack] skills for the turn") are read.
+ * F.  The describer: a move says the deck's end, the mode, whose area and the card it goes under; an "if" followed by more
+ *     clauses says "(end if)".
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where the engine learned something (`ownNextTurn`'s end).
@@ -27,6 +29,7 @@ import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/are
 import { correctSkillText } from "../../src/lib/catalog/errata";
 import { endOwnTurnEffects } from "../../src/lib/arena/vm/effects";
 import { activateTimingReaches } from "../../src/lib/arena/vm/costs";
+import { describeScript } from "../../src/lib/arena/vm/script-schema";
 import type { CardDef } from "../../src/lib/arena/types";
 import type { Op } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -262,6 +265,21 @@ for (const [id, text, rules] of [
   const ban = opOf(record("BT13-035", "[Counter: Attack] If your Leader Card is a blue <Son Gohan: Childhood> card: Negate the attack, then choose up to 1 blue skill-less Battle Card with an energy cost of 2 in your hand and play it. You can't activate the [Counter: Attack] skill on copies of this card for the game."), "forbid")[0];
   assert.ok(ban && ban.what === "activateCounter" && ban.sameNameAsSelf && ban.counterKind === "attack" && ban.until === "game", `E: BT13-035 — the copies' [Counter: Attack], for the game (${JSON.stringify(ban)})`);
   records++;
+}
+
+// F. The describer (no program change): where a moved card lands, and where an "if" ends.
+{
+  const chosen = { var: "c0" };
+  assert.equal(describeScript([{ op: "moveTo", target: chosen, to: "deck", position: "bottom" }]), "move the chosen cards to the bottom of deck", "F: the end of the deck");
+  assert.equal(describeScript([{ op: "moveTo", target: chosen, to: "energy", mode: "rest" }]), "move the chosen cards to energy in Rest Mode", "F: the mode");
+  assert.equal(describeScript([{ op: "moveTo", target: chosen, to: "energy", owner: "opponent" }]), "move the chosen cards to your opponent's energy", "F: whose area");
+  assert.equal(describeScript([{ op: "moveTo", target: { sel: { special: "self" } }, to: "under", under: chosen }]), "move this card under the chosen cards", "F: the card it goes under");
+  assert.equal(describeScript([{ op: "moveTo", target: chosen, to: "life", faceUp: true }]), "move the chosen cards to life face up", "F: face up, as before");
+  const gate: Op = { op: "if", cond: { kind: "chose", var: "c0" }, then: [{ op: "draw", n: 1 }] };
+  assert.match(describeScript([gate, { op: "draw", n: 2 }]), /^if .+: draw 1 \(end if\), draw 2$/, "F: an if followed by more says where it ends");
+  assert.doesNotMatch(describeScript([{ op: "draw", n: 2 }, gate]), /end if/, "F: …and an if that ends the reading needs no marker");
+  // A stored reading carries it (BT9-127: the life card to energy in Rest Mode).
+  assert.match(record("BT9-127", "[Auto] Choose 1 card in your hand and place it at the bottom of your deck: When this card attacks, choose 1 card in your life and place it in your energy in Rest Mode.").reads, /move the chosen cards to energy in Rest Mode$/, "F: BT9-127");
 }
 
 console.log(`audit-effects-1: ${records} records read as printed`);
