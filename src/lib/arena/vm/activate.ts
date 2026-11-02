@@ -96,7 +96,7 @@ import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, namedCandidates, permissions, resolveRef, resolveSelector, staticsNow, taxesOn, type TaxInForce } from "./program";
+import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, namedCandidates, permissions, resolveRef, resolveSelector, standingKindNegated, staticsNow, taxesOn, type TaxInForce } from "./program";
 import { describeScript, taxHandNeed } from "./script-schema";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
@@ -532,7 +532,7 @@ export function activationRefusals(
   // 9-1-5 in both its shapes: one line switched off by index, and the whole
   // card at once. The one reading of that rule is `vm/effects.ts` and every
   // reader of it asks there, the twin included.
-  if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind)) before.push({ kind: "other", detail: "the skill is negated" });
+  if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || standingKindNegated(ctx, game, state, card, sk.kind)) before.push({ kind: "other", detail: "the skill is negated" });
   // 20-14: a prohibition in force on using this card's skills. It sits here
   // rather than in the declaration's own `REFUSE` list because the order is the
   // point — `whyNotActivate` asks it second, after the negation and before

@@ -157,8 +157,7 @@ for (const [text, what, second] of [
   assert.ok(asked && asked.sel.side === "you" && asked.sel.filter?.colors.join() === "Red" && asked.sel.filter.specifiedCostMin === 3, `C: BT15-001b — your red Unison with a specified cost of 3 or more (${JSON.stringify(asked)?.slice(0, 200)})`);
   records++;
 }
-// [Spirit Boost X] may have removed none: still unread.
-assert.ok(skillRecords(card("BT14-090", { skill: "[Counter: Attack][Spirit Boost X] (Remove X markers from your Unison Card to activate this skill.) Negate the attack; if you removed a marker from your green Unison Card using this skill, play 1 Majin Token in Rest Mode." }))[0].unread.length > 0, "C: BT14-090 ([Spirit Boost X]) stays unread");
+// BT14-090 ([Spirit Boost X]) is read since phrasing batch 10, which records X on the cost (scripts/verify/phrasing-batch-10.ts).
 // BT26-061b: a card with either keyword.
 {
   const rec = backRecord("[Auto] When your green <Zamasu> card with an [Evolve] or [Union] skill is played, place the top card of your opponent's deck into its owner's Drop.", "BT26-061");
@@ -200,8 +199,8 @@ for (const [text, what] of [
   assert.ok(pick && pick.sel.filter!.notCharactersIncluding.join().toLowerCase() === "turles" && pick.sel.filter!.costMax === 1, `D: ${what} — ≪Turles Crusher Corps≫ cards costing 1, without <Turles> in their names`);
   records++;
 }
-// BT24-099's comma list stays unread: its "any number of … with different card names" is not read as one card.
-assert.ok(skillRecords(card("BT24-099", { skill: "[Auto][Limit 1][Spirit Boost 1] If your Leader's back side is {Turles, Corps Commander}: When this card attacks, look at up to 5 cards from the top of your deck, play any number of yellow ≪Turles Crusher Corps≫ cards with different card names, energy costs of 1, and without <Turles> in their character names, then shuffle your deck." }))[0].unread.length > 0, "D: BT24-099 stays unread");
+// BT24-099's comma list was left unread here, its "any number of" then read as one card; phrasing batch 10 reads "any
+// number of" as a choice of how many and the comma list whole (scripts/verify/phrasing-batch-10.ts).
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {

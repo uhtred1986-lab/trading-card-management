@@ -132,7 +132,8 @@ assert.ok(unreadOf("[Activate: Main] Place up to 1 &lt;Son Goku&gt; Z-Leader fro
   assert.ok(n13 && "sel" in n13.target && n13.target.sel.fromVar && n13.until === "turn" && inner.findIndex((o) => o.op === "negateSkills") < inner.findIndex((o) => o.op === "play"), "N: BT13-096 — the cards sent are negated for the turn, then played");
   records += 4;
 }
-assert.deepEqual(unreadOf("[Auto] When this card attacks, it gains +1000 for each 1 energy you have, for the duration of the turn."), ["it gains +1000 for each 1 energy you have", "for the duration of the turn"], "N: a trailing span stays its own clause (BT1-030)");
+// Mechanism batch 4 reads BT1-030 (a trailing span closes the clause before it; `mechanism-4.ts`).
+assert.deepEqual(unreadOf("[Auto] When this card attacks, it gains +1000 for each 1 energy you have, for the duration of the turn."), [], "N: a trailing span closes the clause before it (BT1-030, mechanism batch 4)");
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const extra = (id: string, skill: string): CardDef => card(id, { type: "EXTRA", energyCost: 1, power: null, comboCost: null, comboPower: null, skill });

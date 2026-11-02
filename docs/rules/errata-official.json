@@ -1,0 +1,1133 @@
+{
+  "source": "https://www.dbs-cardgame.com/us-en/rule/errata-cards.php",
+  "taken": "2026-11-02",
+  "errata": [
+    {
+      "id": "BT28-123",
+      "title": "2025.08.22 [PRISMATIC CLASH] BT28-123 Frieza, Unexpected Ally",
+      "before": "The actual card character's name is Saiyan.",
+      "after": "The character name is Frieza, and the card is treated as <Frieza> card.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT27-124",
+      "title": "2025.02.28 [HISTORY OF Z] BT27-124 Justice Impact",
+      "before": "BOKAAM!",
+      "after": "Justice Impact",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-642",
+      "title": "2025.01.17 [Promotion Cards] P-642 Sansyo, Interference",
+      "before": "The charactter name is ”Sansho”",
+      "after": "The character name is Sansyo, and the card is treated as <Sansyo, Interference>.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT25-001",
+      "title": "2025.01.01 [LEGEND OF THE DRAGON BALLS] BT25-001 Son Goku, Face-Off With the Great Demon King",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT26-097",
+      "title": "2024.09.27 [ULTIMATE ADVENT] BT26-097 SS Son Goku, Entrusting Father",
+      "before": "[Activate : Main]●, if your Leader is a yellow <Son Gohan : Childhood> card and you have 2 or more energy : Play this card from your hand.",
+      "after": "[Activate : Main]●, if your Leader’s back side is a yellow <Son Gohan : Childhood> card and you have 2 or more energy : Play this card from your hand.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT26-098",
+      "title": "2024.09.27 [ULTIMATE ADVENT] BT26-098 SS Son Goku, Entrusting Destiny",
+      "before": "[Activate : Main]●, if your Leader is a yellow <Son Gohan : Childhood> card and you have 2 or more energy : Play this card from your hand.",
+      "after": "[Activate : Main]●, if your Leader’s back side is a yellow <Son Gohan : Childhood> card and you have 2 or more energy : Play this card from your hand.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT26-119",
+      "title": "2024.09.27 [ULTIMATE ADVENT] BT26-119 Stonework",
+      "before": "[Counter : Play][Limit 1] Place 1 of your Z-Energy into its owner’s Drop : Play up to 1 {Cell Games Arena} with 2 markers on it from your Z-Deck.",
+      "after": "[Counter : Play][Limit 1] Place 1 of your Z-Energy into its owner’s Drop : Play up to 1 {Cell Games Arena, Greatest Stage} with 2 markers on it from your Z-Deck.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT25-070",
+      "title": "2024.08.02 [LEGEND OF THE DRAGON BALLS] BT25-070 Trunks",
+      "before": "[Awaken] When your life is at 4 or less, or you have 2 or more energy and {Vegeta, Rescuing a Son} in play : Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.",
+      "after": "[Awaken] When your life is at 4 or less, or you have 2 or more energy and {SS Vegeta, Rescuing a Son} in play : Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.",
+      "notes": "The current text of this card prevents it from being properly played"
+    },
+    {
+      "id": "BT10-055",
+      "title": "2024.05.24 [Rise of the Unison Warrior] BT10-055 Zen-Oh, Edge of Space",
+      "before": "Combo Cost:1",
+      "after": "Combo Cost:0",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-549",
+      "title": "2024.05.24 [Promotion Cards] P-549 Energy Absorption",
+      "before": "[Auto][Limit 1][Spirit Boost 1] When your yellow <Super 17gt; Battle Card attacks, the attacking card gets +6000 power, then switch that card to Active Mode at the end of the turn.",
+      "after": "[Auto][Limit 1][Spirit Boost 1] When your yellow <Super 17gt; Battle Card attacks, the attacking card gets +6000 power for the turn, then switch that card to Active Mode at the end of the turn.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT24-096",
+      "title": "2024.04.19 [BEYOND GENERATIONS] BT24-096 Turles, Wandering Destroyer From Outer Space",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-097",
+      "title": "2024.03.01 [WILD RESURGENCE] BT21-097 Uneasing Awakened Rage",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT19-055",
+      "title": "2024.03.01 [FIGHTER’S AMBITION] BT19-055 Pan, Glimpse of Talent",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT20-086",
+      "title": "2024.03.01 [POWER ABSORBED] BT20-086 SS Son Goku, Majin Showdown",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT24-043",
+      "title": "2024.03.01 [BEYOND GENERATIONS] BT24-043 Minotia, Overcoming Destiny",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-566",
+      "title": "2023.12.08 [PERFECT COMBINATION] P-566 Frieza, Final Warrior of Universe 7",
+      "before": "[Activate : Main][Limit 1] Switch up to 1 of your 《Universe 7》 cards to Rest Mode : Switch this card to Active Mode.",
+      "after": "[Activate : Main][Limit 1] Switch 1 of your 《Universe 7》 cards to Rest Mode : Switch this card to Active Mode.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT19-140",
+      "title": "2023.12.08 [PERFECT COMBINATION] BT19-140 Black Smoke Dragon, Accumulated Negativity",
+      "before": "Color Cost: ●",
+      "after": "Color Cost: -",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT23-033",
+      "title": "2023.11.17 [PERFECT COMBINATION] BT23-033 Explosive Dance",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-543",
+      "title": "2023.11.17 [PERFECT COMBINATION] P-543 Drum, Evil Henchman",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-548",
+      "title": "2023.11.17 [PERFECT COMBINATION] P-548 A Gourmet Battle",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "EX23-50",
+      "title": "2023.11.17 [PERFECT COMBINATION] EX23-50 SS4 Vegeta, Prismatic Radiancet",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT22-113",
+      "title": "2023.09.01 [CRITICAL BLOW] BT22-113 Fortuneteller Baba’s Palace",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-091",
+      "title": "2023.08.25 [WILD RESURGENCE] BT21-091 Cell, Namekian Absorption",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT22-001",
+      "title": "2023.08.25 [CRITICAL BLOW] BT22-001 Son Gohan /Son Gohan, Unfaltering Power",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT22-086",
+      "title": "2023.08.25 [CRITICAL BLOW] BT22-086 Goku’s Kamehameha",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT22-124",
+      "title": "2023.08.25 [CRITICAL BLOW] BT22-124 Fu, Making the Next Move",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT22-125",
+      "title": "2023.08.25 [CRITICAL BLOW] BT22-125 Fu, a Scheme Set Into Motion",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT22-126",
+      "title": "2023.08.25 [CRITICAL BLOW] BT22-126 Fu, Supreme Intellect",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT22-137",
+      "title": "2023.08.25 [CRITICAL BLOW] BT22-137 SS Gogeta, Sparking to Utmost Limit",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-096",
+      "title": "2023.07.07 [WILD RESURGENCE] BT21-096 Hyperbolic Time Chamber",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-024",
+      "title": "2023.06.09 [WILD RESURGENCE] Garlic Jr., Eternal Life",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-099",
+      "title": "2023.06.09 [WILD RESURGENCE] BT21-099 Gingertown",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-500",
+      "title": "2023.06.09 [WILD RESURGENCE] P-500 SS Cabba, Student From Another Universe",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-035",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-035 Baby/ Baby, Awakening With a Grudge",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-036",
+      "title": "2023.06.02 [WILD RESURGENCE]BT21-036 Uub, Fusion of Two Spirits",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-068",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-068 Cell/ Cell, The Greatest Threat to Mankind",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-070",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-070 Cell, Perfect Resurrection",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-074",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-074 Android 16, Final Wish",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-078",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-078 SS Son Goku, Showing the Results of Training",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-081",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-081 SS Vegeta, Arrogance",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-088",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-088 Cell, Pursuit of Despair",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-103",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-103 SSB Son Goku, Finishing Blow",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-137",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-137 Towa, Combo Attack",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-145",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-145 Cell, Ultimate Lifeform of Despair",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT21-149",
+      "title": "2023.06.02 [WILD RESURGENCE] BT21-149 Dark King Mechikabura, Last Judgement",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-506",
+      "title": "2023.06.02 [WILD RESURGENCE] P-506 Bulma, Family Support",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-513",
+      "title": "2023.06.02 [WILD RESURGENCE] P-513 Black Masked Saiyan, Tainted With Malice",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-493",
+      "title": "2023.06.02 [WILD RESURGENCE] P-493 Zen-Oh, Universal Control",
+      "before": "",
+      "after": "",
+      "notes": "This card negates strategies using 《God》 and 《Universe》 Special Trait cards. Due to this wide-scale impact of this card on the overall gameplay environment, we have decided to errata this card."
+    },
+    {
+      "id": "BT20-024",
+      "title": "2023.03.31 [POWER ABSORBED] BT20-024 Android 21/Android 21, the Nature of Evil",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT20-101",
+      "title": "2023.03.31 [POWER ABSORBED] BT20-101 Hercule, Expecting the Unexpected",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT20-099",
+      "title": "2023.03.31 [POWER ABSORBED] BT20-099 SS Vegito, Overwhelming Might",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT16-020",
+      "title": "2023.01.01 [Realm of the Gods] BT16-020 Son Goku/SSG Son Goku, Crimson Warrior",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT19-019",
+      "title": "2022.11.18 [FIGHTER’S AMBITION] BT19-019 Android 13, Total Annihilator",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT19-045",
+      "title": "2022.11.18 [FIGHTER’S AMBITION] BT19-045 Son Goku, Interplanetary Training",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT19-105",
+      "title": "2022.11.18 [FIGHTER’S AMBITION] BT19-105 Krillin, Trusty Assistance",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-434",
+      "title": "2022.11.18 [FIGHTER’S AMBITION] P-434 Magenta/Magenta, World Within Grasp (Leader front side)",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT1-053",
+      "title": "2022.11.04 [GALACTIC BATTLE] BT1-053 Senzu Bean",
+      "before": "[Activate: Battle] Choose up to 1 of your cards. It gains +5000 power for the duration of the turn. Then, choose up to 2 of your energy and switch them to Active Mode.",
+      "after": "[Activate: Battle] If it's your opponent's turn : Choose up to 1 of your cards. It gains +5000 power for the duration of the turn. Then, choose up to 2 of your energy and switch them to Active Mode.",
+      "notes": "BT1-053 Senzu Bean has always been a powerful card in the Dragon Ball Super Card Game, but with the new interactions present in ZENKAI series, players are able to greatly extend their turn and play strength by switching energy to Active Mode on their turns. This change will allow BT1-053 to still be a very powerful defensive tool for Blue decks, while eliminating its offensive capabilities."
+    },
+    {
+      "id": "BT11-030",
+      "title": "2022.11.04 [Vermilion Bloodline] BT11-030 Violent Rays",
+      "before": "[Counter : Attack] If your Leader Card is red : Negate the attack. You may choose 1 card in your hand and discard it. If you do, choose one—\n・ Your opponent can't attack with Battle Cards with 20000 power or more for the turn.\n・ Your opponent can't attack with Unison Cards with 20000 power or more for the turn.",
+      "after": "[Counter : Attack] If your Leader Card is red : Negate the attack. You may choose 1 card in your hand and discard it. If you do, choose one—\n・ Your opponent can't attack with Battle Cards with 30000 power or more for the turn.\n・ Your opponent can't attack with Unison Cards with 30000 power or more for the turn.",
+      "notes": "When BT11-030 was released, few strategies revolved around attacking with multiple battle cards of 20000 power or more in a turn.  Since the release of ZENKAI series, BT11-030 disrupts several deck strategies and has proven more powerful than intended.  This change will still allow Red deck players to stop the highest-power attack plays, but not interfere with all strategies."
+    },
+    {
+      "id": "BT18-052",
+      "title": "2022.11.04 [Dawn of the Z-Legends] BT18-052 Beerus, the Visitor",
+      "before": "[Activate : Main] ●, if the name of your Leader's back side includes {Super Saiyan Blue Son Goku} : Draw 1 card, then place this card from your hand in your energy in Rest Mode.",
+      "after": "[Activate : Main] ●, if the name of your Leader's back side includes {Super Saiyan Blue Son Goku} and you place this card from your hand in your energy in Rest Mode : Draw 1 card.",
+      "notes": "BT18-052 Beerus, the Visitor, as printed, allowed a player to draw many cards per turn with high consistency.    This interaction was not intended, so we are issuing an errata to eliminate it."
+    },
+    {
+      "id": "EX13-04",
+      "title": "2022.11.04 [Special Anniversary Box 2020] EX13-04 Vegeta, Resolve Renewed",
+      "before": "[Counter : Play] If the Battle Card being played has 15000 power or less, it is placed in its owner’s Drop Area instead of being played, then play this card.",
+      "after": "[Counter : Play] If your Leader Card is a 〈Vegito〉 card : If the Battle Card being played has 15000 power or less, it is placed in its owner’s Drop Area instead of being played, then play this card.",
+      "notes": "EX13-04 Vegeta, Resolve Renewed has become used in almost all Red decks in ZENKAI series. In order to promote deck-building diversity, we have decided to errata this card."
+    },
+    {
+      "id": "P-177",
+      "title": "2022.11.04 [Expansion Set Tournament Pack] P-177 Broly, Crown of Retribution",
+      "before": "[Auto] If your Leader Card is red : When you play this card from your hand, if your opponent has 2 or more energy in Active Mode, your opponent reveals their hand, and you choose up to 1 Battle Card from it with 20000 power or less and place it in your opponent's Drop Area.",
+      "after": "[Permanent] This card can't be played by skills from any area.\n[Auto] If your Leader Card is red : When you play this card from your hand, if your opponent has 2 or more energy in Active Mode, your opponent reveals their hand, and you choose up to 1 Battle Card from it with 20000 power or less and place it in your opponent's Drop Area.",
+      "notes": "P-177 Broly, Crown of Retribution has proven too powerful when played without paying its energy cost. We have decided to errata the card in order to balance it."
+    },
+    {
+      "id": "P-417",
+      "title": "2022.09.16[Dawn of the Z-Legends] P-417 Master Roshi, Demonic Vassal",
+      "before": "[Auto] If your Leader is a yellow 《Demon Clan》 card : Look at up to 5 cards from the top of your deck, add up to 1 yellow 《Demon Clan》 card among them to your hand, then shuffle your deck.",
+      "after": "[Auto] If your Leader is a yellow 《Demon Clan》 card : When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow 《Demon Clan》 card among them to your hand, then shuffle your deck.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT18-089",
+      "title": "2022.09.09[Dawn of the Z-Legends] BT18-089 Bardock's Crew",
+      "before": "[Awaken] When your life is at 4 or less or there are 4 or more 《Bardock's Crew》 cards with different card names in your energy, Z-Energy, Battle Area, and/or Drop : You may draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your hand to your life until you have 6 life left.",
+      "after": "[Awaken] When your life is at 4 or less or there are 4 or more 《Bardock's Crew》 cards with different card names in your energy, Z-Energy, Battle Area, and/or Drop : You may draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT8-089",
+      "title": "2022.06.24[Series 8 -MALICIOUS MACHINATIONS-] BT8-089 Dr.Lychee & Hatchhyack",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "SD14-01",
+      "title": "2022.06.24[STARTER DECK 14 -Saiyan Wonder-] SD14-01 Vegeta : Xeno & Trunks : Xeno",
+      "before": "",
+      "after": "",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-211",
+      "title": "2022.5.20[-Rise of the Unison Warrior- Pre-Release Promo] P-211 Super Saiyan God Son Goku",
+      "before": "[Awaken] When your life is at 4 or less, or you have a blue Unison Card with a specified cost of 3 in play : You may draw 2 cards and flip this card over.",
+      "after": "[Awaken] When your life is at 4 or less : You may draw 2 cards and flip this card over.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-394",
+      "title": "2022.5.20[Championship Pack 2022 Vol. 1] P-394 Android 17, Most Valuable Player",
+      "before": "[Activate : Main][Sparking 5]●, if your Leader Card is a red 《Universe 7》 card and you send this card from your Drop Area to your Warp : Your Leader Card gains [Invoker] until the end of your next turn.",
+      "after": "[Activate : Main][Sparking 5] ●●●, if your Leader Card is a red 《Universe 7》 card and you send this card from your Drop Area to your Warp : Your Leader Card gains [Invoker] until the end of your next turn.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT12-082",
+      "title": "2022.4.1[Vicious Rejuvenation] BT12-082 The Tree of Might",
+      "before": "[Auto] If all of your opponent’s energy is mono-green : If this card is in your Battle Area at the start of your Main Phase, choose 1 card in your life and flip it face up.",
+      "after": "[Auto] If all of your opponent’s energy is mono-green : If this card is in your Battle Area at the start of your Main Phase, choose 1 face-down card in your life and flip it face up.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-398",
+      "title": "2022.4.1[Championship Pack 2022 Vol. 1] P-398 Majin Buu, Tricky Nemesis",
+      "before": "[Permanent] If your Leader Card is a green <Majin Buu> card, this card is green while in your deck and Drop Area.",
+      "after": "[Permanent] If your Leader Card is a green <Majin Buu> card, this card is also treated as mono-green while in your deck and Drop Area.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "DB2-030",
+      "title": "2022.4.1 [Draft Box 05] DB2-030 Ultrasonic Exchange",
+      "before": "[Counter : Play] If the Battle Card your opponent is playing has 20000 power or less, your opponent may place that Battle Card in their Drop Area instead of playing it. If they don’t, they choose 1 of their Battle Cards and place it in its owner’s Drop Area.",
+      "after": "[Counter : Play] You can activate this skill if your opponent declares they’re playing a Battle Card with 20000 power or less. Your opponent may place that Battle Card in their Drop Area instead of playing it. If they don’t, they choose 1 of their Battle Cards and place it in its owner’s Drop Area.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT7-072",
+      "title": "2022.4.1 [ASSAULT OF THE SAIYANS] BT7-072 Hidden Power of the Saiyans",
+      "before": "[Counter : Play] If your Leader Card is green : Your opponent may place the Battle Card they’re playing in its owner’s Drop Area instead of playing it. If they didn’t, your opponent chooses 2 cards in their hand and places them in their Drop Area.",
+      "after": "[Counter : Play] If your Leader Card is green : You can activate this skill if your opponent declares they’re playing a Battle Card. Your opponent may place the Battle Card they’re playing in its owner’s Drop Area instead of playing it. If they didn’t, your opponent chooses 2 cards in their hand and places them in their Drop Area.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT9-101",
+      "title": "2022.4.1 [UNIVERSAL ONSLAUGHT] BT9-101 Full-Power Frieza, 100% Overdrive",
+      "before": "[Auto] When this card attacks, choose all of your opponent’s Battle Cards, ignoring [Barrier], and they get -30000 power for the duration of the turn.",
+      "after": "[Auto] When this card attacks, choose all of your opponent’s non-token Battle Cards, ignoring [Barrier], and they get -30000 power for the duration of the turn.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT14-087",
+      "title": "2022.4.1 [CROSS SPIRITS] BT14-087 Power Beyond Super Saiyan 2",
+      "before": "[Counter : Play] If your opponent played a Unison Card, they may remove a marker from it. If they don’t, choose up to 1 of their Battle Cards and KO it.",
+      "after": "[Counter : Play] You can activate this skill if your opponent declares they’re playing a Unison Card. Your opponent may remove a marker from the Unison Card they played. If they don’t, choose up to 1 of their Battle Cards and KO it.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT14-140",
+      "title": "2022.4.1 [CROSS SPIRITS] BT14-140 Ultimate Dark Dragon-Slaying Bullet",
+      "before": "[Counter : Play] If your opponent is playing a Unison Card, they may either remove a marker from it for every 2 cards in their Drop Area and Warp, or place it in their Drop Area instead of playing it. If they don’t, your opponent can only attack one more time for the turn.",
+      "after": "[Counter : Play] You can activate this skill if your opponent declares they’re playing a Unison Card. They may either remove a marker from the Unison Card for every 2 cards in their Drop Area and Warp, or place it in their Drop Area instead of playing it. If they don’t, your opponent can only attack one more time for the turn.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-360",
+      "title": "2022.2.10[-Realm of the Gods- Pre-Release Promo] P-360 Vegeta/SSG Vegeta, Crimson Warrior",
+      "before": "[Activate Battle][Once per turn] Choose up to 1 red or blue 《Saiyan》 card in your hand and discard it : Look at up to 3 cards from the top of your deck,",
+      "after": "[Activate Battle][Once per turn] Choose 1 red or blue 《Saiyan》 card in your hand and discard it : Look at up to 3 cards from the top of your deck,",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT16-098",
+      "title": "2022.2.10[Realm of the Gods] BT16-098 Dabura/Demon God Dabura, Diabolical Awakening",
+      "before": "[Activate Main][Once per turn] ●: Play up to 1 black Unison Card with no specified cost and 20000 power from your Drop Area with a marker on it in Rest Mode, and at the end of the turn, send that card its owner‘s Warp.",
+      "after": "[Activate Main][Once per turn] ●: Play up to 1 black Unison Card with no specified cost and 20000 power from your Drop Area with a marker on it in Rest Mode, and at the end of the turn, send that card to its owner's Warp.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT13-124",
+      "title": "2021.8.6[Supreme Rivalry] BT13-124 Black Smoke Dragon, Offering of Destruction",
+      "before": "[Activate : Main][Once per turn] Add a marker to this card.",
+      "after": "[Activate : Main][Once per turn] If your Leader Card is a black 《Demon Realm Race》 card : Add a marker to this card.",
+      "notes": "Read with both errata above when playing."
+    },
+    {
+      "id": "BT12-128",
+      "title": "2022.2.10[Vicious Rejuvenation] BT12-128 Son Goku, True Fighting Spirit",
+      "before": "[Deflect]\n[Auto] Add 1 card from your life to your hand : When this card attacks, it gets +10000 power for the turn.",
+      "after": "[Deflect][Unique]\n[Auto] Add 1 card from your life to your hand : When this card attacks, it gets +10000 power for the turn.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT11-091",
+      "title": "2022.2.10[Vermilion Bloodline] BT11-091 Son Gohan/ Son Gohan & Hire-Dragon, Boundless Friendship",
+      "before": "[Activate:Main］[Once per turn] Draw 1 card, then play up to 1 yellow skill-less Battle Card with an energy cost of 1 from your Drop Area.\n[Activate:Battle][Once per turn] When this card is in a battle, if there is a “Monster” card in your Combo Area, draw 1 card.",
+      "after": "[Activate:Main][Once per turn] ● : Draw 1 card, then play up to 1 yellow skill-less Battle Card with an energy cost of 1 from your Drop Area.\n[Activate:Battle][Once per turn] When this card is in a battle, if it’s your turn and there is a “Monster” card in your Combo Area, draw 1 card.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT15-057",
+      "title": "2021.11.26[Saiyan Showdown] BT15-057 Universe 6, Assemble!",
+      "before": "[Activate: Battle] Use up to 1 blue 《Universe 6》 card from your Drop Area in a combo; it gets -5000 combo power and has its skills negated for the turn.",
+      "after": "[Activate: Battle] Choose up to 1 blue 《Universe 6》 Battle Card in your Drop area. Negate its skills for the turn and use it in a combo, and it gets -5000 combo power for the turn.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "P-337",
+      "title": "2021.11.1[Championship Pack 2021 Vol.2] P-337 Zamasu, the Eliminator",
+      "before": "[Counter：Play] Play this card, and if the card being played has an energy cost of 4 or less, return it to its owner's hand instead.",
+      "after": "[Counter：Play] Play this card, and if the Battle Card being played has an energy cost of 4 or less, return it to its owner's hand instead.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT13-060",
+      "title": "2021.11.1[Supreme Rivalry] BT13-060 Galactic Buster",
+      "before": "[Activate : Battle] If your Leader Card is a 《Boujack Brigade》 card or a mono-blue card and you choose 1 mono-blue Battle Card with a combo cost of 1 in your energy : Draw 1 card, then use the chosen card in a combo.",
+      "after": "[Activate : Battle] If your Leader Card is a 《Boujack Brigade》 card and you choose 1 mono-blue Battle Card with a combo cost of 1 in your energy : Draw 1 card, then use the chosen card in a combo.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT15-066",
+      "title": "2021.11.1[Saiyan Showdown] BT15-066 Kaio-Ken Son Goku, Decisive Battle",
+      "before": "[Auto] At the end of your turn, send this card to its owner's Warp. If you do, play up to 1 {Son Goku, Confronting Invasion} from your Warp.",
+      "after": "[Auto] At the end of your turn, send this card to its owner's Warp. If you do, play up to 1 {Kaio-Ken Son Goku, Confronting Invasion} from your Warp.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT15-068",
+      "title": "2021.11.1[Saiyan Showdown] BT15-068 Kaio-Ken Son Goku, Confronting Invasion",
+      "before": "[Activate : Main][Limit 1] ●, if there are a total of 4 {King Kai's Training} in your Warp and/or under a {King Kai's Planet} in your Battle Area, and you send this card to its owner's Warp: Play up to 1 {Son Goku, Maximum Gains} from your deck, then shuffle your deck.",
+      "after": "[Activate : Main][Limit 1] ●, if there are a total of 4 {King Kai's Training} in your Warp and/or under a {King Kai's Planet} in your Battle Area, and you send this card to its owner's Warp: Play up to 1 {Kaio-Ken Son Goku, Maximum Gains} from your deck, then shuffle your deck.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT15-069",
+      "title": "2021.11.1[Saiyan Showdown BT15-069 Training Goals Son Goku",
+      "before": "[Activate : Main][Limit 1] ●, if there are 3 or more {King Kai's Training} under a {King Kai's Planet} in your Battle Area : Choose up to 1 {Son Goku, Confronting Invasion} in your deck or Warp, play it on top of this card, then shuffle your deck if you looked through it.",
+      "after": "[Activate : Main][Limit 1] ●, if there are 3 or more {King Kai's Training} under a {King Kai's Planet} in your Battle Area : Choose up to 1 {Kaio-Ken Son Goku, Confronting Invasion} in your deck or Warp, play it on top of this card, then shuffle your deck if you looked through it.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT15-088",
+      "title": "2021.11.1[Saiyan Showdown BT15-088 King Kai's Planet",
+      "before": "・Choose up to 1 {Son Goku, Confronting Invasion} in your hand and play it.\n・Choose all green ＜Son Goku＞ cards in your Leader Area and Battle Area and they get +5000 power for the turn.",
+      "after": "・Choose up to 1 {Kaio-Ken Son Goku, Confronting Invasion} in your hand and play it.\n・Choose all green ＜Son Goku＞ cards in your Leader Area and Battle Area and they get +5000 power for the turn.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT15-089",
+      "title": "2021.11.1[Saiyan Showdown BT15-089 King Kai's Training",
+      "before": "[Activate : Main] Choose 1 {King Kai's Planet} in your Battle Area : Place this card under the chosen card, add up to 1 {Son Goku, Confronting Invasion} from your deck to your hand, then shuffle your deck.",
+      "after": "[Activate : Main] Choose 1 {King Kai's Planet} in your Battle Area : Place this card under the chosen card, add up to 1 {Kaio-Ken Son Goku, Confronting Invasion} from your deck to your hand, then shuffle your deck.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT11-028",
+      "title": "2021.9.3[Vermilion Bloodline] BT11-028 Planet Vampa",
+      "before": "[Activate:Main][Once per turn] If your Leader Card is a red 〈Broly : Br〉 card and you add 1 card from your life to your hand : Look at up to 7 cards from the top of your deck, play up to 1 red 〈Broly : Br〉, 〈Paragus : Br〉, 〈Ba : Br〉, or 〈Goliamite : Br〉 card with 5000 power or less among them, then shuffle your deck. If you played a card, choose 1 card in your hand and discard it.",
+      "after": "[Activate:Main][Once per turn] If your Leader Card is a red 〈Broly : Br〉 card, you have no Battle Cards in play, and you add 1 card from your life to your hand : Look at up to 7 cards from the top of your deck, play up to 1 red 〈Broly : Br〉, 〈Paragus : Br〉, 〈Ba : Br〉, or 〈Goliamite : Br〉 card with 5000 power or less among them, then shuffle your deck. If you played a card, choose 1 card in your hand and discard it.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT11-058",
+      "title": "2021.9.3[Vermilion Bloodline] BT11-058 Planet Tuffle",
+      "before": "[Permanent] If your Leader Card is a blue 〈Baby〉 card and all of your energy is mono-blue, when activating a [Counter] skill of a mono-blue card with an energy cost of 5 or less from your hand, reduce the energy cost of that card by 1.",
+      "after": "[Permanent] If your Leader Card is a blue 〈Baby〉 card, you have no Battle Cards in play, and all of your energy is mono-blue, when activating a [Counter] skill of a mono-blue card with an energy cost of 5 or less from your hand, reduce the energy cost of that card by 1.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT11-133",
+      "title": "2021.9.3[Vermilion Bloodline] BT11-133 Dark Broly, Demon Realm Ravager",
+      "before": "[Activate : Main] If your Leader Card is a 〈Dark Broly〉 card and you send 6 black Battle Cards other than this card from your Drop Area to your Warp : Play this card from your Drop Area.",
+      "after": "[Activate : Main] ● : If your Leader Card is a 〈Dark Broly〉 card and you send 6 black Battle Cards other than this card from your Drop Area to your Warp : Play this card from your Drop Area.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT11-134",
+      "title": "2021.9.3[Vermilion Bloodline] BT11-134 Dark Broly, Uncontrollable Berserker",
+      "before": "[Activate : Main] If your Leader Card is a 〈Dark Broly〉 card and you send 6 black Battle Cards other than this card from your Drop Area to your Warp : Play this card from your Drop Area.",
+      "after": "[Activate : Main] ● : If your Leader Card is a 〈Dark Broly〉 card and you send 6 black Battle Cards other than this card from your Drop Area to your Warp : Play this card from your Drop Area.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT11-135",
+      "title": "2021.9.3[Vermilion Bloodline] BT11-135 Dark Broly, the New Masked Saiyan",
+      "before": "[Activate : Main] If your Leader Card is a 〈Dark Broly〉 card and you send 6 black Battle Cards other than this card from your Drop Area to your Warp : Play this card from your Drop Area.",
+      "after": "[Activate : Main] ●: If your Leader Card is a 〈Dark Broly〉 card and you send 6 black Battle Cards other than this card from your Drop Area to your Warp : Play this card from your Drop Area.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT13-028",
+      "title": "2021.9.3[Supreme Rivalry] BT13-028 Young Invaders",
+      "before": "[Auto] If your Leader Card is a <King Vegeta : Br> card : At the start of your opponent's turn, play up to 1 red 《Saiyan》 card with 500 power from your deck to your opponent's Battle Area, then shuffle your deck. If you played a card, you can't play Battle Cards that aren't red 《Saiyan》 cards for the turn.\n[Activate : Main][Once per turn] Add up to 1 card from your life to your hand, then play up to 1 red 《Saiyan》 card with 500 power from your deck in Rest Mode with its skills negated for the game, then shuffle your deck.",
+      "after": "[Auto] ●: If your Leader Card is a <King Vegeta : Br> card : At the start of your opponent's turn, play up to 1 red 《Saiyan》 card with 500 power from your deck to your opponent's Battle Area, then shuffle your deck. If you played a card, you can't play Battle Cards that aren't red 《Saiyan》 cards for the turn.\n[Activate : Main][Once per turn] ●: Add up to 1 card from your life to your hand, then play up to 1 red 《Saiyan》 card with 500 power from your deck in Rest Mode with its skills negated for the game, then shuffle your deck.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT14-061",
+      "title": "2021.8.6[CROSS SPIRITS] BT14-061 Videl, the Town's Heroine",
+      "before": "[Auto] When this card attacks, draw 1 card. Choose up to 1 of your green Unison Cards and switch it to Rest Mode, then add that card's power to this card's power for the battle.",
+      "after": "[Auto] When this card attacks, draw 1 card. Choose up to 1 of your green Unison Cards in Active Mode and switch it to Rest Mode, then add that card's power to this card's power for the battle.",
+      "notes": "The current text of this card prevents it from being properly played."
+    },
+    {
+      "id": "BT9-137",
+      "title": "2021.8.6[UNIVERSAL ONSLAUGHT] BT9-137 Cell Xeno, Unspeakable Abomination",
+      "before": "[Quadruple Strike]\n[Ultimate]\n[Deflect]\n[Energy-Exhaust]\n[Successor]\n[Auto] If you have 5 or more energy: When you play this card, choose up to 3 cards in your opponent's hand, place them in their Drop Area, and this card gains [Dual Attack] for the duration of the turn.",
+      "after": "[Ultimate]\n[Deflect]\n[Energy-Exhaust]\n[Successor]\n[Auto] If you have 5 or more energy : When this card is played, choose up to 3 cards in your opponent's hand and discard them, and this card gains [Quadruple Strike] and [Dual Attack] for the turn.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT11-088",
+      "title": "2021.8.6[Vermilion Bloodline] BT11-088 The Majin Quickening",
+      "before": "[Activate : Main] If your Leader Card is a green 〈Evil Wizard Babidi〉 card and you place this card and 4 cards under it in your Drop Area : Play up to 1 green 〈Majin Buu〉 card with an energy cost of 3 from your deck or Drop Area, then shuffle your deck if you looked through it.",
+      "after": "[Activate : Main] If your Leader Card is a green <Evil Wizard Babidi> card, you have 3 or more energy, and you place this card and 4 cards under it in your Drop Area : Play up to 1 green 〈Majin Buu〉 card with an energy cost of 3 from your deck or Drop Area, then shuffle your deck if you looked through it.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT11-122",
+      "title": "2021.8.6[Vermilion Bloodline] BT11-122 Dark Broly & Paragus, the Corrupted",
+      "before": "[Activate : Battle] Choose 1 black Battle Card with 30000 power in your hand or Battle Area and place it in its owner's Drop Area : This card gets +5000 power for the battle.",
+      "after": "[Activate : Battle][Once per turn] Choose 1 black Battle Card with 30000 power in your hand or Battle Area and place it in its owner's Drop Area : This card gets +5000 power for the battle.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT9-111",
+      "title": "2021.8.6[UNIVERSAL ONSLAUGHT] BT9-111 Catastrophic Blow",
+      "before": "[Activate : Main] If you have a Red/Blue multicolor 〈Son Goku〉 card in play, or there are no Battle Cards in your Battle Area, deal 1 damage to your opponent.",
+      "after": "[Activate : Main][Limit 1] If you have a Red/Blue multicolor 〈Son Goku〉 card in play, or there are no Battle Cards in your Battle Area, deal 1 damage to your opponent.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT13-139",
+      "title": "2021.04.09[Supreme Rivalry] BT13-139 Demon God Towa, Offering of the Dark Dragon Balls",
+      "before": "[Super Combo]\n[Sparking 5] If your Leader Card is black : When this card is used in a combo, draw 1 card.",
+      "after": "[Super Combo]\n[Auto][Sparking 5] If your Leader Card is black : When this card is used in a combo, draw 1 card.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "EB1-26",
+      "title": "2021.02.12[Battle Evolution Booster] EB1-26 Son Goku, the Long-Awaited Rematch",
+      "before": "[Auto]●, if all of your energy is green and you have a green Battle Card in play : Play this card from your hand, then add up to 1 card from your life to your hand.",
+      "after": "[Activate:Main]●, if all of your energy is green and you have a green Battle Card in play : Play this card from your hand, then add up to 1 card from your life to your hand.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT11-064",
+      "title": "2020.12.25[Vermilion Bloodline] BT11-064 Dark Broly, Overwhelming Evil",
+      "before": "[Auto][Once per turn] When a marker is removed from this card by a skill, your opponent chooses 1 card from their hand and discards it.",
+      "after": "[Auto][Once per turn] When a marker is removed from this card by a non-keyword skill, your opponent chooses 1 card from their hand and discards it.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT9-076",
+      "title": "2020.9.18[UNIVERSAL ONSLAUGHT-] BT9-076 Bibidi, Primeval Conjurer",
+      "before": "[Auto] If all of your energy is black : When you combo with this card from your hand, this card gets +1000 combo power for the duration of the turn for each card in your Drop Area and Warp.",
+      "after": "[Auto] If all of your energy is black : When you combo with this card from your hand, this card gets +1000 combo power for the duration of the turn for each card in your Drop Area and Warp (up to a maximum of 12).",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "P-250",
+      "title": "2020.9.11 [UW Tournament Pack Vol.2]P-250 Son Goku, Power of the Golden Great Ape",
+      "before": "[Activate : Main][Once per turn] : Draw 2 cards.\n[Activate : Main] Choose up to 1 of your mono-blue Leader Cards and it gets +10000 power for the turn.\n[Activate : Main] If your Leader Card is mono-blue and you shuffle 5 mono-blue cards from your Drop Area into your deck : Draw 2 cards.",
+      "after": "[Activate : Main][Once per turn] : Draw 2 cards.\n[Activate : Main] Choose up to 1 of your mono-blue Leader Cards and it gets +10000 power for the turn.\n[Activate : Main] If your Leader Card is mono-blue and you shuffle 1 mono-blue card from your Drop Area into your deck : Draw 2 cards.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT10-153",
+      "title": "2020.7.3 [Rise of the Unison Warrior] BT10-153 SS3 Gotenks, Blazing Fusion",
+      "before": "\"[Permanent] Reduce the energy cost of this card by 1 for each Battle Card with 15000 power in your Drop Area.\"",
+      "after": "\"[Permanent] Reduce the energy cost of this card in your hand by 1 for each Battle Card with 15000 power in your Drop Area.\"",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT10-036",
+      "title": "2020.6.12  [Rise of the Unison Warrior] BT10-036 SSB Son Goku, Hope for Victory",
+      "before": "[Auto] At the end of your next turn after you place this card in your energy with this skill, if this card is in your energy, place it in its owner's Drop Area.",
+      "after": "[Auto] At the end of your next turn after you place this card in your energy with this card's skill, if this card is in your energy, place it in its owner's Drop Area.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT10-040",
+      "title": "2020.6.12  [Rise of the Unison Warrior] BT10-040 SSB Vegeta, Blaze of Passion",
+      "before": "[Auto] At the end of your next turn after you place this card in your energy with this skill, if this card is in your energy, place it in its owner's Drop Area.",
+      "after": "[Auto] At the end of your next turn after you place this card in your energy with this card's skill, if this card is in your energy, place it in its owner's Drop Area.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT10-144",
+      "title": "2020.6.3 [Rise of the Unison Warrior] BT10-144 Vegeta & Trunks, No Holds Barred",
+      "before": "Character: 〈Vegeta/Trunks〉",
+      "after": "Character: 〈Vegeta/Trunks: Future〉",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT2-036",
+      "title": "2020.5.22 [UNION FORCE] BT2-036 Goku Black",
+      "before": "[Activate: Main][Once per turn] If you have 2 or more blue energy, choose 1 card in your life and place it in your Energy Area. At the end of that turn, choose 1 of your energy and place it in your Drop Area.",
+      "after": "[Activate: Main][Once per turn] If you have 2 or more blue energy, choose 1 card in your life and place it in your Energy Area, and you can’t place cards in your Energy Area for the turn. At the end of that turn, choose 1 of your energy and place it in your Drop Area.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT10-034",
+      "title": "2020.5.22 [Rise of the Unison Warrior] BT10-034 Supreme Kai of Time, Unison of History",
+      "before": "[+1][Activate : Main] Add 1 card in your life to your hand, then choose 1 card from your hand and place it in your life.",
+      "after": "[+1][Activate : Main] You may add 1 card in your life to your hand. If you do, choose 1 card from your hand and place it in your life.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT10-038",
+      "title": "2020.5.22 [Rise of the Unison Warrior] BT10-038 Son Goku, Warrior That Crossed Time",
+      "before": "[Auto] If this card is removed from a Battle Area by a skill, choose up to 1 {SSB Son Goku, Hope for Victory} in your hand and place it in your energy.",
+      "after": "[Auto] If this card is removed from a Battle Area by an opponent’s skill, choose up to 1 {SSB Son Goku, Hope for Victory} in your hand and place it in your energy.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "EX09-03",
+      "title": "2020.5.22 [Saiyan Surge] EX09-03 SSG Son Goku, Surge of Divinity",
+      "before": "[Activate : Main/Battle][Once per turn] If your life is at 5 or less and you choose 1 card under this card and place it in its owner’s Drop Area : Choose one—",
+      "after": "[Activate : Main/Battle][Once per turn] If it’s your turn, your life is at 5 or less, and you choose 1 card under this card and place it in your Drop Area : Choose one—",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "EX10-03",
+      "title": "2020.5.22 [Namekian Surge] EX10-03 Piccolo",
+      "before": "[Auto][Once per turn] At the beginning of your turn, look at the top card of your deck, place the card on either the top or bottom of your deck, then draw 1 card.",
+      "after": "[Auto][Once per turn] At the beginning of your turn, look at the top card of your deck and place it on the top or bottom of your deck.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "DB2-137",
+      "title": "2020.3.6 [Draft Box 05] DB2-137 Anilaza, the Towering Atrocity",
+      "before": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+      "after": "[Permanent] When this card is removed from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "DB2-140",
+      "title": "2020.3.6 [Draft Box 05] DB2-140 Secret Technique Paparoni",
+      "before": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+      "after": "[Permanent] When this card is removed from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "DB2-151",
+      "title": "2020.3.6 [Draft Box 05] DB2-151 Nigrisshi, from the Shadows",
+      "before": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+      "after": "[Permanent] When this card is removed from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "DB2-153",
+      "title": "2020.3.6 [Draft Box 05] DB2-153 Viara, Everlasting Assault",
+      "before": "[Critical]\n[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+      "after": "[Critical]\n[Permanent] When this card is removed from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT9-039",
+      "title": "2020.3.4 [UNIVERSAL ONSLAUGHT-] BT9-039 Cell, Android Absorber",
+      "before": "Play this card from your Drop Area, then your opponent chooses 1 card in their hand and places it in their Drop Area; you can't play {Cell, Android Absorber} for the duration of the turn.",
+      "after": "Play this card from your Drop Area, then your opponent chooses 1 card in their hand and places it in their Drop Area; you can't activate {Cell, Android Absorber}'s [Activate : Main] skill for the duration of the turn.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "P-092",
+      "title": "2020.1.20 [DBS:Broly Pack Vol. 1/DBS-BE08] P-092 Broly, the Awakened Threat",
+      "before": "[Activate: Main][Once per turn] Choose 1 card from your life and add it to your hand : Choose up to 1 of your cards in Rest Mode and switch it to Active Mode.",
+      "after": "[Activate: Main] [Once per turn] Choose 1 card from your life and add it to your hand : Choose this card or up to 1 〈Broly : Br〉 card in your Battle Area and switch it to Active Mode.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT5-119",
+      "title": "2019.11.1 [MIRACULOUS REVIVAL] BT5-119 World Peace",
+      "before": "[Activate : Main] Your Leader Card is a 《Shenron》 card : Choose 1 Battle Card in your Drop Area with an energy cost less than or equal to your current energy and play it.",
+      "after": "[Activate : Main] Your Leader Card is a 《Shenron》 card : Choose 1 Battle Card in your Drop Area with an energy cost of 3 or less and play it.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "TB3-046",
+      "title": "2019.11.1 [CLASH OF FATES] TB3-046 Plea for Salvation",
+      "before": "[Activate : Main] If your Leader Card is a 《Shenron》 card : Choose 1 green Battle Card in your Drop Area with an energy cost less than or equal to your current energy and play it, then choose up to 1 of your opponent's Battle Cards with an energy cost of 2 or less and KO it.",
+      "after": "[Activate : Main] If your Leader Card is a 《Shenron》 card : Choose 1 green Battle Card in your Drop Area with an energy cost of 3 or less and play it, then choose up to 1 of your opponent's Battle Cards with an energy cost of 2 or less and KO it.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "TB3-064",
+      "title": "2019.11.1 [CLASH OF FATES] TB3-064 Porunga, Saviour of Namekians",
+      "before": "・Remove 7 [Dragon Ball] cards in your Drop Area from the game. If you do, choose 1 Battle Card with an energy cost less than or equal to your current energy from your Drop Area and play it, then flip this card over at the end of the turn.",
+      "after": "・Remove 7 [Dragon Ball] cards in your Drop Area from the game. If you do, choose 1 Battle Card with an energy cost of 3 or less from your Drop Area and play it, then flip this card over at the end of the turn.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT8-110",
+      "title": "2019.11.1 [MALICIOUS MACHINATIONS] BT8-110 SS4 Son Goku, a Heartfelt Plea",
+      "before": "[Auto] Choose 1 of your red Battle Cards with 25000 power or more and place it in its owner's Drop Area : When your Leader Card activates [Awaken], if {SS4 Son Goku, a Heartfelt Plea} isn't in play in your Battle Area, you may play this card from your hand.",
+      "after": "[Auto] If {SS4 Son Goku, a Heartfelt Plea} isn't in play in your Battle Area, choose 1 of your red Battle Cards with 25000 power or more and place it in its owner's Drop Area : When your Leader Card activates [Awaken], you may play this card from your hand.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT8-114",
+      "title": "2019.11.1 [MALICIOUS MACHINATIONS] BT8-114 Great Ape Baby, the Ultimate Evil Lifeform",
+      "before": "[EX-Evolve], 〈Baby〉 with an energy cost of 5 or more.",
+      "after": "[EX-Evolve] : 〈Baby〉 with an energy cost of 5 or more.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "XD2-09",
+      "title": "2019.11.1 [ANDROID DUALITY] XD2-09 Android 21, the Beautiful Scientist",
+      "before": "[Blocker]\n[Auto]",
+      "after": "[Blocker]\n[Energy-Exhaust]\n[Auto]",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT7-125",
+      "title": "2019.7.24 [ASSAULT OF THE SAIYANS] BT7-125 SS3 Nappa, Saiyan Might",
+      "before": "[Permanent] If you have any non-red cards in areas other than your deck, hand, or life, you can't play this card from any area.",
+      "after": "[Permanent] You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than red.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT7-126",
+      "title": "2019.7.24 [ASSAULT OF THE SAIYANS] BT7-126 SS3 Trunks, Saiyan Harmonizer",
+      "before": "[Permanent] If you have any non-blue cards in areas other than your deck, hand, or life, you can't play this card from any area.",
+      "after": "[Permanent] You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than blue.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT7-127",
+      "title": "2019.7.24 [ASSAULT OF THE SAIYANS] BT7-127 SS3 Broly, Saiyan Berserker",
+      "before": "[Permanent] If you have any non-green cards in areas other than your deck, hand, or life, you can't play this card from any area.",
+      "after": "[Permanent] You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than green.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT7-128",
+      "title": "2019.7.24 [ASSAULT OF THE SAIYANS] BT7-128 SS2 Kefla, Saiyan Synthesis",
+      "before": "[Permanent] If you have any non-yellow cards in areas other than your deck, hand, or life, you can't play this card from any area.",
+      "after": "[Permanent] You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than yellow.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT7-129",
+      "title": "2019.7.24 [ASSAULT OF THE SAIYANS] BT7-129 Son Goku, Saiyan Transcendence",
+      "before": "[Permanent] If you have any non-black cards in areas other than your deck, hand, or life, you can't play this card from any area.",
+      "after": "[Permanent] You can't play this card from any area if you have cards in areas other than your deck, hand, or life that are any color other than black.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "EX06-18",
+      "title": "2019.7.12 [Special Anniversary Collection] EX06-18 Paragus, Quelling the Beast",
+      "before": "[Permanent] Cards in your Battle Area can't be placed in their owners' Drop Areas by your skills.\n[Auto] When you play this card, draw 1 card.\"",
+      "after": "[Permanent] Cards in your Battle Area can't be placed in their owners' Drop Areas by your Leader Card's skills.\n[Auto] When you play this card, draw 1 card. \"",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "P-144",
+      "title": "2019.6.28 [World Martial Arts Tournament] P-144 Babidi, the Mastermind",
+      "before": "The character name is described as “Babidi”",
+      "after": "The correct character name is Evil Wizard Babidi,\nand the card is treated as a ＜Evil Wizard Babidi＞ card.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT5-104",
+      "title": "2019.5.31 [MIRACULOUS REVIVAL] BT5-104 Death Ball",
+      "before": "[Activate : Battle] If your Leader Card is a 〈Frieza〉 card, it gets +15000 power for the duration of the battle. If it's your turn, choose up to 1 of your opponent's Battle Cards in Rest Mode and KO it.",
+      "after": "[Activate : Battle] If your Leader Card is a 〈Frieza〉 card, it gets +15000 power for the duration of the battle, and if it's your turn, choose up to 1 of your opponent's Battle Cards in Rest Mode and KO it.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT6-106",
+      "title": "2019.6.1 [DESTROYER KINGS] BT6-106 Super Shenron, the Almighty",
+      "before": "・Remove 7 [Dragon Ball] cards in your Drop Area from the game and choose 20 cards from your Drop Area then shuffle them into your deck. If you do, flip this card over at the end of the turn and take another turn after this one.",
+      "after": "・Remove 7 [Dragon Ball] cards in your Drop Area from the game and choose 30 Battle Cards from your Drop Area then shuffle them into your deck. If you do, flip this card over at the end of the turn and take another turn after this one.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT1-081",
+      "title": "2019.4.19 [GALACTIC BATTLE] BT1-081 Broly's Ring",
+      "before": "[Permanent] Your hand is not affected by your Leader Card Broly's skill.",
+      "after": "[Permanent] Your hand is not affected by your <Broly> Leader Card's skill.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT4-003",
+      "title": "2018.7.13 [COLOSSAL WARFARE] BT4-003 Triple Flash SS4 Son Goku",
+      "before": "[Permanent] If this card's power is 40000 or more, your opponent may not activate [Counter] during battles where this card is attacking.",
+      "after": "[Permanent] If this card's power is 40000 or more and your Leader Card is a red 《Saiyan》 card, your opponent may not activate [Counter] during battles where this card is attacking.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "TB3-062",
+      "title": "2019.1.18 [CLASH OF FATES] TB3-062 Assimilate",
+      "before": "from your deck and add it to your hand.",
+      "after": "from your deck and add it to your hand, Then shuffle your deck.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "P-073",
+      "title": "2018.10.12 [DRAFT BOX 03] P-073 Son Goten",
+      "before": "[Activate : Main]Choose 1 card in your life and add it to your hand: Choose up to 1 yellow Extra Card from your deck and add it to your hand, and negate this skill for the duration of the game.",
+      "after": "[Activate : Main] Choose 1 card in your life and add it to your hand: Choose up to 1 yellow Extra Card from your deck and add it to your hand, shuffle your deck, and negate this skill for the duration of the game.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "P-075",
+      "title": "2018.11.9 [MIRACULOUS REVIVAL] P-075 Black Masked Saiyan, Splintering Mind",
+      "before": "The character name is described as “Masked Saiyan”",
+      "after": "The correct character name is Black Masked Saiyan,\nand the card is treated as a ＜Black Masked Saiyan＞ card.",
+      "notes": "This card is treated as a ＜Black Masked Saiyan＞ card just like any other ＜ Black Masked Saiyan ＞ card."
+    },
+    {
+      "id": "BT5-120",
+      "title": "2018.11.9 [MIRACULOUS REVIVAL] BT5-120 Miraculous Fighter SS3 Gogeta",
+      "before": "The combo cost wasn’t clearly visible.",
+      "after": "The Combo Cost should be treated as ①.\nIt should be ①Combo Cost with +10000 Combo Power.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT5-097",
+      "title": "2018.11.9 [MIRACULOUS REVIVAL] BT5-097 Dragon Ball Seeker Sorbe",
+      "before": "The character and card name are spelled “Sorbe”.",
+      "after": "The correct character and card name is Sorbet, and this card is treated as a ＜Sorbet＞ and {Dragon Ball Seeker Sorbet} card.",
+      "notes": "Read as the errata when playing.\nContent will be corrected in the next production run."
+    },
+    {
+      "id": "BT5-080",
+      "title": "2018.11.9 [MIRACULOUS REVIVAL] BT5-080 Sorbe",
+      "before": "The character and card name are spelled “Sorbe”.",
+      "after": "The correct character and card name is Sorbet, and this card is treated as a ＜Sorbet＞ and {Sorbet} card.",
+      "notes": "Read as the errata when playing.\nContent will be corrected in the next production run."
+    },
+    {
+      "id": "TB2-008",
+      "title": "2018.09.21 [World Martial Arts Tournament] TB02-008 Mighty Mask, Powers Combined",
+      "before": "[Auto] When you combo with this card, if your Leader Card is red and your life is at 4 or less, you may choose 1 card in your hand and place it in your Drop Area. If you do so, this card gains +10000 combo power for the duration of the turn, then choose up to 1 red 〈Son Goten〉 and up to 1 red 〈Trunks : Youth〉, each with 15000 or less power, add them to your hand, then shuffle your deck.",
+      "after": "[Auto] When you combo with this card, if your Leader Card is red and your life is at 4 or less, you may choose 1 card in your hand and place it in your Drop Area. If you do so, this card gains +10000 combo power for the duration of the turn, then choose up to 1 red 〈Son Goten〉 and up to 1 red 〈Trunks : Youth〉,each with 15000 or less power, add them from your deck to your hand, then shuffle your deck.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "EX03-16",
+      "title": "2018.8.2 [ULTIMATE BOX] EX03-16 Deathless Warrior Broly",
+      "before": "[Auto] When you play this card, if your Leader Card is 〈Broly〉, your opponent may choose 1 of their Battle Cards and KO it. If they don't KO a card this way, they instead choose 2 cards in their hand and place them in their Drop Area.",
+      "after": "[Auto] When you play this card, if your Leader Card is 〈Broly〉, your opponent may choose 1 of their Battle Cards and KO it, and if they don't KO a card this way, they instead choose 2 cards in their hand and place them in their Drop Area.",
+      "notes": "Read as the errata when playing."
+    },
+    {
+      "id": "BT4-108",
+      "title": "2018.7.13 [COLOSSAL WARFARE] BT4-108 Mira, Creator Absorbed",
+      "before": "[Auto] When this card attacks, this card gains +5000 power for each card in your Warp.",
+      "after": "[Auto] When this card attacks, this card gains +5000 power for each card in your Warp for the duration of the turn.",
+      "notes": "7/13 The errata will be issued from the release of series 4.\nRead as the errata when playing."
+    },
+    {
+      "id": "P-028",
+      "title": "2018.4.20 [DRAFT BOX 01] P-028 Bionic Strike Mecha Frieza",
+      "before": "",
+      "after": "",
+      "notes": "The errata takes effect on May 1st,2018\nRead as the errata when playing."
+    },
+    {
+      "id": "BT3-070",
+      "title": "2018.3.2 [CROSS WORLDS] BT3-070 Dawn of Terror, Android 13",
+      "before": "[Union-Absorb] ● , choose up to 1 each",
+      "after": "[Union-Absorb] ● , choose 1 each",
+      "notes": "3/9 The errata will be issued from the release of series 3.\nRead as the errata when playing."
+    },
+    {
+      "id": "BT3-044",
+      "title": "2018.2.16 [CROSS WORLDS] BT3-044 Thinks He’s the best Hercule",
+      "before": "place them at the bottom of your deck in any order. Then, take the top 2 cards of your deck and add them to your energy.",
+      "after": "place them at the bottom of your deck in any order, then take the top 2 cards of your deck and add them to your energy.",
+      "notes": "Hercule’s skill only activates when your Leader Card is Buu.\nRead as the errata when playing."
+    },
+    {
+      "id": "BT2-022",
+      "title": "2018.2.16 [UNION FORCE] BT2-022 Mind Controlling Babidi",
+      "before": "【Auto】 When you play this card ,",
+      "after": "【Auto】 If you have 6 or more red energy, when you play this card,",
+      "notes": "3/9 The errata will be issued from the release of series 3."
+    },
+    {
+      "id": "BT1-100",
+      "title": "2018.2.2 [GALACTIC BATTLE] BT1-100 Dodoria, The Emperor's Attendant",
+      "before": "Did not have the [Super Combo] keyword, introduced in series 3.",
+      "after": "Now considered to have [Super Combo]（You can only include up to 4 cards with [Super Combo] in your deck）",
+      "notes": "Following the release of series 3 on March 9th, this card will be considered to have the errata card text."
+    },
+    {
+      "id": "BT1-069",
+      "title": "2018.2.2 [GALACTIC BATTLE] BT1-069 Trunks, Protector of Children",
+      "before": "Did not have the [Super Combo] keyword, introduced in series 3.",
+      "after": "Now considered to have [Super Combo]（You can only include up to 4 cards with [Super Combo] in your deck）",
+      "notes": "Following the release of series 3 on March 9th, this card will be considered to have the errata card text."
+    },
+    {
+      "id": "BT1-045",
+      "title": "2018.2.2 [GALACTIC BATTLE] BT1-045 Boost Attack Piccolo",
+      "before": "Did not have the [Super Combo] keyword, introduced in series 3.",
+      "after": "Now considered to have [Super Combo]（You can only include up to 4 cards with [Super Combo] in your deck）",
+      "notes": "Following the release of series 3 on March 9th, this card will be considered to have the errata card text."
+    },
+    {
+      "id": "BT1-010",
+      "title": "2018.2.2 [GALACTIC BATTLE] BT1-010 Divine Aide Vados",
+      "before": "Did not have the [Super Combo] keyword, introduced in series 3.",
+      "after": "Now considered to have [Super Combo]（You can only include up to 4 cards with [Super Combo] in your deck）",
+      "notes": "Following the release of series 3 on March 9th, this card will be considered to have the errata card text."
+    },
+    {
+      "id": "BT2-055",
+      "title": "2017.11.27 【UNION FORCE】BT2-055 Warrior of the Gods Goku Black",
+      "before": "does not leave the Battle Area due to skills.",
+      "after": "does not leave the Battle Area due to your opponent's skills.",
+      "notes": "The current text implies that the card is immune to the player’s own destruction effects as well. The text has been supplemented to make clear this is not the case.\nThe descriptions provided in the Q&A are correct: this card is affected by the player’s own destruction effects."
+    },
+    {
+      "id": "BT2-047",
+      "title": "2017.11.27 【UNION FORCE】BT2-047 Whis, The Sacred Guard",
+      "before": "does not leave the Battle Area due to skills.",
+      "after": "does not leave the Battle Area due to your opponent's skills.",
+      "notes": "The current text implies that the card is immune to the player’s own destruction effects as well. The text has been supplemented to make clear this is not the case.\nThe descriptions provided in the Q&A are correct: this card is affected by the player’s own destruction effects."
+    },
+    {
+      "id": "P-020",
+      "title": "2017.11.3 [BCC BATTLES Vol.2] P-020 Ability Unleashed Ultimate Gohan",
+      "before": "The character name is described as “Gohan: Adolescence.”",
+      "after": "The correct character name is Son Gohan: Adolescence, and the card is treated as a ＜Son Gohan: Adolescence＞ card.",
+      "notes": "The descriptions have not changed from series 2.\nThis card is treated as a ＜Son Gohan: Adolescence＞ card just like any other ＜Son Gohan: Adolescence＞ card."
+    },
+    {
+      "id": "P-018",
+      "title": "2017.10.20 [UNION FORCE] P-018 Occupation of Evil Frieza",
+      "before": "[Activate: Main] Place 2 of your yellow Battle Cards other than this card in the Drop Area : Choose up to 1 {Golden Frieza,The Resurrected Terror} from your hand and evolve this card into it. If you do so, draw 2 cards.",
+      "after": "[Activate: Main] Place 2 of your yellow Battle Cards other than this card in the Drop Area : Choose up to 1 {Golden Frieza, Resurrected Terror} from your hand and evolve this card into it. If you do so, draw 2 cards.",
+      "notes": "Erroneous card name.\nSee BT1-086 Golden Frieza, Resurrected Terror when playing.\nContent will be edited in the next production run."
+    },
+    {
+      "id": "BT2-081",
+      "title": "2017.10.20 [UNION FORCE] BT2-081 Destined Deed Krillin",
+      "before": "[Permanent] If ＜Android 18＞ is in your Battle Area or Leader Area, you can play this card from you hand without paying its energy cost.",
+      "after": "[Permanent] If ＜Android 18＞ is in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost.",
+      "notes": "Partial misprint in the text.\nRead as the errata when playing."
+    },
+    {
+      "id": "BT2-065",
+      "title": "2017.10.20 [UNION FORCE] BT2-065 Time Ring",
+      "before": "If you have 4 or more energy, choose 2 instead. Add the choose up to 2 instead.\nAdd the chosen cards to your hand and shuffle your deck.",
+      "after": "If you have 4 or more energy, choose up to 2 instead.\nAdd the chosen cards to your hand and shuffle your deck.",
+      "notes": "Unnecessary text. Skip the unnecessary text and read as the errata when playing."
+    },
+    {
+      "id": "BT2-015",
+      "title": "2017.10.20 [UNION FORCE] BT2-015 Prodigy Fusion Super Saiyan Gotenks",
+      "before": "(Place 1 each of the specified card with the same power into your Drop Area and play this card)",
+      "after": "(Place 1 each of the specified card with the same power from your hand into your Drop Area and play this card)",
+      "notes": "As explained in the play manual, the ability is used from your hand.\nFollow the manual when playing."
+    },
+    {
+      "id": "BT2-003",
+      "title": "2017.10.20 [UNION FORCE] BT2-003 Babidi, Creator of Evil",
+      "before": "Part of the card text (“When”) is obscured.",
+      "after": "[Auto] [Once per turn] When your Battle Cards attack, draw 1 card, and place up to 1 card from the top of your deck under your {Majin Buu's Sealed Ball}.",
+      "notes": "Play by reading as “When.”Content will be edited in the next production run."
+    },
+    {
+      "id": "BT1-061",
+      "title": "2017.7.27 [GALACTIC BATTLE] Friend-Summoning Son Gohan",
+      "before": "Choose up to 1 ＜Krillin＞ among them and add it to your hand.",
+      "after": "Choose up to 1 ＜Krillin＞ among them and add it to your hand.\nThen, shuffle your deck.",
+      "notes": "Shuffling after looking at the top of your deck was unintentionally omitted from the card text."
+    }
+  ]
+}

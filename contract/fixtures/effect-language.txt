@@ -154,6 +154,8 @@ COND is one of these (a field marked ? may be left out):
     "…in your hand or Drop Area and place it at the bottom of your deck. If you placed a card from your hand at the bottom of your deck, draw 1 card" (EX16-02; phrasing batch 6, owner's ruling of 26 Oct 2026): did an earlier choice of this skill, made over more than one area, take a card from one of these areas? Where each card was as it was chosen, kept on the frame (`chosenFrom`); a choice over one area keeps none and answers false
   {"kind":"varAttrIsX","var":"…","attr":"power"|"comboPower"|"energyCost"|…}
     "if the revealed card's energy cost is the same as the declared number" (BT22-090): the card a reveal or a look bound, measured against the X a `declare` bound
+  {"kind":"xAtLeast","n":N}
+    phrasing batch 10 (22-43): "if you removed a marker from one of your red Unison Cards using this skill" on a [Spirit Boost X] line (BT14-029) — the X its price was paid at is at least n. False when nothing bound X
   {"kind":"varMatches","var":"…","filter":FILTER}
   {"kind":"isTurnPlayer","who"?:"you"|"opponent"}
     whose turn it is (7-1) — "during your opponent's turn" is this, not a duration

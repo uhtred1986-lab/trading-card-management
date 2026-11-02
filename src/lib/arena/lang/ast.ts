@@ -222,7 +222,7 @@ export const COST_ITEMS = [
   { syntax: "+1 marker", doc: "add that many markers to the card paying this price" },
   { syntax: "burst N", doc: "a [Burst] cost of that many" },
   { syntax: "spiritBoost N", doc: "a [Spirit Boost] cost of that many" },
-  { syntax: "X", doc: "an X price, optionally bounded (X min 1 max 3); the effect reads it back as X (20-5)" },
+  { syntax: "X", doc: "an X price, optionally bounded (X min 1 max 3); the effect reads it back as X (20-5). X spiritBoost: [Spirit Boost X], X markers off your Unison Card (22-43)" },
   { syntax: "PAYWITH", doc: 'cards that may be rested to pay this price instead of energy (20-19): PAYWITH <selector> AS energy for one energy of their own colours, AS {Red} for one orb of a colour' },
   { syntax: "TEXT", doc: "the price as printed, kept for the part the engine cannot charge itself" },
   { syntax: "IF", doc: "a condition the price also requires, in addition to the orbs" },
