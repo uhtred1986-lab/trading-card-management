@@ -15,6 +15,7 @@
  *     used from the energy or from under a card, or an Extra used for an action price, is unread — never a play.
  * D.  "Your opponent reveals the top card of their deck" is followed by their shuffle (R-203); "top or bottom … in any
  *     order" is one end for all of them (R-202, superseding R-007 for "or").
+ * E.  Your own activation bans ("you can't activate {X} / {X}'s [kind] skill / [Counter: Attack] skills for the turn") are read.
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where the engine learned something (`ownNextTurn`'s end).
@@ -240,6 +241,26 @@ for (const [id, text] of [
   const [top, bottom] = mode.modes.map((m) => m.ops[0] as Extract<Op, { op: "moveTo" }>);
   assert.ok(top.position === "top" && bottom.position === "bottom" && JSON.stringify(top.target) === JSON.stringify(bottom.target), `D: ${id} — all of them to the top, or all to the bottom`);
   assert.equal(opOf(rec, "choose").filter((o) => o.sel.count === 99).length, 0, `D: ${id} — no per-card split`);
+  records++;
+}
+
+// E. Your own activation bans, which the reminder skip swallowed: an Extra's once-per-name rule, a card's named line, and
+// a ban on your [Counter]s.
+for (const [id, text, rules] of [
+  ["BT7-098", "[Auto] When you activate this card, you can't activate {Restrain} for the duration of the turn.", [["activateSkill", "restrain", undefined, undefined], ["activateCounter", "restrain", undefined, undefined]]],
+  ["BT9-046", "[Auto] If your Leader Card is a ≪Universe 11≫ card: When you play this card or it is placed in a Drop Area from a Battle Area by a skill, your opponent chooses 1 card in their hand and places it in their Drop Area; you can't activate {Toppo, Gaze of Justice}'s skill for the duration of the turn.", [["activateSkill", "toppo, gaze of justice", undefined, undefined]]],
+  ["P-153", "[Activate: Main] If you have 4 or more energy: You may choose 2 ≪World Tournament≫ cards in any Battle Areas, negate their skills for the duration of the turn, and place them in their owner's Drop Areas. If you do, play this card from your hand, and you can't activate {King Piccolo, Limitless Power}'s [Activate: Main] skill for the duration of the turn.", [["activateSkill", "king piccolo, limitless power", "activate:main", undefined]]],
+  ["BT15-100", "[Counter: Attack] Negate the attack, play this card, and you can't activate [Counter: Attack] skills for the turn.", [["activateCounter", undefined, undefined, "attack"]]],
+  ["BT25-147", "[activate: main]{4}, if your Leader is yellow and your life is at 3 or less: Play this card from your hand, place 1 energy marker in your Energy Area for each of your opponent's Rest Mode cards, and you can't activate [counter] skills for the turn.", [["activateCounter", undefined, undefined, undefined]]],
+] as const) {
+  const bans = opOf(record(id, text), "forbid").filter((o) => o.what === "activateSkill" || o.what === "activateCounter");
+  assert.deepEqual(bans.map((o) => [o.what, o.filter?.names[0], o.skillKinds?.[0], o.counterKind]), rules, `E: ${id} — ${JSON.stringify(bans)}`);
+  assert.ok(bans.every((o) => o.side === "you" && o.until === "turn"), `E: ${id} — yours, for the turn`);
+  records++;
+}
+{
+  const ban = opOf(record("BT13-035", "[Counter: Attack] If your Leader Card is a blue <Son Gohan: Childhood> card: Negate the attack, then choose up to 1 blue skill-less Battle Card with an energy cost of 2 in your hand and play it. You can't activate the [Counter: Attack] skill on copies of this card for the game."), "forbid")[0];
+  assert.ok(ban && ban.what === "activateCounter" && ban.sameNameAsSelf && ban.counterKind === "attack" && ban.until === "game", `E: BT13-035 — the copies' [Counter: Attack], for the game (${JSON.stringify(ban)})`);
   records++;
 }
 

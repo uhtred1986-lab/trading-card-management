@@ -792,7 +792,16 @@ function parseTrailingDelay(clause: string): { at: DelayTiming; scope: DelayScop
  * of this card from your hand for the turn": the kind of line (absent for
  * every line), and whether the card's own copies in a hand are all it names.
  */
-const COPIES_ACTIVATION = /^you can't activate (?:(?:the )?\[(activate: main|activate: battle|activate: main\/battle|auto|counter)\] skills? (?:on|of) |skills (?:on|of) )?copies of this card( from your hand)?(?:\s+(?:for|during|until)\b.*)?$/;
+const COPIES_ACTIVATION = /^you can't activate (?:(?:the )?\[(activate: main|activate: battle|activate: main\/battle|auto|counter(?:: attack|: play)?)\] skills? (?:on|of) |skills (?:on|of) )?copies of this card( from your hand)?(?:\s+(?:for|during|until)\b.*)?$/;
+/**
+ * Audit lane E: a card's own once-per-name rule said with its name — "When you activate this card, you can't activate
+ * {Dawn of Evil} for the duration of the turn" (BT6-051, BT7-024, BT7-048, BT7-073, BT7-098, BT8-063, BT8-087), "…you
+ * can't activate {Toppo, Gaze of Justice}'s skill for the duration of the turn" (BT9-046), "…{King Piccolo, Limitless
+ * Power}'s [Activate: Main] skill" (P-153) — and a ban on your own [Counter]s, "you can't activate [Counter: Attack]
+ * skills for the turn" (BT15-100, BT22-092, BT25-147). Each is a rule `compileProhibition` reads; the reminder skip in
+ * `connective` swallowed them, so the card read as if they were not printed.
+ */
+const OWN_ACTIVATION = /^you can't activate (?:(?:the )?\[counter(?:: [a-z ]+)?\] skills?|\{[^}]+\}(?:'s (?:\[(?:activate: main|activate: battle|auto)\] )?skills?)?)(?:\s+(?:for|during|until)\b.*)?$/;
 
 function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwise" | null {
   const t = clause.toLowerCase().replace(/[.,]$/, "").trim();
@@ -837,7 +846,7 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // the card prints for itself, which nothing else in the engine applies.
   // Nor "you can't activate [Z-Awaken] unless …" (BT21-068's back, prohibition
   // batch 6): a ban on a keyword skill with its escape, read by `compileProhibition`.
-  if (/^(?:you can't activate|this skill can only be activated)/.test(t) && !/^you can't activate (?:the )?\[counter: [a-z ]+\] skills (?:of|on) other cards\b/.test(t) && !/^you can't activate extra(?:s| cards)(?:\s+(?:for|during|until)\b.*)?$/.test(t) && !COPIES_ACTIVATION.test(t) && !/^you can't activate \[z-awaken\] unless\b/.test(t) && !/^you can't activate (?:non-keyword leader card skills|this skill)\b/.test(t) && !/^you can't activate \[counter\] skills for the turn while\b/.test(t)) return "skip";
+  if (/^(?:you can't activate|this skill can only be activated)/.test(t) && !/^you can't activate (?:the )?\[counter: [a-z ]+\] skills (?:of|on) other cards\b/.test(t) && !/^you can't activate extra(?:s| cards)(?:\s+(?:for|during|until)\b.*)?$/.test(t) && !COPIES_ACTIVATION.test(t) && !OWN_ACTIVATION.test(t) && !/^you can't activate \[z-awaken\] unless\b/.test(t) && !/^you can't activate (?:non-keyword leader card skills|this skill)\b/.test(t) && !/^you can't activate \[counter\] skills for the turn while\b/.test(t)) return "skip";
   // "This card can't be played" on its own is one of those. The forms that say
   // *how* — "by skills from any area", "from any area except by skills" — are
   // not: nothing else in the engine applies them, and skipping them here was
@@ -5176,7 +5185,20 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
         const skillRule: Op = { op: "forbid", what: "activateSkill", side, until, sameNameAsSelf: true, ...(kind ? { skillKinds: [kind] } : {}), ...fromHand, ...withUnless };
         const counterRule: Op = { op: "forbid", what: "activateCounter", side, until, sameNameAsSelf: true, ...fromHand, ...withUnless };
         if (kind === "counter") return [counterRule];
+        // Audit lane E: "…the [Counter: Attack] skill on copies of this card for the game" (BT13-035): that kind of [Counter].
+        if (kind === "counter:attack" || kind === "counter:play") return [{ ...counterRule, counterKind: kind === "counter:attack" ? "attack" : "play" } as Op];
         return kind ? [skillRule] : [skillRule, counterRule];
+      }
+    }
+    // Audit lane E (`OWN_ACTIVATION`): "you can't activate {X} (…'s [kind] skill) for the turn" — that card used, or its
+    // lines of that kind, by you; an Extra named bare is every use of it, its [Counter] included.
+    if (side === "you") {
+      const named = /^activate (\{[^}]+\})(?:'s (?:\[(activate: main|activate: battle|auto)\] )?(skills?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(rest);
+      if (named) {
+        const filter = { ...parseFilter(""), names: [named[1].slice(1, -1)] };
+        const kind = named[2]?.replace(": ", ":");
+        const skillRule: Op = { op: "forbid", what: "activateSkill", side, until, filter, ...(kind ? { skillKinds: [kind] } : {}), ...withUnless };
+        return named[3] ? [skillRule] : [skillRule, { op: "forbid", what: "activateCounter", side, until, filter, ...withUnless }];
       }
     }
     if (/^attack\b/.test(rest)) {

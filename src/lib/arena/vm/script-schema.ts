@@ -954,13 +954,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "activateCounter" && (op.counterKind || op.otherCards || op.filter || op.unlessPay?.length)) {
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         const kind = op.counterKind ? `[Counter: ${op.counterKind === "battleCardAttack" ? "Battle Card Attack" : op.counterKind[0].toUpperCase() + op.counterKind.slice(1)}]` : "[Counter]";
-        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
+        // Audit lane E: "…the [Counter: Attack] skill on copies of this card" (BT13-035) says whose.
+        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.sameNameAsSelf ? " on copies of this card" : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
       }
       // #677: 12-1-3's "activating an Extra Card" (BT10-097), and the skills
       // of particular cards (BT23-140's "the skills of Battle Cards").
       if (op.what === "activateSkill" && !op.target && (op.extraCardActivation || op.filter)) {
         const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
-        const which = op.extraCardActivation ? "Extra Cards" : `the ${op.skillKinds?.length ? "non-keyword " : ""}skills of ${describeFilter(op.filter!, { plural: true })}`;
+        // Audit lane E: one kind of line is named ("{King Piccolo, Limitless Power}'s [Activate: Main] skill", P-153);
+        // several are the non-keyword ones.
+        const oneKind = op.skillKinds?.length === 1 ? ({ "activate:main": "[Activate: Main] ", "activate:battle": "[Activate: Battle] ", auto: "[Auto] " } as Record<string, string>)[op.skillKinds[0]] : undefined;
+        const which = op.extraCardActivation ? "Extra Cards" : `the ${oneKind ?? (op.skillKinds?.length ? "non-keyword " : "")}skills of ${describeFilter(op.filter!, { plural: true })}`;
         return `${who} can't activate ${which}${escape}${forThe(op.until, r)}`;
       }
       // Owner ruling 26 Oct 2026 (A2): the [Blocker] of the cards a "can't
