@@ -33,6 +33,7 @@ import { moveCard } from "../../src/lib/arena/vm/zones";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import { describeFilter, type Cond, type Op } from "../../src/lib/arena/vm/script";
 import { parseFilter } from "../../src/lib/arena/text/filters";
+import { correctSkillText } from "../../src/lib/catalog/errata";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
@@ -261,6 +262,53 @@ for (const [text, what, main, alt] of [
   const sel = opOf(rec, "choose")[0].sel;
   assert.ok(sel.count === 99 && !sel.upTo && sel.mode === "rest" && sel.alsoFrom?.[0].mode === "rest", `F: TB1-081 — all of both, in Rest Mode (${JSON.stringify(sel)})`);
   records++;
+}
+
+// ── G. alternatives of different kinds ─────────────────────────────────────────
+{
+  const alts = (text: string) => (parseFilter(text).anyOf ?? []).map((a) => JSON.stringify(Object.fromEntries(Object.entries(a).filter(([, v]) => v !== null && v !== false && !(Array.isArray(v) && !v.length)))));
+  assert.deepEqual(alts("{The Return of the Army of Terror} or yellow <Frieza>"), ['{"names":["The Return of the Army of Terror"]}', '{"colors":["Yellow"],"characters":["Frieza"]}'], "G: BT21-101 — a card name, or a yellow <Frieza>");
+  assert.deepEqual(alts("{We Are Universe 7}, {Tournament of Power Arena}, or Red/Blue multicolor Extra Card"), ['{"names":["We Are Universe 7"]}', '{"names":["Tournament of Power Arena"]}', '{"colors":["Red","Blue"],"multiColor":true,"type":"EXTRA"}'], "G: BT9-028 — two Fields by name, or a Red/Blue Extra");
+  assert.deepEqual(alts("red or green ≪Saiyan≫ card or {King Vegeta's Dynasty}"), ['{"colors":["Red","Green"],"traits":["Saiyan"]}', '{"names":["King Vegeta\'s Dynasty"]}'], "G: SD9-01 — the colour list stays the ≪Saiyan≫'s");
+  assert.deepEqual(alts("red or ≪Universe 7≫ Battle Card"), ['{"colors":["Red"],"type":"BATTLE"}', '{"traits":["Universe 7"],"type":"BATTLE"}'], "G: BT14-013 — a red Battle Card or a ≪Universe 7≫ one");
+  assert.deepEqual(alts("[Dragon Ball] or ≪Desire≫ cards"), ['{"keywords":["Dragon Ball"]}', '{"traits":["Desire"]}'], "G: BT5-116 — a keyword or a trait");
+  assert.deepEqual(alts("<Great Priest> or blue <Whis> card"), ['{"characters":["Great Priest"]}', '{"colors":["Blue"],"characters":["Whis"]}'], "G: BT16-040 — blue is the <Whis>'s alone");
+  assert.deepEqual(alts("choose up to 1 mono-yellow ≪Frieza's Army≫ or Unison Card in your hand"), ['{"colors":["Yellow"],"monoColor":true,"traits":["Frieza\'s Army"]}', '{"type":"UNISON"}'], "G: EX19-17 — a ≪Frieza's Army≫ card or a Unison Card");
+  // Unchanged: one kind of name, characters beside traits, a qualifier before the "or".
+  assert.ok(!parseFilter("<Son Goku> or <Vegeta> card").anyOf && !parseFilter("blue ≪Saiyan≫ or ≪Earthling≫ card").anyOf, "G: names of one kind stay one description");
+  assert.ok(parseFilter("blue <Trunks: Youth>, ≪Hero≫, or ≪Phantom Demon≫ card").characterOrTrait, "G: BT24-025 — a character or either trait, all blue (R-180, pending)");
+  assert.ok(!parseFilter("your green <Zamasu> card with an [Evolve] or [Union] skill").anyOf?.some((a) => !a.keywords.length), "G: BT26-061 — the keyword pair is still the keyword reader's");
+  for (const [text, what] of [
+    ["[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green <Majin Buu> card or {Absorption} to your hand, then shuffle your deck.", "BT30-062"],
+    ["[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1  ≪Machine Mutant≫ or card whose card name includes {Baby} among them and add it to your hand. Then, shuffle your deck.", "BT3-017"],
+  ] as const) {
+    const pick = opOf(record(text, what), "choose")[0];
+    assert.equal(pick.sel.filter?.anyOf?.length, 2, `G: ${what} — either one (${JSON.stringify(pick.sel.filter)})`);
+    records++;
+  }
+}
+
+// ── H. misprints, a name in brackets, a token's article ──────────────────────────
+{
+  const leader = record("[activate: main] [limit 1] {y}, if your Leader is a <(Duplicate) Vegeta> card: Play this card from your hand.", "BT31-073");
+  const cond = flat(leader.cond).find((c): c is Extract<Cond, { kind: "leaderMatches" }> => c.kind === "leaderMatches");
+  assert.deepEqual(cond?.filter.characters.map((x) => x.toLowerCase()), ["(duplicate) vegeta"], `H: BT31-073 — the character name with its brackets (${JSON.stringify(cond)})`);
+  const after = record("[Permanent] If an Afterimage Token is in play in your Battle Area, this card can't be KO'd.", "DB2-046");
+  const count = condsOf(after).find((c): c is Extract<Cond, { kind: "count" }> => c.kind === "count");
+  assert.deepEqual(count?.sel.filter?.names, ["afterimage"], `H: DB2-046 — the Afterimage Token, without the article (${JSON.stringify(count)})`);
+  records += 2;
+  // The catalog's misprints, corrected as a sync stores them (`errata.ts`), then read.
+  for (const [id, printed, wants] of [
+    ["BT1-052", "[Activate: Main] Choose up to 1card from your hand, and add it to your energy.", /^choose up to 1 card in your hand/],
+    ["BT25-018", "[Activate: Battle][Limit 1]{r}, if your Leader is a red <Son Goku: Childhood> card and you discard this card from your hand: Add up t 1 red skill-less Battle Card from your Drop to your hand, and your Leader gets +15000 power for the battle.", /choose up to 1 red skill-less Battle Card in your Drop Area/],
+    ["BT27-015", "[Activate: Main][Once per turn] If your Leader is a red <Vegeta> card and you have 4 or more energy: Play up to 4 total red and/or black ≪Saiyan≫ cards from your Warp into their owner's Drop.", /in your Warp, move the chosen cards to drop$/],
+    ["BT28-008", "[Permanent] You can activate this card's [Counter] skill from your hand by returning 1 {Gods of Dreams Dragon Ball} from your Battle Area to your hand instead of paying its energy cost.", /\{god of dreams dragon ball\}/],
+  ] as const) {
+    const fixed = correctSkillText(id, printed);
+    assert.notEqual(fixed, printed, `H: ${id} — corrected`);
+    assert.match(record(fixed!, id).reads, wants, `H: ${id} — read as the card means`);
+    records++;
+  }
 }
 
 // ── VM ───────────────────────────────────────────────────────────────────────

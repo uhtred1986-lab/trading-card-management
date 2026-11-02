@@ -699,8 +699,14 @@ function inList(text: string, comma: number): boolean {
 export function stripNotes(text: string): string {
   let out = "";
   let depth = 0;
+  // Audit-selectors-1: a bracket inside a name is the name's — "if your Leader is a <(Duplicate) Vegeta> card"
+  // (BT31-073; BT31-075/076/077 carry that character name): read as a note, the Leader asked was <Vegeta>.
+  let inName = 0;
   for (const ch of text) {
-    if (ch === "(" || ch === "（") depth++;
+    if (depth === 0 && (ch === "<" || ch === "{" || ch === "≪")) inName++;
+    else if (depth === 0 && (ch === ">" || ch === "}" || ch === "≫")) inName = Math.max(0, inName - 1);
+    if (inName && depth === 0) out += ch;
+    else if (ch === "(" || ch === "（") depth++;
     else if (ch === ")" || ch === "）") depth = Math.max(0, depth - 1);
     else if (depth === 0) out += ch;
   }
