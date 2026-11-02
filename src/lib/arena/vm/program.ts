@@ -1700,7 +1700,9 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       if (!inPile && !wanted.includes(zoneOf(state, id) ?? "")) return false;
     }
     // Moments batch 1: and the card a moment hands on — "by **your** Leader's skill" asks whose the skill's card is.
-    if ((sel.fromVar || sel.special === "subject") && sel.side && !sideOf(frame.master, sel.side).includes(masterOf(game, state, id))) return false;
+    // (Audit-selectors-1 review: and the battle's two cards — "1 of **your** attacking cards" (BT1-005) is no card of the
+    // other player's, whose attack it may be.)
+    if ((sel.fromVar || sel.special === "subject" || sel.special === "attacker" || sel.special === "guard") && sel.side && !sideOf(frame.master, sel.side).includes(masterOf(game, state, id))) return false;
     // 23-5-2 again: a Hidden Mode card has none of its front-side information
     // — so it answers no measure, except one that only says what type a card
     // is *not*: having no card type at all, it is a "non-Extra card" (BT28-150).
@@ -1787,7 +1789,11 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.special !== "self" && immunityRefusing(ctx, game, state, id, frame.card, frame.master)) return false;
     return true;
   });
-  return self && !kept.includes(self) ? [self, ...kept] : kept;
+  // Audit-selectors-1 (`alsoFrom`): the cards each alternative describes, in its own place, are on offer too — one choice
+  // among them all. Bound by what the choice already excludes (`notIn`, this card), never by this selector's measures.
+  const alternatives = (sel.alsoFrom ?? []).flatMap((alt) => resolveSelector(ctx, game, state, frame, { ...alt, ...(sel.notIn ? { notIn: sel.notIn } : {}), ...(sel.notSelf ? { notSelf: sel.notSelf } : {}), ...(sel.ignoreBarrier ? { ignoreBarrier: true } : {}) }));
+  const union = alternatives.length ? [...kept, ...alternatives.filter((id, i) => !kept.includes(id) && alternatives.indexOf(id) === i)] : kept;
+  return self && !union.includes(self) ? [self, ...union] : union;
 }
 
 export function resolveRef(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, ref: Ref): string[] {

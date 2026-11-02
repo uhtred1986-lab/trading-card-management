@@ -87,6 +87,24 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // deck." Every sibling Absorb prints ", then shuffle your deck". Not one of the
   // official errata (no entry in OFFICIAL_ERRATA); the clause was left unread.
   "BT28-012": [[/,\s*the\s+shuffle\s+your\s+deck/g, ", then shuffle your deck"]],
+  // NOT official errata: catalog misprints found by the readings audit of 2 Nov 2026 (audit-selectors-1). A missing
+  // or swallowed space or letter turned "up to 1" into an exact 1 or dropped the owner (BT1-052, P-138, BT25-018,
+  // BT1-042), "less or" into "lessor" (an exact cost, BT26-015), a card name into one no card has (BT27-044's {Bulma,
+  // First Adventure} is BT27-053; BT28-008/009's {God of Dreams Dragon Ball} is BT28-027), "your energy" into no area
+  // (BT30-050), "Warp" into "Wrap" (BT27-001's back), and "this card" into "this crd" (BT31-073). BT27-015 prints
+  // "Play … from your Warp into their owner's Drop", which no card can do; BT27-018 prints the same skill with "Place".
+  "BT1-052": [[/Choose\s+up\s+to\s+1card\s+from\s+your\s+hand/g, "Choose up to 1 card from your hand"]],
+  "P-138": [[/choose\s+up\s+to1\s+of\s+your\s+opponent's/g, "choose up to 1 of your opponent's"]],
+  "BT25-018": [[/Add\s+up\s+t\s+1\s+red\s+skill-less/g, "Add up to 1 red skill-less"]],
+  "BT1-042": [[/choose\s+up\s+to\s+1opponent\s+Battle\s+Card/g, "choose up to 1 opponent Battle Card"]],
+  "BT26-015": [[/energy\s+cost\s+of\s+3\s+or\s+lessor\s+up\s+to\s+mono-red\s+Extra/g, "energy cost of 3 or less or up to mono-red Extra"]],
+  "BT27-044": [[/\{Bulma,\s+First\s+Adveture\}/g, "{Bulma, First Adventure}"]],
+  "BT28-008": [[/\{Gods\s+of\s+Dreams\s+Dragon\s+Ball\}/g, "{God of Dreams Dragon Ball}"]],
+  "BT28-009": [[/\{Gods\s+of\s+Dreams\s+Dragon\s+Ball\}/g, "{God of Dreams Dragon Ball}"]],
+  "BT30-050": [[/card\s+in\s+yourenergy,/g, "card in your energy,"]],
+  "BT27-001": [[/from\s+your\s+Wrap\s+in\s+a\s+combo/g, "from your Warp in a combo"]],
+  "BT31-073": [[/Play\s+this\s+crd\s+from\s+your\s+hand/g, "Play this card from your hand"]],
+  "BT27-015": [[/:\s+Play\s+up\s+to\s+4\s+total\s+red\s+and\/or\s+black\s+≪Saiyan≫\s+cards\s+from\s+your\s+Warp\s+into\s+their\s+owner's\s+Drop/g, ": Place up to 4 total red and/or black ≪Saiyan≫ cards from your Warp into their owner's Drop"]],
   "BT25-054": [[/shuffle\s+your\s+dec\./g, "shuffle your deck."]],
   "BT25-061": [[/all\s+blue\s+adn\s+with/g, "all blue and with"]],
   "BT25-086": [[/Active\s+Moe/g, "Active Mode"]],

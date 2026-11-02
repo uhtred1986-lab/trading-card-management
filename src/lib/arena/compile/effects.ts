@@ -14,7 +14,7 @@ import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
 import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
-import { AREA_WORDS, boardCount, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
+import { boardCount, namesAPlace, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
 /**
@@ -134,12 +134,19 @@ function hostOf(phrase: string, c: Ctx): Ref | null {
  * this skill's own effect sent to a Warp (`Ctx.sentToWarp`), and only while they
  * are still there — a delayed step that finds one gone finds nothing (3-1-4).
  */
-const SENT_TO_WARP_BY_THIS_SKILL = /^(?:(?:all (?:of )?|any )?the cards? (?:that (?:was|were) )?|(?:all|any) (?:of the )?cards (?:that were )?)sent to (?:(?:the|a|your|their|its owner'?s|their owners?'?s?) )?warps? (?:by|with) this skill(?: from (?:your|the) warp)?(?: (?:in|into) your battle area)?$/i;
+const SENT_TO_WARP_BY_THIS_SKILL = /^(?:(?:all (?:of )?|any )?the cards? (?:that (?:was|were) )?|(?:all|any) (?:of the )?cards (?:that were )?)sent to (?:(?:the|a|your|their|its owner'?s|their owners?'?s?) )?warps? (?:by|with) this skill(?: from (?:your|the) warp)?(?: (?:in|into) (?:your|its owner'?s) battle area)?$/i;
 
 function refFor(clause: string, c: Ctx): Ref | null {
   // Mechanism batch 2 (BT7-051): "all the cards sent …" is every one of them — a choice over them takes all (`count` 99),
   // where a selector with no count was a choice of one.
-  if (SENT_TO_WARP_BY_THIS_SKILL.test(clause.trim())) return c.sentToWarp ? { sel: { fromVar: c.sentToWarp, area: "warp", ...(/^(?:all|any)\b/i.test(clause.trim()) ? { count: 99 } : {}) } } : null;
+  // Audit-selectors-1 review: when the effect sent nothing and the price sent this card — "Send this card to its owner's
+  // Warp: At the start of your next Main Phase, …, play **the card that was sent to the Warp by this skill** in its
+  // owner's Battle Area" (BT7-080) — it is this card, while it is still in the Warp (3-1-4). Read as no card, the
+  // clause fell through to "choose your leader, play the chosen cards".
+  if (SENT_TO_WARP_BY_THIS_SKILL.test(clause.trim())) {
+    if (c.sentToWarp) return { sel: { fromVar: c.sentToWarp, area: "warp", ...(/^(?:all|any)\b/i.test(clause.trim()) ? { count: 99 } : {}) } };
+    return c.priceSentSelfToWarp && /^the card\b/i.test(clause.trim()) ? { sel: { special: "self", area: "warp" } } : null;
+  }
   // #907 round 4 (P-440, BT25-099b): "a card with the same name as **the chosen card**" names ANOTHER card by
   // the chosen one's name. The pronoun test below took the "chosen card" for the target and the skill moved
   // (P-440) or played (BT25-099b) the card it had chosen only to compare with. No selector says "the same
@@ -226,7 +233,16 @@ function refFor(clause: string, c: Ctx): Ref | null {
     if (ref) return ref;
     // "Add a marker to the chosen card": nothing to tell them apart, so it is
     // the last choice, as it has always been.
-    if (/\bthe chosen cards?\b/i.test(clause)) return c.last ? { var: c.last } : c.lastTarget;
+    // Audit-selectors-1: …unless the effect has chosen nothing itself and the price chose one card — "…and you choose
+    // 1 black <Cumber> card from your Drop or Warp: Play this card from your hand and place **the chosen card** under
+    // this card" (BT22-127, BT21-060, P-553), "…add **the chosen card** to your Z-Energy" (BT21-111): a play's choice of
+    // this card is the played card, not a chosen one (as BT23-007's reading has it), so the chosen card is the price's.
+    // Read as the last choice it was this card, moved under itself.
+    if (/\bthe chosen cards?\b/i.test(clause)) {
+      const priced = c.priceChosen ?? [];
+      if (priced.length === 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) return { var: priced[0] };
+      return c.last ? { var: c.last } : c.lastTarget;
+    }
     // Phrasing batch 3: "Choose 1 other ≪Namekian≫ card in your Battle Area: Place this card under **the chosen
     // Battle Card**" (TB3-058, TB3-059): the card type names nothing the one choice made did not, so with one choice
     // it is that one, as "the chosen card" is.
@@ -1895,7 +1911,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // #1208, FS03-13: "look at 5 cards from the top of your deck, **reveal up to 1 <Paragus> or up to 1 Extra** and add it to
     // your hand": after a look a description that names no area of its own is read from the cards looked at (20-12),
     // as the choose, play and add clauses already do. Read bare it was a card in play.
-    const lookedAt = c.lastOp === "look" && c.lastSeen && !AREA_WORDS.some(([re]) => re.test(m![1].toLowerCase())) ? parseTarget(m[1], c.lastSeen) : null;
+    const lookedAt = c.lastOp === "look" && c.lastSeen && !namesAPlace(m![1]) ? parseTarget(m[1], c.lastSeen) : null;
     // The player picks which of them is shown (a choice among the cards looked at), then it is revealed; "the rest" is
     // what that choice leaves of the look.
     if (lookedAt && !lookedAt.special && lookedAt.fromVar === c.lastSeen) {
@@ -1965,7 +1981,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // of an aside is run up against "to", so the space before it is optional (#907).
     const add = c.lastSeen ? /^add (.+?)\s*to your hand$/.exec(t) : null;
     const desc = add?.[1];
-    if (desc && !AREA_WORDS.some(([re]) => re.test(desc.toLowerCase()))) {
+    if (desc && !namesAPlace(desc)) {
       // Only a description that names a card of its own. "Add **it** to your
       // hand", "add the chosen card to your hand" and "add this card to your
       // hand" all point back at something the skill has already settled, and
@@ -3238,7 +3254,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // (P-703, #907): after a look, a description that names no area of its own is read from the cards looked at
     // (20-12), as the `play` and `add … to your hand` clauses already do. Read as an unqualified card it was
     // one already in play.
-    if (c.lastSeen && !from && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(m![1]))) {
+    if (c.lastSeen && !from && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !namesAPlace(m![1])) {
       const sel = parseTarget(m[1], c.lastSeen);
       if (sel && !sel.special) ref = { sel };
     }
@@ -3300,7 +3316,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     if (/^(?:all (?:of )?)?the chosen cards$/.test(m[1]) && priced.length > 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) {
       return priced.map((v): Op => ({ op: "moveTo", target: { var: v }, to: "under" }));
     }
-    const ref = refFor(m[1], c);
+    let ref = refFor(m[1], c);
+    // Audit-selectors-1: "look at up to 7 cards from the top of your deck, **place up to 1 green ≪Earthling≫ card under
+    // this card**" (BT29-044, BT31-115): after a look, a description that names no place is one of the cards looked at
+    // (20-12), as the Drop, Warp, hand and play clauses read it. Read bare it was a card already in play.
+    if (c.lastSeen && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !namesAPlace(m[1])) {
+      const sel = parseTarget(m[1], c.lastSeen);
+      if (sel && !sel.special) ref = { sel };
+    }
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "moveTo", target, to: "under" })) : null;
   }
   // "Place a Z-Extra / 1 Z-Extra / a {Destroyed West City} from under this card
@@ -3407,7 +3430,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // its own (a play's choice is the played card, not a chosen one). Read as
     // "the last choice" it was the played card, under itself.
     const chosenNames = c.priceChosen ?? [];
-    if (/^all (?:of )?the chosen cards$/.test(m[1]) && chosenNames.length > 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) {
+    // (Audit-selectors-1: "…then place **the chosen cards** under it", BT15-048, BT24-007 — the same without "all".)
+    if (/^(?:all (?:of )?)?the chosen cards$/.test(m[1]) && chosenNames.length > 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) {
       const host = refFor(m[2], c);
       if (!host || ("var" in host && chosenNames.includes(host.var))) return null;
       return chosenNames.map((v): Op => ({ op: "moveTo", target: { var: v }, to: "under", under: host }));
@@ -3708,7 +3732,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       // its owner's Drop**" (BT30-030, BT26-015): after a look, a description that names no area of its own is one of
       // the cards looked at (20-12), as the `play`, `add … to your hand` and combo clauses already read it — no
       // "among them" needed. Read bare it was a card already in play.
-      if ((to === "drop" || to === "warp") && c.lastSeen && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(m![1]))) {
+      // (Audit-selectors-1: and into the life or the energy — "…add up to 1 yellow card to your life", BT31-056.)
+      if ((to === "drop" || to === "warp" || to === "life" || to === "energy") && c.lastSeen && ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !namesAPlace(m![1])) {
         const sel = parseTarget(m[1], c.lastSeen);
         if (sel && !sel.special) ref = { sel };
       }
@@ -3925,7 +3950,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // Only a description of its own that names no area — "play this card",
     // "play it" and "play up to 1 X from your hand" are what they say.
     const desc = m[1];
-    if (c.lastSeen && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !AREA_WORDS.some(([re]) => re.test(desc))) {
+    if (c.lastSeen && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !namesAPlace(desc)) {
       const sel = parseTarget(desc, c.lastSeen);
       if (sel && !sel.special) ref = { sel };
     }
@@ -4140,7 +4165,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // (20-12), as the `play`, `add … to your hand` and combo clauses already do. Read as an unqualified card
     // it was one already in play, and "the rest" then put the card just played back in the deck.
     // Not "choose up to 1 **of your** <Paikuhan> cards" (BT12-027, BT18-147, BT22-114): an owner is a place.
-    if (c.lastSeen && !sel.special && !sel.fromVar && sel.take == null && !AREA_WORDS.some(([re]) => re.test(t)) && !/\b(?:your|their|opponent'?s)\b/.test(t)) {
+    if (c.lastSeen && !sel.special && !sel.fromVar && sel.take == null && !namesAPlace(t) && !/\b(?:your|their|opponent'?s)\b/.test(t)) {
       const looked = parseTarget(clause, c.lastSeen);
       if (looked && !looked.special) sel = looked;
     }
@@ -5848,9 +5873,24 @@ function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" | "ac
 
 function compileToken(clause: string, c: Ctx): Op[] | null {
   // "…then play **a** Chilled's Army Token with 10000 power" (BT13-062, phrasing batch 2): one token.
-  const m = /play (?:up to )?(\d+|an?) (.+?) tokens?/i.exec(clause);
-  if (!m) return null;
+  const TOKEN_PLAY = /play (?:up to )?(\d+|an?) (.+?) tokens?/i;
+  const said0 = TOKEN_PLAY.exec(clause);
+  if (!said0) return null;
+  // Audit-selectors-1: the words as the card prints them — a clause a timing phrase was lifted off arrives lower-cased
+  // ("…play 1 yellow Frieza's Army Token with a power of 10000 at the end of the turn", BT21-106), and the name, and
+  // the text after it, are read off the printed line.
+  const atRaw = c.raw.toLowerCase().indexOf(said0[0].toLowerCase());
+  const m = (atRaw >= 0 ? TOKEN_PLAY.exec(c.raw.slice(atRaw)) : null) ?? said0;
   if (/^an?$/i.test(m[1])) m[1] = "1";
+  // Audit-selectors-1: "play **up to** 2 Demon Realm Soldier Tokens" (BT17-110, BT17-111, BT17-120…) is as many as the
+  // player wants of them, none included — one at a time, each its own offer (`oneAtATime`, the owner's rulings of 20 Oct
+  // 2026 on "up to N"). Read as the number, every one of them was played whether wanted or not.
+  const upTo = /\bplay up to \d+ /i.test(m[0]);
+  // "play 1 **yellow** Frieza's Army Token" (BT21-106): a colour in front of the name is the token's colour (19-1-2),
+  // not part of its name (19-1-4).
+  const coloured = /^((?:(?:red|blue|green|yellow|black|white)\s+)+)(.+)$/i.exec(m[2].trim());
+  const tokenName = coloured ? coloured[2] : m[2].trim();
+  const tokenColors = coloured ? coloured[1].trim().split(/\s+/).map((w) => (w[0].toUpperCase() + w.slice(1).toLowerCase()) as Color) : [];
   // The reminder text states the token's stats, and they were read as one
   // triad — power, then combo cost, then combo power. A reminder that gives
   // only the power failed the whole match, and the token was then built with a
@@ -5870,13 +5910,18 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // that is missed falls back to the default and loses the printed figure:
   // "(Ghost Tokens **have** 15000 power)" and, inline after the name, "play 1
   // Earthling Token **(1000 power**, 0 combo cost, 0 combo power)".
-  const said = /(?:tokens? have|\()\s*([\d,]+) power(?:[^.)]*?([\d,]+) combo cost)?(?:[^.)]*?([\d,]+) combo power)?/i.exec(c.raw);
+  // Audit-selectors-1: "(Chilled's Army token **has** 10000 power)" (BT2-102) says it in the singular; and a line that
+  // prints no reminder reads the one another line of the card prints for the same token (`Skill.tokenReminders`,
+  // 19-1-2: BT30-018's "Play 1 Earthling Token." is the 1000-power token its first line describes).
+  const STATS = /(?:tokens? ha(?:ve|s)|\()\s*([\d,]+) power(?:[^.)]*?([\d,]+) combo cost)?(?:[^.)]*?([\d,]+) combo power)?/i;
+  const elsewhere = (c.tokenReminders ?? []).find((r) => new RegExp(`^\\(\\s*${tokenName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} tokens? ha(?:ve|s)\\b`, "i").test(r));
+  const said = STATS.exec(c.raw) ?? (elsewhere ? STATS.exec(elsewhere) : null);
   const power = said ? [said[0], said[1]] : null;
   const combo = said?.[2] != null && said[3] != null ? [said[0], said[2], said[3]] : null;
   // "...and **they** gain [Blocker] for the turn" (BT31-141) is about the tokens
   // this play made. Name them only when the sentence goes on to say so, so the
   // token programs that never refer back stay exactly as they were.
-  const after = c.raw.slice(Math.max(0, c.raw.indexOf(m[0])) + m[0].length);
+  const after = c.raw.slice(Math.max(0, c.raw.toLowerCase().indexOf(m[0].toLowerCase())) + m[0].length);
   // "play 1 Frieza's Army Token with 10000 power, and it gains…" (BT28-020) and
   // "play 1 Shadow Token, and that card gets…" (BT26-079) say the same thing.
   // "…Chilled's Army Token with 10000 power**;** it gains [Blocker] for the turn" (EB1-22, phrasing batch 2): the
@@ -5888,21 +5933,27 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // "play 2 Ghost Tokens **with 15000 power**" (BT31-134, BT28-020, EB1-48): the
   // skill prints the token's power itself and that figure, not the 5000 default
   // or a reminder's, is the power the tokens arrive with (#907, left over from #1023).
-  const printed = /^\s*with ([\d,]+) power\b/i.exec(after);
-  return [
-    {
-      op: "token",
-      ...(bound ? { as: `t${c.n++}` } : {}),
-      name: `${m[2].trim()} Token`,
-      power: printed ? num(printed[1]) : power ? num(power[1]) : 5000,
-      comboCost: combo ? num(combo[1]) : 0,
-      comboPower: combo ? num(combo[2]) : 5000,
-      colors: [],
-      n: Number(m[1]),
-      // Phrasing batch 4: "play 1 Ghost Token with 15000 power **in Rest Mode**" (P-683): how the tokens arrive.
-      ...(/\btokens?\b(?:\s*\([^)]*\))?(?: with [\d,]+ power)?\s+in rest mode\b/i.test(clause) ? { mode: "rest" as const } : {}),
-    },
-  ];
+  // (Audit-selectors-1: "…Frieza's Army Token **with a power of 10000**", BT21-106, the same figure said the long way.)
+  const printed = /^\s*with (?:([\d,]+) power|a power of ([\d,]+))\b/i.exec(after);
+  // Audit-selectors-1: "play 2 Clone Tokens with 10000 power **in your opponent's Battle Area**" (BT8-041, BT8-034,
+  // BT8-055, BT20-047…): the tokens are the opponent's (19-1-3 says the master's Battle Area only "if nothing is
+  // specified"); read without it, they were played on the caster's own side.
+  const theirs = /\btokens?\b[^.]*?\bin (?:your opponent'?s|their|the opponent'?s) battle area\b/i.test(clause);
+  const token = (n: number, as?: string): Op => ({
+    op: "token",
+    ...(as ? { as } : {}),
+    name: `${tokenName} Token`,
+    power: printed ? num(printed[1] ?? printed[2]) : power ? num(power[1]) : 5000,
+    comboCost: combo ? num(combo[1]) : 0,
+    comboPower: combo ? num(combo[2]) : 5000,
+    colors: tokenColors,
+    n,
+    ...(theirs ? { side: "opponent" as const } : {}),
+    // Phrasing batch 4: "play 1 Ghost Token with 15000 power **in Rest Mode**" (P-683): how the tokens arrive.
+    ...(/\btokens?\b(?:\s*\([^)]*\))?(?: with [\d,]+ power)?\s+in rest mode\b/i.test(clause) ? { mode: "rest" as const } : {}),
+  });
+  if (upTo) return oneAtATime(Array.from({ length: Number(m[1]) }, () => [token(1)]), clause);
+  return [token(Number(m[1]), bound ? `t${c.n++}` : undefined)];
 }
 
 /**

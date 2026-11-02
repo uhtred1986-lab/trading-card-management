@@ -53,7 +53,7 @@ const rec = skillRecords(defs.BT4018)[0];
 {
   assert.deepEqual(rec.unread, [], "BT4-018: nothing unread");
   const price = rec.cost?.program ?? [];
-  assert.equal(describeScript(price), "choose 1 Battle Card in your Battle Area, move the chosen cards to under", "the price chooses one Battle Card and places it under this card");
+  assert.equal(describeScript(price), "choose 1 Battle Card in your Battle Area, move the chosen cards under this card", "the price chooses one Battle Card and places it under this card");
   const bound = price.find((o) => o.op === "choose");
   assert.ok(bound && bound.op === "choose" && bound.as === "c0", "the price binds its card as c0");
   const search = rec.ops.find((o) => o.op === "choose");

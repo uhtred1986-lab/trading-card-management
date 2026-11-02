@@ -158,6 +158,29 @@ function namesShareQualifiers(parts: string[]): boolean {
   return colourInFront || measureAfter;
 }
 
+/**
+ * Audit-selectors-1: a Leader said to be several colours joined by "and" — "if your opponent's Leader Card is **red,
+ * blue, green, and yellow**" (P-264) — is one Leader of every colour named, a multicolour card (2-2); read as a colour
+ * list it took a Leader of any one of them.
+ */
+function everyColourLeader(text: string): CardFilter | null {
+  if (!/^(?:(?:red|blue|green|yellow|black|white),?\s+)+and\s+(?:red|blue|green|yellow|black|white)$/i.test(text.trim())) return null;
+  return { ...parseFilter(text), multiColor: true };
+}
+
+/**
+ * The alternatives of a Leader description: `splitDisjunction`'s, with a lone colour at the head of a comma list cut
+ * off as one of its own — "if your Leader Card is **yellow, a <Son Gohan: Adolescence> card, or a <Piccolo> card**"
+ * (BT17-148, audit-selectors-1) is three Leaders, the yellow one any yellow Leader; read as two, "yellow" landed on
+ * the <Son Gohan: Adolescence> and a yellow <Piccolo> or a non-yellow Gohan Leader failed.
+ */
+function leaderAlternatives(text: string): string[] {
+  return splitDisjunction(text, { measured: true }).flatMap((part) => {
+    const lone = /^((?:mono-?)?(?:red|blue|green|yellow|black|white)),\s+(an?\s.+)$/i.exec(part.trim());
+    return lone ? [lone[1], lone[2]] : [part];
+  });
+}
+
 /** An "or" alternative of a Leader description that names nothing (#990): the part was not read. */
 const hasBlankPart = (parts: string[]): boolean => parts.some((p) => filterIsBlank(parseFilter(p)));
 
@@ -450,6 +473,37 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Phrasing batch 6: the same list with no count at all — "if you have <Android 14>, <Android 15> and <Android 13> in
   // your Drop Area", "if there are <A> and <B> cards in your Drop Area", "if you have a <A>, a <B> and a <C> in …" — is
   // one card of each name too; read as one description, any ONE of them was enough.
+  // Audit-selectors-1: the same "each" said of colours — "if you have **blue and green cards** in your Energy Area"
+  // (BT14-149, EB1-08), "if you have at least 1 **mono-red, mono-blue, mono-green, and mono-yellow** card in your Drop
+  // Area" (DB2-131) — is a card of each colour, every one counted; read as one description, one card of ANY of the
+  // colours was enough. And "1 or more **each of** red <Gamma 1: SH> and <Gamma 2: SH> cards" (BT22-004): each name,
+  // the leading colour said of both (as a colour in front of an either-name list is).
+  // (DB2-131 goes on "…in your Drop Area **and have 4 or more energy**": the second requirement shares "you have".)
+  const eachColour = new RegExp(`^(?:there (?:is|are)|you have)\\s+(?:(?:at least\\s+)?(\\d+)\\s+(?:or more\\s+)?)?((?:(?:mono-)?${COLOR_WORD},?\\s+)+and\\s+(?:mono-)?${COLOR_WORD})\\s+cards?\\s+((?:in|among)\\s.+?)(?:\\s+and\\s+(?:you\\s+)?(have\\s.+))?$`).exec(t);
+  if (eachColour && !/\b(?:both|each|all|or|and)\b/.test(eachColour[3])) {
+    const conds: Cond[] = [];
+    for (const colour of eachColour[2].match(new RegExp(`(?:mono-)?${COLOR_WORD}`, "g")) ?? []) {
+      const one = parseConditionClause(`if there are ${eachColour[1] ?? "1"} or more ${colour} cards ${eachColour[3]}`, true);
+      if (!one) return null;
+      conds.push(one.cond);
+    }
+    if (eachColour[4]) {
+      const rest = parseConditionClause(`if you ${eachColour[4]}`, true);
+      if (!rest) return null;
+      conds.push(rest.cond);
+    }
+    return { cond: { kind: "all", conds } };
+  }
+  const eachOf = new RegExp(`^(?:there (?:is|are)|you have)\\s+(\\d+)\\s+or more each of\\s+((?:${COLOR_WORD}\\s+)*)((?:${NAMED_CARD},?\\s+)+and\\s+${NAMED_CARD})\\s+cards?\\s+((?:in|among)\\s.+)$`).exec(t);
+  if (eachOf && !/\b(?:both|each|all|or)\b/.test(eachOf[4])) {
+    const conds: Cond[] = [];
+    for (const name of eachOf[3].match(new RegExp(NAMED_CARD, "g")) ?? []) {
+      const one = parseConditionClause(`if there are ${eachOf[1]} or more ${eachOf[2]}${name} cards ${eachOf[4]}`, true);
+      if (!one) return null;
+      conds.push(one.cond);
+    }
+    return { cond: { kind: "all", conds } };
+  }
   const eachName =
     new RegExp(`^(?:there (?:is|are)|you have)\\s+(?:at least\\s+)?(\\d+)\\s*(?:or more\\s+)?((?:${NAMED_CARD},?\\s+)+and\\s+${NAMED_CARD})\\s+cards?\\s+((?:in|among)\\s.+)$`).exec(t) ??
     (() => {
@@ -624,7 +678,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   if ((m = /^your leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
-    const parts = splitDisjunction(m[1], { measured: true });
+    const every = everyColourLeader(m[1]);
+    if (every) return { cond: { kind: "leaderMatches", filter: every }, subject: { sel: { special: "leader" } } };
+    const parts = leaderAlternatives(m[1]);
     if (parts.length > 1 && namesShareQualifiers(parts)) {
       return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]) }, subject: { sel: { special: "leader" } } };
     }
@@ -649,7 +705,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "If your opponent's Leader Card is red or blue" — the same test, other side.
   if ((m = /^your opponent's leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
-    const parts = splitDisjunction(m[1], { measured: true });
+    const every = everyColourLeader(m[1]);
+    if (every) return { cond: { kind: "leaderMatches", side: "opponent", filter: every }, subject: { sel: { special: "opponentLeader" } } };
+    const parts = leaderAlternatives(m[1]);
     if (parts.length > 1 && namesShareQualifiers(parts)) {
       return { cond: { kind: "leaderMatches", side: "opponent", filter: parseFilter(m[1]) }, subject: { sel: { special: "opponentLeader" } } };
     }

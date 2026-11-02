@@ -54,7 +54,19 @@ export function compileSkill(skill: Skill): Script {
   // compiled as the skill it quotes; its record is the grant's program (which
   // says for itself when the granted [Auto]'s moment is not read).
   if (skill.granted) return compileQuotedSkill(skill.granted.skill);
-  return momentIsRead(skill, compileSkillUnguarded(skill));
+  return leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill)));
+}
+
+/**
+ * Audit-selectors-1 review: a program that plays the Leader is a misread, whatever led to it — a Leader stays in the
+ * Leader Area (3-1-2) and no card plays one. EX15-01's "Choose up to 1 mono-red <Gogeta: Br> card … from your deck or
+ * hand, play it on top of this card" lost its choice to the condition in front of it and played "your leader"; read
+ * whole, it played the wrong card. Left unread, the row is open and says why (moments batch 1 refused the same on a
+ * moment it reads, BT5-071).
+ */
+function leaderNeverPlayed(script: Script): Script {
+  if (script.unsupported.length || !playsTheLeader(script.ops)) return script;
+  return { ...script, unsupported: ["this effect would play the Leader, which no card does (3-1-2): the card it plays is not read"] };
 }
 
 /**
@@ -684,6 +696,7 @@ function compileSkillText(skill: Skill): Script {
     replacing: null,
     n: 0,
     raw: skill.effect,
+    ...(skill.tokenReminders ? { tokenReminders: skill.tokenReminders } : {}),
     skillKind: skill.kind,
     xBound: priceX(skill) !== null,
     ...(skill.spiritBoost ? { spiritBoost: skill.spiritBoost } : {}),
@@ -851,6 +864,8 @@ function compileSkillText(skill: Skill): Script {
       if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
     }
   }
+  // Audit-selectors-1 review: "the card that was sent to the Warp by this skill" (BT7-080) after a price that sent this card there.
+  if (priceOps.some((p) => p.op === "moveTo" && p.to === "warp" && "sel" in p.target && p.target.sel.special === "self")) c.priceSentSelfToWarp = true;
   // "The revealed card" (#930, EX13-14 / SD19-03) is what the price revealed.
   const priceReveal = priceOps.filter((o): o is Extract<Op, { op: "reveal" }> => o.op === "reveal");
   if (priceReveal.length === 1) c.priceRevealed = priceReveal[0].as;

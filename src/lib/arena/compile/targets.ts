@@ -41,7 +41,7 @@ export function selfFrom(phrase: string): Selector {
   return areas.length === 1 ? { special: "self", area: areas[0] } : { special: "self", areas };
 }
 
-export const AREA_WORDS: [RegExp, ScriptArea][] = [
+const AREA_PLACE_WORDS: [RegExp, ScriptArea][] = [
   // "In your opponent's Drop" was the one possessive this line did not admit —
   // `in your` matched, then `drop` did not follow — so "up to 1 Battle Card in
   // your opponent's Drop" fell through to the Battle Area and chose a card in
@@ -68,18 +68,42 @@ export const AREA_WORDS: [RegExp, ScriptArea][] = [
   // Naming both areas is how the text says "on the table" (20-1-6), and it
   // has to be read before either area alone — otherwise "in your Battle Area
   // or Leader Area" becomes a Battle Area holding a Leader, which is nothing.
-  [/\b(?:battle|leader) area or (?:battle|leader) area\b/, "play"],
+  [/\b(?:battle|leader) area (?:or|and) (?:battle|leader) area\b/, "play"],
   [/\bleader area\b/, "leader"],
-  [/\bbattle area\b/, "battle"],
+  // (Audit-selectors-1: "in any Battle Areas", P-153 — the plural is the same area word.)
+  [/\bbattle area\b|\b(?:any|either) battle areas\b/, "battle"],
+];
+/** Audit-selectors-1: the card types that stand for an area when no place is named — kept apart so a reader can tell a place from a description (`namesAPlace`). */
+const AREA_TYPE_WORDS: [RegExp, ScriptArea][] = [
   // Noun card types when no explicit area preposition was named
   // "your ≪Ginyu Force≫ Leader" (BT29-083, #1166), "your yellow Leader": a Leader
   // with a colour or a special trait in front is still the Leader Area.
-  [/\bleader cards?\b|\byour (?:(?:red|blue|green|yellow|black) )?(?:≪[^≫]+≫ ?)?leaders?\b/, "leader"],
+  // Audit-selectors-1: and a Leader with a name, the colour white, or the other player's — "one of your red <Beerus>
+  // Leaders" (BT24-005), "your white Leader" (BT28-112), "your yellow <Broly: Br> Leaders" (P-539), "your opponent's
+  // Leaders" (BT22-009). Unread, the phrase named no area and 20-1-6's "a card on the table" let a Battle Card stand in
+  // for the Leader.
+  [/\bleader cards?\b|\b(?:your|their|opponent'?s) (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:(?:<[^>]+>|≪[^≫]+≫) ?)*leaders?\b/, "leader"],
   [/\bbattle cards?\b/, "battle"],
   [/\bunison cards?\b|\bunisons\b/, "unison"],
   // 20-1-6: an unqualified "cards" means the Leader Area and the Battle Area.
   [/\b(?:your|their|opponent's) (?:[a-z-]+ )*cards\b/, "play"],
 ];
+export const AREA_WORDS: [RegExp, ScriptArea][] = [...AREA_PLACE_WORDS, ...AREA_TYPE_WORDS];
+
+/** A card type said with whose it is — "your Battle Cards", "1 of their Unisons", "your red <Beerus> Leader": a place, as an area word is. */
+const OWNED_TYPE = /\b(?:your|their|opponent(?:'?s)?)\s+(?:(?:[a-z/-]+|<[^>]+>|≪[^≫]+≫)\s+)*(?:(?:battle|unison|leader|extra)\s+cards?|unisons?|leaders?|cards)\b/i;
+
+/**
+ * Audit-selectors-1: does a description name a place of its own — an area ("in your Drop", "your hand"), or a card
+ * type said with whose it is ("your Battle Cards")? After a look, a description that names none is one of the cards
+ * looked at (20-12): "look at up to 5 cards …, add up to 1 red **Battle Card** … to your hand" (BT22-014, BT4-009,
+ * BT4-014, BT29-067), "…add up to 2 mono-green cards that are ≪Saiyan≫ cards or **Unisons** …" (BT31-041). The card
+ * type alone was read as its area, and the choice was of cards already in play.
+ */
+export function namesAPlace(text: string): boolean {
+  const t = text.toLowerCase();
+  return AREA_PLACE_WORDS.some(([re]) => re.test(t)) || OWNED_TYPE.test(t);
+}
 
 /**
  * Area words as the cards print them, for the phrases that name two of them
@@ -397,6 +421,60 @@ function sumBoundOf(said: string): NonNullable<Selector["sumAtMost"]> | null {
   return { attr, total: { attr: { sel: { special: "self" } }, name: own[1] === "power" ? "power" : "energyCost" } };
 }
 
+/**
+ * Audit-selectors-1: one choice among cards in two places, each with its own description (`alsoFrom`).
+ *
+ * - "choose up to 1 of your opponent's **Battle Cards or energy**" (BT7-083, DB2-103, DB2-171), "…Battle Cards
+ *   and/or energy" (DB2-108), "a total of up to 2 of your opponent's Battle Cards and energy" (BT5-080b), "all of your
+ *   opponent's Battle Cards and energy in Rest Mode" (BT10-153, TB1-081, BT1-041): Battle Cards in their Battle Area,
+ *   or any of their energy (20-1-3) — read as one description it was "Battle Cards in your opponent's Energy Area",
+ *   which reaches neither.
+ * - "choose up to 1 card **in your opponent's hand or up to 1 of their Battle Cards**" (BT13-146, BT15-063, TB1-052),
+ *   "up to 3 of your opponent's **cards in hand and/or Battle Cards**" (BT17-065): any card of their hand, or a Battle
+ *   Card of theirs — one choice of that many.
+ *
+ * `undefined` when the phrase is not one of these; `null` when it is and a half does not read.
+ */
+function alternativePlaces(phrase: string, looked?: string, pool?: string): Selector | null | undefined {
+  const energy = /^(.*?\b(?:your opponent'?s|their) (?:(?:rest|active) mode )?battle cards),? (?:and\/or|or|and) (?:their )?energy\b(.*)$/i.exec(phrase);
+  const handOr = /^(.*?\b(?:up to )?(\d+) cards? (?:in|from) (?:your opponent'?s|their) hand) or (?:up to )?\2 of their battle cards\b(.*)$/i.exec(phrase);
+  const inHand = /^(.*?\b(?:up to )?\d+ of your opponent'?s) cards in hand (?:and\/or|or) battle cards\b(.*)$/i.exec(phrase);
+  // "…play 1 blue <Son Goku> card … **from your energy or from under {Conflict}** in your Battle Area" (BT31-033,
+  // BT31-034, BT31-035), "…**from your hand or from under {Serpent Road}** in your Battle Area" (BT30-114): the pile
+  // under the named card, or the area — the area's half had been dropped. "…**in your hand or face up in your life**"
+  // (BT13-011): a card of the hand, or a face-up card of the life (3-9-2-1) — read as one, "face up" landed on the hand.
+  const orUnder = /^(.*?) from your (hand|energy|drop(?: area)?|warp|deck) or (from under .+)$/i.exec(phrase);
+  const orLife = /^(.*?) in your hand or face up in your life\b(.*)$/i.exec(phrase);
+  const placeOnly = (s: Selector): Selector => {
+    const { count: _c, upTo: _u, minCount: _m, ...rest } = s;
+    void _c; void _u; void _m;
+    return rest;
+  };
+  if (orUnder || orLife) {
+    const [mainSaid, altSaid] = orUnder ? [`${orUnder[1]} ${orUnder[3]}`, `${orUnder[1]} from your ${orUnder[2]}`] : [`${orLife![1]} in your hand${orLife![2]}`, `${orLife![1]} face up in your life${orLife![2]}`];
+    const main = parseTarget(mainSaid, looked, pool);
+    const alt = parseTarget(altSaid, looked, pool);
+    if (!main || !alt || main.special || alt.special || main.fromVar || alt.fromVar || main.areas?.length || alt.areas?.length || !alt.area) return null;
+    if (orUnder ? main.area !== "under" || !main.underHost : main.area !== "hand" || alt.area !== "life" || !alt.filter?.faceUp) return null;
+    const handFilter = orLife && main.filter ? { ...main.filter, faceUp: false } : main.filter;
+    return { ...main, ...(handFilter ? { filter: handFilter } : {}), alsoFrom: [placeOnly(alt)] };
+  }
+  if (!energy && !handOr && !inHand) return undefined;
+  if (energy) {
+    const main = parseTarget(`${energy[1]}${energy[2]}`, looked, pool);
+    if (!main || main.special || main.fromVar || main.area !== "battle" || main.areas?.length || !main.side) return null;
+    return { ...main, alsoFrom: [{ side: main.side, area: "energy", ...(main.mode ? { mode: main.mode } : {}) }] };
+  }
+  if (handOr) {
+    const main = parseTarget(`${handOr[1]}${handOr[3]}`, looked, pool);
+    if (!main || main.special || main.fromVar || main.area !== "hand" || main.areas?.length || main.side !== "opponent") return null;
+    return { ...main, alsoFrom: [{ side: "opponent", area: "battle", filter: { ...emptyFilter(), type: "BATTLE" } }] };
+  }
+  const main = parseTarget(`${inHand![1]} cards in their hand${inHand![2]}`, looked, pool);
+  if (!main || main.special || main.fromVar || main.area !== "hand" || main.areas?.length || main.side !== "opponent") return null;
+  return { ...main, alsoFrom: [{ side: "opponent", area: "battle", filter: { ...emptyFilter(), type: "BATTLE" } }] };
+}
+
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
   // "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
   // deck flags 26 Oct 2026): the words were read as nothing, so the player
@@ -407,6 +485,8 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     const sel = parseTarget(phrase.replace(random[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
     return sel && sel.area === "hand" && !sel.areas?.length && !sel.special && !sel.fromVar ? { ...sel, atRandom: true } : null;
   }
+  const alternatives = alternativePlaces(phrase, looked, pool);
+  if (alternatives !== undefined) return alternatives;
   // "…with an energy cost less than or equal to your current energy" (#979): a
   // measure of the card against the master's energy count, not an area. Read
   // off the rest of the phrase, which would take "your energy" for the Energy Area.
@@ -600,6 +680,12 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // Refusing is ground rule 5: the clause goes to the referee, which is what
   // the card needs anyway.
   if (/\bby this skill\b|\bsent to\b/.test(t)) return null;
+  // Audit-selectors-1 review: two more a selector cannot say and a reading must not drop — a card's attacks this turn
+  // ("choose 1 of your yellow <Son Goku: Childhood> cards in Rest Mode **that hasn't attacked this turn**", SD20-05) and
+  // the battle a card is in, said positively ("choose 1 of your cards **in battle**", BT13-058; `notInBattle` reads only
+  // "that's not in a battle"). Read without them the choice took any card of the description.
+  if (/\b(?:has|have|did)(?:n'?t| not) attacked\b|\bthat (?:has )?attacked this turn\b/.test(t)) return null;
+  if (/\bcards? (?:that (?:is|are) )?in (?:a )?battle\b(?!\s+areas?\b)/.test(t) && !/\bnot in (?:a )?battle\b/.test(t)) return null;
   // 20-5: "up to **X** of your opponent's Battle Cards" — a count that is the
   // X the skill's price was paid at. A `Selector.count` is a plain number and
   // not an expression, so there is nothing here that can say it; read as it
@@ -744,13 +830,22 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
     // read — "from your Battle Area" is 9-1-3-1's own answer already.
     return selfFrom(t);
   }
-  // Audit triggers 1 (review): "Choose the attacking **Battle Card**" (P-203), "…up to 1 of the attacking **Battle
-  // Cards**" (P-409, a KO by an opponent's attack), "…of the attacking cards" (BT24-060): a battle has one attacker
-  // (8-1), whatever the noun. Read as a description, these chose one of your own Battle Cards. "Up to 1 of" stays a
-  // choice the player may decline.
-  if (/\bthe attack(?:ing)? (?:battle |leader )?cards?\b/.test(t)) {
-    const upTo = /\bup to (\d+) of the attack/.exec(t);
-    return { special: "attacker", ...(upTo ? { count: Number(upTo[1]), upTo: true } : {}) };
+  if (/\bthe attack(?:ing)? card\b/.test(t)) return { special: "attacker" };
+  // Audit-selectors-1: "choose up to 1 **attacking Battle Card or Leader Card**" (BT10-030), "choose **the attacking
+  // Battle Card**, KO it" (P-203), "**your attacking cards** get +30000 power" (BT22-035): one card attacks at a time
+  // (8-1), and it is the attack's own card. Read as a description the word was dropped, and the choice took any card
+  // of the caster's — in a [Counter: Attack], one of their own instead of the attacker. Audit triggers 1 (review) met the
+  // same misread on "…up to 1 of the attacking Battle Cards" (P-409) and "…of the attacking cards" (BT24-060).
+  const attacking = /(?<!non-)\battacking ((?:battle |leader )?cards?)(?: or (?:battle |leader )?cards?)?\b/.exec(t);
+  if (attacking && !/\bnot\b|\bother than\b|\bexcept\b/.test(t)) {
+    const one = !/ or /.test(attacking[0]) ? /^(battle|leader) /.exec(attacking[1]) : null;
+    const upTo = /\bup to \d+\b/.test(t);
+    // Audit-selectors-1 review: and whose — "choose 1 of **your** attacking cards" (BT1-005, TB2-012: a combo card, and
+    // the defender combos too) is the attacker only while it is the caster's; "1 of **your opponent's** attacking Battle
+    // Cards" (BT2-097) only while it is the other player's. Said with no possessive, it is the attacker either way.
+    const whose = /\b(your opponent'?s|their|your)\s+attacking\b/.exec(t)?.[1];
+    const side = whose ? (whose === "your" ? "you" : "opponent") : undefined;
+    return { special: "attacker", ...(side ? { side } : {}), ...(one ? { filter: { ...emptyFilter(), type: one[1].toUpperCase() as "BATTLE" | "LEADER" } } : {}), ...(upTo ? { count: 1, upTo: true } : {}) };
   }
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
   // "Your opponent's Leader", "your Leader Card": a player has exactly one
@@ -942,6 +1037,11 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // because the phrase says *both* whichever possessive happens to sit closest
   // to the area word ("you or your opponent's", "your and your opponent's").
   if (BOTH_SIDES.test(t)) side = "both";
+  // Audit-selectors-1: "choose up to 1 <Vegeta> card … **in a Battle Area**" (BT7-065, P-126), "2 ≪World Tournament≫
+  // cards **in any Battle Areas**" (P-153), "1 [Field] card in a Battle Area" (P-152, BT19-110): either player's — the
+  // official Q&A of BT7-065, P-126 and P-153 lets the opponent's be chosen (and P-153's one from each side). Read with
+  // no possessive, the side was the caster's alone.
+  if (/\b(?:in|from) (?:a|any|either) battle areas?\b/.test(t) && !/\b(?:your|their|opponent'?s)\b[^,]*\b(?:in|from) (?:a|any|either) battle areas?\b/.test(chosen)) side = "both";
   // "Choose up to 1 **player's** card" (BT29-107): either player's — a card
   // on the table (20-1-6), on whichever side.
   const eitherPlayers = /\b(?:a|1|one|any|up to \d+) player'?s cards?\b/.test(t);
@@ -957,7 +1057,8 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // own**. Only when a pool exists — with nothing held out, "it" is a pronoun
   // for a later clause to answer and there is no area here to read it as.
   const seen = looked ?? pool;
-  const namesPool = /\bamong them\b|\bof those cards\b|\bfrom among them\b|\bof them\b/.test(t) || (!!seen && /\bfrom it\b/.test(t));
+  // (Audit-selectors-1: "look at your opponent's hand, choose up to 1 … **in it**" (EX11-02) is the same pool.)
+  const namesPool = /\bamong them\b|\bof those cards\b|\bfrom among them\b|\bof them\b/.test(t) || (!!seen && /\b(?:from|in) it\b/.test(t));
   // #1015: "choose up to 1 **of those Battle Cards**" (BT7-025b: the Battle
   // Cards just combo'd, which no variable holds) points at a plural nothing
   // names; read as a description it was any Battle Card in your own Battle Area.
@@ -974,7 +1075,8 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // at all. Only an area a type noun stood for is set aside; an area the phrase
   // names ("…in your Battle Area") is the phrase's own, and the type stays on
   // the filter (`filterFor(…, null)` below keeps it).
-  if (namesPool && fromVar && area && areaMatch && !pair && !list && !/\barea\b|\bin play\b/.test(areaMatch[0]) && /\b(?:leaders?|battle cards?|unison cards?|unisons|cards)\b/.test(areaMatch[0])) {
+  // (Audit-selectors-1: and a description after a look that names no place of its own, `namesAPlace`.)
+  if ((namesPool || (!!looked && fromVar === looked && !namesAPlace(t))) && fromVar && area && areaMatch && !pair && !list && !/\barea\b|\bin play\b/.test(areaMatch[0]) && /\b(?:leaders?|battle cards?|unison cards?|unisons|cards)\b/.test(areaMatch[0])) {
     area = null;
     areaMatch = null;
   }
@@ -1131,6 +1233,12 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // side test, `resolveSelector`) and offered none of the opponent's hand.
   // Only "from it" with no owner named in the phrase.
   if (fromVar && seen && /\bfrom it\b/.test(t) && !/\byour\b|\btheir\b|\bopponent/.test(t)) return { area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };
+  // Audit-selectors-1: "choose 1 of your **Leader Cards or ≪Android≫ cards**" (EB1-38's back): the Leader, or a card
+  // the second description names wherever on the table it stands (20-1-6) — the Leader Area and the Battle Area. Read
+  // off the first noun alone, the ≪Android≫ Battle Cards were never offered.
+  if (area === "leader" && !fromVar && !/\bleader area\b/.test(t) && filter?.anyOf?.some((a) => a.type === "LEADER") && filter.anyOf.some((a) => a.type == null)) {
+    return { side, area: "leader", areas: ["leader", "battle"], filter, count, upTo, ...floor, mode, hidden, notSelf };
+  }
   return { side, area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };
 }
 

@@ -536,7 +536,8 @@ function addKeyword(f: CardFilter, kw: KeywordSkill | { name: KeywordSkill["name
 const titleCase = (s: string) => s.replace(/\b[a-z]/g, (ch) => ch.toUpperCase());
 
 /** Grammar that can sit between the number and a token's name, never part of it. */
-const TOKEN_STOP = new Set(["of", "your", "their", "the", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
+// (Audit-selectors-1: and the article — "if **an** Afterimage Token is in play" (DB2-046) named a token "an afterimage".)
+const TOKEN_STOP = new Set(["of", "your", "their", "the", "a", "an", "opponent's", "opponents", "up", "to", "and", "or", "all", "each", "other", "another"]);
 
 /** A filter that says nothing: every measure at rest. What a program's filter is filled up from before it is read. */
 export function emptyFilter(): CardFilter {
@@ -657,7 +658,107 @@ export function parseFilter(text0: string): CardFilter {
     if (alts.some((a) => a.unreadable)) return { ...parseOneFilter(text), unreadable: true };
     return { ...emptyFilter(), anyOf: alts };
   }
-  return eitherFilter(text) ?? parseOneFilter(text);
+  return kindAlternatives(text) ?? eitherFilter(text) ?? parseOneFilter(text);
+}
+
+/** One bracketed name: a character, a special trait, a card name or a keyword. */
+const NAME_TOKEN = /<[^<>]+>|≪[^≪≫]+≫|\{[^{}]+\}|\[[^\][]+\]/;
+const COLOUR_WORD = /^(?:(?:mono-|non-)?(?:red|blue|green|yellow|black|white)(?:\/(?:red|blue|green|yellow|black|white))*)$/i;
+/** "red", "red or green", "Red/Blue multicolor": colour words and nothing else. */
+const COLOURS_ONLY = /^(?:(?:mono-|non-)?(?:red|blue|green|yellow|black|white)(?:\/(?:red|blue|green|yellow|black|white))*(?: multicolou?r)?(?:\s+|$))+$/i;
+
+/**
+ * Audit-selectors-1: alternatives of **different kinds**, each its own description. "{The Return of the Army of Terror}
+ * or yellow <Frieza>" (BT21-101), "a green <Majin Buu> card or {Absorption}" (BT30-062), "{We Are Universe 7},
+ * {Tournament of Power Arena}, or Red/Blue multicolor Extra Card" (BT9-028), "red or green ≪Saiyan≫ card or {King
+ * Vegeta's Dynasty}" (SD9-01): a card name is a card of its own, nothing else said of it. "Red or ≪Universe 7≫ Battle
+ * Card" (BT14-013), "[Dragon Ball] or ≪Desire≫ cards" (BT5-116), "≪Machine Mutant≫ or card whose card name includes
+ * {Baby}" (BT3-017), "≪Evil Wizard≫ cards and/or cards with {Agent of Destruction} in their card names" (EX13-20),
+ * "<Great Priest> or blue <Whis> card" (BT16-040), "Meta-Cooler Tokens or yellow <Meta-Cooler> cards" (DB3-142): a
+ * colour alone, a keyword, a name looked inside, a colour said of one name only — each is one of the alternatives, and
+ * the noun the last one ends with is every one's. Read as one description (`matchesAttrs` asks every measure) a card
+ * had to be all of them at once, which none is. Names of one kind ("<A> or <B>", "≪A≫ or ≪B≫") and a character beside
+ * traits ("<A>, ≪B≫, or ≪C≫ card", `characterOrTrait`) stay one description, a colour in front said of all of them.
+ */
+function kindAlternatives(text: string): CardFilter | null {
+  const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+  if (!/\bor\b/i.test(t)) return null;
+  // Top-level pieces, as `eitherFilter` cuts them: names carry commas and "or"s of their own.
+  const pieces: string[] = [];
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if ("<≪{[".includes(ch)) depth++;
+    else if (">≫}]".includes(ch)) depth = Math.max(0, depth - 1);
+    if (depth) continue;
+    const rest = t.slice(i);
+    const sep = /^(?:,\s*(?:and\/or|or)\s+|,\s+|\s+and\/or\s+|\s+or\s+)/i.exec(rest);
+    if (!sep || i <= from) continue;
+    const before = t.slice(from, i);
+    const after = rest.slice(sep[0].length);
+    // A comparison's "or" ("4 or less", "less than or equal to") and an aside's dash end the list.
+    if (/\b(?:than|\d+)$/i.test(before) || /^(?:less|more|fewer|equal|lower|higher|greater)\b/i.test(after)) continue;
+    pieces.push(before.trim());
+    from = i + sep[0].length;
+    i = from - 1;
+  }
+  pieces.push(t.slice(from).trim());
+  // The words that count and own the choice ("choose up to 1 of your …") are no alternative's; only the first piece has them.
+  const LEAD = /^(?:(?:choose|add|play|place|send|use|switch)\s+)?(?:(?:up to |a total of |up to a total of )?\d+\s+(?:of\s+)?|an?\s+|any number of\s+|all\s+(?:of\s+)?)?(?:(?:your opponent'?s|your|their)\s+)?/i;
+  pieces[0] = pieces[0].replace(LEAD, "").trim();
+  if (pieces.length < 2 || pieces.some((p) => !p || /[—–―]|--/.test(p) || /^(?:in|from|with|that|which|whose)\b/i.test(p))) return null;
+  // A qualifier before the last "or" — "…card **with** an [Evolve] or [Union] skill" (BT26-061), "Battle Cards **that** are
+  // blue and/or yellow" (BT9-093), "<Bardock> **in** your Battle Area or Leader Area" (BT3-087), "…**from** your deck or
+  // hand" (BT9-008) — means the "or" is inside one description, not between descriptions.
+  if (pieces.slice(0, -1).some((p) => /\b(?:in|from|with|that|which|whose|other than|among)\b/i.test(p.replace(new RegExp(NAME_TOKEN.source, "g"), "N")))) return null;
+  // "red or green ≪Saiyan≫ card": a colour list stays one description's colours.
+  const joined: string[] = [];
+  for (const p of pieces) {
+    const prev = joined[joined.length - 1];
+    if (prev !== undefined && COLOURS_ONLY.test(prev) && /^(?:mono-|non-)?(?:red|blue|green|yellow|black|white)\b/i.test(p)) joined[joined.length - 1] = `${prev} or ${p}`;
+    else joined.push(p);
+  }
+  if (joined.length < 2) return null;
+  // What each piece names: a lone card name, a lone colour, or a description (colours, one name, maybe a noun and more).
+  type Piece = { text: string; kind: string; colours: boolean; noun: boolean };
+  const read = (p: string): Piece | null => {
+    const words = p.replace(/^(?:a|an|1|up to \d+|your|their)\s+/i, "");
+    const tokens = words.match(new RegExp(NAME_TOKEN.source, "g")) ?? [];
+    const head = words.split(NAME_TOKEN)[0].trim();
+    const colours = !!head && head.split(/\s+/).every((w) => COLOUR_WORD.test(w) || /^multicolou?r$/i.test(w));
+    const noun = /\b(?:cards?|extras?|leaders?|unisons?|tokens?)\b/i.test(words.replace(new RegExp(NAME_TOKEN.source, "g"), " "));
+    if (COLOURS_ONLY.test(words)) return { text: words, kind: "colour", colours: true, noun: false };
+    if (/\b(?:whose card name includes|in (?:its|their) card names?)\b/i.test(words)) return { text: words, kind: "namePart", colours, noun };
+    if (/\btokens?\b/i.test(words) && !tokens.length) return { text: words, kind: "token", colours, noun };
+    if (tokens.length !== 1) return noun ? { text: words, kind: "described", colours, noun } : null;
+    const kind = tokens[0][0] === "<" ? "character" : tokens[0][0] === "≪" ? "trait" : tokens[0][0] === "{" ? "name" : "keyword";
+    return { text: words, kind, colours, noun };
+  };
+  const read2 = joined.map(read);
+  if (read2.some((p) => !p)) return null;
+  const all = read2 as Piece[];
+  const kinds = new Set(all.map((p) => p.kind));
+  // One kind of name, or characters beside traits, with no colour said of a later name alone: one description.
+  const laterColour = all.slice(1).some((p) => p.colours && p.kind !== "colour" && p.kind !== "described");
+  // Only alternatives of a kind one description cannot hold — a card name, a colour alone, a keyword, a name looked inside, a
+  // token — or a colour said of a later name alone. Anything else (names of one kind, characters beside traits, a
+  // description with its own noun) is `eitherFilter`'s or one description, as it always read.
+  const odd = [...kinds].some((k) => k === "colour" || k === "keyword" || k === "namePart" || k === "token") || (kinds.has("name") && kinds.size > 1);
+  if (!odd && !laterColour) return null;
+  // The noun (and what follows it) the last piece ends with is said of every piece that has none of its own.
+  const last = all[all.length - 1].text;
+  const lastToken = NAME_TOKEN.exec(last);
+  // (A last piece with no name of its own — "…or Unison Card" (EX19-17) — describes only itself.)
+  const tail = lastToken ? last.slice(lastToken.index + lastToken[0].length).trim() : "";
+  const alts = all.map((p, i): CardFilter => {
+    // A card name is the card of that name: nothing else said of it (BT9-028's two Fields, SD9-01's).
+    if (p.kind === "name" && !p.noun && !p.colours) return parseOneFilter(p.text);
+    const said = p.noun || i === all.length - 1 ? p.text : `${p.text} ${tail || "card"}`;
+    return parseOneFilter(said);
+  });
+  if (alts.some((a) => a.unreadable)) return null;
+  return { ...emptyFilter(), anyOf: alts };
 }
 
 /**
@@ -718,7 +819,10 @@ const CARD_NOUN = /\b(?:battle |extra |leader |unison )?(?:cards?|extras?|leader
  * pieces differ in more than the names an "or" already reads as either; "<Son
  * Goku> card or <Vegeta> card" stays one filter, as it always read.
  */
-function eitherFilter(text: string, endingAsideForAll = true): CardFilter | null {
+function eitherFilter(said: string, endingAsideForAll = true): CardFilter | null {
+  // Audit-selectors-1: the verb in front of the count is no description's — "**choose** up to 1 mono-yellow ≪Frieza's Army≫ or
+  // Unison Card in your hand" (EX19-17) was refused at its first piece and read as one card of both.
+  const text = said.replace(/^(?:choose|add|play|place|send|use|switch)\s+(?=(?:up to |a total of )?\d+ |an? |any number of )/i, "");
   // "…≪Namekian≫ or ≪Demon Clan≫ card―both green and with an energy cost of
   // 4 or less―or 1 green Unison with a specified cost of 2" (BT18-083, #980):
   // the aside belongs to the description in front of it, so it is folded into
@@ -806,8 +910,11 @@ function eitherFilter(text: string, endingAsideForAll = true): CardFilter | null
   }
   if (joined.length < 2) return null;
   const cleaned = joined.map((p) => p.trim().replace(/^(?:a|an|1|up to \d+|any number of)\s+/i, ""));
-  if (!cleaned.every((p) => CARD_NOUN.test(p) && !/^(?:less|more|fewer)\b/i.test(p))) return null;
-  const alts = cleaned.map((p) => parseOneFilter(shared ? `${p} ${shared}` : p));
+  // Audit-selectors-1: a card name alone is a card of its own — "…—both black and with energy costs of 6 or less—or 1 {Fu,
+  // All According to Plan}" (BT20-128): nothing the other description says is said of it.
+  const bareName = (p: string) => /^\{[^{}]+\}(?:\s+(?:among them|from among them|of those cards))?$/i.test(p);
+  if (!cleaned.every((p) => (CARD_NOUN.test(p) || bareName(p)) && !/^(?:less|more|fewer)\b/i.test(p))) return null;
+  const alts = cleaned.map((p) => parseOneFilter(shared && !bareName(p) ? `${p} ${shared}` : p));
   if (alts.some((a) => a.unreadable)) return null;
   // Halves that are nothing but a card type name the areas of a pair —
   // "your opponent's Battle Cards or Unisons" is two areas, and the selector
@@ -917,6 +1024,14 @@ function parseOneFilter(text: string): CardFilter {
     (which.toLowerCase() === "character" ? f.notCharactersIncluding : f.notNamesIncluding).push(value);
     return " ";
   });
+  // Audit-selectors-1 review: the plain negation — "…a yellow <Son Goku: Childhood> card with an energy cost of 4 or less
+  // **that doesn't have ≪Great Ape≫**" (BT18-096), "…with 20000 power **that doesn't have <Master Roshi>**" (BT18-062): the
+  // name ruled out, as "non-≪Great Ape≫" says it. Read by the positive loop below it became a name the card had to have.
+  // Not "…in its/their character name(s)" (read above) nor "…under it" (a card in a pile, BT21-021).
+  t = t.replace(/\b(?:that|which)\s+do(?:es)?\s?n'?o?t\s+have\s+(≪[^≫]+≫|<[^>]+>|\{[^}]+\})(?!\s+(?:in (?:its|their)|under)\b)/gi, (_whole, token: string) => {
+    (token.startsWith("≪") ? f.notTraits : token.startsWith("<") ? f.notCharacters : f.notNames).push(token.slice(1, -1).trim());
+    return " ";
+  });
   t = t.replace(/(character|card) names? (?:that |which )?includes?\s+(<[^>]+>|\{[^}]+\})/gi, (_whole, which: string, token: string) => {
     const value = token.slice(1, -1).trim();
     (which.toLowerCase() === "character" ? f.charactersIncluding : f.namesIncluding).push(value);
@@ -951,7 +1066,12 @@ function parseOneFilter(text: string): CardFilter {
   if (f.traits.length && /≪[^≫]+≫-only\b/i.test(t)) f.onlyTraits = true;
   // "<Baby> or ≪Brainwashed≫", "≪Brainwashed≫ and/or <Baby>": one of each kind
   // joined by "or" is a choice between them, not both at once.
-  if (f.characters.length && f.traits.length && /<[^>]+>\s*(?:or|and\/or)\s+(?:a |an )?≪[^≫]+≫|≪[^≫]+≫\s*(?:or|and\/or)\s+(?:a |an )?<[^>]+>/i.test(t)) f.characterOrTrait = true;
+  // (Audit-selectors-1: and in a comma list — "blue <Trunks: Youth>, ≪Hero≫, or ≪Phantom Demon≫ card" (BT24-025, BT24-042), "blue
+  // <Son Goku>, or ≪God≫ card" (BT31-039).)
+  if (f.characters.length && f.traits.length && /<[^>]+>\s*(?:,\s*(?:or\s+|and\/or\s+)?|(?:or|and\/or)\s+)(?:a |an )?≪[^≫]+≫|≪[^≫]+≫\s*(?:,\s*(?:or\s+|and\/or\s+)?|(?:or|and\/or)\s+)(?:a |an )?<[^>]+>/i.test(t)) f.characterOrTrait = true;
+  // Audit-selectors-1: "choose all **<Baby> and ≪Brainwashed≫ cards**" (EX08-03) — the plural "and" gathers both kinds,
+  // every <Baby> card and every ≪Brainwashed≫ one; it never asks one card to be both.
+  if (f.characters.length === 1 && f.traits.length === 1 && /<[^>]+>\s+and\s+≪[^≫]+≫\s+cards\b|≪[^≫]+≫\s+and\s+<[^>]+>\s+cards\b/i.test(t)) f.characterOrTrait = true;
   for (const m of t.matchAll(/\{([^}]+)\}/g)) if (!/^[rugykbw]$|^\d+$/i.test(m[1])) f.names.push(m[1].trim());
   // "Cards other than Battle Cards" (BT23-140) says the same as "non-Battle
   // Cards" the long way, naming a *type* rather than the named cards `EXCLUDED`
@@ -979,6 +1099,10 @@ function parseOneFilter(text: string): CardFilter {
   // one colour or several (2-2), so what is not multicoloured is mono.
   if (/\bnon-?multi-?colou?r(?:ed)?\b/.test(lower)) f.monoColor = true;
   else if (/\bmulti-?colou?r(?:ed)?\b/.test(lower)) f.multiColor = true;
+  // Audit-selectors-1: "a card that is **both red and green**" (BT7-117, EX04-02, P-124…), "a <Vegeta> card that is
+  // both red and green" (BT7-057): one card of every colour named, the multicolour card the "Red/Green multicolor"
+  // spelling asks for (2-2). Read as two colour words it took either — a mono-red or mono-green card answered.
+  else if (/\bboth (?:red|blue|green|yellow|black|white) and (?:red|blue|green|yellow|black|white)\b/.test(colourText)) f.multiColor = true;
   // "Use up to 1 face-up ≪Turles Crusher Corps≫ card from your life in a combo"
   // (3-9-2-1). "Face down" is never a way a card is picked out, so only the
   // one direction is read.

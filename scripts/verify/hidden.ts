@@ -52,7 +52,7 @@ const def = (id: string, o: Partial<(typeof DEFS)[string]>) => {
   assert.ok(!JSON.stringify(back.ops.filter((o) => o.op !== "delay")).includes('"c0"'), "the effect's own names start past the price's");
   assert.deepEqual(one("[Activate: Main] Choose 1 of your white Battle Cards and switch it to Hidden Mode: Increase this card's power by the original power on the front of the card that was switched to Hidden Mode by this skill for the turn.").unsupported, []);
   assert.deepEqual(one("[Auto] When this card attacks, choose up to 1 non-Extra card in your Battle Area and switch it to Revealed Mode or Hidden Mode.").unsupported, []);
-  assert.equal(reads("[Auto] When your opponent activates a [Counter] skill, your opponent adds 2 cards from their hand to their energy in Hidden Mode."), "choose 2 cards in your opponent's hand, move the chosen cards to energy, switch the chosen cards to Hidden Mode");
+  assert.equal(reads("[Auto] When your opponent activates a [Counter] skill, your opponent adds 2 cards from their hand to their energy in Hidden Mode."), "your opponent chooses 2 cards in your opponent's hand, move the chosen cards to energy, switch the chosen cards to Hidden Mode");
 
   // BT28-105b: a Leader or a described Battle Card, picked as a kind first.
   const either = one("[Activate: Main] Choose 1 of your white Battle Cards and switch it to Hidden Mode: Choose up to 1 of your Leaders or up to 1 of your white ≪Universe 7≫ Battle Cards and increase that card's power by the original power on the front of the card that was switched to Hidden Mode by this skill for the turn.");

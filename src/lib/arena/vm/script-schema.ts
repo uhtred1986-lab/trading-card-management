@@ -446,23 +446,26 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: CHOOSE_FIELDS,
     sentence: (raw, r) => {
       const op = raw as OpOf<"choose">;
+      // Audit-selectors-1: "your opponent chooses 1 of their Battle Cards" (SD16-02, BT28-030, TB1-072…): the record
+      // says who chooses (`chooser`), and the reading said "choose", which a player reads as their own pick.
+      const choose = op.chooser === "opponent" ? "your opponent chooses" : "choose";
       // "Any number of …, up to the number of …" (BT29-139): the selector's own
       // count is not read, so it is not said either.
       if (op.atMost !== undefined && op.owed) {
         // Phrasing batch 5 (BT23-109): a number owed, read off the board — "1 for every 5 cards in your Z-Energy".
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
-        return `choose ${cards}, ${describeAmount(op.atMost)} (as many as there are)`;
+        return `${choose} ${cards}, ${describeAmount(op.atMost)} (as many as there are)`;
       }
       if (op.atMost !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
         const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined && op.atMost.per === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
-        return `choose any number of ${cards}, up to ${bound}`;
+        return `${choose} any number of ${cards}, up to ${bound}`;
       }
       if (op.exactly !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
-        return `choose exactly ${describeAmount(op.exactly)} of ${cards}`;
+        return `${choose} exactly ${describeAmount(op.exactly)} of ${cards}`;
       }
-      return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
+      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
     },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
@@ -470,7 +473,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
     // #907 round 4: the reading said "the top" for a look the op takes from the bottom ("look at
     // the bottom card of your deck", BT11-062b, BT11-104, EB1-54) - the op was right, the words wrong.
-    sentence: (raw, r) => renderTemplate(`look at the ${(raw as OpOf<"look">).from === "bottom" ? "bottom" : "top"} {n}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r),
+    // Audit-selectors-1: and whose cards, and where — "look at your opponent's hand" (BT10-004, EX11-02) read "look at
+    // the top 99", "look at up to 1 card from the top of your opponent's deck" (P-530) as your own deck.
+    sentence: (raw, r) => {
+      const look = raw as OpOf<"look">;
+      const whose = look.side === "opponent" ? "your opponent's" : "your";
+      if (look.area && look.area !== "deck") {
+        const where = ZONE_NOUNS[look.area as keyof typeof ZONE_NOUNS] ?? look.area;
+        return look.n === 99 ? `look at ${whose} ${where}` : renderTemplate(`look at {n} cards in ${whose} ${where}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
+      }
+      return renderTemplate(`look at the ${look.from === "bottom" ? "bottom" : "top"} {n}${look.side === "opponent" ? " of your opponent's deck" : ""}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
+    },
     doc: "top of your deck, seen only by you; the cards are bound to the name in \"as\" (20-11)",
   },
   // `audience` (#137): who sees the cards. "you" is a look — 20-11's same
@@ -506,6 +519,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const as = moveAs(raw as Op);
       if (as.op !== "moveTo" && as.op !== "note") return describeScript([as], r);
+      // Audit-selectors-1: where a card goes under, and which end of the deck — "move the chosen cards to under" said
+      // neither whose pile (BT20-026's "under your Leader") nor, for a deck, the top or bottom the record carries.
+      const move = raw as OpOf<"moveTo">;
+      if (move.to === "under") return renderTemplate(`move {target} under ${move.under ? "{under}" : "this card"}{faceUp? face up}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
+      if (move.to === "deck" && (move.position === "top" || move.position === "bottom")) return renderTemplate(`move {target} to the ${move.position} of the deck{faceUp? face up}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
       return renderTemplate("move {target} to {to}{faceUp? face up}", raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
     },
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
@@ -705,7 +723,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "as", type: "string" },
       { name: "mode", type: { enum: ["rest"] } },
     ],
-    sentence: "play {n} {name} ({power} power){mode? in {mode} mode}",
+    // Audit-selectors-1: and on whose side — "play 2 Clone Tokens … in your opponent's Battle Area" (BT8-041).
+    sentence: (raw, r) => renderTemplate(`play {n} {name} ({power} power){mode? in {mode} mode}${(raw as OpOf<"token">).side === "opponent" ? " in your opponent's Battle Area" : ""}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.token.fields, r),
     doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}; "as" names the tokens this play made (exactly them, empty when none), for a later "and they gain [Blocker]"; "mode":"rest" is "play 1 Ghost Token in Rest Mode" (P-683, phrasing batch 4): the tokens arrive rested',
   },
   costModifier: {
@@ -1455,7 +1474,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       const tone = [...(f.monoColor ? ["mono-colour"] : []), ...(f.multiColor ? ["multicolour"] : []), ...(f.notColors ?? []).map((x) => `non-${x.toLowerCase()}`)];
       const kind = f.z ? ["Z-Leader"] : [];
       const notTraits = (f.notTraits ?? []).map((x) => `non-≪${x}≫`);
-      const said0 = [...tone, ...f.colors, ...notTraits, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...names, ...kind, ...including];
+      const said0 = [...tone, ...(f.colors.length ? [colourList(f.colors, !!f.multiColor)] : []), ...notTraits, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...names, ...kind, ...including];
       const bits = partly.length ? [...said0, ...(said0.length && !kind.length ? ["card"] : said0.length ? [] : ["a card"]), ...partly] : said0;
       // Audit lane C: "with an original power of 15000" (BT18-082, EX19-17) is that power exactly, and said so.
       const originalPower = f.originalPowerMin != null && f.originalPowerMin === f.originalPowerMax ? `with an original power of ${f.originalPowerMin}` : f.originalPowerMin != null ? `with an original power of ${f.originalPowerMin} or more` : f.originalPowerMax != null ? `with an original power of ${f.originalPowerMax} or less` : "";
@@ -2243,6 +2262,7 @@ const SELECTOR_KEYS = {
   copyOfSelf: 1,
   notAttackedThisTurn: 1,
   orSelf: 1,
+  alsoFrom: 1,
   atRandom: 1,
   ownedByOpponent: 1,
   notSelf: 1,
@@ -2327,6 +2347,17 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.underHost !== undefined) {
     const bad = selectorProblem(v.underHost, `${at}.underHost`, depth + 1);
     if (bad) return bad;
+  }
+  // Audit-selectors-1: each alternative is a place and a description, nothing that counts or names one card.
+  if (v.alsoFrom !== undefined) {
+    if (!Array.isArray(v.alsoFrom) || !v.alsoFrom.length) return wrong("alsoFrom", "a non-empty list of selectors");
+    for (const [i, alt] of (v.alsoFrom as unknown[]).entries()) {
+      const bad = selectorProblem(alt, `${at}.alsoFrom[${i}]`, depth + 1);
+      if (bad) return bad;
+      const a = alt as Record<string, unknown>;
+      const extra = ["special", "fromVar", "count", "upTo", "minCount", "take", "alsoFrom", "notIn", "sumAtMost", "differentNames", "differentCharacters", "orSelf"].find((k) => a[k] !== undefined);
+      if (extra) return `${at}.alsoFrom[${i}] says where to look and what for, never ${extra}`;
+    }
   }
   if (v.filter !== undefined) return filterProblem(v.filter, `${at}.filter`);
   return null;
@@ -2477,6 +2508,9 @@ function strayBound(v: unknown, at: string, top = true): string | null {
   if (!top && v.sumAtMost !== undefined) return `${at}: "sumAtMost" (TOTAL … <=) bounds a choice, so only a choose's own selector may carry it — anywhere else it is read as every card`;
   if (!top && v.minCount !== undefined) return `${at}: "minCount" bounds a choice, so only a choose's own selector may carry it`;
   if (!top && v.notIn !== undefined) return `${at}: "notIn" (EXCEPT $…) excludes the cards earlier choices bound, so only a choose's own selector may carry it`;
+  // Audit-selectors-1 review: `alsoFrom` (ALSO (…)) is one choice among two places, which the area-reading paths outside
+  // a choose (an action's FOR, a look's memory of searched areas) never see — so only a choose's own selector carries it.
+  if (!top && v.alsoFrom !== undefined) return `${at}: "alsoFrom" (ALSO (…)) widens a choice to a second place, so only a choose's own selector may carry it`;
   const rest = (o: Record<string, unknown>, skip: string) => Object.entries(o).filter(([k]) => k !== skip).map(([, x]) => x);
   if (v.op === "choose" && isRecord(v.sel)) {
     if (v.sel.sumAtMost !== undefined && v.sumTo !== undefined) return `${at}: a choice adds up to exactly "sumTo" or stays under "sumAtMost", not both`;
@@ -2625,6 +2659,11 @@ function anyOfNames(tokens: string[]): string[] {
   return tokens.length > 1 ? [tokens.join(" or ")] : tokens;
 }
 
+/** Colours as a filter asks them: any one ("red or black"), or every one of a multicolour card ("green and yellow"). */
+function colourList(colours: readonly string[], all: boolean): string {
+  return colours.length > 1 ? `${colours.slice(0, -1).join(", ")} ${all ? "and" : "or"} ${colours[colours.length - 1]}` : (colours[0] ?? "");
+}
+
 function allOfPhrases(characters: string[], names: string[]): string[] {
   const tokens = [...characters.map((x) => `<${x}>`), ...names.map((x) => `{${x}}`)];
   const out: string[] = [];
@@ -2655,7 +2694,11 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   const bits: string[] = [];
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");
-  bits.push(...f.colors.map((c) => c.toLowerCase()));
+  // Audit-selectors-1: several colours are *either* of them (`matchesAttrs`) unless the card must be multicolour, when
+  // it has every one — said so, "red or black ≪Saiyan≫", "multicolour green and yellow <Cell>". Side by side ("red
+  // black") the reading claimed a card of both colours for a filter that takes either. `parseFilter` reads both forms
+  // back to the same colours (an "or" between two colour words is not a second description).
+  if (f.colors.length) bits.push(colourList(f.colors.map((c) => c.toLowerCase()), f.multiColor));
   if (f.originalColors?.length) bits.push(`with original colours ${f.originalColors.map((c) => c.toLowerCase()).join(" or ")}`);
   // Every measure that *narrows by exclusion* was silent until 9 Sep 2026,
   // and a measure the reading drops always reads as the wider filter — the
@@ -2880,6 +2923,16 @@ export function describeSelector(sel: Selector, all = "all"): string {
   // <Majin Buu> on top of this card" and "the Leader on top of this card" are
   // different cards, and dropping the words would print them the same.
   if (sel.special === "onTop") return `the ${selectorNoun(sel, false)} on top of this card`;
+  // Audit-selectors-1: "choose up to 1 attacking Battle Card or Leader Card" (BT10-030), "the attacking Battle Card"
+  // (P-203) — the attacker with what the card says of it.
+  // (Audit-selectors-1 review: whose attacker it must be — "the attacking card of yours" (BT1-005) — and "ignoring
+  // [Barrier]", which the record keeps and the sentence had dropped, BT10-030.)
+  if (sel.special === "attacker" && (sel.filter || sel.upTo || sel.side || sel.ignoreBarrier)) {
+    const whose = sel.side === "you" ? "your " : sel.side === "opponent" ? "your opponent's " : "";
+    const what = (plural: boolean) => (sel.filter ? describeFilter(sel.filter, { plural }) : plural ? "cards" : "card");
+    const said = sel.upTo ? (whose ? `up to 1 of ${whose}attacking ${what(true)}` : `up to 1 attacking ${what(false)}`) : `${whose || "the "}attacking ${what(false)}`;
+    return `${said}${sel.ignoreBarrier ? " ignoring [Barrier]" : ""}`;
+  }
   if (sel.special)
     return {
       self: "this card",
@@ -2990,6 +3043,8 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.notAttackedThisTurn ? " that hasn't attacked this turn" : "") +
   // "Choose this card or up to 1 …" (errata-official-2): this card is on offer too.
   (sel.orSelf ? ", or this card" : "") +
+  // Audit-selectors-1: "…Battle Cards or energy" (`alsoFrom`): each alternative place and description, one choice among them all.
+  (sel.alsoFrom?.length ? sel.alsoFrom.map((alt) => (sel.count === 99 && !sel.upTo ? `, and ${describeSelector(alt, "all")}` : `, or among ${describeSelector(alt, "the")}`)).join("") : "") +
   (sel.atRandom ? " at random" : "") +
   (sel.ownedByOpponent ? " whose owner is your opponent" : "") +
   // "…1 <Shu> card" after "1 <Pilaf> card" (#970): a card of its own, not one an earlier slot took.

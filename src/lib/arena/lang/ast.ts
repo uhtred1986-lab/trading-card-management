@@ -89,6 +89,7 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   copyOfSelf: "flag",
   notAttackedThisTurn: "flag",
   orSelf: "flag",
+  alsoFrom: "places",
   atRandom: "flag",
   ownedByOpponent: "flag",
   notSelf: "flag",
@@ -239,7 +240,7 @@ export const COST_ITEMS = [
  * kind names, and the words that introduce a declaration's clauses.
  */
 export const RESERVED = new Set([
-  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "FUSION", "EVOLUTION", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
+  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "FUSION", "EVOLUTION", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ALSO", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
   "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "WORDS", "PROMPT", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT", "AFTER",
 ]);
 
