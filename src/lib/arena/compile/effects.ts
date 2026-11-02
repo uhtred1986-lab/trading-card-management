@@ -5439,7 +5439,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   if (/^(?:switch|be switched)\b.*\bactive mode\b/.test(rest)) {
     // "…during your opponent's next Charge Phase" (BT3-085, BT3-101, XD1-01,
     // #539): the Charge Phase's switch alone, not a skill's later that turn.
-    const inCharge = /\bduring (?:your opponent'?s|their) next charge phase\b/.test(t);
+    // Audit lane C review: "This card can't be switched to Active Mode **during your Charge Phase**" (BT19-060), a
+    // [Permanent] on the card itself: its controller's own Charge Phase. Read as every switch, a skill could not
+    // stand it up either.
+    const inCharge = /\bduring (?:(?:your opponent'?s|their) next|your) charge phase\b/.test(t);
     return [{ op: "forbid", what: inCharge ? "switchToActiveInCharge" : "switchToActive", until, target, ...withUnless }];
   }
   // "It can't be KO'd by your opponent's attacks for the battle" (BT13-118):

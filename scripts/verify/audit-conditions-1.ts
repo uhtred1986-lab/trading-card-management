@@ -8,6 +8,9 @@
  * C.  "Cannot be attacked by a Leader Card" (BT1-066): the opponent's Leader may not attack it, nothing else.
  * D.  Whose negation a "can't be negated" rule stops (DB1-021, P-680, P-641).
  * E.  "[Counter] against this card's attack" (BT1-031, TB1-010, R-160).
+ * M.  The lane's review: "attacks your opponent's Leader" (P-027), "copies of both <A> and <B>" (P-113), "that hasn't
+ *     attacked this turn" (SD20-05), "less than 2" (DB1-041), markers on this card (BT18-125), your Charge Phase
+ *     (BT19-060); in the VM, a shield from under a card (BT20-092, R-161) and a card that hasn't attacked.
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM for both seats with every action reloaded from JSON.
@@ -286,6 +289,29 @@ const leaderFilters = (rec: Rec) => conds(rec).flatMap((c) => (c.kind === "leade
   records += 5;
 }
 
+// M. Review of lane C: the attack's other end said without "Card"; "copies of both <A> and <B>"; "that hasn't attacked
+// this turn".
+{
+  const leader = record("[Auto] When this card attacks your opponent's Leader, if you have less cards in hand than your opponent, your opponent chooses 1 card in their hand and places it in the Drop Area.", "P-027");
+  assert.deepEqual(leader.cond, { kind: "inBattle", sel: { area: "leader", side: "opponent" }, role: "guard" }, "M: P-027 — only an attack on the opponent's Leader");
+  assert.ok(conds(leader).some((c) => c.kind === "outnumbers"), "M: P-027 — the hands compared");
+  // "a Leader or Unison" names a second guard: not this reading (BT18-059 keeps its own).
+  assert.equal(only("[Auto] When this card attacks a Leader or Unison, draw 1 card.", "BT18-059").cond, null, "M: BT18-059 — not read as the Leader alone");
+  const both = conds(record("[Permanent] If you have 1 or more copies of both <Tapion> and <Minotia> cards in your Drop Area and a ≪Phantom Demon≫ card isn't in play in your Battle Area, you can play this card from your hand without paying its energy cost. This card gets -10000 power during your turn.", "P-113"));
+  const inDrop = (name: string) => both.some((c) => c.kind === "count" && c.sel.area === "drop" && c.atLeast === 1 && c.sel.filter?.characters.join() === name && !c.sel.filter.charactersAll?.length);
+  assert.ok(inDrop("tapion") && inDrop("minotia"), "M: P-113 — a <Tapion> card and a <Minotia> card, not one card with both");
+  const fresh = ops(record("[Auto][Limit 1] If your Leader is a yellow Z-Leader or yellow <Son Goku: Childhood> card: When this card is switched to Rest Mode by one of your Leader skills, switch this card to Active Mode, then choose 1 of your yellow <Son Goku: Childhood> cards in Rest Mode that hasn't attacked this turn and switch it to Active Mode. If you do, draw 1 card.", "SD20-05")).find((o) => o.op === "choose");
+  assert.ok(fresh && fresh.op === "choose" && fresh.sel.notAttackedThisTurn === true && fresh.sel.mode === "rest", "M: SD20-05 — only a card that hasn't attacked this turn");
+  // "Less than 2" is 1 or less (DB1-041); markers as the subject (BT18-125); your own Charge Phase (BT19-060).
+  const fewer = conds(record("[Permanent] If there are less than 2 Battle Cards in your Battle Area with an original power of 10000, this card can't attack.", "DB1-041"));
+  assert.ok(fewer.some((c) => c.kind === "count" && c.atMost === 1 && c.atLeast === undefined && c.sel.filter?.originalPowerMin === 10000), "M: DB1-041 — fewer than 2: 1 or less");
+  const markers = record("[Auto] If there are 4 or more markers on this card: When this card is played, your opponent sends 1 card from their hand to their Warp.", "BT18-125");
+  assert.deepEqual(markers.cond, { kind: "markers", sel: { special: "self" }, atLeast: 4 }, "M: BT18-125 — the markers on this card");
+  const charge = forbids(record("[permanent] This card can't be switched to Active Mode during your Charge Phase.", "BT19-060"));
+  assert.deepEqual(charge.map((f) => f.what), ["switchToActiveInCharge"], "M: BT19-060 — only the Charge Phase's switch");
+  records += 7;
+}
+
 // ── 2. the VM ────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,
@@ -300,6 +326,9 @@ const defs: Record<string, CardDef> = {
   ONCEKO: card("ONCEKO", { skill: "[Permanent] This card can't be KO'd once per turn." }),
   KOER: card("KOER", { skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it.\n[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it." }),
   BATTLEKO: card("BATTLEKO", { skill: "[Permanent] This card cannot be KO'd in battle." }),
+  // B (review): the shield a card under another gives the card above it (BT20-092)
+  MAJINHOST: card("MAJINHOST", { colors: ["Yellow"], traits: ["Majin"], energyCost: 2 }),
+  UNDERSHIELD: card("UNDERSHIELD", { colors: ["Yellow"], skill: "[permanent] While this card is under a yellow ≪Majin≫ card with an energy cost of 2 or more in a Battle Area, the card above this card can't be KO'd once per turn." }),
   // H: two counts against each other; the pile under either Leader
   HANDVS: card("HANDVS", { skill: "[Activate: Main] If your opponent has more cards in their hand than you, draw 1 card." }),
   GOHAN: card("GOHAN", { name: "Son Gohan, Awakened Hidden Power", characters: ["Son Gohan"] }),
@@ -423,6 +452,20 @@ for (const seat of ["p1", "p2"] as const) {
     assert.ok(s.sides[foe].zones.drop.includes(target), `${seat}: B: …the second is not`);
     cases += 2;
   }
+  // B (review). From under a card: the card above it is shielded once a turn (BT20-092, R-161).
+  {
+    let s = fresh(seat, seed(14));
+    const host = stage(s, foe, "MAJINHOST", "battle");
+    const under = s.sides[foe].zones.deck.at(-1)!;
+    s.cards[under].cardId = "UNDERSHIELD";
+    assert.ok(moveCard(s, game, under, "under", { owner: foe, under: host }).ok);
+    const koer = stage(s, seat, "KOER", "battle");
+    s = activate(s, koer, host, 0);
+    assert.ok(s.sides[foe].zones.battle.includes(host), `${seat}: B: the card above is not KO'd the first time`);
+    s = activate(s, koer, host, 0);
+    assert.ok(!s.sides[foe].zones.battle.includes(host), `${seat}: B: …the second time it is`);
+    cases += 2;
+  }
   // B. In battle only: a skill's KO still KOs it (Q&A BT1-020).
   {
     let s = fresh(seat, seed(5));
@@ -476,7 +519,10 @@ for (const seat of ["p1", "p2"] as const) {
     assert.deepEqual(pick("attacker"), [atk], `${seat}: I: the attacking card`);
     assert.deepEqual(pick("any"), [atk, guard].sort(), `${seat}: I: either end`);
     assert.ok(!pick("notAttacker").includes(atk) && pick("notAttacker").includes(other), `${seat}: I: every card but the attacker`);
-    cases += 3;
+    // Review: "…that hasn't attacked this turn" (SD20-05) — the attacker is out, the other card in.
+    const unused = resolveSelector(ctx, game, s, frame, { side: "you", area: "battle", notAttackedThisTurn: true });
+    assert.ok(!unused.includes(atk) && unused.includes(other), `${seat}: I: a card that hasn't attacked this turn`);
+    cases += 4;
   }
 
   // K. "If you do, choose one": declining the discard is no menu at all.

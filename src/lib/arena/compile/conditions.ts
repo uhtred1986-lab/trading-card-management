@@ -820,8 +820,11 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     return { cond: { kind: "leaderMatches", filter: parseFilter(`${m[1]} in its ${m[2]}`) }, subject: { sel: { special: "leader" } } };
   }
   // "If this card has 3 or more markers on it" (13-2).
-  if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
-    return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
+  // Audit lane C review (2 Nov 2026): "If **there are 4 or more markers on this card**" (BT18-125) is the same question
+  // with the markers as the subject; read as a count, it asked for 4 or more of this card and never held.
+  if ((m = /^(?:this card has (\d+) or (more|less|fewer) markers?(?: on it)?|there (?:are|is) (\d+) or (more|less|fewer) markers? on this card)$/.exec(t))) {
+    const n = Number(m[1] ?? m[3]);
+    return { cond: { kind: "markers", sel: { special: "self" }, ...((m[2] ?? m[4]) === "more" ? { atLeast: n } : { atMost: n }) }, subject: { sel: { special: "self" } } };
   }
   // Delayed/replacement batch 1: "If this card has 1 or more cards under it" (P-436, BT17-144) and "if 1 or more
   // cards are under this card" (BT20-149): this card's own pile, counted — the gate of their 9-10 substitute, which
@@ -1394,6 +1397,11 @@ function parseCountCondition(t: string): Cond | null {
   // Audit lane C: "a <Lord Slug> card in your **Battle Area or Leader Area**" (BT6-068) is the pair the other order
   // names; read this way round, the Leader Area became a second description (any Leader Card).
   t = t.replace(/\bin (your|your opponent's) battle area or (?:(?:your|their) )?leader area\b/, "in $1 leader area or battle area");
+  // Audit lane C review: "If there are **less than 2** Battle Cards in your Battle Area with an original power of
+  // 10000, this card can't attack" (DB1-041) is "1 or less"; the comparison was not read, and the count asked for 1 or
+  // more — the ban held exactly when the card printed it lifted.
+  t = t.replace(/^(you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:(less|fewer)|more) than (\d+) /, (_w, lead: string, under: string | undefined, n: string) =>
+    under ? (Number(n) > 0 ? `${lead} ${Number(n) - 1} or less ` : _w) : `${lead} ${Number(n) + 1} or more `);
   const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t.replace(/^(your opponent has .+) in hand$/, "$1 in their hand"));
   if (!m) return null;
   const [, none, num, dir, said] = m;
@@ -1459,6 +1467,18 @@ function parseCountCondition(t: string): Cond | null {
   const either = !none && num ? unionCount(said, /^you have/.test(t) ? "your" : /^your opponent has/.test(t) ? "your opponent's" : null) : null;
   if (either) return { kind: "count", sel: either, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
   if (/\band\/or\b/.test(said.replace(/\s+(?:in|among) (?:all cards in )?(?:your|their|your opponent's)\b.*$/, ""))) return refuseCount();
+  // Audit lane C review (2 Nov 2026): "If you have 1 or more **copies of both <Tapion> and <Minotia> cards** in your
+  // Drop Area" (P-113): one of each name, at the same bound — two counts, not one card printing both names (#768's "a
+  // card with both <A> and <B>", the description `charactersAll` is for). No card has both, so read that way the free
+  // play never came.
+  const eachOf = !none ? /^(?:cop(?:y|ies) of )?both ((?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})) and ((?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})) cards? (in .+)$/.exec(said) : null;
+  if (eachOf) {
+    const lead = /^(you have|your opponent has|there(?: (?:are|is)|'s|'re))/.exec(t)![1];
+    const bound = num ? `${num} or ${dir}` : "1 or more";
+    const first = parseCountCondition(`${lead} ${bound} ${eachOf[1]} cards ${eachOf[3]}`);
+    const second = parseCountCondition(`${lead} ${bound} ${eachOf[2]} cards ${eachOf[3]}`);
+    return first && second ? { kind: "all", conds: [first, second] } : null;
+  }
   // Nor a second count: "1 or more red <Son Goku> cards **and 1 or more** red
   // <Vegeta> cards in your Drop" (BT31-001), "1 or more black cards and 1 or
   // more white cards in your Drop" (BT29-085) are two counts, and read as one

@@ -1677,6 +1677,8 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.battleRole === "notAttacker" && state.battle?.attacker === id) return false;
     // "A copy of this card" (2-3): another card of this card's card name.
     if (sel.copyOfSelf && (!frame.card || id === frame.card || !state.cards[frame.card] || ctx.defs[card.cardId]?.name !== ctx.defs[state.cards[frame.card].cardId]?.name)) return false;
+    // "…that hasn't attacked this turn" (SD20-05): no attack declared with it this turn (#156's count).
+    if (sel.notAttackedThisTurn && (card.attacksThisTurn ?? 0) > 0) return false;
     // "…whose owner is your opponent" (EX24-10): owned by the other player.
     if (sel.ownedByOpponent && card.owner === frame.master) return false;
     if (sel.notSelf && frame.card) {

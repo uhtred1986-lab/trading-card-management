@@ -44,6 +44,7 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   attacking: (s) => (s.battleRole = "attacker"),
   notAttacking: (s) => (s.battleRole = "notAttacker"),
   copyOfSelf: (s) => (s.copyOfSelf = true),
+  notAttackedThisTurn: (s) => (s.notAttackedThisTurn = true),
   orSelf: (s) => (s.orSelf = true),
   atRandom: (s) => (s.atRandom = true),
   ownedByOpponent: (s) => (s.ownedByOpponent = true),

@@ -1051,17 +1051,21 @@ function compileSkillText(skill: Skill): Script {
     // (SD5-01, BT6-014, 8-1-3): the moment is the attack, and what it attacks
     // is a condition on the card being attacked. Dropped with the trigger, the
     // skill fired on every attack (owner's card review, 4 Oct 2026, #536).
-    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(leader|battle) card\b(.*)$/i.exec(trigger.trim());
+    // Audit lane C review (2 Nov 2026): the Leader is also said without "Card" — "When this card attacks **your
+    // opponent's Leader**" (P-027, front and back), "…attacks **a Leader**" (BT31-124): the same guard. Only the
+    // bare noun at the end of the moment; "a Leader or Unison" (BT18-059) names a second guard and is not this.
+    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(?:(leader|battle) card\b(.*)|(leader))$/i.exec(trigger.trim());
     if (attacking) {
+      const kind = (attacking[1] ?? attacking[3]).toLowerCase();
       // "…a Battle Card **with an energy cost of 8 or more**" (BT19-035b,
       // #1005): the tail describes the card attacked. Dropped, the skill fired
       // on every attack at a Battle Card; a tail the filter cannot read refuses
       // the skill rather than widening it.
-      const tail = attacking[2].trim().replace(/[.,]$/, "");
-      const guardFilter = tail ? filterFor(`${attacking[1]} card ${tail}`, null) : undefined;
+      const tail = (attacking[2] ?? "").trim().replace(/[.,]$/, "");
+      const guardFilter = tail ? filterFor(`${kind} card ${tail}`, null) : undefined;
       if (tail && (!guardFilter || !/^with\b/i.test(tail) || unreadFilterWords(tail, guardFilter).length)) return { ops: [], unsupported: [trigger, ...clauses] };
-      triggerCond = { kind: "inBattle", sel: { area: attacking[1].toLowerCase() === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
-      if (attacking[1].toLowerCase() === "battle") c.attacksBattleCard = true;
+      triggerCond = { kind: "inBattle", sel: { area: kind === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
+      if (kind === "battle") c.attacksBattleCard = true;
     }
     // "When your ≪Ginyu Force≫ card is played **by this card's skill**, it
     // gets +5000 power" (BT29-083, #1163): "this card's skill" is the means,

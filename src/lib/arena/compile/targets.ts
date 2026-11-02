@@ -457,6 +457,15 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     if (!sel || sel.special) return null;
     return { ...sel, notInBattle: true };
   }
+  // Audit lane C review (2 Nov 2026): "…your yellow <Son Goku: Childhood> cards in Rest Mode **that hasn't attacked this
+  // turn**" (SD20-05): only a card with no attack declared this turn (`notAttackedThisTurn`). Dropped, the choice took a
+  // card that had already attacked, and switched to Active Mode it could attack again.
+  const notAttacked = /\s*,?\s*(?:that|which) (?:has|have|did)(?:n['’]?t| not) attack(?:ed)? this turn\b/i.exec(phrase);
+  if (notAttacked) {
+    const sel = parseTarget(phrase.replace(notAttacked[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special) return null;
+    return { ...sel, notAttackedThisTurn: true };
+  }
   // Audit lane C (2 Nov 2026): the rest of 8-1-2's ends. "…your cards **that's in a battle**" (BT24-078, BT28-069,
   // BT29-055), "…your red ≪Alien≫ cards **in battle**" (DB1-017), "…your opponent's Battle Cards that's in a battle"
   // (P-648): the attack card or the guard card. "…in Rest Mode **that isn't attacking**" (BT19-114): any card but the

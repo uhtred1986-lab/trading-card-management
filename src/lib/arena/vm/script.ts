@@ -169,6 +169,13 @@ export interface Selector {
    */
   copyOfSelf?: true;
   /**
+   * Audit lane C review (2 Nov 2026): "…your yellow <Son Goku: Childhood> cards in Rest Mode **that hasn't attacked this
+   * turn**" (SD20-05) — only a card that has declared no attack this turn (`VmCard.attacksThisTurn`, cleared with the
+   * turn and with a change of area, 3-1-4). Dropped, a card that had already attacked could be switched to Active Mode
+   * for a second attack.
+   */
+  notAttackedThisTurn?: true;
+  /**
    * "Choose **this card or** up to 1 <Broly: Br> card in your Battle Area" (P-092b's erratum, BT1-001b, EX03-01b,
    * EX12-02, BT17-059b): the card the skill is on is on offer too, beside the cards the selector describes — one choice
    * among them all. This card needs none of the selector's measures or areas.

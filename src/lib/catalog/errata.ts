@@ -145,7 +145,11 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   ],
   "BT31-016": [[/from\s+its\s+owner'\s+Warp/g, "from its owner's Warp"]],
   "BT31-017": [[/at\s+5\s+or\s+lees/g, "at 5 or less"]],
-  "BT31-041": [[/Whe\s+this\s+card\s+attacks/g, "When this card attacks"]],
+  "BT31-041": [
+    [/Whe\s+this\s+card\s+attacks/g, "When this card attacks"],
+    // Review of audit lane C (2 Nov 2026): the [Awaken]'s "a green Unison **wth** a specified cost of 2" lost its measure.
+    [/green\s+Unison\s+wth\s+a\s+specified\s+cost/g, "green Unison with a specified cost"],
+  ],
   "BT31-053": [[/from\s+their\s+hnd/g, "from their hand"]],
   "BT31-080": [[/and\s+paly\s+a\s+\{/g, "and play a {"]],
   "BT31-094": [[/Whe\s+this\s+card\s+attacks/g, "When this card attacks"]],
@@ -495,6 +499,11 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT30-008": [[/25000\s+power\s+of\s+less/g, "25000 power or less"]],
   "P-606": [[/energy\s+cost\s+of\s+5or\s+less/g, "energy cost of 5 or less"]],
   "P-020": [[/with\s+this\s+skill,\s*<br>\s*this\s+card\s+gains/g, "with this skill, this card gains"]],
+  // Review of lane C (2 Nov 2026), the same kind of misprint: "card **wth** 5000 combo power" (P-747) lost its measure
+  // (BT31-041's "wth" is with that card's other correction above), and "a red Unison with a **specific** cost of 3"
+  // (BT30-014) is the specified cost (1-2-4) — read as nothing, any card or Unison passed.
+  "P-747": [[/card\s+wth\s+5000\s+combo\s+power/g, "card with 5000 combo power"]],
+  "BT30-014": [[/red\s+Unison\s+with\s+a\s+specific\s+cost\s+of\s+3/g, "red Unison with a specified cost of 3"]],
 };
 
 /**
