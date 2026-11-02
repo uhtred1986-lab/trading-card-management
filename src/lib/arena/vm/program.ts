@@ -59,7 +59,7 @@ import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
 import { IllegalAction, grantedLineIndex, isGrantedLine, mirrorSides, programsOf } from "./common";
 import { HOOK_CONTRACT } from "./hook-contract";
-import { grantedSkillNegated, keywordSkillsNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
+import { grantedSkillNegated, KEYWORD_WILDCARD, keywordSkillsNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
 import { keywordBondHolds } from "./bond";
@@ -860,7 +860,20 @@ function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state
 function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"] | undefined, standing: readonly VmStatic[] = []): boolean {
   if (!name) return false;
   if (state.effects.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name)) return true;
-  return !keywordNegationRefused(ctx, game, state, id, standing) && standing.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name);
+  return !keywordNegationRefused(ctx, game, state, id, standing) && standing.some((e) => e.kind === "negateKeyword" && e.target === id && (e.value === name || e.value === (KEYWORD_WILDCARD as unknown)));
+}
+
+/**
+ * Mechanism batch 4: is this kind of skill of this card negated by a [Permanent] in force — the [Counter] and
+ * [Activate] halves of "negate the keyword skills of all your Battle Cards" (BT31-002b)? The timed kinds are
+ * `skillNegated`'s; this is the standing half, read by the activation gates (`vm/activate.ts`). Subject to 20-14's
+ * `beNegated` prohibition as the standing keyword negation is.
+ */
+export function standingKindNegated(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, kind: string | undefined): boolean {
+  if (!kind) return false;
+  const standing = statics(ctx, game, state);
+  if (!standing.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as unknown as string))) return false;
+  return !forbids(ctx, game, state, "beNegated", { card: id });
 }
 
 /** A standing negation is still subject to 20-14's `beNegated` prohibition. */
@@ -1291,7 +1304,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; ignoreOwnPermanent?: boolean } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -1309,10 +1322,12 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; ignoreOwnPermanent?: boolean } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
+    // Mechanism batch 4 (EX21-31): "…ignoring its [permanent] skill" — the played card's own rule does not refuse it.
+    if (opts.ignoreOwnPermanent && opts.card && rule.source === opts.card) continue;
     if ((rule.forbid.uses ?? 0) > 0) continue;
     // A rule with a price is a tax, not a ban: `taxesOn` below is what reads it.
     if (rule.forbid.pay) continue;

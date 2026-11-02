@@ -185,6 +185,15 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // an anonymous "it". Fold the equivalent colour phrase before splitting.
   text = text.replace(/\b(your leader(?: card)?) is (a ≪[^≫]+≫ card) and it is (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi,
     (_, leader: string, description: string, color: string) => `${leader} is mono-${color} ${description}`);
+  // Mechanism batch 4: "If **the total number of cards in Rest Mode between you and your opponent** is 6 or more" (P-106,
+  // P-110, P-111) is one count of both players' cards; its "and" joins the two players, not two clauses.
+  text = text.replace(/\bthe total number of cards in (rest|active) mode between you and your opponent\b/gi, "the total number of cards in $1 mode between both players");
+  // Mechanism batch 4: "If your Leader Card **and all of your energy are** mono-yellow" (BT14-154) is the two readings
+  // "your Leader Card is mono-yellow" and "all of your energy is mono-yellow" already have, both asked.
+  // Mechanism batch 4: "If you have **at least 1 <Lavender> and 1 <Basil> card** in play" (P-268b): one of each, the
+  // wording "a <Lavender> card and a <Basil> card" already reads as (each its own count).
+  text = text.replace(/\byou have at least 1 (<[^>]+>) and 1 (<[^>]+>) cards? in play\b/gi, "you have a $1 card and a $2 card in play");
+  text = text.replace(/\b(your leader(?: card)?) and all of your energy are (mono-(?:red|blue|green|yellow|black|white))\b/gi, "$1 is $2 and all of your energy is $2");
   // Phrasing batch 9: "for each of your <Pan> cards **and** cards with <GT> in their character names" (EX23-52) is one
   // count of every card of either kind — the "and" joins two kinds of card, not two clauses. Said with "or", the
   // count's filter reads it whole (`anyOf`), each card counted once.
