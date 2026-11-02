@@ -2486,6 +2486,9 @@ function strayBound(v: unknown, at: string, top = true): string | null {
   if (!top && v.sumAtMost !== undefined) return `${at}: "sumAtMost" (TOTAL … <=) bounds a choice, so only a choose's own selector may carry it — anywhere else it is read as every card`;
   if (!top && v.minCount !== undefined) return `${at}: "minCount" bounds a choice, so only a choose's own selector may carry it`;
   if (!top && v.notIn !== undefined) return `${at}: "notIn" (EXCEPT $…) excludes the cards earlier choices bound, so only a choose's own selector may carry it`;
+  // Audit-selectors-1 review: `alsoFrom` (ALSO (…)) is one choice among two places, which the area-reading paths outside
+  // a choose (an action's FOR, a look's memory of searched areas) never see — so only a choose's own selector carries it.
+  if (!top && v.alsoFrom !== undefined) return `${at}: "alsoFrom" (ALSO (…)) widens a choice to a second place, so only a choose's own selector may carry it`;
   const rest = (o: Record<string, unknown>, skip: string) => Object.entries(o).filter(([k]) => k !== skip).map(([, x]) => x);
   if (v.op === "choose" && isRecord(v.sel)) {
     if (v.sel.sumAtMost !== undefined && v.sumTo !== undefined) return `${at}: a choice adds up to exactly "sumTo" or stays under "sumAtMost", not both`;
@@ -2898,9 +2901,13 @@ export function describeSelector(sel: Selector, all = "all"): string {
   if (sel.special === "onTop") return `the ${selectorNoun(sel, false)} on top of this card`;
   // Audit-selectors-1: "choose up to 1 attacking Battle Card or Leader Card" (BT10-030), "the attacking Battle Card"
   // (P-203) — the attacker with what the card says of it.
-  if (sel.special === "attacker" && (sel.filter || sel.upTo)) {
-    const what = sel.filter ? describeFilter(sel.filter, { plural: false }) : "card";
-    return sel.upTo ? `up to 1 attacking ${what}` : `the attacking ${what}`;
+  // (Audit-selectors-1 review: whose attacker it must be — "the attacking card of yours" (BT1-005) — and "ignoring
+  // [Barrier]", which the record keeps and the sentence had dropped, BT10-030.)
+  if (sel.special === "attacker" && (sel.filter || sel.upTo || sel.side || sel.ignoreBarrier)) {
+    const whose = sel.side === "you" ? "your " : sel.side === "opponent" ? "your opponent's " : "";
+    const what = (plural: boolean) => (sel.filter ? describeFilter(sel.filter, { plural }) : plural ? "cards" : "card");
+    const said = sel.upTo ? (whose ? `up to 1 of ${whose}attacking ${what(true)}` : `up to 1 attacking ${what(false)}`) : `${whose || "the "}attacking ${what(false)}`;
+    return `${said}${sel.ignoreBarrier ? " ignoring [Barrier]" : ""}`;
   }
   if (sel.special)
     return {

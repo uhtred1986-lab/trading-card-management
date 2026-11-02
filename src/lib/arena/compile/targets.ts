@@ -786,7 +786,12 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   if (attacking && !/\bnot\b|\bother than\b|\bexcept\b/.test(t)) {
     const one = !/ or /.test(attacking[0]) ? /^(battle|leader) /.exec(attacking[1]) : null;
     const upTo = /\bup to \d+\b/.test(t);
-    return { special: "attacker", ...(one ? { filter: { ...emptyFilter(), type: one[1].toUpperCase() as "BATTLE" | "LEADER" } } : {}), ...(upTo ? { count: 1, upTo: true } : {}) };
+    // Audit-selectors-1 review: and whose — "choose 1 of **your** attacking cards" (BT1-005, TB2-012: a combo card, and
+    // the defender combos too) is the attacker only while it is the caster's; "1 of **your opponent's** attacking Battle
+    // Cards" (BT2-097) only while it is the other player's. Said with no possessive, it is the attacker either way.
+    const whose = /\b(your opponent'?s|their|your)\s+attacking\b/.exec(t)?.[1];
+    const side = whose ? (whose === "your" ? "you" : "opponent") : undefined;
+    return { special: "attacker", ...(side ? { side } : {}), ...(one ? { filter: { ...emptyFilter(), type: one[1].toUpperCase() as "BATTLE" | "LEADER" } } : {}), ...(upTo ? { count: 1, upTo: true } : {}) };
   }
   if (/\bthe guard card\b/.test(t)) return { special: "guard" };
   // "Your opponent's Leader", "your Leader Card": a player has exactly one

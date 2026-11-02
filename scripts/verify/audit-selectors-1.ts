@@ -35,7 +35,9 @@ import { describeFilter, type Cond, type Op } from "../../src/lib/arena/vm/scrip
 import { parseFilter } from "../../src/lib/arena/text/filters";
 import { correctSkillText } from "../../src/lib/catalog/errata";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
-import type { VmState } from "../../src/lib/arena/vm/state";
+import type { VmBattle, VmState } from "../../src/lib/arena/vm/state";
+import { resolveSelector } from "../../src/lib/arena/vm/program";
+import type { ScriptFrame } from "../../src/lib/arena/vm/script";
 
 // ── the records ──────────────────────────────────────────────────────────────
 const roundtrip = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -165,6 +167,23 @@ for (const [text, what, kind] of [
 {
   const rec = record("[activate: battle][limit 1]{u}{y}, if you have 5 or more energy, your blue <Gogeta> Z-Leader is attacking, and you remove this card from the game: Your attacking cards get +30000 power and [triple strike] for the battle.", "BT22-035");
   for (const o of [...opOf(rec, "power"), ...opOf(rec, "grant")]) assert.ok("sel" in o.target && o.target.sel.special === "attacker", `B2: BT22-035 — only the attacking card (${JSON.stringify(o.target)})`);
+  records++;
+}
+// B3 (review). Whose attacker: "1 of **your** attacking cards" (BT1-005, TB2-012 — combo cards the defender plays too)
+// is the attacker only while it is the caster's; "1 of **your opponent's** attacking Battle Cards" (BT2-097) only while
+// it is theirs; with no possessive (P-203) either. The VM half is below (B3 in play).
+const attackerSel: Record<string, Op & { op: "choose" }> = {};
+for (const [text, what, side] of [
+  ["[Auto] When you Combo with this card, choose 1 of your attacking cards. It gains [Double Strike] (This card inflicts 2 damage instead of 1 when attacking) for the duration of the battle.", "BT1-005", "you"],
+  ["[Auto] When you Combo with this card, choose up to 1 of your attacking cards. It gains [Double Strike] (This card inflicts 2 damage instead of 1 when attacking) for the duration of the battle.", "TB2-012", "you"],
+  ["[Counter: Attack] Place 1 card from your hand in the Drop Area: Choose 1 of your opponent's attacking Battle Cards and KO it.", "BT2-097", "opponent"],
+  ["[counter: battle card attack] Choose the attacking Battle Card, KO it, then play this card.", "P-203", undefined],
+] as const) {
+  const rec = record(text, what);
+  const choose = opOf(rec, "choose")[0];
+  assert.ok(choose.sel.special === "attacker" && choose.sel.side === side, `B3: ${what} — the attacker, ${side ?? "either player's"} (${JSON.stringify(choose.sel)})`);
+  assert.match(rec.reads, side === "you" ? /your attacking card/ : side === "opponent" ? /your opponent's attacking Battle Card/ : /the attacking Battle Card/, `B3: ${what} — said so (${rec.reads})`);
+  attackerSel[what] = choose;
   records++;
 }
 
@@ -421,6 +440,19 @@ for (const seat of ["p1", "p2"] as const) {
     assert.equal(s.sides[seat].zones.battle.length, mine, `${seat}: E — "up to 2" declined, none made`);
     s = activate(s, up, (q) => q.choice.candidates.slice(0, q.choice.min), 0);
     assert.equal(s.sides[seat].zones.battle.length, mine + 2, `${seat}: E — "up to 2" taken twice, two made`);
+    cases++;
+  }
+  // B3 in play (review): "your attacking card" is nothing while the opponent attacks, and the attacker once it is yours.
+  {
+    const s = fresh(seat, 52020 + (seat === "p1" ? 0 : 1));
+    const mine = stage(s, seat, "V1", "battle");
+    const theirs = stage(s, foe, "V-BLUE", "battle");
+    const frame = { card: mine, master: seat, vars: {} } as unknown as ScriptFrame;
+    const offered = (what: string) => resolveSelector(ctx, game, s, frame, attackerSel[what].sel);
+    s.battle = { attacker: theirs, guard: mine, target: mine, step: "attack", negated: false, blockerOffered: false } as unknown as VmBattle;
+    assert.deepEqual([offered("BT1-005"), offered("TB2-012"), offered("BT2-097"), offered("P-203")], [[], [], [theirs], [theirs]], `${seat}: B3 — the opponent attacks: none of yours, theirs and "the attacking" one`);
+    s.battle = { attacker: mine, guard: theirs, target: theirs, step: "attack", negated: false, blockerOffered: false } as unknown as VmBattle;
+    assert.deepEqual([offered("BT1-005"), offered("TB2-012"), offered("BT2-097"), offered("P-203")], [[mine], [mine], [], [mine]], `${seat}: B3 — you attack: yours, none of theirs`);
     cases++;
   }
 }
