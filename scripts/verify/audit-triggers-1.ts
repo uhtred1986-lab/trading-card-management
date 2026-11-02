@@ -147,7 +147,19 @@ for (const [text, what, sel] of [
 ] as const) {
   const rec = only(text, what);
   assert.deepEqual(rec.unread, [], `A: ${what} — read (${rec.unread.join(" | ")})`);
-  assert.ok(JSON.stringify(rec.ops).includes(`"sel":${sel}`) && !JSON.stringify(rec.ops).includes('"side":"you","area":"battle"'), `A: ${what} — the attacker${sel.includes("upTo") ? ", up to 1" : ""}, not one of your Battle Cards (${rec.reads})`);
+  // Integration 2: audit-selectors-1 reads the same phrase with the noun kept as a filter (the attacking *Battle Card*),
+  // so the record is checked by its shape, not its exact JSON.
+  const want = JSON.parse(sel) as { count?: number; upTo?: boolean };
+  const found: { count?: number; upTo?: boolean }[] = [];
+  const walk = (x: unknown): void => {
+    if (!x || typeof x !== "object") return;
+    const o = x as { sel?: { special?: string } };
+    if (o.sel?.special === "attacker") found.push(o.sel as { count?: number; upTo?: boolean });
+    Object.values(x).forEach(walk);
+  };
+  walk(rec.ops);
+  const got = found[0];
+  assert.ok(got && !!got.upTo === !!want.upTo && (got.count ?? null) === (want.count ?? null) && !JSON.stringify(rec.ops).includes('"side":"you","area":"battle"'), `A: ${what} — the attacker${sel.includes("upTo") ? ", up to 1" : ""}, not one of your Battle Cards (${rec.reads})`);
   records++;
 }
 

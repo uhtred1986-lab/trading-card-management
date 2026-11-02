@@ -160,13 +160,18 @@ for (const [text, what, kind] of [
 ] as const) {
   const rec = record(text, what);
   const sel = opOf(rec, "choose")[0].sel;
-  assert.ok(sel.special === "attacker" && (sel.filter?.type ?? null) === kind && !!sel.upTo === (what === "BT10-030"), `B2: ${what} — the attacker (${JSON.stringify(sel)})`);
-  assert.match(rec.reads, what === "P-203" ? /choose the attacking Battle Card/ : /choose up to 1 attacking card/, `B2: ${what} — said so`);
+  // Integration 2: a counted choice ("up to 1 attacking …", BT10-030) is audit-conditions-1's battle-role choice — a real
+  // choice, so [Barrier] and "can't be chosen" are asked — of either player's card; "the attacking Battle Card" is the
+  // attack's own card (special).
+  if (what === "BT10-030") assert.ok(sel.battleRole === "attacker" && sel.side === "both" && !!sel.upTo && !!sel.ignoreBarrier, `B2: ${what} — the attacker (${JSON.stringify(sel)})`);
+  else assert.ok(sel.special === "attacker" && (sel.filter?.type ?? null) === kind && !sel.upTo, `B2: ${what} — the attacker (${JSON.stringify(sel)})`);
+  assert.match(rec.reads, what === "P-203" ? /choose the attacking Battle Card/ : /choose up to 1 card in each player's Leader Area or Battle Area that is attacking/, `B2: ${what} — said so`);
   records++;
 }
 {
   const rec = record("[activate: battle][limit 1]{u}{y}, if you have 5 or more energy, your blue <Gogeta> Z-Leader is attacking, and you remove this card from the game: Your attacking cards get +30000 power and [triple strike] for the battle.", "BT22-035");
-  for (const o of [...opOf(rec, "power"), ...opOf(rec, "grant")]) assert.ok("sel" in o.target && o.target.sel.special === "attacker", `B2: BT22-035 — only the attacking card (${JSON.stringify(o.target)})`);
+  // Integration 2: audit-conditions-1 reads "your attacking cards" as your cards in the attacker's role (battleRole).
+  for (const o of [...opOf(rec, "power"), ...opOf(rec, "grant")]) assert.ok("sel" in o.target && (o.target.sel.special === "attacker" || (o.target.sel.battleRole === "attacker" && o.target.sel.side === "you")), `B2: BT22-035 — only the attacking card (${JSON.stringify(o.target)})`);
   records++;
 }
 // B3 (review). Whose attacker: "1 of **your** attacking cards" (BT1-005, TB2-012 — combo cards the defender plays too)
@@ -181,8 +186,10 @@ for (const [text, what, side] of [
 ] as const) {
   const rec = record(text, what);
   const choose = opOf(rec, "choose")[0];
-  assert.ok(choose.sel.special === "attacker" && choose.sel.side === side, `B3: ${what} — the attacker, ${side ?? "either player's"} (${JSON.stringify(choose.sel)})`);
-  assert.match(rec.reads, side === "you" ? /your attacking card/ : side === "opponent" ? /your opponent's attacking Battle Card/ : /the attacking Battle Card/, `B3: ${what} — said so (${rec.reads})`);
+  // Integration 2: a counted choice ("1 of your attacking cards") is audit-conditions-1's battle-role choice, whose side
+  // says whose attacker it may be; "the attacking Battle Card" stays the special.
+  assert.ok((choose.sel.special === "attacker" && choose.sel.side === side) || (choose.sel.battleRole === "attacker" && choose.sel.side === side), `B3: ${what} — the attacker, ${side ?? "either player's"} (${JSON.stringify(choose.sel)})`);
+  assert.match(rec.reads, side === "you" ? /your attacking card|card you have in play that is attacking/ : side === "opponent" ? /your opponent's attacking Battle Card|Battle Card in your opponent's Battle Area that is attacking/ : /the attacking Battle Card/, `B3: ${what} — said so (${rec.reads})`);
   attackerSel[what] = choose;
   records++;
 }
@@ -206,14 +213,16 @@ for (const [text, what, side] of [
 {
   const recs = skillRecords(card("EX15-01", { skill: "[unique][blocker]<br>[union-fusion] Draw 1 card: Red <Son Goku: Br> and red <Vegeta: Br>.<br>[activate: main]{r}{r}{r}: If your Leader Card is a red <Gogeta: Br> card and you have 4 or more energy: Choose up to 1 mono-red <Gogeta: Br> card with an energy cost of 8 or less from your deck or hand, play it on top of this card, then shuffle your deck if you looked through it. You can't activate the [activate: main] skill on copies of this card for the turn." }));
   const line = recs.find((r) => r.skillIndex === 20);
-  assert.ok(line && line.unread.some((u) => /play the Leader/.test(u)), `R: EX15-01 — a play of the Leader is unread (${JSON.stringify(line?.unread)})`);
+  assert.ok(line && line.unread.length > 0, /* integration 2: audit-conditions-1 stops it earlier, at its "If …:" inside the effect */ `R: EX15-01 — a play of the Leader is unread (${JSON.stringify(line?.unread)})`);
 }
 for (const [text, what, clause] of [
   ["[Auto][Limit 1] If your Leader is a yellow Z-Leader or yellow <Son Goku: Childhood> card: When this card is switched to Rest Mode by one of your Leader skills, switch this card to Active Mode, then choose 1 of your yellow <Son Goku: Childhood> cards in Rest Mode that hasn't attacked this turn and switch it to Active Mode. If you do, draw 1 card.", "SD20-05", /hasn't attacked this turn/],
   ["[Activate: Battle] If your Leader Card is a mono-blue ≪Saiyan≫ card: Choose 1 of your cards in battle, and it gets +10000 power for the battle; if it's a blue skill-less ≪Saiyan≫ card, draw 1 card and the chosen card gets an additional +10000 power for the battle.", "BT13-058", /cards in battle/],
 ] as const) {
   const [rec] = skillRecords(card(what, { skill: text }));
-  assert.ok(rec.unread.some((u) => clause.test(u)), `R: ${what} — the qualifier no selector says leaves the clause unread (${JSON.stringify(rec.unread)})`);
+  // Integration 2: audit-conditions-1 taught both qualifiers (`notAttackedThisTurn`, `battleRole: "any"`), so the clause
+  // is now read with the qualifier on its selector; unread stays acceptable, a read without it is not.
+  assert.ok(rec.unread.some((u) => clause.test(u)) || (!rec.unread.length && /"(?:notAttackedThisTurn|battleRole)"/.test(JSON.stringify(rec.ops))), `R: ${what} — the qualifier is read or leaves the clause unread (${JSON.stringify(rec.unread)})`);
 }
 {
   // …and "in a Battle Area", "not in a battle" are still read.
