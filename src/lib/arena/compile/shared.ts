@@ -194,6 +194,8 @@ export interface Ctx {
   costs: number;
   /** The skill text with its explanatory notes still in place. A token's stats are printed there. */
   raw: string;
+  /** Audit-selectors-1 (19-1-2): token reminders another line of the card prints, for a line that prints none (`Skill.tokenReminders`). */
+  tokenReminders?: string[];
   /** The kind of the skill being read (`counter:play`, …): a [Counter: Play] restating its own moment says nothing more (phrasing batch 2). */
   skillKind?: string;
   /**

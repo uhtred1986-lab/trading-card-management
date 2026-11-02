@@ -5766,9 +5766,24 @@ function taxProgram(said: string, c: Ctx, on: "attack" | "play" | "switch" | "ac
 
 function compileToken(clause: string, c: Ctx): Op[] | null {
   // "…then play **a** Chilled's Army Token with 10000 power" (BT13-062, phrasing batch 2): one token.
-  const m = /play (?:up to )?(\d+|an?) (.+?) tokens?/i.exec(clause);
-  if (!m) return null;
+  const TOKEN_PLAY = /play (?:up to )?(\d+|an?) (.+?) tokens?/i;
+  const said0 = TOKEN_PLAY.exec(clause);
+  if (!said0) return null;
+  // Audit-selectors-1: the words as the card prints them — a clause a timing phrase was lifted off arrives lower-cased
+  // ("…play 1 yellow Frieza's Army Token with a power of 10000 at the end of the turn", BT21-106), and the name, and
+  // the text after it, are read off the printed line.
+  const atRaw = c.raw.toLowerCase().indexOf(said0[0].toLowerCase());
+  const m = (atRaw >= 0 ? TOKEN_PLAY.exec(c.raw.slice(atRaw)) : null) ?? said0;
   if (/^an?$/i.test(m[1])) m[1] = "1";
+  // Audit-selectors-1: "play **up to** 2 Demon Realm Soldier Tokens" (BT17-110, BT17-111, BT17-120…) is as many as the
+  // player wants of them, none included — one at a time, each its own offer (`oneAtATime`, the owner's rulings of 20 Oct
+  // 2026 on "up to N"). Read as the number, every one of them was played whether wanted or not.
+  const upTo = /\bplay up to \d+ /i.test(m[0]);
+  // "play 1 **yellow** Frieza's Army Token" (BT21-106): a colour in front of the name is the token's colour (19-1-2),
+  // not part of its name (19-1-4).
+  const coloured = /^((?:(?:red|blue|green|yellow|black|white)\s+)+)(.+)$/i.exec(m[2].trim());
+  const tokenName = coloured ? coloured[2] : m[2].trim();
+  const tokenColors = coloured ? coloured[1].trim().split(/\s+/).map((w) => (w[0].toUpperCase() + w.slice(1).toLowerCase()) as Color) : [];
   // The reminder text states the token's stats, and they were read as one
   // triad — power, then combo cost, then combo power. A reminder that gives
   // only the power failed the whole match, and the token was then built with a
@@ -5788,13 +5803,18 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // that is missed falls back to the default and loses the printed figure:
   // "(Ghost Tokens **have** 15000 power)" and, inline after the name, "play 1
   // Earthling Token **(1000 power**, 0 combo cost, 0 combo power)".
-  const said = /(?:tokens? have|\()\s*([\d,]+) power(?:[^.)]*?([\d,]+) combo cost)?(?:[^.)]*?([\d,]+) combo power)?/i.exec(c.raw);
+  // Audit-selectors-1: "(Chilled's Army token **has** 10000 power)" (BT2-102) says it in the singular; and a line that
+  // prints no reminder reads the one another line of the card prints for the same token (`Skill.tokenReminders`,
+  // 19-1-2: BT30-018's "Play 1 Earthling Token." is the 1000-power token its first line describes).
+  const STATS = /(?:tokens? ha(?:ve|s)|\()\s*([\d,]+) power(?:[^.)]*?([\d,]+) combo cost)?(?:[^.)]*?([\d,]+) combo power)?/i;
+  const elsewhere = (c.tokenReminders ?? []).find((r) => new RegExp(`^\\(\\s*${tokenName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} tokens? ha(?:ve|s)\\b`, "i").test(r));
+  const said = STATS.exec(c.raw) ?? (elsewhere ? STATS.exec(elsewhere) : null);
   const power = said ? [said[0], said[1]] : null;
   const combo = said?.[2] != null && said[3] != null ? [said[0], said[2], said[3]] : null;
   // "...and **they** gain [Blocker] for the turn" (BT31-141) is about the tokens
   // this play made. Name them only when the sentence goes on to say so, so the
   // token programs that never refer back stay exactly as they were.
-  const after = c.raw.slice(Math.max(0, c.raw.indexOf(m[0])) + m[0].length);
+  const after = c.raw.slice(Math.max(0, c.raw.toLowerCase().indexOf(m[0].toLowerCase())) + m[0].length);
   // "play 1 Frieza's Army Token with 10000 power, and it gains…" (BT28-020) and
   // "play 1 Shadow Token, and that card gets…" (BT26-079) say the same thing.
   // "…Chilled's Army Token with 10000 power**;** it gains [Blocker] for the turn" (EB1-22, phrasing batch 2): the
@@ -5806,21 +5826,27 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // "play 2 Ghost Tokens **with 15000 power**" (BT31-134, BT28-020, EB1-48): the
   // skill prints the token's power itself and that figure, not the 5000 default
   // or a reminder's, is the power the tokens arrive with (#907, left over from #1023).
-  const printed = /^\s*with ([\d,]+) power\b/i.exec(after);
-  return [
-    {
-      op: "token",
-      ...(bound ? { as: `t${c.n++}` } : {}),
-      name: `${m[2].trim()} Token`,
-      power: printed ? num(printed[1]) : power ? num(power[1]) : 5000,
-      comboCost: combo ? num(combo[1]) : 0,
-      comboPower: combo ? num(combo[2]) : 5000,
-      colors: [],
-      n: Number(m[1]),
-      // Phrasing batch 4: "play 1 Ghost Token with 15000 power **in Rest Mode**" (P-683): how the tokens arrive.
-      ...(/\btokens?\b(?:\s*\([^)]*\))?(?: with [\d,]+ power)?\s+in rest mode\b/i.test(clause) ? { mode: "rest" as const } : {}),
-    },
-  ];
+  // (Audit-selectors-1: "…Frieza's Army Token **with a power of 10000**", BT21-106, the same figure said the long way.)
+  const printed = /^\s*with (?:([\d,]+) power|a power of ([\d,]+))\b/i.exec(after);
+  // Audit-selectors-1: "play 2 Clone Tokens with 10000 power **in your opponent's Battle Area**" (BT8-041, BT8-034,
+  // BT8-055, BT20-047…): the tokens are the opponent's (19-1-3 says the master's Battle Area only "if nothing is
+  // specified"); read without it, they were played on the caster's own side.
+  const theirs = /\btokens?\b[^.]*?\bin (?:your opponent'?s|their|the opponent'?s) battle area\b/i.test(clause);
+  const token = (n: number, as?: string): Op => ({
+    op: "token",
+    ...(as ? { as } : {}),
+    name: `${tokenName} Token`,
+    power: printed ? num(printed[1] ?? printed[2]) : power ? num(power[1]) : 5000,
+    comboCost: combo ? num(combo[1]) : 0,
+    comboPower: combo ? num(combo[2]) : 5000,
+    colors: tokenColors,
+    n,
+    ...(theirs ? { side: "opponent" as const } : {}),
+    // Phrasing batch 4: "play 1 Ghost Token with 15000 power **in Rest Mode**" (P-683): how the tokens arrive.
+    ...(/\btokens?\b(?:\s*\([^)]*\))?(?: with [\d,]+ power)?\s+in rest mode\b/i.test(clause) ? { mode: "rest" as const } : {}),
+  });
+  if (upTo) return oneAtATime(Array.from({ length: Number(m[1]) }, () => [token(1)]), clause);
+  return [token(Number(m[1]), bound ? `t${c.n++}` : undefined)];
 }
 
 /**

@@ -24,12 +24,17 @@
  * language's print and reparse), and in the VM where an engine path moved.
  */
 import assert from "node:assert/strict";
-import { card } from "./harness";
+import { CTX, DEFS, card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
+import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
+import { RULES } from "../../src/lib/arena/vm";
+import { rulesetFor } from "../../src/lib/arena/rulesets";
+import { moveCard } from "../../src/lib/arena/vm/zones";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import { describeFilter, type Cond, type Op } from "../../src/lib/arena/vm/script";
 import { parseFilter } from "../../src/lib/arena/text/filters";
-import type { CardDef } from "../../src/lib/arena/types";
+import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
+import type { VmState } from "../../src/lib/arena/vm/state";
 
 // ── the records ──────────────────────────────────────────────────────────────
 const roundtrip = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -197,4 +202,159 @@ for (const [text, what, said] of [
   records++;
 }
 
-console.log(`audit-selectors-1: ${records} records`);
+// ── E. tokens ────────────────────────────────────────────────────────────────
+// E1. "Play up to N" tokens: each an offer of its own, one at a time.
+for (const [text, what, n] of [
+  ["[Auto] When this card attacks, play up to 1 Demon Realm Soldier Token. (Demon Realm Soldier Tokens have 5000 power, 0 combo cost, and 5000 combo power.)", "BT17-110", 1],
+  ["[+1][Activate: Main] Play up to 2 Demon Realm Soldier Tokens. (Demon Realm Soldier Tokens have 5000 power, 0 combo cost, and 5000 combo power.)", "BT17-111", 2],
+] as const) {
+  const rec = record(text, what);
+  const offers = opOf(rec, "may");
+  assert.equal(offers.length, n, `E1: ${what} — ${n} offer(s)`);
+  assert.ok(opOf(rec, "token").every((o) => o.n === 1 && o.power === 5000), `E1: ${what} — one token per offer, 5000 power`);
+  records++;
+}
+// E2. In the opponent's Battle Area; and the power the card prints, however it prints it.
+for (const [text, what, power, side] of [
+  ["[Auto] At the start of your opponent's Main Phase, play 2 Clone Tokens with 10000 power in your opponent's Battle Area.", "BT8-041", 10000, "opponent"],
+  ["[Auto] When this card attacks, play 1 Chilled's Army token. (Chilled's Army token has 10000 power)", "BT2-102", 10000, undefined],
+] as const) {
+  const rec = record(text, what);
+  const token = opOf(rec, "token")[0];
+  assert.ok(token.power === power && token.side === side, `E2: ${what} — ${power} power${side ? ", the opponent's side" : ""} (${JSON.stringify(token)})`);
+  records++;
+}
+{
+  // BT30-018: the reminder is printed on another line of the card (19-1-2).
+  const recs = skillRecords(card("BT30-018", { skill: "[blocker]<br>[auto] When this card is played, add up to 1 card from your life to your hand, and play 2 Earthling Tokens. (Earthling Tokens have 1000 power, 0 combo cost, and 0 combo power.)<br>[+2][activate: main] Choose 1 of your Earthling Tokens and switch it to Rest Mode: Draw 2 cards and discard 2 cards from your hand.<br>[0][activate: battle] Play 1 Earthling Token." }));
+  const last = recs.find((r) => r.skillIndex === 30)!;
+  const token = opsDeep(last.ops).find((o): o is Extract<Op, { op: "token" }> => o.op === "token");
+  assert.ok(token && token.power === 1000 && token.comboPower === 0, `E2: BT30-018 — the Earthling Token its first line describes (${JSON.stringify(token)})`);
+  const frieza = record("[Auto] Add 1 card from your life to your hand, discard 1 card from your hand, and switch this card to Rest Mode: When your yellow <Frieza> with an energy cost of 3 is played, play 1 yellow Frieza's Army Token with a power of 10000 at the end of the turn, and that card gains [Blocker] until the end of your opponent's turn.", "BT21-106");
+  const army = opOf(frieza, "token")[0];
+  assert.ok(army.name === "Frieza's Army Token" && army.power === 10000 && army.colors.join() === "Yellow", `E2: BT21-106 — a yellow Frieza's Army Token of 10000 (${JSON.stringify(army)})`);
+  records += 2;
+}
+// E3. "Your opponent chooses 1 card in their hand, sends it to their Warp, and draws 1 card": all the opponent's.
+{
+  const rec = record("[auto] When this card is played, your opponent chooses 1 card in their hand, sends it to their Warp, and draws 1 card.", "BT13-145");
+  assert.deepEqual(rec.ops, [{ op: "discard", n: 1, side: "opponent", to: "warp" }, { op: "draw", n: 1, side: "opponent" }], `E3: BT13-145 (${JSON.stringify(rec.ops)})`);
+  records++;
+}
+
+// ── F. one choice in two places ─────────────────────────────────────────────────
+for (const [text, what, main, alt] of [
+  ["[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards or energy and switch it to Rest Mode.", "BT7-083", "battle", "energy"],
+  ["[auto] When this card is played, choose up to 1 card in your opponent's hand or up to 1 of their Battle Cards and send it to its owner's Warp.", "BT13-146", "hand", "battle"],
+  ["[activate: main] {b}: You may play 1 blue <Son Goku> card with an energy cost of 2 from your energy or from under {Conflict} in your Battle Area. If you do, place this card under {Conflict} in your Battle Area.", "BT31-034", "under", "energy"],
+  ["[activate: main][once per turn]{r}, if you don't have a red Unison Card in play: Choose up to 1 {Piccolo Jr., Descendant of the King} in your hand or face up in your life and play it with a marker on it.", "BT13-011", "hand", "life"],
+] as const) {
+  const rec = record(text, what);
+  const sel = opOf(rec, "choose").find((o) => o.sel.alsoFrom)?.sel;
+  assert.ok(sel && sel.area === main && sel.alsoFrom?.length === 1 && sel.alsoFrom[0].area === alt, `F: ${what} — ${main}, or ${alt} (${JSON.stringify(sel)})`);
+  if (what === "BT7-083") assert.ok(sel.filter?.type === "BATTLE" && !sel.alsoFrom![0].filter, "F: BT7-083 — Battle Cards in the Battle Area, any card of the energy");
+  if (what === "BT13-011") assert.ok(!sel.filter?.faceUp && sel.alsoFrom![0].filter?.faceUp, "F: BT13-011 — face up said of the life card only");
+  records++;
+}
+{
+  const rec = record("[Auto] When you play this card, choose all of your opponent's Battle Cards and energy in Rest Mode and place them in the Drop Area.", "TB1-081");
+  const sel = opOf(rec, "choose")[0].sel;
+  assert.ok(sel.count === 99 && !sel.upTo && sel.mode === "rest" && sel.alsoFrom?.[0].mode === "rest", `F: TB1-081 — all of both, in Rest Mode (${JSON.stringify(sel)})`);
+  records++;
+}
+
+// ── VM ───────────────────────────────────────────────────────────────────────
+const vmDefs: Record<string, CardDef> = {
+  ...DEFS,
+  RESTER: card("RESTER", { skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards or energy and switch it to Rest Mode." }),
+  FIELDX: card("FIELDX", { type: "EXTRA", colors: ["Blue"], energyCost: 0, power: null, comboCost: null, comboPower: null, skill: "[Field] [Permanent] Nothing happens." }),
+  CLONER: card("CLONER", { skill: "[Activate: Main] Play 2 Clone Tokens with 10000 power in your opponent's Battle Area." }),
+  UPTWO: card("UPTWO", { skill: "[Activate: Main] Play up to 2 Demon Realm Soldier Tokens. (Demon Realm Soldier Tokens have 5000 power, 0 combo cost, and 5000 combo power.)" }),
+};
+const vmRows = Object.values(vmDefs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
+const ctx: EngineContext = { ...CTX, defs: vmDefs, scripts: rulesFromRows(roundtrip(vmRows), vmDefs) };
+const loaded = rulesetFor("dbs");
+assert.ok(loaded.ok);
+const game = loaded.definition;
+const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
+const take = (s: VmState, action: Action): VmState => roundtrip(RULES.apply(ctx, roundtrip(s), action).state as VmState);
+function fresh(seat: PlayerId, seed: number): VmState {
+  let s = RULES.createGame(ctx, { seed, p1: { name: "First", leader: "L-BLUE", main: fifty("V1") }, p2: { name: "Second", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
+  for (const action of [
+    { type: "chooseFirst", player: s.chooser, first: "p1" },
+    { type: "mulligan", player: "p1", redraw: false },
+    { type: "mulligan", player: "p2", redraw: false },
+    { type: "charge", player: "p1", card: null },
+    { type: "endMain", player: "p1" },
+    { type: "charge", player: "p2", card: null },
+    ...(seat === "p1" ? [{ type: "endMain", player: "p2" }, { type: "charge", player: "p1", card: null }] : []),
+  ] as Action[])
+    s = take(s, action);
+  assert.equal(s.turnPlayer, seat);
+  for (const p of ["p1", "p2"] as const) for (const area of ["hand", "energy"] as const) for (const id of s.sides[p].zones[area].slice()) assert.ok(moveCard(s, game, id, "deck", { owner: p }).ok);
+  return s;
+}
+function stage(s: VmState, p: PlayerId, def: string, area: string): string {
+  const id = s.sides[p].zones.deck.at(-1)!;
+  s.cards[id].cardId = def;
+  assert.ok(moveCard(s, game, id, area, { owner: p }).ok);
+  if (area === "battle" || area === "energy") s.cards[id].mode = "active";
+  s.pending = [];
+  return id;
+}
+type Prompt = VmState["prompt"];
+function settle(s0: VmState, pick: (q: Extract<Prompt, { kind: "chooseCards" }>) => string[], answer = 0): VmState {
+  let s = s0;
+  for (let i = 0; i < 60 && s.prompt.kind !== "main"; i++) {
+    const q = s.prompt;
+    const who = (q as { player: PlayerId }).player;
+    if (q.kind === "chooseCards") s = take(s, { type: "choose", player: who, cards: pick(q) });
+    else if (q.kind === "chooseMode") s = take(s, { type: "chooseMode", player: who, index: answer } as Action);
+    else if (q.kind === "payCost") s = take(s, { type: "payCost", player: who, option: 0 } as Action);
+    else if (q.kind === "counter") s = take(s, { type: "counter", player: who, card: null } as Action);
+    else s = take(s, { type: "pass", player: who } as Action);
+  }
+  assert.equal(s.prompt.kind, "main", "settled");
+  return s;
+}
+function activate(s: VmState, c: string, pick: (q: Extract<Prompt, { kind: "chooseCards" }>) => string[] = (q) => q.choice.candidates.slice(0, q.choice.min), answer = 0): VmState {
+  const offer = RULES.legalActions(ctx, s).find((l) => (l.action as { card?: string }).card === c && l.action.type === "activate");
+  assert.ok(offer, `${s.cards[c].cardId}: offered`);
+  return settle(take(s, offer.action), pick, answer);
+}
+let cases = 0;
+for (const seat of ["p1", "p2"] as const) {
+  const foe = other(seat);
+  // F in play: the opponent's Battle Card and energy are on offer, their [Field] Extra is not; the energy chosen rests.
+  {
+    let s = fresh(seat, 52000 + (seat === "p1" ? 0 : 1));
+    const me = stage(s, seat, "RESTER", "battle");
+    const theirs = stage(s, foe, "V-BLUE", "battle");
+    const field = stage(s, foe, "FIELDX", "battle");
+    const energy = stage(s, foe, "V-BLUE", "energy");
+    let offered: string[] = [];
+    s = activate(s, me, (q) => ((offered = q.choice.candidates), [energy]));
+    assert.ok(offered.includes(theirs) && offered.includes(energy) && !offered.includes(field), `${seat}: F — a Battle Card or an energy, not their Field (${offered.join()})`);
+    assert.equal(s.cards[energy].mode, "rest", `${seat}: F — the energy chosen is rested`);
+    assert.equal(s.cards[theirs].mode, "active", `${seat}: F — and only it`);
+    cases++;
+  }
+  // E in play: two Clone Tokens on the opponent's side; "up to 2" declined makes none.
+  {
+    let s = fresh(seat, 52010 + (seat === "p1" ? 0 : 1));
+    const me = stage(s, seat, "CLONER", "battle");
+    const before = s.sides[foe].zones.battle.length;
+    s = activate(s, me);
+    assert.equal(s.sides[foe].zones.battle.length, before + 2, `${seat}: E — two tokens in the opponent's Battle Area`);
+    assert.ok(s.sides[foe].zones.battle.slice(-2).every((id) => s.cards[id].cardId === "Clone Token" || /clone/i.test(String((s.cards[id] as { name?: string }).name ?? s.cards[id].cardId))), `${seat}: E — Clone Tokens`);
+    const up = stage(s, seat, "UPTWO", "battle");
+    const mine = s.sides[seat].zones.battle.length;
+    s = activate(s, up, (q) => q.choice.candidates.slice(0, q.choice.min), 1);
+    assert.equal(s.sides[seat].zones.battle.length, mine, `${seat}: E — "up to 2" declined, none made`);
+    s = activate(s, up, (q) => q.choice.candidates.slice(0, q.choice.min), 0);
+    assert.equal(s.sides[seat].zones.battle.length, mine + 2, `${seat}: E — "up to 2" taken twice, two made`);
+    cases++;
+  }
+}
+
+console.log(`audit-selectors-1: ${records} records, ${cases} VM cases`);

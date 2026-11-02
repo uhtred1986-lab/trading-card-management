@@ -125,6 +125,13 @@ export interface Skill {
    * from `skill`) runs only on the card the grant names, while the grant lasts.
    */
   granted?: { by: number; skill: Skill };
+  /**
+   * Audit-selectors-1 (19-1-2): the token reminders ("(Earthling Tokens have 1000 power, 0 combo cost, and 0 combo
+   * power.)") another line of the same text box prints, set only on a line that plays a token and prints none of its
+   * own — "[0][activate: battle] Play 1 Earthling Token." (BT30-018). A token has what the card says of it. Set by
+   * `parseSkills` from the text alone.
+   */
+  tokenReminders?: string[];
 }
 
 export type SkillKind =

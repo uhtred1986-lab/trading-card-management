@@ -178,6 +178,8 @@ export function printSelector(sel: Selector): string {
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
   if (sel.notInBattle) parts.push("notInBattle");
   if (sel.orSelf) parts.push("orSelf");
+  // Audit-selectors-1: `ALSO (IN opponent.energy)` — one choice among this selector's cards and each alternative's.
+  for (const alt of sel.alsoFrom ?? []) parts.push(`ALSO (${printSelector(alt)})`);
   if (sel.atRandom) parts.push("atRandom");
   if (sel.ownedByOpponent) parts.push("ownedByOpponent");
   if (sel.notSelf === "card") parts.push("otherThanSelf");

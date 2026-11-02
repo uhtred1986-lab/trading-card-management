@@ -679,6 +679,7 @@ function compileSkillText(skill: Skill): Script {
     replacing: null,
     n: 0,
     raw: skill.effect,
+    ...(skill.tokenReminders ? { tokenReminders: skill.tokenReminders } : {}),
     skillKind: skill.kind,
     xBound: priceX(skill) !== null,
     ...(skill.spiritBoost ? { spiritBoost: skill.spiritBoost } : {}),

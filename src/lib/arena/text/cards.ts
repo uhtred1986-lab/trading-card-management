@@ -483,7 +483,22 @@ function parseSkillsUncached(text: string): Skill[] {
     if (rejuvenate) [cost, effect] = [rejuvenate[1], rejuvenate[2][0].toUpperCase() + rejuvenate[2].slice(1)];
     out.push(makeSkill(index * 10, tags, primary?.name === "Rejuvenate" ? rejuvenateOf(rejuvenate ? whole : cost || effect) : primary, cost, effect, line));
   }
-  return linkQuotedGrants(out);
+  return linkQuotedGrants(withTokenReminders(text, out));
+}
+
+/** A token reminder as the sets print it: "(Ghost Tokens have 15000 power)", "(Chilled's Army token has 10000 power)". */
+export const TOKEN_REMINDER = /\(\s*([^()]*?) tokens? ha(?:ve|s) [\d,]+ power[^()]*\)/gi;
+
+/**
+ * Audit-selectors-1 (19-1-2): a line that plays a token and prints no reminder of its own — "[0][activate: battle]
+ * Play 1 Earthling Token." (BT30-018), "[auto] When this card attacks, play 1 Multi-Form Token." with the reminder on
+ * a line of its own (BT31-061) — is handed the reminders the rest of the text box prints, so the compiler gives the
+ * token the stats the card says (read without, it made a 5000-power token for a card that says 1000 or 10000).
+ */
+function withTokenReminders(text: string, skills: Skill[]): Skill[] {
+  const reminders = [...text.matchAll(TOKEN_REMINDER)].map((m) => m[0]);
+  if (!reminders.length) return skills;
+  return skills.map((sk) => (/\bplay\b[^.]*\btokens?\b/i.test(sk.effect) && !new RegExp(TOKEN_REMINDER.source, "i").test(sk.effect) ? { ...sk, tokenReminders: reminders } : sk));
 }
 
 /**

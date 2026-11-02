@@ -723,7 +723,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "as", type: "string" },
       { name: "mode", type: { enum: ["rest"] } },
     ],
-    sentence: "play {n} {name} ({power} power){mode? in {mode} mode}",
+    // Audit-selectors-1: and on whose side — "play 2 Clone Tokens … in your opponent's Battle Area" (BT8-041).
+    sentence: (raw, r) => renderTemplate(`play {n} {name} ({power} power){mode? in {mode} mode}${(raw as OpOf<"token">).side === "opponent" ? " in your opponent's Battle Area" : ""}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.token.fields, r),
     doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}; "as" names the tokens this play made (exactly them, empty when none), for a later "and they gain [Blocker]"; "mode":"rest" is "play 1 Ghost Token in Rest Mode" (P-683, phrasing batch 4): the tokens arrive rested',
   },
   costModifier: {
@@ -2242,6 +2243,7 @@ const SELECTOR_KEYS = {
   ignoreBarrier: 1,
   notInBattle: 1,
   orSelf: 1,
+  alsoFrom: 1,
   atRandom: 1,
   ownedByOpponent: 1,
   notSelf: 1,
@@ -2323,6 +2325,17 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.underHost !== undefined) {
     const bad = selectorProblem(v.underHost, `${at}.underHost`, depth + 1);
     if (bad) return bad;
+  }
+  // Audit-selectors-1: each alternative is a place and a description, nothing that counts or names one card.
+  if (v.alsoFrom !== undefined) {
+    if (!Array.isArray(v.alsoFrom) || !v.alsoFrom.length) return wrong("alsoFrom", "a non-empty list of selectors");
+    for (const [i, alt] of (v.alsoFrom as unknown[]).entries()) {
+      const bad = selectorProblem(alt, `${at}.alsoFrom[${i}]`, depth + 1);
+      if (bad) return bad;
+      const a = alt as Record<string, unknown>;
+      const extra = ["special", "fromVar", "count", "upTo", "minCount", "take", "alsoFrom", "notIn", "sumAtMost", "differentNames", "differentCharacters", "orSelf"].find((k) => a[k] !== undefined);
+      if (extra) return `${at}.alsoFrom[${i}] says where to look and what for, never ${extra}`;
+    }
   }
   if (v.filter !== undefined) return filterProblem(v.filter, `${at}.filter`);
   return null;
@@ -2996,6 +3009,8 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.notInBattle ? " that is not in a battle" : "") +
   // "Choose this card or up to 1 …" (errata-official-2): this card is on offer too.
   (sel.orSelf ? ", or this card" : "") +
+  // Audit-selectors-1: "…Battle Cards or energy" (`alsoFrom`): each alternative place and description, one choice among them all.
+  (sel.alsoFrom?.length ? sel.alsoFrom.map((alt) => (sel.count === 99 && !sel.upTo ? `, and ${describeSelector(alt, "all")}` : `, or among ${describeSelector(alt, "the")}`)).join("") : "") +
   (sel.atRandom ? " at random" : "") +
   (sel.ownedByOpponent ? " whose owner is your opponent" : "") +
   // "…1 <Shu> card" after "1 <Pilaf> card" (#970): a card of its own, not one an earlier slot took.

@@ -161,6 +161,15 @@ export interface Selector {
    */
   orSelf?: true;
   /**
+   * Audit-selectors-1: "choose up to 1 of your opponent's **Battle Cards or energy**" (BT7-083, DB2-103…), "up to 1
+   * card **in your opponent's hand or** up to 1 of their Battle Cards" (BT13-146), "play 1 blue <Son Goku> card … **from
+   * your energy or from under {Conflict}**" (BT31-034): one choice among the cards this selector describes and the
+   * cards each of these does — each description with its own area, owner and measures, so "Battle Cards" narrows the
+   * Battle Area and not the energy. The count, "up to" and the set-wide bounds are this selector's; an alternative
+   * carries only where to look and what to look for. Only a `choose`'s own selector carries it (`validateProgram`).
+   */
+  alsoFrom?: Selector[];
+  /**
    * "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
    * deck flags 26 Oct 2026): which cards is no player's choice — they are taken
    * with the game's own seeded RNG (official Q&A on BT1-073: "completely random

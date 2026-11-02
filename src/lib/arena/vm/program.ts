@@ -1778,7 +1778,11 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.special !== "self" && immunityRefusing(ctx, game, state, id, frame.card, frame.master)) return false;
     return true;
   });
-  return self && !kept.includes(self) ? [self, ...kept] : kept;
+  // Audit-selectors-1 (`alsoFrom`): the cards each alternative describes, in its own place, are on offer too — one choice
+  // among them all. Bound by what the choice already excludes (`notIn`, this card), never by this selector's measures.
+  const alternatives = (sel.alsoFrom ?? []).flatMap((alt) => resolveSelector(ctx, game, state, frame, { ...alt, ...(sel.notIn ? { notIn: sel.notIn } : {}), ...(sel.notSelf ? { notSelf: sel.notSelf } : {}), ...(sel.ignoreBarrier ? { ignoreBarrier: true } : {}) }));
+  const union = alternatives.length ? [...kept, ...alternatives.filter((id, i) => !kept.includes(id) && alternatives.indexOf(id) === i)] : kept;
+  return self && !union.includes(self) ? [self, ...union] : union;
 }
 
 export function resolveRef(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, ref: Ref): string[] {

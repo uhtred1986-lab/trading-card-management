@@ -92,8 +92,10 @@ export function compileOpponentChoice(clause: string, c: Ctx, track: (o: Op) => 
   }
   const only = selectors[0];
   // The long-standing reading of a lone card chosen from the hand.
+  // Audit-selectors-1: "…, and draws 1 card" (BT13-145) — the opponent's draw, after the move.
+  const draws: Op[] = words.draws ? [{ op: "draw", n: words.draws, side: "opponent" }] : [];
   if (selectors.length === 1 && only.area === "hand" && !only.upTo && !only.filter && typeof only.count === "number" && only.count < 99 && (dest.to === "drop" || dest.to === "warp")) {
-    return [{ op: "discard", n: only.count, side: "opponent", ...(dest.to === "warp" ? { to: "warp" as const } : {}) }];
+    return [{ op: "discard", n: only.count, side: "opponent", ...(dest.to === "warp" ? { to: "warp" as const } : {}) }, ...draws];
   }
   const out: Op[] = [];
   for (const [i, sel] of selectors.entries()) {
@@ -106,5 +108,5 @@ export function compileOpponentChoice(clause: string, c: Ctx, track: (o: Op) => 
   for (const o of [...out]) {
     if (o.op === "choose") out.push({ op: "moveTo", target: { var: o.as }, to: dest.to, ...dest.opts });
   }
-  return out;
+  return [...out, ...draws];
 }

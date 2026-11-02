@@ -684,6 +684,13 @@ class Parser {
       this.want(")");
       return;
     }
+    // Audit-selectors-1: `ALSO (…)`, an alternative place and description of the same choice (`alsoFrom`).
+    if (this.eatKw("ALSO")) {
+      this.want("(");
+      (sel.alsoFrom ??= []).push(this.selector());
+      this.want(")");
+      return;
+    }
     if (this.eatKw("UP")) {
       if (!this.eatKw("TO")) this.fail('expected "UP TO"', ["TO"]);
       sel.upTo = true;

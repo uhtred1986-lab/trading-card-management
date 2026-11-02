@@ -70,7 +70,8 @@ export const AREA_WORDS: [RegExp, ScriptArea][] = [
   // or Leader Area" becomes a Battle Area holding a Leader, which is nothing.
   [/\b(?:battle|leader) area (?:or|and) (?:battle|leader) area\b/, "play"],
   [/\bleader area\b/, "leader"],
-  [/\bbattle area\b/, "battle"],
+  // (Audit-selectors-1: "in any Battle Areas", P-153 — the plural is the same area word.)
+  [/\bbattle area\b|\b(?:any|either) battle areas\b/, "battle"],
   // Noun card types when no explicit area preposition was named
   // "your ≪Ginyu Force≫ Leader" (BT29-083, #1166), "your yellow Leader": a Leader
   // with a colour or a special trait in front is still the Leader Area.
@@ -401,6 +402,60 @@ function sumBoundOf(said: string): NonNullable<Selector["sumAtMost"]> | null {
   return { attr, total: { attr: { sel: { special: "self" } }, name: own[1] === "power" ? "power" : "energyCost" } };
 }
 
+/**
+ * Audit-selectors-1: one choice among cards in two places, each with its own description (`alsoFrom`).
+ *
+ * - "choose up to 1 of your opponent's **Battle Cards or energy**" (BT7-083, DB2-103, DB2-171), "…Battle Cards
+ *   and/or energy" (DB2-108), "a total of up to 2 of your opponent's Battle Cards and energy" (BT5-080b), "all of your
+ *   opponent's Battle Cards and energy in Rest Mode" (BT10-153, TB1-081, BT1-041): Battle Cards in their Battle Area,
+ *   or any of their energy (20-1-3) — read as one description it was "Battle Cards in your opponent's Energy Area",
+ *   which reaches neither.
+ * - "choose up to 1 card **in your opponent's hand or up to 1 of their Battle Cards**" (BT13-146, BT15-063, TB1-052),
+ *   "up to 3 of your opponent's **cards in hand and/or Battle Cards**" (BT17-065): any card of their hand, or a Battle
+ *   Card of theirs — one choice of that many.
+ *
+ * `undefined` when the phrase is not one of these; `null` when it is and a half does not read.
+ */
+function alternativePlaces(phrase: string, looked?: string, pool?: string): Selector | null | undefined {
+  const energy = /^(.*?\b(?:your opponent'?s|their) (?:(?:rest|active) mode )?battle cards),? (?:and\/or|or|and) (?:their )?energy\b(.*)$/i.exec(phrase);
+  const handOr = /^(.*?\b(?:up to )?(\d+) cards? (?:in|from) (?:your opponent'?s|their) hand) or (?:up to )?\2 of their battle cards\b(.*)$/i.exec(phrase);
+  const inHand = /^(.*?\b(?:up to )?\d+ of your opponent'?s) cards in hand (?:and\/or|or) battle cards\b(.*)$/i.exec(phrase);
+  // "…play 1 blue <Son Goku> card … **from your energy or from under {Conflict}** in your Battle Area" (BT31-033,
+  // BT31-034, BT31-035), "…**from your hand or from under {Serpent Road}** in your Battle Area" (BT30-114): the pile
+  // under the named card, or the area — the area's half had been dropped. "…**in your hand or face up in your life**"
+  // (BT13-011): a card of the hand, or a face-up card of the life (3-9-2-1) — read as one, "face up" landed on the hand.
+  const orUnder = /^(.*?) from your (hand|energy|drop(?: area)?|warp|deck) or (from under .+)$/i.exec(phrase);
+  const orLife = /^(.*?) in your hand or face up in your life\b(.*)$/i.exec(phrase);
+  const placeOnly = (s: Selector): Selector => {
+    const { count: _c, upTo: _u, minCount: _m, ...rest } = s;
+    void _c; void _u; void _m;
+    return rest;
+  };
+  if (orUnder || orLife) {
+    const [mainSaid, altSaid] = orUnder ? [`${orUnder[1]} ${orUnder[3]}`, `${orUnder[1]} from your ${orUnder[2]}`] : [`${orLife![1]} in your hand${orLife![2]}`, `${orLife![1]} face up in your life${orLife![2]}`];
+    const main = parseTarget(mainSaid, looked, pool);
+    const alt = parseTarget(altSaid, looked, pool);
+    if (!main || !alt || main.special || alt.special || main.fromVar || alt.fromVar || main.areas?.length || alt.areas?.length || !alt.area) return null;
+    if (orUnder ? main.area !== "under" || !main.underHost : main.area !== "hand" || alt.area !== "life" || !alt.filter?.faceUp) return null;
+    const handFilter = orLife && main.filter ? { ...main.filter, faceUp: false } : main.filter;
+    return { ...main, ...(handFilter ? { filter: handFilter } : {}), alsoFrom: [placeOnly(alt)] };
+  }
+  if (!energy && !handOr && !inHand) return undefined;
+  if (energy) {
+    const main = parseTarget(`${energy[1]}${energy[2]}`, looked, pool);
+    if (!main || main.special || main.fromVar || main.area !== "battle" || main.areas?.length || !main.side) return null;
+    return { ...main, alsoFrom: [{ side: main.side, area: "energy", ...(main.mode ? { mode: main.mode } : {}) }] };
+  }
+  if (handOr) {
+    const main = parseTarget(`${handOr[1]}${handOr[3]}`, looked, pool);
+    if (!main || main.special || main.fromVar || main.area !== "hand" || main.areas?.length || main.side !== "opponent") return null;
+    return { ...main, alsoFrom: [{ side: "opponent", area: "battle", filter: { ...emptyFilter(), type: "BATTLE" } }] };
+  }
+  const main = parseTarget(`${inHand![1]} cards in their hand${inHand![2]}`, looked, pool);
+  if (!main || main.special || main.fromVar || main.area !== "hand" || main.areas?.length || main.side !== "opponent") return null;
+  return { ...main, alsoFrom: [{ side: "opponent", area: "battle", filter: { ...emptyFilter(), type: "BATTLE" } }] };
+}
+
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
   // "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
   // deck flags 26 Oct 2026): the words were read as nothing, so the player
@@ -411,6 +466,8 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     const sel = parseTarget(phrase.replace(random[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
     return sel && sel.area === "hand" && !sel.areas?.length && !sel.special && !sel.fromVar ? { ...sel, atRandom: true } : null;
   }
+  const alternatives = alternativePlaces(phrase, looked, pool);
+  if (alternatives !== undefined) return alternatives;
   // "…with an energy cost less than or equal to your current energy" (#979): a
   // measure of the card against the master's energy count, not an area. Read
   // off the rest of the phrase, which would take "your energy" for the Energy Area.
@@ -897,6 +954,11 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // because the phrase says *both* whichever possessive happens to sit closest
   // to the area word ("you or your opponent's", "your and your opponent's").
   if (BOTH_SIDES.test(t)) side = "both";
+  // Audit-selectors-1: "choose up to 1 <Vegeta> card … **in a Battle Area**" (BT7-065, P-126), "2 ≪World Tournament≫
+  // cards **in any Battle Areas**" (P-153), "1 [Field] card in a Battle Area" (P-152, BT19-110): either player's — the
+  // official Q&A of BT7-065, P-126 and P-153 lets the opponent's be chosen (and P-153's one from each side). Read with
+  // no possessive, the side was the caster's alone.
+  if (/\b(?:in|from) (?:a|any|either) battle areas?\b/.test(t) && !/\b(?:your|their|opponent'?s)\b[^,]*\b(?:in|from) (?:a|any|either) battle areas?\b/.test(chosen)) side = "both";
   // "Choose up to 1 **player's** card" (BT29-107): either player's — a card
   // on the table (20-1-6), on whichever side.
   const eitherPlayers = /\b(?:a|1|one|any|up to \d+) player'?s cards?\b/.test(t);

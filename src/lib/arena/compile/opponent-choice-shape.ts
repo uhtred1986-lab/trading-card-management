@@ -28,8 +28,10 @@
 /** One counted piece of the list: "2 cards in their hand", "1 of their Battle Cards with …", "up to 1 of their energy", "all of the cards in their hand" (BT6-125). */
 const ITEM = String.raw`(?:(?:up to )?\d+ (?:cards? (?:in|from) their [a-z -]+?|of their [^,]+?)|all of the cards in their hand)`;
 
+// Audit-selectors-1: "your opponent chooses 1 card in their hand**,** sends it to their Warp, **and draws 1 card**" (BT13-145,
+// BT13-138): the move after a comma alone, and a draw of the same player's after it — the opponent's draw, not yours.
 const SHAPE = new RegExp(
-  String.raw`^(?:your opponent|they) chooses? (${ITEM}(?: and ${ITEM})*)(,? ignoring \[barrier\])?,? and (places?|sends?|puts?) (it|them) (.+?)$`,
+  String.raw`^(?:your opponent|they) chooses? (${ITEM}(?: and ${ITEM})*)(,? ignoring \[barrier\])?(?:,? and|,) (places?|sends?|puts?) (it|them) (.+?)(?:,? and draws? (\d+) cards?)?$`,
   "i",
 );
 
@@ -67,6 +69,8 @@ export interface OpponentChoiceWords {
   ignoresBarrier: boolean;
   /** What follows "them": "at the bottom of their deck in any order", "to their owners' Warps". */
   dest: string;
+  /** "…, and draws 1 card" (BT13-145): the same player draws this many after the move. */
+  draws?: number;
 }
 
 /** The words of a clause of this shape, or `null`. */
@@ -84,7 +88,7 @@ export function opponentChoiceWords(clause: string): OpponentChoiceWords | null 
   // "chooses 2 cards … and places it" is some other sentence.
   const one = items.length === 1 && /^(?:up to )?1 /i.test(items[0]);
   if (one !== (m[4].toLowerCase() === "it")) return null;
-  return { items, ignoresBarrier: !!m[2], dest: m[5].trim() };
+  return { items, ignoresBarrier: !!m[2], dest: m[5].trim(), ...(m[6] ? { draws: Number(m[6]) } : {}) };
 }
 
 /** Where in a skill's text a sentence of this shape lies, for `splitClauses` to leave whole. */
@@ -95,6 +99,9 @@ export function opponentChoiceSpans(text: string): [number, number][] {
     for (let end = m.index + 1; end <= text.length; end++) {
       const stops = end === text.length || ".;".includes(text[end]) || text.startsWith(", and ", end) || text.startsWith(", then ", end) || text.startsWith(" then ", end);
       if (!stops || !opponentChoiceWords(text.slice(m.index, end))) continue;
+      // Audit-selectors-1: the draw that ends the same sentence (BT13-145) is the same player's, kept with it.
+      const draw = /^,? and draws? \d+ cards?\b/i.exec(text.slice(end));
+      if (draw && opponentChoiceWords(text.slice(m.index, end + draw[0].length))) end += draw[0].length;
       out.push([m.index, end]);
       start.lastIndex = end;
       break;
