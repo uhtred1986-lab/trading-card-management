@@ -13,6 +13,8 @@
  *     you activate X on <described> card" waits for the next such activation on any card it describes (R-201, pending).
  * C.  "You can activate this card (or {X}) from your hand without paying its energy cost" is the `altCost` waiver; a skill
  *     used from the energy or from under a card, or an Extra used for an action price, is unread — never a play.
+ * D.  "Your opponent reveals the top card of their deck" is followed by their shuffle (R-203); "top or bottom … in any
+ *     order" is one end for all of them (R-202, superseding R-007 for "or").
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where the engine learned something (`ownNextTurn`'s end).
@@ -213,6 +215,32 @@ for (const [id, text] of [
 ] as const) {
   const recs = skillRecords(card(id, { skill: text, type: "EXTRA", power: null, comboCost: null, comboPower: null }));
   assert.ok(recs.length === 1 && recs[0].unread.length > 0 && !opsDeep(recs[0].ops).some((o) => o.op === "play"), `C: ${id} — unread, never a play (${recs[0].reads})`);
+}
+
+// D. The ≪Universe 10≫ reveals shuffle the opponent's deck at once (R-203, each card's Q&A); "top or bottom … in any
+// order" is one end for all of them (R-202, BT9-037's Q&A), "top and/or bottom" each card's own.
+for (const [id, text] of [
+  ["DB2-047", "[Activate: Main][Once per turn] Choose 1 card in your hand and place it in your Drop Area: Your opponent reveals the top card of their deck; if it's a Battle Card, choose up to 1 of your opponent's Battle Cards and place it at the bottom of its owner's deck."],
+  ["DB2-049", "[activate: main][once per turn]{u}{1}: Your opponent reveals the top card of their deck; if it's a Battle Card, draw 1 card."],
+  ["DB2-063", "[Counter: Attack] Negate the attack, then your opponent reveals the top card of their deck; if it's a Battle Card, choose up to 1 of your Battle Cards and up to 1 of your energy, and switch them to Active Mode."],
+] as const) {
+  const ops = record(id, text).ops;
+  const at = ops.findIndex((o) => o.op === "reveal");
+  assert.ok(at >= 0 && ops[at + 1]?.op === "shuffle" && (ops[at + 1] as { side?: string }).side === "opponent", `D: ${id} — the opponent shuffles right after the reveal (${JSON.stringify(ops).slice(0, 300)})`);
+  records++;
+}
+assert.equal(opOf(record("DB1-077", "[Activate: Main][Once per turn] Your opponent reveals the top card of their deck, then shuffles their deck. If the revealed card was a Battle Card, this card gains [Double Strike] and [Dual Attack] for the duration of the turn. Otherwise, this card gets -15000 power for the duration of the turn."), "shuffle").length, 1, "D: DB1-077 — its own shuffle, once");
+for (const [id, text] of [
+  ["BT9-037", "[Activate: Main] If your Leader Card is a ≪Universe 7≫ card and you switch this card to Rest Mode: Look at up to 3 cards from the top of your deck, then place them on the top or bottom of your deck in any order."],
+  ["BT9-026", "[Auto] When you play this card from your hand, look at up to 3 cards from the top of your deck, choose up to 1 multicolor Extra Card among them, add it to your hand, then place the remaining cards at the top or bottom of your deck in any order."],
+] as const) {
+  const rec = record(id, text, { type: "EXTRA", power: null, comboCost: null, comboPower: null });
+  const mode = opOf(rec, "chooseMode")[0];
+  assert.ok(mode && mode.modes.length === 2, `D: ${id} — one choice of end (${JSON.stringify(rec.ops).slice(0, 300)})`);
+  const [top, bottom] = mode.modes.map((m) => m.ops[0] as Extract<Op, { op: "moveTo" }>);
+  assert.ok(top.position === "top" && bottom.position === "bottom" && JSON.stringify(top.target) === JSON.stringify(bottom.target), `D: ${id} — all of them to the top, or all to the bottom`);
+  assert.equal(opOf(rec, "choose").filter((o) => o.sel.count === 99).length, 0, `D: ${id} — no per-card split`);
+  records++;
 }
 
 console.log(`audit-effects-1: ${records} records read as printed`);

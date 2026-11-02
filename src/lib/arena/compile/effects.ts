@@ -1799,7 +1799,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   if (c.lastOp === "look" && c.lastSeen) {
     const looked: Ref = { var: c.lastSeen };
     if (/^(?:place|put|return) them (?:back )?on (?:the )?top of (?:your|their|your opponent'?s) deck in any order$/.test(t)) return [{ op: "note", text: "the cards looked at go back on top of the deck, in any order" }];
-    if (/^(?:place|put|return) them (?:back )?(?:at|on) (?:the )?top (?:or|and\/or) (?:the )?bottom of (?:your|their|your opponent'?s|its owner'?s) deck(?: in any order)?$/.test(t)) return topOrBottomEach(c.lastSeen, c);
+    // Audit lane E (R-202): "…on the top **or** bottom … in any order" is one end for all of them (BT9-037's official
+    // Q&A); "top **and/or** bottom" stays each card's own end (R-007).
+    if ((m = /^(?:place|put|return) them (?:back )?(?:at|on) (?:the )?top (or|and\/or) (?:the )?bottom of (?:your|their|your opponent'?s|its owner'?s) deck(?: in any order)?$/.exec(t))) return m[1] === "or" ? topOrBottomAll(looked) : topOrBottomEach(c.lastSeen, c);
     if (/^(?:place|put|return) (?:it|the card|that card) (?:at|on) (?:the )?top or (?:the )?bottom of (?:your|their|your opponent'?s|its owner'?s) deck$/.test(t))
       return [{
         op: "chooseMode", chooser: "you", reason: "Put the card on the top or the bottom of the deck",
@@ -1835,8 +1837,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // to the top or the bottom as the player chooses, in the order the player
     // chooses (`topOrBottomEach`). Until then one answer covered the whole
     // remainder (a best guess).
-    if (new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(?:top|bottom) (?:or|and/or) (?:the )?(?:top|bottom)(?: of (?:your|its owner'?s?|their owners?'?s?|their) decks?)?(?: in any order)?$`).test(t))
-      return topOrBottomEach("looked", c);
+    // Audit lane E (R-202): said with "or", the remaining cards go to one end together — "The player who activates this
+    // card must place all 3 cards on top of their deck in any order or all 3 cards on the bottom" (BT9-037's Q&A; BT9-026,
+    // BT9-106 print the same words). "And/or" stays per card (R-007).
+    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(?:top|bottom) (or|and/or) (?:the )?(?:top|bottom)(?: of (?:your|its owner'?s?|their owners?'?s?|their) decks?)?(?: in any order)?$`).exec(t)))
+      return m[1] === "or" ? topOrBottomAll(rest) : topOrBottomEach("looked", c);
     if (new RegExp(`^(?:place|put) ${REST} (?:in|into) (?:your |the |its owner'?s? |their owners?'?s? |their )?drop(?: area)?$`).test(t)) return [{ op: "moveTo", target: rest, to: "drop", reveal: true }];
     // "…then send the rest to their owner's Warp" (BT30-106, 3-10).
     if (new RegExp(`^send ${REST} to (?:your|the|its owner'?s?|their owners?'?s?|their) warps?$`).test(t)) return [{ op: "moveTo", target: rest, to: "warp" }];
@@ -1910,7 +1915,12 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // turning-up, done by them, and the clauses after it act on what came up.
   if ((m = /^(?:your opponent|they) reveals? (.+)$/.exec(t))) {
     const sel = parseTarget(m[1]);
-    if (sel && sel.side === "opponent") return [{ op: "reveal", sel, as: "revealed" }];
+    // Audit lane E: the ≪Universe 10≫ reveals — "Your opponent reveals the top card of their deck; if it's a Battle
+    // Card, …" (DB2-046/047/048/049/050/052/057/063) — are followed by the opponent shuffling their deck, as each
+    // card's official Q&A answers ("does your opponent shuffle their deck? Yes, they do"); at once, so a card the
+    // effect then puts at the bottom of the deck stays there. A sentence that says its own shuffle (DB1-077) keeps it.
+    const top = /^the top card of (?:their|your opponent'?s) deck$/.test(m[1]) && !/\bshuffles?\b/i.test(c.raw);
+    if (sel && sel.side === "opponent") return [{ op: "reveal", sel, as: "revealed" }, ...(top ? [{ op: "shuffle", side: "opponent" } as Op] : [])];
   }
   // "Look at your opponent's hand" (20-11): a whole area, seen only by you.
   if (/^look at (?:your opponent'?s|their) hand$/.test(t)) return [{ op: "look", n: 99, as: "looked", side: "opponent", area: "hand" }];
@@ -6068,6 +6078,20 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
  * `pool` is the variable the look bound; a choice from it takes its picks out
  * of it, so the bottom is what the top choice left.
  */
+/**
+ * Audit lane E (R-202, BT9-037's official Q&A): "place them on the top or bottom of your deck in any order" puts every
+ * one of them at the same end, the player's choice — never some on top and some at the bottom.
+ */
+function topOrBottomAll(cards: Ref): Op[] {
+  return [{
+    op: "chooseMode", chooser: "you", reason: "Put the cards on the top or the bottom of the deck, all of them together",
+    modes: [
+      { label: "Top of the deck", ops: [{ op: "moveTo", target: cards, to: "deck", position: "top" }] },
+      { label: "Bottom of the deck", ops: [{ op: "moveTo", target: cards, to: "deck", position: "bottom" }] },
+    ],
+  }];
+}
+
 function topOrBottomEach(pool: string, c: Ctx): Op[] {
   const v = `c${c.n++}`;
   return [
