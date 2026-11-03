@@ -1,0 +1,134 @@
+# Lane C (conditions), round 4 — what round 3 left
+
+From round 3's fix agent and adversarial reviewer (integration 4, #1246). Check each item against the printed text and the current reading (`npm run arena:compile-snapshot` on a fresh snapshot) before working it: some may have been fixed in passing.
+
+## Round 3 reviewer's open doubts (5)
+
+- **TB1-001#10b (R-301)** — I implemented the rule that "The chosen card and this card gain +5000" stays inside the condition when the condition's own part made the choice. That follows the spirit of the BT26-027 owner ruling (back references stay inside), but "the chosen card" is not one of the pronouns that ruling lists. TB1-001's Q&A only covers [Barrier] and the mandatory trigger. It stays pending for the owner.
+- **EX19-21#10, P-176#10 (R-300)** — Reading a bare marker count or power as exactly that number rests on R-063 (life at 1). No Q&A covers markers or power. The "at least" alternative changes EX19-21 with [Empower] and P-176 with a raised Leader.
+- **EX06-14#0** — "…it gets +10000 power for the duration of the battle, then if there is a total of 7 or more energy…, place this card…": the long-standing lower-case "then" convention (BT3-043) closes the Leader condition, so the ramp happens with any Leader. It is plausible, but no Q&A decides it. The convention is older than this lane.
+- **BT26-118#0** — "1 or more <Son Goku> and 1 or more <Son Gohan: Childhood> cards in Rest Mode" counts rested copies in the Energy Area too (R-002's "every area"). That follows R-002, but it makes the condition much easier than a Battle-Area-only reading.
+- **round-2 carry-overs** — BT31-041 (lane S), BT26-001b (lane E2-B), P-345/BT21-034b, BT28-038, EX15-01 and EB1-33 were not reached this round. They are unchanged.
+
+## Round 3 reviewer's code notes (6)
+
+- compile/conditions.ts areaListCondition only knows lists of your own areas. "…in your opponent's Drop Area and Warp" is not read as a list. The older parser (also on the base) reads it as the opponent's Drop Area alone, silently dropping the Warp. No catalog card prints it today; it is a latent misread that predates this lane.
+- compile/effects.ts backReferenceCondition, milled pile: "if there was 1 or more X among them" is asked as the milled cards still in the Drop now, not as the pile at the moment it was placed. This is identical for BT2-101 and BT30-031, but a step between the placement and the question that takes a card back out of the Drop (none in the catalog) would answer wrongly.
+- Describer only: the `chose` sentence now says "you took N or more" corpus-wide (about 38 readings, all records unchanged). For "if you do" after an exact "choose N" it is accurate but reads worse than "took all N". `fromVar` selectors still print "of the cards looked at" and drop the area (EX08-02, P-628, BT16-006 "all of the cards looked at has no power"). This predates the lane, as round 2 noted.
+- audit-conditions-3.ts section D computes the BT1-001 conditions and discards them (`void b1`), which asserts nothing. It is harmless; BT1-001 stays unread on its trigger (the moments lane's).
+- Integration: the language reference changed (placedThisTurn `from`, comboFrom `atLeast`, bound() "exactly N"/"N to M"), so contract fixtures need the integration's --emit. The fix agent rewrote older suites (audit-conditions-2, opponent-choice-1015, phrasing-batch-4, audit-effects-2), and this review rewrote mechanism-4's P-110/BT17-148 area lists to R-002. Conflict hotspots are compile/conditions.ts, effects.ts, clauses.ts, index.ts (youCombo isTurnPlayer, near lane T's youCombo work), targets.ts (boardCount, Z-Leaders) and vm/play.ts/zones.ts/flow.ts (VmCard.playedFrom).
+- No card-id special cases in the compiler. The glossary keeps CRLF, and it is updated with every compiler/VM change. Both cited rulings exist in the ledger; verify/rulings passes.
+
+## Round 3 fix agent's "left" list, with reasons (111)
+
+- BT7-048#10: activating the Extra from the Drop by paying its cost and removing it and a hand card needs a drop-activation permit with an alternative payment (engine)
+- BT7-073#10: same as BT7-048 (drop activation with alternative payment, engine)
+- BT7-024#10: same as BT7-048 (engine)
+- BT7-098#10: same as BT7-048 (engine)
+- BT20-017#0: not reached: 'the card above it gets +5000' needs an onTop-host power grant
+- BT20-019#0: not reached: as BT20-017
+- BT20-089#10: 'for each Battle Card switched to Rest Mode by this skill other than this card' needs a per-switched multiplier (not reached)
+- BT20-101#30: as BT20-089
+- DB3-044#10: 'if this card's attack deals damage … or removes a marker' is a moment (trigger lane)
+- P-282#10: as DB3-044 (moment)
+- EX16-06#20: 'if this card's attack KOs … or removes a marker' is a moment (trigger lane)
+- BT1-001#0: condition now read; the trigger 'When your Battle Card attacks a Leader Card' is unread (trigger lane)
+- BT26-032#0: replacement on a watched card with its pile returned (replacement/effects lane)
+- BT26-032#0b: as BT26-032#0
+- BT31-083#0: 'this card in your life is flipped to its front side by a skill' needs a flip-cause memory (engine)
+- BT31-082#0: as BT31-083
+- BT19-072#0: 'If you do' after an optional combo from under a card: hinge on a may the effect reader does not bind (effects lane)
+- BT6-054#20b: a back side that opens on 'If you do' with no offer before it in the line (effects lane)
+- BT10-044#0: 'If you don't' after an 'If you do … instead' branch: hinge not bound (effects lane)
+- BT12-043#10: the card a [Burst] price placed in the Drop is not bound to a variable the effect can ask (costs.rules DEFINE COST burst; engine)
+- BT12-044#10: as BT12-043 (burst cards unbound)
+- BT12-039#20: as BT12-043 (burst cards unbound)
+- BT12-040#20: as BT12-043 (burst cards unbound)
+- BT16-145#20: as BT12-043 (burst cards unbound)
+- BT16-146#20: as BT12-043 (burst cards unbound)
+- SD16-01#0: as BT12-043 (burst cards unbound)
+- SD16-01#20b: as BT12-043 (burst cards unbound)
+- BT10-095#30: 'during your opponent's next Charge Phase, your opponent can only switch up to N energy' is a charge restriction (effects)
+- BT23-127#10: as BT10-095
+- BT20-078#10: price 'you send 1 green <Son Goku: GT> card from your hand to your Warp' with 'this card and {X} are in your Warp' (price lane)
+- BT19-108#20: price with two actions (price lane)
+- BT29-046#10: price 'you remove it from the game' (price lane)
+- EX24-39#10: 'all of your opponent's Battle Cards have a total of 3 or more keyword skills' needs a keyword-count measure, plus a price
+- EX08-04#20: price clause 'choose all … and shuffle them into your deck' (price lane)
+- BT20-002#10b: price 'send 1 <A>, 1 <B>, and 1 <C>—all red—from your Drop to your Warp' (price lane)
+- BT17-053#0: price 'you discard another card from your hand' (price lane)
+- BT13-020#0: condition reads; 'negate the [counter] skill of an Extra … activated without paying its energy cost' is unread (effects)
+- BT20-141#10: price 'send 1 ≪Universe 7≫ card and this card from your Drop to your Warp' (price lane)
+- DB1-057#10: price with a summed choice (price lane)
+- BT21-120#30: price 'remove this card in your Z-Energy and the top 5 cards from your deck' (price lane)
+- BT17-140#20: price 'discard this card and 1 <Meta-Cooler> card' (price lane)
+- DB3-124#20: price 'choose 1 <Hirudegarn> … and KO it' (price lane)
+- P-369#20: price 'you discard this card from your hand' (price lane)
+- BT23-132#0: price 'you reveal 1 <Kefla> card … and discard another' (price lane)
+- BT18-070#0: price 'you choose 1 of your … and place it in its owner's Drop' (price lane)
+- BT15-068#10: 'a total of 4 {X} in your Warp and/or under a {Y} in your Battle Area' sums two kinds of place; not reached
+- BT7-112#10: 'if you switched a <X> card to Rest Mode using this skill' needs a record of a mode actually changed (a card already rested is not switched; engine)
+- DB1-100#0: as BT7-112 (switch actually happened)
+- BT9-068#0: as BT7-112 (switch actually happened)
+- BT19-152#20: as BT7-112 (this card actually switched to Active)
+- BT10-089#10: history: 'your opponent played a Battle Card this turn' (engine)
+- BT31-124#10: history: 'no damage was dealt by this attack' (engine)
+- BT24-060#0: history: 'no damage was done … by that attack' (engine)
+- BT3-064#10: history: a card placed in the Drop by your skills this turn (engine)
+- BT3-065#10: as BT3-064 (history)
+- SD10-03#10: history: cards the opponent moved from life this turn (engine)
+- BT5-109#20: history: a card placed in energy by a skill this game (engine)
+- EX03-27#10: history: a card placed in energy during the Charge Phase this turn (engine)
+- TB2-027#20: as EX03-27 (history)
+- BT10-038#0: history: life added to hand by an opponent's attack this turn (engine)
+- BT21-131#0: history: a Leader flipped back to front this turn (engine)
+- BT31-002#10b: history plus a doubling replacement (engine)
+- P-435#20: a watch until the end of the opponent's next turn on [Villainous]/[Counter] activations (delayed trigger; engine)
+- BT27-039#10: replacement of an attack negation (replacement lane)
+- SD14-01#10b: replacement of losing by deck-out (engine)
+- BT2-034#0b: replacement of damage (replacement lane)
+- BT3-051#20: replacement on leaving with a pile condition (replacement lane)
+- BT19-153#20: 'If a skill would remove this card' is a replacement-moment (trigger/replacement lane)
+- EB1-53#10: a cost waiver for a later [Evolve] activation this turn (engine)
+- BT14-061#20b: combo-to-Drop replacement with a combo-origin condition (replacement lane)
+- BT14-079#20: 'If one of your … is removed … by an opponent's skill' is a moment on a [Spirit Boost] auto (trigger lane)
+- BT27-073#10: [Counter: Play] 'it's played in Rest Mode' (effects lane)
+- BT21-149#10: [Counter: Play] 'send it to its owner's Warp instead' after a long play (effects lane)
+- EX11-05#20: not reached: 'Leader Card's power is currently being increased or decreased' needs a power-modified measure
+- BT26-109#20: condition now read; 'activate up to 1 of that card's [activate: main] skills' is unread (effects lane)
+- BT10-133#10: condition now read (discard bound); 'combo it with this card' is unread (effects lane)
+- BT16-136#30: not reached: 'this card's attack hasn't been negated' as an auto's condition
+- BT2-030#0: 'If you chose your deck' after 'Choose your deck or your Drop Area' (a mode choice the compiler reads as a card choice); not reached
+- BT12-120#10: 'If you paid the energy cost to activate this skill' needs the payment memory (engine)
+- BT13-055#0: 'activated … from your energy' needs the activation origin (engine)
+- BT21-033#10: 'activated by one of your red ≪Shenron≫'s skills' needs the activation cause (engine)
+- EX19-33#20: activation-cost reduction of a [Counter] in hand (prices/effects)
+- BT25-133#20: not reached: missing comma 'in your energy reduce …' (would need an errata.ts comma)
+- TB3-029#10: 'if your opponent switches their energy to Active Mode using a non-[Awaken] skill' is a moment (trigger lane)
+- DB2-143#0: a turn-long watch on the opponent's plays (delayed trigger; engine)
+- BT19-148#10: a turn-long rule on the opponent's plays entering Rest (effects)
+- EX23-31#20: 'during that card's first attack during that turn' (delayed span; engine)
+- BT12-082#0: 'can't be placed in Drop Areas by your skills' plus an opponent-hand cost reduction (prohibition/effects)
+- BT12-082#10: 'If this card is in your Battle Area at the start of your Main Phase' is a moment with a face-down life flip (trigger lane)
+- BT22-059#20: not reached: either-subject dash aside with 'both <A> and <B>' in a battle, plus a price
+- EX24-32#0: not reached: 'the card switched to Rest Mode is your yellow card' inside a mode of a cause-moment
+- BT18-003#20: 'you can't activate Extra skills' is dropped silently by the prohibition reader when split from 'or use cards in combos' (prohibition lane); left unread rather than half-read
+- BT23-109#20: 'during this turn you can only play yellow ≪Universe 7≫ cards' is a play restriction (prohibition lane)
+- BT16-115#20: condition is readable, but the effect before it misreads 'up to 2 of their Battle Cards and/or cards in their hand' as hand Battle Cards (selector lane); left unread rather than exposed
+- BT4-123#20: the effect before it reads 'choose as many … as you like' as count 1 (effects lane); left unread rather than exposed
+- BT2-040#10: the reveal 'from the bottom of your deck' compiles without fromEnd (effects lane); left unread rather than exposed
+- BT10-076#10: 'give control of this card to your opponent' is unread (effects lane)
+- BT11-057#20: 'place all of those cards' resolves to an unbound look variable (effects lane); left unread rather than exposed
+- P-096#0: 'among them' after a pile under the chosen card has no selector (effects lane)
+- BT17-131#10: the price's chosen card and the effect's choice share variable c0, so 'you used this skill to remove a Token' cannot be asked of the price (compiler variable naming)
+- P-045#0b: the price 'Place all cards from your hand in the Drop Area' binds no variable to count
+- BT15-051#20: as P-045 (the price moveTo binds no variable)
+- BT27-058#20: 'Remove all cards with [Dragon Ball] in your Drop' binds no variable to count
+- P-156#10: 'If you did both' after a may whose 'then' choice sits outside it, and a switch of energy that may already be rested (needs the switch memory)
+- P-059#20: 'if it was in Rest Mode' asks the KO'd card's mode before the KO (needs memory; engine)
+- BT1-085#0: 'If the flipped card is ≪Ginyu Force≫ but not <Ginyu>… If not' after a price flip whose card is not bound for the effect
+- BT31-056#10b: as BT1-085 (price flip card unbound)
+- BT21-075#0: Z-Deck play with an alternative Z-Energy payment (engine)
+- BT21-148#10: 'this card's front is facing up in your Z-Deck' (Z-Deck face state; engine)
+- BT21-134#20: permission to activate [Xeno-Evolve] from the Warp (engine permit)
+- BT12-153#10: 'If a card other than your Leader Card is in battle' is vacuous read literally on a [Counter: Counter] (the guard is always the opponent's card); needs an owner ruling (your Battle Card attacking vs any Battle Card in the battle) before it is read
