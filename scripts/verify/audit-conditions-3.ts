@@ -175,9 +175,12 @@ let records = 0;
   assert.equal(conds(record("[Auto] If your opponent has 4 or more energy: At the start of your Charge Phase, if this card is the only card in your hand, you may play this card from your hand.", "DB2-123")).filter((c) => c.kind === "count" && c.sel.area === "hand").length, 2, "B: DB2-123 — this card in the hand, and nothing else");
   // A list piece that opens a clause of its own is still a joint: "…in your energy and your life is at 4 or less" (BT8-022).
   assert.ok(conds(record("[Permanent] If you have a multicolor card in your energy and your life is at 4 or less, you can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.", "BT8-022")).some((c) => c.kind === "life"), "B: BT8-022 — the life condition stays");
+  // (Review) …and so is a comma before an area that opens a clause in a price: masked as a list comma, the life condition
+  // was swallowed by the count before it.
+  assert.ok(conds(record("[Activate: Main]{1}, if you have a <Goku> card in your Drop, your life is at 4 or less: Draw 1 card.", "AC3_JOINT")).some((c) => c.kind === "life"), "B: an area clause after a list comma is a joint");
   // "4 or more colors among cards in your energy and Battle Area" (BT16-016) counts colours.
   assert.ok(count(record("[Permanent] If there are 4 or more colors among cards in your energy and Battle Area, you can activate this card's [Counter] skill from your hand without paying its energy cost.", "BT16-016"), "BT16-016").sel.distinctColors, "B: BT16-016 — colours, not cards");
-  records += 30;
+  records += 31;
 }
 
 // C. Leaders.
@@ -399,6 +402,17 @@ let cases = 0;
   assert.equal(holds(s, faceUp), false, "VM: BT15-149 — two face up");
   s.cards[s.sides.p2.zones.life[1]].faceUp = true;
   assert.equal(holds(s, faceUp), true, "VM: BT15-149 — three between both players");
+  cases += 2;
+  // BT24-096 (review): the rested cards of both players, a rested Unison among them (R-002, R-010: "BT24-096's count
+  // includes energy and Unisons").
+  defs.AC3_UNISON = card("AC3_UNISON", { type: "UNISON" as CardDef["type"] });
+  const rested = conds(record("[activate: main][once per turn] If your Leader is yellow and the total number of cards in Rest Mode between you and your opponent is 15 or more: Choose all of your opponent's Rest Mode Battle Cards and KO them, switch this card to Active Mode, and this card gains [dual attack] for the turn.", "BT24-096")).find((c) => c.kind === "count" && c.sel.side === "both")!;
+  assert.ok(rested.kind === "count" && rested.sel.areas?.includes("unison") && rested.sel.areas.includes("energy"), "B: BT24-096 — the Unison and Energy Areas counted (R-002, R-010)");
+  s = fresh();
+  for (let i = 0; i < 14; i++) s.cards[stage(s, i % 2 ? "p2" : "p1", "V1", i < 10 ? "energy" : "battle")].mode = "rest";
+  assert.equal(holds(s, rested), false, "VM: BT24-096 — fourteen rested cards");
+  s.cards[stage(s, "p2", "AC3_UNISON", "unison")].mode = "rest";
+  assert.equal(holds(s, rested), true, "VM: BT24-096 — a rested Unison is the fifteenth");
   cases += 2;
 }
 // Battles: BT22-056's attacker and guard, BT27-050's two Battle Cards, EX19-14's other card.

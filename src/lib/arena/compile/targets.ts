@@ -269,16 +269,20 @@ export function colorCountSelector(counted: string): Selector | null | undefined
  * `parseTarget` has no single description for.
  *
  * - "For each card your opponent has in Rest Mode" (BT17-148) and "the total number of cards in Rest Mode between
- *   you and your opponent" (P-106, P-110, P-111): the cards a mode applies to — the Leader, Battle and Energy Areas
- *   (the official Q&A on P-106: "the Leader Areas, Battle Areas, and Energy Areas").
+ *   you and your opponent" (P-106, P-110, P-111, BT24-096): the cards a mode applies to — the Leader, Battle and Energy
+ *   Areas (the official Q&A on P-106: "the Leader Areas, Battle Areas, and Energy Areas") and the Unison Area (R-002,
+ *   R-010: "BT24-096's count includes energy and Unisons"; P-106's answer predates Unisons). Audit conditions 3
+ *   review: the Unisons were left out, so BT24-096's "15 or more" — newly read as a piece of its price — missed every
+ *   rested Unison R-010 counts.
  * - "For each card in both players' Battle Areas and energy" (BT30-055): both sides, those areas.
  */
+const MODE_AREAS: ScriptArea[] = ["leader", "battle", "unison", "energy"];
 export function boardCount(counted: string): Selector | null {
   const t = counted.trim().toLowerCase().replace(/[.,]$/, "");
   let m = /^cards? (you|your opponent) (?:has|have) in (rest|active) mode$/.exec(t);
-  if (m) return { side: m[1] === "you" ? "you" : "opponent", area: "leader", areas: ["leader", "battle", "energy"], mode: m[2] as "rest" | "active", count: 99, upTo: false };
+  if (m) return { side: m[1] === "you" ? "you" : "opponent", area: "leader", areas: [...MODE_AREAS], mode: m[2] as "rest" | "active", count: 99, upTo: false };
   m = /^(?:the total number of )?cards in (rest|active) mode between you and your opponent$/.exec(t);
-  if (m) return { side: "both", area: "leader", areas: ["leader", "battle", "energy"], mode: m[1] as "rest" | "active", count: 99, upTo: false };
+  if (m) return { side: "both", area: "leader", areas: [...MODE_AREAS], mode: m[1] as "rest" | "active", count: 99, upTo: false };
   m = /^cards? in both players' battle areas( and (?:energy|energy areas))?$/.exec(t);
   if (m) return { side: "both", area: "battle", ...(m[1] ? { areas: ["battle", "energy"] as ScriptArea[] } : {}), count: 99, upTo: false };
   return null;

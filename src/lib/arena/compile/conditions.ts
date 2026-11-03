@@ -73,7 +73,9 @@ export function allConditions(printed: string): { cond: Cond; subject?: Ref }[] 
 function maskLists(text: string): string {
   const mask = (w: string) => w.replace(/[,\s]|and(?:\/or)?|or/g, (x) => "\u0003".repeat(x.length));
   return text
-    .replace(new RegExp(`(\\b(?:in|among all cards in) your ${LIST_AREA_WORD})((?:\\s*,\\s*(?:and\\/or |and |or )?(?:your )?${LIST_AREA_WORD})+)`, "gi"), (_w, head: string, tail: string) => head + mask(tail))
+    // (Review: a piece that opens a clause of its own on an area — "…a <Goku> card in your Drop**, your life is** at 4 or
+    // less" — is a joint still; masked, the life condition was swallowed by the count before it.)
+    .replace(new RegExp(`(\\b(?:in|among all cards in) your ${LIST_AREA_WORD})((?:(?!\\s*,\\s*(?:and\\/or |and |or )?your ${LIST_AREA_WORD}\\s+(?:is|are|has|have|was|were)\\b)\\s*,\\s*(?:and\\/or |and |or )?(?:your )?${LIST_AREA_WORD})+)`, "gi"), (_w, head: string, tail: string) => head + mask(tail))
     .replace(new RegExp(`(${NAMED_CARD})((?:\\s*,\\s*(?:and |or )?${NAMED_CARD})+)`, "g"), (_w, head: string, tail: string) => head + tail.replace(new RegExp(`(${NAMED_CARD})|[^<{]+`, "g"), (x, name?: string) => (name ? x : mask(x))))
     // "…and you only have this card **and** 1 red skill-less Battle Card in your Combo Area" (BT14-013).
     .replace(/(\bonly have this card)( and )(?=(?:1|an?) [^,]+? in your combo area)/gi, (_w, a: string, and: string) => a + mask(and))
