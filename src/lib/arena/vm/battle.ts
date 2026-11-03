@@ -1636,6 +1636,12 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   if (hit) {
     const how = damageRule(ctx, game, state, b.attacker);
     if (state.sides[defP].zones.leader?.includes(b.guard)) {
+      // Audit effects 3: "your Leader Card doesn't take damage for the battle" (P-263), "…from attacks" (SD12-02) —
+      // the damage is not dealt at all (20-14), and the battle goes on to its end.
+      if (forbids(ctx, game, state, "takeDamage", { player: defP, card: b.guard, source: b.attacker, bySkill: false })) {
+        log(ev, { type: "note", text: "no damage is dealt: a skill in force says the Leader doesn't take it" });
+        return;
+      }
       // 8-4-6-1, 22-7: [Strike X] raises the damage to X.
       b.damage = { taken: [], remaining: Math.max(1, how.atLeast ?? 1), critical: how.to === "drop", ...(how.wins ? { wins: true as const } : {}) };
       return dealDamage(ctx, game, state, ev, defP);

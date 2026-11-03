@@ -2391,6 +2391,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "damage": {
         // 5-10 / 21-3: life cards go to the hand; damage from an effect is never Critical.
         for (const p of sideOf(master, op.side ?? "opponent")) {
+          // Audit effects 3: "you don't take damage from your opponent's non-keyword skills" (BT16-070) — a skill's
+          // damage refused is not dealt (20-14).
+          if (h.forbids("takeDamage", { player: p, card: h.zone(p, "leader")[0], source: frame.card, bySkill: true })) continue;
           const n = h.amount(frame, op.n);
           const taken: string[] = [];
           for (let i = 0; i < n; i++) {

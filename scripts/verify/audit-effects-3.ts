@@ -13,6 +13,9 @@
  *     nothing at its end happens, and the opponent's turn begins (its Q&As).
  * G.  "Reduce the energy cost of the next {X} you place in your Battle Area this turn" (BT23-041): one purchase, from
  *     the Z-Deck or the hand.
+ * H.  "Your Leader Card doesn't take damage …" / "you don't take damage …" (`forbid` of `takeDamage`): a battle's
+ *     damage, a skill's, or the attacks of certain cards; what the language cannot say stays unread.
+ * I.  "This card can't be played from any area if you have 2 or less energy" (BT9-078): the ban's condition.
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules language's
  * print and reparse) and, where the engine learned something, a short play on the rules engine.
@@ -141,6 +144,40 @@ for (const [id, text] of [
   assert.deepEqual([sel.areas, sel.filter?.names, cut[0].uses, cut[0].until, cut[0].colors], [["zDeck", "hand"], ["piercing special beam cannon"], 1, "turn", ["Blue"]], "G: BT23-041: the next one this turn, by {u}, from the Z-Deck or the hand");
 }
 
+// H. Damage not taken.
+for (const [id, text, o, want] of [
+  ["P-263", "[activate: battle] {b}, if your Leader Card is black and you discard this card from your hand: Place 1 card from your life in your Drop Area, and your Leader Card doesn't take damage for the battle.", {}, { leader: true, bySkill: undefined, until: "battle" }],
+  ["BT21-002", "[activate: battle] {r}, if your life is at 2 or less and you remove 7 [dragon ball] cards in your Drop from the game: You don't take damage for the turn, then flip this card over at the end of the turn.", {}, { leader: false, bySkill: undefined, until: "turn" }],
+  ["BT22-139", "[permanent] If this card is in Rest Mode, you don't take damage.", {}, { leader: false, bySkill: undefined, until: "game" }],
+  ["SD12-02", "[Permanent] If your Leader Card is a blue ≪Saiyan≫ card and you have a blue ≪Saiyan≫ Battle Card in play in Rest Mode, your Leader Cards don't take damage from attacks.", {}, { leader: true, bySkill: false, until: "game" }],
+  ["P-234", "[Permanent] If your Leader Card is a blue ≪Saiyan≫ card and you have a blue ≪Saiyan≫ card in play in Rest Mode, your Leader Card doesn't take damage from attacks.", {}, { leader: true, bySkill: false, until: "game" }],
+  ["E3-SPAN", "[Auto] When this card attacks, your Leader doesn't take damage and this card can't be KO'd for the battle.", {}, { leader: true, bySkill: undefined, until: "battle" }],
+] as const) {
+  const rec = record(id, text, o);
+  const ban = opOf(rec, "forbid").find((f) => f.what === "takeDamage");
+  assert.ok(ban, `H: ${id}: a ban on taking damage`);
+  assert.equal(!!ban.target, want.leader, `H: ${id}: …${want.leader ? "the Leader's" : "the player's"}`);
+  assert.equal(ban.side, want.leader ? undefined : "you", `H: ${id}: …whose`);
+  assert.equal(ban.bySkill, want.bySkill, `H: ${id}: …${want.bySkill === false ? "a battle's damage only" : "any damage"}`);
+  assert.equal(ban.until, want.until, `H: ${id}: …for ${want.until}`);
+}
+for (const [id, text] of [
+  ["BT16-070", "[Counter: Attack] Negate the attack, and you don't take damage from your opponent's non-keyword skills for the turn."],
+  ["BT15-141", "[Activate: Main/Battle][Limit 1] If your Leader Card is a black ≪Shadow Dragon≫ card and you place 1 card from your life in your Drop Area: Place the top card of your opponent's deck in their Drop Area, and your Leader Card doesn't take damage from your opponent's attacks until the end of a battle or the end of the turn, whichever comes first."],
+  ["BT11-105", "[Auto] If your Leader Card is a yellow ≪Demon Clan≫ card: When this card is played, activate this skill. During your opponent's next turn, your Leader Cards and Unison Cards don't take damage from attacks of cards that have [Double Strike] or [Triple Strike] skills."],
+] as const) {
+  const recs = skillRecords(card(id, { skill: text }));
+  assert.ok(recs.some((r) => r.unread.some((u) => /take damage/i.test(u))), `H: ${id}: what the language cannot say stays unread`);
+  records++;
+}
+
+// I. The passive play ban with its condition after it.
+for (const id of ["BT9-078", "BT9-079"]) {
+  const rec = record(id, "[Permanent] This card can't be played from any area if you have 2 or less energy.");
+  assert.deepEqual(rec.cond, { kind: "count", sel: { side: "you", area: "energy" }, atMost: 2 }, `I: ${id}: while you have 2 or less energy`);
+  assert.ok(opOf(rec, "forbid").some((f) => f.what === "play" && f.target && "sel" in f.target && f.target.sel.special === "self"), `I: ${id}: …this card can't be played`);
+}
+
 // ── the VM ──────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,
@@ -150,6 +187,9 @@ const defs: Record<string, CardDef> = {
   E3_DRAWER: card("E3_DRAWER", { skill: "[Activate: Main] Draw 1 card." }),
   E3_SKIPPER: card("E3_SKIPPER", { skill: "[Activate: Main] Skip your turn and begin your opponent's Charge Phase" }),
   E3_LATER: card("E3_LATER", { skill: "[Activate: Main] At the end of the turn, draw 2 cards." }),
+  E3_NO_BATTLE_DAMAGE: card("E3_NO_BATTLE_DAMAGE", { skill: "[Permanent] Your Leader Card doesn't take damage from attacks." }),
+  E3_NO_DAMAGE: card("E3_NO_DAMAGE", { skill: "[Permanent] You don't take damage." }),
+  E3_BURN: card("E3_BURN", { skill: "[Activate: Main] Deal 1 damage to your opponent." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
@@ -257,6 +297,25 @@ for (const seat of ["p1", "p2"] as const) {
     assert.ok([a, c1, c2].every((id) => s.sides[seat].zones.battle.includes(id)), `${seat}: E: one limited copy and two of another name stay`);
     cases++;
   }
+  // H. A Leader that doesn't take damage from attacks: the attack hits and nothing moves; a skill's damage still lands.
+  // A player that doesn't take damage takes neither.
+  for (const [def, battle, skill] of [["", 1, 1], ["E3_NO_BATTLE_DAMAGE", 0, 1], ["E3_NO_DAMAGE", 0, 0]] as const) {
+    let s = fresh(seat, seed(5 + (def === "" ? 0 : def === "E3_NO_BATTLE_DAMAGE" ? 1 : 2)));
+    const foe = other(seat);
+    if (def) stage(s, foe, def, "battle");
+    const attacker = stage(s, seat, "V1", "battle");
+    const burn = stage(s, seat, "E3_BURN", "battle");
+    const leader = s.sides[foe].zones.leader[0];
+    const life0 = s.sides[foe].zones.life.length;
+    s = take(s, { type: "attack", player: seat, attacker, target: leader } as Action);
+    s = settle(s);
+    assert.equal(life0 - s.sides[foe].zones.life.length, battle, `${seat}: H: ${def || "no rule"}: the attack takes ${battle} life`);
+    const life1 = s.sides[foe].zones.life.length;
+    s = activate(s, burn);
+    assert.equal(life1 - s.sides[foe].zones.life.length, skill, `${seat}: H: ${def || "no rule"}: the skill's damage takes ${skill} life`);
+    cases++;
+  }
+
   // F. Skip your turn: the Main Phase ends at once, the "at the end of the turn" draw never happens, and the opponent's
   // turn begins with its Charge Phase.
   {

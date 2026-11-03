@@ -3254,6 +3254,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // Phase"); it forbids the action just the same.
   // #930: "you can only play Battle Cards by using [Union-Fusion]" arrives
   // here as "only play …" — the leading "you can" is stripped above.
+  // Audit effects 3: "your Leader Card doesn't take damage …" / "you don't take damage …" (`takeDamage`).
+  if (/\b(?:don'?t|doesn'?t|do not|does not|won'?t|will not) take (?:any )?damage\b/.test(t)) return compileNoDamage(t, c);
   if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b|^only play battle cards\b|^only play (?:<|mono|[a-z]+ cards)|^only use [a-z ,/]+ card skills to place cards under this card\b/.test(t)) {
     const forbid = compileProhibition(t, c);
     if (forbid) return forbid;
@@ -4677,6 +4679,40 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
  * ("non-<Gogeta: GT>", "the skills of red ≪Saiyan≫ cards with 20000 power or
  * less in any of your opponent's areas").
  */
+/**
+ * Audit effects 3: damage that is not taken (20-14, `forbid` of `takeDamage`). "Your Leader Card doesn't take damage
+ * for the battle" (P-263), "your Leader doesn't take damage" (BT25-103) is the Leader; "you don't take damage for the
+ * turn" (BT21-002's back), "…you don't take damage" (BT22-139) is the player — a battle's damage and a skill's alike.
+ * "…from attacks" (SD12-02, P-234) is a battle's damage only (`bySkill: false`), and "…from attacks by their Unison
+ * Cards with [Strike] skills" (BT13-150) only the attacks of those cards (`byFilter`, asked of the attacking card).
+ * Anything else after "from" is refused: "…from your opponent's non-keyword skills" (BT16-070) asks which kind of line
+ * dealt it, which the damage op cannot tell; "…until the end of a battle or the end of the turn whichever comes first"
+ * (BT15-141) is a span the language has no word for; "your Leader Cards and Unison Cards don't take damage …"
+ * (BT11-105) is a Unison's marker loss too (13-5-2).
+ */
+function compileNoDamage(t: string, c: Ctx): Op[] | null {
+  const m = /^(you|your leader(?: cards?)?) (?:don'?t|doesn'?t|do not|does not|won'?t|will not) take (?:any )?damage(?: from (.+?))?(\s+(?:for|during|until)\b.*)?$/.exec(t.trim().replace(/[.]$/, ""));
+  if (!m) return null;
+  const SPAN = /^\s*(?:for the (?:duration of the )?(?:battle|turn)|during (?:this|the) (?:battle|turn)|until the end of (?:the|this|your opponent'?s(?: next)?|your) turn)$/;
+  const span = m[3] ?? "";
+  if (span && !SPAN.test(span)) return null;
+  // 1-7-2-2: a span printed later in the sentence is this clause's too — "your Leader doesn't take damage and your
+  // <Gogeta: GT> card can't be KO'd for the battle" (BT25-103) is for the battle.
+  const sentence = (c.raw.split(/(?<=\.)\s+/).find((s) => /\btake (?:any )?damage\b/i.test(s)) ?? "").trim().replace(/[.]$/, "");
+  const later = span ? null : /\s((?:for the (?:duration of the )?(?:battle|turn)|until the end of (?:the|this|your opponent'?s(?: next)?|your) turn))$/i.exec(sentence);
+  const until = later ? durationOf(later[1].toLowerCase()) : durationOf(t);
+  const who: { side: Side } | { target: Ref } = m[1] === "you" ? { side: "you" } : { target: { sel: { side: "you", area: "leader" } } };
+  if (!m[2]) return [{ op: "forbid", what: "takeDamage", ...who, until }];
+  const from = m[2].trim();
+  if (/^(?:your opponent'?s )?attacks?$/.test(from)) return [{ op: "forbid", what: "takeDamage", ...who, bySkill: false, until }];
+  const by = /^(?:your opponent'?s )?attacks? (?:by|of) (?:their |your opponent'?s )?(.+)$/.exec(from);
+  if (!by) return null;
+  const said = by[1].replace(/\s+skills?$/, "");
+  const filter = filterFor(said, null);
+  if (!filter || unreadFilterWords(said, filter).length) return null;
+  return [{ op: "forbid", what: "takeDamage", ...who, bySkill: false, byFilter: filter, until }];
+}
+
 function compileImmunity(t: string, c: Ctx): Op[] | null {
   const m = /^(.*?)\s*(?:is not|isn'?t)\s+affected by\s+(.+)$/.exec(t);
   if (!m) return null;
@@ -6245,6 +6281,10 @@ export function taxWordings(text: string): string {
     // erratum's own measure: a card of any colour other than red, a red multicolour card included
     // (`parseFilter`'s "with a colour other than").
     .replace(/(^|\]\s*|[.:]\s+)(you can(?:'|no)t play this card from any area) if you have cards in areas other than your deck, hand,? or life that are any colou?r other than (red|blue|green|yellow|black|white)(?=\.|$)/gi, (_m, lead: string, ban: string, colour: string) => `${lead}if you have any cards with a color other than ${colour} in areas other than your deck, hand, or life, ${ban}`)
+    // Audit effects 3: the passive of the same ban — "This card can't be played from any area if you have 2 or less
+    // energy" (BT9-078, BT9-079) — is the condition of the ban, said the way EX06-19's "You can't play this card from
+    // any area if there is an <Android 13> card in play …" is read.
+    .replace(/(^|\]\s*|[.:]\s+)this card can(?:'|no)t be played from any area if ([^,.]+)(?=\.|$)/gi, (_m, lead: string, cond: string) => `${lead}if ${cond}, you can't play this card from any area`)
     // Prohibition batch 6: "…your opponent's [counter] skills and non-keyword
     // [auto]/[activate] skills cannot be activated unless they place 1 card
     // from their life in their Drop Area" (TB1-077): two activation prices,
