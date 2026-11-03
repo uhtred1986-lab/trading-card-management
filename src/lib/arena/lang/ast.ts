@@ -93,6 +93,8 @@ export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   alsoFrom: "places",
   atRandom: "flag",
   ownedByOpponent: "flag",
+  ownedByYou: "flag",
+  charactersNotInPlay: "flag",
   notSelf: "flag",
   differentNames: "flag",
   differentCharacters: "flag",

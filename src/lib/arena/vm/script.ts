@@ -219,6 +219,14 @@ export interface Selector {
    * brought over. Read off the card's owner, not the area it lies in.
    */
   ownedByOpponent?: true;
+  /** Audit conditions 2: "choose up to 1 **card you own** in your opponent's Battle Area" (BT20-114) — only cards the chooser owns, wherever they stand (1-2). */
+  ownedByYou?: true;
+  /**
+   * Audit conditions 2: "…from your deck **with a character name different from any Battle Cards you have in play**"
+   * (EB1-33, BT12-109) — a card none of whose character names is one of the character names of the Battle Cards in the
+   * chooser's Battle Area (2-10-1-1, exact names), read as the choice is made.
+   */
+  charactersNotInPlay?: true;
   /**
    * "Choose all Battle Cards **other than this card**", "play up to 1 ≪Demon
    * Clan≫ card among them **other than copies of this card**". Refusing to
@@ -460,6 +468,10 @@ export function unionVariantOf(using: string | undefined): "Fusion" | "Potara" |
 
 export const perStep = (n: number, per: number | undefined): number => (per && per > 1 ? Math.floor(n / per) : n);
 
+/** How a card was played, as `playedUsing` asks it: a keyword's own play, or (`"skill"`) any skill's (audit conditions 2). */
+export const PLAYED_USING_WHAT = ["Over Realm", "Union", "Union-Fusion", "Union-Potara", "Union-Absorb", "Evolve", "EX-Evolve", "Swap", "Arrival", "Successor", "skill"] as const;
+export type PlayedUsingWhat = (typeof PLAYED_USING_WHAT)[number];
+
 export type Cond =
   | { kind: "count"; sel: Selector; atLeast?: number; atMost?: number }
   | { kind: "life"; side: Side; atLeast?: number; atMost?: number }
@@ -514,16 +526,27 @@ export type Cond =
    * With `sel: subject` on a `youPlayed` [Auto] — "when your <X> card is
    * played by a [Union] skill" (BT22-033, BT25-036 back, P-682) — it is the
    * same gate about the played card (`unionPlayedGate`).
+   *
+   * Audit conditions 2 (3 Nov 2026): the other keywords that play a card — "when you play this card **with [Swap]**"
+   * (BT4-075, BT4-083), "…played **using [Arrival]**" (BT25-129), "…**with [successor]**" (BT9-113), "…**using
+   * [ex-evolve]**" (BT16-075) — are `what: "Swap" | "Arrival" | "Successor" | "EX-Evolve"`, the same lasting memory of a
+   * successful entry by that keyword's own play. `what: "skill"` is a play a skill made: "…**using a skill**" (BT16-051);
+   * `by: "other"` "…by **another card's** skill" (BT20-104), `by: "self"` "…using **this card's** skill" (P-628); `source`
+   * is the card whose skill it was — "…**with the skill of {Majin Buu's Sealed Ball}**" (BT2-028), "…with **<Trunks:
+   * Future> skill**" (BT2-041), "…by a **yellow <Turles> card's** skill" (BT24-100). Under `not` it is "…played **without
+   * using skills**" (BT15-042). As the lone IF of an [Auto] on `played` each is the trigger's own condition, as [Union]'s.
    */
-  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" | "Union-Fusion" | "Union-Potara" | "Union-Absorb" | "Evolve" }
+  | { kind: "playedUsing"; sel: Selector; what: PlayedUsingWhat; by?: "other" | "self"; source?: CardFilter }
   /**
    * "At the end of a turn in which this card was placed in a Battle Area"
    * (BT15-118, 5-5-4): did one of these cards arrive in a Battle Area this
    * turn, played or placed by a skill (5-5-1)? The card's memory of the
    * arrival — set as it lands there from another area, gone when the turn
    * ends or the card changes area (3-1-4).
+   * Audit conditions 2: `played` is "it's the turn when this card was played" (BT23-040) — a successful play this turn
+   * (`VmCard.playedThisTurn`), not a skill's placement.
    */
-  | { kind: "placedThisTurn"; sel: Selector }
+  | { kind: "placedThisTurn"; sel: Selector; played?: true }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
@@ -1734,6 +1757,8 @@ export interface ScriptFrame {
   selfEnteredUsing?: string;
   /** #930: the subject's [Union] entry memory as the [Auto] was triggered (`VmPending.subjectEnteredUsing`, `vm/flow.ts`) — "when your <X> card is played by a [Union] skill" — kept if it left before resolving. Additive: older frames carry none. */
   subjectEnteredUsing?: string;
+  /** Audit conditions 2: the card whose skill played the source (`VmCard.enteredBy`) as the [Auto] was triggered (`VmPending.selfEnteredBy`) — "when you play this card with the skill of {X}" — kept if it left before resolving. Additive: older frames carry none. */
+  selfEnteredBy?: string;
   /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
   skillIndex?: number;
   /** Persisted ID of the timed effect granting this individual keyword skill. */
@@ -2192,6 +2217,8 @@ function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { 
     if (was.fromArea === "energy") {
       h.pend("energyToDropBySkill", id, frame.card);
       if (yours && frame.card && h.areaOf(frame.card) === "leader" && h.masterOf(frame.card) === frame.master) h.pend("yourEnergyToDropByYourLeader", id, id);
+      // Audit conditions 2 review: "…placed in your Drop Area by one of your skills" (XD2-04) — any skill of yours.
+      if (yours) h.pend("yourEnergyToDropByYou", id, id);
     }
     if (was.pileHost) {
       h.pend("underToDropBySkill", id, frame.card);

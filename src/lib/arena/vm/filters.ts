@@ -36,8 +36,8 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import { identityKey, keywordName, keywordsInSkills, parseSkills } from "../text/cards";
-import { emptyFilter, keywordMatchesExact, sparkingTags, type CardFilter } from "../text/filters";
-import type { KeywordSkill, Skill, SkillKindPrefix } from "../types";
+import { emptyFilter, keywordMatchesExact, skillKindHas, sparkingTags, type CardFilter } from "../text/filters";
+import type { KeywordSkill, Skill } from "../types";
 import { FILTER_FIELD_NAMES } from "../lang";
 import type { GameDefinition } from "../rulesets";
 import type { Attrs, AttrValue } from "./cards";
@@ -86,6 +86,7 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   monoColor: { reads: ["colors"] },
   multiColor: { reads: ["colors"] },
   characters: { reads: ["characters"] },
+  charactersMin: { reads: ["characters"] },
   notCharacters: { reads: ["characters"] },
   charactersIncluding: { reads: ["characters"] },
   notCharactersIncluding: { reads: ["characters"] },
@@ -109,6 +110,7 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   keywordsExact: { reads: ["skill"] },
   notKeywordsExact: { reads: ["skill"] },
   noKeywords: { reads: ["skill"] },
+  someKeyword: { reads: ["skill"] },
   skillKind: { reads: ["skill"] },
   type: { reads: ["type"] },
   notType: { reads: ["type"] },
@@ -268,7 +270,7 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
 
   // The text box is read only when something asks about it, which is most
   // filters not at all.
-  if (f.notKeywords.length || f.keywords.length || f.keywordsExact?.length || f.notKeywordsExact?.length || f.noKeywords || f.skillKind) {
+  if (f.notKeywords.length || f.keywords.length || f.keywordsExact?.length || f.notKeywordsExact?.length || f.noKeywords || f.someKeyword || f.skillKind) {
     const skills = parseSkills(text(attrs.skill) ?? null);
     const keywords = keywordsInSkills(skills);
     if (f.notKeywords.some((k) => hasKeyword(keywords, k))) return false;
@@ -280,8 +282,12 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
       if (f.notKeywordsExact?.some((k) => keywordMatchesExact(have, k))) return false;
     }
     if (f.noKeywords && keywords.length) return false;
-    if (f.skillKind && !skills.some((sk) => sk.kind.startsWith(f.skillKind as SkillKindPrefix))) return false;
+    // Audit conditions 2: "with a keyword skill" (EX24-42); "[Activate: Battle]" one timing (BT15-004, `skillKindHas`).
+    if (f.someKeyword && !keywords.length) return false;
+    if (f.skillKind && !skills.some((sk) => skillKindHas(sk.kind, f.skillKind!))) return false;
   }
+  // Audit conditions 2: "with 2 or more character names" (EX24-25).
+  if (f.charactersMin != null && list(attrs.characters).length < f.charactersMin) return false;
 
   const characters = list(attrs.characters);
   const partChars = f.charactersIncluding ?? [];

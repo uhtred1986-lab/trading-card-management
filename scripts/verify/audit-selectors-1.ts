@@ -214,7 +214,9 @@ for (const [text, what, side] of [
 {
   const recs = skillRecords(card("EX15-01", { skill: "[unique][blocker]<br>[union-fusion] Draw 1 card: Red <Son Goku: Br> and red <Vegeta: Br>.<br>[activate: main]{r}{r}{r}: If your Leader Card is a red <Gogeta: Br> card and you have 4 or more energy: Choose up to 1 mono-red <Gogeta: Br> card with an energy cost of 8 or less from your deck or hand, play it on top of this card, then shuffle your deck if you looked through it. You can't activate the [activate: main] skill on copies of this card for the turn." }));
   const line = recs.find((r) => r.skillIndex === 20);
-  assert.ok(line && line.unread.length > 0, /* integration 2: audit-conditions-1 stops it earlier, at its "If …:" inside the effect */ `R: EX15-01 — a play of the Leader is unread (${JSON.stringify(line?.unread)})`);
+  // Audit conditions 2 reads the line whole now (its "If …:" inside the effect is a condition): the card chosen is a
+  // mono-red <Gogeta: Br>, never the Leader.
+  assert.ok(line && line.unread.length === 0 && !opsDeep(line.ops).some((o) => o.op === "choose" && o.sel.special === "leader"), `R: EX15-01 — never a play of the Leader (${JSON.stringify(line?.unread)})`);
 }
 for (const [text, what, clause] of [
   ["[Auto][Limit 1] If your Leader is a yellow Z-Leader or yellow <Son Goku: Childhood> card: When this card is switched to Rest Mode by one of your Leader skills, switch this card to Active Mode, then choose 1 of your yellow <Son Goku: Childhood> cards in Rest Mode that hasn't attacked this turn and switch it to Active Mode. If you do, draw 1 card.", "SD20-05", /hasn't attacked this turn/],

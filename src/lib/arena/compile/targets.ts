@@ -3,7 +3,7 @@ import { maskNames } from "../text/cards";
 import { watchedMomentOf } from "../text/triggers";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
-import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER } from "./shared";
+import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER } from "./shared";
 
 // ── target phrases ─────────────────────────────────────────────────────────
 
@@ -36,6 +36,10 @@ export function selfFrom(phrase: string): Selector {
   // Leader's pile (23-2), and nowhere else.
   // "…play this card from under **one of your Z-Leaders**" (BT21-105, phrasing batch 2): a Z-Leader is your Leader.
   if (/\bthis card from under (?:your|one of your) (?:z-)?leader(?: card)?s?\b/i.test(phrase)) return { special: "self", area: "under", underHost: { side: "you", area: "leader" } };
+  // Audit conditions 2 review: "…then play this card **from under a Battle Card** at the end of your opponent's turn"
+  // (BT28-038): only while it still lies under a Battle Card, either player's (Q&A BT28-038: not from the Drop it was
+  // sent to). Read as "this card" anywhere, the delayed play brought it back from wherever it had gone.
+  if (/\bthis card from under (?:an? |1 )battle card\b(?! with| that| in)/i.test(phrase)) return { special: "self", area: "under", underHost: { side: "both", area: "battle", filter: { ...emptyFilter(), type: "BATTLE" } } };
   const m = SELF_FROM_RE.exec(phrase);
   if (!m) return { special: "self" };
   const areas = [m[1], m[2]].filter((a): a is string => !!a).map((a) => SELF_FROM[a.toLowerCase().replace(/ area$/, "")]);
@@ -477,6 +481,10 @@ function alternativePlaces(phrase: string, looked?: string, pool?: string): Sele
 }
 
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
+  // Audit conditions 2: "…then, at the end of the turn, place **the card you placed in your energy with this skill** in its
+  // owner's Drop Area" (BT10-035): the card the skill's one move to the Energy Area took (`PLACED_IN_ENERGY`, bound by the
+  // compiler as for BT10-054's condition) — read as a description it was every card in the Energy Area.
+  if (/^the card you placed in your energy(?: area)? (?:with|by|using) this skill$/i.test(phrase.trim())) return { fromVar: PLACED_IN_ENERGY, area: "energy" };
   // "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
   // deck flags 26 Oct 2026): the words were read as nothing, so the player
   // picked the cards. The official Q&A: chosen "without player involvement".
@@ -590,6 +598,23 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     const sel = parseTarget(phrase.replace(ownedBy[0], " ").replace(/\s+/g, " ").trim(), looked, pool);
     if (!sel || sel.special || sel.side === "opponent") return null;
     return { ...sel, ownedByOpponent: true };
+  }
+  // Audit conditions 2: "choose up to 1 **card you own** in your opponent's Battle Area" (BT20-114): your own card the
+  // opponent controls (1-2: a card's owner never changes). Dropped, any card there was offered, theirs included.
+  // Audit conditions 2: "…from your deck **with a character name different from any Battle Cards you have in play**"
+  // (EB1-33, BT12-109): a measure against your board as the choice is made (`charactersNotInPlay`). Dropped, a card
+  // sharing a name with one in play was offered.
+  const unlikeInPlay = /\s*,?\s*(?:(?:and|with) )?an? character name different from (?:any|all) (?:of )?(?:the )?Battle Cards you have in play\b/i.exec(phrase);
+  if (unlikeInPlay) {
+    const sel = parseTarget(phrase.replace(unlikeInPlay[0], " ").replace(/\s+/g, " ").replace(/,\s*$/, "").trim(), looked, pool);
+    if (!sel || sel.special) return null;
+    return { ...sel, charactersNotInPlay: true };
+  }
+  const yours = /\b(cards?) (?:that )?you own\b/i.exec(phrase);
+  if (yours) {
+    const sel = parseTarget(phrase.replace(yours[0], yours[1]).replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special) return null;
+    return { ...sel, ownedByYou: true };
   }
   // #930, BT4-018: "…<Baby> with an energy cost of 4 or less **with the same
   // character name as the card you placed under this card** from your deck" -
@@ -1477,6 +1502,8 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     (f.notKeywordsExact?.length ?? 0) > 0 ||
     f.skillKind != null ||
     f.noKeywords ||
+    !!f.someKeyword ||
+    f.charactersMin != null ||
     f.notNames.length > 0 ||
     f.token ||
     f.notToken ||

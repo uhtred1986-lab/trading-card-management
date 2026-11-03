@@ -1077,7 +1077,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return !parseFilter(effect.unmask(m[1])).unreadable;
     }
     case "energyToDrop":
-      return /when a card in your energy is placed in (?:your|its owner's) drop/.test(t);
+      // Audit conditions 2 review: a cause said after it ("…by one of your skills", XD2-04) is another moment's
+      // (`yourEnergyToDropByYou`); read as this one, the opponent's energy burn answered it too.
+      return /when a card in your energy is placed in (?:your|its owner's) drop(?! area by\b| by\b)/.test(t);
     case "unisonToDrop":
       return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your) unison area|when this card in a unison area is placed into its owner's drop/.test(t);
     // #930: "When this card is removed from a Unison Area" (BT31-043): this card
@@ -1219,6 +1221,8 @@ export function momentsBatch1(head: string): { trigger: Trigger; cause?: string;
   // A skill's move out of the Energy Area into the Drop.
   if ((m = /^when this card (?:in your energy(?: area)? is placed|is placed from your energy(?: area)?) (?:in|into) (?:your|its owner'?s|a) drop(?: area)? by (.+?)(?:,|$)/.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "energyToDropBySkill", cause: m[1] }] : [];
   if (/^when (?:one of your energy|a card in your energy(?: area)?) is placed (?:in|into) your drop(?: area)? by your leader(?: card)?'?s skill(?:,|$)/.test(head)) return [{ trigger: "yourEnergyToDropByYourLeader" }];
+  // Audit conditions 2 review: "…by one of your skills" (XD2-01's back, XD2-04): any skill of yours, not the opponent's.
+  if (/^when (?:one of your energy|a card in your energy(?: area)?) is placed (?:in|into) your drop(?: area)? by (?:one of )?your skills?(?:,|$)/.test(head)) return [{ trigger: "yourEnergyToDropByYou" }];
   // 3-1: from a Battle Area by one of your skills; and the Drop reached from anywhere by a skill.
   if (/^when this card (?:in (?:your|a) battle area is placed (?:in|into) (?:your|its owner'?s|a) drop(?: area)?|is placed (?:in|into) (?:your|its owner'?s|a) drop(?: area)? from (?:a|your|the) battle area) by (?:one of )?your skills?(?:,|$)/.test(head)) return [{ trigger: "droppedFromBattleByYou" }];
   if ((m = /^when this card is placed (?:in|into) (?:your|its owner'?s|a) drop(?: area)? by (.+?)(?:,|$)/.exec(head))) return bySide(m[1], "toDropBySkill", "toDropByYou", "toDropByOpponent");

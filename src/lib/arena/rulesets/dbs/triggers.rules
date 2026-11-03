@@ -1122,6 +1122,14 @@ DEFINE TRIGGER yourEnergyToDropByYourLeader
   BIND "subject"
   text: "when your Leader's skill places one of your energy in the Drop"
 
+-- Audit conditions 2 review: "When a card in your energy is placed in your Drop Area by one of your skills" (XD2-01's
+-- back, XD2-04) — any skill of yours, never the opponent's; pended by name as the Leader's one is (`yourSkill` is
+-- the name's own mark, so a plain move that says `by: skill` is not answered twice).
+DEFINE TRIGGER yourEnergyToDropByYou
+  ON moved(by: skill, yourSkill: true, byOpponent: false, from: energy, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when one of your skills places one of your energy in the Drop"
+
 -- §3-1: "by one of your skills" from a Battle Area (BT18-023), and the Drop
 -- reached from any area by a skill (P-421), yours (P-701), theirs (BT30-058).
 -- A skill's KO is a move to the Drop too (5-12-1): its native move carries the

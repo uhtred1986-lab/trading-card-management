@@ -259,7 +259,8 @@ function leaderTailHoldsAClause(tail: string): boolean {
   // (`splitDisjunction` cuts at the "or"), it is not a clause of its own. A verb
   // that follows a comma or "and" still is one, so those stay refused.
   const bare = tail.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "x").replace(/\bor\s+(?:is|has)\b/g, "or");
-  return /\b(?:is|are|has|have|had|you|your|there|send|place|choose|discard|return|put|switch|remove|draw|add|play|activate)\b/.test(bare) || /(?:,|\band\b|\bor\b)\s+(?:at least\s+)?\d/.test(bare);
+  // Audit conditions 2: "…and it's the turn when this card was played" (BT23-040) is a clause too.
+  return /\b(?:is|are|has|have|had|you|your|there|send|place|choose|discard|return|put|switch|remove|draw|add|play|activate|it['’]s|was|were)\b/.test(bare) || /(?:,|\band\b|\bor\b)\s+(?:at least\s+)?\d/.test(bare);
 }
 
 /**
@@ -410,6 +411,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       if (!filter.unreadable) return { cond: { kind: "count", sel: { special: measured[1] === "the attacking card" ? "attacker" : "subject", filter }, atLeast: 1 } };
     }
   }
+  // Audit conditions 2: "…**and it's the turn when this card was played**: When this card attacks" (BT23-040): the card
+  // was played this turn (`placedThisTurn` with `played`) — a play, not a skill's placement.
+  if (/^it'?s the turn (?:when|in which) (?:this card|it) was played$/.test(t.replace(/’/g, "'"))) return { cond: { kind: "placedThisTurn", sel: { special: "self" }, played: true } };
   // EX04-04 (prohibition batch 6): "if you played this card with [evolve]" —
   // the copy entered by an evolution of any kind (22-5-2-2), while it stays.
   if (/^(?:you played (?:this card|it)|(?:this card|it) was played) (?:using|with|by) (?:an? |the )?\[evolve\](?: skill)?$/.test(t)) {
@@ -532,7 +536,13 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // (life or energy) and the rest (#728).
   // #907 round 4: the "and" between two names of one count ("1 or more <A> and <B> cards in your
   // Combo Area", BT19-035b) is the list's own, read whole by the each-name reading above.
-  const holdNames = (s: string) => s.replace(new RegExp(`((?:${NAMED_CARD},?\\s+)*${NAMED_CARD}) and (${NAMED_CARD})(?=\\s+cards?\\s+(?:in|among)\\b)`, "gi"), "$1\u0001$2");
+  // Audit conditions 2 review: so is an "and" inside a qualifier set off by dashes — "you have 2 or more energy and a
+  // <Son Goku>, <Vegeta>, or <Trunks: Future> card**—all red and with [EX-Evolve]—**in play" (BT19-001's [Awaken]). Cut
+  // there, the halves read as 2 or more energy named <Son Goku> or <Vegeta>, or 2 or more red <Trunks: Future> cards.
+  const holdNames = (s: string) =>
+    s
+      .replace(new RegExp(`((?:${NAMED_CARD},?\\s+)*${NAMED_CARD}) and (${NAMED_CARD})(?=\\s+cards?\\s+(?:in|among)\\b)`, "gi"), "$1\u0001$2")
+      .replace(/([—―–])([^—―–]*)([—―–])/g, (_w, open: string, inside: string, close: string) => open + inside.replaceAll(" and ", "\u0001") + close);
   const unhold = (s: string) => s.replaceAll("\u0001", " and ");
   // #930, P-226: "you have only <Son Goten: GT> cards in play **or no Battle
   // Cards in play**". The "or" has no subject after it, so the split below
@@ -615,7 +625,10 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       // or more {Support Broadcast} cards in the Energy Area.
       const namedPlaced = /^(?:\{[^}]+\}|<[^>]+>|≪[^≫]+≫)(?: cards?)? in (?:your|their|your opponent'?s) /.test(half);
       const namesACard =
-        (/^(?:an?|\d+ or (?:more|less|fewer)) /.test(half) || namedPlaced) &&
+        // Audit conditions 2 review: "…2 or more energy **and both <Son Goku: GT> and <Vegeta: GT> cards in your
+        // Z-Energy**" (BT18-001's [Awaken]) opens on "both" and carries the "you have" the same way; read bare it fell to
+        // the count below, which made the whole one count of 2 energy cards with both names.
+        (/^(?:an?|both|\d+ or (?:more|less|fewer)) /.test(half) || namedPlaced) &&
         !/\b(?:has|have|is|are)\b/.test(half) &&
         /\b(?:cards?|unisons?|z-unisons?|extras?|z-extras?|leaders?|energy)\b|\{[^}]+\}|<[^>]+>|≪[^≫]+≫/.test(half) &&
         !/^an? (?:energy|combo) cost\b|^an? specified cost\b/.test(half);
@@ -972,7 +985,10 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // this card attacks **your opponent's Leader**" (BT21-034): the guard card of the battle, as "when this card attacks a
   // Battle Card" is read as a moment (BT2-029). Read as "is attacking", an attack on the Leader passed for one on a
   // Battle Card and the other way round. Any other object is still not read.
-  if (!/\b(?:can'?t|cannot|can|won'?t|will not|may|must|should|would)\s+(?:only\s+)?attacks?\b/.test(t) && (m = /^(.+?) attacks? (.+)$/.exec(t))) {
+  // Audit conditions 2 review: "attack" after an article or a possessive is the noun — "if you haven't added life to
+  // your hand due to **an opponent's attack** this turn" (BT10-038) is history no condition holds, not a card of your
+  // hand attacking (which never held, so the play never came).
+  if (!/\b(?:can'?t|cannot|can|won'?t|will not|may|must|should|would)\s+(?:only\s+)?attacks?\b/.test(t) && !/(?:\b(?:an?|the|your|their|its)|'s?)\s+attacks?\b/.test(t) && (m = /^(.+?) attacks? (.+)$/.exec(t))) {
     const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
     if (sel) {
       delete sel.count;
@@ -1326,6 +1342,9 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
     return { cond: /^(?:is|are)$/.test(m[2]) ? { kind: "count", sel: counted, atLeast: 1 } : { kind: "count", sel: counted, atMost: 0 }, subject: { sel } };
   }
   if ((m = /^all your energy is (.+)$/.exec(t))) return parseConditionClause(`all of your energy is ${m[1]}`, true);
+  // Audit conditions 2: "if you have **only** black cards in your energy" (BT8-104) is every card there black, as "all of
+  // your energy is black" says it — read as a count it held with one black card among others.
+  if ((m = /^you (?:have only|only have) ((?:mono-)?(?:red|blue|green|yellow|black|white)) cards in your energy(?: area)?$/.exec(t))) return parseConditionClause(`all of your energy is ${m[1]}`, true);
   // Phrasing batch 2: "your Leader Card and **all of your energy is** blue" (BT16-045, BT16-069), "your Leader and all
   // of your energy are **mono-yellow ≪Universe 6≫ cards**" (BT23-124, EB1-46): the same two conditions.
   if ((m = /^your leader(?: card)? and all (?:of )?your energy (?:is|are) (.+)$/.exec(t))) {
@@ -1467,6 +1486,11 @@ function parseCountCondition(t: string): Cond | null {
   // Damage Step**" (BT21-034): a count asked at a later moment, which no condition can wait for. Read now, the Combo
   // Area was always empty when the attack was declared. Refused until a delayed check exists.
   if (/\bat the (?:beginning|start|end) of\b/.test(said)) return refuseCount();
+  // Audit conditions 2: "you have 3 or more energy **and the total** ≪Turles Crusher Corps≫ cards with different card
+  // names among all cards in your Z-Energy, Battle Area, and Drop **is 5 or more**" (EX23-22): a second count, of names
+  // across three areas, said after "and the total … is N or more" — read into the first, it became one count of
+  // Turles in the energy. Refused until a total of names across areas has a reading.
+  if (/\band the total\b|\bis \d+ or (?:more|less)$/.test(said)) return refuseCount();
   // …and "you have **placed** a card in your Energy Area during your Charge Phase this turn" (EX03-27) is something
   // the player did, not cards they have: a past participle after "have" is history, read as a count of the place
   // named it held whenever the player had any energy at all.
@@ -1590,6 +1614,11 @@ function parseCountCondition(t: string): Cond | null {
   // brings a colour of its own, or a part that is not a bare name, is left alone.
   const sharedColour = parts.length > 1 ? /^(?:(?:mono-)?(?:red|blue|green|yellow|black|white)\s+)+(?=[<≪{])/i.exec(parts[0])?.[0] : undefined;
   if (sharedColour) for (let i = 1; i < parts.length; i++) if (/^[<≪{]/.test(parts[i])) parts[i] = sharedColour + parts[i];
+  // Audit conditions 2: "your opponent has a **skill-less** Battle Card or Unison in play" (P-451): the quality said
+  // once before a pair of card kinds is every kind's, as BT15-125's "a skill-less Battle Card or Unison Card" is read
+  // (round 1). Cut at the "or", any Unison counted.
+  const sharedQuality = parts.length > 1 ? /^(?:an?\s+)?((?:originally\s+)?skill-less\s+)(?=(?:z-)?(?:battle|unison|extra)\b)/i.exec(parts[0])?.[1] : undefined;
+  if (sharedQuality) for (let i = 1; i < parts.length; i++) if (/^(?:an?\s+)?(?:z-)?(?:battle cards?|unisons?|unison cards?|extras?|extra cards?)\b/i.test(parts[i])) parts[i] = parts[i].replace(/^(an?\s+)?/i, (a) => `${a}${sharedQuality}`);
   if (parts.length > 1) {
     // Phrasing batch 2: "…red ≪God≫ or ≪Alien≫ cards in play in your Battle Area **other than this card**" (DB1-006):
     // the exclusion closes the shared area and is shared with it — left on the last part alone, the first part
@@ -1655,4 +1684,67 @@ function parseCountCondition(t: string): Cond | null {
   if (none) return { kind: "count", sel, atMost: 0 };
   if (!num) return { kind: "count", sel, ...(bare && bare[1] === "0" ? { atMost: 0 } : { atLeast: bare ? Number(bare[1]) : 1 }) };
   return { kind: "count", sel, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
+}
+
+/**
+ * Audit conditions 2 (3 Nov 2026): how the play an [Auto] answers had to be made — the words after "when you play this
+ * card" / "when this card is played" that say it. Read as a plain `played` before, every one of these fired on an
+ * ordinary play too:
+ * - a keyword's own play: "…**with [Swap]**" (BT4-075, BT4-083), "…**using [Arrival]**" (BT25-129), "…**with
+ *   [successor]**" (BT9-113), "…**by [evolve]**" (BT19-009), "…**using [ex-evolve]**" (BT16-075);
+ * - "…**with Evolve by placing it on top of {Maiden Squadron Leader Ribrianne}**" (P-052): an evolution onto that card,
+ *   which stays under this one (22-5);
+ * - a skill's play: "…**using a skill**" (BT16-051), "…**by another card's skill**" (BT20-104), "…**using this card's
+ *   skill**" (P-628), "…**with the skill of {Majin Buu's Sealed Ball}**" (BT2-028), "…**with <Trunks: Future> skill**"
+ *   (BT2-041), "…**by a yellow <Turles> card's skill**" (BT24-100);
+ * - "…**without using skills**" (BT15-042, BT28-040) and "…**without using a <Rasin> card's skills**" (BT24-104);
+ * - "…**during your opponent's turn**" (BT9-058, BT7-058, P-138): whose turn it is as the card is played.
+ * `undefined` when the trigger says none of these (or is not about this card's own play); `null` when it says how but in
+ * words this cannot read whole — the caller refuses the skill rather than firing it on every play.
+ */
+export function playedHowGate(trigger: string): Cond | null | undefined {
+  const t = trigger.trim().replace(/[.,:]$/, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/’/g, "'");
+  const head = /^when (?:you play this card|this card is played) (.+)$/i.exec(t);
+  if (!head) return undefined;
+  const how = head[1].trim();
+  const self = { special: "self" } as const;
+  const lower = how.toLowerCase();
+  // "…played **by** [over realm]" (P-450), "…by an [Over Realm] skill" (EX23-43): the moment `playedUsingOverRealm`
+  // reads only "using" and "with", so these arrive as a plain `played`, and the gate is [Over Realm]'s play.
+  if (/^by (?:an? |the )?\[over realm\](?: skills?)?$/.test(lower)) return { kind: "playedUsing", sel: self, what: "Over Realm" };
+  // Said elsewhere: [Union] (`UNION_PLAY_TRIGGER`), [Over Realm] (its own moment), and where the card came from.
+  if (/\[(?:union|dark over realm|over realm)\b/.test(lower) || /^from your (?:hand|drop|deck|warp)\b/.test(lower)) return undefined;
+  const turn = /^during your (opponent's )?turn$/.exec(lower);
+  if (turn) return turn[1] ? { kind: "isTurnPlayer", who: "opponent" } : { kind: "isTurnPlayer" };
+  const keyword = /^(?:using|with|by) (?:an? |the )?\[(swap|arrival|successor|ex-evolve|evolve)\](?: skills?)?$/.exec(lower);
+  if (keyword) {
+    const what = ({ swap: "Swap", arrival: "Arrival", successor: "Successor", "ex-evolve": "EX-Evolve", evolve: "Evolve" } as const)[keyword[1] as "swap"];
+    return { kind: "playedUsing", sel: self, what };
+  }
+  const onto = /^with evolve by placing it on top of (.+)$/i.exec(how);
+  if (onto) {
+    const base = filterFor(onto[1], null);
+    if (!base) return null;
+    return { kind: "all", conds: [{ kind: "playedUsing", sel: self, what: "Evolve" }, { kind: "count", sel: { side: "you", area: "under", filter: base }, atLeast: 1 }] };
+  }
+  if (/^(?:using|with|by) (?:a |one of your )?skills?$/.test(lower)) return { kind: "playedUsing", sel: self, what: "skill" };
+  if (/^(?:using|with|by) another card's skills?$/.test(lower)) return { kind: "playedUsing", sel: self, what: "skill", by: "other" };
+  // "…using this card's skill" (P-628); "…using its [Counter: Attack] skill" (BT13-135) is the same card's own line.
+  if (/^(?:using|with|by) (?:this card's|its) (?:own )?(?:\[[^\]]+\] )?skills?$/.test(lower)) return { kind: "playedUsing", sel: self, what: "skill", by: "self" };
+  const without = /^without using (?:(?:an? |the )?(.+?)(?: card)?'s )?skills?$/i.exec(how);
+  if (without) {
+    if (!without[1]) return { kind: "not", cond: { kind: "playedUsing", sel: self, what: "skill" } };
+    const source = filterFor(without[1], null);
+    return source ? { kind: "not", cond: { kind: "playedUsing", sel: self, what: "skill", source } } : null;
+  }
+  const whose = /^(?:using|with|by) (?:the skills? of (?:an? |the )?(.+)|(?:an? |the |your )?(.+?)(?: card)?'s skills?|(?:an? |the |your )?(<[^>]+>|\{[^}]+\}) skills?)$/i.exec(how);
+  if (whose) {
+    const said = (whose[1] ?? whose[2] ?? whose[3]).trim();
+    // "…a [successor] skill that was activated by choosing …" (BT21-145) and other tails are not a card's description.
+    if (/\[|\bthat\b|\bwhich\b/i.test(said)) return null;
+    const source = filterFor(said, null);
+    return source ? { kind: "playedUsing", sel: self, what: "skill", source } : null;
+  }
+  // Any other "with …" / "using …" / "by …" says how in words not read here.
+  return /^(?:using|with|by|without)\b/i.test(how) ? null : undefined;
 }

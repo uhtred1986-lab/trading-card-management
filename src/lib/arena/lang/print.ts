@@ -186,6 +186,8 @@ export function printSelector(sel: Selector): string {
   for (const alt of sel.alsoFrom ?? []) parts.push(`ALSO (${printSelector(alt)})`);
   if (sel.atRandom) parts.push("atRandom");
   if (sel.ownedByOpponent) parts.push("ownedByOpponent");
+  if (sel.ownedByYou) parts.push("ownedByYou");
+  if (sel.charactersNotInPlay) parts.push("charactersNotInPlay");
   if (sel.notSelf === "card") parts.push("otherThanSelf");
   else if (sel.notSelf === "copies") parts.push("otherThanCopies");
   else if (sel.notSelf === "name") parts.push("otherThanSameName");
@@ -213,8 +215,10 @@ function printFilterValue(kind: FilterFieldType, v: unknown): string {
       return `[${(v as string[]).map(atom).join(", ")}]`;
     case "colors":
       return `[${(v as string[]).join(", ")}]`;
-    case "cardType":
+    // Audit conditions 2: "activate:battle" carries a colon, so it is quoted.
     case "skillKind":
+      return v === null ? "null" : atom(v as string);
+    case "cardType":
     case "tri":
     case "number":
       return v === null ? "null" : String(v);

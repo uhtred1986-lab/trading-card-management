@@ -361,6 +361,7 @@ const STEP_WORK: Record<string, Work> = {
         delete inst.playedUsing;
         // 5-5-4: so is "a turn in which this card was placed in a Battle Area".
         delete inst.placedThisTurn;
+        delete inst.playedThisTurn;
       }
       // 22-44-3 (#741): "during the same turn" — the count a master keeps of
       // each [Limit X] line across copies is over with the turn too.
@@ -911,6 +912,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // #930: how the card was played, as it was when this Auto was triggered.
     ...(next.selfEnteredUsing ? { selfEnteredUsing: next.selfEnteredUsing } : {}),
     ...(next.subjectEnteredUsing ? { subjectEnteredUsing: next.subjectEnteredUsing } : {}),
+    ...(next.selfEnteredBy !== undefined ? { selfEnteredBy: next.selfEnteredBy } : {}),
     skillIndex: next.skillIndex,
     usage: skill?.usage as import("./usage").UsageRecord,
     validity: skill?.validity as import("./validity").ValidityRecord,

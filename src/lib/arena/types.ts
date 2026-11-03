@@ -1183,6 +1183,8 @@ export type Trigger =
   | "energyToDropBySkill"
   /** "When one of your energy is placed in your Drop by your Leader's skill" (EX22-03): your Leader's skill, the energy the subject. */
   | "yourEnergyToDropByYourLeader"
+  /** "When a card in your energy is placed in your Drop Area by one of your skills" (XD2-04): any skill of yours, the energy the subject. */
+  | "yourEnergyToDropByYou"
   /** "When this card is placed in your Drop from a Battle Area by one of your skills" (BT18-023). */
   | "droppedFromBattleByYou"
   /** "When this card is placed in your Drop by a skill" (P-421): from any area; the skill's card is the subject. */
@@ -1695,6 +1697,8 @@ export interface Replacement {
    * you may … instead" (BT10-036, BT10-047) — so it answers only when that
    * card is the one being taken, and is read while that card lies in the Life
    * Area (9-1-3-3). Absent, the rule is about whichever life card is taken.
+   * Audit conditions 2: a card face up in the life is not *revealed* as it is
+   * taken (Q&A BT10-036, BT10-040), so it is never offered for one.
    */
   lifeSelf?: true;
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */

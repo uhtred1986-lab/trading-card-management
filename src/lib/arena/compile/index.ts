@@ -14,7 +14,7 @@ import type { CardFilter } from "../text/filters";
 import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
-import { allConditions, parseConditionClause } from "./conditions";
+import { allConditions, parseConditionClause, playedHowGate } from "./conditions";
 import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, taxWordings } from "./effects";
 import { bondDescriptorOnly } from "../text/bond";
 import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
@@ -380,7 +380,29 @@ function compileQuotedSkill(quoted: Skill): Script {
   return script;
 }
 
-function compileSkillWithoutDeckBuilding(skill: Skill): Script {
+/**
+ * Audit conditions 2 (3 Nov 2026): "[activate: main]{r}{r}{r}: **If your Leader Card is a red <Gogeta: Br> card and you
+ * have 4 or more energy:** Choose up to 1 …" (EX15-01): after the price's own colon, a condition the effect closes with a
+ * colon of its own — the same condition said with a comma ("If …, choose …"), asked as the effect resolves. Read as
+ * printed, the second colon left the condition's last half and the whole effect unread. Only an [Activate] or [Counter]
+ * line whose effect opens on "If", and only a colon in the effect's first sentence outside any name.
+ */
+function effectConditionColon(skill: Skill): Skill {
+  if (!skill.cost || !/^(?:activate|counter)/.test(skill.kind) || !/^if\b/i.test(skill.effect.trim())) return skill;
+  const e = skill.effect.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  let depth = 0;
+  for (let i = 0; i < e.length; i++) {
+    const ch = e[i];
+    if ("([{<≪".includes(ch)) depth++;
+    else if (")]}>≫".includes(ch)) depth = Math.max(0, depth - 1);
+    else if (depth === 0 && ch === ".") return skill;
+    else if (depth === 0 && ch === ":") return { ...skill, effect: `${e.slice(0, i)},${e.slice(i + 1)}` };
+  }
+  return skill;
+}
+
+function compileSkillWithoutDeckBuilding(given: Skill): Script {
+  const skill = effectConditionColon(given);
   if (isPotaraSkill(skill) && !compilePotaraMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [POTARA_REBUILD] };
   if (needsEvolutionContract(skill) && !compileEvolutionBase(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [EVOLUTION_REBUILD] };
   if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
@@ -1098,6 +1120,16 @@ function compileSkillText(skill: Skill): Script {
     // attacks" (BT4-019) has no gate for one half and stays refused.
     const unionPlay = UNION_PLAY_TRIGGER.exec(trigger.trim());
     if (unionPlay) triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: unionPlay[1] ? UNION_VARIANT[unionPlay[1].toLowerCase() as keyof typeof UNION_VARIANT] : "Union" };
+    // Audit conditions 2: how else the play had to be made — "with [Swap]", "using [Arrival]", "with the skill of
+    // {Majin Buu's Sealed Ball}", "without using skills", "during your opponent's turn" (`playedHowGate`). Words it
+    // cannot read whole refuse the skill: answering every play is wider than the card.
+    const how = skill.kind === "auto" && !unionPlay ? playedHowGate(trigger) : undefined;
+    if (how === null) return { ops: [], unsupported: [trigger, ...clauses] };
+    if (how) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, how] } : how;
+    // Audit conditions 2: "When this card **attacks twice in the same turn**" (EX01-04): the moment is the attack, and it
+    // has to be this card's second this turn (`attacked`, the count [Dual Attack] keeps). Dropped, the first attack
+    // already gave [Double Strike].
+    if (skill.kind === "auto" && /^when this card attacks twice in (?:the same|a single|one) turn[.,]?$/i.test(trigger.trim())) triggerCond = { kind: "attacked", sel: { special: "self" }, atLeast: 2 };
     // "At the end of a turn in which this card was placed in a Battle Area"
     // (BT15-118, 5-5-4): the moment is every turn's end (`turnEnd` and
     // `opponentTurnEnd`), and the rest of the sentence is a condition on it —
@@ -1150,10 +1182,14 @@ function compileSkillText(skill: Skill): Script {
     if (discardCause) {
       const cause = filterFor(discardCause, null);
       if (!cause) return { ops: [], unsupported: [trigger, ...clauses] };
-      const subject = { special: "subject" } as const;
-      triggerCond = { kind: "any", conds: [
-        { kind: "not", cond: { kind: "count", sel: subject, atLeast: 1 } },
-        { kind: "count", sel: { ...subject, filter: cause }, atLeast: 1 },
+      // Audit conditions 2: "…discarded by **your** Leader's skill" (P-491) is your own Leader's skill, not the
+      // opponent's; and a moment that is the discard alone ("When this card is discarded by …") has no play half, so a
+      // discard naming no card is not let through as one.
+      const subject = { special: "subject", ...(/\bdiscarded by (?:your|one of your) /i.test(trigger) ? { side: "you" as const } : {}) } as const;
+      const has: Cond = { kind: "count", sel: { ...subject, filter: cause }, atLeast: 1 };
+      triggerCond = /^when this card is discarded by\b/i.test(trigger.trim()) ? has : { kind: "any", conds: [
+        { kind: "not", cond: { kind: "count", sel: { special: "subject" }, atLeast: 1 } },
+        has,
       ] };
     }
     // "When this card is [played or] switched to Rest Mode by one of your yellow
@@ -1196,6 +1232,10 @@ function compileSkillText(skill: Skill): Script {
       triggerCond = { kind: "inBattle", sel: { area: kind === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
       if (kind === "battle") c.attacksBattleCard = true;
     }
+    // Audit conditions 2: "When this card attacks **a Leader or Unison**" (BT18-059): the guard is the opponent's Leader or
+    // one of their Unisons — either; read with no guard at all the skill answered an attack on a Battle Card too.
+    if (/^when this card attacks (?:an? |your opponent'?s )?leader(?: card)? or (?:an? )?unison(?: card)?[.,]?$/i.test(trigger.trim()))
+      triggerCond = { kind: "any", conds: [{ kind: "inBattle", sel: { area: "leader", side: "opponent" }, role: "guard" }, { kind: "inBattle", sel: { area: "unison", side: "opponent" }, role: "guard" }] };
     // Audit triggers 1: "At the end of the battle **for this card**" (BT25-039's wording), "…a battle **in which this card
     // attacked**", "…**after this card attacks**", "…**in which this card was attacked**" (8-5): the moment is every
     // battle's end (`battleEnd`), and this card's part in the battle is a condition on it — dropped, the skill answered

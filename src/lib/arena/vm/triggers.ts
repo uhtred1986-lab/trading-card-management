@@ -125,6 +125,11 @@ export interface VmPending {
    * entry pended about it; older entries carry none.
    */
   subjectEnteredUsing?: string;
+  /**
+   * Audit conditions 2: the answering card's memory of the skill whose play landed it (`VmCard.enteredBy`) as the
+   * skill was triggered — "when you play this card with the skill of {X}" (BT2-028) — taken as `selfEnteredUsing` is.
+   */
+  selfEnteredBy?: string;
 }
 
 /** A captured declarative effect hook awaiting the same 9-6-6 checkpoint as an [Auto]. */
@@ -478,6 +483,26 @@ export function unionPlayedGate(ops: readonly Op[] | undefined, who: "self" | "s
 }
 
 /**
+ * Audit conditions 2 (3 Nov 2026): every question about how a play was made that the record's leading chain of plain
+ * IFs asks of `who` — `playedUsing` of any `what` ("when you play this card with [Swap]", BT4-083; "…with the skill of
+ * {Majin Buu's Sealed Ball}", BT2-028), or its `not` ("…played without using skills", BT15-042), alone or inside an
+ * `all`. The [Union] gate above is one of these; `resolvePlay` asks them all of the play that pended the [Auto], so a
+ * play that does not answer them is no trigger (9-6-2). For the card's own play, whose turn it is is asked too — "when
+ * you play this card during your opponent's turn" (BT9-058): played on your own turn the [Auto] is never pended and
+ * its price is never asked. Empty for any other shape.
+ */
+export function playGates(ops: readonly Op[] | undefined, who: "self" | "subject"): Cond[] {
+  const out: Cond[] = [];
+  const about = (c: Cond) => c.kind === "playedUsing" && c.sel.special === who && !c.sel.filter;
+  const visit = (cond: Cond): void => {
+    if (cond.kind === "all") { for (const c of cond.conds) visit(c); return; }
+    if (about(cond) || (cond.kind === "not" && about(cond.cond)) || (who === "self" && cond.kind === "isTurnPlayer")) out.push(cond);
+  };
+  for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) visit(at[0].cond);
+  return out;
+}
+
+/**
  * Queue every [Auto] that answers to this moment (9-6-2), and say which.
  *
  * Appends to `state.pending` in the order the declarations were read; the
@@ -676,7 +701,8 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
         ...(movementInfo && match.subject ? { subjectInfo: movementInfo } : {}),
         ...(cleanupOccurrence && match.trigger === "comboToDrop" ? { cleanupOccurrence } : {}),
-        ...(state.cards[match.card]?.enteredUsing ? { selfEnteredUsing: state.cards[match.card].enteredUsing } : {}) };
+        ...(state.cards[match.card]?.enteredUsing ? { selfEnteredUsing: state.cards[match.card].enteredUsing } : {}),
+        ...(state.cards[match.card]?.enteredBy !== undefined ? { selfEnteredBy: state.cards[match.card].enteredBy } : {}) };
       state.pending.push(pending);
       pended.push(pending);
     }

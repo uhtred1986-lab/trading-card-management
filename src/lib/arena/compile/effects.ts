@@ -616,12 +616,14 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
   // Area too (5-12-1), so it answers that as well (`skillOrKoBySkill`) —
   // never the battle's KO.
   // "…by one of your skills" is the card's controller's skill (`bySide: you`).
+  // Audit conditions 2: and only a move **to the Drop Area** (`requestedTo: drop`) — a skill of yours returning it to
+  // the hand or the deck is no such move, and was sent to the Warp instead.
   const droppedBySkill = /^(?:if|when)?\s*(.*?) in (?:your |the )?battle area would be placed in (?:its owner'?s?|their owners?'?s?|your|their) drop area by (a|one of your) skills?$/.exec(t);
   if (droppedBySkill) {
     const who = droppedBySkill[1].trim();
     const mine = droppedBySkill[2] === "one of your" ? ({ bySide: "you" } as const) : null;
-    if (/^(?:this card|it)$/.test(who)) return { by: "skillOrKoBySkill", ...mine };
-    return who ? { by: "skillOrKoBySkill", ...mine, subject: who } : { by: "skillOrKoBySkill", ...mine };
+    if (/^(?:this card|it)$/.test(who)) return { by: "skillOrKoBySkill", ...mine, requestedTo: "drop" };
+    return who ? { by: "skillOrKoBySkill", ...mine, subject: who, requestedTo: "drop" } : { by: "skillOrKoBySkill", ...mine, requestedTo: "drop" };
   }
   // #920: the official DB2 errata names both valid source areas and no
   // cause/destination restriction. Keep these areas on the redirect rather
@@ -3284,8 +3286,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // "Use up to 1 green card with 5000 combo power from your Drop in a combo
   // with its skills negated for the battle", "use this card from your Drop in
   // a combo", "combo with it" (5-7).
+  // Audit conditions 2 review: "…from under your Battle Cards or Z-Unisons**—both black—in** a combo" (BT24-112's back)
+  // prints no space after the closing dash; read with one, the aside is every host's ("both black"), where the words
+  // ran into the description and the black stayed on the Z-Unison.
   if (
-    (m = /^(?:use|combo with) (.+?)(?: from (?:your|their) (drop|warp|hand)(?: area)?)?(?: in a combo)?(?: from (?:your|their) (drop|warp|hand)(?: area)?)?( with (?:its|their) skills negated)?$/.exec(
+    (m = /^(?:use|combo with) (.+?)(?: from (?:your|their) (drop|warp|hand)(?: area)?)?(?:(?: |(?<=[—―–]))in a combo)?(?: from (?:your|their) (drop|warp|hand)(?: area)?)?( with (?:its|their) skills negated)?$/.exec(
       q,
     )) &&
     /\bcombo\b/.test(t)
@@ -4643,15 +4648,26 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
     return [{ op: "forbid", what: "attack", side: "opponent", until: "nextTurn", uses: 1, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
   }
-  const counted = /^(you|your opponent'?s?)\s+can only attack(?: with (.+?))?\s+(one|\d+) more times?(?: with (.*?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
+  // Audit conditions 2 review: the "with …" may follow the span — "your opponent can only attack one more time **for the
+  // turn with a Battle Card or Unison Card with 20000 power or more**" (BT15-058); the span's tail swallowed it, and the
+  // budget fell on every attack, the Leader's included (Q&A BT15-058: the Leader may still attack).
+  const counted = /^(you|your opponent'?s?)\s+can only attack(?: with (.+?))?\s+(one|\d+) more times?(?: with (.*?))?(?:\s+for (?:the turn|the duration of the turn) with (.+))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
   if (counted) {
     const side: Side = counted[1] === "you" ? "you" : "opponent";
-    const withWhat = counted[2] ?? counted[4];
+    const withWhat = counted[2] ?? counted[4] ?? counted[5];
     const uses = counted[3] === "one" ? 1 : Number(counted[3]);
     if (!(uses >= 1)) return null;
-    const filter = withWhat ? filterFor(withWhat, null) : undefined;
+    // Audit conditions 2 review (R-232): a measure said once after two kinds of attacker — "…with a Battle Card or Unison
+    // Card **with 20000 power or more**" (BT15-058) — is both kinds' measure; read by the description reader it stayed on
+    // the Unison, and every Battle Card's attack spent the budget. Only kinds that attack (Leader, Battle, Unison).
+    const KIND = "(?:battle cards?|unison cards?|unisons?|leader cards?)";
+    const kinds = withWhat ? new RegExp(`^(?:an? )?(${KIND}(?:,? or (?:an? )?${KIND})+) (with .+)$`, "i").exec(withWhat) : null;
+    const shared = kinds ? kinds[1].split(/,? or (?:an? )?/i).map((k) => filterFor(`${k} ${kinds[2]}`, null)) : null;
+    if (shared?.some((f) => !f)) return null;
+    const filter = shared ? { ...parseFilter(""), anyOf: shared as CardFilter[] } : withWhat ? filterFor(withWhat, null) : undefined;
     if (filter === null) return null;
-    const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
+    // A description of two kinds ("a Battle Card or Unison Card …") keeps both; the type is added only to a lone one.
+    const type = !withWhat || filter?.type || filter?.anyOf?.length ? null : /\bleader cards?\b/.test(withWhat) ? "LEADER" : /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
     return [{ op: "forbid", what: "attack", side, until, uses, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
   }
   // The subject may be missing: "it gets +10000 power **and** can't attack for
@@ -5331,6 +5347,12 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
         { op: "forbid", what: "beMovedBySkill", side, until, cardsOf: side, fromArea: "any", toArea: "energy", ...withUnless },
       ];
     }
+    // Audit conditions 2: "…you can't place cards in your Energy Area **by your skills** for the game" (BT22-031): the
+    // player's own skills' moves of their cards into their Energy Area, from anywhere — not the Charge Phase, and not a
+    // skill of the opponent's (Q&A BT22-031: that one resolves). Read as the charge alone, it stopped the one thing the
+    // card lets through and let the skills through.
+    if (side !== "both" && /^place cards? (?:in|into) (?:your|their) energy(?: area)? by (?:your|their) (?:own )?skills?(?:\s+(?:for|during|until)\b.*)?$/.test(rest))
+      return [{ op: "forbid", what: "beMovedBySkill", side, until, cardsOf: side, fromArea: "any", toArea: "energy", ...withUnless }];
     // "You can't place cards in your energy for the turn" (EX22-02): the
     // Charge Phase, which the engine offers as an action of its own (3-8).
     if (/^place cards? (?:in|into) (?:your|their) energy\b/.test(rest)) return [{ op: "forbid", what: "placeEnergy", side, until, ...withUnless }];
@@ -6132,6 +6154,9 @@ function track(o: Op, c: Ctx): void {
   if ((o.op === "power" || o.op === "grant") && (o.until === "battle" || o.until === "turn")) c.lastUntil = o.until;
   if (o.op === "ko" && "var" in o.target && !o.target.minus) c.koed = o.target.var;
   if (o.op === "moveTo" && o.to === "drop" && "var" in o.target && !o.target.minus) c.dropped = o.target.var;
+  // Audit conditions 2: cards placed in your Drop from the top of your deck (`mill`) are cards this skill placed there too —
+  // "place 3 cards from the top of your deck in your Drop Area. If all of the cards placed in your Drop Area are black" (BT4-098).
+  if (o.op === "mill" && o.as && o.side !== "opponent") c.dropped = o.as;
 }
 
 /**
@@ -6207,6 +6232,15 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     const filter = said ? described(`${said} card`) : null;
     if (said && !filter) return null;
     return { kind: "count", sel: { fromVar: c.dropped, area: "drop", ...(filter ? { filter } : {}) }, atLeast: 1 };
+  }
+  // Audit conditions 2: "…place 3 cards from the top of your deck in your Drop Area. **If all of the cards placed in your
+  // Drop Area are black**, draw 1 card" (BT4-098): every card this skill placed there — not every card in the Drop,
+  // where one older card of another colour stopped the draw.
+  if ((m = /^if all (?:of )?the cards (?:you )?placed in (?:your|a|the) drop(?: area)?(?: (?:using|with|by) this skill)? (?:are|were) (.+)$/.exec(t)) && c.dropped) {
+    const filter = described(/\bcards?$/.test(m[1]) ? m[1] : `${m[1]} cards`);
+    if (!filter) return null;
+    const placed: Selector = { fromVar: c.dropped, area: "drop" };
+    return { kind: "every", sel: placed, matching: { ...placed, filter } };
   }
   if ((m = /^if its power is (\d+) or (more|less)$/.exec(t)) && lastVar) {
     return { kind: "power", sel: { fromVar: lastVar, area: "play" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) };
@@ -6615,6 +6649,16 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   /** The subject of the last count condition read ("you have", "your opponent has"), for a bare count joined to it by "and". */
   let countSubject: { said: string; area: boolean; clause: string } | null = null;
   for (let i = 0; i < clauses.length; i++) {
+    // Audit conditions 2: "…switch it to Rest Mode, and **KO it if it's a skill-less Battle Card**" (EX19-36): the
+    // condition printed after the act it governs, about the card the act is on — said the usual way round, "if it's …"
+    // then the act. Only as the last clause, so nothing after it falls under the condition.
+    if (i === clauses.length - 1) {
+      const late = /^((?:and |then )?(?:ko|negate|return|place|send|switch|draw)\b.+?) if (?:it'?s|it is|that card is) (an? .+)$/i.exec(clauses[i].trim().replace(/\.$/, ""));
+      if (late) {
+        clauses.splice(i, 1, `if it's ${late[2]}`, late[1].replace(/^(?:and|then) /i, ""));
+        joined.splice(i + 1, 0, false);
+      }
+    }
     const clause = clauses[i];
     const mayBefore = pendingMay as Extract<Op, { op: "may" }> | null;
     pendingMay = null;
@@ -6939,7 +6983,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // of this card in your hand by 1" (BT20-068): the count leads the reducer, which
     // reads it trailing ("by 1 for each ..."); the condition in front is its own clause.
     const leadFor = /^(if .+?), (for (?:each|every) .+)$/i.exec(clause.trim());
-    if (leadFor && i + 1 < clauses.length && COST_REDUCER.test(clauses[i + 1].trim()) && simpleCount(leadFor[2].replace(/^for (?:each|every) /i, ""))) {
+    if (leadFor && i + 1 < clauses.length && COST_REDUCER.test(clauses[i + 1].trim()) && (simpleCount(leadFor[2].replace(/^for (?:each|every) /i, "")) || /^for (?:each|every) markers? on /i.test(leadFor[2]))) {
       clauses.splice(i, 1, leadFor[1], leadFor[2]);
       i--;
       continue;
@@ -6972,10 +7016,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // Phrasing batch 8: a printed ceiling — "…by 1. **(Up to 2)**" (P-464) — is read now, as the amount capped there
     // (`capped`); two of them in one line are still refused.
     const ceiling = /\(up to (\d+)\)/i.exec(c.raw);
-    const permanentReduction = c.skillKind === "permanent" && i === 0 && i + 1 < clauses.length && /^reduce the (?:z-energy |energy |combo )?cost of this card\b/i.test(clauses[i + 1].trim()) && (!ceiling || (c.raw.match(/\(up to \d+\)/gi) ?? []).length === 1);
+    // Audit conditions 2: after the condition it hangs on ("If you have 4 or more energy, for each marker on your Z-Unison,
+    // reduce the energy cost on this card …", BT24-139), and with "cost **on** this card" as the card prints it.
+    const permanentReduction = c.skillKind === "permanent" && (i === 0 || /^if\b/i.test(clauses[i - 1]?.trim() ?? "")) && i + 1 < clauses.length && /^reduce the (?:z-energy |energy |combo )?cost (?:of|on) this card\b/i.test(clauses[i + 1].trim()) && (!ceiling || (c.raw.match(/\(up to \d+\)/gi) ?? []).length === 1);
     // Phrasing batch 8: and a count that opens a later clause of the effect (BT21-149's "[Counter: Play] Play this card,
     // **for every card in your opponent's Z-Deck**, place up to 1 …", cut from the play by `COUNT_LEADS_CLAUSE`).
-    const leadCount = ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || permanentReduction) && i === 0) || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || c.skillKind?.startsWith("counter")) && i > 0) ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
+    const leadCount = permanentReduction || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate")) && i === 0) || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || c.skillKind?.startsWith("counter")) && i > 0) ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
     const countOnly = !!leadCount && !/,\s*(?:then\s+)?(?:add|draw|choose|play|place|send|switch|ko|look|reveal|discard|return|remove|negate|reduce|this card|it|they|your opponent)\b/i.test(leadCount[2]) && !/\bdifferent card names?\b/i.test(leadCount[2]);
     // Mechanism batch 4: "For each ≪Turtle School≫ card with **a different character name** in your Z-Energy, this card
     // gets +5000 power …" (BT18-059b, BT18-091) is read now — the trailing reader keeps the count's
@@ -7362,6 +7408,18 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // move just before it moved, which is "that card" said the long way.
       // "…by this skill" is the price's card (P-628), not the effect's last
       // move, so that form is left to the readings that know the price.
+      // Audit conditions 2: "If that card **was your own** Battle Card, draw 1 card" (BT4-045): owned by you (1-2) —
+      // Q&A BT4-045: a card of yours the opponent controlled counts, one you took from them does not. Read as "that card
+      // is a Battle Card" it always held, and the draw followed returning an opponent's card too.
+      const own = /^(?:if|when) (?:that card|it) (?:is|was) (?:one of )?your own (.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+      const ownVar = c.lastNamed ?? c.last;
+      if (own && ownVar) {
+        const filter = filterFor(own[1], null);
+        if (filter === null) { refuse(clause); continue; }
+        groups.push({ conds: [{ kind: "count", sel: { fromVar: ownVar, ownedByYou: true, ...(filter ? { filter } : {}) }, atLeast: 1 }], ops: [] });
+        c.lastTarget = { var: ownVar };
+        continue;
+      }
       const seen = /\bby this skill\b/i.test(clause)
         ? null
         : /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card|the card (?:sent|placed|moved|added|returned) (?:to|into|in) (?:your|its owner'?s|their) [a-z-]+(?: area)?) (?:is )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));

@@ -158,16 +158,23 @@ export interface VmCard {
    * 22-13 (#930): the [Union] keyword whose own move played this copy into
    * the area it stands in ("Union-Fusion", "Union-Potara", "Union-Absorb";
    * since prohibition batch 6 also "Evolve", "EX-Evolve", "Xeno-Evolve", for
-   * EX04-04's "if you played this card with [evolve]"; no other keyword's
-   * play is recorded here) — what
+   * EX04-04's "if you played this card with [evolve]") — what
    * `playedUsing(what: Union)` reads for BT5-037's "if you played this card
    * using [union]" and BT6-036's "if this card was played using [union]". Set
    * by `resolvePlay` only when the play succeeded (owner's ruling of 25 Oct
    * 2026: a play that was negated, replaced or failed to enter is not one),
    * kept across turns while the copy stays, cleared by a change of area
-   * (3-1-4). Absent otherwise.
+   * (3-1-4). Absent otherwise. Audit conditions 2 (3 Nov 2026): every keyword's own play is recorded the same way
+   * ("Swap", "Arrival", "Successor", "Over Realm" …) — "when you play this card with [Swap]" (BT4-083).
    */
   enteredUsing?: string;
+  /**
+   * Audit conditions 2 (3 Nov 2026): the card whose skill played this copy into the area it stands in ("" when the
+   * play named no card) — set by `resolvePlay` on a skill's successful play, never on a play the player declared (5-5-2),
+   * cleared by a change of area (3-1-4). What `playedUsing(what: skill)` reads for "when you play this card with the
+   * skill of {Majin Buu's Sealed Ball}" (BT2-028) and "…played without using skills" (BT15-042). Absent otherwise.
+   */
+  enteredBy?: string;
   /**
    * 5-5-4: this card arrived in a Battle Area this turn, played or placed by a
    * skill (5-5-1) — what `placedThisTurn` reads for BT15-118's "at the end of
@@ -177,6 +184,8 @@ export interface VmCard {
    * (3-1-4). Absent otherwise.
    */
   placedThisTurn?: true;
+  /** Audit conditions 2: this card was played into the area it stands in this turn, successfully (`resolvePlay`) — "it's the turn when this card was played" (BT23-040). Cleared as `placedThisTurn` is. */
+  playedThisTurn?: true;
   /**
    * 14-1-4: this card is a Z-card, which `moveCard` removes from the game when
    * it leaves play. Set by `newCard` from the definition's type and left off
@@ -484,5 +493,7 @@ function reset(card: VmCard, zone: ZoneDef | null): void {
   delete card.attacksThisTurn;
   delete card.playedUsing;
   delete card.enteredUsing;
+  delete card.enteredBy;
   delete card.placedThisTurn;
+  delete card.playedThisTurn;
 }
