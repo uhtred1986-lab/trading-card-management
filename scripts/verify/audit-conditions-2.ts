@@ -252,7 +252,13 @@ let records = 0;
   assert.deepEqual(sent.map((o) => [o.sel.count, o.sel.filter?.costMin, o.sel.filter?.costMax, o.sel.filter?.notCharacters.join()]), [[1, 2, 4, "syn shenron"]], "F: BT12-108 — one card costing 2 to 4, not a <Syn Shenron>");
   // XD2-04: "When a card in your energy is placed in your Drop Area by one of your skills" — your skills alone.
   assert.deepEqual(record("[Auto] When a card in your energy is placed in your Drop Area by one of your skills, you may play this card from your hand.", "XD2-04").trigger, ["yourEnergyToDropByYou"], "F: XD2-04 — your skill's move of your energy");
-  records += 6;
+  // BT24-112's back: "…from under your Battle Cards or Z-Unisons—both black—in a combo" (no space after the dash): both hosts black.
+  const b24b = ops(record("[Activate: Battle][Once per turn] Use up to 2 black cards with 5000 combo power from under your Battle Cards or Z-Unisons—both black—in a combo with their skills negated for the turn.", "BT24-112")).find((o) => o.op === "choose");
+  assert.ok(b24b && b24b.op === "choose" && b24b.sel.underHost?.filter?.anyOf?.length === 2 && b24b.sel.underHost.filter.anyOf.every((a) => a.colors.join() === "Black"), "F: BT24-112 — a black Battle Card or a black Z-Unison");
+  // BT28-038: "…then play this card from under a Battle Card at the end of your opponent's turn": only from under one.
+  const b28 = ops(record("[Activate: Main] {u}: Choose up to 1 of your opponent's Battle Cards and place this card under the chosen card, then play this card from under a Battle Card at the end of your opponent's turn.", "BT28-038")).find((o) => o.op === "delay");
+  assert.ok(b28 && b28.op === "delay" && b28.ops.some((o) => o.op === "choose" && o.sel.special === "self" && o.sel.area === "under" && o.sel.underHost?.filter?.type === "BATTLE"), "F: BT28-038 — this card, while under a Battle Card");
+  records += 8;
 }
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────

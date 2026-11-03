@@ -35,6 +35,10 @@ export function selfFrom(phrase: string): Selector {
   // Leader's pile (23-2), and nowhere else.
   // "…play this card from under **one of your Z-Leaders**" (BT21-105, phrasing batch 2): a Z-Leader is your Leader.
   if (/\bthis card from under (?:your|one of your) (?:z-)?leader(?: card)?s?\b/i.test(phrase)) return { special: "self", area: "under", underHost: { side: "you", area: "leader" } };
+  // Audit conditions 2 review: "…then play this card **from under a Battle Card** at the end of your opponent's turn"
+  // (BT28-038): only while it still lies under a Battle Card, either player's (Q&A BT28-038: not from the Drop it was
+  // sent to). Read as "this card" anywhere, the delayed play brought it back from wherever it had gone.
+  if (/\bthis card from under (?:an? |1 )battle card\b(?! with| that| in)/i.test(phrase)) return { special: "self", area: "under", underHost: { side: "both", area: "battle", filter: { ...emptyFilter(), type: "BATTLE" } } };
   const m = SELF_FROM_RE.exec(phrase);
   if (!m) return { special: "self" };
   const areas = [m[1], m[2]].filter((a): a is string => !!a).map((a) => SELF_FROM[a.toLowerCase().replace(/ area$/, "")]);

@@ -3286,8 +3286,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // "Use up to 1 green card with 5000 combo power from your Drop in a combo
   // with its skills negated for the battle", "use this card from your Drop in
   // a combo", "combo with it" (5-7).
+  // Audit conditions 2 review: "…from under your Battle Cards or Z-Unisons**—both black—in** a combo" (BT24-112's back)
+  // prints no space after the closing dash; read with one, the aside is every host's ("both black"), where the words
+  // ran into the description and the black stayed on the Z-Unison.
   if (
-    (m = /^(?:use|combo with) (.+?)(?: from (?:your|their) (drop|warp|hand)(?: area)?)?(?: in a combo)?(?: from (?:your|their) (drop|warp|hand)(?: area)?)?( with (?:its|their) skills negated)?$/.exec(
+    (m = /^(?:use|combo with) (.+?)(?: from (?:your|their) (drop|warp|hand)(?: area)?)?(?:(?: |(?<=[—―–]))in a combo)?(?: from (?:your|their) (drop|warp|hand)(?: area)?)?( with (?:its|their) skills negated)?$/.exec(
       q,
     )) &&
     /\bcombo\b/.test(t)
