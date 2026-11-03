@@ -82,7 +82,10 @@ const one = (text: string) => parseSkills(text)[0]!;
   const total = compileSkill(one("[Activate: Main]{1}, if you have a total of 2 or more green cards in your Combo Area: Play this card from your hand."));
   assert.deepEqual(total.unsupported, []);
   assert.equal((total.ops[0] as { cond: { atLeast: number } }).cond.atLeast, 2, "'a total of 2 or more' asks for 2");
-  assert.ok(unread("[Permanent] If you have a total of 7 or more cards in your energy, Z-Energy, Battle Area, and Drop, reduce this card's energy cost in your hand by 2."), "a total across a list of places is unread");
+  // Audit conditions 3: a total across a list of places is one count over all of them.
+  const across = compileSkill(one("[Permanent] If you have a total of 7 or more cards in your energy, Z-Energy, Battle Area, and Drop, reduce this card's energy cost in your hand by 2."));
+  assert.deepEqual(across.unsupported, [], "a total across a list of places is read");
+  assert.ok(JSON.stringify(across.ops).includes('"areas":["energy","zEnergy","battle","drop"]'), "…as one count over the four places");
   // A price that is neither a condition nor an action the compiler can charge is no free price.
   assert.ok(unread("[Activate: Main]{u}, send 1 blue card with <Son Goten> in its character name and up to 1 blue card with <Trunks> in its character name from your hand and/or Drop to your Warp: Play this card from your hand."), "a bare unreadable action price leaves the line unread");
   // Readable prices are untouched.

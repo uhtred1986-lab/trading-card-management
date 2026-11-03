@@ -1322,7 +1322,9 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   assert.ok(trig("[auto][once per turn] When you activate a red Extra from your hand, draw 1 card."), "BT29-001b");
   assert.ok(trig("[Auto] When you activate a Red/Blue multicolor Extra, draw 1 card."), "12-1-3: from the hand unless it says otherwise");
   assert.ok(!trig("[Auto] When you activate this card, draw 1 card."), "this card's own activation is `played`");
-  assert.ok(!trig("[Auto][Once per turn] When you activate a green Extra Card with an original energy cost of 2 and the [Field] skill, draw 1 card."), "a description the filter reads short does not fire at all");
+  // Audit triggers 3: the filter reads "…and the [Field] skill" (a keyword) and the original cost whole, so BT13-061 answers.
+  assert.ok(trig("[Auto][Once per turn] When you activate a green Extra Card with an original energy cost of 2 and the [Field] skill, draw 1 card."), "BT13-061: a [Field] Extra the filter reads whole");
+  assert.ok(!trig("[Auto] When you activate a green Extra Card with the [Union] skill, draw 1 card."), "a bracket the filter does not read here does not fire at all");
   assert.ok(!trig("[Auto][Limit 1] If your Leader is red: When you activate a mono-red Extra from your hand by paying the cost, draw 1 card."), "nor one that names how it was paid");
   assert.ok(!trig("[auto] When you activate the [activate: battle] skill on a red Extra Card in your hand or Drop Area, draw 1 card."), "nor one that names another area");
   // The program: the price's condition, the Extra's colour, then the effect.
@@ -3004,9 +3006,10 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   // player's NEXT turn refused — does not say, so the wording is unread until the engine can end a turn early. The op
   // itself is still the language's, and is played here off a hand-written record.
   DEFS.TURNSKIP = { ...DEFS.V1, id: "TURNSKIP", name: "TURNSKIP", skill: "[Activate: Main] Skip your turn and begin your opponent's Charge Phase." };
+  // Audit effects 3: it is `skip` "rest" — the turn in progress ends now (audit-effects-3.ts plays it).
   const rule = compileSkill(parseSkills(DEFS.TURNSKIP.skill!)[0]);
-  assert.deepEqual(rule.ops, [], "BT31-097's 'skip your turn' is not the next turn's skip");
-  assert.equal(rule.unsupported.length, 1, "…and is unread");
+  assert.deepEqual(rule.ops, [{ op: "skip", what: "rest" }], "BT31-097's 'skip your turn' is the turn in progress, not the next turn's skip");
+  assert.equal(rule.unsupported.length, 0, "…and is read");
   const ctx = withRecord("TURNSKIP", { ops: [{ op: "skip", what: "turn" }], unsupported: [] });
   const step = (st: EngineState, ...actions: Parameters<typeof playG>[1][]): EngineState => actions.reduce((acc, a) => IMPL.apply(ctx, acc, a).state, st);
 

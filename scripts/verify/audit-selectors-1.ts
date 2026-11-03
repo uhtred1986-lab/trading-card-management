@@ -166,7 +166,7 @@ for (const [text, what, kind] of [
   if (what === "BT10-030") assert.ok(sel.battleRole === "attacker" && sel.side === "both" && !!sel.upTo && !!sel.ignoreBarrier, `B2: ${what} — the attacker (${JSON.stringify(sel)})`);
   // R-204 (integration 2): "choose the attacking Battle Card" is a battle-role choice too, so [Barrier] is asked.
   else assert.ok(sel.battleRole === "attacker" && sel.side === "both" && sel.area === "battle" && (sel.filter?.type ?? null) === kind && !sel.upTo, `B2: ${what} — the attacker (${JSON.stringify(sel)})`);
-  assert.match(rec.reads, what === "P-203" ? /choose 1 Battle Card in each player's Battle Area that is attacking/ : /choose up to 1 card in each player's Leader Area or Battle Area that is attacking/, `B2: ${what} — said so`);
+  assert.match(rec.reads, what === "P-203" ? /choose 1 Battle Card in each player's Battle Area that is attacking/ : /choose up to 1 Leader Card or Battle Card in each player's Leader Area or Battle Area that is attacking/, `B2: ${what} — said so`);
   records++;
 }
 {

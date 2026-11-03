@@ -161,6 +161,10 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
     [/and\s+ngate\s+their\s+skills/g, "and negate their skills"],
     [/can't\s+witch\s+Battle\s+Cards/g, "can't switch Battle Cards"],
   ],
+  // Audit selectors 3: the special trait printed without its brackets — "Add up to 1 green Great Ape card …" (P-415; the
+  // card's ≪Great Ape≫, the trait every other card prints bracketed). Unbracketed, the filter dropped it and any green
+  // [Blocker] card costing 4 or less was added.
+  "P-415": [[/Add\s+up\s+to\s+1\s+green\s+Great\s+Ape\s+card/g, "Add up to 1 green ≪Great Ape≫ card"]],
   // Audit triggers 1: "When your red Z-Card is palyed or attacks" — the play half was lost to the typo.
   "BT31-006": [[/Z-Card\s+is\s+palyed\s+or\s+attacks/g, "Z-Card is played or attacks"]],
   // Audit triggers 2 (3 Nov 2026): catalog typos in a moment's own words. BT26-100: the official card list prints
@@ -169,6 +173,14 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT30-016": [[/When\s+you\s+blue\s+≪Earthling≫\s+card\s+attacks/g, "When your blue ≪Earthling≫ card attacks"]],
   "BT21-102": [[/with\s+an\s+energy\s+cost\s+of\s+5\s+of\s+or\s+more\s+attacks/g, "with an energy cost of 5 or more attacks"]],
   "BT26-077": [[/When\s+this\s+ard\s+is\s+used\s+in\s+a\s+combo/g, "When this card is used in a combo"]],
+  // Audit triggers 3 (3 Nov 2026): the same moment's words with one dropped — "used **in** combo", "used **a** combo".
+  "BT26-014": [[/When\s+this\s+card\s+is\s+used\s+in\s+combo\b/g, "When this card is used in a combo"]],
+  // Audit triggers 3: the moment's closing dash runs straight into the effect ("…in your Battle Area―choose up to 1 …"),
+  // so the moment swallowed the choice. The comma the other moments print is put back.
+  "BT20-014": [[/(both\s+red\s+and\s+in\s+your\s+Battle\s+Area―)\s*choose/g, "$1, choose"]],
+  "BT20-016": [[/(both\s+red\s+and\s+in\s+your\s+Battle\s+Area―)\s*choose/g, "$1, choose"]],
+  "BT20-018": [[/(both\s+red\s+and\s+in\s+your\s+Battle\s+Area―)\s*choose/g, "$1, choose"]],
+  "BT26-058": [[/When\s+this\s+card\s+is\s+used\s+a\s+combo\b/g, "When this card is used in a combo"]],
   "BT26-003": [[/placed\s+from\s+our\s+life\s+into\s+your\s+Drop/g, "placed from your life into your Drop"]],
   "BT26-002": [[/When\s+this\s+card\s+is\s+place\s+in\s+your\s+Leader\s+Area/g, "When this card is placed in your Leader Area"]],
   "BT31-016": [[/from\s+its\s+owner'\s+Warp/g, "from its owner's Warp"]],
@@ -566,6 +578,22 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // (BT30-014) is the specified cost (1-2-4) — read as nothing, any card or Unison passed.
   "P-747": [[/card\s+wth\s+5000\s+combo\s+power/g, "card with 5000 combo power"]],
   "BT30-014": [[/red\s+Unison\s+with\s+a\s+specific\s+cost\s+of\s+3/g, "red Unison with a specified cost of 3"]],
+  // NOT official errata: the feed's orb notation. Audit effects 3: these lines print an energy orb in round brackets —
+  // "[Activate: Main][Limit 1](White), if you have 2 or more energy: …" (BT31-124), "{r}{r}{r}{r}(X), if your Leader Card
+  // is red: Deal X damage …" (DB3-135) — where every other card prints it in braces ({w}, {X}). A bracket is a reminder
+  // to the reader, so the orb was dropped with it and the price read as free (BT31-124's activation cost nothing) or
+  // without its X (DB3-135's "Deal X damage" had no X to read). Only an orb right in a price, before its comma/colon.
+  "BT31-124": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-129": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-134": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-136": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-137": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-151": [[/\]\(White\)\(White\)\{1\}:/g, "]{w}{w}{1}:"]],
+  "DB3-135": [[/\}\(X\),/g, "}{X},"]],
+  "DB3-138": [[/\}\(X\),/g, "}{X},"]],
+  "DB3-141": [[/\}\(X\),/g, "}{X},"]],
+  "DB3-142": [[/\}\(X\),/g, "}{X},"]],
+  "BT27-140": [[/\[auto\]\(X\):/g, "[auto]{X}:"]],
 };
 
 /**

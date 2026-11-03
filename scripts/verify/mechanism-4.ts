@@ -5,7 +5,7 @@
  * synthetic).
  *
  * C: cost conditions — "the total number of cards in Rest Mode between you and your opponent" (P-106, P-110, P-111: the
- *    Leader, Battle and Energy Areas, the official Q&A on P-106), "your opponent's Leader has a Battle Card under it"
+ *    Leader, Battle and Energy Areas, the official Q&A on P-106, and the Unisons, R-002), "your opponent's Leader has a Battle Card under it"
  *    (P-499), "you or your opponent's Leader Card has 15000 or more power" (BT3-026), "your Leader Card and all of your
  *    energy are mono-yellow" (BT14-154), "your opponent is the original owner of 4 or more Battle Cards in play"
  *    (BT23-077); "for each card your opponent has in Rest Mode" (BT17-148).
@@ -78,7 +78,7 @@ let records = 0;
 {
   const p110 = record("[ex-evolve] {y}{y}: Yellow &lt;Broly: Br&gt; card with an energy cost of 4.<br>[permanent] If the total number of cards in Rest Mode between you and your opponent is 6 or more, reduce the energy cost of this card in your hand by 3.<br>[auto] When you play this card, you can only activate skills on cards that are green or yellow and no other color for the duration of the turn.", "P-110", 10);
   const rest = condsOf(p110).find((x): x is Extract<Cond, { kind: "count" }> => x.kind === "count");
-  assert.ok(rest && rest.sel.side === "both" && rest.sel.mode === "rest" && rest.sel.areas?.join() === "leader,battle,energy" && rest.atLeast === 6, "C: P-110 — both players' rested Leader, Battle and Energy cards, 6 or more");
+  assert.ok(rest && rest.sel.side === "both" && rest.sel.mode === "rest" && rest.sel.areas?.join() === "leader,battle,unison,energy" && rest.atLeast === 6, "C: P-110 — both players' rested Leader, Battle, Unison and Energy cards, 6 or more (R-002)");
   assert.equal(opOf(p110, "costReduction")[0].amount, 3, "C: P-110 — 3 less");
   const p499 = record("[Counter: Play][Limit 1] Play this card.<br>[Permanent] If your opponent's Leader has a Battle Card under it, reduce the energy cost of this card in your hand by 2.", "P-499", 10);
   const pile = condsOf(p499).find((x): x is Extract<Cond, { kind: "count" }> => x.kind === "count");
@@ -94,7 +94,7 @@ let records = 0;
   assert.ok(owned && owned.sel.side === "both" && owned.sel.ownedByOpponent && owned.atLeast === 4, "C: BT23-077 — Battle Cards in either Battle Area the opponent owns");
   const bt17 = record("[Ultimate][Super Combo]\n[Permanent] For each card your opponent has in Rest Mode, reduce the combo cost of this card in your hand by 1.", "BT17-148", -1);
   const per = opOf(bt17, "costReduction")[0];
-  assert.ok(per.what === "combo" && typeof per.amount === "object" && "count" in per.amount && per.amount.count.side === "opponent" && per.amount.count.mode === "rest" && per.amount.count.areas?.join() === "leader,battle,energy", "C: BT17-148 — 1 less combo cost per rested card of the opponent's");
+  assert.ok(per.what === "combo" && typeof per.amount === "object" && "count" in per.amount && per.amount.count.side === "opponent" && per.amount.count.mode === "rest" && per.amount.count.areas?.join() === "leader,battle,unison,energy", "C: BT17-148 — 1 less combo cost per rested card of the opponent's (Unisons included, R-002)");
   records += 6;
 }
 

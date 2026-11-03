@@ -187,6 +187,12 @@ export interface VmCard {
   /** Audit conditions 2: this card was played into the area it stands in this turn, successfully (`resolvePlay`) — "it's the turn when this card was played" (BT23-040). Cleared as `placedThisTurn` is. */
   playedThisTurn?: true;
   /**
+   * Audit conditions 3 (3 Nov 2026): the area this copy was played from this turn — "Additionally, if this card was played
+   * from a Drop" (BT31-050, BT31-045, BT31-044, BT31-047) — set by `resolvePlay` with `playedThisTurn`, on a successful
+   * play only, and gone with the turn or a change of area (3-1-4). What `placedThisTurn` with `from` reads.
+   */
+  playedFrom?: string;
+  /**
    * 14-1-4: this card is a Z-card, which `moveCard` removes from the game when
    * it leaves play. Set by `newCard` from the definition's type and left off
    * for every other card, so a state without a Z-card is byte-for-byte what it
@@ -496,4 +502,5 @@ function reset(card: VmCard, zone: ZoneDef | null): void {
   delete card.enteredBy;
   delete card.placedThisTurn;
   delete card.playedThisTurn;
+  delete card.playedFrom;
 }

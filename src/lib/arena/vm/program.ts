@@ -1145,7 +1145,7 @@ function ruleApplies(
   state: VmState,
   what: ForbiddenAction,
   rule: RuleInForce,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string },
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string },
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
@@ -1160,6 +1160,9 @@ function ruleApplies(
   // "…can't attack **this card**" (BT15-122): only an attack on one of the
   // named cards. Asked with no defender it applies, as `attackTarget` does.
   if (f.against && opts.attackTarget && !f.against.includes(opts.attackTarget)) return false;
+  // "…can't activate [Blocker] skills in response to this card's attack" (DB3-014, review of audit selectors 3): only a
+  // block of an attack by the named cards. Asked with no attacker it applies, as `against` does.
+  if (f.attacker && opts.attacker && !f.attacker.includes(opts.attacker)) return false;
   // "…from the Battle Area", "…from your hand": where the card is as the
   // action is asked about (a play, a combo, a move out of a Drop). A card the
   // rule cannot place is not its.
@@ -1305,7 +1308,7 @@ function nameShowing(ctx: EngineContext, state: VmState, id: string): string | u
  * menu and the refusal below cannot disagree, and the two engines cannot
  * either. A budget still to spend (`uses`) means the rule forbids nothing yet.
  */
-export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; ignoreOwnPermanent?: boolean } = {}): boolean {
+export function forbids(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; ignoreOwnPermanent?: boolean } = {}): boolean {
   return forbiddenBy(ctx, game, state, what, opts) !== null;
 }
 
@@ -1323,7 +1326,7 @@ export function forbiddenBy(
   game: GameDefinition,
   state: VmState,
   what: ForbiddenAction,
-  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; ignoreOwnPermanent?: boolean } = {},
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; ignoreOwnPermanent?: boolean } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
@@ -1449,7 +1452,7 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; counted?: boolean } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; counted?: boolean } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
     // `counted` asks the other half (#677): the priced rules whose free uses
@@ -1972,7 +1975,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // BT15-118's "a turn in which this card was placed in a Battle Area"
     // (5-5-4): the card's memory of arriving (`VmCard.placedThisTurn`).
     case "placedThisTurn":
-      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => !!(c.played ? state.cards[id]?.playedThisTurn : state.cards[id]?.placedThisTurn));
+      return resolveSelector(ctx, game, state, frame, c.sel).some((id) =>
+        c.from?.length ? !!state.cards[id]?.playedThisTurn && (c.from as string[]).includes(state.cards[id]?.playedFrom ?? "") : !!(c.played ? state.cards[id]?.playedThisTurn : state.cards[id]?.placedThisTurn));
     case "every": {
       const ids = resolveSelector(ctx, game, state, frame, c.sel);
       // Nothing there is not "all of it" (0-2-4-1).
@@ -2029,7 +2033,10 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const motion = state.programs.find((f) => f !== frame && f.counterMotion);
       if (!motion?.card) return false;
       const kind = skillsShowing(ctx, state, motion.card).skills.find((sk) => sk.index === motion.skillIndex)?.kind ?? "";
-      return kind === `counter:${c.what}`;
+      if (kind !== `counter:${c.what}`) return false;
+      // "…the Battle Card's [Counter: Attack]" (DB3-129): the printed type of the card whose line it is.
+      const printed = c.of ? ctx.defs[state.cards[motion.card]?.cardId ?? ""] : undefined;
+      return !c.of || (!!printed && baseType(printed) === c.of);
     }
     // 20-14, asked of the frame's own card and master — the same reading
     // `vm/actions.ts` asks of a candidate, so a `REFUSE` and a program mean one
@@ -2111,11 +2118,12 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     case "comboFrom": {
       const origins = state.battle?.comboOrigins;
       if (!origins) return false;
-      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => {
+      const entered = resolveSelector(ctx, game, state, frame, c.sel).filter((id) => {
         const from = origins[id];
         if (from === undefined || findCard(state, id)?.zone !== "combo") return false;
         return (c.areas as string[]).includes(from);
       });
+      return entered.length >= (c.atLeast ?? 1);
     }
   }
 }

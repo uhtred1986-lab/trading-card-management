@@ -250,6 +250,8 @@ export function resolvePlay(
   // #930: the Autos this very play pends — BT6-036's "when you play this
   // card" — are told below how it entered, once that is known.
   const pendedBefore = new Set(state.pending);
+  // Audit conditions 3: where the card was as it was played ("if this card was played from a Drop", BT31-050).
+  const origin = findCard(state, card)?.zone;
   const cause: { by?: string; byOpponent?: boolean; byCard?: string } = opts.by && findCard(state, card)?.zone !== "battle" ? { by: opts.by, byOpponent: opts.byOpponent ?? false, ...(opts.byCard !== undefined ? { byCard: opts.byCard } : {}) } : {};
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], cause);
   else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause });
@@ -348,6 +350,7 @@ export function resolvePlay(
   }
   // Audit conditions 2: "it's the turn when this card was played" (BT23-040).
   if (success) state.cards[card].playedThisTurn = true;
+  if (success && origin) state.cards[card].playedFrom = origin;
   if (success && playedBy !== undefined) {
     state.cards[card].enteredBy = playedBy;
     for (const p of state.pending) if (!pendedBefore.has(p) && p.card === card && p.kind !== "hook") p.selfEnteredBy = playedBy;
@@ -375,6 +378,8 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   // order chosen. Each with the pile it already carried (23-2-6), read before
   // anything moves, so the stack ends as card, first + its pile, second + its pile.
   const groups = [host, ...extra].map((id) => [id, ...(state.cards[id]?.under ?? [])]);
+  // Audit triggers 3: where each card going under was, for "when this card in your Battle Area is placed under …".
+  const cameFrom = new Map([host, ...extra].map((id) => [id, findCard(state, id)?.zone]));
   moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, onto: host, ...cause });
   // 23-2-1, 23-2-2: the stack is a single card in the host's area — this
   // player's, 3-1-1 — so the arrival must be standing in that very area before
@@ -416,7 +421,10 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   log(ev, { type: "stack", top: card, under: state.cards[card].under.slice() });
   // It has not left the area (23-2-2-2), but going under is still a moment
   // the card may name: "when this card is placed under a … card" (BT29-140).
-  for (const id of placed) fire(ctx, game, state, { event: "placedUnder", card: id, controller: player, args: { to: "under" } });
+  for (const id of placed) {
+    const from = cameFrom.get(id);
+    fire(ctx, game, state, { event: "placedUnder", card: id, controller: player, args: { to: "under", ...(from ? { from } : {}) } });
+  }
 }
 
 /** The base type a zone is chosen by (14-1, 19-1) — `vm/filters.ts`'s reading of the same attribute. */

@@ -545,8 +545,10 @@ export type Cond =
    * ends or the card changes area (3-1-4).
    * Audit conditions 2: `played` is "it's the turn when this card was played" (BT23-040) — a successful play this turn
    * (`VmCard.playedThisTurn`), not a skill's placement.
+   * Audit conditions 3: with `from`, the play was made from one of those areas — "Additionally, if this card was played
+   * from a Drop" (BT31-050), asked by the [Auto] its play triggered (`VmCard.playedFrom`).
    */
-  | { kind: "placedThisTurn"; sel: Selector; played?: true }
+  | { kind: "placedThisTurn"; sel: Selector; played?: true; from?: ScriptArea[] }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
@@ -566,9 +568,10 @@ export type Cond =
   | { kind: "leaderFlipped"; side?: Side; flipped?: boolean }
   /**
    * Mechanism batch 3 (22-10-8): "Negate the [Counter: Attack] skill" on a [Counter: Counter] (EX09-06, BT12-153,
-   * BT16-043) — the [Counter] this one answers is of that kind. False when no counter is being answered.
+   * BT16-043) — the [Counter] this one answers is of that kind. False when no counter is being answered. `of` (review of
+   * audit selectors 3): "Negate **the Battle Card's** [Counter: Attack] skill" (DB3-129) — and on a card of that type.
    */
-  | { kind: "countering"; what: "attack" | "play" | "counter" }
+  | { kind: "countering"; what: "attack" | "play" | "counter"; of?: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" }
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
@@ -701,8 +704,10 @@ export type Cond =
    * and forgotten when it leaves the Combo Area at the end), so the question
    * is asked of the battle, and a card that is in no Combo Area has no origin
    * and answers false.
+   * Audit conditions 3: `atLeast` counts them — "if your Combo Area has 2 or more ≪Boujack Brigade≫ cards that you
+   * comboed with from a Battle Area" (BT6-080): at least that many of the selected cards entered from those areas.
    */
-  | { kind: "comboFrom"; sel: Selector; areas: ScriptArea[] };
+  | { kind: "comboFrom"; sel: Selector; areas: ScriptArea[]; atLeast?: number };
 
 /**
  * The card attributes `modifyAttr` may change: the two numbers a continuous
@@ -1308,6 +1313,11 @@ export type Op =
       attackOnly?: Ref;
       /** "…can't attack **this card**" (BT15-122): the only defenders the rule forbids an attack against (`Prohibition.against`). */
       against?: Ref;
+      /**
+       * `block` only (review of audit selectors 3): "…can't activate [Blocker] skills **in response to this card's attack**"
+       * (DB3-014), "…to **that card's** attack" (DB3-023) — only a block of an attack by these cards (`Prohibition.attacker`).
+       */
+      attacker?: Ref;
       /** "…from the Battle Area", "…from your hand" (`Prohibition.fromArea`). */
       fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "under" | "any";
       fromOwnArea?: true;
@@ -2207,7 +2217,7 @@ export const epochVar = (name: string): string => `${name}@epoch`;
  * skill's. Read with where the card was (`fromArea`; a pile is in no area, 23-2, so its `pileHost`) and whose it was,
  * both taken before the move.
  */
-function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { fromArea: Area | null; pileHost: string | null | undefined; movedMaster: PlayerId; revealed: boolean }): void {
+function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { fromArea: Area | null; pileHost: string | null | undefined; movedMaster: PlayerId; revealed: boolean; negated?: number[] }): void {
   const to = h.areaOf(id);
   const yours = was.movedMaster === frame.master;
   if (to === "drop") {
@@ -2236,6 +2246,14 @@ function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { 
     }
   }
   if (to === "hand" && was.pileHost && h.exists(was.pileHost)) h.pend("underReturnedToHand", was.pileHost, id);
+  // Audit triggers 3 (3-10): "When this card is sent to its owner's Warp by a skill" (BT31-018), and an opponent's card
+  // your skill sent from their hand or Drop to the Warp, watched by your cards ("…by one of your skills", P-346, BT13-148).
+  if (to === "warp") {
+    // 9-6-9-2 (review of audit triggers 3): with the [Auto]s negated in the Battle Area it left, which do not answer.
+    h.pend("toWarpBySkill", id, frame.card, was.negated);
+    if (!yours && was.fromArea === "hand") h.pend("opponentHandToWarpByYou", id, id);
+    if (!yours && was.fromArea === "drop") h.pend("opponentDropToWarpByYou", id, id);
+  }
 }
 
 /**
@@ -2391,6 +2409,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "damage": {
         // 5-10 / 21-3: life cards go to the hand; damage from an effect is never Critical.
         for (const p of sideOf(master, op.side ?? "opponent")) {
+          // Audit effects 3: "you don't take damage from your opponent's non-keyword skills" (BT16-070) — a skill's
+          // damage refused is not dealt (20-14).
+          if (h.forbids("takeDamage", { player: p, card: h.zone(p, "leader")[0], source: frame.card, bySkill: true })) continue;
           const n = h.amount(frame, op.n);
           const taken: string[] = [];
           for (let i = 0; i < n; i++) {
@@ -3280,7 +3301,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // a condition the rule asks of it — the same way `restedBySkill`
           // hands on the card that rested it.
           if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
-          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal });
+          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal, ...(negatedThere?.length ? { negated: negatedThere } : {}) });
           if (op.mode) h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only
@@ -3396,6 +3417,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // Charge skip already does.
       case "skip":
         for (const p of sideOf(master, op.side ?? "you")) {
+          // Audit effects 3: "rest" (BT31-097) is the turn in progress — the host ends its Main Phase now.
           if (op.what === "span") {
             h.addSkip(p, "end", "this");
             h.addSkip(sideOf(p, "opponent")[0], "turn", "next");
@@ -3492,9 +3514,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // for the skill that did). After the negation: a card used "with its skills negated" answers to nothing (9-1-5).
           h.pend("comboUsed", id);
           // 5-7-2: a combo a skill makes is a combo. Both sides watch it, the
-          // same as one the player declared.
-          for (const w of h.cardsInPlay(master)) h.pend("youCombo", w, id);
-          for (const w of h.cardsInPlay(master === "p1" ? "p2" : "p1")) h.pend("opponentCombos", w, id);
+          // same as one the player declared — pended once about the card used,
+          // and every watcher the declaration names answers (audit triggers 3:
+          // pended per watcher, the names had no moment, so nothing answered).
+          h.pend("youCombo", id, id);
+          h.pend("opponentCombos", id, id);
         }
         break;
       }
@@ -3508,7 +3532,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const id = h.resolveRef(frame, op.target).find((x) => x !== b.attacker && x !== b.guard && h.masterOf(x) === defender && (h.areaOf(x) === "battle" || h.areaOf(x) === "leader"));
         if (!id) break;
         h.setGuard(id, frame.card);
-        h.pend("attacked", id);
+        // 8-1-7-2: a guard card changed by an effect makes no "when this card is attacked" pending — only [Blocker]
+        // says otherwise (22-4-3-1). (Audit triggers 3: the name pended here had no moment and logged a note.)
         break;
       }
 
@@ -3733,7 +3758,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}), ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.attacker ? { attacker: h.resolveRef(frame, op.attacker) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}), ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
             });
           break;
         }
@@ -3749,6 +3774,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}),
             ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}),
             ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}),
+            ...(op.attacker ? { attacker: h.resolveRef(frame, op.attacker) } : {}),
             ...(op.fromArea ? { fromArea: op.fromArea } : {}),
             ...(op.fromOwnArea ? { fromOwnArea: true } : {}),
             ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),

@@ -72,7 +72,8 @@ const unread = (skill: string) => skillRecords(card("T907", { skill }))[0].unrea
 assert.ok(unread("[Permanent] This card gets +1000 power for each frobnitz in your Energy Area."), "an unknown noun is refused");
 assert.ok(unread("[Permanent] This card gets +1000 power for each energy cost in your Drop Area."), "'energy cost' is not a card");
 assert.ok(unread("[Permanent] This card gets +1000 power for each keyword skill they have."), "'keyword skill' is not a card");
-assert.ok(unread("[Permanent] If there are 3 or more non-black colors present among black multicolor cards in your energy, this card gets +1000 power."), "'non-black colors' is not read as cards");
+// Audit conditions 3: "3 or more non-black colors among black multicolor cards" is 4 or more colors among them, black counted.
+assert.ok(!unread("[Permanent] If there are 3 or more non-black colors present among black multicolor cards in your energy, this card gets +1000 power."), "'non-black colors' is read as a count of colors");
 assert.ok(unread("[Permanent] For each color in your Energy Area or Drop Area, this card gets +1000 power."), "an 'or' of places is refused");
 assert.ok(!unread("[Permanent] This card gets +1000 power for each card in your Energy Area."), "plain cards still read");
 assert.ok(!unread("[Permanent] This card gets +1000 power for each multicolor card in your Energy Area."), "multicolor cards still read");
