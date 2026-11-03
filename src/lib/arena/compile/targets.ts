@@ -87,7 +87,9 @@ const AREA_TYPE_WORDS: [RegExp, ScriptArea][] = [
   // Leaders" (BT24-005), "your white Leader" (BT28-112), "your yellow <Broly: Br> Leaders" (P-539), "your opponent's
   // Leaders" (BT22-009). Unread, the phrase named no area and 20-1-6's "a card on the table" let a Battle Card stand in
   // for the Leader.
-  [/(?<!non-)\bleader cards?\b|\b(?:your|their|opponent'?s) (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:(?:<[^>]+>|≪[^≫]+≫) ?)*leaders?\b/, "leader"],
+  // Audit conditions 3: and a Z-Leader — "choose up to 1 of your red <Son Goku> **Z-Leaders**" (BT19-030): the Leader
+  // Area, where read as a Z-card in play a Z-Battle Card answered it.
+  [/(?<!non-)\bleader cards?\b|\b(?:your|their|opponent'?s) (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:(?:<[^>]+>|≪[^≫]+≫) ?)*(?:z-)?leaders?\b/, "leader"],
   [/\bbattle cards?\b/, "battle"],
   [/\bunison cards?\b|\bunisons\b/, "unison"],
   // 20-1-6: an unqualified "cards" means the Leader Area and the Battle Area.
@@ -267,16 +269,20 @@ export function colorCountSelector(counted: string): Selector | null | undefined
  * `parseTarget` has no single description for.
  *
  * - "For each card your opponent has in Rest Mode" (BT17-148) and "the total number of cards in Rest Mode between
- *   you and your opponent" (P-106, P-110, P-111): the cards a mode applies to — the Leader, Battle and Energy Areas
- *   (the official Q&A on P-106: "the Leader Areas, Battle Areas, and Energy Areas").
+ *   you and your opponent" (P-106, P-110, P-111, BT24-096): the cards a mode applies to — the Leader, Battle and Energy
+ *   Areas (the official Q&A on P-106: "the Leader Areas, Battle Areas, and Energy Areas") and the Unison Area (R-002,
+ *   R-010: "BT24-096's count includes energy and Unisons"; P-106's answer predates Unisons). Audit conditions 3
+ *   review: the Unisons were left out, so BT24-096's "15 or more" — newly read as a piece of its price — missed every
+ *   rested Unison R-010 counts.
  * - "For each card in both players' Battle Areas and energy" (BT30-055): both sides, those areas.
  */
+const MODE_AREAS: ScriptArea[] = ["leader", "battle", "unison", "energy"];
 export function boardCount(counted: string): Selector | null {
   const t = counted.trim().toLowerCase().replace(/[.,]$/, "");
   let m = /^cards? (you|your opponent) (?:has|have) in (rest|active) mode$/.exec(t);
-  if (m) return { side: m[1] === "you" ? "you" : "opponent", area: "leader", areas: ["leader", "battle", "energy"], mode: m[2] as "rest" | "active", count: 99, upTo: false };
+  if (m) return { side: m[1] === "you" ? "you" : "opponent", area: "leader", areas: [...MODE_AREAS], mode: m[2] as "rest" | "active", count: 99, upTo: false };
   m = /^(?:the total number of )?cards in (rest|active) mode between you and your opponent$/.exec(t);
-  if (m) return { side: "both", area: "leader", areas: ["leader", "battle", "energy"], mode: m[1] as "rest" | "active", count: 99, upTo: false };
+  if (m) return { side: "both", area: "leader", areas: [...MODE_AREAS], mode: m[1] as "rest" | "active", count: 99, upTo: false };
   m = /^cards? in both players' battle areas( and (?:energy|energy areas))?$/.exec(t);
   if (m) return { side: "both", area: "battle", ...(m[1] ? { areas: ["battle", "energy"] as ScriptArea[] } : {}), count: 99, upTo: false };
   return null;

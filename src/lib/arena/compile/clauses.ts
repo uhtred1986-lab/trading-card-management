@@ -98,7 +98,25 @@ function andJoinsChoiceList(text: string, start: number, i: number): boolean {
  * ("choose all of", "at the end of"), so only the last word is tested.
  */
 function andJoinsBothSides(text: string, start: number, i: number): boolean {
+  if (andJoinsBothPlayers(text, start, i) || andJoinsBothNames(text, start, i)) return true;
   return /\b(?:your|you)\s*$/i.test(text.slice(start, i)) && /^your opponent'?s\b/i.test(text.slice(i + 5));
+}
+/**
+ * Audit conditions 3: the two players named together as one subject of a count — "**if you and your opponent** have a
+ * total of 10 or more Battle Cards" (BT23-071's back), "if there is a total of 7 or more energy **between you and your
+ * opponent**" (EX06-14). The conditions read both wordings whole (`priceConditionPhrasing`), but in an effect the "and"
+ * cut them into "if you" and "your opponent have …", neither of which said anything. Only a bare "you" after "if" or
+ * "between" in front of the "and", so "if you have 3 or more energy and your opponent …" is still two clauses.
+ */
+/**
+ * Audit conditions 3: "If **both <Son Goku> and <Vegeta>** are in your Battle Area or Drop Area" (BT2-042): "both A and B"
+ * is one phrase naming two cards, never two clauses (the price reader keeps it whole the same way, `joints`).
+ */
+function andJoinsBothNames(text: string, start: number, i: number): boolean {
+  return /\bboth\s+(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})\s*$/i.test(text.slice(start, i)) && /^(?:<|≪|\{)/.test(text.slice(i + 5));
+}
+function andJoinsBothPlayers(text: string, start: number, i: number): boolean {
+  return /(?:^|\b(?:if|between)\s+)you\s*$/i.test(text.slice(start, i).trim()) && /^your opponent\b(?!'s)/i.test(text.slice(i + 5));
 }
 /**
  * Two *different* named cards, each counted on its own: "1 <Android 17> card

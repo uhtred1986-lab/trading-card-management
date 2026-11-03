@@ -219,8 +219,10 @@ let records = 0;
   // "When this card attacks a Leader or Unison" (BT18-059).
   const b18 = conds(record("[Auto] When this card attacks a Leader or Unison, draw 1 card, then add up to 1 card from your life to your hand.", "BT18-059"));
   assert.ok(b18.some((c) => c.kind === "any" && c.conds.every((x) => x.kind === "inBattle" && x.role === "guard")), "D: BT18-059 — the guard is a Leader or a Unison");
-  // "…and the total ≪X≫ cards with different card names among … is 5 or more" (EX23-22): unread, not one count.
-  assert.ok(only("[activate: main][limit 1]{g}, if you have 3 or more energy and the total ≪Turles Crusher Corps≫ cards with different card names among all cards in your Z-Energy, Battle Area, and Drop is 5 or more: Draw 1 card and play this card from your hand.", "EX23-22").unread.length > 0, "D: EX23-22 — unread");
+  // "…and the total ≪X≫ cards with different card names among … is 5 or more" (EX23-22): never one count of Turles in the
+  // energy. Round 3 reads it (audit-conditions-3: the energy, and a count of names over the three places).
+  const ex23 = only("[activate: main][limit 1]{g}, if you have 3 or more energy and the total ≪Turles Crusher Corps≫ cards with different card names among all cards in your Z-Energy, Battle Area, and Drop is 5 or more: Draw 1 card and play this card from your hand.", "EX23-22");
+  assert.ok(ex23.unread.length > 0 || !flat(ex23.cond).some((c) => c.kind === "count" && c.sel.area === "energy" && !c.sel.areas && !!c.sel.filter?.traits.length), "D: EX23-22 — not a count of Turles in the energy");
   records += 6;
 }
 

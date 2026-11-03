@@ -278,7 +278,8 @@ for (const [id, text, op, n] of [
   const tien = skillRecords(card("TB1-029", { skill: "[Activate: Main] [Once per turn] Look at up to 7 cards from the top of your deck and choose up to 1 ≪Universe 7≫  among them. You may play that card by paying its energy cost. Then, shuffle your deck." }))[0];
   assert.deepEqual(tien.unread, ["You may play that card by paying its energy cost"], "K: TB1-029: the paid play is unread");
   const silent = skillRecords(card("BT14-074", { skill: "[Permanent] If your Leader Card is a green ≪Earthling≫ card, green skill-less Battle Cards in your Combo Area get +5000 combo power while this card is in a battle." }))[0];
-  assert.equal(silent.unread.length, 1, "K: BT14-074: a silent blank is unread");
+  // Audit conditions 3 reads it whole: the grant, while this card is in a battle — never a blank.
+  assert.ok(silent.unread.length === 1 || (JSON.stringify(silent.ops).includes('"comboPower"') && JSON.stringify(silent.ops).includes('"inBattle"')), "K: BT14-074: a silent blank is unread, or the grant is read with its battle");
   records += 2;
 }
 

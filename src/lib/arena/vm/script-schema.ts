@@ -1416,6 +1416,8 @@ const AT_MOST: OpField = { name: "atMost", type: "number" };
 /** "2 or more", "no", "any" — the bound a counting condition puts on a number. */
 function bound(c: { atLeast?: number; atMost?: number }, most = "or fewer"): string {
   if (c.atMost === 0) return "no";
+  // Audit conditions 3: both bounds — "if this card has 1 marker" (EX19-21), "your Leader Card has 10000 power" (P-176).
+  if (c.atLeast != null && c.atMost != null) return c.atLeast === c.atMost ? `exactly ${c.atLeast}` : `${c.atLeast} to ${c.atMost}`;
   if (c.atLeast != null) return `${c.atLeast} or more`;
   if (c.atMost != null) return `${c.atMost} ${most}`;
   return "any";
@@ -1553,7 +1555,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [SEL, AT_LEAST, AT_MOST],
     sentence: (raw) => {
       const c = raw as CondOf<"markers">;
-      return `${describeSelector(c.sel)} has ${bound(c)} markers`;
+      return `${describeSelector(c.sel)} has ${bound(c)} marker${c.atLeast === 1 && c.atMost === 1 ? "" : "s"}`;
     },
   },
   inBattle: {
@@ -1589,9 +1591,13 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026). `what: Union-Fusion` / `Union-Potara` / `Union-Absorb` is that [Union] keyword only. As the lone IF of an [Auto] on `played` — \"when this card is played using [Union]\" (BT14-114, BT28-097 …) — it is the trigger's own condition: `resolvePlay` withdraws the Auto from any play that was not such an entry, so it is never triggered by an ordinary, failed or other-variant play. With `sel: subject`, beside the description of the played card in an `all`, on an [Auto] on `youPlayed` — \"when your <X> card is played by a [Union] skill\" (BT22-033, BT25-036 back, P-682), \"when you play a Battle Card using a [Union-Fusion] skill\" (BT12-122) — it is the same trigger condition about that card, and the [Auto] carries the subject's entry as it was when triggered. `what: Evolve` (prohibition batch 6, EX04-04's \"if you played this card with [evolve]\") is the same lasting memory of a successful entry by an [Evolve], [EX-Evolve] or [Xeno-Evolve] play (22-5-2-2: \"[Evolve]\" is every one of them), kept while the copy stays in the area. Audit conditions 2 (3 Nov 2026): `what: EX-Evolve` / `Swap` / `Arrival` / `Successor` is that keyword's own play alone (\"when you play this card with [Swap]\", BT4-083; \"…using [Arrival]\", BT25-129), the same lasting memory; `what: skill` is a play a skill made (\"…played using a skill\", BT16-051), `by: other` another card's skill (BT20-104), `by: self` the card's own (P-628), and `source` the card whose skill it was, as it stands (\"…with the skill of {Majin Buu's Sealed Ball}\", BT2-028; \"…with <Trunks: Future> skill\", BT2-041) — a play its player declared is no skill's. Under `not` it is \"…played without using skills\" (BT15-042). Every one of them, as a lone IF of an [Auto] on `played`, is the trigger's own condition (`playGates`)",
   },
   placedThisTurn: {
-    fields: [SEL, { name: "played", type: "boolean" }],
-    sentence: (raw) => `${describeSelector((raw as CondOf<"placedThisTurn">).sel, "any of the")} was ${(raw as CondOf<"placedThisTurn">).played ? "played" : "placed in a Battle Area"} this turn`,
-    doc: "did one of these cards arrive in a Battle Area this turn, played or placed by a skill (5-5-1, 5-5-4)? \"At the end of a turn in which this card was placed in a Battle Area\" (BT15-118). The card remembers the arrival until the turn ends or it changes area (3-1-4)",
+    fields: [SEL, { name: "played", type: "boolean" }, { name: "from", type: { list: { enum: AREAS } } }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"placedThisTurn">;
+      const from = c.from?.length ? ` from the ${c.from.map((a) => (a in ZONE_NOUNS ? ZONE_NOUNS[a as keyof typeof ZONE_NOUNS] : a)).join(" or ")}` : "";
+      return `${describeSelector(c.sel, "any of the")} was ${c.played || from ? "played" : "placed in a Battle Area"}${from} this turn`;
+    },
+    doc: "did one of these cards arrive in a Battle Area this turn, played or placed by a skill (5-5-1, 5-5-4)? \"At the end of a turn in which this card was placed in a Battle Area\" (BT15-118). The card remembers the arrival until the turn ends or it changes area (3-1-4). With `from`, a play made from one of those areas — \"if this card was played from a Drop\" (BT31-050, audit conditions 3)",
   },
   every: {
     fields: [SEL, { name: "matching", type: "selector", required: true }],
@@ -1644,7 +1650,8 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [{ name: "var", type: "string", required: true }, AT_LEAST],
     sentence: (raw) => {
       const c = raw as CondOf<"chose">;
-      return c.atLeast && c.atLeast > 1 ? `you took all ${c.atLeast}` : "you took that choice";
+      // Audit conditions 3: "if you chose 5 or more cards with this skill" (BT19-149) asks at least 5 of up to 7.
+      return c.atLeast && c.atLeast > 1 ? `you took ${c.atLeast} or more` : "you took that choice";
     },
     doc: '"If you do so" (20-16): whether an earlier choice was answered, and with how many',
   },
@@ -1802,10 +1809,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: "has one of these cards used a skill with a marker price this turn (13-4-2: one a turn per card)? [Rejuvenate]'s gate, `NOT markerSkillUsed(sel: [self])`; a keyword move refused by it on its own card is a marker skill itself, and using it spends the card's one (22-42-2). A `DEFINE KEYWORD` body's word (#155)",
   },
   comboFrom: {
-    fields: [SEL, { name: "areas", type: { list: { enum: AREAS } }, required: true }],
+    fields: [SEL, { name: "areas", type: { list: { enum: AREAS } }, required: true }, AT_LEAST],
     sentence: (raw) => {
       const c = raw as CondOf<"comboFrom">;
       const where = c.areas.map((a) => (a in ZONE_NOUNS ? ZONE_NOUNS[a as keyof typeof ZONE_NOUNS] : a)).join(" or ");
+      if (c.atLeast && c.atLeast > 1) return `${c.atLeast} or more of ${describeSelector(c.sel)} were used in a combo from the ${where}`;
       return `${describeSelector(c.sel, "any of the")} was used in a combo from the ${where}`;
     },
     doc: "did one of these cards enter the Combo Area of the battle in progress from one of these areas — \"this card was used in a combo from your deck or hand\" (BT12-071, -072, -074, -075)? The engine keeps the area a combo card left (`VmBattle.comboOrigins`) until the card leaves the Combo Area at the end of the battle, so the question is asked of the battle; a card in no Combo Area has no origin and answers false",

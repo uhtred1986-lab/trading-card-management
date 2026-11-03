@@ -545,8 +545,10 @@ export type Cond =
    * ends or the card changes area (3-1-4).
    * Audit conditions 2: `played` is "it's the turn when this card was played" (BT23-040) — a successful play this turn
    * (`VmCard.playedThisTurn`), not a skill's placement.
+   * Audit conditions 3: with `from`, the play was made from one of those areas — "Additionally, if this card was played
+   * from a Drop" (BT31-050), asked by the [Auto] its play triggered (`VmCard.playedFrom`).
    */
-  | { kind: "placedThisTurn"; sel: Selector; played?: true }
+  | { kind: "placedThisTurn"; sel: Selector; played?: true; from?: ScriptArea[] }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
@@ -701,8 +703,10 @@ export type Cond =
    * and forgotten when it leaves the Combo Area at the end), so the question
    * is asked of the battle, and a card that is in no Combo Area has no origin
    * and answers false.
+   * Audit conditions 3: `atLeast` counts them — "if your Combo Area has 2 or more ≪Boujack Brigade≫ cards that you
+   * comboed with from a Battle Area" (BT6-080): at least that many of the selected cards entered from those areas.
    */
-  | { kind: "comboFrom"; sel: Selector; areas: ScriptArea[] };
+  | { kind: "comboFrom"; sel: Selector; areas: ScriptArea[]; atLeast?: number };
 
 /**
  * The card attributes `modifyAttr` may change: the two numbers a continuous
