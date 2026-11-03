@@ -1,0 +1,230 @@
+# Lane T (triggers), round 4 — what round 3 left
+
+From round 3's fix agent and adversarial reviewer (integration 4, #1246). Check each item against the printed text and the current reading (`npm run arena:compile-snapshot` on a fresh snapshot) before working it: some may have been fixed in passing.
+
+## Round 3 reviewer's open doubts (5)
+
+- **BT21-068#10b (outside this lane's diff, but its suite pins only the trigger)** — "When you use one of your opponent's Battle Cards in a combo" reads as youCombo with the subject "Battle Card". The opponent-ownership part is silently dropped by subjectFilterOf in compile/targets.ts, so any Battle Card you combo with triggers it. The fix needs the subject selector to carry ownedByOpponent, which subjectFilterOf cannot return today. This misread was already there before this lane.
+- **P-635#10 (placedUnderFromBattle)** — A card negated in the Battle Area and then placed under the Leader would still trigger its own [Auto], because the placedUnder event carries no sourceNegated (RM 9-6-9-2). This is a rare edge, not fixed.
+- **BT12-085 / R-280** — The sources are silent: the rule manual, the card's Q&A and the game FAQ were searched again. The alternative is to treat it as RM 8-5-6's moment, under which a strict reading of "from your Drop Area" means the skill never does anything. Left for the owner.
+- **Round-2 doubts not reached** — The round-2 doubts were not reached: BT4-076 (rule processing at 0 power), BT6-125 (change of control), BT14-032 (evolveActivated origin), and yourCardLeftBattle and evolve bases.
+- **BT22-058#20 (eitherBattleToDrop)** — This card cannot answer its own move to the Drop, because only cards in play are asked. That is consistent with the [Auto] being valid in the Battle Area, but no source confirms it.
+
+## Round 3 reviewer's code notes (7)
+
+- Fix agent: the new self moments for a card leaving the Battle Area (battleToWarp, toWarp, toWarpBySkill, battleToHand) skipped RM 9-6-9-2. Fixed.
+- Fix agent: BT12-085 was put on comboToDrop (RM 8-5-6 timing) without a ledger entry. The play then happened from the Combo Area, contradicting "from your Drop Area". Fixed and recorded as R-280.
+- Fix agent: no card-id special cases in the compiler; the errata for BT20-014/016/018 and BT26-014/058 are text fixes in errata.ts; the glossary was updated with the code and keeps its CRLF line endings; no rulings were cited that are missing from the ledger.
+- Watched-moment regexes (KEYWORD_WATCHED, ZONE_MOVES, PLACED_UNDER_FROM, listComma, leadCond, the under-host regex, the power-relative unreadable in filters.ts): the corpus diff shows no reading changed outside the 77 intended. Their breadth is held by the anchored patterns and the corpus check.
+- The corpus diff compares only the reading text, trigger and unread list. Gating changes, sourceNegated and the onTop area (area: battle, which I confirmed resolveSelector honours) never show in diff.md. VM probes covered toWarp, battleToWarp, toWarpBySkill, battleToHand, yourLifeToHand, eitherBattleToDrop and opponentHandToWarpByYou.
+- compile/effects.ts has an unused import, SAME_CHARACTER_AS_PLACED. ESLint warns about it; the warning already exists on origin/claude/arena-integration-4.
+- Integration notes: run contract:emit, because the language reference gains yourCardComboToDrop on top of the lane's 29 moments. Hotspots: vm/triggers.ts (SELF_MOVE_FROM_BATTLE, the BATCH1_GATED tail, the fromHolder line), compile/effects.ts (the decision for "If you do", where the effects lane may also edit), and triggers.rules plus files.ts (run arena:rulesets after merging).
+
+## Round 3 fix agent's "left" list, with reasons (206)
+
+- BT28-005#0: moment now read (list of names); effect 'with power greater than or equal to that card' (the attacking card) is a measure the filter does not take — kept unread with that reason
+- BT23-042#0: moment now read (list of names); the effect reader collapsed 'play up to 1 <Raditz>, <Vegeta>, or <Nappa> card―…different character name than the played card―' into playing the played card — kept unread (plays the card the moment played)
+- P-659#10: 'in your hand, Z-Energy, or Combo Area' — the clause splitter cuts the moment at the area list's commas
+- BT10-139#20: a description ('a Battle Card using a skill') on one moment of two; a record cannot condition one moment alone
+- BT16-144#20: same as BT10-139
+- BT18-124#20: three moments ([Over Realm], [Dark Over Realm], a black Battle Card played from the Warp) with a description on one
+- BT16-015#10: 'at the end of a turn where this card was played from your hand': the engine does not remember where a play came from
+- BT12-014#0: same as BT16-015
+- BT16-014#10: same as BT16-015
+- SD17-05#0: 'at the end of a battle where this card was played': no memory of a play during the battle
+- P-330#0: 'at the end of a turn where your Leader Card activated a [Blocker] skill': no memory of that
+- BT10-009#10: the condition 'During a battle where this card is attacking,' before the moment is the conditions lane's (inBattle)
+- BT22-023#10: a watched card switched to Active Mode by a described card's skill: the record has one subject (the switched card), not the source
+- BT22-004#30: same as BT22-023
+- BT22-021#10: same as BT22-023
+- P-539#0: a watched card switched to Active Mode by your Leader's skill: one subject, not the source
+- EX25-01#0: catalog line merges the [Auto] with the next [+2]/[-4] skills (missing line breaks) — errata not reached
+- EX25-24#0: catalog line merges the [Auto] with the next marker skills (missing line breaks) — errata not reached
+- BT18-043#10: catalog line merges the [Auto] with the next [Activate: Main] (missing line break) — errata not reached
+- SD21-06#10: an [Auto] in the Drop watching a move (only lifeLeft asks Drop watchers)
+- BT21-121#30: 'When your opponent plays Battle Cards … choose up to 1 of those cards': plural moment whose effect picks among several plays
+- P-727#0: a move by a described card's skill ('by your <Gogeta: Br> card's skill') has no by-name moment
+- BT25-031#0: 'a card is added to Z-Energy by one of your skills': a skill's move to the Z-Energy pends no by-name moment
+- BT10-127#10: '…by a skill' life moves: a skill's move from the Life Area pends no by-name moment
+- BT7-022#20: 'during your opponent's turn' said after the moment
+- BT12-038#20: 'your opponent activates a Battle Card's skill' includes [Auto] activations, which are no skillActivated moment
+- EX08-06#20: the second moment carries 'during your turn' alone, which one record cannot say
+- EX19-31#30: same as EX08-06
+- EX19-30#30: same as EX08-06
+- BT4-019#30: 'played using [Union-Potara] or attacks': the play's gate would also be asked of the attack
+- P-419#10: a change of control is no moment the engine fires
+- BT22-078#20: 'in Rest Mode' at the departure is not carried by the move
+- BT6-093#20: who switched the opponent's card to Active Mode is not carried by the plain mode switch
+- BT12-133#20: 'their energy to Active Mode with a non-[Awaken] skill' on either turn: the declared moment asks their turn; not reached
+- P-713#10b: 'your opponent's energy switches to Active Mode' would include the Charge Phase; not reached pending a ruling
+- BT19-069#20: a play from the Z-Energy or a [Union] card from the hand: two origins with two descriptions
+- BT19-067#0b: same as BT19-069
+- BT20-001#20b: not reached
+- BT20-137#0: not reached
+- BT20-032#20: not reached
+- BT21-100#10: not reached
+- BT21-100#0b: not reached
+- DB3-035#30: not reached
+- DB3-027#30: not reached
+- BT30-047#10: not reached
+- BT30-049#10: not reached
+- SD12-01#10: not reached
+- SD12-01#20b: not reached
+- P-470#0: not reached
+- EX21-26#20: not reached
+- BT15-020#0: not reached
+- BT15-019#20: not reached
+- BT8-044#10: not reached
+- BT8-044#10b: not reached
+- BT19-137#20: not reached
+- BT19-007#20: not reached
+- BT24-064#10: not reached
+- BT24-069#10: not reached
+- BT10-036#10: not reached
+- BT10-040#10: not reached
+- TB1-025#10: not reached
+- TB1-025#20b: not reached
+- P-528#10: not reached
+- P-550#10: not reached
+- P-509#10: not reached
+- P-721#10: not reached
+- DB3-140#0: not reached
+- BT21-062#10: not reached
+- BT20-001#20: not reached
+- BT14-002#10b: not reached
+- BT31-027#20b: not reached
+- BT20-041#20: not reached
+- BT22-054#0b: not reached
+- BT20-058#30: not reached
+- P-535#20: not reached
+- BT19-017#20: not reached
+- BT25-039#20: not reached
+- BT20-059#20: not reached
+- BT29-102#20: not reached
+- BT7-111#30: not reached
+- P-656#10: not reached
+- BT19-038#20: not reached
+- BT26-100#20: not reached
+- BT22-066#10: not reached
+- BT10-128#10: not reached
+- BT18-094#10: not reached
+- BT14-004#0: not reached
+- BT14-076#30: not reached
+- BT18-078#10: not reached
+- BT22-005#20: not reached
+- BT24-055#10b: not reached
+- P-681#10: not reached
+- BT19-035#0: not reached
+- EX25-35#10: not reached
+- EB1-38#10b: not reached
+- P-618#0: not reached
+- BT18-031#10b: not reached
+- BT26-003#20: not reached
+- BT24-113#10: not reached
+- BT13-086#20: not reached
+- EX22-06#20: not reached
+- BT27-140#10: not reached
+- BT10-096#10: not reached
+- BT27-034#10: not reached
+- BT29-149#10: not reached
+- BT20-084#10: not reached
+- BT20-084#10b: not reached
+- BT22-034#30: not reached
+- BT17-031#10: not reached
+- BT17-031#10b: not reached
+- BT5-112#10: not reached
+- BT25-085#20: not reached
+- P-683#10: not reached
+- BT21-008#10: not reached
+- BT26-065#0: not reached
+- P-328#10: not reached
+- BT7-025#10b: not reached
+- P-270#20: not reached
+- BT16-056#10: not reached
+- BT26-062#10: not reached
+- P-277#10: not reached
+- BT24-009#10: not reached
+- BT24-009#20: not reached
+- BT30-039#20: not reached
+- BT18-113#20: not reached
+- P-536#20: not reached
+- EX21-07#10: not reached
+- TB2-002#20: not reached
+- P-603#10: not reached
+- BT23-037#30: not reached
+- EX19-14#0: not reached
+- BT12-042#10: not reached
+- DB3-014#30: not reached
+- BT22-111#10: not reached
+- EX25-10#10: not reached
+- BT14-031#10b: not reached
+- BT20-031#20: not reached
+- BT10-138#10: not reached
+- BT27-054#20: not reached
+- EB1-31#10: not reached
+- BT16-143#20: not reached
+- EX20-06#20: not reached
+- EX21-26#10: not reached
+- P-443#20: not reached
+- P-671#10: not reached
+- BT8-026#0: not reached
+- BT27-088#10: not reached
+- BT5-111#10: not reached
+- BT18-141#20: not reached
+- BT11-124#0: not reached
+- BT23-039#0: not reached
+- BT32-048#20: not reached
+- BT32-051#10: not reached
+- BT2-031#10: not reached
+- BT18-090#0b: not reached
+- BT13-017#40: not reached
+- BT15-121#10: not reached
+- BT19-013#20: not reached
+- P-513#0: not reached
+- EX19-20#10b: not reached
+- BT22-022#20: not reached
+- P-331#20: not reached
+- P-477#10: not reached
+- BT28-058#0: not reached
+- EB1-60#20: not reached
+- BT24-010#10: not reached
+- BT3-056#0b: not reached
+- BT26-013#20: not reached
+- BT15-033#0: not reached
+- BT7-113#20: not reached
+- BT25-100#30: not reached
+- P-301#30: not reached
+- EX14-03#10: not reached
+- EX10-05#20: not reached
+- BT30-109#0: not reached
+- BT25-120#0: not reached
+- EB1-21#20: not reached
+- BT16-100#20: not reached
+- P-415#10: not reached
+- BT3-069#20: not reached
+- BT30-051#10: not reached
+- P-752#0: not reached
+- BT11-064#10: not reached
+- BT12-012#10: not reached
+- BT19-128#20: not reached
+- BT27-092#0b: not reached
+- BT12-023#10: not reached
+- BT6-112#20: not reached
+- P-544#30: not reached
+- BT16-131#10: not reached
+- BT8-054#10: not reached
+- EX19-22#10: not reached
+- BT27-102#10: not reached
+- P-500#10: not reached
+- BT7-074#10b: not reached
+- BT8-067#0b: not reached
+- BT18-079#20: not reached
+- BT12-127#10: not reached
+- BT22-057#20: not reached
+- BT17-142#30: not reached
+- BT6-114#10: not reached
+- BT7-001#10b: not reached
+- P-325#0: not reached
+- BT10-011#10: not reached
+- DB2-169#30: not reached
+- DB2-010#10: not reached

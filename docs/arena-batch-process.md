@@ -45,8 +45,13 @@ A batch agent runs only what its change can break, all in a few minutes:
 - `npm run typecheck`, then eslint on the files it changed.
 - Its own suite on its own: `npx tsx scripts/verify/<suite>.ts` (seconds).
 - Each older suite that names a card id it changed, on its own (grep `scripts/verify` for the
-  ids). A suite that cannot run alone because it depends on an earlier one's cards is left to
-  integration.
+  ids), and each that pins a printed wording or a reading sentence it changed (grep for the phrase
+  and the describer sentence: most suites that broke at integration named no card id). `wordings.ts`
+  needs `keywords.ts` first, in one process (`npx tsx -e` importing both in order); any other suite
+  that cannot run alone is left to integration.
+- When it applies: `scripts/verify/capabilities.mts --check` (a `vm/*` NotYet site changed),
+  `scripts/verify/teach.ts` (the rules language grew), `scripts/verify/attack-preview-801.ts`
+  (per-checkpoint engine work). A suite never overwrites a shared harness card; suites share a process.
 - The corpus diff, offline against a catalog snapshot (`arena:snapshot`, taken once by the owner or
   an authorised session): `npm run arena:compile-snapshot -- --snapshot <catalog.json> --out before.json`
   on the branch point, then the same with `--out after.json --against before.json --diff diff.md` on the
@@ -67,7 +72,13 @@ migrations, so batches reach `main` together:
    `SUITES` and the glossary.
 2. Run the full gate **once**: `npm run checks -- full --emit`. This is one arena run that also
    regenerates the contract fixtures. Review `git diff contract/`, and fix any older suite whose
-   expectation the batches deliberately changed.
+   expectation the batches deliberately changed. Merge the batch branches hunk by hunk, never by taking
+   one side of a whole source file, and link `node_modules` into an integration worktree (the checks
+   runner calls `<worktree>/node_modules/...`). In integration 4 the gate reported the arena step
+   passed while `npx tsx scripts/verify-arena.ts --emit` run directly found failures and stale
+   fixtures: run that directly too before merging. A suite that fails early drops the probe cards it
+   defines later from `contract/probe-digests.json`; re-emit after a clean run. The readings audit's
+   rounds and the next round's work lists: `docs/arena-audit/README.md`.
 3. Open one PR for the integration branch, merge it, and close the batch PRs it carried. That
    gives one build.
 4. Refresh production `card_rules` once from the combined refresh lists, then run one

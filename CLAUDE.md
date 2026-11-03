@@ -95,6 +95,7 @@ framework, only `assert` scripts run with `tsx`. Arena tooling and its scripts: 
 | Server actions, raw SQL, `DB_DRIVER`, the SessionStart hook | `docs/architecture/db.md` |
 | The arena: engines, compiler, rules language, Rules screens, UI, scripts | skill `arena-work`, then `docs/architecture/arena.md`, `docs/arena-tooling.md`, `docs/arena-code-map.md` |
 | Arena rule batches: research order, rulings ledger (`src/lib/arena/rulings.ts`), what an agent runs, integration | `docs/arena-batch-process.md` |
+| The readings audit: the next round's lanes, work lists, workflow script, integration pitfalls | `docs/arena-audit/README.md` |
 | Symbol lookup, browser network/offline inspection (Windows-verified, no Playwright) | `docs/arena-agent-tools.md` |
 | Reviewing open rules with the owner (MCP connector `/api/mcp`) | `docs/arena-tooling.md` §5c, `skills/dbs-rules-review/`; a batch against `card_rules`: skill `rules-review-batch` |
 | Screens changed (proof) | skill `screen-proof` |
