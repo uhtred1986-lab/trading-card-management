@@ -2760,9 +2760,11 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // The noun has to be settled before the trailing measures are hung off it,
   // and a name asked for **in part** is one of those — printed after the word
   // it qualifies, the way the card prints it.
+  // (Audit selectors 2: several parts are any one of them, as the matcher's one `some` takes them — "with <Son Gohan> or
+  // <Piccolo> in its character name", BT19-110.)
   const partial = [
-    ...f.charactersIncluding.map((x) => `with <${x}> in its character name`),
-    ...f.namesIncluding.map((x) => `with {${x}} in its card name`),
+    ...(f.charactersIncluding.length ? [`with ${f.charactersIncluding.map((x) => `<${x}>`).join(" or ")} in its character name`] : []),
+    ...(f.namesIncluding.length ? [`with ${f.namesIncluding.map((x) => `{${x}}`).join(" or ")} in its card name`] : []),
     // Audit lane C: either word, in a trait (`traitsIncluding`).
     ...(f.traitsIncluding?.length ? [`with ${f.traitsIncluding.map((x) => `≪${x}≫`).join(" or ")} in its special traits`] : []),
     // "with both <A> and <B>" (#768): the parser reads exactly two tokens, so

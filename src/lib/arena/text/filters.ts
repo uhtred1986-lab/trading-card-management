@@ -995,6 +995,14 @@ function parseOneFilter(text: string): CardFilter {
   // sentence rules out. Until 9 Sep 2026 nothing noticed, because the measure
   // was thrown away before it reached a selector (see `narrows` in
   // `compile.ts`) — the filter was wrong and the selector had none at all.
+  // Audit selectors 2: "…and **<Son Gohan> or <Piccolo> in its character name**" (BT19-110) looks inside the name for
+  // either; only the second name was read so, and <Son Gohan> had to be the whole name (a <Son Gohan: SH> missed).
+  t = t.replace(/(?<!without\s|non-)(<[^>]+>|\{[^}]+\}) or (<[^>]+>|\{[^}]+\})\s+in (?:its|their) (?:(character|card) )?names?/gi, (_whole, a: string, b: string, which: string | undefined) => {
+    const into = which?.toLowerCase() === "character" ? f.charactersIncluding : f.namesIncluding;
+    if (a[0] !== b[0]) return _whole;
+    into.push(a.slice(1, -1).trim(), b.slice(1, -1).trim());
+    return " ";
+  });
   t = t.replace(/(without\s+|non-|(?:that |which )?does\s?n'?o?t include\s+)?(<[^>]+>|\{[^}]+\})\s+in (?:its|their) (?:(character|card) )?names?/gi, (_whole, neg: string | undefined, token: string, which: string | undefined) => {
     const value = token.slice(1, -1).trim();
     // A bare "in its name" (SD15-01: "Unison Cards with {Cabba} in its name",

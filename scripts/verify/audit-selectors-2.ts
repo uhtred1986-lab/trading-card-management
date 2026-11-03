@@ -18,6 +18,9 @@
  * F.  "…to your opponent's Battle Area" (`toOpponent`, BT13-028, BT13-029, BT20-123); "would leave the Battle Area by a
  *     skill" keeps its cause (BT25-014).
  * G.  Honest gaps: a cost bound counted off the board (P-300, BT15-145, BT22-127), "not a copy of this card" (BT20-124).
+ * H.  Counts and places: "that many" (BT12-002, BT31-072), "up to X" unread (DB3-141), "your yellow <Spike> card gets"
+ *     is every one (BT22-087), "non-Leader Cards" in play (BT16-087), "cards in hand" yours (P-057), "your Z-Energy and
+ *     Drop" both (EX23-52), "<Son Gohan> or <Piccolo> in its character name" (BT19-110).
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where an engine path moved (A, B, C).
@@ -282,6 +285,41 @@ for (const [text, what] of [
   assert.ok(rec.unread.length, `G: ${what} — unread (${rec.reads})`);
   assert.ok(!opsDeep(rec.ops).some((o) => o.op === "moveTo" && "sel" in o.target && o.target.sel.special === "self" && o.to === "hand"), `G: ${what} — never this card to the hand`);
   records++;
+}
+
+// ── H. counts and places ─────────────────────────────────────────────────────
+for (const [text, what, from] of [
+  // "That many" / "the same number of" is as many as the choice before it took, owed (BT12-002, BT31-072, P-730).
+  ["[Auto] When this card attacks, choose up to 3 red ≪Namekian≫ or ≪Demon Clan≫ cards in your hand and place them in your life face up, then add that many cards from your life to your hand.", "BT12-002", "life"],
+  ["[auto] When this card is played, add up to 2 cards from your life to your hand, then add that many cards from your hand to your life.", "BT31-072", "hand"],
+] as const) {
+  const rec = record(text, what);
+  const [first, second] = chooses(rec);
+  assert.ok(second && second.sel.area === from && second.sel.count === undefined && second.owed && JSON.stringify(second.atMost) === JSON.stringify({ var: first.as }), `H: ${what} — as many as the first choice took (${rec.reads})`);
+  records++;
+}
+{
+  // "Up to X" after an "(X)" price is unread, not every card (DB3-141).
+  const [x] = skillRecords(card("DB3-141", { skill: "[-3][activate: main]{g}{g}{g}(X), if your Leader Card is green: Choose up to X cards in your opponent's hand and discard them." }));
+  assert.ok(x.unread.length, `H: DB3-141 — unread (${x.reads})`);
+  // "Your yellow <Spike> card gets +5000 power" is every such card (BT22-087).
+  const spike = record("[Permanent] Your yellow <Spike> card gets +5000 power.", "BT22-087");
+  const pump = opOf(spike.ops, "power")[0];
+  assert.ok(pump && "sel" in pump.target && pump.target.sel.count === undefined, `H: BT22-087 — all of them (${spike.reads})`);
+  // "Your opponent's non-Leader Cards" are their cards in play but the Leader (BT16-087).
+  const rest = record("[auto][limit 1] If your Leader Card is yellow: When this card is played, choose up to 1 of your opponent's non-Leader Cards and switch it to Rest Mode.", "BT16-087");
+  const pick = chooses(rest)[0];
+  assert.ok(pick.sel.area === "play" && pick.sel.side === "opponent" && pick.sel.filter?.notType === "LEADER", `H: BT16-087 — in play, not the Leader Area (${rest.reads})`);
+  // "4 or less cards in hand" is your hand (P-057).
+  const hand = record("[Auto] [Once per turn] At the end of a battle after this card attacks, if you have 4 or less cards in hand, switch this card to Active Mode.", "P-057");
+  assert.match(hand.reads, /4 or fewer cards in your hand/, `H: P-057 — your hand (${hand.reads})`);
+  // "From among all the cards in your Z-Energy and Drop" is both (EX23-52); "<Son Gohan> or <Piccolo> in its character
+  // name" looks inside the name for either (BT19-110).
+  const pan = record("[activate: main]{3}, if you have 4 or more energy: Play this card from your hand, then play up to 4 <Pan> cards and/or cards with <GT> in their character names―each with different card names―from among all the cards in your Z-Energy and Drop with their skills negated for the game.", "EX23-52");
+  assert.deepEqual(chooses(pan).find((p) => p.sel.differentNames)?.sel.areas, ["zEnergy", "drop"], `H: EX23-52 — the Z-Energy and the Drop (${pan.reads})`);
+  const gohan = record("[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow card with an energy cost of 5 or less and <Son Gohan> or <Piccolo> in its character name among them to your hand, then shuffle your deck.", "BT19-110");
+  assert.deepEqual(chooses(gohan)[0].sel.filter?.charactersIncluding.map((x) => x.toLowerCase()), ["son gohan", "piccolo"], `H: BT19-110 — either inside the name (${gohan.reads})`);
+  records += 6;
 }
 
 // ── VM ───────────────────────────────────────────────────────────────────────

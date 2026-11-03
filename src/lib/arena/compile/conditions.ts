@@ -1460,7 +1460,7 @@ function parseCountCondition(t: string): Cond | null {
   // more — the ban held exactly when the card printed it lifted.
   t = t.replace(/^(you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:(less|fewer)|more) than (\d+) /, (_w, lead: string, under: string | undefined, n: string) =>
     under ? (Number(n) > 0 ? `${lead} ${Number(n) - 1} or less ` : _w) : `${lead} ${Number(n) + 1} or more `);
-  const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t.replace(/^(your opponent has .+) in hand$/, "$1 in their hand"));
+  const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t.replace(/^(your opponent has .+) in hand$/, "$1 in their hand").replace(/^(you have .+) in hand$/, "$1 in your hand"));
   if (!m) return null;
   const [, none, num, dir, said] = m;
   // Audit lane C (2 Nov 2026): "…there are no cards in your opponent's Combo Area **at the beginning of that battle's

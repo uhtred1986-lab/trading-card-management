@@ -484,6 +484,22 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // filter field holds (the energy-count bounds, `costAtMostEnergy`…, count only energy). The count's area was read as
   // where the card is — a Battle Card in the opponent's hand, in your Z-Deck, in your Drop. Unread until it is taught.
   if (/\b(?:energy|combo) costs? (?:that is |which is )?(?:less|greater|lower|higher|more|fewer|equal)[a-z ]* (?:than|to)(?: or equal to)? the (?:number|total|amount) of\b/i.test(phrase)) return null;
+  // Audit selectors 2: "Choose **up to X** cards in your opponent's hand" after a "{g}{g}{g}(X)" price (DB3-141, DB3-142,
+  // BT27-140): a count no selector holds — X is what the price paid, a notation this compiler does not read (DB3-138).
+  // Read as a plural with no number, it was every card. ("Where X is …" is rewritten before it reaches here.)
+  if (/^(?:choose )?(?:up to )?x\b/i.test(phrase.trim())) return null;
+  // Audit selectors 2: "choose up to 1 of your opponent's **non-Leader Cards**" (BT16-087) — any of their cards in play but
+  // the Leader. Its type noun named the Leader Area, where no non-Leader card ever is.
+  // Audit selectors 2 (round-1 doubt): "…from among all the cards in your Z-Energy **and** Drop" (EX23-52) is a search of
+  // both places, as "and/or" is (`AREA_PAIR_RE` took only "or" and "and/or", and the Drop was lost).
+  const amongBoth = /\bfrom among all (?:of )?(?:the )?cards in (your|their) ((?:z-)?[a-z]+(?: area)?) and ((?:z-)?[a-z]+(?: area)?)\b(?!\/)/i;
+  if (amongBoth.test(phrase)) return parseTarget(phrase.replace(amongBoth, "from $1 $2 and/or $3"), looked, pool);
+  const nonLeader = /\bnon-leader cards?\b/i;
+  // (Only where the rest of the phrase puts the cards in play; "3 non-Leader cards from under this card" names its pile.)
+  if (nonLeader.test(phrase)) {
+    const sel = parseTarget(phrase.replace(nonLeader, (w) => w.replace(/^non-leader /i, "")), looked, pool);
+    if (sel && !sel.special && !sel.fromVar && sel.area === "play" && !sel.areas) return { ...sel, filter: { ...(sel.filter ?? emptyFilter()), notType: "LEADER" } };
+  }
   // "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
   // deck flags 26 Oct 2026): the words were read as nothing, so the player
   // picked the cards. The official Q&A: chosen "without player involvement".

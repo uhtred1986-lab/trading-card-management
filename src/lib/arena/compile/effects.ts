@@ -362,6 +362,13 @@ function refFor(clause: string, c: Ctx): Ref | null {
     return null;
   }
   const sel = parseTarget(clause);
+  // Audit selectors 2: a [Permanent]'s subject that prints no number — "**Your yellow <Spike> card** gets +5000 power"
+  // (BT22-087) — is every such card, not one: the singular names a kind of card.
+  if (sel && c.permanent && sel.count === 1 && sel.area !== "leader" && !sel.upTo && sel.take == null && !sel.special && !sel.fromVar && /^\s*(?:your|their|your opponent'?s)\b/i.test(clause) && !/\b(?:\d+|an?|one) (?:of )?/i.test(headOf(clause))) {
+    const { count: _count, ...all } = sel;
+    void _count;
+    return { sel: all };
+  }
   if (sel) return { sel };
   return null;
 }
@@ -1736,6 +1743,23 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // clause is a count of its own no reader takes.
   if (/^draw cards equal to the number of cards (?:you discarded|(?:that were )?discarded) (?:with|by|using) this skill$/.test(t) && c.priceChoice && c.priceDiscarded) return [{ op: "draw", n: { var: c.priceChoice } }];
   if (/^(?:then )?draw that many cards$/.test(t) && c.last && c.last !== c.priceChoice) return [{ op: "draw", n: { var: c.last } }];
+  // Audit selectors 2: "…place them in your life face up, then **add that many cards** from your life to your hand"
+  // (BT12-002), "add up to 2 cards from your life to your hand, then add that many cards from your hand to your life"
+  // (BT31-072), "…then place **the same number of cards** from your hand at the bottom of your deck" (P-730): as many as
+  // the choice before it took, owed as far as there are (`atMost` + `owed`, 5-2-5). Read as a plural with no number it
+  // was every card — the whole hand into the deck. The clause is read as an "up to" of its own, then bounded.
+  const thatMany = /\b(?:that many|the same number of) cards\b/;
+  if (thatMany.test(t) && !/^(?:then )?draw\b/.test(t)) {
+    const last = c.last;
+    if (!last || last === c.priceChoice) return null;
+    const read = compileClause(clause.replace(new RegExp(thatMany.source, "i"), "up to 99 cards"), c);
+    const pick = read?.find((o): o is Extract<Op, { op: "choose" }> => o.op === "choose" && o.sel.count === 99 && !!o.sel.upTo && !o.sel.fromVar && !o.sel.special);
+    if (!read || !pick) return null;
+    const { count: _count, upTo: _upTo, ...sel } = pick.sel;
+    void _count;
+    void _upTo;
+    return read.map((o) => (o === pick ? { ...pick, sel, atMost: { var: last }, owed: true as const, reason: clause } : o));
+  }
   // "Have your opponent draw 1 card" leaves the verb uninflected once the
   // leading words are split off, and a few sets print it that way outright.
   if ((m = /^(?:your opponent|they) draws? (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]), side: "opponent" }];
