@@ -26,6 +26,7 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { resolveSelector } from "../../src/lib/arena/vm/program";
 import { parseSkills } from "../../src/lib/arena/text/cards";
+import { correctSkillText } from "../../src/lib/catalog/errata";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { Cond, Op, Selector } from "../../src/lib/arena/vm/script";
@@ -149,6 +150,14 @@ for (const [text, id] of [
   ["[Auto] When your <Son Goku: Childhood> card is KO'd by an opponent's skill or leaves a Battle Area, choose up to 1 of your opponent's Battle Cards and KO it.", "BT6-114"],
 ] as const) {
   assert.ok(only(text, id).unread.length, `B: ${id} stays unread`);
+  records++;
+}
+// BT26-100: the catalog's "attacks and opponent's Battle Card" is the official "attacks an opponent's Battle Card"
+// (errata.ts); what this card attacks is a condition on the attack alone, which one record cannot say — unread.
+{
+  const fixed = correctSkillText("BT26-100", "[Auto] When this card is played or attacks and opponent's Battle Card, switch this card to Active Mode.");
+  assert.match(fixed ?? "", /is played or attacks an opponent's Battle Card/, "B: BT26-100 — the official wording");
+  assert.ok(only(fixed!, "BT26-100").unread.length, "B: BT26-100 — the attack's target is the attack's alone: unread");
   records++;
 }
 // …and as it was: a Leader attacked keeps its own moment (SD15-02), "KO'd by an opponent's attack" is no attack (BT13-103).

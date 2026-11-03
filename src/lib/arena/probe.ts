@@ -250,7 +250,7 @@ const TITLES: Record<ProbeFamily, string> = {
   permanent: "In play, with the opponent activating a KO skill at it",
   keyword: "In play, with the keyword's own rule to answer for it",
   moment: "In play, and the turn is run to the moment it names",
-  none: "The engine knows no moment for this wording",
+  none: "No probe board stages this skill's moment",
 };
 
 const VARIANT_TITLES: Partial<Record<ProbeVariant, string>> = {
@@ -1083,7 +1083,11 @@ const empty = (scenario: ProbeScenario, outcome: ProbeOutcome, said: string[]): 
 export function probe(rule: ProbeRule, scenario: ProbeScenario, opts: { trace?: boolean } = {}): ProbeRun {
   if (scenario.family === "none") {
     return empty(scenario, "noScenario", [
-      rule.kind === "auto"
+      // Audit triggers 2: a record that names a declared moment no family stages (a watched card removed, a Unison to
+      // the Drop, …) is a skill a game fires; only the probe has no board for it.
+      rule.kind === "auto" && rule.trigger.length
+        ? `This skill answers to ${rule.trigger.join(", ")}, a moment no probe board stages yet — a game fires it, but there is no board here on which to try it.`
+        : rule.kind === "auto"
         ? "This skill names a moment the engine does not know, so there is no board on which to try it — which is also why a game never fires it."
         : "No scenario covers this kind of skill yet.",
     ]);

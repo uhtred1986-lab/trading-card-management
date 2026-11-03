@@ -1208,9 +1208,10 @@ function compileSkillText(skill: Skill): Script {
       triggerCond = { kind: "inBattle", sel: { side: "you", ...(/\bbattle cards?$/i.test(said) ? { area: "battle" as const } : {}), filter: attacker }, role: "attacker" };
     } else if (battlePart && battlePart !== "any") triggerCond = { kind: "inBattle", sel: { special: "self" }, ...(battlePart === "self" ? {} : { role: battlePart }) };
     // Audit triggers 1: the card a `kos` moment KO'd is its subject, and what the words say about it is a condition on it.
-    // The head is read whole: "attacks and KOs …" is cut at its "and" into clauses (below).
+    // The head is read whole: "attacks and KOs …" is cut at its "and" into clauses (below). A condition in front may end
+    // in a comma, the sets' bar or (audit triggers 2) a colon left in the effect.
     const kosMasked = maskNames(skill.effect);
-    const kosHead = /^(?:if [^,|]{0,90}[,|]\s*)?(when this card (?:attacks and )?kos [^,:]*)/i.exec(kosMasked.text.trim())?.[1];
+    const kosHead = /^(?:if (?:[^,|:<]|<[^<>]*>){0,90}[,|:]\s*)?(when this card (?:attacks and )?kos [^,:]*)/i.exec(kosMasked.text.trim())?.[1];
     const koedSaid = skill.kind === "auto" && coordinated === undefined && kosHead ? kosMasked.unmask(koedDescription(kosHead)) : "";
     if (koedSaid) {
       const koedFilter = filterFor(koedSaid, null);
@@ -1516,6 +1517,9 @@ function coordinatedSubject(skill: Skill): { cond: Cond | null } | null | undefi
     const battle = battleEndPart(h.toLowerCase());
     if (battle !== undefined && battle !== "any") return null;
     if (koedDescription(h)) return null;
+    // Audit triggers 2: "…played or attacks **an opponent's Battle Card**" (BT26-100): what this card attacks is a
+    // condition on the attack alone.
+    if (/^when this card attacks\s+\S/i.test(h)) return null;
   }
   const watched = heads.filter((h) => !own(h));
   if (!watched.length) return { cond: null };
