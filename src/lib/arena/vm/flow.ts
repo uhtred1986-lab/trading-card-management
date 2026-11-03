@@ -361,6 +361,7 @@ const STEP_WORK: Record<string, Work> = {
         delete inst.playedUsing;
         // 5-5-4: so is "a turn in which this card was placed in a Battle Area".
         delete inst.placedThisTurn;
+        delete inst.playedThisTurn;
       }
       // 22-44-3 (#741): "during the same turn" — the count a master keeps of
       // each [Limit X] line across copies is over with the turn too.

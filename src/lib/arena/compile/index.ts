@@ -1065,6 +1065,10 @@ function compileSkillText(skill: Skill): Script {
     const how = skill.kind === "auto" && !unionPlay ? playedHowGate(trigger) : undefined;
     if (how === null) return { ops: [], unsupported: [trigger, ...clauses] };
     if (how) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, how] } : how;
+    // Audit conditions 2: "When this card **attacks twice in the same turn**" (EX01-04): the moment is the attack, and it
+    // has to be this card's second this turn (`attacked`, the count [Dual Attack] keeps). Dropped, the first attack
+    // already gave [Double Strike].
+    if (skill.kind === "auto" && /^when this card attacks twice in (?:the same|a single|one) turn[.,]?$/i.test(trigger.trim())) triggerCond = { kind: "attacked", sel: { special: "self" }, atLeast: 2 };
     // "At the end of a turn in which this card was placed in a Battle Area"
     // (BT15-118, 5-5-4): the moment is every turn's end (`turnEnd` and
     // `opponentTurnEnd`), and the rest of the sentence is a condition on it —

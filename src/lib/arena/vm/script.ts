@@ -535,8 +535,10 @@ export type Cond =
    * turn, played or placed by a skill (5-5-1)? The card's memory of the
    * arrival — set as it lands there from another area, gone when the turn
    * ends or the card changes area (3-1-4).
+   * Audit conditions 2: `played` is "it's the turn when this card was played" (BT23-040) — a successful play this turn
+   * (`VmCard.playedThisTurn`), not a skill's placement.
    */
-  | { kind: "placedThisTurn"; sel: Selector }
+  | { kind: "placedThisTurn"; sel: Selector; played?: true }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a

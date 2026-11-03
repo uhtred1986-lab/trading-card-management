@@ -184,6 +184,8 @@ export interface VmCard {
    * (3-1-4). Absent otherwise.
    */
   placedThisTurn?: true;
+  /** Audit conditions 2: this card was played into the area it stands in this turn, successfully (`resolvePlay`) — "it's the turn when this card was played" (BT23-040). Cleared as `placedThisTurn` is. */
+  playedThisTurn?: true;
   /**
    * 14-1-4: this card is a Z-card, which `moveCard` removes from the game when
    * it leaves play. Set by `newCard` from the definition's type and left off
@@ -493,4 +495,5 @@ function reset(card: VmCard, zone: ZoneDef | null): void {
   delete card.enteredUsing;
   delete card.enteredBy;
   delete card.placedThisTurn;
+  delete card.playedThisTurn;
 }

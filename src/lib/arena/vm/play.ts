@@ -346,6 +346,8 @@ export function resolvePlay(
     // …and the Autos it pended about this card carry it as their subject's.
     for (const p of state.pending) if (!pendedBefore.has(p) && p.subject === card && p.kind !== "hook") p.subjectEnteredUsing = opts.using;
   }
+  // Audit conditions 2: "it's the turn when this card was played" (BT23-040).
+  if (success) state.cards[card].playedThisTurn = true;
   if (success && playedBy !== undefined) {
     state.cards[card].enteredBy = playedBy;
     for (const p of state.pending) if (!pendedBefore.has(p) && p.card === card && p.kind !== "hook") p.selfEnteredBy = playedBy;

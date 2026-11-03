@@ -69,6 +69,7 @@ function ops(rec: Rec): Op[] {
   return out;
 }
 
+const forbids = (rec: Rec) => ops(rec).filter((o): o is Extract<Op, { op: "forbid" }> => o.op === "forbid");
 let records = 0;
 
 // A. How a play was made.
@@ -167,6 +168,34 @@ let records = 0;
   records += 12;
 }
 
+// C. Conditions and causes said in passing.
+{
+  // "…would be placed in its owner's Drop Area by one of your skills" (BT15-097): a move to the Drop only.
+  const warp = ops(record("[permanent] If this card in your Battle Area would be placed in its owner's Drop Area by one of your skills, it's sent to its owner's Warp instead.", "BT15-097")).find((o) => o.op === "replaceLeave");
+  assert.ok(warp && warp.op === "replaceLeave" && warp.requestedTo === "drop" && warp.to === "warp", "C: BT15-097 — a move to the Drop, sent to the Warp");
+  // "…you can't place cards in your Energy Area by your skills for the game" (BT22-031): your skills' moves, not the charge.
+  const b22 = forbids(record("[Awaken] When your life is at 5 or less: Draw 2 cards, and you can't place cards in your Energy Area by your skills for the game.", "BT22-031", { type: "LEADER", energyCost: null, comboCost: null, comboPower: null }));
+  assert.deepEqual(b22.map((o) => [o.what, o.side, o.toArea, o.until]), [["beMovedBySkill", "you", "energy", "game"]], "C: BT22-031 — your skills' placements, for the game");
+  // "If that card was your own Battle Card" (BT4-045).
+  const b4 = conds(record("[Activate: Main] If your Leader Card is blue, choose up to 1 of your or your opponent's Battle Cards with an energy cost of 3 or less and return it to its owner's hand. If that card was your own Battle Card, draw 1 card.", "BT4-045"));
+  assert.ok(b4.some((c) => c.kind === "count" && c.sel.ownedByYou && c.sel.fromVar), "C: BT4-045 — the returned card is yours");
+  // "If you have only black cards in your energy" (BT8-104): all of it.
+  assert.ok(conds(record("[Permanent] If you have only black cards in your energy and your life is at 4 or less, you can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.", "BT8-104")).some((c) => c.kind === "every"), "C: BT8-104 — every card in the energy");
+  // "If all of the cards placed in your Drop Area are black" (BT4-098): the cards this skill placed.
+  const b98 = conds(record("[Auto] When this card attacks a Leader Card, place 3 cards from the top of your deck in your Drop Area. If all of the cards placed in your Drop Area are black, draw 1 card.", "BT4-098")).find((c) => c.kind === "every");
+  assert.ok(b98 && b98.kind === "every" && b98.sel.fromVar && b98.matching.fromVar === b98.sel.fromVar, "C: BT4-098 — the milled cards, not the whole Drop");
+  // "KO it if it's a skill-less Battle Card" (EX19-36).
+  const ex19 = record("[Auto] When this card is played from your hand, choose up to 1 of your opponent's Battle Cards, switch it to Rest Mode, and KO it if it's a skill-less Battle Card.", "EX19-36");
+  const gate = ex19.ops.find((o) => o.op === "if");
+  assert.ok(gate && gate.op === "if" && gate.cond.kind === "varMatches" && gate.cond.filter.skillLess && gate.then.some((o) => o.op === "ko"), "C: EX19-36 — the KO hangs on skill-less");
+  assert.ok(!ex19.ops.some((o) => o.op === "ko"), "C: EX19-36 — …and only there");
+  // "When this card attacks twice in the same turn" (EX01-04).
+  assert.ok(conds(record("[auto] When this card attacks twice in the same turn, it gains [double strike] for the duration of the turn.", "EX01-04")).some((c) => c.kind === "attacked" && c.atLeast === 2), "C: EX01-04 — the second attack");
+  // "…and it's the turn when this card was played" (BT23-040).
+  assert.ok(conds(record("[auto] If your Leader is a blue <Raditz> or <Nappa> card and it's the turn when this card was played: When this card attacks, draw 1 card.", "BT23-040")).some((c) => c.kind === "placedThisTurn" && c.played), "C: BT23-040 — played this turn");
+  records += 9;
+}
+
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const DRAW = "draw 1 card.";
 const defs: Record<string, CardDef> = {
@@ -181,6 +210,9 @@ const defs: Record<string, CardDef> = {
   AC2_THEIRTURN: card("AC2_THEIRTURN", { skill: "[Auto] Choose 1 card in your hand and discard it: When you play this card during your opponent's turn, draw 2 cards." }),
   // B. a description against your board, and a card you own
   AC2_UNLIKE: card("AC2_UNLIKE", { skill: "[Activate: Main] Play up to 1 card with an energy cost of 1 from your Drop Area with a character name different from any Battle Cards you have in play." }),
+  AC2_WARPER: card("AC2_WARPER", { skill: "[Permanent] If this card in your Battle Area would be placed in its owner's Drop Area by one of your skills, it's sent to its owner's Warp instead." }),
+  AC2_BOUNCE: card("AC2_BOUNCE", { skill: "[Activate: Main] Choose up to 1 of your Battle Cards and return it to its owner's hand." }),
+  AC2_TODROP: card("AC2_TODROP", { skill: "[Activate: Main] Choose up to 1 of your Battle Cards and place it in its owner's Drop Area." }),
   AC2_OWNED: card("AC2_OWNED", { skill: "[Activate: Main] Choose up to 1 card you own in your opponent's Battle Area and it gains [Servant] until the end of your opponent's next turn." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
@@ -341,6 +373,15 @@ for (const seat of ["p1", "p2"] as const) {
     assert.equal(s.prompt.kind, "chooseCards", `${seat}: B2: a choice`);
     const offered = (s.prompt as Extract<Prompt, { kind: "chooseCards" }>).choice.candidates;
     assert.ok(offered.includes(mine) && !offered.includes(theirs), `${seat}: B2: yours there offered, theirs not`);
+    cases++;
+  }
+  // C1. To the Warp instead of the Drop: only a move to the Drop by your skill; a return to the hand stays a return.
+  for (const [n, actor, to] of [[10, "AC2_TODROP", "warp"], [11, "AC2_BOUNCE", "hand"]] as const) {
+    let s = fresh(seat, seed(n));
+    const a = stage(s, seat, actor, "battle");
+    const w = stage(s, seat, "AC2_WARPER", "battle");
+    s = settle(take(s, offerOf(s, a)!.action), pick(w));
+    assert.ok(s.sides[seat].zones[to].includes(w), `${seat}: C1: ${actor} — it went to the ${to}`);
     cases++;
   }
 }

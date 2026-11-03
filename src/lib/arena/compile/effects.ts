@@ -616,12 +616,14 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
   // Area too (5-12-1), so it answers that as well (`skillOrKoBySkill`) —
   // never the battle's KO.
   // "…by one of your skills" is the card's controller's skill (`bySide: you`).
+  // Audit conditions 2: and only a move **to the Drop Area** (`requestedTo: drop`) — a skill of yours returning it to
+  // the hand or the deck is no such move, and was sent to the Warp instead.
   const droppedBySkill = /^(?:if|when)?\s*(.*?) in (?:your |the )?battle area would be placed in (?:its owner'?s?|their owners?'?s?|your|their) drop area by (a|one of your) skills?$/.exec(t);
   if (droppedBySkill) {
     const who = droppedBySkill[1].trim();
     const mine = droppedBySkill[2] === "one of your" ? ({ bySide: "you" } as const) : null;
-    if (/^(?:this card|it)$/.test(who)) return { by: "skillOrKoBySkill", ...mine };
-    return who ? { by: "skillOrKoBySkill", ...mine, subject: who } : { by: "skillOrKoBySkill", ...mine };
+    if (/^(?:this card|it)$/.test(who)) return { by: "skillOrKoBySkill", ...mine, requestedTo: "drop" };
+    return who ? { by: "skillOrKoBySkill", ...mine, subject: who, requestedTo: "drop" } : { by: "skillOrKoBySkill", ...mine, requestedTo: "drop" };
   }
   // #920: the official DB2 errata names both valid source areas and no
   // cause/destination restriction. Keep these areas on the redirect rather
@@ -5331,6 +5333,12 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
         { op: "forbid", what: "beMovedBySkill", side, until, cardsOf: side, fromArea: "any", toArea: "energy", ...withUnless },
       ];
     }
+    // Audit conditions 2: "…you can't place cards in your Energy Area **by your skills** for the game" (BT22-031): the
+    // player's own skills' moves of their cards into their Energy Area, from anywhere — not the Charge Phase, and not a
+    // skill of the opponent's (Q&A BT22-031: that one resolves). Read as the charge alone, it stopped the one thing the
+    // card lets through and let the skills through.
+    if (side !== "both" && /^place cards? (?:in|into) (?:your|their) energy(?: area)? by (?:your|their) (?:own )?skills?(?:\s+(?:for|during|until)\b.*)?$/.test(rest))
+      return [{ op: "forbid", what: "beMovedBySkill", side, until, cardsOf: side, fromArea: "any", toArea: "energy", ...withUnless }];
     // "You can't place cards in your energy for the turn" (EX22-02): the
     // Charge Phase, which the engine offers as an action of its own (3-8).
     if (/^place cards? (?:in|into) (?:your|their) energy\b/.test(rest)) return [{ op: "forbid", what: "placeEnergy", side, until, ...withUnless }];
@@ -6132,6 +6140,9 @@ function track(o: Op, c: Ctx): void {
   if ((o.op === "power" || o.op === "grant") && (o.until === "battle" || o.until === "turn")) c.lastUntil = o.until;
   if (o.op === "ko" && "var" in o.target && !o.target.minus) c.koed = o.target.var;
   if (o.op === "moveTo" && o.to === "drop" && "var" in o.target && !o.target.minus) c.dropped = o.target.var;
+  // Audit conditions 2: cards placed in your Drop from the top of your deck (`mill`) are cards this skill placed there too —
+  // "place 3 cards from the top of your deck in your Drop Area. If all of the cards placed in your Drop Area are black" (BT4-098).
+  if (o.op === "mill" && o.as && o.side !== "opponent") c.dropped = o.as;
 }
 
 /**
@@ -6207,6 +6218,15 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     const filter = said ? described(`${said} card`) : null;
     if (said && !filter) return null;
     return { kind: "count", sel: { fromVar: c.dropped, area: "drop", ...(filter ? { filter } : {}) }, atLeast: 1 };
+  }
+  // Audit conditions 2: "…place 3 cards from the top of your deck in your Drop Area. **If all of the cards placed in your
+  // Drop Area are black**, draw 1 card" (BT4-098): every card this skill placed there — not every card in the Drop,
+  // where one older card of another colour stopped the draw.
+  if ((m = /^if all (?:of )?the cards (?:you )?placed in (?:your|a|the) drop(?: area)?(?: (?:using|with|by) this skill)? (?:are|were) (.+)$/.exec(t)) && c.dropped) {
+    const filter = described(/\bcards?$/.test(m[1]) ? m[1] : `${m[1]} cards`);
+    if (!filter) return null;
+    const placed: Selector = { fromVar: c.dropped, area: "drop" };
+    return { kind: "every", sel: placed, matching: { ...placed, filter } };
   }
   if ((m = /^if its power is (\d+) or (more|less)$/.exec(t)) && lastVar) {
     return { kind: "power", sel: { fromVar: lastVar, area: "play" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) };
@@ -6615,6 +6635,16 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   /** The subject of the last count condition read ("you have", "your opponent has"), for a bare count joined to it by "and". */
   let countSubject: { said: string; area: boolean; clause: string } | null = null;
   for (let i = 0; i < clauses.length; i++) {
+    // Audit conditions 2: "…switch it to Rest Mode, and **KO it if it's a skill-less Battle Card**" (EX19-36): the
+    // condition printed after the act it governs, about the card the act is on — said the usual way round, "if it's …"
+    // then the act. Only as the last clause, so nothing after it falls under the condition.
+    if (i === clauses.length - 1) {
+      const late = /^((?:and |then )?(?:ko|negate|return|place|send|switch|draw)\b.+?) if (?:it'?s|it is|that card is) (an? .+)$/i.exec(clauses[i].trim().replace(/\.$/, ""));
+      if (late) {
+        clauses.splice(i, 1, `if it's ${late[2]}`, late[1].replace(/^(?:and|then) /i, ""));
+        joined.splice(i + 1, 0, false);
+      }
+    }
     const clause = clauses[i];
     const mayBefore = pendingMay as Extract<Op, { op: "may" }> | null;
     pendingMay = null;
@@ -7362,6 +7392,18 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // move just before it moved, which is "that card" said the long way.
       // "…by this skill" is the price's card (P-628), not the effect's last
       // move, so that form is left to the readings that know the price.
+      // Audit conditions 2: "If that card **was your own** Battle Card, draw 1 card" (BT4-045): owned by you (1-2) —
+      // Q&A BT4-045: a card of yours the opponent controlled counts, one you took from them does not. Read as "that card
+      // is a Battle Card" it always held, and the draw followed returning an opponent's card too.
+      const own = /^(?:if|when) (?:that card|it) (?:is|was) (?:one of )?your own (.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+      const ownVar = c.lastNamed ?? c.last;
+      if (own && ownVar) {
+        const filter = filterFor(own[1], null);
+        if (filter === null) { refuse(clause); continue; }
+        groups.push({ conds: [{ kind: "count", sel: { fromVar: ownVar, ownedByYou: true, ...(filter ? { filter } : {}) }, atLeast: 1 }], ops: [] });
+        c.lastTarget = { var: ownVar };
+        continue;
+      }
       const seen = /\bby this skill\b/i.test(clause)
         ? null
         : /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card|the card (?:sent|placed|moved|added|returned) (?:to|into|in) (?:your|its owner'?s|their) [a-z-]+(?: area)?) (?:is )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));

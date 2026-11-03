@@ -259,7 +259,8 @@ function leaderTailHoldsAClause(tail: string): boolean {
   // (`splitDisjunction` cuts at the "or"), it is not a clause of its own. A verb
   // that follows a comma or "and" still is one, so those stay refused.
   const bare = tail.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "x").replace(/\bor\s+(?:is|has)\b/g, "or");
-  return /\b(?:is|are|has|have|had|you|your|there|send|place|choose|discard|return|put|switch|remove|draw|add|play|activate)\b/.test(bare) || /(?:,|\band\b|\bor\b)\s+(?:at least\s+)?\d/.test(bare);
+  // Audit conditions 2: "…and it's the turn when this card was played" (BT23-040) is a clause too.
+  return /\b(?:is|are|has|have|had|you|your|there|send|place|choose|discard|return|put|switch|remove|draw|add|play|activate|it['’]s|was|were)\b/.test(bare) || /(?:,|\band\b|\bor\b)\s+(?:at least\s+)?\d/.test(bare);
 }
 
 /**
@@ -410,6 +411,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       if (!filter.unreadable) return { cond: { kind: "count", sel: { special: measured[1] === "the attacking card" ? "attacker" : "subject", filter }, atLeast: 1 } };
     }
   }
+  // Audit conditions 2: "…**and it's the turn when this card was played**: When this card attacks" (BT23-040): the card
+  // was played this turn (`placedThisTurn` with `played`) — a play, not a skill's placement.
+  if (/^it'?s the turn (?:when|in which) (?:this card|it) was played$/.test(t.replace(/’/g, "'"))) return { cond: { kind: "placedThisTurn", sel: { special: "self" }, played: true } };
   // EX04-04 (prohibition batch 6): "if you played this card with [evolve]" —
   // the copy entered by an evolution of any kind (22-5-2-2), while it stays.
   if (/^(?:you played (?:this card|it)|(?:this card|it) was played) (?:using|with|by) (?:an? |the )?\[evolve\](?: skill)?$/.test(t)) {
@@ -1326,6 +1330,9 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
     return { cond: /^(?:is|are)$/.test(m[2]) ? { kind: "count", sel: counted, atLeast: 1 } : { kind: "count", sel: counted, atMost: 0 }, subject: { sel } };
   }
   if ((m = /^all your energy is (.+)$/.exec(t))) return parseConditionClause(`all of your energy is ${m[1]}`, true);
+  // Audit conditions 2: "if you have **only** black cards in your energy" (BT8-104) is every card there black, as "all of
+  // your energy is black" says it — read as a count it held with one black card among others.
+  if ((m = /^you (?:have only|only have) ((?:mono-)?(?:red|blue|green|yellow|black|white)) cards in your energy(?: area)?$/.exec(t))) return parseConditionClause(`all of your energy is ${m[1]}`, true);
   // Phrasing batch 2: "your Leader Card and **all of your energy is** blue" (BT16-045, BT16-069), "your Leader and all
   // of your energy are **mono-yellow ≪Universe 6≫ cards**" (BT23-124, EB1-46): the same two conditions.
   if ((m = /^your leader(?: card)? and all (?:of )?your energy (?:is|are) (.+)$/.exec(t))) {
