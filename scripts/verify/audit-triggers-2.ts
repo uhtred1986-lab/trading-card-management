@@ -15,7 +15,8 @@
  * D.  The VM, both seats: a watched removal by any skill, an opponent's card KO'd by your skill, a Unison placed in the
  *     Drop from the Unison Area (and not from the hand), and [Barrier] against "choose that card".
  *
- * Rulings: R-204 (owner). R-135 (pending) for "removed … by an opponent's skill or KO'd".
+ * Rulings: R-204 (owner), R-135 (owner) for "removed … by an opponent's skill or KO'd", R-207 (pending, best-guess) for "attacks
+ * and KOs" — the battle's KO only.
  */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
