@@ -1672,7 +1672,7 @@
     {
       "name": "costReduction",
       "class": "macro over `costModifier`",
-      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"uses\"?:N,\"onto\"?:TARGET}",
+      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"activateTiming\"?:\"main\"|\"battle\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"uses\"?:N,\"onto\"?:TARGET}",
       "fields": [
         {
           "name": "target",
@@ -1711,6 +1711,16 @@
             "activate",
             "counter",
             "permanent"
+          ]
+        },
+        {
+          "name": "activateTiming",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "main",
+            "battle"
           ]
         },
         {
@@ -3047,6 +3057,33 @@
       "sentence": "your life"
     },
     {
+      "kind": "outnumbers",
+      "class": "macro over `count`",
+      "signature": "{\"kind\":\"outnumbers\",\"sel\":SELECTOR,\"than\":SELECTOR,\"by\"?:N}",
+      "fields": [
+        {
+          "name": "sel",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "than",
+          "required": true,
+          "nullable": false,
+          "type": "selector"
+        },
+        {
+          "name": "by",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "there are more 1 card in your Battle Area than 1 card in your Battle Area",
+      "doc": "two counts against each other: the cards `sel` finds outnumber the cards `than` finds by at least `by` (1 when absent) — \"your opponent has more cards in their hand than you\" (BT16-067), \"you have less energy than your opponent\" (EX03-27, the sides swapped), \"2 or more energy than you\" (P-183)"
+    },
+    {
       "kind": "lifeVsOpponent",
       "class": "macro over `count`",
       "signature": "{\"kind\":\"lifeVsOpponent\",\"atLeast\"?:true|false,\"atMost\"?:true|false}",
@@ -3986,8 +4023,24 @@
       "part": "flag"
     },
     {
+      "field": "battleRole",
+      "part": "flag"
+    },
+    {
+      "field": "copyOfSelf",
+      "part": "flag"
+    },
+    {
+      "field": "notAttackedThisTurn",
+      "part": "flag"
+    },
+    {
       "field": "orSelf",
       "part": "flag"
+    },
+    {
+      "field": "alsoFrom",
+      "part": "places"
     },
     {
       "field": "atRandom",
@@ -4062,6 +4115,26 @@
     {
       "word": "notInBattle",
       "doc": "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)"
+    },
+    {
+      "word": "inBattle",
+      "doc": "only the attack card or the guard card of the battle in progress — \"your cards that's in a battle\" (BT24-078)"
+    },
+    {
+      "word": "attacking",
+      "doc": "only the attack card of the battle in progress — \"choose 1 of your attacking cards\" (BT1-005)"
+    },
+    {
+      "word": "notAttacking",
+      "doc": "every card but the attack card of the battle in progress — \"in Rest Mode that isn't attacking\" (BT19-114)"
+    },
+    {
+      "word": "copyOfSelf",
+      "doc": "another card with this card's card name — \"if you don't have a copy of this card in play\" (EB1-54)"
+    },
+    {
+      "word": "notAttackedThisTurn",
+      "doc": "only a card that has declared no attack this turn — \"…in Rest Mode that hasn't attacked this turn\" (SD20-05)"
     },
     {
       "word": "orSelf",
@@ -4252,6 +4325,14 @@
       "field": "traitsAll",
       "type": "strings",
       "printed": "≪Saiyan≫",
+      "openTo": [
+        "strings"
+      ]
+    },
+    {
+      "field": "traitsIncluding",
+      "type": "strings",
+      "printed": "card with ≪Saiyan≫ in its special traits",
       "openTo": [
         "strings"
       ]
@@ -4796,6 +4877,10 @@
       "words": "when this card is played from your hand"
     },
     {
+      "name": "playedFromDrop",
+      "words": "when this card is played from your Drop"
+    },
+    {
       "name": "playedUsingOverRealm",
       "words": "when this card is played using [Over Realm]"
     },
@@ -4896,12 +4981,36 @@
       "words": "when this card is KO'd"
     },
     {
+      "name": "koedByAttack",
+      "words": "when this card is KO'd by an attack"
+    },
+    {
+      "name": "koedByOpponent",
+      "words": "when this card is KO'd by your opponent"
+    },
+    {
+      "name": "koedBySkill",
+      "words": "when this card is KO'd by a skill"
+    },
+    {
+      "name": "koedByYourSkill",
+      "words": "when this card is KO'd by one of your skills"
+    },
+    {
+      "name": "koedByOpponentSkill",
+      "words": "when this card is KO'd by an opponent's skill"
+    },
+    {
       "name": "kos",
       "words": "when this card KOs a card"
     },
     {
       "name": "yourCardKoed",
       "words": "when one of your cards is KO'd"
+    },
+    {
+      "name": "yourCardKoedByAttack",
+      "words": "when one of your cards is KO'd by an attack"
     },
     {
       "name": "opponentCardKoed",
@@ -4982,6 +5091,14 @@
     {
       "name": "yourEnergyToDeck",
       "words": "when your energy is placed in its owner's deck"
+    },
+    {
+      "name": "yourCardToZEnergy",
+      "words": "when one of your cards is added to your Z-Energy"
+    },
+    {
+      "name": "removedFromGame",
+      "words": "when this card is removed from the game"
     },
     {
       "name": "opponentCardToZEnergy",
@@ -5136,6 +5253,14 @@
       "words": "when your opponent activates a [Counter] skill"
     },
     {
+      "name": "opponentCounterPlay",
+      "words": "when your opponent activates a [Counter: Play] skill"
+    },
+    {
+      "name": "opponentCounterAttack",
+      "words": "when your opponent activates a [Counter: Attack] skill"
+    },
+    {
       "name": "extraActivated",
       "words": "when you activate an Extra Card from your hand"
     },
@@ -5234,6 +5359,98 @@
     {
       "name": "addedToZEnergy",
       "words": "when this card is added to your Z-Energy"
+    },
+    {
+      "name": "droppedFromHandByOpponent",
+      "words": "when an opponent's skill sends this card from your hand to the Drop"
+    },
+    {
+      "name": "activeBySkill",
+      "words": "when this card is switched to Active Mode by a skill"
+    },
+    {
+      "name": "yourEnergyActiveBySkill",
+      "words": "when your energy is switched to Active Mode by a skill"
+    },
+    {
+      "name": "powerRaisedBySkill",
+      "words": "when this card's power is increased by a skill"
+    },
+    {
+      "name": "powerLoweredBySkill",
+      "words": "when this card's power is decreased by a skill"
+    },
+    {
+      "name": "yourCardPowerRaisedByYou",
+      "words": "when one of your skills increases the power of one of your cards"
+    },
+    {
+      "name": "yourCardPowerLowered",
+      "words": "when the power of one of your cards is decreased"
+    },
+    {
+      "name": "opponentCardPowerLowered",
+      "words": "when the power of one of your opponent's cards is decreased"
+    },
+    {
+      "name": "opponentCardPowerLoweredByBattleCard",
+      "words": "when the skill of one of your Battle Cards decreases the power of an opponent's card"
+    },
+    {
+      "name": "eitherCardPowerLowered",
+      "words": "when the power of a card of either player is decreased"
+    },
+    {
+      "name": "deckToDropBySkill",
+      "words": "when a skill places this card from your deck in the Drop"
+    },
+    {
+      "name": "deckToDropByYou",
+      "words": "when one of your skills places this card from your deck in the Drop"
+    },
+    {
+      "name": "revealedTopToDrop",
+      "words": "when this card is revealed from the top of your deck and placed in the Drop"
+    },
+    {
+      "name": "underReturnedToHand",
+      "words": "when a card under this card is returned to its owner's hand"
+    },
+    {
+      "name": "underToDropBySkill",
+      "words": "when a skill places this card from under a card in the Drop"
+    },
+    {
+      "name": "underLeaderToDropBySkill",
+      "words": "when a skill places this card from under a Leader in the Drop"
+    },
+    {
+      "name": "pileToDropBySkill",
+      "words": "when a skill places a card from under this card in the Drop"
+    },
+    {
+      "name": "energyToDropBySkill",
+      "words": "when a skill places this card from your energy in the Drop"
+    },
+    {
+      "name": "yourEnergyToDropByYourLeader",
+      "words": "when your Leader's skill places one of your energy in the Drop"
+    },
+    {
+      "name": "droppedFromBattleByYou",
+      "words": "when one of your skills sends this card from a Battle Area to the Drop"
+    },
+    {
+      "name": "toDropBySkill",
+      "words": "when a skill places this card in the Drop"
+    },
+    {
+      "name": "toDropByYou",
+      "words": "when one of your skills places this card in the Drop"
+    },
+    {
+      "name": "toDropByOpponent",
+      "words": "when an opponent's skill places this card in the Drop"
     }
   ],
   "literals": [
@@ -5262,7 +5479,7 @@
       "is": "cards bound by an earlier step"
     },
     {
-      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · afterOpponentCharge · nextMain · ownTurn · game · whileSourceInPlay · battleOrTurn",
+      "written": "you · opponent · both   |   deck · hand · drop · leader · battle · combo · energy · life · warp · unison · zDeck · zEnergy · removed · under · play   |   battle · turn · opponentTurn · nextTurn · afterNextCharge · afterOpponentCharge · nextMain · ownTurn · ownNextTurn · game · whileSourceInPlay · battleOrTurn",
       "is": "a side, a zone, a duration"
     },
     {
