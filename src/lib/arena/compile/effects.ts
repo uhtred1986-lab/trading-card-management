@@ -156,7 +156,7 @@ function groupOf(phrase: string, c: Ctx): Ref | null {
   const list = c.group;
   if (!list || list.length < 2 || !LIST_PRONOUN.test(phrase.trim().replace(/[.,]$/, ""))) return null;
   const last = list[list.length - 1];
-  if (c.last !== last || !c.lastTarget || !("var" in c.lastTarget) || c.lastTarget.var !== last || c.lastTarget.minus) return null;
+  if (!c.lastTarget || !("var" in c.lastTarget) || c.lastTarget.var !== last || c.lastTarget.minus) return null;
   c.groupHit = list;
   return { var: last };
 }
@@ -6181,10 +6181,8 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // "play 1 Shadow Token, and that card gets…" (BT26-079) say the same thing.
   // "…Chilled's Army Token with 10000 power**;** it gains [Blocker] for the turn" (EB1-22, phrasing batch 2): the
   // semicolon carries the sentence on as the comma does.
-  const bound = /^\s*(?:\([^)]*\))?\s*(?:with [\d,]+ power\s*)?(?:in rest mode\s*)?(?:[,.;]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|those cards|the tokens?|that (?:card|token))\b/i.test(after)
-    // "Play **up to** 2 Cell Jr. Tokens …, and those cards get …" (BT21-088): the token op makes the number it is given,
-    // so a sentence that goes on about the tokens of an "up to" play is not read as if all of them were made.
-    && !/^play up to /i.test(m[0]);
+  const bound = /^\s*(?:\([^)]*\))?\s*(?:with [\d,]+ power\s*)?(?:in rest mode\s*)?(?:[,.;]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|those cards|the tokens?|that (?:card|token))\b/i.test(after);
+  // ("Play **up to** 2 Cell Jr. Tokens …, and those cards get …", BT21-088: each offer's token joins one name below.)
   // "play 2 Ghost Tokens **with 15000 power**" (BT31-134, BT28-020, EB1-48): the
   // skill prints the token's power itself and that figure, not the 5000 default
   // or a reminder's, is the power the tokens arrive with (#907, left over from #1023).
@@ -6207,7 +6205,19 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
     // Phrasing batch 4: "play 1 Ghost Token with 15000 power **in Rest Mode**" (P-683): how the tokens arrive.
     ...(/\btokens?\b(?:\s*\([^)]*\))?(?: with [\d,]+ power)?\s+in rest mode\b/i.test(clause) ? { mode: "rest" as const } : {}),
   });
-  if (upTo) return oneAtATime(Array.from({ length: Number(m[1]) }, () => [token(1)]), clause);
+  // Audit selectors 2 (round-1 doubt, BT21-088): "play up to 2 Cell Jr. Tokens …, and **those cards** get +5000 power" —
+  // each offer's token under a name of its own, the names a list (`Ctx.group`) the clause after acts on once per token
+  // (one at a time had dropped the name, and the clause was unread).
+  if (upTo) {
+    const names = Array.from({ length: Number(m[1]) }, () => (bound ? `t${c.n++}` : undefined));
+    const ops = oneAtATime(names.map((name) => [token(1, name)]), clause);
+    const made = names.filter((x): x is string => !!x);
+    if (made.length) {
+      c.group = made.length > 1 ? made : undefined;
+      c.lastTarget = { var: made[made.length - 1] };
+    }
+    return ops;
+  }
   return [token(Number(m[1]), bound ? `t${c.n++}` : undefined)];
 }
 

@@ -18,6 +18,8 @@
  * F.  "…to your opponent's Battle Area" (`toOpponent`, BT13-028, BT13-029, BT20-123); "would leave the Battle Area by a
  *     skill" keeps its cause (BT25-014).
  * G.  Honest gaps: a cost bound counted off the board (P-300, BT15-145, BT22-127), "not a copy of this card" (BT20-124).
+ * I.  "Play up to 2 … Tokens, and those cards get +5000 power" (BT21-088): every token an offer made is "those cards"
+ *     (a list of per-offer names, `Ctx.group`).
  * H.  Counts and places: "that many" (BT12-002, BT31-072), "up to X" unread (DB3-141), "your yellow <Spike> card gets"
  *     is every one (BT22-087), "non-Leader Cards" in play (BT16-087), "cards in hand" yours (P-057), "your Z-Energy and
  *     Drop" both (EX23-52), "<Son Gohan> or <Piccolo> in its character name" (BT19-110).
@@ -32,6 +34,8 @@ import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
+import { attrsNow } from "../../src/lib/arena/vm/program";
+import { withTokens } from "../../src/lib/arena/vm/cards";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import type { Op } from "../../src/lib/arena/vm/script";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
@@ -333,6 +337,7 @@ const vmDefs: Record<string, CardDef> = {
   "AS2-TOP": card("AS2-TOP", { skill: "[Activate: Main] Place up to 2 cards from the top of your deck in your energy." }),
   "AS2-GIFT": card("AS2-GIFT", { skill: "[Activate: Main] Play up to 1 <AS2 Gift> card from your hand to your opponent's Battle Area." }),
   "AS2-GIFTEE": card("AS2-GIFTEE", { characters: ["AS2 Gift"] }),
+  "AS2-JR": card("AS2-JR", { skill: "[Activate: Main] Play up to 2 AS2 Jr. Tokens (AS2 Jr. Tokens have 10000 power, 0 combo cost, and 5000 combo power), and those cards get +5000 power for the turn." }),
 };
 const vmRows = Object.values(vmDefs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs: vmDefs, scripts: rulesFromRows(roundtrip(vmRows), vmDefs) };
@@ -429,6 +434,17 @@ for (const seat of ["p1", "p2"] as const) {
     const gift = stage(s, seat, "AS2-GIFTEE", "hand");
     s = activate(s, me, (q) => q.choice.candidates.filter((c) => c === gift));
     assert.ok(s.sides[foe].zones.battle.includes(gift) && !s.sides[seat].zones.battle.includes(gift), `${seat}: F — in the opponent's Battle Area`);
+    cases++;
+  }
+  // I: "play up to 2 … Tokens, and those cards get +5000" — both offers taken, both tokens pumped (BT21-088).
+  {
+    let s = fresh(seat, 53050 + (seat === "p1" ? 0 : 1));
+    const me = stage(s, seat, "AS2-JR", "battle");
+    const before = new Set(s.sides[seat].zones.battle);
+    s = activate(s, me, (q) => q.choice.candidates.slice(0, q.choice.min), 0);
+    const made = s.sides[seat].zones.battle.filter((id) => !before.has(id));
+    assert.equal(made.length, 2, `${seat}: I — two tokens made`);
+    assert.deepEqual(made.map((id) => attrsNow(withTokens(ctx), game, s, id).power), [15000, 15000], `${seat}: I — both get +5000`);
     cases++;
   }
   // C: the opponent's hand is offered unseen.
