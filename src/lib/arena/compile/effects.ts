@@ -852,9 +852,10 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   if (/^(?:if (?:you|they) (?:don'?t|do not|didn'?t|did not))(?:\s+[a-z0-9'<>≪≫{}\- ]+?\s+(?:this way|with this skill))?$/.test(t)) return "ifNotDone";
   if (/^if not$/.test(t)) return "ifNotDone";
   if (/^(?:if they do|if they did)$/.test(t)) return "ifDone";
-  // 20-12-3: after looking, the cards go back where they were; the order is
-  // the player's and changes nothing the engine tracks.
-  if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t)) return "skip";
+  // 20-12-3: after looking, the cards go back where they were.
+  // Audit effects 2: not "…back **in any order**" said of several cards — that order is the player's (`arrange`), read by
+  // `compileClause` after the look it follows.
+  if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t) && !/^(?:put|place) (?:them|the rest|the remaining cards) back\b.* in any order$/.test(t)) return "skip";
   // "…using this skill" (BT13-122, BT16-072) is the same words as "with".
   if (/^shuffle any (?:secret )?areas? you looked (?:through|at)(?: (?:with|using) this skill)?$/.test(t)) return "skip";
   // Mechanism batch 4: "Afterwards," (BT1-106) is "after that".
@@ -1849,7 +1850,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   //   chooses, in the order the player chooses — `topOrBottomEach`.
   if (c.lastOp === "look" && c.lastSeen) {
     const looked: Ref = { var: c.lastSeen };
-    if (/^(?:place|put|return) them (?:back )?on (?:the )?top of (?:your|their|your opponent'?s) deck in any order$/.test(t)) return [{ op: "note", text: "the cards looked at go back on top of the deck, in any order" }];
+    // Audit effects 2: "…and put them back in any order" (DB2-058, DB2-049, DB2-051, DB2-053, DB2-064, BT12-027b), "…and
+    // place them on top of your [their] deck in any order" (BT14-093, BT22-082, BT22-114, P-319): the order is the player's
+    // to pick — with R-203's shuffle after each ≪Universe 10≫ reveal, arranging the top before a reveal is the point of
+    // the card. The cards never leave the deck (20-12-2). It was a note, and the cards stayed in the order looked at.
+    if (/^(?:place|put|return) them (?:back (?:on (?:the )?top of (?:your|their|your opponent'?s) deck )?|(?:back )?on (?:the )?top of (?:your|their|your opponent'?s) deck )in any order$/.test(t)) return [{ op: "arrange", target: looked }];
     // Audit lane E (R-202): "…on the top **or** bottom … in any order" is one end for all of them (BT9-037's official
     // Q&A); "top **and/or** bottom" stays each card's own end (R-202, carrying R-007's reading for "and/or").
     if ((m = /^(?:place|put|return) them (?:back )?(?:at|on) (?:the )?top (or|and\/or) (?:the )?bottom of (?:your|their|your opponent'?s|its owner'?s) deck(?: in any order)?$/.exec(t))) return m[1] === "or" ? topOrBottomAll(looked) : topOrBottomEach(c.lastSeen, c);
@@ -1880,9 +1885,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   {
     const REST = "(?:the|any) (?:remaining cards?|rest of the cards|rest|other cards)";
     const rest: Ref = { var: "looked", ...(c.last ? { minus: c.last } : {}) };
-    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in (any|a random) order)?$`).exec(t)))
-      // "In a random order" (FS03-13) is drawn from the game's seeded RNG; "in any order" keeps the looked-at order.
+    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in (any|a random) order)?$`).exec(t))) {
+      // Audit effects 2: "…then place the remaining cards **on top of** your deck in any order" (BT12-027, BT12-031,
+      // BT12-035, P-360): the cards still in the deck go back on top in the player's order (`arrange`), the next draws.
+      if (m[1] === "top" && m[2] === "any") return [{ op: "arrange", target: rest }];
+      // "In a random order" (FS03-13) is drawn from the game's seeded RNG; "in any order" at the bottom keeps the
+      // looked-at order (a bottom the deck reaches last).
       return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom", ...(m[2] === "a random" ? { random: true as const } : {}) }];
+    }
     // "…on the top or bottom of your deck in any order" / "…on the top and/or
     // bottom": owner's ruling of 26 Oct 2026 (phrasing batch 2) — EACH card goes
     // to the top or the bottom as the player chooses, in the order the player

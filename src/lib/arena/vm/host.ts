@@ -380,6 +380,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     shuffleLives: (players) => {
       for (const p of players) shuffle(state, p, SETUP_ZONES.life);
     },
+    arrangeDeck: (p, ids, position) => {
+      const deck = state.sides[p].zones[SETUP_ZONES.deck];
+      const placed = ids.filter((id) => deck.includes(id));
+      const rest = deck.filter((id) => !placed.includes(id));
+      deck.splice(0, deck.length, ...(position === "bottom" ? [...rest, ...[...placed].reverse()] : [...placed, ...rest]));
+    },
     pickAtRandom: (ids, n) => {
       const mixed = shuffleItems(ids, state.rngState);
       state.rngState = mixed.state;

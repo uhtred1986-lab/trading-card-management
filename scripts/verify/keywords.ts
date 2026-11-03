@@ -1966,11 +1966,12 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   assert.deepEqual(either2.unsupported, []);
   assert.equal(either2.ops[either2.ops.length - 1].op, "if");
   assert.equal((either2.ops[either2.ops.length - 1] as { cond: { kind: string } }).cond.kind, "not");
-  // Looking's housekeeping is not an effect.
+  // Looking's housekeeping is not an effect — but the order is the player's (audit effects 2: `arrange`).
   assert.deepEqual(
     auto("look at the top 3 cards of your deck, then put them back in any order.").ops.map((o) => o.op),
-    ["look"],
+    ["look", "arrange"],
   );
+  assert.deepEqual(auto("look at the top 3 cards of your deck, then put them back.").ops.map((o) => o.op), ["look"]);
   // A card in the opponent's hand is a hand card.
   assert.equal((auto("choose up to 1 card in your opponent's hand and discard it.").ops[0] as { sel: { area?: string; side?: string } }).sel.area, "hand");
 

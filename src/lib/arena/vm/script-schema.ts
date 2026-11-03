@@ -442,6 +442,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       return side === "opponent" ? "your opponent shuffles their deck" : side === "both" ? "each player shuffles their deck" : "shuffle";
     },
   },
+  // Audit effects 2: "…and put them back in any order" (DB2-058 and the ≪Universe 10≫ family; BT14-093, BT22-082, P-319).
+  arrange: {
+    fields: [TARGET, { name: "position", type: POSITION, default: "top" }],
+    sentence: (raw) => {
+      const op = raw as OpOf<"arrange">;
+      return `put ${"var" in op.target && op.target.minus === undefined ? "the cards looked at" : describeRef(op.target)} back ${op.position === "bottom" ? "at the bottom" : "on top"} of the deck in any order`;
+    },
+    doc: "the cards go back to that end of their owner's deck in the order the master picks, one card at a time, the first pick nearest the end; no card changes area (20-12-2), a card no longer in a deck is left out",
+  },
   invokeSkill: {
     fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
     sentence: (raw) => {
@@ -1253,6 +1262,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   addLife:            "macro over `move`",
   lifeDownTo:         "macro over `move`",
   shuffle:            "primitive",
+  arrange:            "primitive",
   win:                "primitive",
   declare:            "primitive",
   invokeSkill:        "primitive",
@@ -2180,7 +2190,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
  * The steps that stop and ask somebody something. `discard` is one of them: it
  * is rewritten by `stepScript` into a `choose` the owner answers and a move.
  */
-const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", "discard", "negateChosenKeyword"]);
+const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", "discard", "negateChosenKeyword", "arrange"]);
 
 /**
  * Does this program stop to ask a question, anywhere inside it? Read by
