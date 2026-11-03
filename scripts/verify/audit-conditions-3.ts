@@ -437,6 +437,17 @@ let cases = 0;
   s.battle = null as unknown as VmState["battle"];
   assert.equal(holds(s, ex19, theirs), false, "VM: EX19-14 — no battle");
   cases += 6;
+  // (Review) BT6-080's counted origins: two ≪Boujack Brigade≫ cards that entered the combo from a Battle Area, not one,
+  // and not one from the Battle Area beside one from the hand.
+  defs.AC3_BOUJACK = card("AC3_BOUJACK", { traits: ["Boujack Brigade"] });
+  const from = the(record("[Auto] When you combo with 1 of your cards during your turn, if your Combo Area has 2 or more ≪Boujack Brigade≫ cards that you comboed with from a Battle Area, choose up to 1 of your opponent's Battle Cards in Rest Mode and KO it, and if you KO'd a card, negate this skill for the duration of the turn.", "BT6-080", { type: "LEADER" }), "comboFrom", "BT6-080");
+  const b1 = stage(s, "p1", "AC3_BOUJACK", "combo");
+  const b2 = stage(s, "p1", "AC3_BOUJACK", "combo");
+  s.battle = { ...battle(attacker, theirs), comboOrigins: { [b1]: "battle", [b2]: "hand" } } as unknown as VmState["battle"];
+  assert.equal(holds(s, from), false, "VM: BT6-080 — one from a Battle Area, one from the hand");
+  s.battle = { ...battle(attacker, theirs), comboOrigins: { [b1]: "battle", [b2]: "battle" } } as unknown as VmState["battle"];
+  assert.equal(holds(s, from), true, "VM: BT6-080 — two from a Battle Area");
+  cases += 2;
 }
 
 // EX23-50: colours other than black among black multicolour energy.
