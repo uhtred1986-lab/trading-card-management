@@ -40,6 +40,12 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   fromEnd: (s) => (s.fromEnd = true),
   ignoringBarrier: (s) => (s.ignoreBarrier = true),
   notInBattle: (s) => (s.notInBattle = true),
+  inBattle: (s) => (s.battleRole = "any"),
+  attacking: (s) => (s.battleRole = "attacker"),
+  notAttacking: (s) => (s.battleRole = "notAttacker"),
+  copyOfSelf: (s) => (s.copyOfSelf = true),
+  notAttackedThisTurn: (s) => (s.notAttackedThisTurn = true),
+  orSelf: (s) => (s.orSelf = true),
   atRandom: (s) => (s.atRandom = true),
   ownedByOpponent: (s) => (s.ownedByOpponent = true),
   otherThanSelf: (s) => (s.notSelf = "card"),
@@ -680,6 +686,13 @@ class Parser {
     if (this.eatKw("UNDER")) {
       this.want("(");
       sel.underHost = this.selector();
+      this.want(")");
+      return;
+    }
+    // Audit-selectors-1: `ALSO (…)`, an alternative place and description of the same choice (`alsoFrom`).
+    if (this.eatKw("ALSO")) {
+      this.want("(");
+      (sel.alsoFrom ??= []).push(this.selector());
       this.want(")");
       return;
     }

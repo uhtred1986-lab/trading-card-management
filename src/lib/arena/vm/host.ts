@@ -73,7 +73,7 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
+import { attrsNow, amount, condHolds, staticsNow, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayPriceProgram, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { comboPriceOf } from "./costs";
@@ -221,7 +221,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // loop settled on — asked, or the one replacement there was — and
     // `null` when none answers; the KO honours it rather than looking again.
     ko: (id, by, opts) => {
-      koCard(ctx, game, state, ev, id, by, opts && "replaced" in opts ? (opts.replaced ?? null) : undefined);
+      koCard(ctx, game, state, ev, id, by, opts && "replaced" in opts ? (opts.replaced ?? null) : undefined, "skill");
     },
     // 23-2: `moveCard`'s own `under` option already carries 23-2-2 through
     // 23-2-6 (#152 taught it 23-2-5's "different area → Drop" half, which it
@@ -258,10 +258,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // card — "place this card from under your Leader on top of your Leader" (BT20-058's Z-Leader).
       const leaderStack = at?.zone === SETUP_ZONES.leader;
       const leaderCard = /LEADER/.test(String(attrsNow(ctx, game, state, id).type ?? ""));
-      if (!top || !state.cards[id] || !top.under.includes(id) || !at || (leaderStack ? !leaderCard : game.zones[at.zone]?.host !== true)) return false;
+      const fromPile = !!top?.under.includes(id);
+      // Errata-official-2 (BT22-001's back, erratum of 25 Aug 2023): a Leader card from its owner's Z-Deck may be placed
+      // on top of that player's Leader, as [Z-Awaken] places one (22-46-6) — placed, not played. It arrives as a new
+      // card (3-1-4), so it is not carried as a pile card is.
+      const seat = findCard(state, id);
+      const fromZDeck = !fromPile && leaderStack && leaderCard && seat?.zone === SETUP_ZONES.zDeck && seat.owner === at?.owner;
+      if (!top || !state.cards[id] || !(fromPile || fromZDeck) || !at || (leaderStack ? !leaderCard : game.zones[at.zone]?.host !== true)) return false;
       const mode = top.mode;
       // A single-card area (the Leader Area) takes the new top card beside the old one only as a card placed onto it.
-      const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: true, ...(leaderStack ? { onto: host } : {}) });
+      const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: fromPile, ...(leaderStack ? { onto: host } : {}) });
       if (!up.ok) return false;
       const down = moveCard(state, game, host, at.zone, { under: id });
       if (!down.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${id}: ${down.refused}`);
@@ -980,8 +986,80 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A watched move (phrasing batch 5) is pended once, about the moved card: every watcher the declaration names
   // answers — in play, and in a hand when its skill plays itself from there (DB2-174, `matchTriggers`' hand watchers).
   const watched = WATCHED_MOVE.has(trigger);
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
   if (subject) for (const p of pended) p.subject ??= subject;
+}
+
+/** The moments a standing power change pends (`pendStandingPower`). */
+const STANDING_POWER_MOMENTS = ["powerRaisedBySkill", "yourCardPowerRaisedByYou", "powerLoweredBySkill", "yourCardPowerLowered", "opponentCardPowerLowered", "eitherCardPowerLowered", "opponentCardPowerLoweredByBattleCard"];
+const HEARS_POWER = new WeakMap<object, Map<string, boolean>>();
+/**
+ * Whether any card of the game (any zone, either side, either face) has a record that names a power-change moment —
+ * its own [Auto] or one it grants. A card with no record is read from its printed text at game time (`pendTriggers`),
+ * so its text is asked instead. Constant for a game's cards, so remembered per rules store and card.
+ */
+function powerMomentHeard(ctx: EngineContext, state: VmState): boolean {
+  const store = (ctx.scripts ?? ctx.defs) as object;
+  let seen = HEARS_POWER.get(store);
+  if (!seen) HEARS_POWER.set(store, (seen = new Map()));
+  for (const inst of Object.values(state.cards)) {
+    let hears = seen.get(inst.cardId);
+    if (hears === undefined) {
+      const def = ctx.defs[inst.cardId];
+      hears = [inst.cardId, `${inst.cardId}#back`].some((key, i) => {
+        const record = ctx.scripts?.[key];
+        if (record && Object.keys(record.bySkill).length) return STANDING_POWER_MOMENTS.some((m) => JSON.stringify(record).includes(`"${m}"`));
+        const text = (i === 0 ? def?.skill : def?.back?.skill) ?? "";
+        return /\bpower\b[^.]*\b(?:is|are|gets?) (?:increased|decreased|raised|lowered)\b|\bpower (?:is|are) (?:increased|decreased)/i.test(text);
+      });
+      seen.set(inst.cardId, hears);
+    }
+    if (hears) return true;
+  }
+  return false;
+}
+
+/**
+ * Audit triggers 1 (R-132, Q&A BT13-002): a [Permanent]'s standing power change is a moment when it starts to apply —
+ * playing SS4 Broly, whose [Permanent] lowers the opponent's Battle Cards' power, answers "when the power of one of your
+ * opponent's cards is decreased"; the next turn, with Broly still there, does not. Each checkpoint compares the standing
+ * changes with the last look (`VmState.standingPower`) and pends the same names a resolving `power` op pends
+ * (`script.ts`'s `pendPowerChanged`) for each one that is new, the [Permanent]'s card the cause.
+ */
+export function pendStandingPower(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void {
+  if (state.game !== "dbs") return;
+  // Integration 2: the standing changes are worked out only in a game where some card can answer one. With none, the
+  // last look is dropped, so the first look after a listener appears is a baseline, as after a load. (The look reads
+  // every static at every checkpoint: an attack preview read statics 152 times instead of 128, #801's budget.)
+  if (!powerMomentHeard(ctx, state)) {
+    delete state.standingPower;
+    return;
+  }
+  const now = new Map<string, { source: string; master: PlayerId; target: string; n: number }>();
+  for (const s of staticsNow(ctx, game, state)) {
+    if (s.kind !== "power" || typeof s.value !== "number" || s.value === 0) continue;
+    now.set(`${s.source}#${s.skillIndex ?? ""}>${s.target}:${s.value > 0 ? "+" : "-"}`, { source: s.source, master: s.master, target: s.target, n: s.value });
+  }
+  const before = state.standingPower;
+  state.standingPower = [...now.keys()];
+  if (!before) return;
+  const had = new Set(before);
+  for (const [key, s] of now) {
+    if (had.has(key) || !state.cards[s.target]) continue;
+    const at = zoneOf(state, s.target);
+    if (at !== "battle" && at !== "leader" && at !== "unison") continue;
+    const yours = masterOf(game, state, s.target) === s.master;
+    if (s.n > 0) {
+      pendByName(ctx, game, state, ev, "powerRaisedBySkill", s.target, s.source);
+      if (yours) pendByName(ctx, game, state, ev, "yourCardPowerRaisedByYou", s.target, s.target);
+      continue;
+    }
+    pendByName(ctx, game, state, ev, "powerLoweredBySkill", s.target, s.source);
+    pendByName(ctx, game, state, ev, "yourCardPowerLowered", s.target, s.target);
+    pendByName(ctx, game, state, ev, "opponentCardPowerLowered", s.target, s.target);
+    pendByName(ctx, game, state, ev, "eitherCardPowerLowered", s.target, s.target);
+    if (!yours && state.cards[s.source] && zoneOf(state, s.source) === "battle" && masterOf(game, state, s.source) === s.master) pendByName(ctx, game, state, ev, "opponentCardPowerLoweredByBattleCard", s.target, s.target);
+  }
 }
 
 /**
@@ -1048,7 +1126,40 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // Phrasing batch 10 (owner's ruling of 27 Oct 2026): "…from a skill on one of your Battle Cards or Unison Cards" —
   // pended only when the skill's card is in its master's Battle or Unison Area; the three above for any skill's damage.
   opponentTookBoardSkillDamage: { event: "damage", args: { by: "skill" } },
+  // Moments batch 1: a skill's move, pended by `moveTo` (and `mill`) with the skill's card as the subject of a
+  // self-moment; the watched ones are pended once, about the card moved.
+  droppedFromHandByOpponent: { event: "moved", args: { from: "hand", to: "drop", asPlay: false, by: "skill", byOpponent: true } },
+  deckToDropBySkill: { event: "moved", args: { from: "deck", to: "drop", asPlay: false, by: "skill" } },
+  deckToDropByYou: { event: "moved", args: { from: "deck", to: "drop", asPlay: false, by: "skill", byOpponent: false } },
+  revealedTopToDrop: { event: "moved", args: { from: "deck", to: "drop", asPlay: false, by: "skill", revealed: true } },
+  underToDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", fromPile: true } },
+  underLeaderToDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", fromPile: "leader" } },
+  energyToDropBySkill: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill" } },
+  yourEnergyToDropByYourLeader: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill", byOpponent: false, byLeader: true } },
+  droppedFromBattleByYou: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill", byOpponent: false } },
+  toDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill" } },
+  toDropByYou: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", byOpponent: false } },
+  toDropByOpponent: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", byOpponent: true } },
+  // …and the host's side of a pile left (23-2): pended on the card on top, the card that left the subject.
+  underReturnedToHand: { event: "pileLeft", args: { to: "hand" } },
+  pileToDropBySkill: { event: "pileLeft", args: { to: "drop", by: "skill" } },
+  // Moments batch 1: a skill's `power` change, once per card and change (BT9-002's Q&A), pended by the op.
+  powerRaisedBySkill: { event: "powerChanged", args: { by: "skill", dir: "up" } },
+  powerLoweredBySkill: { event: "powerChanged", args: { by: "skill", dir: "down" } },
+  yourCardPowerRaisedByYou: { event: "powerChanged", args: { by: "skill", dir: "up", byOpponent: false } },
+  yourCardPowerLowered: { event: "powerChanged", args: { by: "skill", dir: "down" } },
+  opponentCardPowerLowered: { event: "powerChanged", args: { by: "skill", dir: "down" } },
+  opponentCardPowerLoweredByBattleCard: { event: "powerChanged", args: { by: "skill", dir: "down", byOpponent: true, fromBattleCard: true } },
+  eitherCardPowerLowered: { event: "powerChanged", args: { by: "skill", dir: "down" } },
 };
+
+/**
+ * Moments batch 1: the self-moments pended by name whose subject is the skill's card. It goes on the moment as its
+ * `source` (as `modeSwitched` carries one), so `pendAutos` can ask the cause the record names before pending (9-6-2).
+ */
+const BATCH1_SELF = new Set(["droppedFromHandByOpponent", "deckToDropBySkill", "deckToDropByYou", "revealedTopToDrop", "underToDropBySkill",
+  "underLeaderToDropBySkill", "energyToDropBySkill", "droppedFromBattleByYou", "toDropBySkill", "toDropByYou", "toDropByOpponent",
+  "pileToDropBySkill", "powerRaisedBySkill", "powerLoweredBySkill", "dropToWarpBySkill"]);
 
 /** Phrasing batch 8: the names pended on the cards of the side the moment is *not* about (see `pendByName`). */
 const ABOUT_THE_OTHER_SIDE = new Set(["opponentTookDamage", "opponentTookBoardSkillDamage"]);
@@ -1070,7 +1181,9 @@ const FIRED_BY_SET_MODE = new Set(["restedBySkill", "restedTheirsBySkill", "rest
 const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop", "zEnergyToDrop"]);
 /** Phrasing batch 5: the watched moves pended by name, once, about the moved card (`id` and the subject both), and answered by every watcher the declaration names. */
 // Phrasing batch 7: and a skill's damage, about the skill's card, answered by its master's watchers (BT9-104).
-const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill", "yourCardDealtDamage"]);
+// Moments batch 1: and a skill's power change, about the card changed; and your energy your Leader's skill dropped.
+const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader",
+  "yourCardPowerRaisedByYou", "yourCardPowerLowered", "opponentCardPowerLowered", "opponentCardPowerLoweredByBattleCard", "eitherCardPowerLowered"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */
 export { sideOf, arrivalMode };

@@ -63,6 +63,7 @@
     "arena:rulings": "tsx scripts/arena-rulings.mts",
     "arena:intent": "tsx scripts/arena-intent-brief.mts",
     "arena:errata-check": "tsx scripts/arena-errata-check.mts",
+    "arena:compile-snapshot": "tsx scripts/arena-snapshot-compile.mts",
     "arena:snapshot": "tsx --env-file-if-exists=.env.local scripts/arena-catalog-snapshot.mts",
     "rules:sources": "tsx scripts/rules-sources.mts",
     "arena:draft": "tsx scripts/arena-draft.mts",

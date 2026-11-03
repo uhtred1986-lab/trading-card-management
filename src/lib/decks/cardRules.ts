@@ -371,6 +371,33 @@ function readClause(piece: string, continuation: boolean): { rule: DeckBuildingR
   return "unreadable";
 }
 
+/** The measures `readMustBe` can turn round: each says what a card has, and its negation what it lacks. */
+const NEGATED: [keyof DeckCardFilter, keyof DeckCardFilter][] = [["colors", "notColors"], ["traits", "notTraits"], ["characters", "notCharacters"]];
+
+/**
+ * "[Permanent] All Battle Cards in your deck must be green ≪Android≫" (BT21-068's erratum of 2 Jun 2023): every card
+ * of the kind named must match the description, so a card of that kind that misses any one of its measures is
+ * refused — an `exclude` with one filter per measure, turned round ("a Battle Card that is not green", "a Battle Card
+ * that is not ≪Android≫"). Only a description made of colours, traits and character names can be turned round
+ * whole; anything else in it is "unreadable", never guessed. Null when the sentence is not this shape.
+ */
+function readMustBe(sentence: string): DeckBuildingRule | "unreadable" | null {
+  const m = /^(?:\[[^\]]*\]\s*)*all (.+?) in (?:your|the) (z-deck|deck) must be (?:an? )?(.+)$/i.exec(sentence);
+  if (!m) return null;
+  const kind = parseCardDescription(m[1]);
+  const must = parseCardDescription(/\bcards?\b/i.test(m[3]) ? m[3] : `${m[3]} cards`);
+  if (!kind || !must || isEmptyFilter(must)) return "unreadable";
+  const turned = Object.keys(must).filter((k) => must[k as keyof DeckCardFilter] !== undefined);
+  if (turned.some((k) => !NEGATED.some(([has]) => has === k))) return "unreadable";
+  const filters: DeckCardFilter[] = [];
+  for (const [has, lacks] of NEGATED) {
+    const want = must[has] as string[] | undefined;
+    if (want?.length) filters.push({ ...kind, [lacks]: want });
+  }
+  const zone = zoneOf(m[2]);
+  return { kind: "exclude", filters, zone, words: `requires every ${describeCardFilter(kind).replace(/ Cards$/, " Card").replace(/^cards$/, "card")} ${inZone(zone)} to be ${describeCardFilter(must).replace(/ cards$/, "")}` };
+}
+
 /**
  * Every deck-building clause in a skill text, and the text left over. A sentence is a deck-building one when it
  * says the deck "includes" something; the game half of a mixed sentence ("…in your deck, and treat ≪Villainous≫
@@ -381,6 +408,9 @@ export function parseDeckBuilding(skill: string | null | undefined): DeckBuildin
   if (!skill) return out;
   const rest: string[] = [];
   for (const sentence of cleanText(skill).split(/(?<=\.)\s+|\.$/).map((s) => s.trim().replace(/\.$/, "")).filter(Boolean)) {
+    const must = readMustBe(sentence);
+    if (must === "unreadable") { out.unread.push(sentence); rest.push(sentence); continue; }
+    if (must) { out.rules.push(must); continue; }
     if (!/\binclude\b/i.test(sentence)) { rest.push(sentence); continue; }
     // The keyword limits: [Dragon Ball], [Super Combo].
     const keyword = parseDeckRules(sentence);

@@ -292,6 +292,8 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   onlyCharacters: { onlyCharacters: true, characters: ["V1"] },
   onlyTraits: { onlyTraits: true, traits: ["Saiyan", "God"] },
   traitsAll: { traitsAll: ["Saiyan", "God"] },
+  // Audit lane C: a part of a trait ("≪Universe≫ in its special trait").
+  traitsIncluding: { traitsIncluding: ["Saiy"] },
   notTraits: { notTraits: ["Saiyan"] },
   names: { names: ["BIG"] },
   notNames: { notNames: ["BIG"] },

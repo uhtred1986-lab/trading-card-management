@@ -100,7 +100,8 @@ function language(rec: ReturnType<typeof skillRecords>[number], what: string): v
   assert.equal(op.target.sel.area, "hand");
   assert.deepEqual(op.target.sel.filter?.colors, ["Yellow"]);
   assert.deepEqual(op.target.sel.filter?.characters, ["vegito"]);
-  assert.equal(describeScript(rec.ops), "all yellow <vegito> cards in your hand's skill cost for [union] skills is 1 less");
+  // Audit-effects-1: the reading names the colourless orb; a [Permanent]'s says no span.
+  assert.equal(describeScript(rec.ops, { permanent: true }), "all yellow <vegito> cards in your hand's skill cost for [union] skills is 1 less ({1})");
   language(rec, "BT28-079");
 
   const sd = skillRecords(defs.SD1904).find((r) => r.skillIndex === 20)!;

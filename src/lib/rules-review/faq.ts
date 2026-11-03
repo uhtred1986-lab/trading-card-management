@@ -42,7 +42,9 @@ export function parseCardFaq(html: string): FaqByCard {
     const end = part.indexOf("</h5>");
     if (end < 0) continue;
     const heading = text(part.slice(0, end));
-    const m = /^([A-Za-z0-9]+-\d{1,3}[A-Za-z]?)\s*(.*)$/.exec(heading);
+    // A suffix letter is part of the id only when a space follows it: "BT2-105Overpowering King Cold" (no space on the
+    // page) is BT2-105 and "Overpowering", not "BT2-105O" and "verpowering".
+    const m = /^([A-Za-z0-9]+-\d{1,3}(?:[A-Za-z](?=\s|$))?)\s*(.*)$/.exec(heading);
     if (!m) continue;
     const qa: FaqQa[] = [];
     const re = /<dt>[\s\S]*?<span class="textCol">([\s\S]*?)<\/span>\s*<\/dt>\s*<dd>[\s\S]*?<span class="textCol">([\s\S]*?)<\/span>\s*<\/dd>/gi;

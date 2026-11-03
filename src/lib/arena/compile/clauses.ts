@@ -269,7 +269,7 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
       if (
         (ch === "," || ch === ";") &&
         !inNameList(text, i) &&
-        !(ch === "," && (inList(text, i) || commaJoinsMeasure(text, start, i) || joinsCardTypes(text, start, i, 1) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || (/^,\s*for (?:each|every)\b/i.test(text.slice(i)) && !TRIGGER_THEN_COUNT.test(text.slice(start, i).trim()) && !COUNT_LEADS_CLAUSE.test(text.slice(i)))))
+        !(ch === "," && (inList(text, i) || commaJoinsMeasure(text, start, i) || commaJoinsGrantList(text, start, i) || joinsCardTypes(text, start, i, 1) || commaJoinsAlternative(text, start, i) || commaJoinsColours(text, i) || /^,\s*except\b/i.test(text.slice(i)) || (/^,\s*for (?:each|every)\b/i.test(text.slice(i)) && !TRIGGER_THEN_COUNT.test(text.slice(start, i).trim()) && !COUNT_LEADS_CLAUSE.test(text.slice(i)))))
       ) {
         push(i, 1);
       } else if (ch === "." && (i + 1 >= text.length || (text[i + 1] === " " && !/^ [a-z]/.test(text.slice(i + 1, i + 3)) && !(/\bJr$/.test(text.slice(0, i)) && /^ Tokens?\b/.test(text.slice(i + 1)))))) {
@@ -328,13 +328,27 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   push(text.length, 0);
   const clauses: string[] = [];
   const joined: boolean[] = [];
+  // R-206 (owner, 3 Nov 2026): a "Then" sentence right after an "If you do" sentence goes on with what was done — "Remove
+  // 7 [Dragon Ball] cards … from the game. If you do, … this card gets +15000 power for the duration of the turn. Then
+  // flip this card over at the end of the turn." (BT5-080's back): no Dragon Balls, no flip. The capital below (lane C)
+  // is kept for every other "Then" sentence.
+  let afterIfYouDo = false;
   out.forEach((raw, k) => {
-    const c = raw
+    const opening = raw.trim();
+    const thenAfterIfYouDo = afterIfYouDo && /^Then\s+[a-z]/.test(opening);
+    if (/^[A-Z]/.test(opening) && !thenAfterIfYouDo) afterIfYouDo = /^If (?:you (?:do|did)|so)\b/.test(opening);
+    const c = (thenAfterIfYouDo ? opening.replace(/^Then\s+/, "then ") : raw)
       // "If you do so" is "if you do" with a word on the end. The strip
       // below would take the phrase and leave the "so", which reads as a
       // bare connective — so the condition was thrown away and everything
       // the sentence made conditional happened anyway (20-16).
       .replace(/^(if you (?:do|did))\s+so\b/i, "$1")
+      // Audit lane C (2 Nov 2026): a sentence that opens on "Then" keeps opening on a capital once the word is gone —
+      // "…if it's a green ≪Ginyu Force≫ card with an energy cost of 2, you may play it. **Then draw 1 card.**"
+      // (BT10-061): the clause list reads a capital as a new sentence, outside the condition the one before opened
+      // (the "Then," follow-up of BT3-043's FAQ). Stripped to "draw 1 card", the draw stayed inside the reveal's
+      // condition.
+      .replace(/^Then\s+([a-z])/, (_w, ch: string) => ch.toUpperCase())
       .replace(/^(?:then|and|if you do|if so)\s+/i, "")
       .trim();
     if (!c) return;
@@ -523,6 +537,16 @@ function commaJoinsColours(text: string, comma: number): boolean {
 }
 
 /**
+ * Audit lane E: the list of things one card gets, said with commas — "it gets +15000 power, [Critical], and [Double
+ * Strike] for the battle" (BT27-061), "this card gains [Barrier], [Triple Attack], and [Blocker] until the end of your
+ * opponent's turn" (BT26-138). One clause: the span at its end closes every item. Cut at the commas, each item before
+ * the last read as its own clause with no span, and lasted "for the turn".
+ */
+function commaJoinsGrantList(text: string, start: number, comma: number): boolean {
+  return /\b(?:gets?|gains?)\s+(?:[+-]\d+\s+(?:combo\s+)?power|\[[^\]]+\])(?:,\s*\[[^\]]+\])*$/i.test(text.slice(start, comma)) && /^,\s*(?:and\s+)?\[[^\]]+\]/.test(text.slice(comma));
+}
+
+/**
  * The same list written with "and": "reduce the combo cost of blue **and**
  * yellow ≪Universe 6≫ cards in your hand by 1" (XD1-05). Cut there, the halves
  * are "reduce the combo cost of blue" — a verb whose object is a colour — and
@@ -699,8 +723,14 @@ function inList(text: string, comma: number): boolean {
 export function stripNotes(text: string): string {
   let out = "";
   let depth = 0;
+  // Audit-selectors-1: a bracket inside a name is the name's — "if your Leader is a <(Duplicate) Vegeta> card"
+  // (BT31-073; BT31-075/076/077 carry that character name): read as a note, the Leader asked was <Vegeta>.
+  let inName = 0;
   for (const ch of text) {
-    if (ch === "(" || ch === "（") depth++;
+    if (depth === 0 && (ch === "<" || ch === "{" || ch === "≪")) inName++;
+    else if (depth === 0 && (ch === ">" || ch === "}" || ch === "≫")) inName = Math.max(0, inName - 1);
+    if (inName && depth === 0) out += ch;
+    else if (ch === "(" || ch === "（") depth++;
     else if (ch === ")" || ch === "）") depth = Math.max(0, depth - 1);
     else if (depth === 0) out += ch;
   }

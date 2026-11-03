@@ -50,6 +50,17 @@ function body(s: string, start: RegExp): string {
 }
 
 interface Errata { id: string; title: string; before: string; after: string; notes: string }
+/**
+ * Every "Before" (or "After") column of one entry, in page order. Most entries have one, headed
+ * plainly; a Leader's (and every entry since 2022-11) is headed per side, "Before (Front)" /
+ * "After (Back)" (either case), and SD14-01 has two of each side. Reading only the plain heading
+ * left 47 entries with empty before/after text (2 Nov 2026).
+ */
+function columns(body: string, side: "before" | "after"): string {
+  const heading = side === "before" ? "Before" : "After";
+  const re = new RegExp(`<div class="${side}Col">\\s*<b>${heading}(?:\\s*\\((?:Front|Back)\\))?<\\/b>([\\s\\S]*?)<\\/div>`, "gi");
+  return [...body.matchAll(re)].map((m) => text(m[1])).join("\n");
+}
 function errata(html: string): Errata[] {
   const out: Errata[] = [];
   for (const m of html.matchAll(/<li id="([A-Z]+[0-9]*-[0-9]{2,3}[a-z]?)"[^>]*>([\s\S]*?)<\/li>/g)) {
@@ -57,8 +68,8 @@ function errata(html: string): Errata[] {
     out.push({
       id: m[1],
       title: text(between(body, /<dt class="title">([\s\S]*?)<\/dt>/)),
-      before: text(between(body, /<div class="beforeCol">\s*<b>Before<\/b>([\s\S]*?)<\/div>/)),
-      after: text(between(body, /<div class="afterCol">\s*<b>After<\/b>([\s\S]*?)<\/div>/)),
+      before: columns(body, "before"),
+      after: columns(body, "after"),
       notes: text(between(body, /<dl class="errataNotes">\s*<dt>Errata Notes<\/dt>([\s\S]*?)<\/dl>/)),
     });
   }

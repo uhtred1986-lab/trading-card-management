@@ -121,7 +121,7 @@ export const AREAS = ["hand", "deck", "drop", "life", "battle", "combo", "energy
  * `subject` — `modifyAttrAs` is what reads the two together.
  */
 export const CARD_ATTRS = ["power", "comboPower", "colors", "characters", "traits", "alsoNames", "mode", "markers", "keywords", "hidden", "faceUp", "flipped", "energyMarkers", "guard"] as const satisfies readonly (CardAttr | "energyMarkers" | "guard")[];
-export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "nextMain", "ownTurn", "game", "whileSourceInPlay", "battleOrTurn"] as const satisfies readonly Duration[];
+export const DURATIONS = ["battle", "turn", "opponentTurn", "nextTurn", "afterNextCharge", "afterOpponentCharge", "nextMain", "ownTurn", "ownNextTurn", "game", "whileSourceInPlay", "battleOrTurn"] as const satisfies readonly Duration[];
 const DELAY_TIMINGS = ["turnStart", "mainStart", "turnEnd", "turnCleanup", "battleEnd", "damageStepEnd"] as const satisfies readonly DelayTiming[];
 export const MOVE_REASONS = ["ko", "effect", "rule", "cost", "play", "combo", "damage", "draw", "charge", "areaExtension"] as const satisfies readonly MoveReason[];
 const DELAY_SCOPES = ["thisTurn", "nextTurn", "yourNextTurn", "opponentNextTurn"] as const satisfies readonly DelayScope[];
@@ -253,6 +253,7 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "amount", type: "amount", required: true },
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
+  { name: "activateTiming", type: { enum: ["main", "battle"] } },
   { name: "tag", type: "string" },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
@@ -432,7 +433,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'the master names a whole number, which the rest of the program reads as X ("the declared number"); asked as a "choose one" among the numbers',
   },
   win: { fields: [SIDE], sentence: "{side:your opponent wins|you win} the game", doc: "a skill ends the game with its master (or, with side, the other player) the winner; nothing after it in the program is played" },
-  shuffle: { fields: [SIDE, { name: "areas", type: { list: { enum: ["deck", "life"] } } }, { name: "inspectedOnly", type: "boolean" }], sentence: "shuffle" },
+  shuffle: {
+    fields: [SIDE, { name: "areas", type: { list: { enum: ["deck", "life"] } } }, { name: "inspectedOnly", type: "boolean" }],
+    // Audit lane E review (describe only): whose deck — "reveal the top 1 card in your opponent's deck, shuffle" read as
+    // if you shuffled your own (R-203's ≪Universe 10≫ reveals).
+    sentence: (raw) => {
+      const side = (raw as OpOf<"shuffle">).side;
+      return side === "opponent" ? "your opponent shuffles their deck" : side === "both" ? "each player shuffles their deck" : "shuffle";
+    },
+  },
   invokeSkill: {
     fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
     sentence: (raw) => {
@@ -446,23 +455,26 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: CHOOSE_FIELDS,
     sentence: (raw, r) => {
       const op = raw as OpOf<"choose">;
+      // Audit-selectors-1: "your opponent chooses 1 of their Battle Cards" (SD16-02, BT28-030, TB1-072…): the record
+      // says who chooses (`chooser`), and the reading said "choose", which a player reads as their own pick.
+      const choose = op.chooser === "opponent" ? "your opponent chooses" : "choose";
       // "Any number of …, up to the number of …" (BT29-139): the selector's own
       // count is not read, so it is not said either.
       if (op.atMost !== undefined && op.owed) {
         // Phrasing batch 5 (BT23-109): a number owed, read off the board — "1 for every 5 cards in your Z-Energy".
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
-        return `choose ${cards}, ${describeAmount(op.atMost)} (as many as there are)`;
+        return `${choose} ${cards}, ${describeAmount(op.atMost)} (as many as there are)`;
       }
       if (op.atMost !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
         const bound = typeof op.atMost === "object" && "count" in op.atMost && op.atMost.times === undefined && op.atMost.per === undefined ? `the number of ${describeEach(op.atMost.count)}` : describeAmount(op.atMost);
-        return `choose any number of ${cards}, up to ${bound}`;
+        return `${choose} any number of ${cards}, up to ${bound}`;
       }
       if (op.exactly !== undefined) {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
-        return `choose exactly ${describeAmount(op.exactly)} of ${cards}`;
+        return `${choose} exactly ${describeAmount(op.exactly)} of ${cards}`;
       }
-      return renderTemplate("choose {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}", raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
+      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
     },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
@@ -470,7 +482,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
     // #907 round 4: the reading said "the top" for a look the op takes from the bottom ("look at
     // the bottom card of your deck", BT11-062b, BT11-104, EB1-54) - the op was right, the words wrong.
-    sentence: (raw, r) => renderTemplate(`look at the ${(raw as OpOf<"look">).from === "bottom" ? "bottom" : "top"} {n}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r),
+    // Audit-selectors-1: and whose cards, and where — "look at your opponent's hand" (BT10-004, EX11-02) read "look at
+    // the top 99", "look at up to 1 card from the top of your opponent's deck" (P-530) as your own deck.
+    sentence: (raw, r) => {
+      const look = raw as OpOf<"look">;
+      const whose = look.side === "opponent" ? "your opponent's" : "your";
+      if (look.area && look.area !== "deck") {
+        const where = ZONE_NOUNS[look.area as keyof typeof ZONE_NOUNS] ?? look.area;
+        return look.n === 99 ? `look at ${whose} ${where}` : renderTemplate(`look at {n} cards in ${whose} ${where}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
+      }
+      return renderTemplate(`look at the ${look.from === "bottom" ? "bottom" : "top"} {n}${look.side === "opponent" ? " of your opponent's deck" : ""}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
+    },
     doc: "top of your deck, seen only by you; the cards are bound to the name in \"as\" (20-11)",
   },
   // `audience` (#137): who sees the cards. "you" is a look — 20-11's same
@@ -506,7 +528,16 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const as = moveAs(raw as Op);
       if (as.op !== "moveTo" && as.op !== "note") return describeScript([as], r);
-      return renderTemplate("move {target} to {to}{faceUp? face up}", raw as unknown as Record<string, unknown>, OP_SCHEMA.moveTo.fields, r);
+      // Audit lane E (describe only): where the card lands, as the program says it — the end of the deck ("to the
+      // bottom of deck", BT9-127's "place it at the bottom of its owner's deck"), the mode ("in Rest Mode", BT20-028's
+      // energy), whose area it is ("your opponent's energy"), and the card it goes under ("under the chosen cards"). The
+      // reading said none of them, so a move to the bottom read like one to the top and a card put in Rest Mode like one
+      // in Active Mode. Audit-selectors-1 met the same gap (BT20-026's "under your Leader", BT5-044's "the bottom of
+      // their deck"); a deck's end reads "the top/bottom of the deck".
+      const op = raw as OpOf<"moveTo">;
+      const area = op.to === "under" ? `under ${op.under ? describeRef(op.under) : "this card"}` : `${op.owner === "opponent" ? "your opponent's " : ""}${op.to}`;
+      const place = op.position && op.to !== "under" ? `the ${op.position} of ${op.owner === "opponent" ? area : `the ${area}`}` : area;
+      return `move ${describeRef(op.target)} ${op.to === "under" ? place : `to ${place}`}${op.mode === "rest" ? " in Rest Mode" : op.mode === "active" ? " in Active Mode" : ""}${op.faceUp ? " face up" : ""}${op.random ? " in a random order" : ""}`;
     },
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
@@ -705,7 +736,8 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "as", type: "string" },
       { name: "mode", type: { enum: ["rest"] } },
     ],
-    sentence: "play {n} {name} ({power} power){mode? in {mode} mode}",
+    // Audit-selectors-1: and on whose side — "play 2 Clone Tokens … in your opponent's Battle Area" (BT8-041).
+    sentence: (raw, r) => renderTemplate(`play {n} {name} ({power} power){mode? in {mode} mode}${(raw as OpOf<"token">).side === "opponent" ? " in your opponent's Battle Area" : ""}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.token.fields, r),
     doc: 'a token (19): {"op":"token","name":"Saibaman Token","power":10000,"comboCost":0,"comboPower":5000,"colors":[],"n":2}; "as" names the tokens this play made (exactly them, empty when none), for a later "and they gain [Blocker]"; "mode":"rest" is "play 1 Ghost Token in Rest Mode" (P-683, phrasing batch 4): the tokens arrive rested',
   },
   costModifier: {
@@ -727,25 +759,24 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"costReduction">;
       if (op.what !== "specified") {
         if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
-          const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
           // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
           // 2 less" alone would not say.
-          const orbs = op.colors?.length ? ` (${op.colors.map((c) => `{${c}}`).join("")})` : "";
+          const orbs = costOrbs(op.colors);
           // The combo cost and the Z-Energy cost are other prices than the energy cost (20-21): the reading said
           // "costs 1 less" for "-1 combo cost" (BT22-055b), the same words as an energy reduction (#907 round 6).
           const price = op.what === "combo" ? " (combo cost)" : op.what === "zEnergy" ? " (Z-Energy cost)" : "";
-          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + price + orbs + once;
+          return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + price + orbs + costSpan(op.uses, op.until, r);
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
-        const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? "Activate" : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
+        const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? `Activate${op.activateTiming === "main" ? ": Main" : op.activateTiming === "battle" ? ": Battle" : ""}` : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
         // EX03-16: a change scoped to the card the [Evolve] lands on.
         // "The next time you activate …" (BT31-096): spent by the activations it reaches.
-        const budget = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
-        if (op.onto) return `the ${noun}${scoped} of ${describeRef(op.target)} is ${describeCostChange(op.amount)} when evolving onto ${describeRef(op.onto)}${budget}`;
-        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}${budget}`;
+        const budget = costSpan(op.uses, op.until, r);
+        if (op.onto) return `the ${noun}${scoped} of ${describeRef(op.target)} is ${describeCostChange(op.amount)}${costOrbs(op.colors)} when evolving onto ${describeRef(op.onto)}${budget}`;
+        return `${describeRef(op.target)}'s ${noun}${scoped} is ${describeCostChange(op.amount)}${costOrbs(op.colors)}${budget}`;
       }
-      if (op.all) return `${describeRef(op.target)} has no specified cost`;
-      const once = op.uses == null ? "" : op.uses === 1 ? " the next time it is paid" : ` the next ${op.uses} times it is paid`;
+      if (op.all) return `${describeRef(op.target)} has no specified cost${costSpan(op.uses, op.until, r)}`;
+      const once = costSpan(op.uses, op.until, r);
       const counts = new Map<string, number>();
       for (const c of op.colors ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
       const orbs = [...counts.entries()].map(([c, n]) => `${n} ${c === "any" ? "energy" : c.toLowerCase()}`).join(", ");
@@ -954,13 +985,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "activateCounter" && (op.counterKind || op.otherCards || op.filter || op.unlessPay?.length)) {
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         const kind = op.counterKind ? `[Counter: ${op.counterKind === "battleCardAttack" ? "Battle Card Attack" : op.counterKind[0].toUpperCase() + op.counterKind.slice(1)}]` : "[Counter]";
-        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
+        // Audit lane E: "…the [Counter: Attack] skill on copies of this card" (BT13-035) says whose.
+        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.sameNameAsSelf ? " on copies of this card" : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
       }
       // #677: 12-1-3's "activating an Extra Card" (BT10-097), and the skills
       // of particular cards (BT23-140's "the skills of Battle Cards").
       if (op.what === "activateSkill" && !op.target && (op.extraCardActivation || op.filter)) {
         const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
-        const which = op.extraCardActivation ? "Extra Cards" : `the ${op.skillKinds?.length ? "non-keyword " : ""}skills of ${describeFilter(op.filter!, { plural: true })}`;
+        // Audit lane E: one kind of line is named ("{King Piccolo, Limitless Power}'s [Activate: Main] skill", P-153);
+        // several are the non-keyword ones.
+        const oneKind = op.skillKinds?.length === 1 ? ({ "activate:main": "[Activate: Main] ", "activate:battle": "[Activate: Battle] ", auto: "[Auto] " } as Record<string, string>)[op.skillKinds[0]] : undefined;
+        const which = op.extraCardActivation ? "Extra Cards" : `the ${oneKind ?? (op.skillKinds?.length ? "non-keyword " : "")}skills of ${describeFilter(op.filter!, { plural: true })}`;
         return `${who} can't activate ${which}${escape}${forThe(op.until, r)}`;
       }
       // Owner ruling 26 Oct 2026 (A2): the [Blocker] of the cards a "can't
@@ -1390,6 +1425,9 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // "all" is the count this borrows to name the cards; what is left says
       // which and where, noun included — "blue cards in your Drop Area" (#478).
       const what = describeSelector({ ...c.sel, count: 99 }).replace(/^all /, "");
+      // Audit lane C: a count over both sides is one total — "a total of 3 or more energy between you and your opponent"
+      // (EX19-28, EX19-35) — and "in each player's …" read as each one's own.
+      if (c.sel.side === "both" && !c.sel.special) return `there are ${bound(c)} ${what.replace(/\beach player's\b/, "both players'")} in total`;
       return `there are ${bound(c)} ${what}`;
     },
     doc: "how many cards a selector finds",
@@ -1403,6 +1441,14 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       if (c.atLeast != null) return `${whose} life is ${c.atLeast} or more`;
       return `${whose} life`;
     },
+  },
+  outnumbers: {
+    fields: [SEL, { name: "than", type: "selector", required: true }, { name: "by", type: "number" }],
+    sentence: (raw) => {
+      const c = raw as CondOf<"outnumbers">;
+      return `there are ${c.by != null && c.by !== 1 ? `at least ${c.by} ` : ""}more ${describeSelector(c.sel, "")} than ${describeSelector(c.than, "")}`;
+    },
+    doc: "two counts against each other: the cards `sel` finds outnumber the cards `than` finds by at least `by` (1 when absent) — \"your opponent has more cards in their hand than you\" (BT16-067), \"you have less energy than your opponent\" (EX03-27, the sides swapped), \"2 or more energy than you\" (P-183)",
   },
   lifeVsOpponent: {
     fields: [
@@ -1435,7 +1481,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       // and card names as `{…}`, the way the other name lists are.
       const allOf = [...(f.charactersAll ?? []).map((x) => `<${x}>`), ...(f.traitsAll ?? []).map((x) => `≪${x}≫`), ...(f.namesAll ?? []).map((x) => `{${x}}`)];
       // "or has <GT> in its character name" (BT31-049), said as `describeFilter` says it.
-      const including = (f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`);
+      const including = [...(f.charactersIncluding ?? []).map((x) => `a card with <${x}> in its character name`), ...(f.traitsIncluding?.length ? [`a card with ${f.traitsIncluding.map((x) => `≪${x}≫`).join(" or ")} in its special traits`] : [])];
       // Phrasing batch 7: every other measure the VM asks of the Leader is said too. "If your Leader Card is a red
       // {Champa} or red {Vados}" (EX06-03) read "your leader is Red, or your leader is Red": the card names were asked
       // and never said, and so were "mono-", "Z-", a name asked in part, an excluded trait and an original power.
@@ -1444,9 +1490,10 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
       const tone = [...(f.monoColor ? ["mono-colour"] : []), ...(f.multiColor ? ["multicolour"] : []), ...(f.notColors ?? []).map((x) => `non-${x.toLowerCase()}`)];
       const kind = f.z ? ["Z-Leader"] : [];
       const notTraits = (f.notTraits ?? []).map((x) => `non-≪${x}≫`);
-      const said0 = [...tone, ...f.colors, ...notTraits, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...names, ...kind, ...including];
+      const said0 = [...tone, ...(f.colors.length ? [colourList(f.colors, !!f.multiColor)] : []), ...notTraits, ...(f.characterOrTrait && chars.length && traits.length ? [...chars, "or", ...traits] : [...chars, ...traits]), ...allOf, ...names, ...kind, ...including];
       const bits = partly.length ? [...said0, ...(said0.length && !kind.length ? ["card"] : said0.length ? [] : ["a card"]), ...partly] : said0;
-      const originalPower = f.originalPowerMin != null ? `with an original power of ${f.originalPowerMin} or more` : f.originalPowerMax != null ? `with an original power of ${f.originalPowerMax} or less` : "";
+      // Audit lane C: "with an original power of 15000" (BT18-082, EX19-17) is that power exactly, and said so.
+      const originalPower = f.originalPowerMin != null && f.originalPowerMin === f.originalPowerMax ? `with an original power of ${f.originalPowerMin}` : f.originalPowerMin != null ? `with an original power of ${f.originalPowerMin} or more` : f.originalPowerMax != null ? `with an original power of ${f.originalPowerMax} or less` : "";
       // "with 10000 power or less" (#990): the bound is part of the Leader
       // description, and the VM asks it. Left out, the reading claims a wider
       // Leader than the card does.
@@ -1460,7 +1507,10 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
               : f.powerMin != null
                 ? `with ${f.powerMin} power or more`
                 : "";
-      const said = [bits.join(" ") || (power || originalPower ? "a card" : "a match"), power, originalPower].filter(Boolean).join(" ");
+      // Audit lane C: a keyword the Leader has to have — "a [Warrior of Universe 7] card" (EX21-21), "has [Warrior of
+      // Universe 7]" (SD21-07) — was asked and never said.
+      const keywords = (f.keywordsExact?.length ? f.keywordsExact : f.keywords).map((k) => `with [${k}]`).join(" ");
+      const said = [bits.join(" ") || (power || originalPower || keywords ? "a card" : "a match"), power, originalPower, keywords].filter(Boolean).join(" ");
       return `${c.side === "opponent" ? "their" : "your"} leader${c.back ? "'s back side" : ""} is ${said}`;
     },
     doc: '"If your Leader is a <Baby> card" — colour, character name and traits alike',
@@ -1722,6 +1772,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   count:          "primitive",
   life:           "macro over `count`",
   lifeVsOpponent: "macro over `count`",
+  outnumbers:     "macro over `count`",
   leaderColor:    "macro over `count`",
   leaderMatches:  "macro over `count`",
   markers:        "macro over `count`",
@@ -2223,6 +2274,11 @@ const SELECTOR_KEYS = {
   fromEnd: 1,
   ignoreBarrier: 1,
   notInBattle: 1,
+  battleRole: 1,
+  copyOfSelf: 1,
+  notAttackedThisTurn: 1,
+  orSelf: 1,
+  alsoFrom: 1,
   atRandom: 1,
   ownedByOpponent: 1,
   notSelf: 1,
@@ -2267,6 +2323,10 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.mode !== undefined && !is(v.mode, SELECTOR_MODES)) return wrong("mode", "active or rest");
   if (v.notSelf !== undefined && !is(v.notSelf, NOT_SELF)) return wrong("notSelf", "card, copies or name");
   if (v.notInBattle !== undefined && v.notInBattle !== true) return wrong("notInBattle", "true");
+  if (v.battleRole !== undefined && v.battleRole !== "any" && v.battleRole !== "attacker" && v.battleRole !== "notAttacker") return wrong("battleRole", "any, attacker or notAttacker");
+  if (v.copyOfSelf !== undefined && v.copyOfSelf !== true) return wrong("copyOfSelf", "true");
+  if (v.notAttackedThisTurn !== undefined && v.notAttackedThisTurn !== true) return wrong("notAttackedThisTurn", "true");
+  if (v.orSelf !== undefined && v.orSelf !== true) return wrong("orSelf", "true");
   if (v.atRandom !== undefined && v.atRandom !== true) return wrong("atRandom", "true");
   if (v.ownedByOpponent !== undefined && v.ownedByOpponent !== true) return wrong("ownedByOpponent", "true");
   if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
@@ -2303,6 +2363,17 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.underHost !== undefined) {
     const bad = selectorProblem(v.underHost, `${at}.underHost`, depth + 1);
     if (bad) return bad;
+  }
+  // Audit-selectors-1: each alternative is a place and a description, nothing that counts or names one card.
+  if (v.alsoFrom !== undefined) {
+    if (!Array.isArray(v.alsoFrom) || !v.alsoFrom.length) return wrong("alsoFrom", "a non-empty list of selectors");
+    for (const [i, alt] of (v.alsoFrom as unknown[]).entries()) {
+      const bad = selectorProblem(alt, `${at}.alsoFrom[${i}]`, depth + 1);
+      if (bad) return bad;
+      const a = alt as Record<string, unknown>;
+      const extra = ["special", "fromVar", "count", "upTo", "minCount", "take", "alsoFrom", "notIn", "sumAtMost", "differentNames", "differentCharacters", "orSelf"].find((k) => a[k] !== undefined);
+      if (extra) return `${at}.alsoFrom[${i}] says where to look and what for, never ${extra}`;
+    }
   }
   if (v.filter !== undefined) return filterProblem(v.filter, `${at}.filter`);
   return null;
@@ -2453,6 +2524,9 @@ function strayBound(v: unknown, at: string, top = true): string | null {
   if (!top && v.sumAtMost !== undefined) return `${at}: "sumAtMost" (TOTAL … <=) bounds a choice, so only a choose's own selector may carry it — anywhere else it is read as every card`;
   if (!top && v.minCount !== undefined) return `${at}: "minCount" bounds a choice, so only a choose's own selector may carry it`;
   if (!top && v.notIn !== undefined) return `${at}: "notIn" (EXCEPT $…) excludes the cards earlier choices bound, so only a choose's own selector may carry it`;
+  // Audit-selectors-1 review: `alsoFrom` (ALSO (…)) is one choice among two places, which the area-reading paths outside
+  // a choose (an action's FOR, a look's memory of searched areas) never see — so only a choose's own selector carries it.
+  if (!top && v.alsoFrom !== undefined) return `${at}: "alsoFrom" (ALSO (…)) widens a choice to a second place, so only a choose's own selector may carry it`;
   const rest = (o: Record<string, unknown>, skip: string) => Object.entries(o).filter(([k]) => k !== skip).map(([, x]) => x);
   if (v.op === "choose" && isRecord(v.sel)) {
     if (v.sel.sumAtMost !== undefined && v.sumTo !== undefined) return `${at}: a choice adds up to exactly "sumTo" or stays under "sumAtMost", not both`;
@@ -2601,6 +2675,11 @@ function anyOfNames(tokens: string[]): string[] {
   return tokens.length > 1 ? [tokens.join(" or ")] : tokens;
 }
 
+/** Colours as a filter asks them: any one ("red or black"), or every one of a multicolour card ("green and yellow"). */
+function colourList(colours: readonly string[], all: boolean): string {
+  return colours.length > 1 ? `${colours.slice(0, -1).join(", ")} ${all ? "and" : "or"} ${colours[colours.length - 1]}` : (colours[0] ?? "");
+}
+
 function allOfPhrases(characters: string[], names: string[]): string[] {
   const tokens = [...characters.map((x) => `<${x}>`), ...names.map((x) => `{${x}}`)];
   const out: string[] = [];
@@ -2631,7 +2710,11 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   const bits: string[] = [];
   if (f.monoColor) bits.push("mono-colour");
   if (f.multiColor) bits.push("multicolour");
-  bits.push(...f.colors.map((c) => c.toLowerCase()));
+  // Audit-selectors-1: several colours are *either* of them (`matchesAttrs`) unless the card must be multicolour, when
+  // it has every one — said so, "red or black ≪Saiyan≫", "multicolour green and yellow <Cell>". Side by side ("red
+  // black") the reading claimed a card of both colours for a filter that takes either. `parseFilter` reads both forms
+  // back to the same colours (an "or" between two colour words is not a second description).
+  if (f.colors.length) bits.push(colourList(f.colors.map((c) => c.toLowerCase()), f.multiColor));
   if (f.originalColors?.length) bits.push(`with original colours ${f.originalColors.map((c) => c.toLowerCase()).join(" or ")}`);
   // Every measure that *narrows by exclusion* was silent until 9 Sep 2026,
   // and a measure the reading drops always reads as the wider filter — the
@@ -2672,6 +2755,8 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   const partial = [
     ...f.charactersIncluding.map((x) => `with <${x}> in its character name`),
     ...f.namesIncluding.map((x) => `with {${x}} in its card name`),
+    // Audit lane C: either word, in a trait (`traitsIncluding`).
+    ...(f.traitsIncluding?.length ? [`with ${f.traitsIncluding.map((x) => `≪${x}≫`).join(" or ")} in its special traits`] : []),
     // "with both <A> and <B>" (#768): the parser reads exactly two tokens, so
     // the names go out in pairs (an odd one is repeated, which says the same).
     ...allOfPhrases(f.charactersAll ?? [], f.namesAll ?? []),
@@ -2685,7 +2770,7 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
     // same set of keywords it printed.
     // A family an exact name already covers ("Over Realm" under "Over Realm 2")
     // is not printed twice: the number is the narrower claim (#941).
-    ...f.keywords.filter((k) => !(f.keywordsExact ?? []).some((e) => e.toLowerCase().startsWith(k.toLowerCase()) || e.toLowerCase().startsWith(`dark ${k.toLowerCase()}`))).map((k) => `with [${k}]`),
+    ...f.keywords.filter((k) => !(f.keywordsExact ?? []).some((e) => e.toLowerCase().startsWith(k.toLowerCase()) || e.toLowerCase().startsWith(`dark ${k.toLowerCase()}`) || e.toLowerCase().endsWith(`-${k.toLowerCase()}`))).map((k) => `with [${k}]`),
     ...(f.keywordsExact ?? []).map((k) => `with [${k}]`),
     ...f.notKeywords.map((k) => `non-[${k}]`),
     ...(f.notKeywordsExact ?? []).map((k) => `non-[${k}]`),
@@ -2854,6 +2939,16 @@ export function describeSelector(sel: Selector, all = "all"): string {
   // <Majin Buu> on top of this card" and "the Leader on top of this card" are
   // different cards, and dropping the words would print them the same.
   if (sel.special === "onTop") return `the ${selectorNoun(sel, false)} on top of this card`;
+  // Audit-selectors-1: "choose up to 1 attacking Battle Card or Leader Card" (BT10-030), "the attacking Battle Card"
+  // (P-203) — the attacker with what the card says of it.
+  // (Audit-selectors-1 review: whose attacker it must be — "the attacking card of yours" (BT1-005) — and "ignoring
+  // [Barrier]", which the record keeps and the sentence had dropped, BT10-030.)
+  if (sel.special === "attacker" && (sel.filter || sel.upTo || sel.side || sel.ignoreBarrier)) {
+    const whose = sel.side === "you" ? "your " : sel.side === "opponent" ? "your opponent's " : "";
+    const what = (plural: boolean) => (sel.filter ? describeFilter(sel.filter, { plural }) : plural ? "cards" : "card");
+    const said = sel.upTo ? (whose ? `up to 1 of ${whose}attacking ${what(true)}` : `up to 1 attacking ${what(false)}`) : `${whose || "the "}attacking ${what(false)}`;
+    return `${said}${sel.ignoreBarrier ? " ignoring [Barrier]" : ""}`;
+  }
   if (sel.special)
     return {
       self: "this card",
@@ -2959,6 +3054,13 @@ const describeNotSelf = (sel: Selector): string =>
   // "for each card color in your Energy Area" (EX19-26): the colors, not the cards, are what is counted.
   (sel.distinctColors ? " (counting the different colors, not the cards)" : "") +
   (sel.notInBattle ? " that is not in a battle" : "") +
+  (sel.battleRole === "any" ? " that is in a battle" : sel.battleRole === "attacker" ? " that is attacking" : sel.battleRole === "notAttacker" ? " that is not attacking" : "") +
+  (sel.copyOfSelf ? " that is a copy of this card" : "") +
+  (sel.notAttackedThisTurn ? " that hasn't attacked this turn" : "") +
+  // "Choose this card or up to 1 …" (errata-official-2): this card is on offer too.
+  (sel.orSelf ? ", or this card" : "") +
+  // Audit-selectors-1: "…Battle Cards or energy" (`alsoFrom`): each alternative place and description, one choice among them all.
+  (sel.alsoFrom?.length ? sel.alsoFrom.map((alt) => (sel.count === 99 && !sel.upTo ? `, and ${describeSelector(alt, "all")}` : `, or among ${describeSelector(alt, "the")}`)).join("") : "") +
   (sel.atRandom ? " at random" : "") +
   (sel.ownedByOpponent ? " whose owner is your opponent" : "") +
   // "…1 <Shu> card" after "1 <Pilaf> card" (#970): a card of its own, not one an earlier slot took.
@@ -3078,6 +3180,7 @@ const DURATION_IN_WORDS: Record<Duration, string> = {
   afterOpponentCharge: " through your opponent's next Charge Phase",
   nextMain: " until the start of your next Main Phase",
   ownTurn: " until the end of your turn",
+  ownNextTurn: " until the end of your next turn",
   game: " for the rest of the game",
   whileSourceInPlay: " while this card is in a Battle Area",
   battleOrTurn: " until the end of a battle or the end of the turn, whichever comes first",
@@ -3107,6 +3210,11 @@ const PILE_NAMES: Record<string, string> = { hand: "hand", deck: "deck", drop: "
  * whose skills they are. Null for anything else.
  */
 function passiveSentence(op: OpOf<"forbid">, escape: string, r: RenderOptions): string | null {
+  // Audit lane C: "…can't be negated by your opponent's skills" (DB1-021), "…by the skills of your red <Garlic Jr.>
+  // cards" (P-641): whose negation the rule stops.
+  if (op.what === "beNegated" && (op.side || op.byFilter)) {
+    return `${op.target ? describeRef(op.target) : op.filter ? describeFilter(op.filter, { plural: true }) : "cards"} can't have their skills negated by ${whoseSkillsSaid(op)}${escape}${forThe(op.until, r)}`;
+  }
   if (op.what !== "beMovedBySkill" && op.what !== "beKOdBySkill" && op.what !== "beRestedBySkill" && op.what !== "beChosen") return null;
   const by = ` by ${whoseSkillsSaid(op)}`;
   const except = op.exceptOwnSkills ? " other than this card's own" : op.exceptSourceName ? ` other than {${op.exceptSourceName}}'s` : "";
@@ -3206,7 +3314,34 @@ function describeField(f: OpField, v: unknown, hint: string | undefined, r: Rend
 /** `costs {amount:less|more}`: 20-21 goes both ways, and "costs -2 less" is not English. */
 function describeCostChange(a: Amount): string {
   if (typeof a === "number" && a < 0) return `${-a} more`;
+  // Audit lane E: "increase this card's energy cost by the declared number" (BT24-105, P-535) is X more — it read "costs
+  // -1 for each X less". A counted change said with a negative multiplier is an increase too.
+  if (typeof a === "object" && "times" in a && typeof a.times === "number" && a.times < 0) {
+    const up = { ...a, times: -a.times } as Amount;
+    return `${"x" in a && a.times === -1 ? "X" : describeAmount(up)} more`;
+  }
+  if (typeof a === "object" && "x" in a && a.times === 1) return "X less";
   return `${describeAmount(a)} less`;
+}
+
+/**
+ * Audit lane E: the orbs a cost change takes off, as the card prints them — "by {g}" (EX24-26), "by {u}{1}" (EX23-11),
+ * "by {y}{y}" (EX23-29). A change said in a colour reaches only that colour's orbs and one said as {1} only the
+ * colourless ones (5-8-2-4), so "1 less" alone said less than the card.
+ */
+function costOrbs(colors: readonly string[] | undefined): string {
+  return colors?.length ? ` (${colors.map((c) => (c === "any" ? "{1}" : `{${c}}`)).join("")})` : "";
+}
+
+/**
+ * Audit lane E: how long a cost change lasts, and how many payments it reaches. Timed changes said no span (EX23-29's
+ * "during that turn", BT24-072's "for the turn"), so a reader could not tell them from a [Permanent]'s; a [Permanent]'s
+ * own still says none (`r.permanent`).
+ */
+function costSpan(uses: number | undefined, until: Duration | undefined, r: RenderOptions): string {
+  const span = r.permanent || !until ? "" : until === "turn" ? " this turn" : until === "battle" ? " this battle" : DURATION_IN_WORDS[until];
+  if (uses == null) return span === " this turn" ? " for the turn" : span === " this battle" ? " for the battle" : span;
+  return `${uses === 1 ? " the next time it is paid" : ` the next ${uses} times it is paid`}${span}`;
 }
 
 /**
@@ -3238,11 +3373,14 @@ function renderTemplate(template: string, op: Record<string, unknown>, fields: O
  */
 export function describeScript(ops: Op[], o: RenderOptions = {}): string {
   const parts: string[] = [];
-  for (const op of ops) {
+  for (const [i, op] of ops.entries()) {
     const spec = OP_SCHEMA[op.op];
     if (!spec) continue;
     const text = typeof spec.sentence === "function" ? spec.sentence(op, o) : renderTemplate(spec.sentence, op as unknown as Record<string, unknown>, spec.fields, o);
-    if (text) parts.push(text);
+    // Audit lane E (describe only): "if …:" governs the clauses after its colon up to this marker, and nothing after
+    // it — said only when something follows, since the end of the reading ends it anyway. Without it "if you took that
+    // choice: draw 1, this card gains [Double Strike]" read as if both depended on the choice (BT1-090).
+    if (text) parts.push(op.op === "if" && ops.slice(i + 1).some((next) => OP_SCHEMA[next.op]) ? `${text} (end if)` : text);
   }
   return parts.join(", ");
 }

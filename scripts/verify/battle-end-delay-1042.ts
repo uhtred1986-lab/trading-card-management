@@ -20,6 +20,7 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
+import { compileComboQualification } from "../../src/lib/arena/text/triggers";
 
 const DROP_ME = "[Auto] When this card attacks, draw 1 card and place this card in its owner's Drop at the end of the battle.";
 const SEND_BACK = "[Auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less and return it to its owner's hand at the end of the battle.";
@@ -46,8 +47,13 @@ for (const id of ["DROP1042", "BACK1042"]) {
 // #907 follow-up: the six combo-entry moments are read now (qualified-combo-entry-907.ts); what is still refused is
 // a wider origin the qualifier does not read.
 const unread = (text: string) => compileSkill(parseSkills(text)[0]).unsupported;
-assert.ok(unread("[Auto] When you combo with this card from a Drop Area, play this card at the end of the battle.").length, "an origin nobody reads is refused");
-assert.ok(unread("[Auto] When you combo with this card from an Energy Area, play this card at the end of the battle.").length, "an Energy Area without the skill that made the combo is refused");
+// Audit triggers 1: any list of areas said after the combo is the origin it asks (XD3-05 "from your Drop Area", BT5-085
+// "from a Battle Area"), so these two are read now, each asking its area.
+for (const [area, origin] of [["a Drop Area", "drop"], ["an Energy Area", "energy"]] as const) {
+  const text = `[Auto] When you combo with this card from ${area}, play this card at the end of the battle.`;
+  assert.deepEqual(unread(text), [], `from ${area}: read`);
+  assert.deepEqual(compileComboQualification(parseSkills(text)[0])?.origins, [origin], `from ${area}: only a combo from there`);
+}
 // What the trigger does ask stays read: "this card in your hand", and a plain combo entry.
 assert.deepEqual(unread("[auto][limit 1]{g}, if your Leader is a <Zamasu> or <Goku Black> card: When this card in your hand is used in a combo, play this card from your Drop at the end of the battle."), [], "BT23-134's wording asks the hand origin");
 assert.deepEqual(unread("[Auto] If your Leader Card is red and you have a red Unison Card in play: When this card is used in a combo, draw 1 card, then at the end of the battle, place this card in its owner's Drop Area."), [], "BT12-007's wording is any combo");

@@ -236,7 +236,7 @@ for (const seat of ["p1", "p2"] as const) {
   // BT20-031: only during the opponent's turn, by 2, and only a Red/Blue multicolour card.
   const opp = read("[Permanent] During your opponent's turn, if a Red/Blue multicolor card is in your energy, reduce the energy cost of this card in your hand by 2.");
   assert.deepEqual(opp.unread, []);
-  assert.match(opp.reads, /opponent's turn/); assert.match(opp.reads, /multicolour red blue/); assert.match(opp.reads, /2 less/);
+  assert.match(opp.reads, /opponent's turn/); assert.match(opp.reads, /multicolour red and blue/); assert.match(opp.reads, /2 less/);
   // EX21-16, P-452: the combo cost stays a combo cost.
   const combo = read("[permanent] If a Red/Blue multicolor card is in your energy, reduce the combo cost of this card in your hand by 1.");
   assert.deepEqual(combo.unread, []);

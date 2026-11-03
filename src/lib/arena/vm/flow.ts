@@ -58,7 +58,7 @@ import { automaticHasPrice, canWithholdSecretAuto, secretAutoSource } from "./se
 import { bondIsValid } from "./bond";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
 import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endOwnTurnEffects, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
-import { returnLoans, vmHost } from "./host";
+import { pendStandingPower, returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
@@ -821,6 +821,8 @@ function chosenPending(ctx: EngineContext, game: GameDefinition, state: VmState)
  * with a typed outcome; it is never a draw.
  */
 function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): boolean | "wait" {
+  // Audit triggers 1 (R-132): a [Permanent]'s power change that has just started to apply is a moment.
+  pendStandingPower(ctx, game, state, ev);
   if (resolveZeroPower(ctx, game, state, ev) === "wait") return "wait";
   // A 9-10 substitute is part of confirmative rule processing: finish it,
   // including any answer it asks for, before resolving pending Autos.

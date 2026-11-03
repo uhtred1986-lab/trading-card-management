@@ -19,7 +19,10 @@ read correctly, with each decision recorded so it can be revisited.
    interactive and fun play.
 
 `npm run arena:errata-check -- --snapshot <catalog.json>` lists cards whose catalog text still
-carries an official errata's "before" text (2 Nov 2026: 50 stale, 89 to read by hand).
+carries an official errata's "before" text (2 Nov 2026: 50 stale, 89 to read by hand; after
+errata-official-1: 6 stale and 23 unclear; after errata-official-2: 0 stale and 21 unclear — errata
+its word match cannot confirm: names and characters (`FIELD_CORRECTIONS`), stats, keywords and
+orb-only changes).
 `npm run rules:sources` refreshes the general Q&A, errata and keyword snapshots from the official
 site (network, no database).
 
@@ -44,12 +47,16 @@ A batch agent runs only what its change can break, all in a few minutes:
 - Each older suite that names a card id it changed, on its own (grep `scripts/verify` for the
   ids). A suite that cannot run alone because it depends on an earlier one's cards is left to
   integration.
-- The corpus diff: compile the corpora before and after, and confirm no record went from read to
-  unread. Review every changed reading against its printed text.
+- The corpus diff, offline against a catalog snapshot (`arena:snapshot`, taken once by the owner or
+  an authorised session): `npm run arena:compile-snapshot -- --snapshot <catalog.json> --out before.json`
+  on the branch point, then the same with `--out after.json --against before.json --diff diff.md` on the
+  change. No skill may go from read to unread unless deliberate; review every changed reading in
+  `diff.md` against its printed text.
 
 A batch agent does **not** run `npm run checks -- full`, `npm test`, the whole of
-`scripts/verify-arena.ts`, `contract:emit` or `npm run build`. A batch agent opens a draft PR and
-never merges it.
+`scripts/verify-arena.ts`, `contract:emit` or `npm run build`. A batch agent never merges. Run on its own it
+opens a draft PR; run as a lane of an integration, it pushes its branch and the integration PR
+carries it.
 
 ## 4. Integration: one gate, one merge, one build
 

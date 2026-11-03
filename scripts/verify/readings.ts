@@ -996,7 +996,9 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   // clause said is now a condition on the same subject, and the effect sits
   // inside it.
   const other = one("[Auto] When your green ≪Turtle School≫ card with an energy cost of 5 or less attacks a Battle Card, it gets +10000 power for the turn.");
-  assert.deepEqual(other.unsupported, []);
+  // Moments batch 1: what it attacks is no part of `yourCardAttacks`, so the moment is not read and says so; the
+  // effect below is the same reading.
+  assert.deepEqual(other.unsupported, ["When your green ≪Turtle School≫ card with an energy cost of 5 or less attacks a Battle Card"]);
   const gate = other.ops[0] as { op: string; cond?: { sel?: { special?: string; filter?: { traits: string[]; costMax: number | null } } }; then?: { target: { sel?: { special?: string } } }[] };
   assert.equal(gate.op, "if");
   assert.equal(gate.cond?.sel?.special, "subject");
@@ -1152,8 +1154,9 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 {
   // The engine side of two of them: blocking is a moment of its own (22-4),
   // and the *other* player's cards see your Main Phase begin (7-3).
-  DEFS.WALL = { ...DEFS.BLOCKER, id: "WALL", name: "WALL", skill: "[Blocker]<br>[Auto] When this card activates [Blocker], draw 1 card." };
-  let s = stagedG({ battle: ["WALL"] });
+  // Its own id: the harness's WALL is the [Barrier] card later suites in the same run (workflow, #907) choose against.
+  DEFS["BLOCK-DRAW"] = { ...DEFS.BLOCKER, id: "BLOCK-DRAW", name: "BLOCK-DRAW", skill: "[Blocker]<br>[Auto] When this card activates [Blocker], draw 1 card." };
+  let s = stagedG({ battle: ["BLOCK-DRAW"] });
   const wall = zoneOf(s, "p1", "battle")[0];
   s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
   const hand = zoneOf(s, "p1", "hand").length;
@@ -2031,15 +2034,19 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   // costs, then the KO of what was chosen.
   const bt3 = one("[Auto] At the end of the battle after this card attacks, place this card at the bottom of your deck. Then choose any number of your opponent's Battle Cards for which the total cost adds up to 5 or less and KO them.");
   assert.deepEqual(bt3.unsupported, []);
+  // Audit triggers 1: "…the battle after this card attacks" is this card's own battle, a condition on the battle's end.
+  const bt3if = bt3.ops[0] as { op: string; cond: { kind: string; role?: string }; then: typeof bt3.ops };
+  assert.deepEqual([bt3if.op, bt3if.cond.kind, bt3if.cond.role], ["if", "inBattle", "attacker"], "BT3-036: only the battle this card attacked in");
+  const bt3ops = bt3if.then;
   assert.deepEqual(
-    bt3.ops.map((o) => o.op),
+    bt3ops.map((o) => o.op),
     ["moveTo", "choose", "ko"],
   );
-  const bt3sel = (bt3.ops[1] as { sel: Bounded }).sel;
+  const bt3sel = (bt3ops[1] as { sel: Bounded }).sel;
   assert.deepEqual([bt3sel.side, bt3sel.area, bt3sel.count, bt3sel.upTo], ["opponent", "battle", 99, true], "any number of them");
   assert.deepEqual(bt3sel.sumAtMost, { attr: "energyCost", total: 5 }, "the cost is the energy cost (1-2-5)");
   assert.equal(bt3sel.filter?.costMax, null, "and no one card's cost is bounded");
-  assert.deepEqual((bt3.ops[2] as { target: unknown }).target, { var: "c0" });
+  assert.deepEqual((bt3ops[2] as { target: unknown }).target, { var: "c0" });
 
   // Every wording of the family the sets print, and what it bounds.
   const family: [string, string, unknown][] = [

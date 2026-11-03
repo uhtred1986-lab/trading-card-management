@@ -93,8 +93,9 @@ const brief = (f: Extract<Op, { op: "forbid" }>) => [f.what, f.side ?? null, f.b
   assert.deepEqual(f.map((x) => [x.what, x.side, x.filter?.type ?? null, x.extraCardActivation ?? null, x.bySkill ?? null]), [["activateSkill", "you", "EXTRA", true, null], ["activateCounter", "you", "EXTRA", null, null], ["play", "you", "BATTLE", null, true]], "BT20-024");
   const s = script("[Permanent] You can't activate Extras, and during your turn, you can't use skills to play Battle Cards.");
   assert.equal(s.cond, undefined, "BT20-024: \"during your turn\" is the second rule's, not the line's");
-  // True reminder text is still skipped.
-  assert.deepEqual(script("[Auto] When you activate this card, you can't activate {Restrain} for the duration of the turn.").ops ?? [], [], "an Extra's own once-per-name reminder");
+  // Audit-effects-1: an Extra's own once-per-name rule is read — no rule of the game applies it otherwise, so the skip
+  // left BT7-098 and its six siblings blank.
+  assert.deepEqual(forbids(script("[Auto] When you activate this card, you can't activate {Restrain} for the duration of the turn.").ops ?? []).map((x) => [x.what, x.side, x.filter?.names, x.until]), [["activateSkill", "you", ["restrain"], "turn"], ["activateCounter", "you", ["restrain"], "turn"]], "an Extra's own once-per-name rule");
 }
 // B: EB1-21 — every one of the opponent's Clone Tokens.
 {
@@ -146,9 +147,11 @@ const brief = (f: Extract<Op, { op: "forbid" }>) => [f.what, f.side ?? null, f.b
   assert.deepEqual(script("[Permanent] During battles where this card is attacking a Battle Card in Rest Mode, your opponent can't combo.").cond, { kind: "all", conds: [{ kind: "inBattle", sel: { special: "self" }, role: "attacker" }, { kind: "inBattle", sel: { side: "opponent", area: "battle", filter: { type: "BATTLE" }, mode: "rest" }, role: "guard" }] }, "TB2-050");
   const bt1 = ops("[permanent] Your opponent cannot activate [counter] against this card's attack and cannot activate [blocker] during this card's attack.");
   assert.deepEqual(bt1.map((o) => (o.op === "if" ? [JSON.stringify(o.cond), forbids(o.then).map((f) => [f.what, f.side])] : null)), [
-    ['{"kind":"inBattle","sel":{"special":"self"},"role":"attacker"}', [["activateCounter", "opponent"]]],
+    // Audit lane C (R-160): "against this card's attack" is the two [Counter] kinds an attack makes pending.
+    ['{"kind":"inBattle","sel":{"special":"self"},"role":"attacker"}', [["activateCounter", "opponent"], ["activateCounter", "opponent"]]],
     ['{"kind":"inBattle","sel":{"special":"self"},"role":"attacker"}', [["block", "opponent"]]],
   ], "BT1-031");
+  assert.deepEqual(bt1.flatMap((o) => (o.op === "if" ? forbids(o.then).map((f) => f.counterKind ?? null) : [])), ["attack", "battleCardAttack", null], "BT1-031: [Counter: Attack] and [Counter: Battle Card Attack] (R-160)");
 }
 // BT31-111, placing under, attack negation, BT15-016's price.
 {

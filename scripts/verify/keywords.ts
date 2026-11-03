@@ -1732,8 +1732,10 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   assert.deepEqual(read("if this card's power is 30000 or more"), { kind: "power", sel: { special: "self" }, atLeast: 30000 });
   const trait = read("if your Leader Card has ≪Saiyan≫ in its special trait");
   assert.equal(trait?.kind, "leaderMatches");
+  // Audit lane C: "in its special trait" is a trait the word is part of (`traitsIncluding`; EX03-25's "≪Universe≫ as
+  // part of their special trait" is ≪Universe 7≫ and the rest).
   assert.deepEqual(
-    (trait as { filter: { traits: string[] } }).filter.traits.map((x) => x.toLowerCase()),
+    ((trait as { filter: { traitsIncluding?: string[] } }).filter.traitsIncluding ?? []).map((x) => x.toLowerCase()),
     ["saiyan"],
   );
   assert.equal(read("when your life is at 4 or less or your opponent's Leader Card's back is facing up")?.kind, "any");

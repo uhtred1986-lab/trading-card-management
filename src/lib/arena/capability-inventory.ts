@@ -566,7 +566,7 @@ export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
   "arena-vm-notyet-skill-identity-evolve": "recordedSkillIdentity|-|script?.price?.evolution !== undefined || needsEvolutionContract(skill) > gap",
   "arena-vm-notyet-trigger-usage-record": "pendAutos|-|sk.kind === \"auto\" && (combo !== undefined || script?.trigger?.some((t) => t === \"comboUsed\" || t === \"comboed\")) > gap",
   "arena-vm-notyet-trigger-combo-record": "pendAutos|-|sk.kind === \"auto\" && [\"comboUsed\", \"comboed\"].includes(match.trigger) && !combo",
-  "arena-vm-notyet-combo-origin-missing": "pendAutos|-|combo && (combo.timing === \"battleEnd\" || match.trigger === \"comboUsed\" || match.trigger === \"comboed\") > combo.origins > origin === undefined",
+  "arena-vm-notyet-combo-origin-missing": "pendAutos|-|combo && (match.trigger === \"comboUsed\" || match.trigger === \"comboed\") > combo.origins > origin === undefined",
   "arena-vm-notyet-trigger-validity-record": "skillsShowing|-|bareKeyword && script && validityProblem(script.validity)",
   "arena-vm-notyet-sparking-native-keyword": "skillsShowing|-|bareKeyword && (sk.sparking !== null || script?.validity?.sparking != null)",
   "arena-vm-notyet-usage-record": "requireUsage|-|gap",

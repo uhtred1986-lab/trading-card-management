@@ -7,7 +7,7 @@
  * blanked, so like wordings sit together. Plus the moments an [Auto] skill can
  * answer to, in words, for the record's WHEN line.
  */
-import { autoTriggerMatches, keywordTriggers, triggeredPermanent } from "./text/triggers";
+import { autoTriggerMatches, keywordTriggers, momentPartSkills, triggeredPermanent } from "./text/triggers";
 import type { Skill, Trigger } from "./types";
 
 /** Ordered: the first bucket a clause matches wins, so put the specific first. */
@@ -79,10 +79,17 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   leaderPlaced: "when your Leader is placed",
   played: "when this card is played",
   playedFromHand: "when this card is played from your hand",
+  playedFromDrop: "when this card is played from your Drop",
   attacks: "when this card attacks",
   attacked: "when this card is attacked",
   koed: "when this card is KO'd",
   kos: "when this card KOs a card",
+  koedByAttack: "when this card is KO'd by an attack",
+  yourCardKoedByAttack: "when one of your cards is KO'd by an attack",
+  koedByOpponent: "when this card is KO'd by your opponent",
+  koedBySkill: "when this card is KO'd by a skill",
+  koedByYourSkill: "when this card is KO'd by one of your skills",
+  koedByOpponentSkill: "when this card is KO'd by an opponent's skill",
   yourCardKoed: "when one of your cards is KO'd",
   opponentCardKoed: "when an opponent's card is KO'd",
   dealtDamage: "when this card deals damage",
@@ -135,6 +142,8 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   yourCardPlayedFromHand: "when one of your cards is played from your hand",
   yourCardPlayedFromDrop: "when one of your cards is played from your Drop",
   opponentCardToZEnergy: "when one of your opponent's cards is added to their Z-Energy",
+  yourCardToZEnergy: "when one of your cards is added to your Z-Energy",
+  removedFromGame: "when this card is removed from the game",
   eitherCardPlayed: "when a card is played by either player",
   yourCardDealtDamage: "when one of your cards deals damage",
   yourCardDealtBattleDamage: "when one of your cards deals damage by attacking",
@@ -145,6 +154,29 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   yourCardBlockerUsed: "when one of your cards activates [Blocker]",
   yourCardKos: "when one of your cards KOs an opponent's card",
   yourCardBattleToDrop: "when one of your cards goes from your Battle Area to the Drop",
+  droppedFromHandByOpponent: "when an opponent's skill sends this card from your hand to the Drop",
+  activeBySkill: "when this card is switched to Active Mode by a skill",
+  yourEnergyActiveBySkill: "when your energy is switched to Active Mode by a skill",
+  powerRaisedBySkill: "when this card's power is increased by a skill",
+  powerLoweredBySkill: "when this card's power is decreased by a skill",
+  yourCardPowerRaisedByYou: "when one of your skills increases the power of one of your cards",
+  yourCardPowerLowered: "when the power of one of your cards is decreased",
+  opponentCardPowerLowered: "when the power of one of your opponent's cards is decreased",
+  opponentCardPowerLoweredByBattleCard: "when the skill of one of your Battle Cards decreases the power of an opponent's card",
+  eitherCardPowerLowered: "when the power of a card of either player is decreased",
+  deckToDropBySkill: "when a skill places this card from your deck in the Drop",
+  deckToDropByYou: "when one of your skills places this card from your deck in the Drop",
+  revealedTopToDrop: "when this card is revealed from the top of your deck and placed in the Drop",
+  underReturnedToHand: "when a card under this card is returned to its owner's hand",
+  underToDropBySkill: "when a skill places this card from under a card in the Drop",
+  underLeaderToDropBySkill: "when a skill places this card from under a Leader in the Drop",
+  pileToDropBySkill: "when a skill places a card from under this card in the Drop",
+  energyToDropBySkill: "when a skill places this card from your energy in the Drop",
+  yourEnergyToDropByYourLeader: "when your Leader's skill places one of your energy in the Drop",
+  droppedFromBattleByYou: "when one of your skills sends this card from a Battle Area to the Drop",
+  toDropBySkill: "when a skill places this card in the Drop",
+  toDropByYou: "when one of your skills places this card in the Drop",
+  toDropByOpponent: "when an opponent's skill places this card in the Drop",
   yourCardReturnedToHand: "when a card is returned from your Battle Area to its owner's hand",
   yourUnisonLeft: "when a Unison leaves your Unison Area",
   battleOrDeckToWarp: "when this card goes from your Battle Area or deck to the Warp",
@@ -156,6 +188,8 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   evolvedInto: "when a card evolves into this card",
   evolveFromHandActivated: "when you use this card's [Evolve] from your hand",
   opponentCounter: "when your opponent activates a [Counter] skill",
+  opponentCounterPlay: "when your opponent activates a [Counter: Play] skill",
+  opponentCounterAttack: "when your opponent activates a [Counter: Attack] skill",
   counterFreeFromHand: "when you activate this card's [Counter] from your hand without paying its energy cost",
   opponentMainStart: "at the start of your opponent's Main Phase",
   blockerUsed: "when this card activates [Blocker]",
@@ -192,10 +226,40 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
 };
 export const TRIGGERS = Object.keys(TRIGGER_IN_WORDS) as Trigger[];
 
+/**
+ * Audit triggers 1: a head that coordinates moments ("When this card attacks or is attacked") answers to each of them,
+ * read one by one (`momentPartSkills`). The readers of the whole head already place some pairs ("played or attacks",
+ * "attacks or activates [Blocker]"); where they place fewer moments than the head says, the moments said one by one
+ * are what it answers to, and a moment no reader places alone is `unreadMoments`'. The whole head's own reading is
+ * then dropped: it was made of the coordinated words, so what it adds is wrong — "When this card is played from your
+ * hand or at the end of a battle in which…" (BT16-131) answered every play.
+ */
+function coordinated(sk: Skill, whole: Trigger[]): { each: Trigger[][]; parts: Skill[] } | null {
+  const parts = momentPartSkills(sk);
+  if (!parts || whole.length >= parts.length) return null;
+  return { parts, each: parts.map((p) => TRIGGERS.filter((t) => autoTriggerMatches(p, t))) };
+}
+
 /** The moments an [Auto] skill answers to. Empty for a skill that names a moment the engine does not know — the orphan `arena:gaps` counts. */
 export function triggersOf(sk: Skill): Trigger[] {
   if (sk.kind !== "auto" && !sk.keyword && !triggeredPermanent(sk)) return [];
-  return TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t));
+  const whole = TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t));
+  const more = coordinated(sk, whole);
+  return more ? TRIGGERS.filter((t) => more.each.some((e) => e.includes(t))) : whole;
+}
+
+/** Audit triggers 1: does this skill answer to moments the readers of its whole head do not place (read one by one)? */
+export function readsMomentsOneByOne(sk: Skill): boolean {
+  if (sk.kind !== "auto") return false;
+  return coordinated(sk, TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t))) !== null;
+}
+
+/** Audit triggers 1: the moments of a coordinated head that no reader places, as printed (lower case) — the compiler leaves such a skill unread rather than answer half of it. */
+export function unreadMoments(sk: Skill): string[] {
+  if (sk.kind !== "auto") return [];
+  const whole = TRIGGERS.filter((t) => autoTriggerMatches(sk, t) || keywordTriggers(sk, t));
+  const more = coordinated(sk, whole);
+  return more ? more.parts.filter((_, i) => !more.each[i].length).map((p) => p.effect.replace(/, \.$/, "")) : [];
 }
 
 /** The WHEN line: "when this card attacks or when this card is attacked". */

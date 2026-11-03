@@ -26,6 +26,7 @@
  * Pure; no database, no engine state. `orbsIn` is the same reader the
  * compiler uses on skill text, so the column and the card speak one notation.
  */
+import { SPECIFIED_COST_CORRECTIONS } from "../catalog/errata";
 import { orbsIn } from "./text/cards";
 import type { Color } from "./types";
 
@@ -33,6 +34,12 @@ export type SpecifiedCost = Partial<Record<Color, number>>;
 
 const LETTER_OF: Partial<Record<Color, string>> = { Red: "r", Blue: "u", Green: "g", Yellow: "y", Black: "k", White: "w" };
 const ORDER: Color[] = ["Red", "Blue", "Green", "Yellow", "Black", "White"];
+
+/**
+ * "No colour at all": Bandai's "Color Cost: -" (BT19-140's erratum). Parsed as an empty requirement, which is a
+ * fact about the card (no orb is charged), not the absence of an entry (unknown, the fixed-cost convention).
+ */
+export const NO_COLOUR = "-";
 
 /** What the engine's reducer looks for: "reduce the specified cost of … by {u}". */
 export const SPECIFIED_CLAUSE = /specified\s+costs?/i;
@@ -47,15 +54,16 @@ export function parseSpecifiedCost(text: string | null | undefined): SpecifiedCo
   if (text == null) return null;
   const compact = text.replace(/\s+/g, "");
   if (!compact) return null;
+  if (compact === NO_COLOUR) return {};
   if (!/^(\{[rugykbw]\})+$/i.test(compact)) return null;
   const orbs = orbsIn(compact);
   delete orbs.any;
   return Object.keys(orbs).length ? orbs : null;
 }
 
-/** `{ Blue: 2 }` → `{u}{u}`, in a fixed colour order so two entries compare as strings. */
+/** `{ Blue: 2 }` → `{u}{u}`, in a fixed colour order so two entries compare as strings; no orb at all is `-`. */
 export function printSpecifiedCost(cost: SpecifiedCost): string {
-  return ORDER.flatMap((c) => Array.from({ length: cost[c] ?? 0 }, () => `{${LETTER_OF[c]}}`)).join("");
+  return ORDER.flatMap((c) => Array.from({ length: cost[c] ?? 0 }, () => `{${LETTER_OF[c]}}`)).join("") || NO_COLOUR;
 }
 
 /** `{ Blue: 2 }` → "2 blue"; `{ Red: 1, Blue: 1 }` → "1 red, 1 blue". */
@@ -85,6 +93,8 @@ export function staleSpecifiedCosts(rows: SpecifiedCostRow[]): string[] {
   const out: string[] = [];
   for (const r of rows) {
     if (r.specifiedCost == null || r.specifiedCost.trim() === "") continue;
+    // An official one, which the catalog sync writes itself (`SPECIFIED_COST_CORRECTIONS`): never stale.
+    if (SPECIFIED_COST_CORRECTIONS[r.id] === r.specifiedCost.trim()) continue;
     if (!parseSpecifiedCost(r.specifiedCost)) {
       out.push(`${r.id}: specified_cost "${r.specifiedCost}" is not orb notation ({u}{u}) and is ignored`);
       continue;

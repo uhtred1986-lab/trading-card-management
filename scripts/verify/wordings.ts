@@ -935,7 +935,8 @@ import type { EngineState, Trigger } from "./harness";
   const dearer = read("[Permanent] Increase the energy cost of this card in your Battle Area by 2.");
   assert.deepEqual(dearer.unsupported, []);
   assert.equal((dearer.ops[0] as { amount: number }).amount, -2, "the same standing effect with the sign turned round");
-  assert.equal(describeScript(dearer.ops), "this card costs 2 more", "…and 'costs -2 less' is not English");
+  // Described as a record describes a [Permanent] (no span: it holds while in play); audit lane E made the cost sentence say its span.
+  assert.equal(describeScript(dearer.ops, { permanent: true }), "this card costs 2 more", "…and 'costs -2 less' is not English");
 
   // A deck-building rule keeps its exception: splitting at that comma left
   // "except for <Vegeta> cards" behind as a clause naming no action.
