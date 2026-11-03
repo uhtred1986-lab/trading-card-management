@@ -1214,9 +1214,10 @@ DEFINE TRIGGER yourUnisonToDrop
 -- §3-1-5 — "When your Battle Card is removed from a Battle Area" (BT27-059),
 -- "When your {Power-Infused Shocking Death Ball} leaves the Battle Area"
 -- (BT26-030): no cause named, so any departure — a KO, a skill's move, a
--- combo from the Battle Area (BT28-066's Q&A) — read off the original holder.
+-- combo from the Battle Area (BT28-066's Q&A). The side asked is the moved
+-- card's (`controller`): a skill's move by name carries no original holder.
 DEFINE TRIGGER yourCardLeftBattle
-  ON moved(from: battle, watcher: fromHolder)
+  ON moved(from: battle, watcher: controller)
   BIND "subject"
   text: "when one of your cards leaves a Battle Area"
 

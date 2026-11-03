@@ -70,7 +70,7 @@ export function canonical(v: unknown): unknown {
  * Revealed Mode. Dropping those would lose half of what two ops can say. None
  * of the three names below is a field of any op, condition or filter.
  */
-const MEANINGLESS_WHEN_FALSE = new Set(["upTo", "fromEnd", "ignoreBarrier"]);
+const MEANINGLESS_WHEN_FALSE = new Set(["upTo", "fromEnd", "ignoreBarrier", "choice"]);
 export const deepEqual = (a: unknown, b: unknown) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 
 /** A bare word where the language allows one, a quoted text everywhere else. */
@@ -176,6 +176,7 @@ export function printSelector(sel: Selector): string {
   if (sel.mode !== undefined) parts.push(sel.mode);
   if (sel.hidden !== undefined) parts.push(sel.hidden ? "hidden" : "revealed");
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
+  if (sel.choice) parts.push("asChoice");
   if (sel.notInBattle) parts.push("notInBattle");
   if (sel.battleRole) parts.push(sel.battleRole === "any" ? "inBattle" : sel.battleRole === "attacker" ? "attacking" : "notAttacking");
   if (sel.copyOfSelf) parts.push("copyOfSelf");

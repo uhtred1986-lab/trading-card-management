@@ -2273,6 +2273,7 @@ const SELECTOR_KEYS = {
   take: 1,
   fromEnd: 1,
   ignoreBarrier: 1,
+  choice: 1,
   notInBattle: 1,
   battleRole: 1,
   copyOfSelf: 1,
@@ -2337,7 +2338,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
     if (v[k] === undefined || isCount(v[k])) continue;
     if (!isRecord(v[k]) || amountProblem(v[k], true, `${at}.${k}`)) return wrong(k, "a whole number or an amount");
   }
-  for (const k of ["upTo", "fromEnd", "ignoreBarrier", "hidden"]) if (v[k] !== undefined && typeof v[k] !== "boolean") return wrong(k, "true or false");
+  for (const k of ["upTo", "fromEnd", "ignoreBarrier", "choice", "hidden"]) if (v[k] !== undefined && typeof v[k] !== "boolean") return wrong(k, "true or false");
   if (v.minCount !== undefined) {
     if (!isCount(v.minCount)) return wrong("minCount", "a non-negative whole number");
     if (!isCount(v.count) || (v.minCount as number) > (v.count as number) || v.upTo || v.take !== undefined || v.special !== undefined) return `${at}.minCount requires count >= minCount and no upTo, take or special`;
@@ -2935,6 +2936,8 @@ function describeWhere(sel: Selector): string {
  * the sentence claim a quantifier the engine does not use.
  */
 export function describeSelector(sel: Selector, all = "all"): string {
+  // R-204: a printed "choose" of the card a moment names says so, since [Barrier] then applies to it.
+  if (sel.special && sel.choice) return `${describeSelector({ ...sel, choice: undefined }, all)} (a choice: [Barrier] applies)`;
   // The one special a filter can narrow and the reading has to keep: "the
   // <Majin Buu> on top of this card" and "the Leader on top of this card" are
   // different cards, and dropping the words would print them the same.

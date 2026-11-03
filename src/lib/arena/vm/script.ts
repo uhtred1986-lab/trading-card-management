@@ -157,6 +157,14 @@ export interface Selector {
   /** Card text may say "ignoring [Barrier]", which lifts 22-16 for this choice. */
   ignoreBarrier?: boolean;
   /**
+   * R-204 (owner, 3 Nov 2026): a printed "choose" of the card a moment names — "choose that card" (EX13-02), "choose it"
+   * (BT16-081), "choose up to 1 of those Battle Cards" (DB1-020). The special names the card without choosing it, so
+   * `resolveSelector` asks neither [Barrier] (22-16-2) nor "can't be chosen" (20-4) of it; this says the text chose it,
+   * and both are asked. Never set where the compiler writes a choose for wording that prints none ("KO that card after
+   * the battle", BT1-015; "play it in Rest Mode", BT23-118).
+   */
+  choice?: boolean;
+  /**
    * "…that's not in a battle" (BT29-036, BT29-029, #537): not the attack card or
    * the guard card of the battle in progress (8-1-2). Outside a battle, every card.
    */

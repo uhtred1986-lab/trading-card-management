@@ -54,7 +54,41 @@ export function compileSkill(skill: Skill): Script {
   // compiled as the skill it quotes; its record is the grant's program (which
   // says for itself when the granted [Auto]'s moment is not read).
   if (skill.granted) return compileQuotedSkill(skill.granted.skill);
-  return attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))));
+  return momentChoicesAreChoices(skill, attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill)))));
+}
+
+/**
+ * R-204's second half (owner, 3 Nov 2026): a printed "choose" of the card a moment names — "choose that card and it gets
+ * -10000 power" (EX13-02), "choose it and switch it to Rest Mode" (BT16-081), "choose that card and return it to its
+ * owner's hand" (DB2-059), "When the Battle Card is played, choose up to 1 of those Battle Cards" (DB1-020) — is a
+ * choice, so [Barrier] (22-16-2) and every "can't be chosen" (20-4) apply unless the text says "ignoring [Barrier]".
+ * The `subject` and `resolving` specials name the card without choosing it; the `choice` flag on the selector says the
+ * text chose it. Only as many of the program's choices of those cards as the text prints "choose" for them, first
+ * first: the compiler also writes a choice for wordings that print none ("play it in Rest Mode", BT23-118; "play it in
+ * your Battle Area instead", BT20-136), and those are no choice.
+ */
+const PRINTED_MOMENT_CHOICE = /\bchoose (?:up to \d+ of )?(?:that (?:battle |unison )?card|it|them|those (?:battle |unison )?cards?|the (?:battle |unison )?cards? being played|the played (?:battle )?card)\b/g;
+function momentChoicesAreChoices(skill: Skill, script: Script): Script {
+  let printed = (maskNames(stripNotes(skill.effect)).text.toLowerCase().match(PRINTED_MOMENT_CHOICE) ?? []).length;
+  if (!printed) return script;
+  let changed = false;
+  const walk = (x: unknown): unknown => {
+    if (Array.isArray(x)) return x.map(walk);
+    if (!x || typeof x !== "object") return x;
+    const o = x as Record<string, unknown>;
+    const sel = o.sel as Selector | undefined;
+    const mark = o.op === "choose" && (sel?.special === "subject" || sel?.special === "resolving") && !sel.ignoreBarrier && printed > 0;
+    if (mark) printed--;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(o)) out[k] = walk(v);
+    if (mark) {
+      out.sel = { ...sel, choice: true };
+      changed = true;
+    }
+    return out;
+  };
+  const ops = walk(script.ops) as Op[];
+  return changed ? { ...script, ops } : script;
 }
 
 /**
