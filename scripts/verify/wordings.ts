@@ -1558,7 +1558,7 @@ import type { EngineState, Trigger } from "./harness";
   // A *kind* of skill is not a keyword, and is the one shape keywordOf cannot
   // answer: "mono-blue Battle Cards with a [Counter] skill".
   assert.equal(f("mono-blue Battle Cards with a [Counter] skill").skillKind, "counter");
-  assert.equal(f("an Extra Card with the [Activate: Main] skill").skillKind, "activate");
+  assert.equal(f("an Extra Card with the [Activate: Main] skill").skillKind, "activate:main"); // audit conditions 2: the timing is kept
   assert.deepEqual(f("mono-blue Battle Cards with a [Counter] skill").keywords, []);
   // [Sparking 7] is a numeric validity condition, not a keyword: mechanism batch 3 reads it as the exact tag a line
   // prints (`keywordsExact`), never as the family. Anything else in brackets makes the description unreadable.
