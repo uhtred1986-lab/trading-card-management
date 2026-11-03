@@ -99,7 +99,7 @@ const reading = (text: string) => {
 const family: [string, string][] = [
   ["[permanent] If this card is in Rest Mode, your opponent's Battle Cards can't attack Leaders.", "if this card is in rest mode: all Battle Cards in your opponent's Battle Area can't attack leader card"],
   ["[Permanent] While this card is in Rest Mode, your opponent's Battle Cards can't attack your Leader.", "if this card is in rest mode: all Battle Cards in your opponent's Battle Area can't attack leader card"],
-  ["[permanent] If this card is in Rest Mode, your opponent's Battle Cards and Unisons can't attack your Leader.", "if this card is in rest mode: all cards in your opponent's Battle Area or Unison Area can't attack leader card"],
+  ["[permanent] If this card is in Rest Mode, your opponent's Battle Cards and Unisons can't attack your Leader.", "if this card is in rest mode: all Battle Cards or Unison Cards in your opponent's Battle Area or Unison Area can't attack leader card"],
   ["[Permanent] While this card is in Rest Mode, your opponent can't attack Leader Cards or Unison Cards.", "if this card is in rest mode: your opponent can't attack non-battle card"],
   ["[permanent] If this card is in Rest Mode, your opponent can't attack your Leader with Battle Cards.", "if this card is in rest mode: your opponent can't attack leader card with battle card"],
   ["[permanent] If this card is in Rest Mode, your opponent can't attack your Unisons with specified costs of 2.", "if this card is in rest mode: your opponent can't attack unison card with a specified cost of 2"],
@@ -110,7 +110,7 @@ const family: [string, string][] = [
   ["[Permanent] If your Leader Card is green and this card is in Rest Mode, your opponent can only attack this card.", "if your leader is Green: if this card is in rest mode: your opponent can only attack this card"],
   ["[Permanent] If this card is in Rest Mode, your opponent's Battle Cards can only attack this card.", "if this card is in rest mode: all Battle Cards in your opponent's Battle Area can only attack this card"],
   ["[Permanent] This card can't attack if it has 3 or fewer markers on it.", "if this card has 3 or fewer markers: this card can't attack"],
-  ["[Activate: Battle] Your opponent's Battle Cards and Unisons can't attack for the turn if they have 25000 power or more.", "all cards with 25000 power or more in your opponent's Battle Area or Unison Area can't attack for the turn"],
+  ["[Activate: Battle] Your opponent's Battle Cards and Unisons can't attack for the turn if they have 25000 power or more.", "all Battle Cards or Unison Cards with 25000 power or more in your opponent's Battle Area or Unison Area can't attack for the turn"],
 ];
 for (const [text, says] of family) {
   const { sk, script, rec } = reading(text);

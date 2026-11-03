@@ -292,7 +292,9 @@ export function comboEntrySelf(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text);
   if (COMBO_BATTLE_END.test(head)) return false;
   const text = maskNames(sk.cost + " " + sk.effect).text.toLowerCase();
-  return /when you use this card in a combo|when this card(?: in your (?:hand|deck or hand|hand or deck)| in (?:a|your) battle area)? is used in a combo|when you combo with this card|or if you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo|when you attack with this card or combo with it\b/.test(text);
+  // (Audit selectors 3: "When you **combo this card with** a skill-less Battle Card with 10000 power" (DB2-003) is this card
+  // used in a combo with the card in the battle — not every combo of yours, `youCombo`.)
+  return /when you use this card in a combo|when this card(?: in your (?:hand|deck or hand|hand or deck)| in (?:a|your) battle area)? is used in a combo|when you combo with this card|when you combo this card with\b|or if you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo|when you attack with this card or combo with it\b/.test(text);
 }
 /**
  * A self-combo entry Auto whose printed timing explicitly requires hand — "when
@@ -1069,7 +1071,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // Audit triggers 1: an area the card came from ("…a blue card **from your hand** in a combo", BT19-035; "…from your
       // Battle Area", TB1-025) is not asked of a watched combo: unread, rather than any combo.
       if (/^when you (?:use|combo with) (?:an?|1|one of your) [^,]*?\bfrom (?:your|the|a|an) /.test(head)) return false;
-      return (/when you (?:use a card in a combo|combo)\b/.test(t) || /^when you use (?:an?|1|one of your) [^,]+? in a combo\b/.test(head)) && !/when you combo with this card/.test(t);
+      return (/when you (?:use a card in a combo|combo)\b/.test(t) || /^when you use (?:an?|1|one of your) [^,]+? in a combo\b/.test(head)) && !/when you combo (?:with )?this card/.test(t);
     // 5-5-4: placed in a Battle Area, which a play is too (5-5-1, owner's
     // ruling of 2 Oct 2026) — the engines fire it for both. A skill that says
     // both this and `played` answers a play once (`vm/triggers.ts`,

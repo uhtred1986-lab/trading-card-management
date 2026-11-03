@@ -1,4 +1,5 @@
 import type { Duration, Op, Ref, Selector, Side } from "../vm/script";
+import type { CardFilter } from "../text/filters";
 
 /** "The card that was switched to Hidden Mode by this skill" (BT28-105, BT28-121): the card the skill's price switched (`Ctx.priceChoice`). */
 export const SWITCHED_BY_THIS_SKILL = /\b(?:all )?the cards? (?:that (?:was|were) )?switched to (?:hidden|revealed) mode by this skill\b/i;
@@ -76,6 +77,11 @@ export interface Ctx {
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
   lastPlayed: string | null;
   /**
+   * Audit selectors 3: the moment is another card's play ("When your blue ≪Universe 6≫ card is played", BT26-033), so
+   * "the played card" is that card — the moment's subject — while the skill has played none of its own.
+   */
+  playedSubject?: boolean;
+  /**
    * The card the skill's price chose, by the name the price binds it to —
    * "the card that was switched to Hidden Mode **by this skill**" (BT28-105,
    * BT28-121) is that card and no other. Absent when the price chose nothing.
@@ -97,6 +103,14 @@ export interface Ctx {
    * when the effect has chosen nothing of its own.
    */
   priceChosen?: string[];
+  /**
+   * Review of audit selectors 3: the moment is this card placed under a card of this description (23-2) — "When this
+   * card is placed under one of your Z-Battle Cards, **the Z-Battle Card** gets +5000 power" (BT18-008): "the" and a
+   * description the host fits name the card on top of this one.
+   */
+  hostAbove?: CardFilter;
+  /** Audit selectors 3: the price's choices with their selectors — which place each was made in (BT6-116). */
+  priceChoices?: { var: string; sel: Selector }[];
   /**
    * The price's choice is a discard: it moves the cards it chose to the Drop
    * Area. "The cards discarded by this skill" (BT20-090, BT20-107..109) means
