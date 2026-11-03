@@ -12,9 +12,11 @@
  *     "up to 1 of them" unread (EX23-25), "the Battle Card you played" the card played (BT8-068, EX07-10).
  * C.  The opponent's hand unseen (R-253): a choice of it with no look before is blind (BT13-146, BT10-086, BT3-063).
  * D.  No owner (R-254): a bare name or trait is either player's (P-435, BT16-017); the card switched into your seat in a
- *     battle is yours (BT31-085); a list whose first card lost its place is refused.
- * E.  "Up to N cards from the top of your deck" (R-255) is the top that many, the master choosing only how many
- *     (EX08-04, BT30-020, BT27-032, EX23-32, P-537) — it was a search of the whole deck.
+ *     battle is yours (BT31-085); a list whose first card lost its place is refused; a price's card is the payer's own
+ *     (BT23-099, P-521 — review of 3 Nov 2026).
+ * E.  "Up to N cards from the top of your deck" (R-255, after R-006) is moved one card at a time, never a search of
+ *     the whole deck (EX08-04, BT30-020, BT27-032, P-537, BT29-086, BT4-038); "reveal up to 3 …" asks how many first
+ *     (EX23-32).
  * F.  "…to your opponent's Battle Area" (`toOpponent`, BT13-028, BT13-029, BT20-123); "would leave the Battle Area by a
  *     skill" keeps its cause (BT25-014).
  * G.  Honest gaps: a cost bound counted off the board (P-300, BT15-145, BT22-127), "not a copy of this card" (BT20-124).
@@ -23,6 +25,9 @@
  * H.  Counts and places: "that many" (BT12-002, BT31-072), "up to X" unread (DB3-141), "your yellow <Spike> card gets"
  *     is every one (BT22-087), "non-Leader Cards" in play (BT16-087), "cards in hand" yours (P-057), "your Z-Energy and
  *     Drop" both (EX23-52), "<Son Gohan> or <Piccolo> in its character name" (BT19-110).
+ *
+ * J.  Pronouns the lane's review bound: "the card you placed in your energy with this skill" (BT10-035), "that card"
+ *     in a replacement about another card (BT27-062), "when your opponent attacks your Leader Card, … it" (P-314).
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where an engine path moved (A, B, C).
@@ -237,19 +242,54 @@ for (const [text, what, side] of [
   assert.ok(rec.unread.length || named(rec).every((p) => p.sel.area === "hand"), `D: AS2-LOST — refused or both from the hand (${rec.reads} | ${JSON.stringify(rec.unread)})`);
   records++;
 }
+{
+  // Review of 3 Nov 2026: a price is paid with the payer's own cards — a bare name or trait in a price is not R-254's
+  // card on the table (BT23-099, P-521); a price that names the opponent keeps both sides (BT21-088).
+  for (const [text, what, side] of [
+    ["[Activate: Main][Once per turn] Place 1 of your Z-Energy in your Drop and switch 1 yellow <Son Goku> card to Rest Mode: Draw 1 card, then choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and switch it to Rest Mode.", "BT23-099", "you"],
+    ["[activate: main][once per turn]{r}, if you have 3 or more energy and you place 1 red ≪Red Ribbon Army≫ card in your Drop: Switch this card to Active Mode, then choose up to 1 of your opponent's Battle Cards, and it gets -20000 power for the turn.", "P-521", "you"],
+    ["[activate: main] Remove 1 of your or your opponent's tokens with combo power from the game: Remove 2 markers from your opponent's Unison.", "BT21-088", "both"],
+  ] as const) {
+    const rec = record(text, what);
+    const paid = opOf(rec.cost?.program ?? [], "choose").filter((p) => p.sel.area === "play");
+    assert.ok(paid.length === 1 && paid[0].sel.side === side, `D: ${what} — the price's card is ${side === "you" ? "the payer's own" : "either player's"} (${JSON.stringify(paid.map((p) => p.sel.side))})`);
+    records++;
+  }
+  // "…from your Battle Area and/or from under a {Destroyed West City} in your Battle Area" (BT23-023's price): either
+  // place for each named card — the Battle Area had been lost.
+  const city = record("[activate: main][limit 1]{r}, if you have 3 or more energy and you choose 1 red <Android 17> and 1 red <Android 18> from your Battle Area and/or from under a {Destroyed West City} in your Battle Area: Play this card from your hand and place all of the chosen cards under it.", "BT23-023");
+  const androids = opOf(city.cost?.program ?? [], "choose");
+  assert.ok(androids.length === 2 && androids.every((p) => p.sel.area === "under" && p.sel.alsoFrom?.[0]?.area === "battle") && androids[1].sel.notIn?.includes(androids[0].as), `D: BT23-023 — each from the Battle Area or from under the city (${JSON.stringify(androids.map((p) => [p.sel.area, p.sel.alsoFrom]))})`);
+  records++;
+}
 
-// ── E. "up to N cards from the top of your deck" (R-255) ─────────────────────
-for (const [text, what, n] of [
-  ["[auto] At the end of your turn, place up to 2 cards from the top of your deck in your energy, then negate this skill for the duration of the game.", "EX08-04", 2],
-  ["[auto] When this card is removed from a Battle Area by an opponent's skill or KO'd, add up to 1 card from the top of your deck to your energy.", "BT30-020", 1],
-  ["[Auto] If your Leader's back side is {Gamma 1 & Gamma 2, Justice}: When this card in your energy is placed into its owner's Drop by the skill of a blue ≪Red Ribbon Army≫ card in any area, add up to 1 card from the top fo your deck to your energy in Rest Mode.", "BT27-032", 1],
-  ["[activate: main][once per turn] Reveal up to 3 cards from the top of your deck and place them in your Drop.", "EX23-32", 3],
-  ["[Auto] When this card is played from your hand, choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], place it at the bottom of their deck, then choose up to 1 of your blue <Kale> Leaders and place up to 2 cards from the top of your deck under it.", "P-537", 2],
+// ── E. "up to N cards from the top of your deck" (R-255, after R-006) ────────
+// One card at a time (review of 3 Nov 2026): you may move the top card, then, if you did, the next, up to N — as R-006
+// rules for the Warp and the owner's ruling of 20 Oct 2026 for the Drop. Never a search, never a count named blind.
+for (const [text, what, n, to] of [
+  ["[auto] At the end of your turn, place up to 2 cards from the top of your deck in your energy, then negate this skill for the duration of the game.", "EX08-04", 2, "energy"],
+  ["[auto] When this card is removed from a Battle Area by an opponent's skill or KO'd, add up to 1 card from the top of your deck to your energy.", "BT30-020", 1, "energy"],
+  ["[Auto] If your Leader's back side is {Gamma 1 & Gamma 2, Justice}: When this card in your energy is placed into its owner's Drop by the skill of a blue ≪Red Ribbon Army≫ card in any area, add up to 1 card from the top fo your deck to your energy in Rest Mode.", "BT27-032", 1, "energy"],
+  ["[Auto] When this card is played from your hand, choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], place it at the bottom of their deck, then choose up to 1 of your blue <Kale> Leaders and place up to 2 cards from the top of your deck under it.", "P-537", 2, "under"],
+  ["[auto] When this card attacks, send up to 2 cards from the top of your deck to their owner's Warp, then choose up to 1 of your opponent's Battle Cards and send it to its owner's Warp.", "BT29-086", 2, "warp"],
+  ["[Auto] When this card attacks, place up to 3 cards from the top of your deck into your Drop Area.", "BT4-038", 3, "drop"],
 ] as const) {
   const rec = record(text, what);
+  const steps = opOf(rec.ops, "may").map((o) => o.ops);
+  assert.ok(steps.length === n && steps.every((ops) => ops[0]?.op === "choose" && ops[0].sel.area === "deck" && ops[0].sel.take === 1 && !ops[0].sel.upTo && !ops[0].sel.filter), `E: ${what} — ${n} offers of the top card, not a search (${rec.reads})`);
+  assert.ok(steps.every((ops) => ops[1]?.op === "moveTo" && ops[1].to === to && targetVar(ops[1]) === (ops[0] as Extract<Op, { op: "choose" }>).as), `E: ${what} — each moved to the ${to}`);
+  if (to === "under") {
+    const leader = chooses(rec).find((p) => p.sel.area === "leader")?.as;
+    assert.ok(leader && steps.every((ops) => { const mv = ops[1] as Extract<Op, { op: "moveTo" }>; return !!mv.under && "var" in mv.under && mv.under.var === leader; }), "E: P-537 — under the chosen Leader");
+  }
+  assert.equal(opOf(rec.ops, "if").filter((o) => o.cond.kind === "did").length, n - 1, `E: ${what} — each next card only if the last was moved`);
+  records++;
+}
+{
+  // A reveal leaves the card on top, so "reveal up to 3" asks how many first and reveals the top that many (EX23-32).
+  const rec = record("[activate: main][once per turn] Reveal up to 3 cards from the top of your deck and place them in your Drop.", "EX23-32");
   const top = chooses(rec).find((p) => p.sel.area === "deck");
-  assert.ok(top && top.sel.take === n && top.sel.upTo && !top.sel.filter, `E: ${what} — up to the top ${n}, not a search (${rec.reads})`);
-  assert.match(rec.reads, new RegExp(`up to the top ${n}`), `E: ${what} — said so`);
+  assert.ok(top && top.sel.take === 3 && top.sel.upTo && !top.sel.filter && /up to the top 3/.test(rec.reads), `E: EX23-32 — up to the top 3, then revealed (${rec.reads})`);
   records++;
 }
 
@@ -324,6 +364,29 @@ for (const [text, what, from] of [
   const gohan = record("[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow card with an energy cost of 5 or less and <Son Gohan> or <Piccolo> in its character name among them to your hand, then shuffle your deck.", "BT19-110");
   assert.deepEqual(chooses(gohan)[0].sel.filter?.charactersIncluding.map((x) => x.toLowerCase()), ["son gohan", "piccolo"], `H: BT19-110 — either inside the name (${gohan.reads})`);
   records += 6;
+}
+
+// ── J. pronouns the lane's review bound (3 Nov 2026) ─────────────────────────
+{
+  // "…at the end of the turn, place the card you placed in your energy with this skill in its owner's Drop Area"
+  // (BT10-035): the one card the skill put there — it was every card in the Energy Area.
+  const energy = record("[+2][Activate: Main] If your Leader Card is mono-blue: Place the top card of your deck in your energy; you can't place cards in your Energy Area for the turn, then, at the end of the turn, place the card you placed in your energy with this skill in its owner's Drop Area.", "BT10-035");
+  const placed = opOf(energy.ops, "moveTo").find((o) => o.to === "energy");
+  const later = opOf(opOf(energy.ops, "delay")[0]?.ops ?? [], "moveTo")[0];
+  assert.ok(placed?.as && later && "sel" in later.target && later.target.sel.fromVar === placed.as && later.to === "drop", `J: BT10-035 — only the card placed goes to the Drop (${energy.reads})`);
+  // "…your ≪Namekian≫ card with a [Revive] skill would be removed …, you may KO that card instead" (BT27-062): the card
+  // whose removal is replaced (the replacement's subject) — it was this card.
+  const revive = record("[Permanent] If your Leader's back side is {Piccolo, Brotherhood Bonds} and your ≪Namekian≫ card with a [Revive] skill would be removed from a Battle Area by an opponent's skill, you may KO that card instead.", "BT27-062");
+  const ko = opOf(opOf(revive.ops, "replace")[0]?.with ?? [], "ko")[0];
+  assert.ok(ko && "sel" in ko.target && ko.target.sel.special === "subject", `J: BT27-062 — the Namekian is KO'd, not this card (${revive.reads})`);
+  // The redirect form keeps its shape: "…return it to its owner's hand instead" (BT31-027's back).
+  const monaka = record("[permanent] If your blue <Monaka> card would be removed from a Battle Area by your opponent's skill, return it to its owner's hand instead.", "BT31-027");
+  assert.ok(opOf(monaka.ops, "replaceLeave")[0]?.to === "hand", `J: BT31-027 — still a redirect to the hand (${monaka.reads})`);
+  // "When your opponent attacks your Leader Card, you may have it get +5000 power" (P-314; P-390): the Leader attacked
+  // is the moment and "it" — it answered every attack and pumped the attacker.
+  const [leader] = skillRecords(card("P-314", { skill: "[Auto][Once per turn] If this card is in Rest Mode: When your opponent attacks your Leader Card, you may have it get +5000 power for the battle." }));
+  assert.ok(leader.trigger.includes("yourLeaderAttacked") && !leader.trigger.includes("opponentAttacks") && !leader.unread.length, `J: P-314 — the Leader attacked (${JSON.stringify(leader.trigger)})`);
+  records += 4;
 }
 
 // ── VM ───────────────────────────────────────────────────────────────────────
@@ -416,15 +479,30 @@ for (const seat of ["p1", "p2"] as const) {
     assert.deepEqual([s.cards[theirs].mode, s.cards[energy].mode], ["rest", "rest"], `${seat}: B — the Battle Card and the energy both rested`);
     cases++;
   }
-  // E: "up to 2 from the top" asks how many, unseen, and takes the top that many in order.
+  // E: "up to 2 from the top" — the top card offered, then the next once the first was moved; nothing to pick.
   {
     let s = fresh(seat, 53030 + (seat === "p1" ? 0 : 1));
     const me = stage(s, seat, "AS2-TOP", "battle");
     const [first, second] = s.sides[seat].zones.deck.slice(0, 2);
-    let seen: string[] = [];
-    s = activate(s, me, (q) => ((seen = q.choice.candidates), []), 1);
-    assert.deepEqual(seen, [], `${seat}: E — no card offered to pick`);
-    assert.ok(s.sides[seat].zones.energy.includes(first) && !s.sides[seat].zones.energy.includes(second), `${seat}: E — "1 from the top" took the top card only`);
+    const offer = RULES.legalActions(ctx, s).find((l) => (l.action as { card?: string }).card === me && l.action.type === "activate");
+    assert.ok(offer, `${seat}: E — offered`);
+    s = take(s, offer.action);
+    const answers = [0, 1];
+    let asked = 0;
+    let picked = false;
+    for (let i = 0; i < 30 && s.prompt.kind !== "main"; i++) {
+      const q = s.prompt;
+      const who = (q as { player: PlayerId }).player;
+      if (q.kind === "chooseMode") s = take(s, { type: "chooseMode", player: who, index: answers[asked++] ?? 1 } as Action);
+      else if (q.kind === "chooseCards") {
+        picked = true;
+        s = take(s, { type: "choose", player: who, cards: q.choice.candidates.slice(0, 1) });
+      } else s = take(s, { type: "pass", player: who } as Action);
+    }
+    assert.equal(s.prompt.kind, "main", `${seat}: E — settled`);
+    assert.equal(asked, 2, `${seat}: E — the second card offered once the first was moved`);
+    assert.ok(!picked, `${seat}: E — no card offered to pick`);
+    assert.ok(s.sides[seat].zones.energy.includes(first) && !s.sides[seat].zones.energy.includes(second), `${seat}: E — yes, then no: the top card only`);
     cases++;
   }
   // F: the card is played into the opponent's Battle Area, its owner unchanged.

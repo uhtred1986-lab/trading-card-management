@@ -443,7 +443,9 @@ function alternativePlaces(phrase: string, looked?: string, pool?: string): Sele
   // BT31-034, BT31-035), "…**from your hand or from under {Serpent Road}** in your Battle Area" (BT30-114): the pile
   // under the named card, or the area — the area's half had been dropped. "…**in your hand or face up in your life**"
   // (BT13-011): a card of the hand, or a face-up card of the life (3-9-2-1) — read as one, "face up" landed on the hand.
-  const orUnder = /^(.*?) from your (hand|energy|drop(?: area)?|warp|deck) or (from under .+)$/i.exec(phrase);
+  // (Review of audit selectors 2: "…from your **Battle Area and/or** from under a {Destroyed West City} in your Battle
+  // Area", BT23-023's price — now that the two-named list reaches here whole, the Battle Area's half was lost from both.)
+  const orUnder = /^(.*?) from your (hand|energy|drop(?: area)?|warp|deck|battle area) (?:and\/or|or) (from under .+)$/i.exec(phrase);
   const orLife = /^(.*?) in your hand or face up in your life\b(.*)$/i.exec(phrase);
   const placeOnly = (s: Selector): Selector => {
     const { count: _c, upTo: _u, minCount: _m, ...rest } = s;

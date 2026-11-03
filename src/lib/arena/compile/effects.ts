@@ -254,6 +254,11 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // one card the skill's reveal bound (and nothing when it revealed none).
   // The whole phrase only; "the revealed card's energy cost" is a measure.
   if (/^\s*the revealed card\s*$/i.test(clause) && c.lastSeen) return { var: c.lastSeen };
+  // Review of audit selectors 2 (BT10-035): "…then, at the end of the turn, place **the card you placed in your energy
+  // with this skill** in its owner's Drop Area" — the one card the skill's move to the Energy Area took, as BT10-054's
+  // condition names it (`PLACED_IN_ENERGY`, bound in `compileSkill`'s post-pass). Read as a description it was every
+  // card in your Energy Area, the whole energy to the Drop.
+  if (/^\s*the card (?:you )?placed in your energy(?: area)? (?:with|by) this skill\s*$/i.test(clause)) return { sel: { fromVar: PLACED_IN_ENERGY } };
   if (/\bthe played card\b|\bthe (?:battle )?card (?:that was |you )?played(?: with this skill)?\b/i.test(clause)) {
     if (c.lastPlayed) return { var: c.lastPlayed };
     return c.last ? { var: c.last } : { sel: { special: "subject" } };
@@ -444,6 +449,20 @@ function refsFor(phrase: string, c: Ctx): Ref[] | null {
  * opponent's Battle Cards") carry no count and do mean all of them.
  */
 function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op): Op[] {
+  // Review of audit selectors 2 (R-255, after R-006 and the owner's ruling of 20 Oct 2026 on BT3-120): "add **up to 1
+  // card from the top of your deck** to your energy" (BT30-020, EX08-04), "place up to 2 cards from the top of your deck
+  // under it" (P-537, TB2-015), "…to your life" (BT25-002), "send up to 2 … to their owner's Warp" (BT29-086…093),
+  // "place up to 3 … into your Drop" (BT4-038, BT27-094) are moved one card at a time, as "place up to 2 … in the Drop
+  // Area" and "send up to 3 … to your Warp" already are (`oneAtATime`, below): you may move the top card, then, if you
+  // did, the next, up to N — each step a `take` of the top 1, nothing to pick. Never a search of the deck, and never a
+  // count named blind before the first card is seen.
+  if ("sel" in ref && ref.sel.take != null && ref.sel.upTo && ref.sel.area === "deck" && !ref.sel.areas && !ref.sel.fromVar && !ref.sel.special && !ref.sel.fromEnd && !ref.sel.filter && ref.sel.take >= 1 && ref.sel.take <= 10) {
+    const { upTo: _upTo, ...top } = ref.sel;
+    void _upTo;
+    const vars = Array.from({ length: ref.sel.take }, () => `c${c.n++}`);
+    if (vars.length === 1) c.lastNamed = vars[0];
+    return oneAtATime(vars.map((v): Op[] => [{ op: "choose", sel: { ...top, take: 1, count: 1 }, as: v, reason: clause }, act({ var: v })]), clause);
+  }
   // Phrasing batch 10: "place **any number of** red Extras from your Drop under that card" (P-724) is a choice too.
   if ("sel" in ref && !ref.sel.special && (ref.sel.take == null || ref.sel.upTo) && ref.sel.count != null && (ref.sel.count < 99 || ref.sel.upTo)) {
     const v = `c${c.n++}`;
@@ -475,6 +494,14 @@ function hostChoice(host: Ref, clause: string, c: Ctx): { ops: Op[]; host: Ref }
  */
 function placeUnderOps(ref: Ref, named: Ref, clause: string, c: Ctx): Op[] {
   const target = withChoice(ref, clause, c, (t) => ({ op: "moveTo", target: t, to: "under" }));
+  const last = target[target.length - 1];
+  if (last?.op !== "moveTo") {
+    // Cards from the top of the deck one at a time ("place up to 2 cards from the top of your deck under it", P-537):
+    // the host is settled first, and every step's move goes under it.
+    const { ops: chooseHost, host } = hostChoice(named, clause, c);
+    const under = (ops: Op[]): Op[] => ops.map((o): Op => (o.op === "moveTo" && o.to === "under" && !o.under ? { ...o, under: host } : o.op === "may" ? { ...o, ops: under(o.ops) } : o.op === "if" ? { ...o, then: under(o.then) } : o));
+    return [...chooseHost, ...under(target)];
+  }
   const move = target.pop() as Extract<Op, { op: "moveTo" }>;
   const { ops: chooseHost, host } = hostChoice(named, clause, c);
   return [...target, ...chooseHost, { ...move, under: host }];
@@ -7426,7 +7453,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     if (would) {
       c.replacing = { ...would, ...(durationTail ? { until: durationOf(durationTail[1]) } : timedLeave ? { until: "turn" as const } : {}) };
       // "…it goes to the Warp instead" — "it" is the card the phrase named.
-      c.lastTarget = { sel: { special: "self" } };
+      // (Review of audit selectors 2: when the phrase named another card — "your ≪Namekian≫ card with a [Revive] skill
+      // would be removed …, you may KO **that card** instead" (BT27-062) — that is the card whose departure is replaced,
+      // the replacement program's subject (`replace.ts` runs it with `subject` = that card). It read "KO this card".)
+      c.lastTarget = { sel: { special: would.subject ? "subject" : "self" } };
       continue;
     }
     const wouldLife = parseWouldMoveFromLife(clause);
@@ -7848,7 +7878,8 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // an area of its own, is not the card leaving the Battle Area — read as a
       // redirect, the ≪Maiden Squadron≫ card the skill protects was itself
       // removed from the game. It is a substitute, below.
-      const selfMove = only?.op === "moveTo" && "sel" in only.target && only.target.sel.special === "self" && !only.target.sel.area && !only.target.sel.areas?.length;
+      // (Review of audit selectors 2: with another card named, "it" is the replacement's subject — the same card.)
+      const selfMove = only?.op === "moveTo" && "sel" in only.target && (only.target.sel.special === "self" || (!!subject && only.target.sel.special === "subject")) && !only.target.sel.area && !only.target.sel.areas?.length;
       if (replaceEvent !== "life" && replaceEvent !== "marker" && only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under && !oncePerTurn) {
         // When the rule names other cards, they are the ones it is about —
         // not whatever "it" happened to point at in the second half.
