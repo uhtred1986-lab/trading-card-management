@@ -13,7 +13,8 @@
  * language's print and reparse), and in the VM for both seats with every action reloaded from JSON.
  */
 import assert from "node:assert/strict";
-import { CTX, DEFS, card, fifty } from "./harness";
+import { CTX, DEFS, IMPL, card, fifty, findG, stagedG, zoneOf } from "./harness";
+import { leaderOf } from "../../src/lib/arena/engine-state";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
@@ -409,6 +410,25 @@ for (const seat of ["p1", "p2"] as const) {
     const w = stage(s, seat, "AC2_WARPER", "battle");
     s = settle(take(s, offerOf(s, a)!.action), pick(w));
     assert.ok(s.sides[seat].zones[to].includes(w), `${seat}: C1: ${actor} — it went to the ${to}`);
+    cases++;
+  }
+}
+
+// E. "If you would reveal this card from your life …" (BT10-036, Q&A BT10-036/BT10-040): a card face up in the life is
+// not revealed, so the replacement is offered only for a face-down one. p1 attacks p2's Leader for one damage.
+{
+  DEFS.AC2_LIFE = card("AC2_LIFE", { energyCost: 1, skill: "[Permanent] During your opponent's turn, if all of your energy is mono-blue and you would reveal this card from your life to add it to your hand, you may place it in your energy in Rest Mode instead. If you do, draw 1 card." });
+  for (const faceUp of [false, true]) {
+    const staged = stagedG({ battle: ["BIG"], oppEnergy: ["V-BLUE"] });
+    const life = zoneOf(staged, "p2", "life")[0];
+    staged.cards[life].cardId = "AC2_LIFE";
+    if (faceUp) staged.cards[life].faceUp = true;
+    let r = IMPL.apply(CTX, staged, { type: "attack", player: "p1", attacker: findG(staged, "p1", "battle", "BIG"), target: leaderOf(staged, "p2") });
+    for (let i = 0; i < 6 && r.state.battle && r.state.prompt.kind !== "replaceMove"; i++) r = IMPL.apply(CTX, r.state, { type: "pass", player: (r.state.prompt as { player: PlayerId }).player });
+    if (faceUp) {
+      assert.notEqual(r.state.prompt.kind, "replaceMove", "E: a face-up life card is not revealed — no offer");
+      assert.ok(zoneOf(r.state, "p2", "hand").includes(life), "E: …it is added to the hand");
+    } else assert.equal(r.state.prompt.kind, "replaceMove", "E: a face-down life card revealed — the offer is made");
     cases++;
   }
 }

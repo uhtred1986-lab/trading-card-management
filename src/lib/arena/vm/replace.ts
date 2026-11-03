@@ -170,6 +170,9 @@ export function lifeReplacementChoices(ctx: EngineContext, game: GameDefinition,
     // "…would reveal **this card** from your life": the rule is the taken card's
     // own, so no other life card answers to it (and a copy in play does not).
     if (r.lifeSelf && e.source !== id) continue;
+    // Audit conditions 2 (Q&A BT10-036, BT10-040): …and only a card that is *revealed* as it is taken — one lying face
+    // up in the life is not revealed, so the replacement is not offered for it.
+    if (r.lifeSelf && state.cards[id]?.faceUp) continue;
     if (r.ops && applyingReplacement) continue;
     out.push({ source: e.source, ...(r.to ? { to: r.to } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.master ? { master: r.master } : {}), ...(r.skillIndex !== undefined ? { skillIndex: r.skillIndex } : {}) });
   }

@@ -1651,6 +1651,8 @@ export interface Replacement {
    * you may … instead" (BT10-036, BT10-047) — so it answers only when that
    * card is the one being taken, and is read while that card lies in the Life
    * Area (9-1-3-3). Absent, the rule is about whichever life card is taken.
+   * Audit conditions 2: a card face up in the life is not *revealed* as it is
+   * taken (Q&A BT10-036, BT10-040), so it is never offered for one.
    */
   lifeSelf?: true;
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */
