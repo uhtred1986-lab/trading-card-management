@@ -1590,6 +1590,11 @@ function parseCountCondition(t: string): Cond | null {
   // brings a colour of its own, or a part that is not a bare name, is left alone.
   const sharedColour = parts.length > 1 ? /^(?:(?:mono-)?(?:red|blue|green|yellow|black|white)\s+)+(?=[<≪{])/i.exec(parts[0])?.[0] : undefined;
   if (sharedColour) for (let i = 1; i < parts.length; i++) if (/^[<≪{]/.test(parts[i])) parts[i] = sharedColour + parts[i];
+  // Audit conditions 2: "your opponent has a **skill-less** Battle Card or Unison in play" (P-451): the quality said
+  // once before a pair of card kinds is every kind's, as BT15-125's "a skill-less Battle Card or Unison Card" is read
+  // (round 1). Cut at the "or", any Unison counted.
+  const sharedQuality = parts.length > 1 ? /^(?:an?\s+)?((?:originally\s+)?skill-less\s+)(?=(?:z-)?(?:battle|unison|extra)\b)/i.exec(parts[0])?.[1] : undefined;
+  if (sharedQuality) for (let i = 1; i < parts.length; i++) if (/^(?:an?\s+)?(?:z-)?(?:battle cards?|unisons?|unison cards?|extras?|extra cards?)\b/i.test(parts[i])) parts[i] = parts[i].replace(/^(an?\s+)?/i, (a) => `${a}${sharedQuality}`);
   if (parts.length > 1) {
     // Phrasing batch 2: "…red ≪God≫ or ≪Alien≫ cards in play in your Battle Area **other than this card**" (DB1-006):
     // the exclusion closes the shared area and is shared with it — left on the last part alone, the first part

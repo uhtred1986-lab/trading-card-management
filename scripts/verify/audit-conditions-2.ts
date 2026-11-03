@@ -20,6 +20,7 @@ import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { parseSkills } from "../../src/lib/arena/text/cards";
+import { matches, skillKindHas } from "../../src/lib/arena/text/filters";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { Cond, Op } from "../../src/lib/arena/vm/script";
@@ -67,7 +68,7 @@ function ops(rec: Rec): Op[] {
   walk(rec.ops);
   return out;
 }
-void ops;
+
 let records = 0;
 
 // A. How a play was made.
@@ -122,6 +123,50 @@ let records = 0;
   records += 4;
 }
 
+// B. What a description says about the cards.
+{
+  const chosen = (rec: Rec, n = 0) => ops(rec).filter((o): o is Extract<Op, { op: "choose" }> => o.op === "choose")[n].sel;
+  // "[Activate: Battle]" is one timing of [Activate] (BT15-004); an [Activate: Main/Battle] line is both.
+  const b15 = chosen(record("[+1][Activate: Main] Look at up to 5 cards from the top of your deck, add up to 1 red Extra Card with an [Activate: Battle] skill and an energy cost of 3 or less among them to your hand, then shuffle your deck.", "BT15-004"));
+  assert.equal(b15.filter?.skillKind, "activate:battle", "B: BT15-004 — [Activate: Battle] only");
+  for (const [kind, want, has] of [["activate:battle", "activate:battle", true], ["activate:main/battle", "activate:battle", true], ["activate:main", "activate:battle", false], ["activate:main", "activate", true], ["activate:main/battle", "activate:main", true]] as const)
+    assert.equal(skillKindHas(kind, want), has, `B: a ${kind} line ${has ? "is" : "is not"} ${want}`);
+  // "Without keyword skills" (BT7-126) and "with a keyword skill" (EX24-42).
+  assert.equal(chosen(record("[auto] When this card attacks, choose all Battle Cards without keyword skills in your Drop Area and combo with them in your Combo Area.", "BT7-126")).filter?.noKeywords, true, "B: BT7-126 — none");
+  assert.equal(chosen(record("[auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with a keyword skill, ignoring [barrier], and use it in a combo in your Combo Area.", "EX24-42")).filter?.someKeyword, true, "B: EX24-42 — one at least");
+  // "With 2 or more character names including <SH>" (EX24-25): two names, SH inside them.
+  const sh = chosen(record("[Auto] When this card is played, choose up to 2 of your Battle Cards with 2 or more character names including <SH> and they gain [Barrier] until the end of your opponent's turn.", "EX24-25"));
+  assert.deepEqual([sh.filter?.charactersMin, sh.filter?.charactersIncluding, sh.filter?.characters], [2, ["SH"], []], "B: EX24-25 — two or more names, <SH> inside them");
+  const pairSH = card("AC2_PAIRSH", { characters: ["Gamma 1: SH", "Gamma 2: SH"] });
+  const oneSH = card("AC2_ONESH", { characters: ["Gamma 2: SH"] });
+  assert.deepEqual([matches(pairSH, sh.filter!), matches(oneSH, sh.filter!)], [true, false], "B: EX24-25 — a two-name SH card only");
+  // "[Arrival Red/Green]" names the colours (BT25-082), whichever is printed first.
+  const arr = chosen(record("[Auto][Limit 1] If your Leader is a green <Trunks: Future> card: When this card is played, choose up to 1 of your ≪Saiyan≫ cards with [Arrival Red/Green] and return it to its owner's hand.", "BT25-082"));
+  assert.deepEqual(arr.filter?.keywordsExact, ["Arrival Red/Green"], "B: BT25-082 — that [Arrival]");
+  const saiyan = (skill: string) => card("AC2_ARR", { traits: ["Saiyan"], skill });
+  assert.deepEqual([matches(saiyan("[Arrival Red/Green]{r}"), arr.filter!), matches(saiyan("[Arrival Green/Red]{r}"), arr.filter!), matches(saiyan("[Arrival Blue/Yellow]{u}"), arr.filter!)], [true, true, false], "B: BT25-082 — red and green, not blue and yellow");
+  // "Larger than or equal to the opponent's amount of total energy" (BT2-098).
+  const b2 = chosen(record("[Activate: Main] Choose 1 of your opponent's Battle Cards with an energy cost larger than or equal to the opponent's amount of total energy and KO it.", "BT2-098"));
+  assert.deepEqual([b2.filter?.costAtLeastEnergy, b2.filter?.energyOfOpponent], [true, true], "B: BT2-098 — at least their energy");
+  // "…with power less than or equal to that card's power" (BT25-035): the King Piccolo chosen just before.
+  const kp = record("[Activate: Main] Choose up to 1 of your red <King Piccolo> cards with an energy cost of 3 or 6, then choose all of your opponent's Battle Cards with power less than or equal to that card's power and KO them.", "BT25-035");
+  const first = ops(kp).find((o): o is Extract<Op, { op: "choose" }> => o.op === "choose")!;
+  assert.deepEqual(chosen(kp, 1).filter?.powerRel, { of: "chosen", cmp: "<=", var: first.as }, "B: BT25-035 — measured against the chosen <King Piccolo>");
+  // "…card you own in your opponent's Battle Area" (BT20-114).
+  const own = chosen(record("[Activate: Main][Once per turn] Choose up to 1 card you own in your opponent's Battle Area and it gains [Servant] until the end of your opponent's next turn.", "BT20-114"));
+  assert.deepEqual([own.side, own.area, own.ownedByYou], ["opponent", "battle", true], "B: BT20-114 — yours, in their Battle Area");
+  // "…with a character name different from any Battle Cards you have in play" (EB1-33).
+  const eb = chosen(record("[activate: main][once per turn][burst 2]{1}, if your Leader Card is green or a ≪Heroine≫ card and you have 3 or more green energy: Play up to 1 green ≪Universe 2≫ card with an energy cost of 3 or less from your deck with a character name different from any Battle Cards you have in play, then shuffle your deck.", "EB1-33"));
+  assert.deepEqual([eb.area, eb.charactersNotInPlay, eb.filter?.costMax], ["deck", true, 3], "B: EB1-33 — no name you have in play");
+  // "A skill-less Battle Card or Unison" (P-451): skill-less both.
+  const p451 = conds(record("[auto]{b}, if your Leader is a black <Fin> card, you have 2 or more energy, and your opponent has a skill-less Battle Card or Unison in play: When you add this card to your Z-Energy, you may play 1 <Fin> card with an energy cost of 2 or less and 15000 power or more from your hand. If you do, draw 1 card.", "P-451"));
+  const unison = p451.flatMap((c) => (c.kind === "any" ? c.conds : [c])).find((c) => c.kind === "count" && c.sel.filter?.type === "UNISON");
+  assert.ok(unison && unison.kind === "count" && unison.sel.filter?.skillLess, "B: P-451 — a skill-less Unison");
+  // "…with {Power Pole} under it" (BT24-009): a pile no measure holds — unread, not a card named {Power Pole}.
+  assert.ok(only("[Auto][Limit 1] When your red <Son Goku> card with {Power Pole} under it and an energy cost of 5 or more is removed from your Battle Area by your opponent's skill, you may play this card from your hand.", "BT24-009").unread.length > 0, "B: BT24-009 — unread");
+  records += 12;
+}
+
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const DRAW = "draw 1 card.";
 const defs: Record<string, CardDef> = {
@@ -134,6 +179,9 @@ const defs: Record<string, CardDef> = {
   AC2_SWAPPER: card("AC2_SWAPPER", { energyCost: 3, skill: "[Swap 1]: <AC2_SWAPPED> with an energy cost of 1." }),
   AC2_SWAPPED: card("AC2_SWAPPED", { skill: `[Auto] When you play this card with [Swap], ${DRAW}` }),
   AC2_THEIRTURN: card("AC2_THEIRTURN", { skill: "[Auto] Choose 1 card in your hand and discard it: When you play this card during your opponent's turn, draw 2 cards." }),
+  // B. a description against your board, and a card you own
+  AC2_UNLIKE: card("AC2_UNLIKE", { skill: "[Activate: Main] Play up to 1 card with an energy cost of 1 from your Drop Area with a character name different from any Battle Cards you have in play." }),
+  AC2_OWNED: card("AC2_OWNED", { skill: "[Activate: Main] Choose up to 1 card you own in your opponent's Battle Area and it gains [Servant] until the end of your opponent's next turn." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 for (const d of ["AC2_SEAL", "AC2_BYSEAL", "AC2_NOSKILL", "AC2_SWAPPER", "AC2_SWAPPED"]) for (const r of skillRecords(defs[d])) assert.deepEqual(r.unread, [], `${d}: read`);
@@ -199,7 +247,6 @@ const pick = (...ids: string[]) => ({ cards: (q: Extract<Prompt, { kind: "choose
 let cases = 0;
 for (const seat of ["p1", "p2"] as const) {
   const seed = (n: number) => 52300 + n * 2 + (seat === "p1" ? 0 : 1);
-  void other;
 
   // A1. Played by the skill of {AC2 Sealed Ball}: answers; by another card's skill, or from the hand: no trigger.
   for (const [n, actor, drew] of [[0, "AC2_SEAL", 1], [1, "AC2_OTHER", 0]] as const) {
@@ -267,6 +314,33 @@ for (const seat of ["p1", "p2"] as const) {
     s = settle(take(s, playOf(s, g)!.action));
     assert.ok(s.sides[seat].zones.battle.includes(g), `${seat}: A4: played`);
     assert.equal(hand(s, seat), 1, `${seat}: A4: on your own turn — no draw, and the card in hand stays`);
+    cases++;
+  }
+  // B1. "A character name different from any Battle Cards you have in play": a card named like one in play is not offered.
+  {
+    let s = fresh(seat, seed(8));
+    const a = stage(s, seat, "AC2_UNLIKE", "battle");
+    stage(s, seat, "V1", "battle");
+    const same = stage(s, seat, "V1", "drop");
+    const other = stage(s, seat, "V-BLUE", "drop");
+    s = take(s, offerOf(s, a)!.action);
+    assert.equal(s.prompt.kind, "chooseCards", `${seat}: B1: a choice`);
+    const offered = (s.prompt as Extract<Prompt, { kind: "chooseCards" }>).choice.candidates;
+    assert.ok(offered.includes(other) && !offered.includes(same), `${seat}: B1: <V-BLUE> offered, <V1> (in play) not`);
+    cases++;
+  }
+  // B2. "A card you own in your opponent's Battle Area": their own card there is not offered, yours is.
+  {
+    let s = fresh(seat, seed(9));
+    const a = stage(s, seat, "AC2_OWNED", "battle");
+    const theirs = stage(s, other(seat), "V-BLUE", "battle");
+    const mine = stage(s, seat, "V1", "hand");
+    assert.ok(moveCard(s, game, mine, "battle", { owner: other(seat) }).ok);
+    s.cards[mine].mode = "active";
+    s = take(s, offerOf(s, a)!.action);
+    assert.equal(s.prompt.kind, "chooseCards", `${seat}: B2: a choice`);
+    const offered = (s.prompt as Extract<Prompt, { kind: "chooseCards" }>).choice.candidates;
+    assert.ok(offered.includes(mine) && !offered.includes(theirs), `${seat}: B2: yours there offered, theirs not`);
     cases++;
   }
 }

@@ -211,6 +211,14 @@ export interface Selector {
    * brought over. Read off the card's owner, not the area it lies in.
    */
   ownedByOpponent?: true;
+  /** Audit conditions 2: "choose up to 1 **card you own** in your opponent's Battle Area" (BT20-114) — only cards the chooser owns, wherever they stand (1-2). */
+  ownedByYou?: true;
+  /**
+   * Audit conditions 2: "…from your deck **with a character name different from any Battle Cards you have in play**"
+   * (EB1-33, BT12-109) — a card none of whose character names is one of the character names of the Battle Cards in the
+   * chooser's Battle Area (2-10-1-1, exact names), read as the choice is made.
+   */
+  charactersNotInPlay?: true;
   /**
    * "Choose all Battle Cards **other than this card**", "play up to 1 ≪Demon
    * Clan≫ card among them **other than copies of this card**". Refusing to

@@ -1,7 +1,7 @@
 import { potaraMaterialsProblem } from "./potara-materials";
 import { fusionMaterialsProblem } from "./fusion-materials";
 import { skillPriceProblem } from "./skill-payment";
-import { FILTER_FIELDS, emptyFilter, type CardFilter, type FilterFieldType } from "../text/filters";
+import { FILTER_FIELDS, FILTER_SKILL_KINDS, emptyFilter, type CardFilter, type FilterFieldType } from "../text/filters";
 import { keywordName } from "../text/cards";
 // `AmountAttr` and `CardAttr` are deliberately two lists, not one: `CardAttr`
 // is what `modifyAttr` may *write* (colours, characters, traits and names among
@@ -2292,6 +2292,8 @@ const SELECTOR_KEYS = {
   alsoFrom: 1,
   atRandom: 1,
   ownedByOpponent: 1,
+  ownedByYou: 1,
+  charactersNotInPlay: 1,
   notSelf: 1,
   differentNames: 1,
   differentCharacters: 1,
@@ -2340,6 +2342,8 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.orSelf !== undefined && v.orSelf !== true) return wrong("orSelf", "true");
   if (v.atRandom !== undefined && v.atRandom !== true) return wrong("atRandom", "true");
   if (v.ownedByOpponent !== undefined && v.ownedByOpponent !== true) return wrong("ownedByOpponent", "true");
+  if (v.ownedByYou !== undefined && v.ownedByYou !== true) return wrong("ownedByYou", "true");
+  if (v.charactersNotInPlay !== undefined && v.charactersNotInPlay !== true) return wrong("charactersNotInPlay", "true");
   if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
   // A printed count is a whole number; a lowered one — `draw(n: X)` becomes
   // `TOP X IN you.deck` (`rulesets/*.rules`) — is the amount it was handed,
@@ -2404,7 +2408,7 @@ function filterValueHolds(kind: FilterFieldType, x: unknown): boolean {
     case "cardType":
       return x === null || (typeof x === "string" && (CARD_TYPES as readonly string[]).includes(x));
     case "skillKind":
-      return x === null || (typeof x === "string" && (SKILL_KIND_PREFIXES as readonly string[]).includes(x));
+      return x === null || (typeof x === "string" && (FILTER_SKILL_KINDS as readonly string[]).includes(x));
     case "boolean":
       return typeof x === "boolean";
     case "tri":
@@ -2786,7 +2790,10 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
     ...f.notKeywords.map((k) => `non-[${k}]`),
     ...(f.notKeywordsExact ?? []).map((k) => `non-[${k}]`),
   ];
-  if (f.skillKind) partial.push(`with [${f.skillKind === "activate" ? "Activate" : f.skillKind === "counter" ? "Counter" : f.skillKind === "auto" ? "Auto" : "Permanent"}] skills`);
+  if (f.skillKind) partial.push(`with [${({ activate: "Activate", "activate:main": "Activate: Main", "activate:battle": "Activate: Battle", counter: "Counter", auto: "Auto", permanent: "Permanent" } as const)[f.skillKind]}] skills`);
+  // Audit conditions 2: "with a keyword skill" (EX24-42), "with 2 or more character names" (EX24-25).
+  if (f.someKeyword) partial.push("with a keyword skill");
+  if (f.charactersMin != null) partial.push(`with ${f.charactersMin} or more character names`);
   if (noun) {
     if (f.type) bits.push(`${f.z ? "Z-" : ""}${typeNoun(f.type, noun.plural)}`);
     else if (f.notType) bits.push(`non-${typeNoun(f.notType, noun.plural)}`);
@@ -3074,6 +3081,8 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.alsoFrom?.length ? sel.alsoFrom.map((alt) => (sel.count === 99 && !sel.upTo ? `, and ${describeSelector(alt, "all")}` : `, or among ${describeSelector(alt, "the")}`)).join("") : "") +
   (sel.atRandom ? " at random" : "") +
   (sel.ownedByOpponent ? " whose owner is your opponent" : "") +
+  (sel.ownedByYou ? " that you own" : "") +
+  (sel.charactersNotInPlay ? " with a character name different from any Battle Cards you have in play" : "") +
   // "…1 <Shu> card" after "1 <Pilaf> card" (#970): a card of its own, not one an earlier slot took.
   (sel.notIn?.length ? " other than the cards already chosen" : "") +
   // "…for which the total cost adds up to 5 or less" (BT3-036): about the set too.

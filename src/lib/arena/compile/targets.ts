@@ -590,6 +590,23 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
     if (!sel || sel.special || sel.side === "opponent") return null;
     return { ...sel, ownedByOpponent: true };
   }
+  // Audit conditions 2: "choose up to 1 **card you own** in your opponent's Battle Area" (BT20-114): your own card the
+  // opponent controls (1-2: a card's owner never changes). Dropped, any card there was offered, theirs included.
+  // Audit conditions 2: "…from your deck **with a character name different from any Battle Cards you have in play**"
+  // (EB1-33, BT12-109): a measure against your board as the choice is made (`charactersNotInPlay`). Dropped, a card
+  // sharing a name with one in play was offered.
+  const unlikeInPlay = /\s*,?\s*(?:(?:and|with) )?an? character name different from (?:any|all) (?:of )?(?:the )?Battle Cards you have in play\b/i.exec(phrase);
+  if (unlikeInPlay) {
+    const sel = parseTarget(phrase.replace(unlikeInPlay[0], " ").replace(/\s+/g, " ").replace(/,\s*$/, "").trim(), looked, pool);
+    if (!sel || sel.special) return null;
+    return { ...sel, charactersNotInPlay: true };
+  }
+  const yours = /\b(cards?) (?:that )?you own\b/i.exec(phrase);
+  if (yours) {
+    const sel = parseTarget(phrase.replace(yours[0], yours[1]).replace(/\s+/g, " ").trim(), looked, pool);
+    if (!sel || sel.special) return null;
+    return { ...sel, ownedByYou: true };
+  }
   // #930, BT4-018: "…<Baby> with an energy cost of 4 or less **with the same
   // character name as the card you placed under this card** from your deck" -
   // a name measured against the card the price placed under this one. Struck
@@ -1474,6 +1491,8 @@ export function filterFor(phrase: string, area: ScriptArea | null): CardFilter |
     (f.notKeywordsExact?.length ?? 0) > 0 ||
     f.skillKind != null ||
     f.noKeywords ||
+    !!f.someKeyword ||
+    f.charactersMin != null ||
     f.notNames.length > 0 ||
     f.token ||
     f.notToken ||

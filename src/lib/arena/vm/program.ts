@@ -1659,6 +1659,11 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
   // Errata-official-2 (`orSelf`): "choose this card or up to 1 …" — this card is on offer beside the cards described,
   // needing none of their measures; only that it is still in play.
   const self = sel.orSelf && frame.card && state.cards[frame.card] && inPlayZones(game).includes(zoneOf(state, frame.card) ?? "") && !chosenBefore?.has(frame.card) ? frame.card : null;
+  // Audit conditions 2: "…with a character name different from any Battle Cards you have in play" (EB1-33) — the names
+  // of the chooser's Battle Cards as they stand now (2-10-1-1: whole names).
+  const namesInPlay = sel.charactersNotInPlay
+    ? new Set((state.sides[frame.master].zones.battle ?? []).filter((b) => predicateOf({ ...emptyFilter(), type: "BATTLE" }, game)(attrsNow(ctx, game, state, b))).flatMap((b) => (attrsNow(ctx, game, state, b).characters as string[] | undefined ?? []).map(identityKey)))
+    : null;
   const kept = out.filter((id) => {
     if (matchesPrinted && !matchesPrinted(id)) return false;
     if (chosenBefore?.has(id)) return false;
@@ -1681,6 +1686,9 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (sel.notAttackedThisTurn && (card.attacksThisTurn ?? 0) > 0) return false;
     // "…whose owner is your opponent" (EX24-10): owned by the other player.
     if (sel.ownedByOpponent && card.owner === frame.master) return false;
+    // Audit conditions 2: "…card you own in your opponent's Battle Area" (BT20-114): owned by the chooser's side.
+    if (sel.ownedByYou && card.owner !== frame.master) return false;
+    if (namesInPlay && ((attrsNow(ctx, game, state, id).characters as string[] | undefined) ?? []).some((n) => namesInPlay.has(identityKey(n)))) return false;
     if (sel.notSelf && frame.card) {
       if (id === frame.card) return false;
       if (sel.notSelf === "copies" && state.cards[frame.card] && card.cardId === state.cards[frame.card].cardId) return false;

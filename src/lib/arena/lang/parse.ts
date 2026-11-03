@@ -48,6 +48,8 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   orSelf: (s) => (s.orSelf = true),
   atRandom: (s) => (s.atRandom = true),
   ownedByOpponent: (s) => (s.ownedByOpponent = true),
+  ownedByYou: (s) => (s.ownedByYou = true),
+  charactersNotInPlay: (s) => (s.charactersNotInPlay = true),
   otherThanSelf: (s) => (s.notSelf = "card"),
   otherThanCopies: (s) => (s.notSelf = "copies"),
   otherThanSameName: (s) => (s.notSelf = "name"),
