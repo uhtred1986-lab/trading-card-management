@@ -87,7 +87,9 @@ const AREA_TYPE_WORDS: [RegExp, ScriptArea][] = [
   // Leaders" (BT24-005), "your white Leader" (BT28-112), "your yellow <Broly: Br> Leaders" (P-539), "your opponent's
   // Leaders" (BT22-009). Unread, the phrase named no area and 20-1-6's "a card on the table" let a Battle Card stand in
   // for the Leader.
-  [/(?<!non-)\bleader cards?\b|\b(?:your|their|opponent'?s) (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:(?:<[^>]+>|≪[^≫]+≫) ?)*leaders?\b/, "leader"],
+  // Audit conditions 3: and a Z-Leader — "choose up to 1 of your red <Son Goku> **Z-Leaders**" (BT19-030): the Leader
+  // Area, where read as a Z-card in play a Z-Battle Card answered it.
+  [/(?<!non-)\bleader cards?\b|\b(?:your|their|opponent'?s) (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:(?:<[^>]+>|≪[^≫]+≫) ?)*(?:z-)?leaders?\b/, "leader"],
   [/\bbattle cards?\b/, "battle"],
   [/\bunison cards?\b|\bunisons\b/, "unison"],
   // 20-1-6: an unqualified "cards" means the Leader Area and the Battle Area.

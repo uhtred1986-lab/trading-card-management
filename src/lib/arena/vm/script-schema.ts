@@ -1416,6 +1416,8 @@ const AT_MOST: OpField = { name: "atMost", type: "number" };
 /** "2 or more", "no", "any" — the bound a counting condition puts on a number. */
 function bound(c: { atLeast?: number; atMost?: number }, most = "or fewer"): string {
   if (c.atMost === 0) return "no";
+  // Audit conditions 3: both bounds — "if this card has 1 marker" (EX19-21), "your Leader Card has 10000 power" (P-176).
+  if (c.atLeast != null && c.atMost != null) return c.atLeast === c.atMost ? `exactly ${c.atLeast}` : `${c.atLeast} to ${c.atMost}`;
   if (c.atLeast != null) return `${c.atLeast} or more`;
   if (c.atMost != null) return `${c.atMost} ${most}`;
   return "any";
@@ -1553,7 +1555,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [SEL, AT_LEAST, AT_MOST],
     sentence: (raw) => {
       const c = raw as CondOf<"markers">;
-      return `${describeSelector(c.sel)} has ${bound(c)} markers`;
+      return `${describeSelector(c.sel)} has ${bound(c)} marker${c.atLeast === 1 && c.atMost === 1 ? "" : "s"}`;
     },
   },
   inBattle: {
