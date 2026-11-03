@@ -18,6 +18,7 @@
  * (P-409, P-203); the removed area only from an area (Q&A BT27-094, 23-2-5-1).
  */
 import assert from "node:assert/strict";
+import { pendStandingPower } from "../../src/lib/arena/vm/host";
 import { CTX, DEFS, card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
@@ -384,6 +385,9 @@ for (const seat of ["p1", "p2"] as const) {
     stage(s, foe, "V-BLUE", "battle");
     const broly = stage(s, seat, "BROLY", "hand");
     const free = stage(s, seat, "FREE", "hand");
+    // Staging turns deck cards into the listener mid-game; in a game it is in the deck from the start and every
+    // checkpoint has looked (`pendStandingPower` looks only once some card can answer). Take that look now.
+    pendStandingPower(ctx, game, s, []);
     s = play(s, seat, broly);
     assert.equal(hand(s, seat), 1 + 2, `${seat}: D4: Broly played — two of theirs lowered, two moments (Q&A BT13-002)`);
     s = play(s, seat, free);

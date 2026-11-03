@@ -1154,8 +1154,9 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 {
   // The engine side of two of them: blocking is a moment of its own (22-4),
   // and the *other* player's cards see your Main Phase begin (7-3).
-  DEFS.WALL = { ...DEFS.BLOCKER, id: "WALL", name: "WALL", skill: "[Blocker]<br>[Auto] When this card activates [Blocker], draw 1 card." };
-  let s = stagedG({ battle: ["WALL"] });
+  // Its own id: the harness's WALL is the [Barrier] card later suites in the same run (workflow, #907) choose against.
+  DEFS["BLOCK-DRAW"] = { ...DEFS.BLOCKER, id: "BLOCK-DRAW", name: "BLOCK-DRAW", skill: "[Blocker]<br>[Auto] When this card activates [Blocker], draw 1 card." };
+  let s = stagedG({ battle: ["BLOCK-DRAW"] });
   const wall = zoneOf(s, "p1", "battle")[0];
   s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
   const hand = zoneOf(s, "p1", "hand").length;

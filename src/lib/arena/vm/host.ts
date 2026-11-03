@@ -990,6 +990,35 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 
+/** The moments a standing power change pends (`pendStandingPower`). */
+const STANDING_POWER_MOMENTS = ["powerRaisedBySkill", "yourCardPowerRaisedByYou", "powerLoweredBySkill", "yourCardPowerLowered", "opponentCardPowerLowered", "eitherCardPowerLowered", "opponentCardPowerLoweredByBattleCard"];
+const HEARS_POWER = new WeakMap<object, Map<string, boolean>>();
+/**
+ * Whether any card of the game (any zone, either side, either face) has a record that names a power-change moment —
+ * its own [Auto] or one it grants. A card with no record is read from its printed text at game time (`pendTriggers`),
+ * so its text is asked instead. Constant for a game's cards, so remembered per rules store and card.
+ */
+function powerMomentHeard(ctx: EngineContext, state: VmState): boolean {
+  const store = (ctx.scripts ?? ctx.defs) as object;
+  let seen = HEARS_POWER.get(store);
+  if (!seen) HEARS_POWER.set(store, (seen = new Map()));
+  for (const inst of Object.values(state.cards)) {
+    let hears = seen.get(inst.cardId);
+    if (hears === undefined) {
+      const def = ctx.defs[inst.cardId];
+      hears = [inst.cardId, `${inst.cardId}#back`].some((key, i) => {
+        const record = ctx.scripts?.[key];
+        if (record && Object.keys(record.bySkill).length) return STANDING_POWER_MOMENTS.some((m) => JSON.stringify(record).includes(`"${m}"`));
+        const text = (i === 0 ? def?.skill : def?.back?.skill) ?? "";
+        return /\bpower\b[^.]*\b(?:is|are|gets?) (?:increased|decreased|raised|lowered)\b|\bpower (?:is|are) (?:increased|decreased)/i.test(text);
+      });
+      seen.set(inst.cardId, hears);
+    }
+    if (hears) return true;
+  }
+  return false;
+}
+
 /**
  * Audit triggers 1 (R-132, Q&A BT13-002): a [Permanent]'s standing power change is a moment when it starts to apply —
  * playing SS4 Broly, whose [Permanent] lowers the opponent's Battle Cards' power, answers "when the power of one of your
@@ -999,6 +1028,13 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
  */
 export function pendStandingPower(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void {
   if (state.game !== "dbs") return;
+  // Integration 2: the standing changes are worked out only in a game where some card can answer one. With none, the
+  // last look is dropped, so the first look after a listener appears is a baseline, as after a load. (The look reads
+  // every static at every checkpoint: an attack preview read statics 152 times instead of 128, #801's budget.)
+  if (!powerMomentHeard(ctx, state)) {
+    delete state.standingPower;
+    return;
+  }
   const now = new Map<string, { source: string; master: PlayerId; target: string; n: number }>();
   for (const s of staticsNow(ctx, game, state)) {
     if (s.kind !== "power" || typeof s.value !== "number" || s.value === 0) continue;
