@@ -476,6 +476,9 @@ function alternativePlaces(phrase: string, looked?: string, pool?: string): Sele
 }
 
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
+  // Audit selectors 2: the offer is not an owner — "**you may** choose 1 ≪Villainous≫ card and place it in its owner's
+  // Drop" (P-435) names no one's cards, as the same words without the offer do (R-205).
+  if (/^\s*(?:you may|you can) choose\b/i.test(phrase)) return parseTarget(phrase.replace(/^\s*(?:you may|you can) /i, ""), looked, pool);
   // "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
   // deck flags 26 Oct 2026): the words were read as nothing, so the player
   // picked the cards. The official Q&A: chosen "without player involvement".
@@ -1083,7 +1086,9 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // "Choose 1 of your <Majin Buu>" names no area, but 20-1-6 says an
   // unqualified card is one on the table. Without this the choice fails, and
   // then every later "it" in the same skill has nothing to point at.
-  if (!allAreas && !area && !fromVar && filterFor(phrase, null)) area = "play";
+  // (Audit selectors 2: whether the area is that default — the phrase named no place at all — for R-205 below.)
+  const onTable = !allAreas && !area && !fromVar && !!filterFor(phrase, null);
+  if (onTable) area = "play";
   if (!allAreas && !area && !fromVar && eitherPlayers) area = "play";
   // "You have a Hidden Mode card" (BT29-112) names no area, and a card is in
   // Hidden Mode only where it has that position at all (1-10-2): the Battle,
@@ -1102,11 +1107,13 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // where a Battle Card or a Unison is, not whose; read as the caster's alone, Hachimaru's -5000 could only hit your
   // own cards. Only the areas in play: a hand, deck, Drop or life names its owner when it means one.
   const unowned = !/\byour\b|\btheir\b|\bopponent\b|\byou control\b|\bplayers?'?s?\b/.test(chosen.replace(/\btheir owners?'?s?\b/g, " "));
-  // A card type names the area ("Battle Card", "Unison", "Leader Card"), or "in play" is printed. A bare name or trait
-  // ("up to 1 <Kale> card") falls to 20-1-6's "on the table" and stays the caster's for now: "choose up to 1 <Kale> card
-  // and 1 <Caulifla> card … in your hand" (BT7-075) arrives here as its first half with the place cut off, and read as
-  // either player's that misread would reach the opponent's board (the two-named search, not built yet).
-  const inPlayOnly = (pair ?? (area ? [area] : [])).every((a) => a === "battle" || a === "unison" || a === "leader" || (a === "play" && /\bin play\b|\bbattle cards?\b|\bunisons?\b|\bleaders?\b/.test(t)));
+  // A card type names the area ("Battle Card", "Unison", "Leader Card"), or "in play" is printed — or (audit selectors 2)
+  // nothing names a place at all: a bare name or trait ("choose 1 ≪Villainous≫ card and place it in its owner's Drop",
+  // P-435) is 20-1-6's card on the table, and the table is both players'. Until then the two-named search ("choose up to
+  // 1 <Kale> card and 1 <Caulifla> card … in your hand", BT7-075) reached here as its first half with the place cut off;
+  // it is read whole now (`named-set-shape.ts`), and a list whose later half names a place the first half lacks is
+  // refused where it is read (`compileClauseRead`'s bare continuation).
+  const inPlayOnly = (pair ?? (area ? [area] : [])).every((a) => a === "battle" || a === "unison" || a === "leader" || (a === "play" && (onTable || /\bin play\b|\bbattle cards?\b|\bunisons?\b|\bleaders?\b/.test(t))));
   // A choice only: the phrase starts with its count ("up to 1 …", "1 …"). The same grammar reads a condition's cards
   // ("if <Pan> is in your Battle Area") and a cost change's, whose owner is said around the phrase, not in it.
   const counted = /^(?:choose )?(?:up to )?\d+\b(?! or more\b)/.test(t.trim());

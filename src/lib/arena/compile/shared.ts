@@ -161,6 +161,16 @@ export interface Ctx {
   /** The op the previous clause produced, for wordings that restate it. */
   lastOp: string | null;
   /**
+   * Audit selectors 2: the cards one choice list chose, in order — "choose up to 1 of your opponent's Battle Cards **and**
+   * up to 1 card in your opponent's hand" (BT18-144) is two `choose`s, one per description. A plural pronoun after it
+   * ("…and place **them** at the bottom", "**they** get +5000 power", "**the chosen cards** can't …") is every card of
+   * the list, and `compileClause` makes the clause's act once per card (`groupHit`). Read as the last choice alone, the
+   * first card was chosen and then left where it was.
+   */
+  group?: string[];
+  /** Set by `refFor` while a clause is read, when a plural pronoun answered with `group`. */
+  groupHit?: string[];
+  /**
    * Set by "if this card would leave the Battle Area": the *next* clause says
    * where it goes instead, so it becomes a replacement rather than a move
    * (9-10).

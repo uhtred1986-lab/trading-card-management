@@ -474,7 +474,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
         return `${choose} exactly ${describeAmount(op.exactly)} of ${cards}`;
       }
-      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
+      // Audit selectors 2: a blind choice (the opponent's hand or face-down Life) is made without seeing the cards, and
+      // the reading says so.
+      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {}) + (op.blind ? ", without seeing them" : "");
     },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
@@ -3023,6 +3025,9 @@ function describeUnderHost(sel: Selector): string {
   // "Your <Son Goku> Battle Card": the type word, now kept in the Battle Area
   // (`selectorWords`), already is the noun.
   if (kind === "card" && /\bbattle card$/.test(words)) return `${who}${words}`;
+  // Audit selectors 2: "your {Spaceship, Vessel of Hope} unison card" — the type word the words already end on is the
+  // noun (it read "unison card unison card", BT17-010).
+  if (words.endsWith(kind)) return `${who}${words}`;
   return `${who}${words ? `${words} ` : ""}${kind}`;
 }
 

@@ -43,6 +43,15 @@ export function compileNamedSet(clause: string, c: Ctx): Op[] | null | undefined
   const same = (a: Selector) => a.side === first.side && JSON.stringify(a.areas ?? a.area) === JSON.stringify(first.areas ?? first.area);
   if (!selectors.every(same)) return null;
   const vars = selectors.map(() => `c${c.n++}`);
+  // Audit selectors 2: what is done to "them" afterwards is done to every card of the list (`Ctx.group`).
+  c.group = vars;
+  // Audit selectors 2: a bare choice of the pair (EX06-02, BT5-016, BT7-031) — each a card of its own; the clauses after
+  // it act on them. A pair played (BT12-138's "play 1 <A> … and 1 <B> …") is chosen first and played after, as the
+  // "up to" plays are.
+  if (words.dest === "none" || (words.required && words.dest === "battle")) {
+    const chooses: Op[] = selectors.map((sel, i) => ({ op: "choose", sel: { ...sel, ...(i ? { notIn: vars.slice(0, i) } : {}) }, as: vars[i], reason: `${words.slots[i]} from ${words.source}` }));
+    return words.dest === "none" ? chooses : [...chooses, ...vars.map((v): Op => ({ op: "play", target: { var: v } }))];
+  }
   // #930: "1 each of <A> and <B>" is a required card per name. Each is chosen
   // and placed under this card before the next is asked, so the next one can
   // never be the same physical card (it has left the source), and a price made

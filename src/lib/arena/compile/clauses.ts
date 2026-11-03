@@ -254,6 +254,13 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
     if (dashes >= 2 && dashes % 2 === 0 && ASIDE_DASH.test(text)) {
       inAside = !inAside;
       i = ASIDE_DASH.lastIndex - 1;
+      // Audit selectors 2: "…and up to 1 of their Battle Cards—all ignoring [barrier]—**and place them** into their
+      // owner's Drop" (BT30-150): an "and" straight after the closing dash opens the next clause. Kept on, the move was
+      // read as part of the last card's description, and dropped.
+      if (!inAside && depth === 0 && /^and (?:place|put|send|return|switch|ko|negate|add|play|remove|discard)\b/i.test(text.slice(i + 1))) {
+        push(i + 1, 4, true);
+        i += 3;
+      }
       continue;
     }
     if (inAside) continue;
@@ -284,6 +291,8 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
         // predicate. The effect reader validates the whole pair (#910).
         !(/^this card (?:can't|cannot) attack$/i.test(text.slice(start, i).trim()) && /^ and gains?\s/i.test(text.slice(i))) &&
         !text.startsWith(" and [", i) &&
+        // Audit selectors 2: "…with energy costs of 1 **and 2 respectively**" (BT15-115) is one list of costs.
+        !/^ and \d+ respectively\b/i.test(text.slice(i)) &&
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
         // (Phrasing batch 3: "…without [barrier] **and with** an energy cost of 4" (BT15-015) joins too. Phrasing batch
         // 4: so does the "and with" of a "-both multicolor and with …-" aside (P-711): the owner ruled on 26 Oct 2026

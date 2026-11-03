@@ -54,7 +54,45 @@ export function compileSkill(skill: Skill): Script {
   // compiled as the skill it quotes; its record is the grant's program (which
   // says for itself when the granted [Auto]'s moment is not read).
   if (skill.granted) return compileQuotedSkill(skill.granted.skill);
-  return attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))));
+  return opponentHandUnseen(attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill)))));
+}
+
+/**
+ * Audit selectors 2 (round-1 doubt): "choose up to 1 card **in your opponent's hand** or up to 1 of their Battle Cards"
+ * (BT13-146, BT15-063, TB1-052, BT17-065, BT3-063…): a hand is a secret area (3-1-3), and nothing in these skills
+ * looks at it, so the cards are picked unseen — offered by position (`blind`), as the opponent's face-down Life is
+ * (#916). Without it the prompt laid the opponent's hand open to the chooser. A choice the opponent makes of their own
+ * hand, a choice out of a look ("look at your opponent's hand, choose 1 card in it", `fromVar`), one after the program
+ * looked at or revealed that hand, and one that asks something of the card (a filter only a seen card can be measured
+ * by) are left as they are.
+ */
+function opponentHandUnseen(script: Script): Script {
+  if (script.unsupported.length) return script;
+  let seen = false;
+  let changed = false;
+  const handOf = (sel: Selector | undefined) => !!sel && sel.side === "opponent" && (sel.area === "hand" || !!sel.areas?.includes("hand"));
+  // A card type is no measure of a hidden card's face ("1 of their Battle Cards" names an area); anything else is.
+  const blank = emptyFilter() as unknown as Record<string, unknown>;
+  const plain = (sel: Selector) => !sel.filter || Object.entries(sel.filter).every(([k, v]) => k === "type" || v === undefined || JSON.stringify(v) === JSON.stringify(blank[k]));
+  const walk = (ops: readonly Op[]): Op[] =>
+    ops.map((o): Op => {
+      if ((o.op === "look" && o.side === "opponent" && o.area === "hand") || (o.op === "reveal" && handOf(o.sel))) seen = true;
+      // (A choice of all of them — "the rest of their hand" — and one at random pick no card by sight.)
+      if (o.op === "choose" && !seen && !o.blind && !o.chooser && !o.sel.fromVar && !o.sel.special && !o.sel.atRandom && (o.sel.count ?? 1) < 99) {
+        const parts = [o.sel, ...(o.sel.alsoFrom ?? [])];
+        const hand = parts.filter((p) => handOf({ ...p, side: p.side ?? o.sel.side }));
+        if (hand.length && hand.every(plain)) {
+          changed = true;
+          return { ...o, blind: true };
+        }
+      }
+      if (o.op === "if") return { ...o, then: walk(o.then), ...(o.else ? { else: walk(o.else) } : {}) };
+      if (o.op === "may" || o.op === "delay") return { ...o, ops: walk(o.ops) };
+      if (o.op === "chooseMode") return { ...o, modes: o.modes.map((m) => ({ ...m, ops: walk(m.ops) })) };
+      return o;
+    });
+  const ops = walk(script.ops);
+  return changed ? { ...script, ops } : script;
 }
 
 /**
