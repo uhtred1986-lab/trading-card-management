@@ -16,6 +16,10 @@
  * F.  Offers: a one-card offer's sentence (R-322: SD9-05, P-129; BT15-061 not), "you may choose that card" (DB2-023,
  *     DB1-020), the [Awaken] life step (R-320: P-434, SD14-01).
  * G.  Replacements: "a … card" (BT12-056), "you may place this card … instead" a substitute (BT19-136).
+ * H.  The review's repairs: P-129's one gate, a Battle Card's [Counter: Attack] (DB3-129 — VM), [Blocker] against one
+ *     card's attack (DB3-014, DB3-023 — VM), skills on Battle Cards in a Battle Area (P-093 — VM), the host's description
+ *     (BT18-008), all of the chosen cards (BT21-118), control of a Unison unread (BT14-153, BT23-139), Active or Rest
+ *     Mode (P-645); "in all areas" both players' is R-323 (P-268).
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where an engine path moved (B, C).
@@ -27,7 +31,7 @@ import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
-import { attrsNow, staticsNow } from "../../src/lib/arena/vm/program";
+import { attrsNow, forbids, staticsNow } from "../../src/lib/arena/vm/program";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import { correctSkillText } from "../../src/lib/catalog/errata";
 import type { Op, Selector } from "../../src/lib/arena/vm/script";
@@ -113,7 +117,7 @@ let records = 0;
   const swapNext = opOf(record("[Activate: Main][Once per turn] If you have 4 or more energy: Draw 1 card, and the next time you activate a [Swap] skill on a ≪Goku's Lineage≫ card with an energy cost of 5 during this turn, reduce the skill cost by {y}.", "AS3-BT26-092").ops, "costReduction")[0];
   assert.equal(selOf(swapNext).side, "you", "C1 — one card of yours, whose activation it is");
   const u9 = opOf(record("[Permanent] Treat ≪Universe 9≫ cards in all areas as if they have no specified cost.", "AS3-P-268", { type: "LEADER" }).ops, "costReduction")[0];
-  assert.equal(selOf(u9).side, "both", "C2 — in all areas, both players'");
+  assert.equal(selOf(u9).side, "both", "C2 — in all areas, both players' (R-323, pending)");
   assert.equal(selOf(u9).areas?.length, 12);
   const kale = opOf(record("[auto] When a card evolves into this card, choose all Battle Cards with 25000 or less power other than this card or your <Caulifla>, and KO them.", "AS3-TB1-015").ops, "choose")[0];
   assert.equal(kale.sel.side, "opponent", "C3 — the opponent's cards as described");
@@ -225,6 +229,50 @@ let records = 0;
   assert.ok(sub.optional);
 }
 
+// ── H. the review's repairs ─────────────────────────────────────────────────
+{
+  // H1: P-129's offer — one gate over the rest of the sentence, the switch of the energy it chose inside it.
+  const ghost = record("[Auto] When your opponent attacks with a card, you may choose 1 yellow card in your hand and place it in your Drop Area, choose 1 of your yellow energy and switch it to Rest Mode, and place this card in its owner's Drop Area. If you do, negate the attack.", "AS3-H-P129", { type: "EXTRA" });
+  const gate = ghost.ops.find((o) => o.op === "if" && o.then.some((x) => x.op === "choose")) as Extract<Op, { op: "if" }>;
+  assert.deepEqual(gate.then.map((o) => o.op), ["choose", "switchMode", "moveTo"], "H1 — the energy chosen, switched and this card dropped under one gate");
+  // H2: DB3-129 — the counter answered when it is a Battle Card's [Counter: Attack].
+  const stop = record("[Counter: Counter] If your Leader Card is red and you choose 1 red card in your hand and discard it: Negate the Battle Card's [Counter: Attack] skill, then switch up to 1 of your blue energy to Active Mode at the end of the turn.", "AS3-H-DB3129", { type: "EXTRA" });
+  const answered = opOf(stop.ops, "if").find((o) => o.cond.kind === "countering");
+  assert.deepEqual(answered?.cond, { kind: "countering", what: "attack", of: "BATTLE" }, "H2 — a Battle Card's [Counter: Attack]");
+  assert.equal(opOf(stop.ops, "negateSkillsOfKind").length, 0, "H2 — not the [Counter] skills of a Battle Card of yours");
+  // H3: the [Blocker] ban of one card's attack (DB3-014's [Permanent], DB3-023's chosen card).
+  const own = opOf(record("[Permanent] If your Leader Card is red, your opponent can't activate [Blocker] skills in response to this card's attack.", "AS3-H-DB3014").ops, "forbid")[0];
+  assert.deepEqual(own.attacker, { sel: { special: "self" } }, "H3 — this card's attack only");
+  const chosen = record("[Activate: Main] If your Leader Card is red: Draw 1 card, then choose 1 of your red cards and your opponent can't activate [Blocker] skills in response to that card's attack for the turn.", "AS3-H-DB3023");
+  const lock = opOf(chosen.ops, "forbid")[0];
+  assert.deepEqual(lock.attacker, { var: opOf(chosen.ops, "choose")[0].as }, "H3 — the chosen card's attack only");
+  assert.equal(lock.until, "turn");
+  // H4: P-093 — a Battle Card is one in a Battle Area (Q&A: the Drop's skills and combo [Auto]s still work); "in any Area" stays every area.
+  const ban = opOf(record("[auto] [sparking 10] (This skill takes effect when you have 10 or more cards in your Drop Area.) When a card evolves into this card, your opponent can't activate skills on Battle Cards for the duration of the turn.", "AS3-H-P093").ops, "forbid");
+  assert.equal(ban.find((o) => o.what === "activateSkill")?.fromArea, "battle", "H4 — the skills of Battle Cards in a Battle Area");
+  assert.ok(ban.some((o) => o.what === "activateCounter") && ban.some((o) => o.what === "block"), "H4 — [Counter] lines and [Blocker] stay A2's");
+  // H5: BT18-008 — "the Z-Battle Card" is the one this card was placed under.
+  const pan = record("[Auto] If your Leader is a <Pan> card: When this card is placed under one of your Z-Battle Cards, the Z-Battle Card gets +5000 power for the turn.", "AS3-H-BT18008");
+  assert.equal(selOf(opOf(pan.ops, "power")[0]).special, "onTop", "H5 — the card on top of this one, not every Z-Battle Card");
+  // H6: BT21-118 — "all of the chosen cards" is the price's two energy and the effect's <Vegeta>, under names of their own.
+  const vegeta = skillRecords(card("AS3-H-BT21118", { skill: "[activate: main][limit 1] If you have 3 or more energy, you choose 2 of your energy in Rest Mode, and you place this card in your Drop: Choose up to 1 of your yellow <Vegeta> cards with an energy cost of 2, switch it to Active Mode, and all of the chosen cards will not switch to Active Mode during your next Charge Phase." }))[0];
+  assert.deepEqual(vegeta.unread, []);
+  const priceVar = (vegeta.cost?.program ?? []).find((o) => o.op === "choose")?.as;
+  const locked = opOf(vegeta.ops as Op[], "forbid").map((o) => (o.target as { var: string }).var);
+  assert.ok(priceVar && locked.includes(priceVar) && locked.includes(opOf(vegeta.ops as Op[], "choose")[0].as) && new Set(locked).size === 2, `H6 — the price's energy and the <Vegeta> (${JSON.stringify(locked)} / ${priceVar})`);
+  // H7: control of a Unison is not a thing the engine does — unread rather than a Unison landing in the Battle Area.
+  for (const text of ["[auto][spirit boost 2] When this card is played from your hand, choose 1 of your opponent's Unison Cards and gain control of it.", "[Activate: Main] Choose up to 1 of your opponent's Battle Cards or Unisons and switch it to Active Mode, then gain control of it."]) {
+    const rec = skillRecords(card("AS3-H-UNICTRL", { skill: text }))[0];
+    assert.ok(rec.unread.some((u) => /gain control of it/.test(u)), `H7 — unread: ${rec.reads}`);
+  }
+  assert.deepEqual(record("[auto] When this card is played, choose up to 1 of your opponent's Battle Cards and gain control of it.", "AS3-H-CTRL").ops.map((o) => o.op), ["choose", "moveTo"], "H7 — a Battle Card's control stays read");
+  // H8: P-645 — "in Active Mode or Rest Mode" is the player's pick of the play, not the host's mode.
+  const buu = record("[Auto][Limit 1] If your Leader is a green <Majin Buu> card and you have 3 or more energy: When this card is played, draw 1 card, play up to 1 {Majin Buu, Unadulterated Destruction} from under your green <Majin Buu> card in Active Mode or Rest Mode, and it gains [Double Strike] for the turn.", "AS3-H-P645");
+  const both = opOf(buu.ops, "chooseMode")[0];
+  assert.deepEqual(both.modes.map((m) => (m.ops[0] as Extract<Op, { op: "play" }>).mode ?? "active"), ["active", "rest"], "H8 — Active or Rest, the player's pick");
+  assert.equal(opOf(buu.ops, "choose")[0].sel.underHost?.mode, undefined, "H8 — the host's mode is not asked");
+}
+
 // ── the VM ──────────────────────────────────────────────────────────────────
 const vmDefs: Record<string, CardDef> = {
   ...CTX.defs,
@@ -234,6 +282,14 @@ const vmDefs: Record<string, CardDef> = {
   "AS3-SWEEP": card("AS3-SWEEP", { power: 30000, skill: "[Activate: Main] Choose all Battle Cards with 25000 or less power other than this card or your <AS3 Caulifla>, and KO them." }),
   "AS3-CAUL": card("AS3-CAUL", { characters: ["AS3 Caulifla"], power: 10000 }),
   "AS3-SMALL": card("AS3-SMALL", { power: 10000 }),
+  // H: the review's repairs, in play.
+  "AS3-NOBLOCK": card("AS3-NOBLOCK", { skill: "[Permanent] Your opponent can't activate [Blocker] skills in response to this card's attack." }),
+  "AS3-PICKNOBLOCK": card("AS3-PICKNOBLOCK", { skill: "[Activate: Main] Choose 1 of your Battle Cards and your opponent can't activate [Blocker] skills in response to that card's attack for the turn." }),
+  "AS3-WALL": card("AS3-WALL", { power: 5000, skill: "[Blocker]" }),
+  "AS3-CATK": card("AS3-CATK", { type: "EXTRA", power: null, comboCost: null, comboPower: null, skill: "[Counter: Attack] Negate the attack." }),
+  "AS3-BCATK": card("AS3-BCATK", { skill: "[Counter: Attack] Negate the attack." }),
+  "AS3-STOPBC": card("AS3-STOPBC", { type: "EXTRA", power: null, comboCost: null, comboPower: null, skill: "[Counter: Counter] Negate the Battle Card's [Counter: Attack] skill." }),
+  "AS3-SKILLBAN": card("AS3-SKILLBAN", { skill: "[Activate: Main] Your opponent can't activate skills on Battle Cards for the turn." }),
 };
 const vmRows = Object.values(vmDefs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs: vmDefs, scripts: rulesFromRows(roundtrip(vmRows), vmDefs) };
@@ -281,6 +337,16 @@ function settle(s0: VmState, pick: (q: Extract<Prompt, { kind: "chooseCards" }>)
   assert.equal(s.prompt.kind, "main", "settled");
   return s;
 }
+/** The [Blocker]s offered against an attack on the opponent's Leader by `attacker` (counters passed). */
+function blockersFor(s0: VmState, attacker: string): string[] {
+  const seat = s0.turnPlayer;
+  let s = take(s0, { type: "attack", player: seat, attacker, target: s0.sides[other(seat)].zones.leader[0] } as Action);
+  for (let i = 0; i < 20 && s.prompt.kind !== "blocker" && s.prompt.kind !== "main"; i++) {
+    const q = s.prompt as { kind: string; player: PlayerId };
+    s = take(s, q.kind === "counter" ? ({ type: "counter", player: q.player, card: null } as Action) : ({ type: "pass", player: q.player } as Action));
+  }
+  return s.prompt.kind === "blocker" ? [...s.prompt.candidates] : [];
+}
 let cases = 0;
 for (const seat of ["p1", "p2"] as const) {
   const foe = other(seat);
@@ -323,6 +389,61 @@ for (const seat of ["p1", "p2"] as const) {
     assert.ok(s.sides[seat].zones.battle.includes(mine), `${seat}: C3 — your <Caulifla> is spared`);
     assert.ok(s.sides[seat].zones.battle.includes(me), `${seat}: C3 — this card is spared`);
     for (const id of [mySmall, theirs, theirSmall]) assert.ok(s.sides[seat].zones.drop.includes(id) || s.sides[foe].zones.drop.includes(id), `${seat}: C3 — ${s.cards[id].cardId} KO'd`);
+    cases++;
+  }
+  // H3: "…can't activate [Blocker] skills in response to this card's attack" — that card's attack, no other.
+  {
+    const s = fresh(seat, 61300 + (seat === "p1" ? 0 : 1));
+    const me = stage(s, seat, "AS3-NOBLOCK", "battle");
+    const plain = stage(s, seat, "AS3-SMALL", "battle");
+    const wall = stage(s, foe, "AS3-WALL", "battle");
+    assert.deepEqual(blockersFor(s, me), [], `${seat}: H3 — no [Blocker] against this card's attack`);
+    assert.deepEqual(blockersFor(s, plain), [wall], `${seat}: H3 — …and the other card's attack can be blocked`);
+    cases++;
+  }
+  // H3: "…in response to that card's attack for the turn" — the chosen card's.
+  {
+    let s = fresh(seat, 61400 + (seat === "p1" ? 0 : 1));
+    const me = stage(s, seat, "AS3-PICKNOBLOCK", "battle");
+    const picked = stage(s, seat, "AS3-SMALL", "battle");
+    const wall = stage(s, foe, "AS3-WALL", "battle");
+    const offer = RULES.legalActions(ctx, s).find((l) => (l.action as { card?: string }).card === me && l.action.type === "activate");
+    assert.ok(offer, `${seat}: H3 — offered`);
+    s = settle(take(s, offer.action), () => [picked]);
+    assert.deepEqual(blockersFor(s, picked), [], `${seat}: H3 — the chosen card's attack can't be blocked`);
+    assert.deepEqual(blockersFor(s, me), [wall], `${seat}: H3 — …another's can`);
+    cases++;
+  }
+  // H2: "Negate the Battle Card's [Counter: Attack] skill" — a Battle Card's counter negated (the attack hits), an
+  // Extra's left standing (the attack is negated).
+  for (const [answer, negated] of [["AS3-BCATK", true], ["AS3-CATK", false]] as const) {
+    let s = fresh(seat, 61500 + (seat === "p1" ? 0 : 1) + (negated ? 0 : 10));
+    for (let i = 0; i < 2; i++) stage(s, seat, "V1", "energy");
+    for (let i = 0; i < 2; i++) stage(s, foe, "V1", "energy");
+    const counter = stage(s, foe, answer, "hand");
+    const stop = stage(s, seat, "AS3-STOPBC", "hand");
+    const lifeBefore = s.sides[foe].zones.life.length;
+    s = take(s, { type: "attack", player: seat, attacker: s.sides[seat].zones.leader[0], target: s.sides[foe].zones.leader[0] } as Action);
+    assert.equal(s.prompt.kind, "counter", `${seat}: H2 — the attack window`);
+    s = take(s, { type: "counter", player: foe, card: counter } as Action);
+    assert.equal(s.prompt.kind, "counter", `${seat}: H2 — the [Counter: Counter] window`);
+    s = take(s, { type: "counter", player: seat, card: stop } as Action);
+    s = settle(s, (q) => q.choice.candidates.slice(0, 1));
+    if (negated) assert.ok(s.sides[foe].zones.life.length < lifeBefore, `${seat}: H2 — the Battle Card's [Counter: Attack] negated, the attack hit`);
+    else assert.equal(s.sides[foe].zones.life.length, lifeBefore, `${seat}: H2 — an Extra's [Counter: Attack] is not the Battle Card's: the attack was negated`);
+    cases++;
+  }
+  // H4: "…can't activate skills on Battle Cards" — the ones in a Battle Area (Q&A P-093), not a Battle Card in the Drop.
+  {
+    let s = fresh(seat, 61600 + (seat === "p1" ? 0 : 1));
+    const me = stage(s, seat, "AS3-SKILLBAN", "battle");
+    const inPlay = stage(s, foe, "AS3-PICKNOBLOCK", "battle");
+    const inDrop = stage(s, foe, "AS3-PICKNOBLOCK", "drop");
+    const offer = RULES.legalActions(ctx, s).find((l) => (l.action as { card?: string }).card === me && l.action.type === "activate");
+    assert.ok(offer, `${seat}: H4 — offered`);
+    s = settle(take(s, offer.action), (q) => q.choice.candidates);
+    assert.ok(forbids(ctx, game, s, "activateSkill", { player: foe, card: inPlay }), `${seat}: H4 — a Battle Card in the Battle Area is banned`);
+    assert.ok(!forbids(ctx, game, s, "activateSkill", { player: foe, card: inDrop }), `${seat}: H4 — …one in the Drop is not`);
     cases++;
   }
 }

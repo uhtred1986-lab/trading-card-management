@@ -566,9 +566,10 @@ export type Cond =
   | { kind: "leaderFlipped"; side?: Side; flipped?: boolean }
   /**
    * Mechanism batch 3 (22-10-8): "Negate the [Counter: Attack] skill" on a [Counter: Counter] (EX09-06, BT12-153,
-   * BT16-043) — the [Counter] this one answers is of that kind. False when no counter is being answered.
+   * BT16-043) — the [Counter] this one answers is of that kind. False when no counter is being answered. `of` (review of
+   * audit selectors 3): "Negate **the Battle Card's** [Counter: Attack] skill" (DB3-129) — and on a card of that type.
    */
-  | { kind: "countering"; what: "attack" | "play" | "counter" }
+  | { kind: "countering"; what: "attack" | "play" | "counter"; of?: "LEADER" | "BATTLE" | "EXTRA" | "UNISON" }
   /** "If this card's power is 30000 or more" — any of the selected cards, as it stands now. */
   | { kind: "power"; sel: Selector; atLeast?: number; atMost?: number }
   /** "If you added a card to your hand", "if you played a card" — whether an earlier step of this same skill did that. */
@@ -1308,6 +1309,11 @@ export type Op =
       attackOnly?: Ref;
       /** "…can't attack **this card**" (BT15-122): the only defenders the rule forbids an attack against (`Prohibition.against`). */
       against?: Ref;
+      /**
+       * `block` only (review of audit selectors 3): "…can't activate [Blocker] skills **in response to this card's attack**"
+       * (DB3-014), "…to **that card's** attack" (DB3-023) — only a block of an attack by these cards (`Prohibition.attacker`).
+       */
+      attacker?: Ref;
       /** "…from the Battle Area", "…from your hand" (`Prohibition.fromArea`). */
       fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "under" | "any";
       fromOwnArea?: true;
@@ -3733,7 +3739,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               kind: "forbid",
               value: 0,
               until: op.until,
-              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}), ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
+              forbid: { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}), ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}), ...(op.attacker ? { attacker: h.resolveRef(frame, op.attacker) } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(op.uses != null ? { uses: h.amount(frame, op.uses) } : {}), ...(op.unless ? { unless: op.unless, master: frame.master, ...escapeVars(op.unless, frame) } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: sideOf(master, op.cardsOf)[0] } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: h.resolveRef(frame, op.exceptCards) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}), ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}), ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}), player: players[0] },
             });
           break;
         }
@@ -3749,6 +3755,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}),
             ...(op.attackOnly ? { attackOnly: h.resolveRef(frame, op.attackOnly) } : {}),
             ...(op.against ? { against: h.resolveRef(frame, op.against) } : {}),
+            ...(op.attacker ? { attacker: h.resolveRef(frame, op.attacker) } : {}),
             ...(op.fromArea ? { fromArea: op.fromArea } : {}),
             ...(op.fromOwnArea ? { fromOwnArea: true } : {}),
             ...(op.bySkill !== undefined ? { bySkill: op.bySkill } : {}),

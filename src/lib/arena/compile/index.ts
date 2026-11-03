@@ -1046,6 +1046,15 @@ function compileSkillText(skill: Skill): Script {
       if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
     }
   }
+  // Review of audit selectors 3: "…and **all of the chosen cards** will not switch to Active Mode" (BT21-118) names the
+  // price's cards beside the effect's own choice, so the effect's names start past the price's — read with both called
+  // "c0", the effect's choice rebound the name and the two energy were lost.
+  if (c.priceChosen.length && /\ball (?:of )?the chosen cards\b/i.test(text)) {
+    for (const v of c.priceChosen) {
+      const at = /^c(\d+)$/.exec(v);
+      if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
+    }
+  }
   // Audit-selectors-1 review: "the card that was sent to the Warp by this skill" (BT7-080) after a price that sent this card there.
   if (priceOps.some((p) => p.op === "moveTo" && p.to === "warp" && "sel" in p.target && p.target.sel.special === "self")) c.priceSentSelfToWarp = true;
   // "The revealed card" (#930, EX13-14 / SD19-03) is what the price revealed.
@@ -1156,6 +1165,9 @@ function compileSkillText(skill: Skill): Script {
       const host = filterFor(under[1], null);
       if (host === null) return { ops: [], unsupported: [trigger, ...clauses] };
       if (host) triggerCond = { kind: "count", sel: { special: "onTop", filter: host }, atLeast: 1 };
+      // Review of audit selectors 3: "…placed under one of your Z-Battle Cards, **the Z-Battle Card** gets +5000 power
+      // and the following skill" (BT18-008) — the definite description is that host (`refFor`, `Ctx.hostAbove`).
+      if (host) c.hostAbove = host;
     }
     // "When this card attacks during the turn you played it with [Over Realm]"
     // (P-048, 22-15): the moment is the attack, and the rest of the sentence is

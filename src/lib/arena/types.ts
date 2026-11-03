@@ -494,6 +494,12 @@ export interface Prohibition {
    */
   against?: string[];
   /**
+   * Blocks only (review of audit selectors 3): the attackers (resolved when the rule is read) whose attack the rule
+   * forbids blocking — "your opponent can't activate [Blocker] skills in response to **this card's attack**" (DB3-014).
+   * A block of any other attack is not this rule's. Asked with no attacker it applies.
+   */
+  attacker?: string[];
+  /**
    * The area the card the rule is about is used or moved **from**: "can't be
    * used in a combo **from the Battle Area**" (EB1-21), "you can't use cards
    * **from your hand** in combos" (BT14-152), "can't play Battle Cards … **from

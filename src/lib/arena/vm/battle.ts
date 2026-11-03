@@ -1374,7 +1374,7 @@ function blockerCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
   const b = state.battle;
   if (!b) return [];
   return (state.sides[defender].zones.battle ?? []).filter(
-    (id) => id !== b.guard && state.cards[id]?.mode === "active" && hasKeyword(ctx, game, state, id, "Blocker") && !forbids(ctx, game, state, "block", { player: defender, card: id }),
+    (id) => id !== b.guard && state.cards[id]?.mode === "active" && hasKeyword(ctx, game, state, id, "Blocker") && !forbids(ctx, game, state, "block", { player: defender, card: id, attacker: b.attacker }),
   );
 }
 
@@ -1957,7 +1957,7 @@ export function battleRejectedActions(ctx: EngineContext, game: GameDefinition, 
     const why: Requirement[] = [];
     if (b && id === b.guard) why.push({ kind: "other", detail: "it is the card being attacked" });
     if (state.cards[id].mode !== "active") why.push(modeWhy(ctx, game, state, id));
-    const banned = forbiddenBy(ctx, game, state, "block", { player: p, card: id });
+    const banned = forbiddenBy(ctx, game, state, "block", { player: p, card: id, ...(b ? { attacker: b.attacker } : {}) });
     if (banned) why.push({ kind: "forbidden", ...banned });
     push({ action: { type: "block", player: p, card: id }, label: `Block with ${nameOf(ctx, state, id)}`, why });
   }
