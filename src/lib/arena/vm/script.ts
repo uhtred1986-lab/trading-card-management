@@ -545,8 +545,10 @@ export type Cond =
    * ends or the card changes area (3-1-4).
    * Audit conditions 2: `played` is "it's the turn when this card was played" (BT23-040) — a successful play this turn
    * (`VmCard.playedThisTurn`), not a skill's placement.
+   * Audit conditions 3: with `from`, the play was made from one of those areas — "Additionally, if this card was played
+   * from a Drop" (BT31-050), asked by the [Auto] its play triggered (`VmCard.playedFrom`).
    */
-  | { kind: "placedThisTurn"; sel: Selector; played?: true }
+  | { kind: "placedThisTurn"; sel: Selector; played?: true; from?: ScriptArea[] }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a

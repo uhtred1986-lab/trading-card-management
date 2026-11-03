@@ -437,6 +437,11 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Audit conditions 2: "…**and it's the turn when this card was played**: When this card attacks" (BT23-040): the card
   // was played this turn (`placedThisTurn` with `played`) — a play, not a skill's placement.
   if (/^it'?s the turn (?:when|in which) (?:this card|it) was played$/.test(t.replace(/’/g, "'"))) return { cond: { kind: "placedThisTurn", sel: { special: "self" }, played: true } };
+  // Audit conditions 3: "…Additionally, if this card **was played from a Drop**" (BT31-050, BT31-045, BT31-044, BT31-047):
+  // the play this card's [Auto] answers came out of a Drop Area — the copy's memory of where it was played from this turn.
+  if ((m = /^(?:additionally,? )?(?:this card|it) was played from (?:a|the|your|your opponent'?s) (drop|hand|warp|deck)(?: area)?$/.exec(t))) {
+    return { cond: { kind: "placedThisTurn", sel: { special: "self" }, played: true, from: [m[1] as ScriptArea] }, subject: { sel: { special: "self" } } };
+  }
   // EX04-04 (prohibition batch 6): "if you played this card with [evolve]" —
   // the copy entered by an evolution of any kind (22-5-2-2), while it stays.
   if (/^(?:you played (?:this card|it)|(?:this card|it) was played) (?:using|with|by) (?:an? |the )?\[evolve\](?: skill)?$/.test(t)) {

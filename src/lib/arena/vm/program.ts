@@ -1972,7 +1972,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // BT15-118's "a turn in which this card was placed in a Battle Area"
     // (5-5-4): the card's memory of arriving (`VmCard.placedThisTurn`).
     case "placedThisTurn":
-      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => !!(c.played ? state.cards[id]?.playedThisTurn : state.cards[id]?.placedThisTurn));
+      return resolveSelector(ctx, game, state, frame, c.sel).some((id) =>
+        c.from?.length ? !!state.cards[id]?.playedThisTurn && (c.from as string[]).includes(state.cards[id]?.playedFrom ?? "") : !!(c.played ? state.cards[id]?.playedThisTurn : state.cards[id]?.placedThisTurn));
     case "every": {
       const ids = resolveSelector(ctx, game, state, frame, c.sel);
       // Nothing there is not "all of it" (0-2-4-1).

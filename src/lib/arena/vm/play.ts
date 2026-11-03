@@ -250,6 +250,8 @@ export function resolvePlay(
   // #930: the Autos this very play pends — BT6-036's "when you play this
   // card" — are told below how it entered, once that is known.
   const pendedBefore = new Set(state.pending);
+  // Audit conditions 3: where the card was as it was played ("if this card was played from a Drop", BT31-050).
+  const origin = findCard(state, card)?.zone;
   const cause: { by?: string; byOpponent?: boolean; byCard?: string } = opts.by && findCard(state, card)?.zone !== "battle" ? { by: opts.by, byOpponent: opts.byOpponent ?? false, ...(opts.byCard !== undefined ? { byCard: opts.byCard } : {}) } : {};
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], cause);
   else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause });
@@ -348,6 +350,7 @@ export function resolvePlay(
   }
   // Audit conditions 2: "it's the turn when this card was played" (BT23-040).
   if (success) state.cards[card].playedThisTurn = true;
+  if (success && origin) state.cards[card].playedFrom = origin;
   if (success && playedBy !== undefined) {
     state.cards[card].enteredBy = playedBy;
     for (const p of state.pending) if (!pendedBefore.has(p) && p.card === card && p.kind !== "hook") p.selfEnteredBy = playedBy;

@@ -18,6 +18,8 @@
  *     their energy (EX08-02), the card played with this skill (BT7-108), the pile under this card (BT6-030); "this card
  *     can only attack or be used in a combo if …" (BT22-013); colours other than black (EX23-50, EX23-45); only this card
  *     and one other in the Combo Area (BT14-013).
+ * E.  "Additionally, if this card was played from a Drop" (BT31-050, BT31-045, BT31-044, BT31-047): the copy's memory of
+ *     where it was played from this turn (`VmCard.playedFrom`, `placedThisTurn` with `from`).
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and the conditions asked of staged boards in the VM (`condHolds`).
@@ -269,6 +271,18 @@ let records = 0;
   records += 26;
 }
 
+// E. Where the card was played from.
+{
+  for (const [what, text] of [
+    ["BT31-050", "[auto] When this card is played, choose up to 1 of your opponent's Battle Cards with an energy cost of 5 or less and KO it. Additionally, if this card was played from a Drop, this card gains [critical] for the turn."],
+    ["BT31-047", "[auto] [limit 1] When this card is played, play up to 1 {Pan, Adorable Supporter} card from your deck with 1 marker on it in Rest Mode, then shuffle your deck. Additionally, if this card was played from a Drop, choose up to 1 of your Unisons and switch it to Active Mode."],
+  ] as const) {
+    const from = the(record(text, what), "placedThisTurn", what);
+    assert.deepEqual([from.sel.special, from.played, from.from], ["self", true, ["drop"]], `E: ${what} — played from a Drop`);
+    records++;
+  }
+}
+
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,
@@ -423,6 +437,30 @@ let cases = 0;
     }
     assert.equal(s.sides.p2.zones.drop.length, 1, `VM: BT3-073 (${cost}) — their card is in the Drop`);
     assert.equal(s.sides.p1.zones.hand.length, draws, `VM: BT3-073 (${cost}) — ${draws ? "a draw" : "no draw"}`);
+    cases++;
+  }
+}
+
+// BT31-050's shape: a card played from the Drop draws twice, the same card played from the hand once.
+{
+  defs.AC3_FROMDROP = card("AC3_FROMDROP", { skill: "[Auto] When this card is played, draw 1 card. Additionally, if this card was played from a Drop, draw 1 card." });
+  defs.AC3_REVIVE = card("AC3_REVIVE", { skill: "[Activate: Main] Choose up to 1 <AC3_FROMDROP> card in your Drop Area and play it." });
+  defs.AC3_DEPLOY = card("AC3_DEPLOY", { skill: "[Activate: Main] Choose up to 1 <AC3_FROMDROP> card in your hand and play it." });
+  for (const [actor, area, draws] of [["AC3_REVIVE", "drop", 2], ["AC3_DEPLOY", "hand", 1]] as const) {
+    const ctx2: EngineContext = { ...ctx, defs, scripts: rulesFromRows(roundtrip(Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow))), defs) };
+    let s = fresh();
+    const a = stage(s, "p1", actor, "battle");
+    const played = stage(s, "p1", "AC3_FROMDROP", area);
+    const offer = RULES.legalActions(ctx2, s).find((l) => l.action.type === "activate" && l.action.card === a);
+    assert.ok(offer, `VM: ${actor} — offered`);
+    s = roundtrip(RULES.apply(ctx2, roundtrip(s), offer!.action).state as VmState);
+    for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) {
+      const q = s.prompt as { kind: string; player: PlayerId; choice?: { candidates: string[]; min: number } };
+      const act = q.kind === "chooseCards" ? { type: "choose", player: q.player, cards: q.choice!.candidates.slice(0, Math.max(1, q.choice!.min)) } : q.kind === "orderPending" ? { type: "orderPending", player: q.player, index: 0 } : { type: "pass", player: q.player };
+      s = roundtrip(RULES.apply(ctx2, roundtrip(s), act as Action).state as VmState);
+    }
+    assert.ok(s.sides.p1.zones.battle.includes(played), `VM: ${actor} — played from the ${area}`);
+    assert.equal(s.sides.p1.zones.hand.length, draws, `VM: played from the ${area} — ${draws} draw${draws === 1 ? "" : "s"}`);
     cases++;
   }
 }
