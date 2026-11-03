@@ -455,7 +455,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:battle", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
     sentence: (raw) => {
       const op = raw as OpOf<"invokeSkill">;
-      return "trait" in op ? `activate the chosen ${op.trait} card's ${op.skillKind} skill` : `activate up to 1 ${op.skillKind} skill of ${describeSelector(op.sel)} for free`;
+      // Audit effects 2 (describe only): the line's kind as the card prints it ("[Activate: Main/Battle]"), not the record's key.
+      const kind = ({ "activate:main": "[Activate: Main]", "activate:battle": "[Activate: Battle]", "activate:main/battle": "[Activate: Main/Battle]" } as Record<string, string>)[op.skillKind] ?? op.skillKind;
+      return "trait" in op ? `activate the chosen ${op.trait} card's ${kind} skill` : `activate up to 1 ${kind} skill of ${describeSelector(op.sel)} for free`;
     },
     doc: "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.",
   },
@@ -589,7 +591,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const warp = op.using === "Xeno-Evolve" ? " (sending the base to the Warp)" : "";
         return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}`;
       }
-      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
+      // Audit effects 2 (describe only): an Extra with no [Field] in the hand is activated through its [Activate: Main]
+      // (EB1-59, the VM's `activating`), never played.
+      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, or in the hand its [Activate: Main]; else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
         // "…on top of this card with its skills negated for the game" (BT31-088/089, BT10-073): where it lands and what it arrives with.
         + (op.onto ? ` on top of ${describeRef(op.onto)}` : "")
         + (op.toOwners ? " in their owners' Battle Areas" : "")
