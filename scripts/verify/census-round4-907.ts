@@ -46,10 +46,15 @@ type Sel = { area?: string; areas?: string[]; side?: string; filter?: { costMin:
 
   const list = compile("[Activate: Main] Choose up to 2 mono-red Battle Cards with different card names, energy costs of 3 or less, and 19000 power or less in your deck or hand, play them, then shuffle your deck if you looked through it.");
   assert.deepEqual(list.unsupported, [], "DB3-133: the comma list is one description");
-  assert.equal(find(list.ops, "choose").length, 1, "one choice, not a choice of 2 and a second of 1");
-  const lsel = find(list.ops, "choose")[0].sel as Sel;
-  assert.deepEqual([lsel.filter?.costMax, lsel.filter?.powerMax], [3, 19000]);
-  assert.deepEqual(lsel.areas ?? [lsel.area], ["deck", "hand"], "from the deck or the hand");
+  // Audit effects 3 (R-340): "…in your deck **or** hand" is one area, picked first — a choice per area (a `chooseMode`
+  // of two), each the whole comma list, never a choice of 2 and a second of 1.
+  const picks = find(list.ops, "choose");
+  assert.equal(picks.length, 2, "one choice per area");
+  for (const [i, area] of (["deck", "hand"] as const).entries()) {
+    const lsel = picks[i].sel as Sel;
+    assert.deepEqual([lsel.filter?.costMax, lsel.filter?.powerMax], [3, 19000]);
+    assert.deepEqual(lsel.areas ?? [lsel.area], [area], `from the ${area} alone`);
+  }
 
   const bare = compile("[Auto] When you play this card, choose up to 1 Battle Card from your hand with power of 15000 or less and play it.");
   assert.equal((find(bare.ops, "choose")[0].sel as Sel).filter?.powerMax, 15000, "SD2-05: 'power of N or less' is a bound");

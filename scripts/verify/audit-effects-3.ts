@@ -16,6 +16,9 @@
  * H.  "Your Leader Card doesn't take damage …" / "you don't take damage …" (`forbid` of `takeDamage`): a battle's
  *     damage, a skill's, or the attacks of certain cards; what the language cannot say stays unread.
  * I.  "This card can't be played from any area if you have 2 or less energy" (BT9-078): the ban's condition.
+ * J.  The feed's "(White)" / "(X)" orbs in a price (errata.ts): priced, never free; "Deal X damage" (DB3-135).
+ * K.  One wording each: "does not leave the Battle Area due to your opponent's skills" (BT2-047), "during this turn you
+ *     can only play …" (BT23-109), and "only play" with a trait or a coloured name.
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules language's
  * print and reparse) and, where the engine learned something, a short play on the rules engine.
@@ -176,6 +179,39 @@ for (const id of ["BT9-078", "BT9-079"]) {
   const rec = record(id, "[Permanent] This card can't be played from any area if you have 2 or less energy.");
   assert.deepEqual(rec.cond, { kind: "count", sel: { side: "you", area: "energy" }, atMost: 2 }, `I: ${id}: while you have 2 or less energy`);
   assert.ok(opOf(rec, "forbid").some((f) => f.what === "play" && f.target && "sel" in f.target && f.target.sel.special === "self"), `I: ${id}: …this card can't be played`);
+}
+
+// J. Orbs the feed prints in round brackets are the price (errata.ts), and X is read off it.
+for (const [id, text, orbs] of [
+  ["BT31-124", "[Activate: Main][Limit 1](White), if you have 2 or more energy: Play this card from your hand or from under a <Hyperbolic Time Chamber> card, and this card gets +10000 power for the turn.", { White: 1 }],
+  ["BT31-137", "[Activate: Main/Battle](White), if your opponent has 2 or more energy: Draw 1 card.", { White: 1 }],
+  ["DB3-135", "[-4][activate: main]{r}{r}{r}{r}(X), if your Leader Card is red: Deal X damage to your opponent.", { Red: 4 }],
+] as const) {
+  const fixed = correctSkillText(id, text);
+  assert.ok(fixed && !/\((?:White|X)\)/.test(fixed), `J: ${id}: the bracketed orb is corrected`);
+  const rec = record(id, text);
+  assert.deepEqual(rec.cost?.orbs, orbs, `J: ${id}: …and priced`);
+}
+{
+  const rec = record("DB3-135", "[-4][activate: main]{r}{r}{r}{r}(X), if your Leader Card is red: Deal X damage to your opponent.");
+  assert.ok(rec.cost?.x, "J: DB3-135: an X price");
+  assert.deepEqual(opOf(rec, "damage"), [{ op: "damage", n: { x: true }, side: "opponent" }], "J: DB3-135: X damage");
+}
+
+// K. One wording each.
+for (const id of ["BT2-047", "BT2-055"]) {
+  const rec = record(id, id === "BT2-047" ? "[Permanent] This card cannot be KO'd by your opponent's card's skills and does not leave the Battle Area due to your opponent's skills." : "[Permanent] If <Zamasu> is in play in your Battle Area, this card cannot be KO'd by your opponent's card's skills and does not leave the Battle Area due to your opponent's skills.");
+  assert.ok(opOf(rec, "forbid").some((f) => f.what === "beMovedBySkill" && f.side === "opponent"), `K: ${id}: not removed by the opponent's skills (its Q&A)`);
+}
+{
+  const rec = record("BT23-109", "[activate: main][limit 1]{y}, if your Leader is yellow, your opponent has 3 or more energy, and you have 4 or more Z-Energy: Play this card from your hand, choose up to 1 of your opponent's Rest Mode Battle Cards, ignoring [barrier], KO it, and during this turn you can only play yellow ≪Universe 7≫ cards and this card gains the following skill:<br>\"[activate: main] Place 3 of your Z-Energy in your Drop: Switch this card to Active Mode.\"", {}, 0);
+  const only = opOf(rec, "forbid").find((f) => f.what === "play");
+  assert.ok(only && only.until === "turn" && only.exceptFilter?.traits.includes("universe 7") && only.exceptFilter.colors.includes("Yellow"), "K: BT23-109: only yellow ≪Universe 7≫ cards, for the turn");
+  for (const [said, field] of [["≪Universe 7≫ cards", "traits"], ["yellow <Zamasu> cards", "characters"]] as const) {
+    const r = record("E3-ONLY", `[Activate: Main] Draw 1 card, and you can only play ${said} for the turn.`);
+    const f = opOf(r, "forbid").find((o) => o.what === "play");
+    assert.ok(f && f.exceptFilter && f.exceptFilter[field].length === 1, `K: "only play ${said}" is read`);
+  }
 }
 
 // ── the VM ──────────────────────────────────────────────────────────────────

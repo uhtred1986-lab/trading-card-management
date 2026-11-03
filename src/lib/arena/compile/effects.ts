@@ -2003,6 +2003,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // the sentence is about, dealing it as the skill's), "deal 1 **additional** damage to your opponent" (BT9-104: one
   // more damage of its own, after the damage the moment was about).
   if ((m = /^(?:(?:it|this card) deals|deal|inflict) (\d+) (?:additional )?damage to (?:your opponent|your opponent's life|them|their life|the opponent'?s life|the opponent)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
+  // Audit effects 3: "{r}{r}{r}{r}{X}, …: Deal X damage to your opponent" (DB3-135) — X as the price was paid, as "draw X
+  // cards" is read below.
+  if (c.xBound && /^deal x damage to (?:your opponent|the opponent)$/.test(t)) return [{ op: "damage", n: { x: true }, side: "opponent" }];
   // "you may inflict 2 damage to your life" (EX03-11, P-015): damage to yourself is
   // the same 5-10 damage, taken from your own Life Area into your own hand.
   if ((m = /^(?:deal|inflict) (\d+) damage to (?:your life|you)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "you" }];
@@ -3256,7 +3259,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // here as "only play …" — the leading "you can" is stripped above.
   // Audit effects 3: "your Leader Card doesn't take damage …" / "you don't take damage …" (`takeDamage`).
   if (/\b(?:don'?t|doesn'?t|do not|does not|won'?t|will not) take (?:any )?damage\b/.test(t)) return compileNoDamage(t, c);
-  if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b|^only play battle cards\b|^only play (?:<|mono|[a-z]+ cards)|^only use [a-z ,/]+ card skills to place cards under this card\b/.test(t)) {
+  if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b|^only play\b|^only use [a-z ,/]+ card skills to place cards under this card\b/.test(t)) {
     const forbid = compileProhibition(t, c);
     if (forbid) return forbid;
   }
@@ -4922,6 +4925,10 @@ function keywordException(said: string): string | null {
 }
 
 function compileProhibition(t: string, c: Ctx): Op[] | null {
+  // Audit effects 3: "…and during this turn you can only play yellow ≪Universe 7≫ cards" (BT23-109): the span said first,
+  // with no comma to cut it off as a clause of its own — the same rule as with the span after it.
+  const spanFirst = /^during (?:this|the) turn,? ((?:you )?can only play .+)$/.exec(t.trim());
+  if (spanFirst) return compileProhibition(`${spanFirst[1].replace(/[.]$/, "")} for the turn`, c);
   // BT8-044's back (prohibition batch 6, said this way by `taxWordings`):
   // "…can't attack Leader Cards until the start of your next Main Phase **as
   // long as the chosen card is in Rest Mode**" — the ban holds only while the
@@ -6285,6 +6292,10 @@ export function taxWordings(text: string): string {
     // energy" (BT9-078, BT9-079) — is the condition of the ban, said the way EX06-19's "You can't play this card from
     // any area if there is an <Android 13> card in play …" is read.
     .replace(/(^|\]\s*|[.:]\s+)this card can(?:'|no)t be played from any area if ([^,.]+)(?=\.|$)/gi, (_m, lead: string, cond: string) => `${lead}if ${cond}, you can't play this card from any area`)
+    // Audit effects 3: "…and does not leave the Battle Area due to your opponent's skills" (BT2-047, BT2-055) is the ban
+    // on a removal by those skills — BT2-047's Q&A: chosen by the opponent's Broly, "cannot be removed from the Battle
+    // Area due to its permanent skill, so it remains in the Battle Area".
+    .replace(/\b(?:does not|doesn'?t) leave the battle area due to (your opponent'?s skills|skills)\b/gi, (_m, by: string) => `can't be removed from the battle area by ${by}`)
     // Prohibition batch 6: "…your opponent's [counter] skills and non-keyword
     // [auto]/[activate] skills cannot be activated unless they place 1 card
     // from their life in their Drop Area" (TB1-077): two activation prices,

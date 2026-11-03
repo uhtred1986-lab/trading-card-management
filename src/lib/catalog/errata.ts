@@ -566,6 +566,22 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // (BT30-014) is the specified cost (1-2-4) — read as nothing, any card or Unison passed.
   "P-747": [[/card\s+wth\s+5000\s+combo\s+power/g, "card with 5000 combo power"]],
   "BT30-014": [[/red\s+Unison\s+with\s+a\s+specific\s+cost\s+of\s+3/g, "red Unison with a specified cost of 3"]],
+  // NOT official errata: the feed's orb notation. Audit effects 3: these lines print an energy orb in round brackets —
+  // "[Activate: Main][Limit 1](White), if you have 2 or more energy: …" (BT31-124), "{r}{r}{r}{r}(X), if your Leader Card
+  // is red: Deal X damage …" (DB3-135) — where every other card prints it in braces ({w}, {X}). A bracket is a reminder
+  // to the reader, so the orb was dropped with it and the price read as free (BT31-124's activation cost nothing) or
+  // without its X (DB3-135's "Deal X damage" had no X to read). Only an orb right in a price, before its comma/colon.
+  "BT31-124": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-129": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-134": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-136": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-137": [[/\]\(White\),/g, "]{w},"]],
+  "BT31-151": [[/\]\(White\)\(White\)\{1\}:/g, "]{w}{w}{1}:"]],
+  "DB3-135": [[/\}\(X\),/g, "}{X},"]],
+  "DB3-138": [[/\}\(X\),/g, "}{X},"]],
+  "DB3-141": [[/\}\(X\),/g, "}{X},"]],
+  "DB3-142": [[/\}\(X\),/g, "}{X},"]],
+  "BT27-140": [[/\[auto\]\(X\):/g, "[auto]{X}:"]],
 };
 
 /**
