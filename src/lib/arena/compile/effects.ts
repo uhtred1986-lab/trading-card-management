@@ -834,7 +834,9 @@ const COPIES_ACTIVATION = /^you can't activate (?:(?:the )?\[(activate: main|act
  * skills for the turn" (BT15-100, BT22-092, BT25-147). Each is a rule `compileProhibition` reads; the reminder skip in
  * `connective` swallowed them, so the card read as if they were not printed.
  */
-const OWN_ACTIVATION = /^you can't activate (?:(?:the )?\[counter(?:: [a-z ]+)?\] skills?|\{[^}]+\}(?:'s (?:\[(?:activate: main|activate: battle|auto)\] )?skills?)?)(?:\s+(?:for|during|until)\b.*)?$/;
+/** Audit effects 2: a ban on your own skills by the cards' description, or on [Field] cards (`compileProhibition`). */
+const OWN_SKILLS_BAN = /^you can't activate (?:(?:the )?skills (?:on|of) .+|\[field\] cards\b.*)$/;
+const OWN_ACTIVATION =/^you can't activate (?:(?:the )?\[counter(?:: [a-z ]+)?\] skills?|\{[^}]+\}(?:'s (?:\[(?:activate: main|activate: battle|auto)\] )?skills?)?)(?:\s+(?:for|during|until)\b.*)?$/;
 
 function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwise" | null {
   const t = clause.toLowerCase().replace(/[.,]$/, "").trim();
@@ -880,7 +882,7 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // the card prints for itself, which nothing else in the engine applies.
   // Nor "you can't activate [Z-Awaken] unless …" (BT21-068's back, prohibition
   // batch 6): a ban on a keyword skill with its escape, read by `compileProhibition`.
-  if (/^(?:you can't activate|this skill can only be activated)/.test(t) && !/^you can't activate (?:the )?\[counter: [a-z ]+\] skills (?:of|on) other cards\b/.test(t) && !/^you can't activate extra(?:s| cards)(?:\s+(?:for|during|until)\b.*)?$/.test(t) && !COPIES_ACTIVATION.test(t) && !OWN_ACTIVATION.test(t) && !/^you can't activate \[z-awaken\] unless\b/.test(t) && !/^you can't activate (?:non-keyword leader card skills|this skill)\b/.test(t) && !/^you can't activate \[counter\] skills for the turn while\b/.test(t)) return "skip";
+  if (/^(?:you can't activate|this skill can only be activated)/.test(t) && !/^you can't activate (?:the )?\[counter: [a-z ]+\] skills (?:of|on) other cards\b/.test(t) && !/^you can't activate extra(?:s| cards)(?:\s+(?:for|during|until)\b.*)?$/.test(t) && !COPIES_ACTIVATION.test(t) && !OWN_ACTIVATION.test(t) && !/^you can't activate \[z-awaken\] unless\b/.test(t) && !/^you can't activate (?:non-keyword leader card skills|this skill)\b/.test(t) && !/^you can't activate \[counter\] skills for the turn while\b/.test(t) && !OWN_SKILLS_BAN.test(t)) return "skip";
   // "This card can't be played" on its own is one of those. The forms that say
   // *how* — "by skills from any area", "from any area except by skills" — are
   // not: nothing else in the engine applies them, and skipping them here was
@@ -4002,6 +4004,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // rather than read as the play of the card it names. Before the bound was
     // readable the choice itself failed and there was nothing to point at.
     if (/^activate its \[activate[^\]]*\]\s*skills?\b/.test(t) && c.choices.some((ch) => ch.var === c.last && ch.sel.filter?.costAtMostEnergy)) return null;
+    // Audit effects 2 (12-2-4): a skill named — "activate its [activate: battle] skill without paying its skill cost"
+    // (BT15-092's back), "Activate this card's [Activate: Main] skill" (BT28-103), "activate up to 1 of that card's
+    // [Activate: Main] skills from the Drop" (BT26-096, BT26-112, BT26-113, BT26-114, P-637), "…1 [Activate: Main] skill
+    // on each of those cards" (BT26-110), "…[activate: battle] skill on a red Extra … by paying its skill cost" (P-723),
+    // "…the [Activate: Main] skill on a {Tragic Awakening} in its owner's Drop" (P-564) — is never the play of the card
+    // that bears it, which is what each read as. One the readers before this did not take (a hand Extra's line,
+    // `invokeSkill`) stays unread: the engine activates no line of a card in the Drop by another card's effect yet.
+    if (/^activate\b/.test(tp) && /\[(?:activate|counter|auto)\b[^\]]*\] skills?\b/.test(tp)) return null;
     // "…and play it **in your opponent's Battle Area**" (BT15-118, BT18-087):
     // the card goes to the other side of the table, and `play` has no word for
     // whose Battle Area it lands in — read without it, the card was played
@@ -4053,7 +4063,16 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // the [Activate: Main] skill of {Name}", "activate this skill when you play
     // {Name}" and the permissions ("you may activate {Name} from your hand
     // without paying its energy cost") are other things.
-    const activating = /^activate\b/.test(tp) && /^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from (?!.*\bwithout paying\b).+)?$/.test(m[1]);
+    // Audit effects 2 (12-1-3): the same for an Extra the skill has just chosen — "…choose up to 1 {Broly Control
+    // Mechanism} from your deck **and activate it**" (BT6-064, P-179, XD3-01), "choose 1 {Tora's Red Armband} … in your
+    // hand, activate it" (EB1-59), "…Extra Card … and the [Field] skill in your hand and activate it" (BT13-064) — and
+    // for one described as an Extra or a [Field] card: "Activate 1 mono-green Extra Card with … the [field] skill from
+    // your Drop Area" (BT13-080). They were played; an Extra with no [Field] is activated through its [Activate: Main]
+    // line in the hand (the VM's `activating`, 12-2-4).
+    const extraLike = (sel: Selector | undefined) => !!sel?.filter && !sel.special && (sel.filter.type === "EXTRA" || sel.filter.keywords.includes("Field") || (sel.filter.names.length > 0 && !sel.filter.type));
+    const chosenSel = "var" in ref ? c.choices.find((ch) => ch.var === (ref as { var: string }).var)?.sel : ref.sel;
+    const activating = /^activate\b/.test(tp) && !/\bwithout paying\b|^(?:(?:up to )?\d+ |an? |the |its |their |this card's |that card's )?\[[^\]]*\] skills?\b|\bskills? (?:of|on)\b/.test(m[1])
+      && (/^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from .+)?$/.test(m[1]) || (/^(?:it|them|that card|those cards|the chosen cards?)$/.test(m[1]) ? extraLike(chosenSel) : "sel" in ref && extraLike(ref.sel)));
     const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...arrivesWith } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
@@ -5239,6 +5258,41 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
           { op: "forbid", what: "block", side, until, filter: which, ...escape },
         ];
       }
+    }
+    // Audit effects 2: your own lock on the skills of the cards you describe, wherever they are — "you can't activate
+    // skills on cards other than this card in any of your areas for the turn" (BT26-140, `otherCards`), "…skills on
+    // <Trunks: Future> cards in any of your areas for the turn" (BT26-125, BT26-126), "…skills on cards with an energy
+    // cost of 4 or more in any of your areas for the game" (BT30-016, whose Q&As name an Extra, a [Field] and a Unison
+    // among them), "…the skills of non-≪Android≫ Battle Cards with energy costs of 7 or less in all areas" (BT17-032's
+    // drawback). Each was skipped as a reminder (`connective`), and the skill lost its price. As the reader above: every
+    // [Activate] and [Auto] line, every [Counter], and a [Blocker] (owner ruling A2).
+    if (side === "you") {
+      const own = /^activate (?:the )?skills (?:on|of) (.+?)(?: in any of your areas| in all (?:of your )?areas| in any area| from any area)?(?:\s+(?:for the|until|during)\b.*)?$/.exec(rest);
+      const said = own?.[1];
+      if (said &&!/\b(?:this card|it|them|that card)\b/.test(said.replace(/^cards other than this card$/, ""))) {
+        const others = said === "cards other than this card";
+        const filter = others ? parseFilter("") : filterFor(said, null);
+        if (!filter || (!others && unreadFilterWords(said, filter).length)) return null;
+        const which = /\bbattle cards?\b/.test(said) ? { ...filter, type: "BATTLE" as const } : filter;
+        // "…in all areas" names where the cards are, not a span ("…in all areas until the end of your opponent's next
+        // turn", BT17-032): read without it, as `durationOf` reads "in all areas" as the game.
+        const span = durationOf(t.replace(/ in (?:any of your areas|all (?:of your )?areas|any area)\b/, ""));
+        const narrow = { ...(others ? { otherCards: true as const } : {}), ...withUnless };
+        return [
+          { op: "forbid", what: "activateSkill", side, until: span, filter: which, ...narrow },
+          { op: "forbid", what: "activateCounter", side, until: span, ...(others ? {} : { filter: which }), ...narrow },
+          { op: "forbid", what: "block", side, until: span, filter: which, ...narrow },
+        ];
+      }
+    }
+    // Audit effects 2: "…activate it, and you can't activate [Field] cards for the duration of the game" (XD3-01): 12-1-3's
+    // "activating an Extra Card" said of the Extras with the [Field] skill — as "you can't activate Extras" below.
+    if (/^activate \[field\] cards(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) {
+      const field = { ...parseFilter(""), type: "EXTRA" as const, keywords: ["Field" as const] };
+      return [
+        { op: "forbid", what: "activateSkill", side, until, filter: field, extraCardActivation: true, ...withUnless },
+        { op: "forbid", what: "activateCounter", side, until, filter: field, ...withUnless },
+      ];
     }
     // "You can't activate Extras" (BT20-024; owner ruling 26 Oct 2026): 12-1-3's
     // "activating an Extra Card" — an [Activate] or [Counter] skill of an Extra
@@ -6755,6 +6809,38 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       }
       refuse(clause);
       continue;
+    }
+    // Audit effects 2 (12-2-4): the same said of any hand Extra and any one kind of line — "Activate the [activate: main]
+    // skill of up to 1 {Big Bang Kamehameha} in your hand" (BT31-052), "Activate an [activate: battle] skill on 1 green
+    // Extra from your hand with both {Cell} and {Kamehameha} in its card name without paying its energy cost" (BT21-070).
+    // A pick from the hand may come up empty anyway (5-2-7), so "1" is "up to 1". "…by paying its skill cost" (P-723) is
+    // another price and stays unread, as every other wording does.
+    {
+      const said = /^activate (?:an?|the|up to 1) \[activate: ?(main|battle|main\/battle)\] skill (?:of|on) (?:up to )?(?:1|an?) (.+?) (?:in|from) your hand((?: with .+?)?)(?: without paying its energy cost)?[.]?$/i.exec(clause.trim());
+      if (said && !/\bby paying\b/i.test(clause)) {
+        const sel = parseTarget(`up to 1 ${said[2]} in your hand${said[3]}`);
+        if (sel?.side === "you" && sel.area === "hand" && sel.count === 1 && sel.upTo === true && (sel.filter?.type === "EXTRA" || (sel.filter?.names.length && !sel.filter.type)) && !sel.filter?.unreadable && !sel.special && !sel.fromVar) {
+          push([{ op: "invokeSkill", sel, skillKind: `activate:${said[1].toLowerCase().replace(" ", "")}` as "activate:main" | "activate:battle" | "activate:main/battle", from: "hand" }]);
+          continue;
+        }
+        refuse(clause);
+        continue;
+      }
+    }
+    // Audit effects 2 (12-2-4): "Choose up to 1 ≪Shadow Dragon≫ Extra Card in your hand **and activate its [Activate:
+    // Main/Battle] skill without paying its energy cost**" (P-313): the same activation of a hand Extra's own line, its
+    // costs waived, said as a choice and its verb — BT31-116's one-clause form above. The line's kind is the one named.
+    {
+      const handExtra = /^choose up to 1 (.+?) in your hand$/i.exec(clause.trim());
+      const itsLine = handExtra ? /^(?:and )?activate its \[activate: ?(main|battle|main\/battle)\] skill(?: without paying its (?:energy|skill) costs?)?[.]?$/i.exec(clauses[i + 1]?.trim() ?? "") : null;
+      if (handExtra && itsLine) {
+        const sel = parseTarget(`up to 1 ${handExtra[1]} in your hand`);
+        if (sel?.side === "you" && sel.area === "hand" && sel.count === 1 && sel.upTo === true && sel.filter?.type === "EXTRA" && !sel.filter.unreadable && !sel.special && !sel.fromVar) {
+          push([{ op: "invokeSkill", sel, skillKind: `activate:${itsLine[1].toLowerCase().replace(" ", "")}` as "activate:main" | "activate:battle" | "activate:main/battle", from: "hand" }]);
+          i++;
+          continue;
+        }
+      }
     }
     // BT2-009 (#539): fill one named card's stack to a total, using the
     // current count after *each* top-deck placement. The printed number is a

@@ -452,7 +452,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: "the cards go back to that end of their owner's deck in the order the master picks, one card at a time, the first pick nearest the end; no card changes area (20-12-2), a card no longer in a deck is left out",
   },
   invokeSkill: {
-    fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
+    fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:battle", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
     sentence: (raw) => {
       const op = raw as OpOf<"invokeSkill">;
       return "trait" in op ? `activate the chosen ${op.trait} card's ${op.skillKind} skill` : `activate up to 1 ${op.skillKind} skill of ${describeSelector(op.sel)} for free`;
@@ -554,7 +554,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "alsoUnder", type: "ref", offCard: "more cards that go under the played card as part of the same play (22-13-5-4: [Union-Potara]'s second material) — none moves when the play fails" }, { name: "negated", type: { enum: ["turn", "game"] } }, {
         name: "activating",
         type: "boolean",
-        offCard: "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; any other card is played as before",
+        offCard: "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; an Extra with none in its master's hand is activated through its [Activate: Main] line, its costs waived (12-2-4, \"choose 1 {Tora's Red Armband} … in your hand, activate it\", EB1-59); any other card is played as before",
       }, {
         name: "counterWindow",
         type: "boolean",
@@ -1004,14 +1004,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         // Audit lane E: one kind of line is named ("{King Piccolo, Limitless Power}'s [Activate: Main] skill", P-153);
         // several are the non-keyword ones.
         const oneKind = op.skillKinds?.length === 1 ? ({ "activate:main": "[Activate: Main] ", "activate:battle": "[Activate: Battle] ", auto: "[Auto] " } as Record<string, string>)[op.skillKinds[0]] : undefined;
-        const which = op.extraCardActivation ? "Extra Cards" : `the ${oneKind ?? (op.skillKinds?.length ? "non-keyword " : "")}skills of ${describeFilter(op.filter!, { plural: true })}`;
+        // Audit effects 2: "…[Field] cards" (XD3-01) says which Extras; "…cards other than this card" (BT26-140) leaves it out.
+        const which = op.extraCardActivation ? (op.filter?.keywords.length ? describeFilter(op.filter, { plural: true }) : "Extra Cards") : `the ${oneKind ?? (op.skillKinds?.length ? "non-keyword " : "")}skills of ${describeFilter(op.filter!, { plural: true })}${op.otherCards ? " other than this card" : ""}`;
         return `${who} can't activate ${which}${escape}${forThe(op.until, r)}`;
       }
       // Owner ruling 26 Oct 2026 (A2): the [Blocker] of the cards a "can't
       // activate skills" rule describes (BT18-019, BT14-097, P-093).
       if (op.what === "block" && !op.target && op.filter) {
         const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
-        return `${who} can't activate [Blocker] on ${describeFilter(op.filter, { plural: true })}${escape}${forThe(op.until, r)}`;
+        return `${who} can't activate [Blocker] on ${describeFilter(op.filter, { plural: true })}${op.otherCards ? " other than this card" : ""}${escape}${forThe(op.until, r)}`;
       }
       // Prohibition batch 5's sentences, each said the way the card says it.
       {
@@ -2153,10 +2154,11 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       // selector with the energy bound, for the Main line alone.
       const selected = o.trait === undefined && o.maxCost === undefined && isRecord(o.sel)
         && o.sel.side === "you" && o.sel.area === "hand" && o.sel.count === 1
-        && (o.skillKind === "activate:main/battle"
+        && (o.skillKind === "activate:main/battle" || o.skillKind === "activate:battle"
           ? o.sel.upTo === true
-          : o.skillKind === "activate:main" && isRecord(o.sel.filter) && o.sel.filter.costAtMostEnergy === true);
-      if (!desire && !selected) return `${step}: use either Desire's trait/current-energy Main line, a one-card hand selector bounded by current energy for a Main line, or an optional one-card hand selector for a Main/Battle line`;
+          // Audit effects 2 (P-313): an optional one-card hand Extra's Main line, as its Main/Battle line above.
+          : o.skillKind === "activate:main" && (o.sel.upTo === true || (isRecord(o.sel.filter) && o.sel.filter.costAtMostEnergy === true)));
+      if (!desire && !selected) return `${step}: use either Desire's trait/current-energy Main line, a one-card hand selector bounded by current energy for a Main line, or an optional one-card hand selector for a Main, Battle or Main/Battle line`;
     }
     // A marker loss is read at one moment only — 13-5-2's, an attack on a
     // Unison — so `event: marker` names it and `by: attack` belongs to it

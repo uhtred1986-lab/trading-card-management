@@ -89,11 +89,69 @@ for (const [id, text, side] of [
 }
 assert.equal(describeScript([{ op: "arrange", target: { var: "looked" } }]), "put the cards looked at back on top of the deck in any order", "A: the describer");
 
+// B. "Activate it": an Extra the skill chose is activated, never played; a skill named is never the card's play.
+for (const [id, text] of [
+  ["BT6-064", "[Auto] When you play this card from your hand, choose up to 1 {Broly Control Mechanism} from your deck and activate it, then shuffle your deck."],
+  ["P-179", "[Auto] If your Leader Card is a red <Broly> card: When you play this card, choose up to 1 {Dormant Legend} from your deck, activate it, then shuffle your deck."],
+  ["BT13-064", "[+1][Activate: Main] Choose up to 1 mono-green Extra Card with an energy cost of 2 or less and the [Field] skill in your hand and activate it."],
+  ["BT13-080", "[activate: main][once per turn]{g}, if your Leader Card is a <King Cold: Br> card: Activate 1 mono-green Extra Card with an energy cost of 2 and the [field] skill from your Drop Area."],
+  ["EB1-59", "[activate: main]{u}{1}, if your Leader Card is a ≪Bardock's Crew≫ card: Choose 1 {Tora's Red Armband} or {Assault of the Great Apes} in your hand, activate it, then negate this skill for the game."],
+] as const) {
+  const rec = record(id, text);
+  const plays = opOf(rec, "play");
+  assert.equal(plays.length, 1, `B: ${id}: one activation`);
+  assert.equal(plays[0].activating, true, `B: ${id}: …activating, not a play`);
+}
+// XD3-01: the arena is activated, and the game-long lock on [Field] cards is a rule (12-1-3), not a reminder.
+{
+  const rec = record("XD3-01", "[Auto] When this card is placed in your Leader Area, choose up to 1 {Cell Games Arena} from your deck, activate it, and you can't activate [Field] cards for the duration of the game.", { type: "LEADER" });
+  assert.equal(opOf(rec, "play")[0].activating, true, "B: XD3-01: activated");
+  const lock = opOf(rec, "forbid").find((o) => o.what === "activateSkill");
+  assert.ok(lock && lock.until === "game" && lock.extraCardActivation && lock.filter?.type === "EXTRA" && lock.filter.keywords.includes("Field"), "B: XD3-01: …and [Field] Extras can't be activated for the game");
+}
+// P-313: a hand Extra's own [Activate: Main/Battle] line, free (`invokeSkill`).
+{
+  const rec = record("P-313", "[Activate: Main/Battle][Once per turn][Spirit Boost 1] (You must remove a marker from your Unison Card to activate this skill.) If your Leader Card is a ≪Shadow Dragon≫ card: Choose up to 1 ≪Shadow Dragon≫ Extra Card in your hand and activate its [Activate: Main/Battle] skill without paying its energy cost.");
+  const invoked = opOf(rec, "invokeSkill");
+  assert.equal(invoked.length, 1, "B: P-313: the line is invoked");
+  assert.ok("sel" in invoked[0] && invoked[0].skillKind === "activate:main/battle" && invoked[0].sel.upTo, "B: P-313: …an optional hand Extra's Main/Battle line");
+  assert.equal(opOf(rec, "play").length, 0, "B: P-313: …never played");
+}
+// A skill named is unread where no reader activates it (a card in the Drop), never a play of its card.
+for (const [id, text, unread] of [
+  ["BT26-113", "[Auto] When this card is played or attacks, place up to 1 ≪Cell Games≫ card from under this card into its owner's Drop, then activate up to 1 of that card's [Activate: Main] skills from the Drop.", "activate up to 1 of that card's [Activate: Main] skills from the Drop"],
+  ["BT26-110", "[Auto] When this card attacks, choose up to 1 of your opponent's Rest Mode Battle Cards, ignoring [Barrier], KO it, place all ≪Cell Games≫ cards under this card into their owner's Drop, then activate up to 1 [Activate: Main] skill on each of those cards from your Drop.", "activate up to 1 [Activate: Main] skill on each of those cards from your Drop"],
+  ["BT28-103", "[Counter: Play] Activate this card's [Activate: Main] skill.", "Activate this card's [Activate: Main] skill"],
+] as const) {
+  const recs = skillRecords(card(id, { skill: text }));
+  assert.deepEqual(recs[0].unread, [unread], `B: ${id}: unread`);
+  assert.equal(opsDeep(recs[0].ops).filter((o) => o.op === "play").length, 0, `B: ${id}: …and nothing played`);
+  records++;
+}
+
+// C. Your own locks on skills by the cards' description, wherever they are (each was skipped as a reminder).
+for (const [id, text, until, check] of [
+  ["BT26-140", "[activate: main]{1}, if your opponent has 4 or more energy and you have 7 or fewer cards in your hand: Play this card from your hand, and you can't activate skills on cards other than this card in any of your areas for the turn.", "turn", (o: Extract<Op, { op: "forbid" }>) => o.otherCards === true],
+  ["BT26-125", "[Auto] When this card is sent from your Drop to its owner's Warp by the skills of a ≪Prison Planet≫ card in any of your areas, remove this card in your Warp from the game, then you may send 1 ≪Prison Planet≫ card from your Drop to its owner's Warp. If you do, choose up to 1 of your cards and it gets +5000 power for the turn, and you can't activate skills on <Trunks: Future> cards in any of your areas for the turn.", "turn", (o: Extract<Op, { op: "forbid" }>) => o.filter?.characters.includes("trunks: future") === true],
+  ["BT30-016", "[awaken] When your life is at 6 or less: Draw 1 card, and you can't activate skills on cards with an energy cost of 4 or more in any of your areas for the game.", "game", (o: Extract<Op, { op: "forbid" }>) => o.filter?.costMin === 4],
+  ["BT17-032", "[Auto] Add 3 blue ≪Android≫ cards from your energy to your hand: At the end of your turn, draw 1 card, add up to 3 blue ≪Android≫ cards in your hand to your energy, and until the end of your opponent's next turn, you can't activate the skills of non-≪Android≫ Battle Cards with energy costs of 7 or less in all areas.", "nextTurn", (o: Extract<Op, { op: "forbid" }>) => o.filter?.type === "BATTLE" && o.filter.costMax === 7 && o.filter.notTraits.length === 1],
+] as const) {
+  const rec = record(id, text);
+  const locks = opOf(rec, "forbid");
+  assert.deepEqual(locks.map((o) => o.what).sort(), ["activateCounter", "activateSkill", "block"], `C: ${id}: [Activate]/[Auto], [Counter] and [Blocker]`);
+  for (const o of locks) assert.equal(o.until, until, `C: ${id}: ${o.what} lasts ${until}`);
+  assert.ok(check(locks.find((o) => o.what === "activateSkill")!), `C: ${id}: …of the cards it describes`);
+}
+
 // ── the VM ──────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,
   E2_ARRANGE_THEIRS: card("E2_ARRANGE_THEIRS", { skill: "[Activate: Main] Look at up to 3 cards from the top of your opponent's deck and put them back in any order." }),
   E2_ARRANGE_MINE: card("E2_ARRANGE_MINE", { skill: "[Activate: Main] Look at up to 3 cards from the top of your deck and place them on top of your deck in any order." }),
+  E2_ACTIVATE_IT: card("E2_ACTIVATE_IT", { skill: "[Activate: Main] Choose 1 {E2 Armband} in your hand, activate it." }),
+  E2_ARMBAND: card("E2_ARMBAND", { name: "E2 Armband", type: "EXTRA", energyCost: 3, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] Draw 2 cards." }),
+  E2_LOCK: card("E2_LOCK", { skill: "[Activate: Main] Draw 1 card, and you can't activate skills on cards other than this card in any of your areas for the turn." }),
+  E2_DRAWER: card("E2_DRAWER", { skill: "[Activate: Main] Draw 1 card." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
@@ -181,6 +239,33 @@ for (const seat of ["p1", "p2"] as const) {
     assert.deepEqual(s.sides[whose].zones.deck.slice(3), rest, `${seat}: A: ${def}: …the rest of the deck untouched`);
     assert.equal(steer.asked!.length, 2, `${seat}: A: ${def}: …two picks asked, the last card forced`);
     assert.match(steer.asked![0], /choose the card to go on top$/, `${seat}: A: ${def}: …the first asks for the top card`);
+    cases++;
+  }
+
+  // B. "Activate it" on an Extra with no [Field] in the hand: its [Activate: Main] resolves (12-2-4) and it goes to the
+  // Drop; it is never put in the Battle Area.
+  {
+    let s = fresh(seat, seed(2));
+    const me = stage(s, seat, "E2_ACTIVATE_IT", "battle");
+    const armband = stage(s, seat, "E2_ARMBAND", "hand");
+    const before = s.sides[seat].zones.hand.length;
+    s = activate(s, me);
+    assert.ok(s.sides[seat].zones.drop.includes(armband), `${seat}: B: the Extra is in the Drop`);
+    assert.ok(!s.sides[seat].zones.battle.includes(armband), `${seat}: B: …not in the Battle Area`);
+    assert.equal(s.sides[seat].zones.hand.length, before - 1 + 2, `${seat}: B: …and its [Activate: Main] drew 2`);
+    cases++;
+  }
+
+  // C. "…you can't activate skills on cards other than this card … for the turn": another card's line is not offered;
+  // this card's own still is.
+  {
+    let s = fresh(seat, seed(3));
+    const lock = stage(s, seat, "E2_LOCK", "battle");
+    const drawer = stage(s, seat, "E2_DRAWER", "battle");
+    assert.ok(offerOf(s, drawer), `${seat}: C: the other card's line is offered before`);
+    s = activate(s, lock);
+    assert.equal(offerOf(s, drawer), undefined, `${seat}: C: …not after the lock`);
+    assert.ok(offerOf(s, lock), `${seat}: C: …while this card's own still is`);
     cases++;
   }
 }

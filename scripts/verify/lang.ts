@@ -1316,14 +1316,18 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   // #979: the coloured Desire cards — a one-card hand selector bounded by the
   // master's current energy, for the Main line alone.
   const bounded: Op = { op: "invokeSkill", sel: { side: "you", area: "hand", count: 1, filter: { ...emptyFilter(), colors: ["Red", "Black"], traits: ["Desire"], costAtMostEnergy: true } }, skillKind: "activate:main", from: "hand" };
-  for (const [name, op] of [["SD7 Desire", desire], ["BT31 hand Extra", selected], ["coloured Desire", bounded]] as const) {
+  // Audit effects 2: the optional hand selector names the line's kind — a Main line (BT31-052, P-313's family) or a
+  // Battle line (BT21-070) as well as a Main/Battle one.
+  const selectedMain: Op = { ...selected, skillKind: "activate:main" } as Op;
+  const selectedBattle: Op = { ...selected, skillKind: "activate:battle" } as Op;
+  for (const [name, op] of [["SD7 Desire", desire], ["BT31 hand Extra", selected], ["coloured Desire", bounded], ["hand Extra Main line", selectedMain], ["hand Extra Battle line", selectedBattle]] as const) {
     assert.equal(validateProgram([op]), true, `${name} is a complete invokeSkill form`);
     tripOps([op], `${name} invokeSkill language round trip`);
   }
   for (const wrong of [
     { ...selected, trait: "Desire" },
     { ...selected, maxCost: "currentEnergy" },
-    { ...selected, skillKind: "activate:main" },
+    { ...selectedBattle, sel: { side: "you", area: "hand", count: 1 } },
     { ...selected, sel: { side: "you", area: "hand", count: 2, upTo: true } },
     { ...desire, sel: { side: "you", area: "hand", count: 1, upTo: true } },
     // A Main-line selector with no energy bound is the Main/Battle form's business only.

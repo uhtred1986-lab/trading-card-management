@@ -795,8 +795,10 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
 export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): ActivationLine[] {
   if (op.from !== "hand" || findCard(state, card)?.zone !== "hand" || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
   if ("sel" in op) {
+    // Audit effects 2: a selector over a name the program bound (the `activating` play of a hand Extra, EB1-59) was
+    // resolved by the step, in its own frame; there is no frame here to read the name in.
     const frame: ScriptFrame = { ops: [], ip: 0, vars: {}, card, master: player };
-    if (!resolveSelector(ctx, game, state, frame, op.sel).includes(card)) return [];
+    if (!op.sel.fromVar && !resolveSelector(ctx, game, state, frame, op.sel).includes(card)) return [];
   } else {
     if (op.maxCost !== "currentEnergy") return [];
     const attrs = attrsNow(ctx, game, state, card);

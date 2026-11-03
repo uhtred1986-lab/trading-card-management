@@ -729,7 +729,7 @@ export type Op =
   | { op: "win"; side?: Side }
   /** 12-2-4: choose a qualifying hand Extra's named skill and invoke it without its original costs. */
   | { op: "invokeSkill"; trait: string; skillKind: "activate:main"; from: "hand"; maxCost: "currentEnergy" }
-  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:main/battle"; from: "hand" }
+  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:battle" | "activate:main/battle"; from: "hand" }
   | { op: "energyMarker"; n: Amount; side?: Side }
   /**
    * `chooser` is who answers, when that is not the player whose skill this is:
@@ -4080,6 +4080,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.resume(frame);
             h.activateField(master, candidates[0]);
             return "done";
+          }
+          // Audit effects 2 (12-1-3, 12-2-4): "choose 1 {Tora's Red Armband} … in your hand, activate it" (EB1-59) — an
+          // Extra with no [Field] in its master's hand is activated through its [Activate: Main] line, its costs waived,
+          // and never played into the Battle Area; with no such line it can use, nothing happens.
+          if (field === "none" && h.areaOf(candidates[0]) === "hand" && h.defOf(candidates[0]).type === "EXTRA") {
+            const sel: Selector = "var" in op.target ? { fromVar: op.target.var, count: 1, upTo: true } : { ...op.target.sel, count: 1, upTo: true };
+            frame.ops = [...frame.ops.slice(0, frame.ip), { op: "invokeSkill", sel, skillKind: "activate:main", from: "hand" }, ...frame.ops.slice(frame.ip + 1)];
+            continue;
           }
         }
         // #930: which [Union] variant the play is, again the play's own `using`
