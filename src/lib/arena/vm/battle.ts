@@ -1374,7 +1374,7 @@ function blockerCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
   const b = state.battle;
   if (!b) return [];
   return (state.sides[defender].zones.battle ?? []).filter(
-    (id) => id !== b.guard && state.cards[id]?.mode === "active" && hasKeyword(ctx, game, state, id, "Blocker") && !forbids(ctx, game, state, "block", { player: defender, card: id }),
+    (id) => id !== b.guard && state.cards[id]?.mode === "active" && hasKeyword(ctx, game, state, id, "Blocker") && !forbids(ctx, game, state, "block", { player: defender, card: id, attacker: b.attacker }),
   );
 }
 
@@ -1636,6 +1636,12 @@ function damageWork(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   if (hit) {
     const how = damageRule(ctx, game, state, b.attacker);
     if (state.sides[defP].zones.leader?.includes(b.guard)) {
+      // Audit effects 3: "your Leader Card doesn't take damage for the battle" (P-263), "…from attacks" (SD12-02) —
+      // the damage is not dealt at all (20-14), and the battle goes on to its end.
+      if (forbids(ctx, game, state, "takeDamage", { player: defP, card: b.guard, source: b.attacker, bySkill: false })) {
+        log(ev, { type: "note", text: "no damage is dealt: a skill in force says the Leader doesn't take it" });
+        return;
+      }
       // 8-4-6-1, 22-7: [Strike X] raises the damage to X.
       b.damage = { taken: [], remaining: Math.max(1, how.atLeast ?? 1), critical: how.to === "drop", ...(how.wins ? { wins: true as const } : {}) };
       return dealDamage(ctx, game, state, ev, defP);
@@ -1957,7 +1963,7 @@ export function battleRejectedActions(ctx: EngineContext, game: GameDefinition, 
     const why: Requirement[] = [];
     if (b && id === b.guard) why.push({ kind: "other", detail: "it is the card being attacked" });
     if (state.cards[id].mode !== "active") why.push(modeWhy(ctx, game, state, id));
-    const banned = forbiddenBy(ctx, game, state, "block", { player: p, card: id });
+    const banned = forbiddenBy(ctx, game, state, "block", { player: p, card: id, ...(b ? { attacker: b.attacker } : {}) });
     if (banned) why.push({ kind: "forbidden", ...banned });
     push({ action: { type: "block", player: p, card: id }, label: `Block with ${nameOf(ctx, state, id)}`, why });
   }

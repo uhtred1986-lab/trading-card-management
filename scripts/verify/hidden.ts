@@ -32,7 +32,10 @@ const def = (id: string, o: Partial<(typeof DEFS)[string]>) => {
   assert.match(reads("[Activate: Main] Choose all the cards in your opponent's Battle Area and switch them to Revealed Mode."), /^choose all cards in your opponent's Battle Area in Hidden Mode, switch the chosen cards to Revealed Mode$/);
   // "Battle Cards or Unisons" keeps both kinds.
   const both = one("[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards or Unisons and KO it.").ops[0] as { sel: { filter?: unknown; areas?: string[] } };
-  assert.deepEqual([both.sel.filter, both.sel.areas], [undefined, ["battle", "unison"]], "the type word narrows neither area of a pair");
+  // Audit selectors 3 (Q&A BT28-038): the pair keeps both kinds, as "Battle Cards" alone keeps its type — a Hidden Mode
+  // card, which has no card type, is neither.
+  const kinds = (both.sel.filter as { anyOf?: { type?: string }[] } | undefined)?.anyOf?.map((a) => a.type);
+  assert.deepEqual([kinds, both.sel.areas], [["BATTLE", "UNISON"], ["battle", "unison"]], "each area keeps the kind its type word names");
 
   // 5-8-2-2: a choice that is then switched is narrowed to what the switch can act on.
   const reveal = one("[Activate: Main] Choose 1 card in your Battle Area and switch it to Revealed Mode: Draw 1 card.");

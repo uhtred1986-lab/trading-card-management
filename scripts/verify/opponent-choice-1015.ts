@@ -59,7 +59,11 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
   assert.deepEqual(compile("[Auto] When this card is played, your opponent chooses 1 card in their hand and places it in their Drop Area.").ops, [{ op: "discard", n: 1, side: "opponent" }], "the Drop is still the plain discard");
   // BT10-133: it is the opponent's card that goes to the Warp, not the printing card.
   const bt10133 = compile("[Auto] When this card attacks, your opponent chooses 1 card in their hand and sends it to their Warp. If the card your opponent sent to their Warp was a Battle Card, combo it with this card.");
-  assert.deepEqual(bt10133.ops, [{ op: "discard", n: 1, side: "opponent", to: "warp" }], "…and nothing moves this card");
+  // Audit conditions 3: "the card your opponent sent to their Warp" names the card, so the discard is said as the two
+  // steps it lowers to (the owner's choice, then the move, 20-7) — still their card, still to the Warp.
+  assert.deepEqual(bt10133.ops.map((o) => o.op), ["choose", "moveTo"], "…said as its two steps");
+  const [sent, toWarp] = bt10133.ops as [Extract<Op, { op: "choose" }>, Extract<Op, { op: "moveTo" }>];
+  assert.deepEqual([sent.sel, sent.chooser, toWarp.to, toWarp.target], [{ side: "opponent", area: "hand", count: 1 }, "opponent", "warp", { var: sent.as }], "…and nothing moves this card");
   assert.ok(bt10133.unsupported.length > 0, "the second sentence is still unread");
 
   // BT14-129 / BT18-133 / BT10-154: a card of the hand and a Battle Card of theirs, ignoring [Barrier].

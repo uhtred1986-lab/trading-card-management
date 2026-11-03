@@ -71,8 +71,6 @@ for (const [id] of PRINTED) {
   assert.deepEqual(gate.then, [{ op: "power", target: { sel: { special: "self" } }, amount: 6000, until: "game" }]);
 }
 {
-  // Wordings this must not newly accept: another measure, a union of two descriptions, a total across kinds.
-  const refused = (skill: string) => skillRecords(card("R915", { skill }))[0].unread.length > 0;
   // "Different character names" was refused here until #907 (BT18-119): it is read now, as its own measure
   // (`differentCharacters`), never as "different card names" (scripts/verify/named-gaps-907.ts).
   const characters = skillRecords(card("R915C", { skill: "[Permanent] If your Leader is a ≪Bardock's Crew≫ card and there are 4 or more ≪Bardock's Crew≫ cards with different character names in your energy, Z-Energy, Battle Area, and/or Drop, this card gets +6000 power." }))[0];
@@ -83,7 +81,10 @@ for (const [id] of PRINTED) {
   const union = skillRecords(card("R915U", { skill: "[Permanent] If there are 3 or more blue and/or yellow cards in your Battle Area and/or Combo Area, this card gets +6000 power." }))[0];
   assert.deepEqual(union.unread, []);
   assert.ok(JSON.stringify(union.cond).includes('"areas":["battle","combo"]') && JSON.stringify(union.cond).includes('"colors":["Blue","Yellow"]'), "one count, over both areas, of cards of either colour");
-  assert.ok(refused("[Permanent] If you have a total of 7 or more cards with <GT> in their character names among all cards in your energy, Z-Energy, Battle Area, and/or Drop, this card gets +6000 power."), "P-616's total across kinds stays unread");
+  // Audit conditions 3: P-616's total across a list of places is one count over all of them.
+  const p616 = skillRecords(card("R915G", { skill: "[Permanent] If you have a total of 7 or more cards with <GT> in their character names among all cards in your energy, Z-Energy, Battle Area, and/or Drop, this card gets +6000 power." }))[0];
+  assert.deepEqual(p616.unread, [], "P-616's total across places is read");
+  assert.ok(JSON.stringify(p616).includes('"areas":["energy","zEnergy","battle","drop"]') && JSON.stringify(p616).includes('"atLeast":7'), "…as one count of 7 or more over the four places");
   // #907 (BT25-131 and four more, census of 18 Oct 2026): exactly two plain descriptions with one place at the end are
   // now read, as one count over an either-description (`anyOf`) — a card that fits both counts once. The compound still
   // carries its Leader condition, and the shapes above (a place list, a total across kinds) stay unread.

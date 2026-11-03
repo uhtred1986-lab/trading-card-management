@@ -278,7 +278,8 @@ for (const [id, text, op, n] of [
   const tien = skillRecords(card("TB1-029", { skill: "[Activate: Main] [Once per turn] Look at up to 7 cards from the top of your deck and choose up to 1 ≪Universe 7≫  among them. You may play that card by paying its energy cost. Then, shuffle your deck." }))[0];
   assert.deepEqual(tien.unread, ["You may play that card by paying its energy cost"], "K: TB1-029: the paid play is unread");
   const silent = skillRecords(card("BT14-074", { skill: "[Permanent] If your Leader Card is a green ≪Earthling≫ card, green skill-less Battle Cards in your Combo Area get +5000 combo power while this card is in a battle." }))[0];
-  assert.equal(silent.unread.length, 1, "K: BT14-074: a silent blank is unread");
+  // Audit conditions 3 reads it whole: the grant, while this card is in a battle — never a blank.
+  assert.ok(silent.unread.length === 1 || (JSON.stringify(silent.ops).includes('"comboPower"') && JSON.stringify(silent.ops).includes('"inBattle"')), "K: BT14-074: a silent blank is unread, or the grant is read with its battle");
   records += 2;
 }
 
@@ -340,13 +341,14 @@ for (const [id, text, back] of [
 // Unread, never a misread: each of these was a misread at the fix head.
 for (const [id, text, why] of [
   ["BT19-074", "[activate: main][limit 1] If your Leader is a green <Broly: Br> card: During your opponent's next turn, reduce the energy cost of the first Extra you activate from under one of your <Broly: Br> cards by {g}.", /first Extra you activate/],
-  ["BT23-041", "[auto][limit 1] If your Leader is a mono-blue <Son Goku> card and you remove this card from the game: When your blue <Piccolo> card attacks, the attacking card gains [critical] for the battle, then reduce the energy cost of the next {Piercing Special Beam Cannon} you place in your Battle Area this turn by {u}.", /next \{Piercing Special Beam Cannon\} you place/],
+  // (Audit effects 3: BT23-041's "the next {Piercing Special Beam Cannon} you place in your Battle Area" now reads — a
+  // named card placed is a Z-Extra or a [Field] Extra, priced from the Z-Deck or the hand; audit-effects-3.ts.)
   ["BT27-058", "[Auto] When this card is played, draw 1 card, and you can activate [Revive] skills on ≪Namekian≫ cards from your Drop without paying their skills costs until the end of your opponent's turn.", /\[Revive\] skills/],
   ["BT27-067", "[Auto][Once per turn]{y}: When your Battle Card is played or when this card attacks, you can activate a skill that includes a marker skill cost on this card twice for the turn.", /marker skill cost/],
   ["BT26-031", "[Permanent] You may choose Battle Cards in your Drop when choosing cards to use with a blue <Gogeta: Br> card's [Union] skill from your hand. If you do, add the chosen cards to your Z-Energy.", /when choosing cards to use with/],
   ["BT20-028", "[Permanent] You may choose up to 1 of your opponent's Battle Cards when choosing cards for this card's [Z-Stack] conditions.", /when choosing cards for/],
   ["BT27-070", "[Activate: Main] Place 3 cards from under this card into their owner's Drop: Choose up to 1 [Permanent] skill other than a keyword skill on your yellow ≪Frieza Clan≫ card with an energy cost of 11 and negate it for the turn.", /\[Permanent\] skill other than a keyword skill/],
-  ["BT31-097", "[activate: main] If your Leader is an <Aeos> card: Skip your turn and begin your opponent's Charge Phase", /Skip your turn/],
+  // (Audit effects 3: BT31-097's "Skip your turn" now reads as `skip` "rest", the turn in progress; audit-effects-3.ts.)
 ] as const) {
   const recs = skillRecords(card(id, { skill: text }));
   const rec = recs[recs.length - 1];

@@ -420,10 +420,15 @@ export function expandSharedCardDescription(text: string): string {
 export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "skillKind" | "boolean" | "tri" | "number" | "powerRel" | "variable" | "filters";
 
 /** What a description's skill kind may name: a kind, or one timing of [Activate] (audit conditions 2, BT15-004). */
-export type FilterSkillKind = SkillKindPrefix | "activate:main" | "activate:battle";
-export const FILTER_SKILL_KINDS: readonly FilterSkillKind[] = ["auto", "activate", "counter", "permanent", "activate:main", "activate:battle"];
-/** Is a line of this kind one the description names? An [Activate: Main/Battle] line is both an [Activate: Main] and an [Activate: Battle] one. */
+export type FilterSkillKind = SkillKindPrefix | "activate:main" | "activate:battle" | "activate:main/battle";
+export const FILTER_SKILL_KINDS: readonly FilterSkillKind[] = ["auto", "activate", "counter", "permanent", "activate:main", "activate:battle", "activate:main/battle"];
+/**
+ * Is a line of this kind one the description names? An [Activate: Main/Battle] line is both an [Activate: Main] and an
+ * [Activate: Battle] one. Audit effects 3: "an [Activate: Main/Battle] skill" (BT31-132, BT31-116) names that one timing,
+ * a line printed [Activate: Main/Battle] — a card with a separate [Activate: Main] and [Activate: Battle] line has none.
+ */
 export function skillKindHas(kind: string, want: FilterSkillKind): boolean {
+  if (want === "activate:main/battle") return kind === want;
   if (want === "activate:main" || want === "activate:battle") return kind === want || kind === "activate:main/battle";
   return kind.startsWith(want);
 }
@@ -676,6 +681,14 @@ export function parseFilter(text0: string): CardFilter {
   // narrows the first description by a second, alternative one — ≪Saiyan≫ and either universe — which one filter
   // cannot say: read flat, the three traits were any one of them. Refused rather than widened.
   if (/\bwhich (?:are|is)\b/i.test(text)) return { ...parseOneFilter(text), unreadable: true };
+  // Audit selectors 3: "…Leader Cards **that's either mono-green or has ≪Heroine≫**" (P-330): a card that is one or the
+  // other — the noun said with each. Read flat it had to be a mono-green ≪Heroine≫ card, both at once.
+  const either = /^(.*?\b(?:cards?|leaders?|unisons?|extras?))\s+that(?:'s| is| are) either ((?:mono-|non-)?(?:red|blue|green|yellow|black|white)|multicolou?r|skill-less) or (?:has|have) ((?:<[^>]+>|≪[^≫]+≫|\[[^\]]+\]))\s*$/i.exec(text.trim());
+  if (either) {
+    const noun = either[1].replace(/^(?:(?:up to )?\d+ (?:of )?|an? |all (?:of )?)?(?:your opponent'?s |your |their )?/i, "");
+    const alts = [parseOneFilter(`${either[2]} ${noun}`), parseOneFilter(`${either[3]} ${noun}`)];
+    if (!alts.some((a) => a.unreadable)) return { ...emptyFilter(), anyOf: alts };
+  }
   // Errata-official-2 (the errata of BT7-125…BT7-129, 24 Jul 2019): "cards … that are any color other than red", which
   // the compiler says "cards with a color other than red" — a card that has a colour other than red: every non-red
   // card, and a red multicolour card too (it is also another colour). "Non-red" alone lets the red multicolour card
@@ -709,6 +722,8 @@ const COLOURS_ONLY = /^(?:(?:mono-|non-)?(?:red|blue|green|yellow|black|white)(?
  * had to be all of them at once, which none is. Names of one kind ("<A> or <B>", "≪A≫ or ≪B≫") and a character beside
  * traits ("<A>, ≪B≫, or ≪C≫ card", `characterOrTrait`) stay one description, a colour in front said of all of them.
  */
+/** A description that starts with its own count of tokens: "1 Earthling Token", "1 of their Earthling Tokens". */
+const COUNTED_TOKEN = /^\d+\s+(?:of\s+(?:their|your(?: opponent'?s)?)\s+)?(?:[a-z.'-]+\s+){0,3}tokens?\b/i;
 function kindAlternatives(text: string): CardFilter | null {
   const t = text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
   if (!/\bor\b/i.test(t)) return null;
@@ -727,7 +742,9 @@ function kindAlternatives(text: string): CardFilter | null {
     const before = t.slice(from, i);
     const after = rest.slice(sep[0].length);
     // A comparison's "or" ("4 or less", "less than or equal to") and an aside's dash end the list.
-    if (/\b(?:than|\d+)$/i.test(before) || /^(?:less|more|fewer|equal|lower|higher|greater)\b/i.test(after)) continue;
+    // (Audit selectors 3: not a count that starts the next description — "…≪Earthling≫ cards with an energy cost of 1 **or
+    // 1 Earthling Token**" (BT21-075, BT21-090, BT21-091), "…or 1 of their Earthling Tokens" (P-507).)
+    if (/\bthan$/i.test(before) || (/\d+$/.test(before) && !COUNTED_TOKEN.test(after)) || /^(?:less|more|fewer|equal|lower|higher|greater)\b/i.test(after)) continue;
     pieces.push(before.trim());
     from = i + sep[0].length;
     i = from - 1;
@@ -740,7 +757,8 @@ function kindAlternatives(text: string): CardFilter | null {
   // A qualifier before the last "or" — "…card **with** an [Evolve] or [Union] skill" (BT26-061), "Battle Cards **that** are
   // blue and/or yellow" (BT9-093), "<Bardock> **in** your Battle Area or Leader Area" (BT3-087), "…**from** your deck or
   // hand" (BT9-008) — means the "or" is inside one description, not between descriptions.
-  if (pieces.slice(0, -1).some((p) => /\b(?:in|from|with|that|which|whose|other than|among)\b/i.test(p.replace(new RegExp(NAME_TOKEN.source, "g"), "N")))) return null;
+  // (Audit selectors 3: a qualifier ends its description when the next one starts with its own count of tokens.)
+  if (pieces.slice(0, -1).some((p, i) => !COUNTED_TOKEN.test(pieces[i + 1]) && /\b(?:in|from|with|that|which|whose|other than|among)\b/i.test(p.replace(new RegExp(NAME_TOKEN.source, "g"), "N")))) return null;
   // "red or green ≪Saiyan≫ card": a colour list stays one description's colours.
   const joined: string[] = [];
   for (const p of pieces) {
@@ -752,7 +770,7 @@ function kindAlternatives(text: string): CardFilter | null {
   // What each piece names: a lone card name, a lone colour, or a description (colours, one name, maybe a noun and more).
   type Piece = { text: string; kind: string; colours: boolean; noun: boolean };
   const read = (p: string): Piece | null => {
-    const words = p.replace(/^(?:a|an|1|up to \d+|your|their)\s+/i, "");
+    const words = p.replace(/^(?:a|an|1|up to \d+|your|their)\s+/i, "").replace(/^of (?:their|your(?: opponent'?s)?)\s+/i, "");
     const tokens = words.match(new RegExp(NAME_TOKEN.source, "g")) ?? [];
     const head = words.split(NAME_TOKEN)[0].trim();
     const colours = !!head && head.split(/\s+/).every((w) => COLOUR_WORD.test(w) || /^multicolou?r$/i.test(w));
@@ -874,7 +892,7 @@ function eitherFilter(said: string, endingAsideForAll = true): CardFilter | null
   // Not "…with an energy cost of 1 **or 1 yellow Unison** with a specified
   // cost of 1" (SD20-01, #728): there the second number is the next
   // description's count, and the "or" is between two descriptions.
-  const costs = /\benergy costs? (?:of )?(\d+) or (\d+)\b(?!\s*or\b)(?!\s+(?:red|blue|green|yellow|black|white|mono|multi|card|unison|extra|battle|leader|z-|<|≪|\{))/i.exec(whole);
+  const costs = /\benergy costs? (?:of )?(\d+) or (\d+)\b(?!\s*or\b)(?!\s+(?:red|blue|green|yellow|black|white|mono|multi|card|unison|extra|battle|leader|z-|<|≪|\{|of (?:their|your)\b|(?:[a-z.'-]+\s+){0,3}tokens?\b))/i.exec(whole);
   if (costs) {
     const at = (n: string) => parseFilter(whole.slice(0, costs.index) + whole.slice(costs.index).replace(costs[0], `energy cost of ${n}`));
     return { ...emptyFilter(), anyOf: [at(costs[1]), at(costs[2])] };
@@ -893,7 +911,9 @@ function eitherFilter(said: string, endingAsideForAll = true): CardFilter | null
   // hand**" — is the selector's (`parseTarget` reads it), not a description: its "or" joins two areas, and cut there the
   // last piece was an area with no card noun, which refused the alternatives and left one merged description ("1
   // <Dark Broly> card … or 1 non-black Battle Card with <Xeno> …" read as one card with both).
-  const AREA_TAIL = /\s+(?:in|from) (?:your|their|your opponent'?s) (?:hand|deck|drop(?: area)?|warp|life|energy(?: area)?|z-energy|battle area|combo area)(?:(?:,|,? and\/or|,? or|,? and) (?:your |their )?(?:hand|deck|drop(?: area)?|warp|life|energy(?: area)?|z-energy|battle area|combo area))*$/i;
+  // (Audit selectors 3: and the Leader and Unison Areas — "…in your Battle Area **or Leader Area**" (BT7-094), "…**or Unison
+  // Area**" (P-623's back): cut there, the second area was a card of its own, any Leader or any Unison.)
+  const AREA_TAIL = /\s+(?:in|from) (?:your|their|your opponent'?s) (?:hand|deck|drop(?: area)?|warp|life|energy(?: area)?|z-energy|battle area|combo area|leader area|unison area)(?:(?:,|,? and\/or|,? or|,? and) (?:your |their )?(?:hand|deck|drop(?: area)?|warp|life|energy(?: area)?|z-energy|battle area|combo area|leader area|unison area))*$/i;
   const t = (shared && ending ? expandSharedCardDescription(plain.slice(0, ending.index)) : whole).replace(AREA_TAIL, "");
   if (!/\bor\b/i.test(t)) return null;
   // Split at top level only: names carry commas and "or"s of their own.
@@ -1044,8 +1064,10 @@ function parseOneFilter(text: string): CardFilter {
   // Phrasing batch 7: a bare "**without <Son Goku: GT>**" — "a <Pan> card or a card with <GT> in its character
   // name—both green and without <Son Goku: GT>—" (BT20-054b) — rules that name out (2-10-1-1: the whole character
   // name). It used to fall to the exact loop below and became a name the card had to *have*.
-  t = t.replace(/\bwithout\s+(<[^>]+>|\{[^}]+\})(?!\s+in (?:its|their)\b)/gi, (_whole, token: string) => {
-    (token.startsWith("<") ? f.notCharacters : f.notNames).push(token.slice(1, -1).trim());
+  // Audit effects 3: "…green <Vegeta> cards with [Blocker] and **without ≪Great Ape≫**" (P-487) — a special trait named
+  // out the same way (`notTraits`). It fell to the trait loop below and became a trait the card had to have.
+  t = t.replace(/\bwithout\s+(<[^>]+>|\{[^}]+\}|≪[^≫]+≫)(?!\s+in (?:its|their)\b)/gi, (_whole, token: string) => {
+    (token.startsWith("≪") ? f.notTraits : token.startsWith("<") ? f.notCharacters : f.notNames).push(token.slice(1, -1).trim());
     return " ";
   });
   // Audit conditions 2: "your Battle Cards **with 2 or more character names including <SH>**" (EX24-25) — a card of
@@ -1254,9 +1276,10 @@ function parseOneFilter(text: string): CardFilter {
   // keyword joined to the measure before it is required just the same.
   for (const m of lower.matchAll(/\b(?:with|and) (?:an?|the )?\s*\[([a-z0-9:\- /]+)\](?: skills?)?/g)) {
     const word = m[1].trim();
-    // Audit conditions 2: "[Activate: Battle]" or "[Activate: Main]" alone is that timing (BT15-004); "[Activate: Main/Battle]" and "[Activate]" both.
-    const timing = /^activate\s*:\s*(main|battle)$/.exec(word);
-    const kind: FilterSkillKind | null = timing ? (`activate:${timing[1]}` as FilterSkillKind) : /^counter\b/.test(word) ? "counter" : /^activate\b/.test(word) ? "activate" : word === "auto" ? "auto" : word === "permanent" ? "permanent" : null;
+    // Audit conditions 2: "[Activate: Battle]" or "[Activate: Main]" alone is that timing (BT15-004); "[Activate]" both.
+    // Audit effects 3: "[Activate: Main/Battle]" is the line of that timing (BT31-132), never any [Activate] line.
+    const timing = /^activate\s*:\s*(main|battle|main\s*\/\s*battle)$/.exec(word);
+    const kind: FilterSkillKind | null = timing ? (`activate:${timing[1].replace(/\s+/g, "")}` as FilterSkillKind) : /^counter\b/.test(word) ? "counter" : /^activate\b/.test(word) ? "activate" : word === "auto" ? "auto" : word === "permanent" ? "permanent" : null;
     if (kind) {
       f.skillKind = kind;
       continue;
@@ -1344,7 +1367,8 @@ function parseOneFilter(text: string): CardFilter {
   // "Non-Leader card" is the type it must not be, and reading it as the type
   // itself inverted the filter — a stack of "non-Leader cards" became Leaders.
   // Phrasing batch 3: not a word inside a card's name — "{Pilaf, **Leader** of the Crew}" (BT5-015) is a Battle Card.
-  const typed = lower.replace(/\{[^{}]*\}/g, " ");
+  // (Audit selectors 3: nor an area's name — "…in your Battle Area or **Unison Area**" (P-623's back) is no Unison Card.)
+  const typed = lower.replace(/\{[^{}]*\}/g, " ").replace(/\b(?:leader|unison) areas?\b/g, " ");
   const typeWord = (re: RegExp): "yes" | "no" | null => (new RegExp(`non-${re.source}`).test(typed) ? "no" : re.test(typed) ? "yes" : null);
   // The plural counts too. Anchored with a trailing `\b`, "Battle Card" did
   // not match "Battle **Cards**" — so every phrase that names the type in the
@@ -1508,6 +1532,9 @@ function parseOneFilter(text: string): CardFilter {
     // Audit conditions 2: "…with power less than or equal to **that card's** power" (BT25-035) is the card chosen just before.
     f.powerRel = { of: /the chosen card|that card/.test(m[0]) ? "chosen" : "self", cmp };
   }
+  // Audit triggers 3: "…with power greater than or equal to **that card**" (BT28-005, the attacking card its moment names):
+  // a measure against a card this reader does not take, so the description is not read, rather than read with no bound.
+  else if (/\bpower (?:less|lower|greater|higher|more|equal|no less|no more|at or)\b[^,.]{0,30}? (?:to |than )(?:this|that|the chosen|the attacking|the played) card\b(?!'?s power)/.test(lower)) f.unreadable = true;
   return f;
 }
 

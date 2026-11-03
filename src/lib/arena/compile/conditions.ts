@@ -1,8 +1,9 @@
 import { emptyFilter, parseFilter, type CardFilter } from "../text/filters";
 import { PLACED_IN_ENERGY } from "./shared";
-import type { Cond, Ref, ScriptArea, Selector } from "../vm/script";
+import type { Cond, Ref, ScriptArea, Selector, Side } from "../vm/script";
 import { compileAction, joints } from "./prices";
 import { boardCount, colorCountSelector, filterFor, parseTarget } from "./targets";
+import { unreadFilterWords } from "../lang/filter-words";
 
 /**
  * A price, or the head of one, read as the one or more conditions it states.
@@ -20,7 +21,7 @@ export function allConditions(printed: string): { cond: Cond; subject?: Ref }[] 
     const dashed = dashConjunction(head);
     return dashed ? dashed.map((cond) => ({ cond })) : null;
   }
-  const parts = joints(head);
+  const parts = joints(maskLists(head));
   if (parts.length) {
     const conds: { cond: Cond; subject?: Ref }[] = [];
     let from = 0;
@@ -60,6 +61,26 @@ export function allConditions(printed: string): { cond: Cond; subject?: Ref }[] 
   if (parts.some((j, i) => readsAsAction(head.slice(j.at + j.len, parts[i + 1]?.at ?? head.length).replace(/[\s,]+$/, "").trim()))) return null;
   const whole = parseConditionClause(head, true);
   return whole ? [whole] : null;
+}
+
+/**
+ * Audit conditions 3: the commas and "and"s of a list inside one condition are no joints — "…you have a Z-Card in your
+ * Leader Area**,** Battle Area**,** or Unison Area" (BT26-136), "…1 or more <Koitsukai>**,** <Panchia>**, and**
+ * <Bollarator> cards—all red—in your energy**,** Z-Energy**,** Battle Area**, and** Drop" (BT20-012). Cut there, a list
+ * piece read alone failed and the whole price went unread. The separators are masked character for character, so the
+ * joints `joints` finds in the copy are the joints of the text.
+ */
+function maskLists(text: string): string {
+  const mask = (w: string) => w.replace(/[,\s]|and(?:\/or)?|or/g, (x) => "\u0003".repeat(x.length));
+  return text
+    // (Review: a piece that opens a clause of its own on an area — "…a <Goku> card in your Drop**, your life is** at 4 or
+    // less" — is a joint still; masked, the life condition was swallowed by the count before it.)
+    .replace(new RegExp(`(\\b(?:in|among all cards in) your ${LIST_AREA_WORD})((?:(?!\\s*,\\s*(?:and\\/or |and |or )?your ${LIST_AREA_WORD}\\s+(?:is|are|has|have|was|were)\\b)\\s*,\\s*(?:and\\/or |and |or )?(?:your )?${LIST_AREA_WORD})+)`, "gi"), (_w, head: string, tail: string) => head + mask(tail))
+    .replace(new RegExp(`(${NAMED_CARD})((?:\\s*,\\s*(?:and |or )?${NAMED_CARD})+)`, "g"), (_w, head: string, tail: string) => head + tail.replace(new RegExp(`(${NAMED_CARD})|[^<{]+`, "g"), (x, name?: string) => (name ? x : mask(x))))
+    // "…and you only have this card **and** 1 red skill-less Battle Card in your Combo Area" (BT14-013).
+    .replace(/(\bonly have this card)( and )(?=(?:1|an?) [^,]+? in your combo area)/gi, (_w, a: string, and: string) => a + mask(and))
+    // "…you have 1 or more <Android 17> card **and** 1 or more <Hell Fighter 17> card in your Combo Area" (BT26-023).
+    .replace(new RegExp(`(\\b\\d+ or (?:more|less|fewer) ${NAMED_CARD}(?: cards?)?)( and )(?=\\d+ or (?:more|less|fewer) ${NAMED_CARD} cards? in )`, "gi"), (_w, a: string, and: string) => a + mask(and));
 }
 
 /**
@@ -377,13 +398,17 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     return dashed ? { cond: dashed.length === 1 ? dashed[0] : { kind: "all", conds: dashed } } : null;
   }
   clause = folded;
+  let m: RegExpExecArray | null;
   // "blue **and/or** yellow cards" (BT19-145) is the cards of either colour
   // counted together, which "blue or yellow cards" already says. Only between
   // two colours: the slash splits any other pair into garbage (#961).
   const trimmed = clause
     .toLowerCase()
     .trim()
-    .replace(new RegExp(`\\b(${COLOR_WORD})\\s+and/or\\s+(?=${COLOR_WORD}\\b)`, "g"), "$1 or ");
+    .replace(new RegExp(`\\b(${COLOR_WORD})\\s+and/or\\s+(?=${COLOR_WORD}\\b)`, "g"), "$1 or ")
+    // Audit conditions 3: "…cards in Rest Mode **between you and your opponent** is 15 or more" (BT24-096): one count of
+    // both players' cards, whose "and" joins the two players and is no joint (the effect reader folds it the same way).
+    .replace(/\bthe total number of cards in (rest|active) mode between you and your opponent\b/g, "the total number of cards in $1 mode between both players");
   // "During your turn" is a condition too, and reads as one everywhere else in
   // the text. The delay phrases ("during your opponent's *next* turn") are
   // matched before this is reached, so they are not caught here.
@@ -414,6 +439,11 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Audit conditions 2: "…**and it's the turn when this card was played**: When this card attacks" (BT23-040): the card
   // was played this turn (`placedThisTurn` with `played`) — a play, not a skill's placement.
   if (/^it'?s the turn (?:when|in which) (?:this card|it) was played$/.test(t.replace(/’/g, "'"))) return { cond: { kind: "placedThisTurn", sel: { special: "self" }, played: true } };
+  // Audit conditions 3: "…Additionally, if this card **was played from a Drop**" (BT31-050, BT31-045, BT31-044, BT31-047):
+  // the play this card's [Auto] answers came out of a Drop Area — the copy's memory of where it was played from this turn.
+  if ((m = /^(?:additionally,? )?(?:this card|it) was played from (?:a|the|your|your opponent'?s) (drop|hand|warp|deck)(?: area)?$/.exec(t))) {
+    return { cond: { kind: "placedThisTurn", sel: { special: "self" }, played: true, from: [m[1] as ScriptArea] }, subject: { sel: { special: "self" } } };
+  }
   // EX04-04 (prohibition batch 6): "if you played this card with [evolve]" —
   // the copy entered by an evolution of any kind (22-5-2-2), while it stays.
   if (/^(?:you played (?:this card|it)|(?:this card|it) was played) (?:using|with|by) (?:an? |the )?\[evolve\](?: skill)?$/.test(t)) {
@@ -461,6 +491,113 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       const sel = underLeader(has[1] ? "opponent" : "you", filter);
       return { cond: has[2] === "has" ? { kind: "count", sel, atLeast: 1 } : { kind: "count", sel, atMost: 0 }, subject: { sel: { special: has[1] ? "opponentLeader" : "leader" } } };
     }
+    // Audit conditions 3: the same either-Leader pile said with the card first — "…and {Son Gohan, Awakened Hidden Power}
+    // **is under your Leader or your opponent's Leader**" (BT24-008).
+    const eitherFirst = /^(?:an? )?(.+?) is under your leader(?: card)? or (?:under )?your opponent'?s leader(?: card)?$/.exec(t);
+    if (eitherFirst && /^[{<≪]/.test(eitherFirst[1])) return parseConditionClause(`there is a ${eitherFirst[1]} under your leader or your opponent's leader`, true);
+    // Audit conditions 3: "If **a red <Son Goku> <Vegeta> <Trunks: Future> Leader** is under your Z-Leader" (BT19-030): the
+    // Leader a [Z-Awaken] put under the Z-Leader (22-2-6), one card with all three character names (2-10). The word
+    // "Leader" is the card's type, which the description above refuses as a noun; the names make it a description.
+    const leaderUnder = /^(?:an? |1 )((?:(?:mono-)?(?:red|blue|green|yellow|black|white) )*(?:<[^>]+>\s*)+)leader(?: card)? is under your (?:z-)?leader(?: card)?$/.exec(t);
+    if (leaderUnder) {
+      const filter = parseFilter(`${leaderUnder[1].trim()} card`);
+      if (filter.unreadable || filterIsBlank(filter)) return null;
+      return { cond: { kind: "count", sel: underLeader("you", { ...filter, type: "LEADER" }), atLeast: 1 }, subject: { sel: { special: "leader" } } };
+    }
+  }
+  // Audit conditions 3: this card's own pile, said with "has … under it" — "If this card **has a <Son Goku> card under
+  // it**, it gets +10000 power" (BT26-093): the question "there is a <Son Goku> card under this card" reads.
+  if ((m = /^this card has (?:an?|1) (.+?) under it$/.exec(t)) && /[<≪{]|\bcards?\b/.test(m[1])) return parseConditionClause(`if there is a ${m[1]} under this card`, true);
+  // Audit conditions 3: an area said as the subject — "If **your Warp has 5 cards or more in it**" (BT3-107's back): the
+  // count "there are 5 or more cards in your Warp" reads.
+  if ((m = /^(your|your opponent's) (warp|drop(?: area)?|hand|deck|energy(?: area)?|life(?: area)?|z-energy|combo area|battle area) has (\d+) (?:cards? or (more|less|fewer)|or (more|less|fewer) cards?)(?: in it)?$/.exec(t))) {
+    return parseConditionClause(`there are ${m[3]} or ${m[4] ?? m[5]} cards in ${m[1]} ${m[2]}`, true);
+  }
+  // Audit conditions 3: "If you have **no energy**" (BT3-032): no card in your Energy Area.
+  if ((m = /^(you have|your opponent has) no energy$/.exec(t))) return parseConditionClause(`${m[1]} no cards in ${m[1] === "you have" ? "your" : "their"} energy`, true);
+  // Audit conditions 3: "If this card has **1 marker**" (EX19-21): exactly that many, as a bare "your life is at 1" is read
+  // (no "or more").
+  if ((m = /^this card has (\d+) markers?(?: on it)?$/.exec(t))) return { cond: { kind: "markers", sel: { special: "self" }, atLeast: Number(m[1]), atMost: Number(m[1]) }, subject: { sel: { special: "self" } } };
+  // Audit conditions 3: "if **one of your Unisons** has 5 or more markers on it" (EX23-02): a Unison of yours with that many
+  // markers on it (13-2) — the card's own count, not the Unisons' added up.
+  if ((m = /^(?:one of )?your (unisons?|unison cards?|battle cards?|cards) (?:has|have) (\d+) or (more|less|fewer) markers?(?: on (?:it|them))?$/.exec(t))) {
+    const sel = parseTarget(`your ${m[1]}`);
+    if (!sel || sel.special) return null;
+    delete sel.count;
+    delete sel.upTo;
+    const n = Number(m[2]);
+    return { cond: { kind: "count", sel: { ...sel, filter: { ...(sel.filter ?? emptyFilter()), ...(m[3] === "more" ? { markersMin: n } : { markersMax: n }) } }, atLeast: 1 } };
+  }
+  // Audit conditions 3: "…and you **only have this card and 1 red skill-less Battle Card** in your Combo Area" (BT14-013,
+  // BT14-012): the Combo Area holds exactly two cards, this one and one other that fits.
+  if ((m = /^you (?:only have|have only) this card and (?:1|an?) (.+?) in your combo area$/.exec(t))) {
+    const other = filterFor(m[1], null);
+    if (!other || other.unreadable || filterIsBlank(other) || unreadFilterWords(m[1], other).length) return null;
+    return { cond: { kind: "all", conds: [
+      { kind: "count", sel: { special: "self", area: "combo", side: "you" }, atLeast: 1 },
+      { kind: "count", sel: { side: "you", area: "combo" }, atLeast: 2, atMost: 2 },
+      { kind: "count", sel: { side: "you", area: "combo", filter: other, notSelf: "card" }, atLeast: 1 },
+    ] }, subject: { sel: { special: "self" } } };
+  }
+  // Audit conditions 3: "If there are 2 or less **non-black colors present among black multicolor cards** in your energy"
+  // (EX23-50), "…3 or more non-black colors on black multicolor cards in your energy" (EX23-50, EX23-45): the colours those
+  // cards carry other than black. Every such card is black, so black is always one of the colours counted
+  // (`distinctColors`, 1-8-1-1) whenever there is any: N other colours are N + 1 in all, and with no such card both sides
+  // are none.
+  if ((m = /^there (?:are|is) (\d+) or (more|less|fewer) non-(red|blue|green|yellow|black|white) colou?rs (?:present )?(?:among|on) (red|blue|green|yellow|black|white) multicolou?r(?:ed)? cards in your energy(?: area)?$/.exec(t)) && m[3] === m[4]) {
+    const colour = (m[3][0].toUpperCase() + m[3].slice(1)) as CardFilter["colors"][number];
+    const n = Number(m[1]) + 1;
+    return { cond: { kind: "count", sel: { side: "you", area: "energy", filter: { ...emptyFilter(), colors: [colour], multiColor: true }, distinctColors: true }, ...(m[2] === "more" ? { atLeast: n } : { atMost: n }) } };
+  }
+  // Audit conditions 3: "if **this card is the only card in your hand**" (DB2-123): this card is in your hand and nothing
+  // else is.
+  if (/^this card is the only card in your hand$/.test(t)) {
+    return { cond: { kind: "all", conds: [{ kind: "count", sel: { special: "self", area: "hand", side: "you" }, atLeast: 1 }, { kind: "count", sel: { side: "you", area: "hand" }, atMost: 1 }] }, subject: { sel: { special: "self" } } };
+  }
+  // Audit conditions 3: the Leader's name measured — "If **your Leader's character name includes** <Son Goten>, <Trunks>,
+  // or <Gotenks>" (BT19-066), "…includes <SH>" (BT19-037): one of the names inside the Leader's character name
+  // (`charactersIncluding`, the reading "has <X> in its character name" gets); "If **the name of your Leader's back side
+  // includes** {Super Saiyan Blue Son Goku}" (BT18-053): inside the card name of its back side (22-2-5).
+  if ((m = /^your leader(?: card)?'s (character name|card name|name) includes? (.+)$/.exec(t))) {
+    const names = [...m[2].matchAll(/<[^>]+>|\{[^}]+\}/g)].map((x) => x[0]);
+    if (!names.length || m[2].replace(/<[^>]+>|\{[^}]+\}|,|\bor\b|\s/g, "") !== "") return null;
+    const word = m[1] === "character name" ? "character name" : "card name";
+    const conds: Cond[] = names.map((name) => ({ kind: "leaderMatches", filter: parseFilter(`card with ${name} in its ${word}`) }));
+    if (conds.some((c) => c.kind === "leaderMatches" && (c.filter.unreadable || filterIsBlank(c.filter)))) return null;
+    return { cond: conds.length === 1 ? conds[0] : { kind: "any", conds }, subject: { sel: { special: "leader" } } };
+  }
+  if ((m = /^the (?:card )?name of your leader(?: card)?'s back side includes (\{[^}]+\})$/.exec(t))) {
+    const filter = parseFilter(`card with ${m[1]} in its card name`);
+    if (filter.unreadable || filterIsBlank(filter)) return null;
+    return { cond: { kind: "leaderMatches", filter, back: true }, subject: { sel: { special: "leader" } } };
+  }
+  // Audit conditions 3: "If **a player's Leader** is black" (BT20-121): either Leader.
+  if ((m = /^a player'?s leader(?: card)? is (.+)$/.exec(t))) {
+    const own = parseConditionClause(`your leader is ${m[1]}`, true);
+    const theirs = parseConditionClause(`your opponent's leader is ${m[1]}`, true);
+    return own && theirs ? { cond: { kind: "any", conds: [own.cond, theirs.cond] } } : null;
+  }
+  // Audit conditions 3: "If **no player has a Leader with its front side facing up**" (P-411): both Leaders show their
+  // back side (22-2).
+  if ((m = /^no player has a leader(?: card)? with its (front|back) side facing up$/.exec(t))) {
+    const flipped = m[1] === "front";
+    return { cond: { kind: "all", conds: [{ kind: "leaderFlipped", flipped }, { kind: "leaderFlipped", side: "opponent", flipped }] } };
+  }
+  // Audit conditions 3: "If your Leader Card **has 10000 power**" (P-176): exactly that power, as a bare number is read
+  // elsewhere.
+  if ((m = /^(this card|your leader(?: card)?|your opponent's leader(?: card)?) has (\d+) power$/.exec(t))) {
+    const n = Number(m[2]);
+    const sel: Selector = m[1] === "this card" ? { special: "self" } : m[1].startsWith("your opponent") ? { special: "opponentLeader" } : { special: "leader" };
+    return { cond: { kind: "power", sel, atLeast: n, atMost: n }, subject: { sel } };
+  }
+  // Audit conditions 3: "If **the number of cards in your Battle Area is less than the number of cards in your opponent's
+  // Battle Area**" (P-625): the two counts against each other (`outnumbers`), as "you have less energy than your opponent".
+  if ((m = /^the number of cards in (your|your opponent's) (battle area|hand|energy(?: area)?|drop(?: area)?|warp) is (less|fewer|more|greater) than the number of cards in (your|your opponent's) (battle area|hand|energy(?: area)?|drop(?: area)?|warp)$/.exec(t)) && m[1] !== m[4] && m[2].split(" ")[0] === m[5].split(" ")[0]) {
+    const area = ({ battle: "battle", hand: "hand", energy: "energy", drop: "drop", warp: "warp" } as const)[m[2].split(" ")[0] as "battle"];
+    const left: Selector = { side: m[1] === "your" ? "you" : "opponent", area };
+    const right: Selector = { side: m[4] === "your" ? "you" : "opponent", area };
+    const more = /more|greater/.test(m[3]);
+    return { cond: { kind: "outnumbers", sel: more ? left : right, than: more ? right : left } };
   }
   // Only as a whole condition: as one part of an "and" chain (BT20-078's "this card and {X} are in your Warp") a
   // single name would be read without the part the chain split off. A pair of names is whole in itself.
@@ -468,6 +605,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   if (shaped !== undefined) return shaped;
   const phrased = priceConditionPhrasing(t);
   if (phrased !== undefined) return phrased;
+  const listed = areaListCondition(t);
+  if (listed !== undefined) return listed;
   // #907 round 4: "if there is at least 1 <Son Goten>, <Trunks: Youth>, and <Videl> card in your Drop Area"
   // (BT7-054), "if you have at least 1 <Recoome>, <Jeice>, <Burter>, and <Guldo> card in play" (BT10-076),
   // "if you have 1 or more <Shroom> and <Salsa> card in your Combo Area" (EX23-42): one card of EACH name,
@@ -539,11 +678,21 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Audit conditions 2 review: so is an "and" inside a qualifier set off by dashes — "you have 2 or more energy and a
   // <Son Goku>, <Vegeta>, or <Trunks: Future> card**—all red and with [EX-Evolve]—**in play" (BT19-001's [Awaken]). Cut
   // there, the halves read as 2 or more energy named <Son Goku> or <Vegeta>, or 2 or more red <Trunks: Future> cards.
+  // Audit conditions 3: so is the "and" of a list of places — "…cards in your Z-Energy, Battle Area, **and** Drop is 5 or
+  // more" (EX23-22), "…in your Battle Area **and** Drop Area" (EB1-58): one count over the list (`areaListCondition`).
   const holdNames = (s: string) =>
     s
-      .replace(new RegExp(`((?:${NAMED_CARD},?\\s+)*${NAMED_CARD}) and (${NAMED_CARD})(?=\\s+cards?\\s+(?:in|among)\\b)`, "gi"), "$1\u0001$2")
+      // Audit conditions 3: "…, and **this card and all of your energy** are in Rest Mode" (BT29-071): one subject of two.
+      .replace(/\bthis card and (all (?:of )?your energy (?:is|are) in (?:rest|active) mode)\b/gi, "this card\u0001$1")
+      // …and "you only have **this card and** 1 red skill-less Battle Card in your Combo Area" (BT14-013).
+      .replace(/\b(only have this card) and ((?:1|an?) [^,]+? in your combo area)\b/gi, "$1\u0001$2")
+      // …and "1 or more <Son Goku> **and** 1 or more <Son Gohan: Childhood> cards in Rest Mode" (BT26-118): two counts
+      // sharing the noun and the place after them (`parseCountCondition`'s `two`).
+      .replace(new RegExp(`(\\b\\d+ or (?:more|less|fewer) ${NAMED_CARD}(?: cards?)?) and (\\d+ or (?:more|less|fewer) ${NAMED_CARD} cards? in )`, "gi"), "$1\u0001$2")
+      .replace(new RegExp(`(\\b(?:in|among all cards in) your ${LIST_AREA_WORD}(?:\\s*,\\s*(?:and\\/or |or )?(?:your )?${LIST_AREA_WORD})*,?) (and(?:\\/or)?) ((?:your )?${LIST_AREA_WORD})\\b(?!\\s+(?:is|are|has|have)\\b)`, "gi"), (_w, a: string, and: string, b: string) => `${a}${and === "and" ? "\u0001" : "\u0002"}${b}`)
+      .replace(new RegExp(`((?:${NAMED_CARD},?\\s+)*${NAMED_CARD}) and (${NAMED_CARD})(?=\\s+cards?(?:\\s+|\\s*${DASH}[^—―–]*${DASH}\\s*)(?:in|among)\\b)`, "gi"), "$1\u0001$2")
       .replace(/([—―–])([^—―–]*)([—―–])/g, (_w, open: string, inside: string, close: string) => open + inside.replaceAll(" and ", "\u0001") + close);
-  const unhold = (s: string) => s.replaceAll("\u0001", " and ");
+  const unhold = (s: string) => s.replaceAll("\u0001", " and ").replaceAll("\u0002", " and/or ");
   // #930, P-226: "you have only <Son Goten: GT> cards in play **or no Battle
   // Cards in play**". The "or" has no subject after it, so the split below
   // never cut it, and the whole was read as one count of at least 1 card that
@@ -634,7 +783,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
         !/^an? (?:energy|combo) cost\b|^an? specified cost\b/.test(half);
       const carried = subject && namesACard ? parseConditionClause(`${subject[1]} ${half}`, true) : null;
       countRefused = false;
-      const got = carried ?? parseConditionClause(part.trim(), true);
+      const got = carried ?? parseConditionClause(part.trim().replace(/,$/, ""), true);
       if (!got && countRefused) return null;
       if (!got) {
         conds.length = 0;
@@ -665,7 +814,6 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     const conds = alternatives.map((part) => parseConditionClause(part.trim(), true)?.cond ?? null);
     if (conds.every((x) => x)) return { cond: { kind: "any", conds: conds as Cond[] } };
   }
-  let m: RegExpExecArray | null;
   // "If your Leader Card is a <Baby> card, it gets +10000 power" — the leader is
   // both the condition's subject and what "it" then refers to.
   // "If your Leader Card is a yellow <Boujack> card **on its front side**" (EX13-24, phrasing batch 1): the
@@ -818,6 +966,14 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     if (!areas) return null;
     return { cond: { kind: "comboFrom", sel: { special: "self" }, areas }, subject: { sel: { special: "self" } } };
   }
+  // Audit conditions 3: "if **your Combo Area has 2 or more ≪Boujack Brigade≫ cards that you comboed with from a Battle
+  // Area**" (BT6-080 both sides): that many of the cards there entered the combo from a Battle Area (`comboFrom` counted).
+  if ((m = /^your combo area has (\d+) or more (.+?) that you comboed with from (?:a|your) (battle area|hand|drop(?: area)?|deck|energy)$/.exec(t))) {
+    const filter = filterFor(m[2], null);
+    const area = comboSourceAreas(m[3]);
+    if (!filter || filter.unreadable || !area) return null;
+    return { cond: { kind: "comboFrom", sel: { side: "you", area: "combo", ...(filterIsBlank(filter) ? {} : { filter }) }, areas: area, atLeast: Number(m[1]) } };
+  }
   // A card's own mode as a condition (1-10).
   if ((m = /^this card is in (rest|active) mode$/.exec(t))) {
     return { cond: { kind: "count", sel: { special: "self", mode: m[1] as "rest" | "active" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
@@ -900,7 +1056,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Delayed/replacement batch 1: "If this card has 1 or more cards under it" (P-436, BT17-144) and "if 1 or more
   // cards are under this card" (BT20-149): this card's own pile, counted — the gate of their 9-10 substitute, which
   // places that pile in the Drop instead.
-  if ((m = /^(?:this card has (\d+) or more cards? under it|(\d+) or more cards? (?:are|is) under this card)$/.exec(t))) {
+  // Audit conditions 3: "If 7 or more cards **are placed** under this card" (BT6-030) is the same pile, counted now.
+  if ((m = /^(?:this card has (\d+) or more cards? under it|(\d+) or more cards? (?:are|is) (?:placed )?under this card)$/.exec(t))) {
     return { cond: { kind: "count", sel: { side: "you", area: "under" }, atLeast: Number(m[1] ?? m[2]) }, subject: { sel: { special: "self" } } };
   }
   // "If a {Dr.Uiro's Lab} in your Battle Area has 17 or more cards under it"
@@ -959,14 +1116,54 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // this card is attacking": one end of the battle rather than either (8-1).
   // "One of" is the article, not a count — the condition asks whether any of
   // them is there.
-  if ((m = /^(?:if )?(.+?) (is|isn't|is not) (being attacked|attacking)$/.exec(t))) {
-    const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1].replace(/^(?:one|any) of /, ""));
-    if (sel) {
+  // Audit conditions 3: the same with what is attacked — "**during a battle in which** your <Broly> card is attacking **a
+  // Battle Card**" (BT22-055's back, BT22-056, P-671), "if one of your blue <Beerus> cards is attacking **an opponent's
+  // Battle Card**" (BT16-043): the guard card of the battle too, as "attacks a Battle Card" is read below. Any other
+  // object is not read here. And "if **your opponent's card** is attacking" (BT31-140): any card of theirs in play.
+  // "…card**―both green and with an energy cost of 4―**is attacking" (BT22-067): the aside closes the subject.
+  if ((m = /^(?:if )?(?:(?:a|the) )?(?:battles? (?:in which|where|when) )?(.+?)\s*(?:[—―–]|--)?\s*(is|isn't|is not) (being attacked|attacking)(?: (.+))?$/.exec(t))) {
+    const guardOf = (said: string | undefined): Selector | null | undefined =>
+      said === undefined
+        ? undefined
+        : /^(?:an?|the|1) (?:opponent'?s )?battle cards?$|^(?:your|an|the) opponent'?s battle cards?$/.test(said)
+          ? { side: "opponent", area: "battle" }
+          : /^(?:an?|the) leader(?: card)?$|^(?:your|an|the) opponent'?s leader(?: card)?$/.test(said)
+            ? { special: "opponentLeader" }
+            : null;
+    const guard = guardOf(m[4]);
+    const who = m[1].replace(/^(?:one|any) of /, "");
+    const sel: Selector | null =
+      m[1] === "this card"
+        ? { special: "self" }
+        : /^your opponent'?s cards?$/.test(who)
+          ? { side: "opponent", area: "play" }
+          : parseTarget(who);
+    if (sel && guard !== null && !(guard && (m[3] !== "attacking" || m[2] !== "is"))) {
       delete sel.count;
       delete sel.upTo;
       const role = m[3] === "being attacked" ? "guard" : "attacker";
-      return { cond: { kind: "inBattle", sel, role, ...(m[2] === "is" ? {} : { not: true }) }, subject: { sel } };
+      const own: Cond = { kind: "inBattle", sel, role, ...(m[2] === "is" ? {} : { not: true }) };
+      return { cond: guard ? { kind: "all", conds: [own, { kind: "inBattle", sel: guard, role: "guard" }] } : own, subject: { sel } };
     }
+  }
+  // Audit conditions 3: "**During this card's battle**, if there are cards in your Combo Area, draw 1 card" (TB2-001 both
+  // sides; Q&A TB2-001: during a battle where it attacks a Battle Card, it can be used): a battle this card is in (8-1).
+  if (/^this card'?s battle$/.test(t)) return { cond: { kind: "inBattle", sel: { special: "self" } }, subject: { sel: { special: "self" } } };
+  // Audit conditions 3: "If this card is in a battle **with a Battle Card**" (BT27-050): this card is in the battle and
+  // the other card in it — the guard it attacks or the card attacking it — is a Battle Card (a battle has two, 8-1).
+  if (/^this card is in (?:a|the) battle with an? battle card$/.test(t)) {
+    const other: Selector = { side: "both", area: "battle", filter: { ...emptyFilter(), type: "BATTLE" }, notSelf: "card" };
+    return { cond: { kind: "all", conds: [{ kind: "inBattle", sel: { special: "self" } }, { kind: "inBattle", sel: other }] }, subject: { sel: { special: "self" } } };
+  }
+  // Audit conditions 3: "If **another card** is in a battle" (EX19-14, a Unison): a battle is in progress between cards
+  // other than this one (8-1) — any card of either player's in play but this card.
+  if (/^another card is in (?:a|the) battle$/.test(t)) return { cond: { kind: "inBattle", sel: { side: "both", area: "play", notSelf: "card" } } };
+  // Audit conditions 3: "If your blue <Vegeta: GT> is in a battle **during your turn**" (P-743): the battle, and whose
+  // turn it is (7-1), both asked.
+  if ((m = /^(.+?) is in (?:a|the) battle during (your|your opponent's) turn$/.exec(t))) {
+    const inner = parseConditionClause(`${m[1]} is in a battle`, true);
+    if (!inner) return null;
+    return { cond: { kind: "all", conds: [inner.cond, { kind: "isTurnPlayer", ...(m[2] === "your" ? {} : { who: "opponent" as const }) }] }, subject: inner.subject };
   }
   // "When your <Gogeta: GT> cards attack your opponent's Battle Cards"
   // (BT18-001, active voice): the same end of the battle as "is attacking"
@@ -1056,6 +1253,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   // "If your Leader's back side is {Name}", "… is a black <Goku> card" (22-2-5).
   if ((m = /^your leader(?: card)?'s back side is (.+)$/.exec(t))) {
+    // Audit conditions 3: "…back side is a red <Super 17> card**, you have 2 or more energy**" (BT26-023) is two
+    // conditions; the description swallowed the second, as the front side's reading refuses to.
+    if (leaderTailHoldsAClause(m[1])) return null;
     const parts = splitDisjunction(m[1], { measured: true });
     if (parts.length > 1) {
       if (hasBlankPart(parts)) return null;
@@ -1308,6 +1508,15 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
   // theirs"; "less/fewer life than" is not "at least theirs".
   if (/^you have more life than your opponent$|^your life is (?:greater|higher|more) than your opponent'?s(?: life)?$/.test(t)) return { cond: { kind: "not", cond: { kind: "lifeVsOpponent", atMost: true } } };
   if (/^you have (?:less|fewer) life than your opponent$|^your life is (?:less|lower|fewer) than your opponent'?s(?: life)?$/.test(t)) return { cond: { kind: "not", cond: { kind: "lifeVsOpponent", atLeast: true } } };
+  // Audit conditions 3: "If your Leader is yellow and **the total number of cards in Rest Mode between you and your
+  // opponent is 15 or more**" (BT24-096): the reading `costConditionShape` gives a whole condition, as one piece of a price.
+  if ((m = /^the total number of cards in (rest|active) mode between both players is (\d+) or (more|less|fewer)$/.exec(t))) {
+    const sel = boardCount(`cards in ${m[1]} mode between you and your opponent`);
+    if (!sel) return null;
+    delete sel.count;
+    delete sel.upTo;
+    return { cond: { kind: "count", sel, ...(m[3] === "more" ? { atLeast: Number(m[2]) } : { atMost: Number(m[2]) }) } };
+  }
   if ((m = /^this card is in (?:a|the|your) (combo area|z-energy)$/.exec(t))) {
     const area = m[1] === "combo area" ? "combo" : "zEnergy";
     return { cond: { kind: "count", sel: { special: "self", area, side: "you" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
@@ -1396,6 +1605,129 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
   return undefined;
 }
 
+/** The area words a list of places is made of ("your energy, Z-Energy, Battle Area, and Drop"). */
+const LIST_AREA: Record<string, ScriptArea> = {
+  energy: "energy", "energy area": "energy", "z-energy": "zEnergy", "z-energy area": "zEnergy", "battle area": "battle", drop: "drop", "drop area": "drop",
+  warp: "warp", hand: "hand", "leader area": "leader", "unison area": "unison", "combo area": "combo", life: "life", "life area": "life", deck: "deck",
+};
+const LIST_AREA_WORD = "(?:z-energy(?: area)?|energy(?: area)?|battle area|drop(?: area)?|warp|hand|leader area|unison area|combo area|life(?: area)?|deck)";
+/** "your energy, Z-Energy, Battle Area, and/or Drop": two or more of your own areas, each named once; anything else is null. */
+function areaList(said: string): ScriptArea[] | null {
+  const parts = said.trim().replace(/^your\s+/, "").split(/\s*,\s*(?:and\/or |and |or )?|\s+(?:and\/or|and|or)\s+/).filter(Boolean);
+  const out: ScriptArea[] = [];
+  for (const part of parts) {
+    const area = LIST_AREA[part.replace(/^your\s+/, "").trim()];
+    if (!area || out.includes(area)) return null;
+    out.push(area);
+  }
+  return out.length >= 2 ? out : null;
+}
+/**
+ * Audit conditions 3: one count over a list of places — "you have a total of 7 or more cards **in your energy, Z-Energy,
+ * Battle Area, and Drop**" (P-456), "…cards with <GT> in their character names **among all cards in** your energy,
+ * Z-Energy, Battle Area, and/or Drop" (P-616), "there are a total of 6 or more Battle Cards with energy costs of 1 in your
+ * Battle Area and Drop Area" (EB1-58), "**the total** ≪Turles Crusher Corps≫ cards with different card names among all
+ * cards in your Z-Energy, Battle Area, and Drop **is 5 or more**" (EX23-22), "the total number of cards with {Agent of
+ * Destruction} in their names in your Leader Area, energy, Z-Energy, Battle Area, and Drop is 7 or more" (P-475), "a total
+ * of 7 or more cards **in all Drops**" (BT19-140): every card of the description in any of the places, each counted once
+ * (`Selector.areas`) — the cross-area total #915 refused until it had a reading. A place list read as its first place
+ * alone counted a quarter of the cards.
+ * - "<Pan> cards **and/or** cards with <GT> in their character names**—all green and without <Son Goku: GT>—**in your
+ *   Z-Energy, Battle Area, and Drop" (BT20-060, BT20-062, BT20-063): either description, the aside said of both (#966).
+ * - "1 or more <Koitsukai>, <Panchia>, and <Bollarator> cards**—all red—**in your energy, …" (BT20-012): one card of each
+ *   name, each a count over the list.
+ * - "you have **a Z-Card** in your Leader Area, Battle Area, or Unison Area" (BT26-136): at least one in any of them.
+ * - "<Tapion> **is in your Drop Area or Warp**" (BT4-032), "both <Son Goku> and <Vegeta> are in your Battle Area or Drop
+ *   Area" (BT2-042): each name in one of the two places.
+ * `undefined` when the text is none of these; `null` when it is but does not read whole.
+ */
+function areaListCondition(t: string): { cond: Cond; subject?: Ref } | null | undefined {
+  let m: RegExpExecArray | null;
+  const bound = (n: string, dir: string) => (dir === "more" ? { atLeast: Number(n) } : { atMost: Number(n) });
+  const LIST = `(your ${LIST_AREA_WORD}(?:\\s*,\\s*(?:and\\/or |and |or )?(?:your )?${LIST_AREA_WORD})*,?\\s+(?:and\\/or|and|or)\\s+(?:your )?${LIST_AREA_WORD})`;
+  // The description of a count, its dash aside said of every part (#966); "and/or" joins two descriptions of one count.
+  const describe = (said: string): { filter: CardFilter; differentNames?: true; differentCharacters?: true } | null => {
+    let desc = said.trim().replace(/^an?\s+/, "");
+    let shared: CardFilter | null = null;
+    const aside = new RegExp(`^(.+?)\\s*${DASH}\\s*(?:all|both)\\s+(.+?)\\s*${DASH}\\s*$`).exec(desc);
+    if (aside) {
+      desc = aside[1];
+      shared = filterFor(`${aside[2].replace(/\s+and\s+/g, " ")} card`, null) ?? null;
+      if (!shared || filterIsBlank(shared)) return null;
+    }
+    const differentNames = /\bwith different card names\b/.test(desc);
+    // "≪Bardock's Crew≫ cards with different character names in your energy, Z-Energy, Battle Area, and/or Drop" (BT18-107).
+    const differentCharacters = /\bwith different character names\b/.test(desc);
+    desc = desc.replace(/\s+with different (?:card|character) names\b/, "");
+    const halves = desc.split(/\s+and\/or\s+/);
+    if (halves.length > 2) return null;
+    const filters = halves.map((h) => (/^cards?$/.test(h.trim()) ? emptyFilter() : filterFor(h.trim(), null)));
+    if (filters.some((f, i) => !f || f.unreadable || unreadFilterWords(halves[i].trim(), f).length)) return null;
+    if (halves.length === 2 && filters.some((f) => filterIsBlank(f!))) return null;
+    const own = halves.length === 2 ? { ...emptyFilter(), anyOf: filters as CardFilter[] } : (filters[0] as CardFilter);
+    const filter = shared ? { ...own, ...Object.fromEntries(Object.entries(shared).filter(([, v]) => !(v === false || v === null || (Array.isArray(v) && !v.length)))) } as CardFilter : own;
+    return { filter, ...(differentNames ? { differentNames: true as const } : {}), ...(differentCharacters ? { differentCharacters: true as const } : {}) };
+  };
+  // A second clause is never part of a description: "you have 3 or more energy **and there are** 3 or more <Pan> cards …"
+  // (BT20-062) is two conditions, which the "and" cut reads one by one.
+  // "4 or more **colors among** cards in your energy and Battle Area" (BT16-016) counts colours (`colorCountSelector`).
+  const clausey = (desc: string) => /(?:\band|,)\s+(?:there|you|your|it'?s|this card)\b/.test(desc) || /\bcolou?rs?\b/.test(desc);
+  const counted = (desc: string, areas: ScriptArea[], side: Side, n: string, dir: string): Cond | null => {
+    // "1 or more <A>, <B>, and <C> cards—all red—": one card of each name.
+    const each = new RegExp(`^((?:${NAMED_CARD},?\\s+)+and\\s+${NAMED_CARD})\\s+(cards?)(.*)$`).exec(desc);
+    if (each) {
+      const conds = [...each[1].matchAll(new RegExp(NAMED_CARD, "g"))].map((x) => counted(`${x[0]} ${each[2]}${each[3]}`, areas, side, n, dir));
+      return conds.every((x) => x) ? { kind: "all", conds: conds as Cond[] } : null;
+    }
+    const got = describe(desc);
+    if (!got) return null;
+    const sel: Selector = { side, area: areas[0], areas, ...(filterIsBlank(got.filter) ? {} : { filter: got.filter }), ...(got.differentNames ? { differentNames: true as const } : {}), ...(got.differentCharacters ? { differentCharacters: true as const } : {}) };
+    return { kind: "count", sel, ...bound(n, dir) };
+  };
+  // "you have a total of N or more … in your A, B, and C", "there are (a total of) N or more … in/among all cards in …".
+  // The place follows the closing dash of an aside with no space ("…cards—all red—in your energy, …").
+  if ((m = new RegExp(`^(?:you have|there(?: are|'s| is)) (?:a total of )?(\\d+) or (more|less|fewer) (.+?)(?:\\s+|(?<=[—―–?]))(?:in|among all cards in) ${LIST}$`).exec(t)) && !clausey(m[3])) {
+    const areas = areaList(m[4]);
+    if (!areas) return null;
+    const got = counted(m[3], areas, "you", m[1], m[2]);
+    return got ? { cond: got } : null;
+  }
+  // "the total (number of) … in/among all cards in your A, B, and C is N or more".
+  if ((m = new RegExp(`^the total (?:number of )?(.+?) (?:in|among all cards in) ${LIST} is (\\d+) or (more|less|fewer)$`).exec(t)) && !clausey(m[1])) {
+    const areas = areaList(m[2]);
+    if (!areas) return null;
+    const got = counted(m[1], areas, "you", m[3], m[4]);
+    return got ? { cond: got } : null;
+  }
+  // "there are a total of 7 or more cards in all Drops" (BT19-140): both players' Drop Areas.
+  if ((m = /^there(?: are|'s| is) (?:a total of )?(\d+) or (more|less|fewer) (.+?) in all (drops|drop areas|warps|hands)$/.exec(t)) && !clausey(m[3])) {
+    const area = ({ drops: "drop", "drop areas": "drop", warps: "warp", hands: "hand" } as const)[m[4] as "drops"];
+    const got = describe(m[3]);
+    if (!got) return null;
+    return { cond: { kind: "count", sel: { side: "both", area, ...(filterIsBlank(got.filter) ? {} : { filter: got.filter }) }, ...bound(m[1], m[2]) } };
+  }
+  // "you have a Z-Card in your Leader Area, Battle Area, or Unison Area" (BT26-136): one in any of them.
+  if ((m = new RegExp(`^you have (?:an?|1) (.+?) in ${LIST}$`).exec(t)) && !clausey(m[1])) {
+    const areas = areaList(m[2]);
+    if (!areas) return null;
+    const got = counted(m[1], areas, "you", "1", "more");
+    return got ? { cond: got } : null;
+  }
+  // "<Tapion> is in your Drop Area or Warp" (BT4-032); "both <Son Goku> and <Vegeta> are in your Battle Area or Drop
+  // Area" (BT2-042): each card named, in one of the two places — read as any card in either place of each name.
+  if ((m = new RegExp(`^(?:both )?(${NAMED_CARD}(?:\\s+and\\s+${NAMED_CARD})?)(?: cards?)? (?:is|are) in ${LIST}$`).exec(t)) && /\bor\b/.test(m[2])) {
+    const areas = areaList(m[2]);
+    if (!areas) return null;
+    // The Battle Area or Leader Area pair keeps the reading it has (#907, BT2-018).
+    if (areas.length === 2 && areas.includes("battle") && areas.includes("leader") && !/\band\b/.test(m[1])) return undefined;
+    if (/\band\b/.test(m[1]) && !/^both\b/.test(t)) return null;
+    const conds = [...m[1].matchAll(new RegExp(NAMED_CARD, "g"))].map((x) => counted(`${x[0]} card`, areas, "you", "1", "more"));
+    if (conds.some((x) => !x)) return null;
+    return { cond: conds.length === 1 ? conds[0]! : { kind: "all", conds: conds as Cond[] } };
+  }
+  return undefined;
+}
+
 /**
  * "If you have 2 or more Battle Cards in play in Rest Mode", "if there are 5
  * or more cards in your Warp", "if there are no cards in your opponent's
@@ -1405,8 +1737,8 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
 function unionCount(said: string, who: string | null): Selector | null {
   const place = /\s+(in (?:your|their|your opponent's) [a-z-]+(?: area)?)$/.exec(said)?.[1];
   const halves = said.split(/\s+and\/or\s+/);
-  if (!who || !place || halves.length !== 2 || !halves[1].endsWith(place)) return null;
-  const sels = [halves[0], halves[1].slice(0, halves[1].length - place.length).trim()].map((half) => parseTarget(`${who} ${half} ${place}`));
+  if (who === null || !place || halves.length !== 2 || !halves[1].endsWith(place)) return null;
+  const sels = [halves[0], halves[1].slice(0, halves[1].length - place.length).trim()].map((half) => parseTarget(`${who} ${half} ${place}`.trim()));
   const [a, b] = sels;
   if (!a || !b || !a.filter || !b.filter || a.filter.unreadable || b.filter.unreadable) return null;
   const rest = (s: Selector) => JSON.stringify({ ...s, filter: undefined, count: undefined, upTo: undefined });
@@ -1482,6 +1814,15 @@ function parseCountCondition(t: string): Cond | null {
   const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t.replace(/^(your opponent has .+) in hand$/, "$1 in their hand").replace(/^(you have .+) in hand$/, "$1 in your hand"));
   if (!m) return null;
   const [, none, num, dir, said] = m;
+  // Audit conditions 3: "…3 or more face-up life cards **between you and your opponent**" (BT15-149): both players' cards
+  // together. The face-up life cards of both Life Areas are counted; any other count "between you and your opponent" is
+  // not one this reads (the energy and Rest Mode totals are read above), and read as the opponent's cards in play it held
+  // with any three face-up cards of theirs.
+  if (/\bbetween you and your opponent$/.test(said)) {
+    const life = /^face-up life cards between you and your opponent$/.test(said);
+    if (!life || none || !num) return refuseCount();
+    return { kind: "count", sel: { side: "both", area: "life", filter: { ...emptyFilter(), faceUp: true } }, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
+  }
   // Audit lane C (2 Nov 2026): "…there are no cards in your opponent's Combo Area **at the beginning of that battle's
   // Damage Step**" (BT21-034): a count asked at a later moment, which no condition can wait for. Read now, the Combo
   // Area was always empty when the attack was declared. Refused until a delayed check exists.
@@ -1546,7 +1887,9 @@ function parseCountCondition(t: string): Cond | null {
   // (a card that fits both would count twice) and not a count of the one
   // description the "or" split would leave. Only the plain shape: exactly two
   // descriptions, one place for both, a number to reach.
-  const either = !none && num ? unionCount(said, /^you have/.test(t) ? "your" : /^your opponent has/.test(t) ? "your opponent's" : null) : null;
+  // Audit conditions 3: "**there are** 9 or more multicolor Extra Cards and/or ≪Universe 7≫ cards in your Drop Area"
+  // (BT9-021's back): the place says whose cards they are.
+  const either = !none && num ? unionCount(said, /^you have/.test(t) ? "your" : /^your opponent has/.test(t) ? "your opponent's" : /^there/.test(t) ? "" : null) : null;
   if (either) return { kind: "count", sel: either, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
   if (/\band\/or\b/.test(said.replace(/\s+(?:in|among) (?:all cards in )?(?:your|their|your opponent's)\b.*$/, ""))) return refuseCount();
   // Audit lane C review (2 Nov 2026): "If you have 1 or more **copies of both <Tapion> and <Minotia> cards** in your
@@ -1570,7 +1913,9 @@ function parseCountCondition(t: string): Cond | null {
   if (two) {
     if (none) return null;
     const lead = /^(you have|your opponent has|there(?: (?:are|is)|'s|'re))/.exec(t)![1];
-    const area = /\s(in (?:play|(?:your|their|your opponent's) [a-z- ]+))$/.exec(two[3])?.[1];
+    // Audit conditions 3: "1 or more <Son Goku> and 1 or more <Son Gohan: Childhood> cards **in Rest Mode**" (BT26-118):
+    // the mode closes both counts, as a place does.
+    const area = /\s(in (?:play|(?:your|their|your opponent's) [a-z- ]+|(?:rest|active) mode))$/.exec(two[3])?.[1];
     const named = /\b(?:energy|hand|drop|warp|life|deck|z-energy|area|in play)\b/.test(two[1]);
     const first = parseCountCondition(`${lead} ${num ? `${num} or ${dir} ` : ""}${two[1]}${!named && area ? ` ${area}` : ""}`);
     const second = parseCountCondition(`${lead} ${two[2]} ${two[3]}`);

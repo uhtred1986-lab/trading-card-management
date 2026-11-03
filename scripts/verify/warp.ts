@@ -32,7 +32,8 @@ const def = (id: string, o: Partial<(typeof DEFS)[string]>) => {
   // a skill" is either player's and not this moment.
   assert.deepEqual(triggersOf(parseSkills("[auto] When this card is sent from your deck to your Warp by one of your skills, draw 1 card.")[0]), ["deckToWarpBySkill"]);
   assert.deepEqual(compileSkill(parseSkills("[auto] When this card is sent from your deck to your Warp by one of your skills, draw 1 card.")[0]).ops, [{ op: "draw", n: 1 }]);
-  assert.deepEqual(triggersOf(parseSkills("[auto] When this card is sent to its owner's Warp by a skill, draw 1 card.")[0]), []);
+  // Audit triggers 3: "…by a skill" is either player's, its own moment (`toWarpBySkill`), not "by one of your skills".
+  assert.deepEqual(triggersOf(parseSkills("[auto] When this card is sent to its owner's Warp by a skill, draw 1 card.")[0]), ["toWarpBySkill"]);
   // A cause the compiler cannot describe refuses the skill rather than firing for every skill of yours.
   assert.notDeepEqual(compileSkill(parseSkills("[auto] When this card is sent from your deck to your Warp by your ???'s skill, draw 1 card.")[0]).unsupported, []);
 }
