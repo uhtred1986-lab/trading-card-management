@@ -5657,11 +5657,15 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     }
     // Audit effects 2: "…activate it, and you can't activate [Field] cards for the duration of the game" (XD3-01): 12-1-3's
     // "activating an Extra Card" said of the Extras with the [Field] skill — as "you can't activate Extras" below.
+    // R-270 (owner, 3 Nov 2026): and every other activation of a [Field] card too — the one another card's skill makes
+    // from the deck or the Drop ("activate {X}", 22-3-3) — so Cell Games Arena stays the only field (the [Field]
+    // keyword line itself, `keywordSkill`, asked by `fieldLineOf`).
     if (/^activate \[field\] cards(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) {
       const field = { ...parseFilter(""), type: "EXTRA" as const, keywords: ["Field" as const] };
       return [
         { op: "forbid", what: "activateSkill", side, until, filter: field, extraCardActivation: true, ...withUnless },
         { op: "forbid", what: "activateCounter", side, until, filter: field, ...withUnless },
+        { op: "forbid", what: "activateSkill", side, until, keywordSkill: "Field", ...withUnless },
       ];
     }
     // "You can't activate Extras" (BT20-024; owner ruling 26 Oct 2026): 12-1-3's

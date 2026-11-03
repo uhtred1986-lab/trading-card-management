@@ -6,7 +6,7 @@
  *     master orders the cards one at a time, the first pick on top, and none of them leaves the deck (20-12-2).
  * B.  "Activate it" is an activation (a [Field] by its skill, a hand Extra by its [Activate: Main], 12-2-4); a skill named
  *     is never its card's play — unread where no reader activates it.
- * C.  Your own locks on the skills of the cards you describe; "you can't activate [Field] cards" (R-270, pending).
+ * C.  Your own locks on the skills of the cards you describe; "you can't activate [Field] cards" (R-270, owner: every activation, any area).
  * D–I. Rest Mode combo permissions, negated combos, played on top, lists of choices, counted markers, hinges.
  * K.  One wording each; a capital "Then," closes an offer's branch (R-271, BT1-090's Q&A); silent blanks are unread.
  * J.  `arena:refresh-ids --describe-only` writes the reading the compile writes.
@@ -115,6 +115,8 @@ for (const [id, text] of [
   assert.equal(opOf(rec, "play")[0].activating, true, "B: XD3-01: activated");
   const lock = opOf(rec, "forbid").find((o) => o.what === "activateSkill");
   assert.ok(lock && lock.until === "game" && lock.extraCardActivation && lock.filter?.type === "EXTRA" && lock.filter.keywords.includes("Field"), "B: XD3-01: …and [Field] Extras can't be activated for the game");
+  // R-270 (owner): and the [Field] keyword itself, however it is activated (a skill's "activate {X}" from the deck too).
+  assert.ok(opOf(rec, "forbid").some((o) => o.what === "activateSkill" && o.keywordSkill === "Field" && o.until === "game"), "B: XD3-01: …nor any [Field] skill, from any area (R-270)");
 }
 // P-313: a hand Extra's own [Activate: Main/Battle] line, free (`invokeSkill`).
 {

@@ -782,7 +782,8 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
   for (const skill of showing.skills) {
     const keyword = keywordMoveOf(game, skill);
     if (keyword?.name !== "Field") continue;
-    if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: skill.kind })) return "blocked";
+    // R-270: asked as the [Field] keyword skill, so "you can't activate [Field] cards" (XD3-01, `keywordSkill: Field`) holds here.
+    if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: skill.kind, keyword: "Field" })) return "blocked";
     const line: ActivationLine = { card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind: keyword.offer as string, keyword };
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return "blocked";
     if (usesLeft(state, player, card, skill) === 0 || !sparkingIsValid(state, player, skill.validity)) return "blocked";

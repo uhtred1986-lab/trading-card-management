@@ -426,8 +426,10 @@ function compileQuotedSkill(quoted: Skill): Script {
 
 /**
  * Audit conditions 2 (3 Nov 2026): "[activate: main]{r}{r}{r}: **If your Leader Card is a red <Gogeta: Br> card and you
- * have 4 or more energy:** Choose up to 1 …" (EX15-01): after the price's own colon, a condition the effect closes with a
- * colon of its own — the same condition said with a comma ("If …, choose …"), asked as the effect resolves. Read as
+ * have 4 or more energy:** Choose up to 1 …" (EX15-01): after the price's own colon, a condition closed by a colon of its
+ * own. R-230 (owner, 3 Nov 2026): it is the line's activation condition — the skill can't be activated unless it holds,
+ * so the {r}{r}{r} is never paid for nothing — the same as "{u}, if your Leader is mono-blue …:" printed inside the price
+ * (P-409). It joins the price ("{r}{r}{r}, if …"), where the price reader takes it as the record's condition. Read as
  * printed, the second colon left the condition's last half and the whole effect unread. Only an [Activate] or [Counter]
  * line whose effect opens on "If", and only a colon in the effect's first sentence outside any name.
  */
@@ -440,7 +442,7 @@ function effectConditionColon(skill: Skill): Skill {
     if ("([{<≪".includes(ch)) depth++;
     else if (")]}>≫".includes(ch)) depth = Math.max(0, depth - 1);
     else if (depth === 0 && ch === ".") return skill;
-    else if (depth === 0 && ch === ":") return { ...skill, effect: `${e.slice(0, i)},${e.slice(i + 1)}` };
+    else if (depth === 0 && ch === ":") return { ...skill, cost: `${skill.cost}, ${e.slice(0, i).trim().replace(/^If\b/, "if")}`, effect: e.slice(i + 1).trim() };
   }
   return skill;
 }
