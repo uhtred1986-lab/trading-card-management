@@ -181,6 +181,19 @@ export function splitClauses(text: string): string[] {
  * readings of 40-odd [Awaken] lines already treat as outside the offer.
  */
 export function splitClausesJoined(text: string): { clauses: string[]; joined: boolean[] } {
+  // (BT30-150's "…Battle Cards—all ignoring [barrier]—and place them…": the closing dash opens the next clause below, and
+  // the aside's "all" is every choice of the list — `effects.ts`, audit selectors 2; integration 3 kept that reading over
+  // a rewrite that gave "ignoring [Barrier]" to the last choice only.)
+  // Audit effects 2: "…, and if it's a skill-less Battle Card **it gets an additional +5000 power** for the duration of the
+  // battle" (BT6-117): no comma closes the condition, so its effect was read into it and lost; "an additional +5000" is
+  // +5000 more, on top of the first.
+  text = text.replace(/\b(if it'?s an? [^,.;:]+?) (it (?:gets|gains)) an additional ([+-]\d+ (?:combo )?power)\b/gi, "$1, $2 $3");
+  // Audit effects 2: "…and you can't activate **your Leader Card's non-keyword skills** for the turn" (EX17-03) is the
+  // "non-keyword Leader Card skills" ban `compileProhibition` reads; it read as a negation of the chosen card's [Counter]s.
+  text = text.replace(/\byou can(?:'|no)t activate your leader(?: card)?'s non-keyword skills\b/gi, "you can't activate non-keyword leader card skills");
+  // Audit effects 2: "…, then if you have 5 or less cards in your hand **also draw 1 card**" (BT8-126): no comma closes the
+  // condition, so the draw was read into it and lost.
+  text = text.replace(/\b(if you have \d+ or (?:less|fewer|more) cards in your hand) also (draw|add|play)\b/gi, "$1, $2");
   // BT6-015: these are properties of the same Leader, not new clauses with
   // an anonymous "it". Fold the equivalent colour phrase before splitting.
   text = text.replace(/\b(your leader(?: card)?) is (a ≪[^≫]+≫ card) and it is (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi,
@@ -254,6 +267,13 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
     if (dashes >= 2 && dashes % 2 === 0 && ASIDE_DASH.test(text)) {
       inAside = !inAside;
       i = ASIDE_DASH.lastIndex - 1;
+      // Audit selectors 2: "…and up to 1 of their Battle Cards—all ignoring [barrier]—**and place them** into their
+      // owner's Drop" (BT30-150): an "and" straight after the closing dash opens the next clause. Kept on, the move was
+      // read as part of the last card's description, and dropped.
+      if (!inAside && depth === 0 && /^and (?:place|put|send|return|switch|ko|negate|add|play|remove|discard)\b/i.test(text.slice(i + 1))) {
+        push(i + 1, 4, true);
+        i += 3;
+      }
       continue;
     }
     if (inAside) continue;
@@ -284,6 +304,8 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
         // predicate. The effect reader validates the whole pair (#910).
         !(/^this card (?:can't|cannot) attack$/i.test(text.slice(start, i).trim()) && /^ and gains?\s/i.test(text.slice(i))) &&
         !text.startsWith(" and [", i) &&
+        // Audit selectors 2: "…with energy costs of 1 **and 2 respectively**" (BT15-115) is one list of costs.
+        !/^ and \d+ respectively\b/i.test(text.slice(i)) &&
         !NAME_AFTER_AND.test(text.slice(i + 5)) &&
         // (Phrasing batch 3: "…without [barrier] **and with** an energy cost of 4" (BT15-015) joins too. Phrasing batch
         // 4: so does the "and with" of a "-both multicolor and with …-" aside (P-711): the owner ruled on 26 Oct 2026

@@ -152,7 +152,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(describeScript([{ op: "power", target: { var: "t" }, amount: { count: { side: "you", area: "battle", count: 99 }, times: 5000 }, until: "battle" }]), "the chosen cards +5000 power for each of your Battle Cards for the battle");
   assert.equal(describeScript([{ op: "if", cond: { kind: "isTurnPlayer" }, then: [], else: [{ op: "draw", n: 1 }] }]), "if it is your turn: nothing, otherwise draw 1");
   assert.equal(describeScript([{ op: "may", ops: [{ op: "draw", n: 1 }], chooser: "opponent" }]), "your opponent may: draw 1");
-  assert.equal(describeScript([{ op: "forbid", what: "attack", until: "turn", side: "opponent", uses: 1 }]), "your opponent can't attack once more for the turn");
+  assert.equal(describeScript([{ op: "forbid", what: "attack", until: "turn", side: "opponent", uses: 1 }]), "your opponent can attack only one more time for the turn"); // audit effects 2: the budget said the way the card says it
   assert.equal(describeScript([{ op: "forbid", what: "play", until: "turn", side: "opponent", unless: { kind: "count", sel: { side: "opponent", area: "energy", count: 99 }, atLeast: 3 } }]), "your opponent can't play cards unless there are 3 or more cards in your opponent's Energy Area for the turn");
   assert.equal(describeScript([{ op: "note", text: "x" }, { op: "shuffle" }]), "shuffle", "a note says nothing");
   assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET}');

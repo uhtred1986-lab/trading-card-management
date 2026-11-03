@@ -157,6 +157,14 @@ export interface Selector {
   /** Card text may say "ignoring [Barrier]", which lifts 22-16 for this choice. */
   ignoreBarrier?: boolean;
   /**
+   * R-204 (owner, 3 Nov 2026): a printed "choose" of the card a moment names — "choose that card" (EX13-02), "choose it"
+   * (BT16-081), "choose up to 1 of those Battle Cards" (DB1-020). The special names the card without choosing it, so
+   * `resolveSelector` asks neither [Barrier] (22-16-2) nor "can't be chosen" (20-4) of it; this says the text chose it,
+   * and both are asked. Never set where the compiler writes a choose for wording that prints none ("KO that card after
+   * the battle", BT1-015; "play it in Rest Mode", BT23-118).
+   */
+  choice?: boolean;
+  /**
    * "…that's not in a battle" (BT29-036, BT29-029, #537): not the attack card or
    * the guard card of the battle in progress (8-1-2). Outside a battle, every card.
    */
@@ -211,6 +219,14 @@ export interface Selector {
    * brought over. Read off the card's owner, not the area it lies in.
    */
   ownedByOpponent?: true;
+  /** Audit conditions 2: "choose up to 1 **card you own** in your opponent's Battle Area" (BT20-114) — only cards the chooser owns, wherever they stand (1-2). */
+  ownedByYou?: true;
+  /**
+   * Audit conditions 2: "…from your deck **with a character name different from any Battle Cards you have in play**"
+   * (EB1-33, BT12-109) — a card none of whose character names is one of the character names of the Battle Cards in the
+   * chooser's Battle Area (2-10-1-1, exact names), read as the choice is made.
+   */
+  charactersNotInPlay?: true;
   /**
    * "Choose all Battle Cards **other than this card**", "play up to 1 ≪Demon
    * Clan≫ card among them **other than copies of this card**". Refusing to
@@ -452,6 +468,10 @@ export function unionVariantOf(using: string | undefined): "Fusion" | "Potara" |
 
 export const perStep = (n: number, per: number | undefined): number => (per && per > 1 ? Math.floor(n / per) : n);
 
+/** How a card was played, as `playedUsing` asks it: a keyword's own play, or (`"skill"`) any skill's (audit conditions 2). */
+export const PLAYED_USING_WHAT = ["Over Realm", "Union", "Union-Fusion", "Union-Potara", "Union-Absorb", "Evolve", "EX-Evolve", "Swap", "Arrival", "Successor", "skill"] as const;
+export type PlayedUsingWhat = (typeof PLAYED_USING_WHAT)[number];
+
 export type Cond =
   | { kind: "count"; sel: Selector; atLeast?: number; atMost?: number }
   | { kind: "life"; side: Side; atLeast?: number; atMost?: number }
@@ -506,16 +526,27 @@ export type Cond =
    * With `sel: subject` on a `youPlayed` [Auto] — "when your <X> card is
    * played by a [Union] skill" (BT22-033, BT25-036 back, P-682) — it is the
    * same gate about the played card (`unionPlayedGate`).
+   *
+   * Audit conditions 2 (3 Nov 2026): the other keywords that play a card — "when you play this card **with [Swap]**"
+   * (BT4-075, BT4-083), "…played **using [Arrival]**" (BT25-129), "…**with [successor]**" (BT9-113), "…**using
+   * [ex-evolve]**" (BT16-075) — are `what: "Swap" | "Arrival" | "Successor" | "EX-Evolve"`, the same lasting memory of a
+   * successful entry by that keyword's own play. `what: "skill"` is a play a skill made: "…**using a skill**" (BT16-051);
+   * `by: "other"` "…by **another card's** skill" (BT20-104), `by: "self"` "…using **this card's** skill" (P-628); `source`
+   * is the card whose skill it was — "…**with the skill of {Majin Buu's Sealed Ball}**" (BT2-028), "…with **<Trunks:
+   * Future> skill**" (BT2-041), "…by a **yellow <Turles> card's** skill" (BT24-100). Under `not` it is "…played **without
+   * using skills**" (BT15-042). As the lone IF of an [Auto] on `played` each is the trigger's own condition, as [Union]'s.
    */
-  | { kind: "playedUsing"; sel: Selector; what: "Over Realm" | "Union" | "Union-Fusion" | "Union-Potara" | "Union-Absorb" | "Evolve" }
+  | { kind: "playedUsing"; sel: Selector; what: PlayedUsingWhat; by?: "other" | "self"; source?: CardFilter }
   /**
    * "At the end of a turn in which this card was placed in a Battle Area"
    * (BT15-118, 5-5-4): did one of these cards arrive in a Battle Area this
    * turn, played or placed by a skill (5-5-1)? The card's memory of the
    * arrival — set as it lands there from another area, gone when the turn
    * ends or the card changes area (3-1-4).
+   * Audit conditions 2: `played` is "it's the turn when this card was played" (BT23-040) — a successful play this turn
+   * (`VmCard.playedThisTurn`), not a skill's placement.
    */
-  | { kind: "placedThisTurn"; sel: Selector }
+  | { kind: "placedThisTurn"; sel: Selector; played?: true }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
    * `sel` finds is also one that `matching` finds. Two selectors rather than a
@@ -711,6 +742,14 @@ export type Op =
   | { op: "lifeDownTo"; n: number; side?: Side }
   | { op: "shuffle"; side?: Side; areas?: ("deck" | "life")[]; inspectedOnly?: true }
   /**
+   * Audit effects 2: "look at up to 3 cards from the top of your opponent's deck **and put them back in any order**"
+   * (DB2-058 and the ≪Universe 10≫ family), "…and place them on top of your deck in any order" (BT14-093, BT22-082,
+   * BT22-114, P-319): the cards go back to that end of their owner's deck in the order the skill's master picks, one card
+   * at a time — the first pick the card nearest that end. No card changes area (20-12-2); a card no longer in a deck is
+   * left out, and one card alone is nothing to arrange.
+   */
+  | { op: "arrange"; target: Ref; position?: "top" | "bottom" }
+  /**
    * "Declare 1 number" (BT22-090 and the Fortuneteller Baba cards): the master
    * names a whole number from `min` to `max`, and the program reads it back as
    * X ("the declared number", `{x:true}`; `varAttrIsX` compares a revealed
@@ -721,7 +760,7 @@ export type Op =
   | { op: "win"; side?: Side }
   /** 12-2-4: choose a qualifying hand Extra's named skill and invoke it without its original costs. */
   | { op: "invokeSkill"; trait: string; skillKind: "activate:main"; from: "hand"; maxCost: "currentEnergy" }
-  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:main/battle"; from: "hand" }
+  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:battle" | "activate:main/battle"; from: "hand" }
   | { op: "energyMarker"; n: Amount; side?: Side }
   /**
    * `chooser` is who answers, when that is not the player whose skill this is:
@@ -783,7 +822,8 @@ export type Op =
    */
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
   /** Mechanism batch 3: `toOwners` — "play them to their owners' Battle Areas" (BT13-096): each card into its own owner's Battle Area. */
-  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string; toOwners?: true; ignoreOwnPermanent?: true }
+  /** Audit selectors 2: `toOpponent` — "play … from your deck **to your opponent's Battle Area**" (BT13-028, BT22-006): into the other player's Battle Area, under their control. */
+  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string; toOwners?: true; toOpponent?: true; ignoreOwnPermanent?: true }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
@@ -1726,6 +1766,8 @@ export interface ScriptFrame {
   selfEnteredUsing?: string;
   /** #930: the subject's [Union] entry memory as the [Auto] was triggered (`VmPending.subjectEnteredUsing`, `vm/flow.ts`) — "when your <X> card is played by a [Union] skill" — kept if it left before resolving. Additive: older frames carry none. */
   subjectEnteredUsing?: string;
+  /** Audit conditions 2: the card whose skill played the source (`VmCard.enteredBy`) as the [Auto] was triggered (`VmPending.selfEnteredBy`) — "when you play this card with the skill of {X}" — kept if it left before resolving. Additive: older frames carry none. */
+  selfEnteredBy?: string;
   /** Which skill of the card this is, so a skill can switch itself off (9-1-5). */
   skillIndex?: number;
   /** Persisted ID of the timed effect granting this individual keyword skill. */
@@ -2184,6 +2226,8 @@ function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { 
     if (was.fromArea === "energy") {
       h.pend("energyToDropBySkill", id, frame.card);
       if (yours && frame.card && h.areaOf(frame.card) === "leader" && h.masterOf(frame.card) === frame.master) h.pend("yourEnergyToDropByYourLeader", id, id);
+      // Audit conditions 2 review: "…placed in your Drop Area by one of your skills" (XD2-04) — any skill of yours.
+      if (yours) h.pend("yourEnergyToDropByYou", id, id);
     }
     if (was.pileHost) {
       h.pend("underToDropBySkill", id, frame.card);
@@ -2473,6 +2517,55 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         }
         break;
 
+      // Audit effects 2 ("put them back in any order", 20-12-2): the master orders the cards one at a time, the first
+      // pick nearest the deck's end; the last card left is forced. Each deck is arranged on its own.
+      case "arrange": {
+        const position = op.position ?? "top";
+        const key = `arrange@${frame.ip}`;
+        const inDeck = (id: string) => h.areaOf(id) === "deck";
+        const all = h.resolveRef(frame, op.target).filter(inDeck);
+        const owners = [...new Set(all.map((id) => h.ownerOf(id)))];
+        const order = frame.vars[key] ?? [];
+        if (frame.awaiting === key) {
+          const answer = h.lastChoice();
+          h.clearLastChoice();
+          frame.awaiting = undefined;
+          const pick = answer?.length === 1 ? answer[0] : undefined;
+          const owner = owners.find((p) => !all.filter((id) => h.ownerOf(id) === p).every((id) => order.includes(id)));
+          const open = all.filter((id) => h.ownerOf(id) === owner && !order.includes(id));
+          if (!pick || !open.includes(pick)) throw new IllegalAction("that card is not one of the cards to put back");
+          order.push(pick);
+        }
+        let asked = false;
+        for (const p of owners) {
+          const mine = all.filter((id) => h.ownerOf(id) === p);
+          let open = mine.filter((id) => !order.includes(id));
+          if (!open.length) continue;
+          if (open.length === 1) {
+            order.push(open[0]);
+            open = [];
+          }
+          if (open.length) {
+            frame.vars[key] = order;
+            frame.awaiting = key;
+            h.resume(frame);
+            const placed = mine.length - open.length;
+            const where = position === "top" ? "on top of" : "at the bottom of";
+            h.ask({
+              kind: "chooseCards",
+              player: master,
+              choice: { reason: `${h.nameOf(frame.card)}: put the cards back ${where} ${p === master ? "your" : "your opponent's"} deck in any order — choose the card to go ${placed === 0 ? (position === "top" ? "on top" : "at the very bottom") : "next"}`, candidates: open, min: 1, max: 1, continuation: key },
+            });
+            asked = true;
+            break;
+          }
+          h.arrangeDeck(p, order.filter((id) => h.ownerOf(id) === p), position);
+        }
+        if (asked) return "wait";
+        delete frame.vars[key];
+        break;
+      }
+
       case "invokeSkill": {
         const eligible = (id: string) => h.invokableSkills(master, id, op);
         const optional = "sel" in op && op.sel.upTo === true;
@@ -2727,7 +2820,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // the same ones (official Q&A: "completely random … without player
         // involvement"). HOW MANY, for an "up to", is the master's (owner's
         // ruling of 26 Oct 2026): 0 to the count, capped by the cards there.
-        if (op.sel.atRandom) {
+        // Audit selectors 2: "add **up to 1 card from the top of your deck** to your energy" (BT30-020), "place up to 2
+        // cards from the top of your deck in your energy" (EX08-04): a position, not a search (20-12) — the master
+        // picks only how many, 0 to the count, unseen, and the top that many are taken in order (`take`). Offered as
+        // a choice of cards, the deck was searched for any of them.
+        const fromTop = op.sel.take != null && !op.sel.fromVar;
+        if (op.sel.atRandom || (fromTop && upTo)) {
           const pool = h.resolveSelector(frame, { ...op.sel, count: undefined });
           const most = Math.min(want, pool.length);
           let n = most;
@@ -2742,16 +2840,17 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             } else {
               frame.awaiting = asking;
               h.resume(frame);
+              const how = op.sel.atRandom ? "at random" : op.sel.fromEnd ? "from the bottom" : "from the top";
               h.ask({
                 kind: "chooseMode",
                 player: op.chooser ? sideOf(master, op.chooser)[0] : master,
-                reason: `${op.reason ?? `${h.nameOf(frame.card)}: choose`} — how many, taken at random?`,
-                options: Array.from({ length: most + 1 }, (_, i) => `${most - i} at random`),
+                reason: `${op.reason ?? `${h.nameOf(frame.card)}: choose`} — how many, taken ${how}?`,
+                options: Array.from({ length: most + 1 }, (_, i) => `${most - i} ${how}`),
               });
               return "wait";
             }
           }
-          take(h.pickAtRandom(pool, n));
+          take(op.sel.atRandom ? h.pickAtRandom(pool, n) : op.sel.fromEnd ? pool.slice(pool.length - n) : pool.slice(0, n));
           break;
         }
 
@@ -3143,6 +3242,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               // removed card is the subject.
               h.pend("yourCardRemovedByOpponent", id, id);
             }
+            // Audit triggers 2: the same move by any skill, watched by either side's cards — "When one of your
+            // ≪Red Ribbon Army≫ cards is removed from your Battle Area by a skill" (BT17-038), "When one of your
+            // opponent's Battle Cards is removed from their Battle Area by a skill" (DB3-103). The removed card is the subject.
+            h.pend("yourCardRemovedBySkill", id, id);
+            h.pend("opponentCardRemovedBySkill", id, id);
             // The narrower wording, which names where it ended up as well —
             // and the one that names no cause, which covers this too.
             if (h.areaOf(id) === "drop") {
@@ -4024,6 +4128,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.activateField(master, candidates[0]);
             return "done";
           }
+          // Audit effects 2 (12-1-3, 12-2-4): "choose 1 {Tora's Red Armband} … in your hand, activate it" (EB1-59) — an
+          // Extra with no [Field] in its master's hand is activated through its [Activate: Main] line, its costs waived,
+          // and never played into the Battle Area; with no such line it can use, nothing happens.
+          if (field === "none" && h.areaOf(candidates[0]) === "hand" && h.defOf(candidates[0]).type === "EXTRA") {
+            const sel: Selector = "var" in op.target ? { fromVar: op.target.var, count: 1, upTo: true } : { ...op.target.sel, count: 1, upTo: true };
+            frame.ops = [...frame.ops.slice(0, frame.ip), { op: "invokeSkill", sel, skillKind: "activate:main", from: "hand" }, ...frame.ops.slice(frame.ip + 1)];
+            continue;
+          }
         }
         // #930: which [Union] variant the play is, again the play's own `using`
         // ("you can only play Battle Cards by using [Union-Fusion]", P-069).
@@ -4107,7 +4219,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.toOpponent ? { toOpponent: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":

@@ -64,6 +64,9 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   skillKind: { only: ["E-DRAW", "PUMP", "UNI2", "ONCE", "LIMITED2", "PUMPCRIT", "E-MYSTERY", "XDRAW"] },
   unreadable: { except: [] },
   noKeywords: { except: ["L-RED", "BLOCKER", "BERGAMO", "CRIT", "DOUBLE", "DUAL", "INDESTRUCT", "REVENGE", "UNIQ", "U1", "ZB", "EVO", "SWAPPER", "SELFMUTE", "WALL"] },
+  // Audit conditions 2: the opposite of noKeywords — the rows printing a keyword; TRAITED is the one row with two character names.
+  someKeyword: { only: ["L-RED", "BLOCKER", "BERGAMO", "CRIT", "DOUBLE", "DUAL", "INDESTRUCT", "REVENGE", "UNIQ", "U1", "ZB", "EVO", "SWAPPER", "SELFMUTE", "WALL"] },
+  charactersMin: { only: ["TRAITED"] },
   // Three flags are deferred on catalog rows, so the sampled predicates accept
   // each row; board-level selector behavior has its own checks in vm.ts.
   faceUp: { except: [] },

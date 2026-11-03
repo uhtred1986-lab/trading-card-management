@@ -77,8 +77,8 @@ for (const [text, what, area, upTo, ignoreBarrier] of [
 for (const [text, what, side] of [
   ["[Activate: Main][Limit 1] If your Leader is a red ≪Red Ribbon Army≫ card: Play this card in Rest Mode from your hand, choose up to 1 Battle Card, and it gets -5000 power for the turn. Additionally, if the chosen card is a <Magenta: SH> card, it gets -10000 power for the turn.", "BT22-026", "both"],
   ["[Activate: Main] If your Leader is a green <Evil Wizard Babidi> card and you place this card from your hand at the bottom of your deck: Choose up to 1 Unison and remove a marker from it.", "EX21-09", "both"],
-  // A bare name keeps the caster default for now (the two-named search is not built): "up to 1 <Kale> card".
-  ["[Activate: Battle] Choose up to 1 ≪God≫ card and it gets +6000 power for the battle.", "BT16-017", "you"],
+  // Audit selectors 2 (R-254): a bare name or trait is either player's too, now that the two-named search is read whole.
+  ["[Activate: Battle] Choose up to 1 ≪God≫ card and it gets +6000 power for the battle.", "BT16-017", "both"],
   ["[Activate: Main] Choose up to 1 of your Battle Cards, and it gets +5000 power for the turn.", "MINE", "you"],
   ["[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it.", "THEIRS", "opponent"],
 ] as const) {
@@ -96,8 +96,12 @@ for (const [text, what, side] of [
 
 // ── Guard: a card in play is never played ────────────────────────────────────
 {
+  // Audit selectors 2: EX23-01's pair is read whole now (both from the hand, `named-set-shape.ts`); the guard still
+  // refuses a play of a card a choice took from play — "You can play up to 2 blue Unisons into your Unison Area" (BT28-028).
   const [rec] = recordsOf("EX23-01", { skill: "[activate: main][once per turn]{r}{r}{u}{2}, if your opponent has 20 or fewer cards in their deck: Play up to 1 <Frieza> card and up to 1 <Cooler> card―both Red/Blue multicolor and with an energy cost of 5―from your hand, then switch up to 2 of your energy to Active Mode at the end of the turn." });
-  assert.ok(rec.unread.some((u) => /already in play/.test(u)), `guard: EX23-01 — unread (${JSON.stringify(rec.unread)})`);
+  assert.ok(!rec.unread.length && chooses(rec).filter((c) => c.sel.filter?.characters.length).every((c) => c.sel.area === "hand"), `guard: EX23-01 — both cards from the hand (${JSON.stringify(rec.unread)})`);
+  const [unisons] = recordsOf("BT28-028", { type: "LEADER", skill: "[Permanent] You can play up to 2 blue Unisons into your Unison Area." });
+  assert.ok(unisons.unread.some((u) => /already in play/.test(u)), `guard: BT28-028 — unread (${JSON.stringify(unisons.unread)})`);
   const warp = only("[Counter: Play] Choose up to 1 <Hirudegarn> in your Battle Area, send it to your Warp, and at the start of your next Main Phase, play that card from your Warp.", "BT4-044");
   assert.deepEqual(warp.unread, [], "guard: BT4-044 — sent out of play first, then played: read");
   records += 2;

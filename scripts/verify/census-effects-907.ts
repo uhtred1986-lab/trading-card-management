@@ -45,8 +45,9 @@ const playCard = (s: EngineState, id: string) => pay(playG(s, { type: "play", pl
   const rest = (text: string) => compile(text);
   const bt12031 = rest("[Activate: Main] If your Leader Card is a blue <Paikuhan> card and you discard this card: Look at up to 3 cards from the top of your deck, add up to 1 mono-blue ≪Saiyan≫ or ≪West Galaxy Warrior≫ card with an energy cost of 5 or less among them to your hand, place the remaining cards on top of your deck in any order.");
   assert.deepEqual(bt12031.unsupported.filter((u) => /remaining/.test(u)), [], "BT12-031: 'on top of your deck' (no 'the') reads");
-  const back = find(bt12031.ops, "moveTo").filter((m) => m.to === "deck");
-  assert.deepEqual(back.map((m) => m.position), ["top"]);
+  // Audit effects 2: the remaining cards go back on top in the player's order — `arrange`, not a move.
+  const back = find(bt12031.ops, "arrange");
+  assert.deepEqual(back.map((m) => m.position ?? "top"), ["top"]);
   assert.deepEqual((back[0].target as { var: string; minus?: string }).var, "looked");
   assert.ok((back[0].target as { minus?: string }).minus, "the rest is the look minus what the choice took");
 
@@ -106,7 +107,8 @@ const playCard = (s: EngineState, id: string) => pay(playG(s, { type: "play", pl
     assertConsistentG(s);
     return { s, rest: seen.filter((id) => id !== taken) };
   };
-  const onTop = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards on top of your deck in any order.");
+  // Audit effects 2: the two left are put back in the player's order (`arrange`), a card per answer.
+  const onTop = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card among them to your hand, then place the remaining cards on top of your deck in any order.", [], "all");
   assert.deepEqual(zoneOf(onTop.s, "p1", "deck").slice(0, 2).sort(), [...onTop.rest].sort(), "BT12-031: the other two are back on top");
   const drop = run("[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 card to your hand, then place the remaining cards into their owner's Drop.");
   assert.ok(onTop.rest.length === 2 && drop.rest.every((id) => zoneOf(drop.s, "p1", "drop").includes(id)), "BT29-014: the other two are in the Drop");

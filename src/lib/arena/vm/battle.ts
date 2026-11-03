@@ -1887,7 +1887,9 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   const byOther = cause !== undefined && state.cards[cause] ? masterOf(game, state, cause) !== master : undefined;
   fire(ctx, game, state, { event: "ko", card, controller: owner, ...(cause !== undefined && cause !== card ? { source: cause } : {}), args: { role: "koed", to: "drop", ...(how ? { by: how } : {}), ...(byOther !== undefined ? { byOpponent: byOther } : {}), ...(wasHidden ? { hidden: true } : {}) } });
   if (cause !== undefined && cause !== card && state.cards[cause] && masterOf(game, state, cause) !== master) {
-    fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), source: card, args: { role: "cause" } });
+    // Audit triggers 2: how it was KO'd, so "When one of your cards attacks and KOs an opponent's Battle Card" (BT16-050,
+    // `yourCardKosByAttack`) answers the battle's KO only.
+    fire(ctx, game, state, { event: "ko", card: cause, controller: masterOf(game, state, cause), source: card, args: { role: "cause", ...(how ? { by: how } : {}) } });
   }
 }
 

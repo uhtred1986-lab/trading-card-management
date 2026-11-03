@@ -466,8 +466,9 @@ export const selectorReading = (sel: Selector | undefined): string => (sel ? saf
 // ── the card filter ─────────────────────────────────────────────────────────
 
 const EMPTY = emptyFilter();
-// A filter names a printed kind of skill; "keyword" is only what a negation may name (phrasing batch 5).
-const SKILL_KINDS_PREFIX = (OP_SCHEMA.negateSkillsOfKind.fields.find((f) => f.name === "kind")!.type as { enum: readonly string[] }).enum.filter((k) => k !== "keyword");
+// A filter names a printed kind of skill; "keyword" is only what a negation may name (phrasing batch 5), and one timing
+// of [Activate] is a kind a filter may name too (audit conditions 2, `FILTER_SKILL_KINDS`).
+const SKILL_KINDS_PREFIX = [...(OP_SCHEMA.negateSkillsOfKind.fields.find((f) => f.name === "kind")!.type as { enum: readonly string[] }).enum.filter((k) => k !== "keyword"), "activate:main", "activate:battle"];
 const CARD_TYPES = ["LEADER", "BATTLE", "EXTRA", "UNISON"] as const satisfies readonly NonNullable<CardFilter["type"]>[];
 
 /** The fields a filter says something with: the ones off their resting value. */

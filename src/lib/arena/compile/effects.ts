@@ -69,12 +69,18 @@ function headOf(clause: string): string {
  * left to the referee, because naming the wrong half of a two-card choice
  * moves the wrong card.
  */
+const PLACE_WORDS: Record<string, ScriptArea> = { drop: "drop", "drop area": "drop", "battle area": "battle", hand: "hand", deck: "deck", energy: "energy", "energy area": "energy", warp: "warp", life: "life", "life area": "life", "unison area": "unison", "leader area": "leader" };
+
 function chosenRef(desc: string, c: Ctx): Ref | null {
   if (!c.choices.length) return null;
   const want = parseFilter(desc);
   const t = desc.toLowerCase();
   const side: Side | null = /\bopponent'?s?\b/.test(t) ? "opponent" : /\byour\b|\byou control\b/.test(t) ? "you" : null;
   const covers = (have: readonly string[], need: readonly string[]) => need.every((n) => have.some((h) => h.toLowerCase() === n.toLowerCase()));
+  // Audit selectors 2: "place **the chosen cards from your Drop Area** under **the chosen card in your Battle Area**"
+  // (TB3-055): the place a choice was made in tells two choices of the same description apart.
+  const placeWord = /\b(?:from|in) (?:your|their|your opponent'?s) (drop(?: area)?|battle area|hand|deck|energy(?: area)?|warp|life(?: area)?|unison area|leader area)\b/.exec(t)?.[1];
+  const place = placeWord ? PLACE_WORDS[placeWord] : undefined;
 
   let best: { name: string; score: number } | null = null;
   let tied = false;
@@ -85,11 +91,14 @@ function chosenRef(desc: string, c: Ctx): Ref | null {
     // opponent's Battle Cards" is read as the Battle Area, which leaves
     // `type` null on a filter that means Battle Cards all the same.
     if (want.type && f?.type && want.type !== f.type) continue;
+    const areas = ch.sel.areas ?? (ch.sel.area ? [ch.sel.area] : []);
+    if (place && areas.length && !areas.includes(place)) continue;
     if (!covers(f?.characters ?? [], want.characters)) continue;
     if (!covers(f?.traits ?? [], want.traits)) continue;
     if (!covers(f?.names ?? [], want.names)) continue;
     if (!covers(f?.colors ?? [], want.colors)) continue;
     let score = want.characters.length + want.traits.length + want.names.length + want.colors.length;
+    if (place && areas.includes(place)) score++;
     if (side && ch.sel.side === side) score++;
     if (want.type && f?.type === want.type) score++;
     // "The chosen card" says nothing that picks one of them out; the plain
@@ -136,6 +145,43 @@ function hostOf(phrase: string, c: Ctx): Ref | null {
  */
 const SENT_TO_WARP_BY_THIS_SKILL = /^(?:(?:all (?:of )?|any )?the cards? (?:that (?:was|were) )?|(?:all|any) (?:of the )?cards (?:that were )?)sent to (?:(?:the|a|your|their|its owner'?s|their owners?'?s?) )?warps? (?:by|with) this skill(?: from (?:your|the) warp)?(?: (?:in|into) (?:your|its owner'?s) battle area)?$/i;
 
+/** A plural pronoun that can mean every card a choice list chose: "them", "they", "those cards", "the chosen cards". */
+const LIST_PRONOUN = /^(?:all (?:of )?)?(?:them|they|their|those cards|the chosen cards|both (?:of )?(?:them|those cards|the chosen cards))(?: in a combo)?(?: in (?:your|their) combo area)?$/i;
+
+/**
+ * Audit selectors 2: the choice list a plural pronoun points back at (`Ctx.group`) — only while the list's last card is
+ * still what the sentence is talking about. The clause is then made once per card of the list (`compileClause`).
+ */
+function groupOf(phrase: string, c: Ctx): Ref | null {
+  const list = c.group;
+  if (!list || list.length < 2 || !LIST_PRONOUN.test(phrase.trim().replace(/[.,]$/, ""))) return null;
+  const last = list[list.length - 1];
+  if (!c.lastTarget || !("var" in c.lastTarget) || c.lastTarget.var !== last || c.lastTarget.minus) return null;
+  c.groupHit = list;
+  return { var: last };
+}
+
+/**
+ * Audit selectors 2: a clause whose act fell on a choice list's last card (`groupOf`), made once per card of the list,
+ * in the order they were chosen — "choose up to 1 of your opponent's Battle Cards and up to 1 card in your opponent's
+ * hand and place **them** at the bottom of their owners' decks" (BT18-144) moves both. Only an act whose own target is
+ * that card and that names no other card of the list; an offer's body is read the same way.
+ */
+function eachOfGroup(ops: Op[], list: string[], fresh: () => string): Op[] {
+  const last = list[list.length - 1];
+  return ops.flatMap((o): Op[] => {
+    if (o.op === "may") return [{ ...o, ops: eachOfGroup(o.ops, list, fresh) }];
+    if (o.op === "choose" || !("target" in o) || !o.target || !("var" in o.target) || o.target.var !== last || o.target.minus) return [o];
+    const { target: _target, ...rest } = o;
+    void _target;
+    if (list.some((v) => JSON.stringify(rest).includes(`"${v}"`))) return [o];
+    // The cards one move takes go under one name (a move's `as` adds up), so "all cards sent to Warps by this skill"
+    // (BT13-096) and "if you placed a card in your Drop" mean every card of the list.
+    const moved = o.op === "moveTo" && !o.as ? { as: fresh() } : {};
+    return list.map((v) => ({ ...o, target: { var: v }, ...moved }) as Op);
+  });
+}
+
 function refFor(clause: string, c: Ctx): Ref | null {
   // Mechanism batch 2 (BT7-051): "all the cards sent …" is every one of them — a choice over them takes all (`count` 99),
   // where a selector with no count was a choice of one.
@@ -158,6 +204,24 @@ function refFor(clause: string, c: Ctx): Ref | null {
     return sel && !sel.special && !sel.fromVar ? { sel } : null;
   }
   if (/\bsame (?:colou?r and )?(?:character )?names? as (?:the chosen cards?|that card|the card you (?:placed|chose))\b/i.test(clause)) return null;
+  // Audit effects 2: "play up to 1 red ≪Demon Clan≫ card with an energy cost of 3 **from under the chosen card**" (BT25-004),
+  // "Add up to 1 ≪Saiyan≫ card with an energy cost of 4 or less **from under the chosen card** to your hand" (BT29-085's
+  // back): a card of the pile under the card chosen before — the pronoun test below took "the chosen card" for the target,
+  // and the skill played (or returned) the chosen card itself.
+  {
+    const underChosen = /^(.+?) from under (the chosen card|that card|the card chosen)$/i.exec(clause.trim());
+    if (underChosen && c.last) {
+      const host = hostOf(underChosen[2], c);
+      const sel = parseTarget(`${underChosen[1]} under this card`);
+      if (!host || !("var" in host) || !sel || sel.special || sel.fromVar || sel.area !== "under" || sel.filter?.unreadable) return null;
+      // Audit effects 2 review: the pick gets a name of its own, past the host's. The price's choice and the effect's
+      // first share `c0` (4-3-3), so EX21-29's pick from under its price's Trunks was bound as `c0` too, and "then switch
+      // the chosen card to Active Mode" switched the card just used in the combo.
+      const at = /^[a-z]+(\d+)$/.exec(host.var);
+      if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
+      return { sel: { ...sel, underHost: { fromVar: host.var } } };
+    }
+  }
   // "Play up to 1 red ≪Universe 7≫ card from **under this card**" — here
   // "this card" says where to look, or where the card goes, not which card is
   // meant. Taken as the target it played this card instead (23-2).
@@ -187,7 +251,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   and "you can activate **this card's** [Activate: Battle]" are about this
   //   one — which is the same head/tail distinction the pronoun test below
   //   makes, for the same reason.
-  const mentions = named.replace(/\b(?:other than|except for|besides) (?:copies of )?this card\b/gi, " ");
+  const mentions = named.replace(/\b(?:other than|except for|besides|not) (?:a copy of |copies of )?this card\b/gi, " ");
   // "The card this card attacked" (BT19-035b, #1005): the pronoun is the
   // subject of a relative clause, and the phrase names the other end of the
   // battle. The mention test below took it for "this card".
@@ -208,7 +272,12 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // one card the skill's reveal bound (and nothing when it revealed none).
   // The whole phrase only; "the revealed card's energy cost" is a measure.
   if (/^\s*the revealed card\s*$/i.test(clause) && c.lastSeen) return { var: c.lastSeen };
-  if (/\bthe played card\b|\bthe card (?:that was |you )?played(?: with this skill)?\b/i.test(clause)) {
+  // Review of audit selectors 2 (BT10-035): "…then, at the end of the turn, place **the card you placed in your energy
+  // with this skill** in its owner's Drop Area" — the one card the skill's move to the Energy Area took, as BT10-054's
+  // condition names it (`PLACED_IN_ENERGY`, bound in `compileSkill`'s post-pass). Read as a description it was every
+  // card in your Energy Area, the whole energy to the Drop.
+  if (/^\s*the card (?:you )?placed in your energy(?: area)? (?:with|by) this skill\s*$/i.test(clause)) return { sel: { fromVar: PLACED_IN_ENERGY } };
+  if (/\bthe played card\b|\bthe (?:battle )?card (?:that was |you )?played(?: with this skill)?\b/i.test(clause)) {
     if (c.lastPlayed) return { var: c.lastPlayed };
     return c.last ? { var: c.last } : { sel: { special: "subject" } };
   }
@@ -241,6 +310,19 @@ function refFor(clause: string, c: Ctx): Ref | null {
     if (/\bthe chosen cards?\b/i.test(clause)) {
       const priced = c.priceChosen ?? [];
       if (priced.length === 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) return { var: priced[0] };
+      // Audit effects 2 review: a card taken from the pile under a chosen card is not "the chosen card" — "use 1 card
+      // from under the chosen card in a combo, then switch **the chosen card** to Active Mode" (EX21-29), "Choose 1 of
+      // your yellow <Vegito> Battle Cards and place 2 of the cards from under that card into their owner's Drop: **The
+      // chosen card** gets +5000 power" (BT28-079's back): the host the pile hangs from (`pilePick`).
+      if (c.last && c.pilePick?.[c.last] && /\bthe chosen card\b/i.test(clause)) {
+        let host = c.last;
+        for (let guard = 0; c.pilePick[host] && guard < 8; guard++) host = c.pilePick[host];
+        return { var: host };
+      }
+      // Audit selectors 2: "…and up to 1 of their energy in Rest Mode, and **the chosen cards** can't be switched to
+      // Active Mode" (BT13-101): every card the choice list chose.
+      const list = groupOf(clause, c);
+      if (list) return list;
       return c.last ? { var: c.last } : c.lastTarget;
     }
     // Phrasing batch 3: "Choose 1 other ≪Namekian≫ card in your Battle Area: Place this card under **the chosen
@@ -305,11 +387,20 @@ function refFor(clause: string, c: Ctx): Ref | null {
     // than widening the check above to every stale target, which silenced far
     // more of the catalog than this family accounts for.
     if (c.twoNamedCardsRefused && c.stale === c.lastTarget) return null;
+    const list = groupOf(head, c);
+    if (list) return list;
     if (c.lastTarget) return c.lastTarget;
     if (c.last) return { var: c.last };
     return null;
   }
   const sel = parseTarget(clause);
+  // Audit selectors 2: a [Permanent]'s subject that prints no number — "**Your yellow <Spike> card** gets +5000 power"
+  // (BT22-087) — is every such card, not one: the singular names a kind of card.
+  if (sel && c.permanent && sel.count === 1 && sel.area !== "leader" && !sel.upTo && sel.take == null && !sel.special && !sel.fromVar && /^\s*(?:your|their|your opponent'?s)\b/i.test(clause) && !/\b(?:\d+|an?|one) (?:of )?/i.test(headOf(clause))) {
+    const { count: _count, ...all } = sel;
+    void _count;
+    return { sel: all };
+  }
   if (sel) return { sel };
   return null;
 }
@@ -385,8 +476,22 @@ function refsFor(phrase: string, c: Ctx): Ref[] | null {
  * opponent's Battle Cards") carry no count and do mean all of them.
  */
 function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op): Op[] {
+  // Review of audit selectors 2 (R-255, after R-006 and the owner's ruling of 20 Oct 2026 on BT3-120): "add **up to 1
+  // card from the top of your deck** to your energy" (BT30-020, EX08-04), "place up to 2 cards from the top of your deck
+  // under it" (P-537, TB2-015), "…to your life" (BT25-002), "send up to 2 … to their owner's Warp" (BT29-086…093),
+  // "place up to 3 … into your Drop" (BT4-038, BT27-094) are moved one card at a time, as "place up to 2 … in the Drop
+  // Area" and "send up to 3 … to your Warp" already are (`oneAtATime`, below): you may move the top card, then, if you
+  // did, the next, up to N — each step a `take` of the top 1, nothing to pick. Never a search of the deck, and never a
+  // count named blind before the first card is seen.
+  if ("sel" in ref && ref.sel.take != null && ref.sel.upTo && ref.sel.area === "deck" && !ref.sel.areas && !ref.sel.fromVar && !ref.sel.special && !ref.sel.fromEnd && !ref.sel.filter && ref.sel.take >= 1 && ref.sel.take <= 10) {
+    const { upTo: _upTo, ...top } = ref.sel;
+    void _upTo;
+    const vars = Array.from({ length: ref.sel.take }, () => `c${c.n++}`);
+    if (vars.length === 1) c.lastNamed = vars[0];
+    return oneAtATime(vars.map((v): Op[] => [{ op: "choose", sel: { ...top, take: 1, count: 1 }, as: v, reason: clause }, act({ var: v })]), clause);
+  }
   // Phrasing batch 10: "place **any number of** red Extras from your Drop under that card" (P-724) is a choice too.
-  if ("sel" in ref && !ref.sel.special && ref.sel.take == null && ref.sel.count != null && (ref.sel.count < 99 || ref.sel.upTo)) {
+  if ("sel" in ref && !ref.sel.special && (ref.sel.take == null || ref.sel.upTo) && ref.sel.count != null && (ref.sel.count < 99 || ref.sel.upTo)) {
     const v = `c${c.n++}`;
     return [{ op: "choose", sel: ref.sel, as: v, reason: clause }, act({ var: v })];
   }
@@ -416,6 +521,14 @@ function hostChoice(host: Ref, clause: string, c: Ctx): { ops: Op[]; host: Ref }
  */
 function placeUnderOps(ref: Ref, named: Ref, clause: string, c: Ctx): Op[] {
   const target = withChoice(ref, clause, c, (t) => ({ op: "moveTo", target: t, to: "under" }));
+  const last = target[target.length - 1];
+  if (last?.op !== "moveTo") {
+    // Cards from the top of the deck one at a time ("place up to 2 cards from the top of your deck under it", P-537):
+    // the host is settled first, and every step's move goes under it.
+    const { ops: chooseHost, host } = hostChoice(named, clause, c);
+    const under = (ops: Op[]): Op[] => ops.map((o): Op => (o.op === "moveTo" && o.to === "under" && !o.under ? { ...o, under: host } : o.op === "may" ? { ...o, ops: under(o.ops) } : o.op === "if" ? { ...o, then: under(o.then) } : o));
+    return [...chooseHost, ...under(target)];
+  }
   const move = target.pop() as Extract<Op, { op: "moveTo" }>;
   const { ops: chooseHost, host } = hostChoice(named, clause, c);
   return [...target, ...chooseHost, { ...move, under: host }];
@@ -591,7 +704,9 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
     // Owner ruling 26 Oct 2026 (A9): a removal with no cause named answers
     // every removal a skill makes and every KO, the battle's included
     // (`skillOrKo`, the reading "…by a skill or KO'd" has).
-    const by = verb === "leave" ? undefined : opener[6] ? ("skillOrKo" as const) : opener[4] ? ("skillOrKoBySkill" as const) : ("skillOrKo" as const);
+    // Audit selectors 2: "would leave the Battle Area **by a skill**" (BT25-014) names the cause too — a skill's removal
+    // or KO, never the battle's; only a bare "would leave" covers every cause.
+    const by = verb === "leave" ? (opener[4] ? ("skillOrKoBySkill" as const) : undefined) : opener[6] ? ("skillOrKo" as const) : opener[4] ? ("skillOrKoBySkill" as const) : ("skillOrKo" as const);
     // The cause was named and it was not one of the player's own skills, so
     // it is the opponent's — the one distinction `by` alone cannot draw.
     // "…by your skill", "…by one of your skills": the card's own controller's.
@@ -616,12 +731,14 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
   // Area too (5-12-1), so it answers that as well (`skillOrKoBySkill`) —
   // never the battle's KO.
   // "…by one of your skills" is the card's controller's skill (`bySide: you`).
+  // Audit conditions 2: and only a move **to the Drop Area** (`requestedTo: drop`) — a skill of yours returning it to
+  // the hand or the deck is no such move, and was sent to the Warp instead.
   const droppedBySkill = /^(?:if|when)?\s*(.*?) in (?:your |the )?battle area would be placed in (?:its owner'?s?|their owners?'?s?|your|their) drop area by (a|one of your) skills?$/.exec(t);
   if (droppedBySkill) {
     const who = droppedBySkill[1].trim();
     const mine = droppedBySkill[2] === "one of your" ? ({ bySide: "you" } as const) : null;
-    if (/^(?:this card|it)$/.test(who)) return { by: "skillOrKoBySkill", ...mine };
-    return who ? { by: "skillOrKoBySkill", ...mine, subject: who } : { by: "skillOrKoBySkill", ...mine };
+    if (/^(?:this card|it)$/.test(who)) return { by: "skillOrKoBySkill", ...mine, requestedTo: "drop" };
+    return who ? { by: "skillOrKoBySkill", ...mine, subject: who, requestedTo: "drop" } : { by: "skillOrKoBySkill", ...mine, requestedTo: "drop" };
   }
   // #920: the official DB2 errata names both valid source areas and no
   // cause/destination restriction. Keep these areas on the redirect rather
@@ -834,7 +951,13 @@ const COPIES_ACTIVATION = /^you can't activate (?:(?:the )?\[(activate: main|act
  * skills for the turn" (BT15-100, BT22-092, BT25-147). Each is a rule `compileProhibition` reads; the reminder skip in
  * `connective` swallowed them, so the card read as if they were not printed.
  */
-const OWN_ACTIVATION = /^you can't activate (?:(?:the )?\[counter(?:: [a-z ]+)?\] skills?|\{[^}]+\}(?:'s (?:\[(?:activate: main|activate: battle|auto)\] )?skills?)?)(?:\s+(?:for|during|until)\b.*)?$/;
+/** Audit effects 2: "you can combo with this card even when it is in Rest Mode" and its spellings — a permission (`comboRestSelf`). */
+const REST_COMBO_SELF = /^(?:you (?:can|may) )?(?:combo with|use) this card(?: from your battle area)?(?: in (?:a )?combos?)?(?: even)?(?: (?:when|while|if) it(?:'s| is))? in rest mode(?: in (?:a )?combos?)?(?: for the turn| during this turn)?$/;
+/** Audit effects 2: "you can combo with ≪Boujack Brigade≫ cards in Rest Mode in your Battle Area" (`comboRest`). */
+const REST_COMBO_DESCRIBED = /^(?:you (?:can|may) )?combo with ((?!this card\b).+? cards?) in rest mode(?: in your battle area)?(?: for the turn| during this turn)?$/;
+/** Audit effects 2: a ban on your own skills by the cards' description, or on [Field] cards (`compileProhibition`). */
+const OWN_SKILLS_BAN = /^you can't activate (?:(?:the )?skills (?:on|of) .+|\[field\] cards\b.*)$/;
+const OWN_ACTIVATION =/^you can't activate (?:(?:the )?\[counter(?:: [a-z ]+)?\] skills?|\{[^}]+\}(?:'s (?:\[(?:activate: main|activate: battle|auto)\] )?skills?)?)(?:\s+(?:for|during|until)\b.*)?$/;
 
 function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwise" | null {
   const t = clause.toLowerCase().replace(/[.,]$/, "").trim();
@@ -852,9 +975,10 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   if (/^(?:if (?:you|they) (?:don'?t|do not|didn'?t|did not))(?:\s+[a-z0-9'<>≪≫{}\- ]+?\s+(?:this way|with this skill))?$/.test(t)) return "ifNotDone";
   if (/^if not$/.test(t)) return "ifNotDone";
   if (/^(?:if they do|if they did)$/.test(t)) return "ifDone";
-  // 20-12-3: after looking, the cards go back where they were; the order is
-  // the player's and changes nothing the engine tracks.
-  if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t)) return "skip";
+  // 20-12-3: after looking, the cards go back where they were.
+  // Audit effects 2: not "…back **in any order**" said of several cards — that order is the player's (`arrange`), read by
+  // `compileClause` after the look it follows.
+  if (/^(?:put|place) (?:them|the rest|the remaining cards?|it) back(?: on top of (?:your|the|their) deck)?(?: in any order)?$/.test(t) && !/^(?:put|place) (?:them|the rest|the remaining cards) back\b.* in any order$/.test(t)) return "skip";
   // "…using this skill" (BT13-122, BT16-072) is the same words as "with".
   if (/^shuffle any (?:secret )?areas? you looked (?:through|at)(?: (?:with|using) this skill)?$/.test(t)) return "skip";
   // Mechanism batch 4: "Afterwards," (BT1-106) is "after that".
@@ -879,7 +1003,7 @@ function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwis
   // the card prints for itself, which nothing else in the engine applies.
   // Nor "you can't activate [Z-Awaken] unless …" (BT21-068's back, prohibition
   // batch 6): a ban on a keyword skill with its escape, read by `compileProhibition`.
-  if (/^(?:you can't activate|this skill can only be activated)/.test(t) && !/^you can't activate (?:the )?\[counter: [a-z ]+\] skills (?:of|on) other cards\b/.test(t) && !/^you can't activate extra(?:s| cards)(?:\s+(?:for|during|until)\b.*)?$/.test(t) && !COPIES_ACTIVATION.test(t) && !OWN_ACTIVATION.test(t) && !/^you can't activate \[z-awaken\] unless\b/.test(t) && !/^you can't activate (?:non-keyword leader card skills|this skill)\b/.test(t) && !/^you can't activate \[counter\] skills for the turn while\b/.test(t)) return "skip";
+  if (/^(?:you can't activate|this skill can only be activated)/.test(t) && !/^you can't activate (?:the )?\[counter: [a-z ]+\] skills (?:of|on) other cards\b/.test(t) && !/^you can't activate extra(?:s| cards)(?:\s+(?:for|during|until)\b.*)?$/.test(t) && !COPIES_ACTIVATION.test(t) && !OWN_ACTIVATION.test(t) && !/^you can't activate \[z-awaken\] unless\b/.test(t) && !/^you can't activate (?:non-keyword leader card skills|this skill)\b/.test(t) && !/^you can't activate \[counter\] skills for the turn while\b/.test(t) && !OWN_SKILLS_BAN.test(t)) return "skip";
   // "This card can't be played" on its own is one of those. The forms that say
   // *how* — "by skills from any area", "from any area except by skills" — are
   // not: nothing else in the engine applies them, and skipping them here was
@@ -1109,6 +1233,11 @@ function swapForEachAmount(op: Op, amountFor: (printed: number) => Amount): Op |
   if ((op.op === "power" || op.op === "comboPower" || op.op === "costReduction") && typeof op.amount === "number") {
     return { ...op, amount: amountFor(op.amount) };
   }
+  // Audit effects 2: "…add a marker to this card for each card under this card" (BT17-003), "…remove 1 marker from it for
+  // each card in your Z-Energy" (BT18-076), "…for each of your Tokens" (P-633): markers counted, as cards are. Read flat.
+  if ((op.op === "addMarker" || op.op === "removeMarker") && typeof op.n === "number") {
+    return { ...op, n: amountFor(op.n) };
+  }
   // Phrasing batch 5: "for every 5 cards in your Z-Energy, **add 1 of your opponent's life** to its owner's Z-Energy"
   // (BT23-109): an exact choice of a counted number becomes that many per step, owed (`owed`: as many as possible, never
   // fewer by choice). Only an exact count — "up to 1 … for each" would be a bound, and is left as it is.
@@ -1251,7 +1380,34 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
   }
   // Mechanism batch 2 (P-440): "…with the same name as the chosen card" names the choice made before this clause.
   const before = c.last;
-  const ops = compileClauseRead(clause, c);
+  // Audit selectors 2: "…you choose up to 1 each of <Android 17> and <Hell Fighter 17> cards …, then **play up to 1 of
+  // them** and add up to 1 of them to your Z-Energy" (EX23-25): a pick out of a choice list — one of the cards two
+  // choices bound — which no selector pools. Unread rather than read as the list's last card.
+  const listNow = c.group && c.group.length > 1 && c.lastTarget && "var" in c.lastTarget && c.lastTarget.var === c.group[c.group.length - 1];
+  if (listNow && /\b(?:up to )?\d+ of (?:them|those cards|the chosen cards)\b/i.test(clause)) return null;
+  // Audit selectors 2: a plural pronoun this clause resolved to a choice list (`groupOf`) makes its act once per card.
+  const outerHit = c.groupHit;
+  c.groupHit = undefined;
+  const read = compileClauseRead(clause, c);
+  const hit = c.groupHit;
+  c.groupHit = outerHit;
+  let ops = read && hit ? eachOfGroup(read, hit, () => `g${c.n++}`) : read;
+  // Audit selectors 2: "Choose 1 of your Battle Cards and 1 of your opponent's Battle Cards, ignoring [barrier], and
+  // place **all other Battle Cards** at the bottom of their owners' decks" (BT24-140): "other" after a choice list is
+  // other than the cards it chose — every one of the rest, taken as a choice of all of them that leaves the list out
+  // (`notIn`). Read as "other than this card", the two chosen cards went to the deck with the rest.
+  const list = c.group;
+  if (ops && list && list.length > 1 && /\ball other\b/i.test(clause) && !/\bother than\b/i.test(clause)) {
+    const others = ops.filter((o) => "target" in o && o.target && "sel" in o.target && o.target.sel.notSelf === "card" && (o.target.sel.count == null || o.target.sel.count >= 99) && !o.target.sel.upTo && !o.target.sel.special);
+    if (others.length !== 1) return null;
+    ops = ops.flatMap((o): Op[] => {
+      if (o !== others[0] || !("target" in o) || !o.target || !("sel" in o.target)) return [o];
+      const { notSelf: _self, ...sel } = o.target.sel;
+      void _self;
+      const v = `c${c.n++}`;
+      return [{ op: "choose", sel: { ...sel, count: 99, notIn: [...list] }, as: v, reason: clause }, { ...o, target: { var: v } } as Op];
+    });
+  }
   // Phrasing batch 10: a bare "choose up to N …" out of a look, with nothing done to it yet, is the pool the bare cards
   // above are picked from.
   if (ops?.length === 1 && ops[0].op === "choose" && c.lastSeen && ops[0].sel.fromVar === c.lastSeen && /^choose up to \d+\b/i.test(clause.trim())) c.pickPool = ops[0].as;
@@ -1263,6 +1419,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 }
 
 function compileClauseRead(clause: string, c: Ctx): Op[] | null {
+  // Audit effects 2 review: "You may choose Battle Cards in your Drop **when choosing cards to use with** a blue <Gogeta:
+  // Br> card's [Union] skill" (BT26-031), "…when choosing a <Goku Black> card to use with a [Union] skill …" (BT26-061's
+  // back), "…**when choosing cards for** this card's [Z-Stack] conditions" (BT20-028), "…with this card's [union] skill
+  // from your hand" (EX21-12): a keyword's material choice widened (22-13-4-2-1, 22-47-4-1). The wordings
+  // `compileSkillUnguarded` reads whole (`unionFusionAreas`, `unionFusionDropBottom`, `unionFusionWarp`) never get here;
+  // any other was read as a choice made now out of the Drop, and moved the cards it chose. Unread.
+  if (/\bwhen choosing (?:cards?|an? .+? cards?|the specified .+?) (?:to use with|for)\b/i.test(clause)) return null;
+  // Audit effects 2 review: "Choose up to 1 **[Permanent] skill** other than a keyword skill on your yellow ≪Frieza Clan≫
+  // card … and negate it" (BT27-070): one line of a card, which no selector names — it read as a choice of the card, and
+  // every skill of it was negated. (The keyword-skill choice before a negation or a copy is read by its own merge.)
+  if (/^choose (?:up to )?(?:\d+|an?) \[[^\]]+\] skills?\b/i.test(clause.trim())) return null;
   // Mechanism batch 2 (BT10-051): "…and you can't place cards in your energy **or play cards other than mono-blue
   // <Zamasu> or <Goku Black> cards** for the turn" is two prohibitions with one span. Read as one, the second was lost.
   const twoBans = /^(?:and )?you can'?t place cards in your energy(?: area)? or (play .+?) for the (turn|game)[.]?$/i.exec(clause.trim());
@@ -1430,6 +1597,35 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // #930: "for each character name required for the revealed card's [union] skill, add up to 1 card with a
   // matching character name …" (EX13-14), "add up to 1 Battle Card each … each with a character name that matches
   // the [Union] skill conditions of the revealed card …" (SD19-03).
+  // Audit selectors 2: "Play or add to your hand up to 1 green <Trunks: Youth> card with an energy cost of 3 from your
+  // deck" (BT11-078, BT11-079), "…up to 1 skill-less <Son Goku: Br> card … and up to 1 skill-less <Vegeta: Br> card …
+  // from your deck" (BT11-029): one or the other for all the cards — the pair is played, or the pair is added, never one
+  // of each (BT11-029's Q&A) — so the master picks the option first and then the cards. Read as a play from the hand, the
+  // deck was never searched.
+  if ((m = /^play or add to your hand (up to \d+ .+? from (?:your|their) .+)$/i.exec(clause.trim().replace(/^(?:you may|you can)\s+/i, "")))) {
+    const play = compileClause(`play ${m[1]}`, c);
+    const add = play && compileClause(`add ${m[1]} to your hand`, c);
+    if (!play || !add || !play.some((o) => o.op === "play") || !add.some((o) => o.op === "moveTo" && o.to === "hand")) return null;
+    return [{ op: "chooseMode", modes: [{ label: "Play them", ops: play }, { label: "Add them to your hand", ops: add }], reason: clause }];
+  }
+  // Audit selectors 2: "Play up to 2 skill-less ≪Monster≫ cards with energy costs of 1 and 2 **respectively** from your
+  // deck in Rest Mode" (BT15-115): one card per cost — up to 1 with an energy cost of 1 and up to 1 with an energy cost of
+  // 2. Read as one choice, the second cost was lost and the first card was looked for in play.
+  if ((m = /^play up to (\d+) (.+?) cards with energy costs of (\d+(?:, \d+)*,? and \d+) respectively from ((?:your|their) [a-z ]+?)( in rest mode)?$/.exec(t))) {
+    const costs = m[3].split(/,\s*(?:and\s+)?|\s+and\s+/).filter(Boolean);
+    if (costs.length !== Number(m[1])) return null;
+    const vars: string[] = [];
+    const chooses: Op[] = [];
+    for (const cost of costs) {
+      const sel = parseTarget(`up to 1 ${m[2]} card with an energy cost of ${cost} from ${m[4]}`);
+      if (!sel || sel.special || sel.fromVar || sel.filter?.unreadable || sel.count !== 1 || !sel.upTo || !sel.area) return null;
+      const v = `c${c.n++}`;
+      chooses.push({ op: "choose", sel: { ...sel, ...(vars.length ? { notIn: [...vars] } : {}) }, as: v, reason: `up to 1 ${m[2]} card with an energy cost of ${cost} from ${m[4]}` });
+      vars.push(v);
+    }
+    c.group = vars;
+    return [...chooses, ...vars.map((v): Op => ({ op: "play", target: { var: v }, ...(m![5] ? { mode: "rest" as const } : {}) }))];
+  }
   const unionSearch = compileUnionNameSearch(t, c);
   if (unionSearch !== undefined) return /^(?:you may|you can|the player may)\s/i.test(clause.trim()) ? null : unionSearch;
   const named = compileNamedSet(t, c);
@@ -1485,6 +1681,13 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const moved = compileClause(clause.replace(/\s*face[- ]up\s*$/i, ""), c);
     const last = moved?.[moved.length - 1];
     if (moved && last && last.op === "moveTo") return [...moved.slice(0, -1), { ...last, faceUp: true }];
+  }
+  // Audit effects 2: "…choose 1 card in your hand and **place it face up in your life**" (P-275): the same said before the
+  // place. The "face up" was dropped and the card went into the life face down.
+  if (/^(?:place|put|add) (?:it|them|that card|the chosen cards?) face[- ]up (?:in|into|to) (?:your|its owner'?s) life(?: area)?$/.test(t)) {
+    const moved = compileClause(clause.replace(/\s+face[- ]up\b/i, ""), c);
+    const last = moved?.[moved.length - 1];
+    if (moved && last && last.op === "moveTo" && last.to === "life") return [...moved.slice(0, -1), { ...last, faceUp: true }];
   }
 
   // "This card gains +5000 power and [Critical] **during your turn**" (9-9):
@@ -1573,6 +1776,20 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       const amount = op && (op.op === "power" || op.op === "comboPower") && typeof op.amount === "object" && "count" in op.amount && !op.amount.per ? op.amount : null;
       return op && amount ? [{ ...op, amount: { capped: [amount, Number(maximum[1]) * (amount.times ?? 1)] } } as Op] : null;
     }
+    // Audit effects 2 review: "Deal 1 damage to your opponent for every 2 colors on ≪God≫ cards in your Battle Area.
+    // **(2 damage max.)**" (BT16-017): the damage's printed ceiling — six colours would deal 3. Two are refused.
+    const damageCap = counted?.length === 1 && counted[0].op === "damage" ? c.raw.match(/\((\d+) damage max\.?\)/gi) : null;
+    if (counted && damageCap) {
+      const op = counted[0] as Extract<Op, { op: "damage" }>;
+      return damageCap.length === 1 && typeof op.n === "object" ? [{ ...op, n: { capped: [op.n, Number(/\d+/.exec(damageCap[0])![0])] } } as Op] : null;
+    }
+    // Audit effects 2: "…add a marker to this card for each card under this card. **(Up to 3.)**" (BT17-003): a marker
+    // count's printed ceiling, as BT9-076's is a power's. Two ceilings in one line are refused.
+    const markerCap = counted?.length === 1 && (counted[0].op === "addMarker" || counted[0].op === "removeMarker") ? c.raw.match(/\(up to (\d+)\.?\)/gi) : null;
+    if (counted && markerCap) {
+      const op = counted[0] as Extract<Op, { op: "addMarker" | "removeMarker" }>;
+      return markerCap.length === 1 && typeof op.n === "object" && "count" in op.n ? [{ ...op, n: { capped: [op.n, Number(/\d+/.exec(markerCap[0])![0])] } } as Op] : null;
+    }
     if (counted) return counted;
     // Audit lane E review: a "for each … by / with / using this skill" `compileForEach` refused is a tally no flat reading
     // below may stand in for — BT30-038's "+3000 power … for each card placed into its owner's Drop by this skill" read as
@@ -1600,7 +1817,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // "Skip your turn" (BT31-097): every phase of the next turn, refused at
   // once (20-13-1) — "and begin your opponent's Charge Phase" is that same
   // rule said in words and is dropped by `connective`, just above.
-  if (t === "skip your turn") return [{ op: "skip", what: "turn" }];
+  // Audit effects 2 review: not so — BT31-097's own Q&As end the turn in progress at once ("the 'end of your opponent's
+  // turn' timing is skipped"; [Over Realm] cards stay in the Battle Area, never sent to the Warp at this turn's end).
+  // `skip` "turn" refuses the player's NEXT turn and let this one finish: a misread, so unread until the engine can
+  // end the turn in progress.
+  if (t === "skip your turn") return null;
   // "Skip all phases until the Charge Phase in your next turn" (BT21-104):
   // the rest of this turn, the opponent's whole next turn, and this card's
   // controller's own next Charge Phase, landing at that Main Phase — three
@@ -1626,6 +1847,23 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // clause is a count of its own no reader takes.
   if (/^draw cards equal to the number of cards (?:you discarded|(?:that were )?discarded) (?:with|by|using) this skill$/.test(t) && c.priceChoice && c.priceDiscarded) return [{ op: "draw", n: { var: c.priceChoice } }];
   if (/^(?:then )?draw that many cards$/.test(t) && c.last && c.last !== c.priceChoice) return [{ op: "draw", n: { var: c.last } }];
+  // Audit selectors 2: "…place them in your life face up, then **add that many cards** from your life to your hand"
+  // (BT12-002), "add up to 2 cards from your life to your hand, then add that many cards from your hand to your life"
+  // (BT31-072), "…then place **the same number of cards** from your hand at the bottom of your deck" (P-730): as many as
+  // the choice before it took, owed as far as there are (`atMost` + `owed`, 5-2-5). Read as a plural with no number it
+  // was every card — the whole hand into the deck. The clause is read as an "up to" of its own, then bounded.
+  const thatMany = /\b(?:that many|the same number of) cards\b/;
+  if (thatMany.test(t) && !/^(?:then )?draw\b/.test(t)) {
+    const last = c.last;
+    if (!last || last === c.priceChoice) return null;
+    const read = compileClause(clause.replace(new RegExp(thatMany.source, "i"), "up to 99 cards"), c);
+    const pick = read?.find((o): o is Extract<Op, { op: "choose" }> => o.op === "choose" && o.sel.count === 99 && !!o.sel.upTo && !o.sel.fromVar && !o.sel.special);
+    if (!read || !pick) return null;
+    const { count: _count, upTo: _upTo, ...sel } = pick.sel;
+    void _count;
+    void _upTo;
+    return read.map((o) => (o === pick ? { ...pick, sel, atMost: { var: last }, owed: true as const, reason: clause } : o));
+  }
   // "Have your opponent draw 1 card" leaves the verb uninflected once the
   // leading words are split off, and a few sets print it that way outright.
   if ((m = /^(?:your opponent|they) draws? (\d+) cards?$/.exec(t))) return [{ op: "draw", n: Number(m[1]), side: "opponent" }];
@@ -1849,7 +2087,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   //   chooses, in the order the player chooses — `topOrBottomEach`.
   if (c.lastOp === "look" && c.lastSeen) {
     const looked: Ref = { var: c.lastSeen };
-    if (/^(?:place|put|return) them (?:back )?on (?:the )?top of (?:your|their|your opponent'?s) deck in any order$/.test(t)) return [{ op: "note", text: "the cards looked at go back on top of the deck, in any order" }];
+    // Audit effects 2: "…and put them back in any order" (DB2-058, DB2-049, DB2-051, DB2-053, DB2-064, BT12-027b), "…and
+    // place them on top of your [their] deck in any order" (BT14-093, BT22-082, BT22-114, P-319): the order is the player's
+    // to pick — with R-203's shuffle after each ≪Universe 10≫ reveal, arranging the top before a reveal is the point of
+    // the card. The cards never leave the deck (20-12-2). It was a note, and the cards stayed in the order looked at.
+    if (/^(?:place|put|return) them (?:back (?:on (?:the )?top of (?:your|their|your opponent'?s) deck )?|(?:back )?on (?:the )?top of (?:your|their|your opponent'?s) deck )in any order$/.test(t)) return [{ op: "arrange", target: looked }];
     // Audit lane E (R-202): "…on the top **or** bottom … in any order" is one end for all of them (BT9-037's official
     // Q&A); "top **and/or** bottom" stays each card's own end (R-202, carrying R-007's reading for "and/or").
     if ((m = /^(?:place|put|return) them (?:back )?(?:at|on) (?:the )?top (or|and\/or) (?:the )?bottom of (?:your|their|your opponent'?s|its owner'?s) deck(?: in any order)?$/.exec(t))) return m[1] === "or" ? topOrBottomAll(looked) : topOrBottomEach(c.lastSeen, c);
@@ -1880,9 +2122,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   {
     const REST = "(?:the|any) (?:remaining cards?|rest of the cards|rest|other cards)";
     const rest: Ref = { var: "looked", ...(c.last ? { minus: c.last } : {}) };
-    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in (any|a random) order)?$`).exec(t)))
-      // "In a random order" (FS03-13) is drawn from the game's seeded RNG; "in any order" keeps the looked-at order.
+    if ((m = new RegExp(`^(?:place|put|return) ${REST} (?:back )?(?:at|on) (?:the )?(top|bottom) of (?:your|its owner'?s?|their owners?'?s?|their) decks?(?: in (any|a random) order)?$`).exec(t))) {
+      // Audit effects 2: "…then place the remaining cards **on top of** your deck in any order" (BT12-027, BT12-031,
+      // BT12-035, P-360): the cards still in the deck go back on top in the player's order (`arrange`), the next draws.
+      if (m[1] === "top" && m[2] === "any") return [{ op: "arrange", target: rest }];
+      // "In a random order" (FS03-13) is drawn from the game's seeded RNG; "in any order" at the bottom keeps the
+      // looked-at order (a bottom the deck reaches last).
       return [{ op: "moveTo", target: rest, to: "deck", position: m[1] as "top" | "bottom", ...(m[2] === "a random" ? { random: true as const } : {}) }];
+    }
     // "…on the top or bottom of your deck in any order" / "…on the top and/or
     // bottom": owner's ruling of 26 Oct 2026 (phrasing batch 2) — EACH card goes
     // to the top or the bottom as the player chooses, in the order the player
@@ -1954,6 +2201,15 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       ];
     }
     const sel = parseTarget(m[1]);
+    // Audit selectors 2: "Reveal **up to 3** cards from the top of your deck and place them in your Drop" (EX23-32): how
+    // many is the master's (`take` with `upTo`, asked by the choice), then the top that many are revealed.
+    if (sel && sel.take != null && sel.upTo && !sel.special && !sel.fromVar) {
+      const v = `c${c.n++}`;
+      return [
+        { op: "choose", sel, as: v, reason: clause },
+        { op: "reveal", sel: { fromVar: v }, as: "revealed" },
+      ];
+    }
     if (sel) return [{ op: "reveal", sel, as: "revealed" }];
     // "You may reveal **it**" (9-10, BT10-031/SD18-01): a bare pronoun is not
     // a description `parseTarget` reads, but it is exactly what `refFor`
@@ -2327,6 +2583,16 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // this from being cut in half at its "and" first, with "reduce the energy
   // cost" and "Z-Energy cost of X … by N" left as two clauses, neither of
   // them a sentence.
+  // Audit effects 2 review: "reduce the energy cost of **the first Extra you activate** from under one of your <Broly: Br>
+  // cards by {g}" (BT19-074, BT19-089), "…of **the next {Piercing Special Beam Cannon} you place** in your Battle Area
+  // this turn by {u}" (BT23-041): one purchase still to come, the "the next time you … , reduce its … cost" change said
+  // the other way round (`nextTimeReduction`, `uses: 1`). The reader below took the card for one already there — "1
+  // Extra Card under your <Broly: Br> card costs 1 less". Where `nextTimeReduction` cannot say the scope (a card bought
+  // from under another; a placement in the Battle Area of no Z-card), the clause is unread.
+  if ((m = /^(?:reduce|decrease) the (?:(energy|skill|specified) )?cost of the (?:first|next) (.+?) you (activate|play|place|use)\b(.*?)(?:,? (?:during |for )?this turn)? by (\d+|(?:\{[rugykbw\d]+\})+)$/.exec(qq))) {
+    const verb = m[3];
+    return nextTimeReduction(verb, `${m[2]}${m[4]}`, m[1] ?? (verb === "activate" || verb === "use" ? "skill" : "energy"), m[5], durationOf(clause.replace(/,? (?:during |for )?this turn\b/i, " for the turn")), c, true);
+  }
   if ((m = /^(reduce|increase|decrease) the energy costs? and z-energy costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+)$/.exec(qq))) {
     const sign = m[1] === "increase" ? -1 : 1;
     const ref = refFor(m[2], c);
@@ -2422,7 +2688,16 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
             : kindWordTrim === "evolve"
               ? ({ what: "evolve" as const })
               : {};
-    return (listed && listed.length > 1 ? listed : [ref]).map((target) => ({ op: "costReduction", target, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(activateTiming ? { activateTiming } : {}), ...(scopeTag ? { tag: scopeTag } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }) as Op);
+    const reduced = (listed && listed.length > 1 ? listed : [ref]).map((target) => ({ op: "costReduction", target, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(activateTiming ? { activateTiming } : {}), ...(scopeTag ? { tag: scopeTag } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }) as Op);
+    // Audit effects 2 review: "decrease the energy cost **(and specified green cost)** of <Caulifla> and <Kale> in your
+    // hand by 1" (P-041): the bracket is part of the effect, not a reminder (`stripNotes` took it off) — the green orb
+    // demanded goes down with the total (the specified half, owner's BT19-039 ruling), or a {g}-cost card got nothing.
+    const alsoSpecified = !kindWordTrim || kindWordTrim === "energy" ? /\(and specified (red|blue|green|yellow|black|white) cost\)/i.exec(c.raw) : null;
+    if (alsoSpecified && sign === 1 && !orbs && typeof by === "number") {
+      const color = (alsoSpecified[1][0].toUpperCase() + alsoSpecified[1].slice(1).toLowerCase()) as Color;
+      return [...reduced, ...reduced.map((o) => ({ ...o, what: "specified" as const, amount: by, colors: Array.from({ length: by as number }, () => color) }) as Op)];
+    }
+    return reduced;
   }
 
   // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing
@@ -3040,6 +3315,21 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   if (/^this card can be used in combos? in rest mode$/.test(t)) {
     return [{ op: "permit", what: "comboRestSelf", target: { sel: { special: "self" } }, until: c.permanent ? "game" : durationOf(t) }];
   }
+  // Audit effects 2: the same permission said with "you" — "[Permanent] You can combo with this card even when it is in
+  // Rest Mode" (BT23-030), "…use this card in a combo even when it is in Rest Mode" (BT23-125), "…combo with this card
+  // from your Battle Area even when …" (TB2-010), and for the turn, "…and you may use this card in a combo in Rest Mode for
+  // the turn" (BT21-081). Each read as the action "use this card in a combo" (a [Permanent] never acts, 9-5-1, and
+  // BT21-081 put the card in a combo as it was played).
+  if (REST_COMBO_SELF.test(t)) {
+    return [{ op: "permit", what: "comboRestSelf", target: { sel: { special: "self" } }, until: c.permanent ? "game" : durationOf(t) }];
+  }
+  // …and of the cards described: "[Permanent] You can combo with ≪Boujack Brigade≫ cards in Rest Mode in your Battle
+  // Area" (BT6-080's back) is `comboRest` with that filter, as "you can use your Rest Mode ≪Saiyan≫ cards in combos" is.
+  if ((m = REST_COMBO_DESCRIBED.exec(t))) {
+    const filter = filterFor(m[1], null);
+    if (!filter || unreadFilterWords(m[1], filter).length) return null;
+    return [{ op: "permit", what: "comboRest", target: { sel: { special: "self" } }, until: c.permanent ? "game" : durationOf(t), filter }];
+  }
   // Phrasing batch 8: "[Permanent] If <Caulifla> is in play in your Battle Area, **you don't have to place cards from your
   // hand in the Drop Area as a result of this card's skill**" (TB1-002): the discard this card's own skills ask of its
   // master's hand becomes "up to" that many (`ownDiscardOptional`, read by the `discard` op). The opponent's discard in
@@ -3284,9 +3574,15 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // "Use up to 1 green card with 5000 combo power from your Drop in a combo
   // with its skills negated for the battle", "use this card from your Drop in
   // a combo", "combo with it" (5-7).
+  // Audit conditions 2 review: "…from under your Battle Cards or Z-Unisons**—both black—in** a combo" (BT24-112's back)
+  // prints no space after the closing dash; read with one, the aside is every host's ("both black"), where the words
+  // ran into the description and the black stayed on the Z-Unison.
+  // Audit effects 2: "…in a combo with its **skill** negated for the turn" (BT27-103, BT30-089) is the same negation in
+  // the singular, and "use up to 1 yellow ≪Frieza's Army≫ **with its skills negated for the turn in a combo**" (BT21-123)
+  // says it before "in a combo": both were read as a plain combo, the card's skills live.
   if (
-    (m = /^(?:use|combo with) (.+?)(?: from (?:your|their) (drop|warp|hand)(?: area)?)?(?: in a combo)?(?: from (?:your|their) (drop|warp|hand)(?: area)?)?( with (?:its|their) skills negated)?$/.exec(
-      q,
+    (m = /^(?:use|combo with) (.+?)(?: from (?:your|their) (drop|warp|hand)(?: area)?)?(?:(?: |(?<=[—―–]))in a combo)?(?: from (?:your|their) (drop|warp|hand)(?: area)?)?( with (?:its|their) skills? negated)?$/.exec(
+      q.replace(/^(use .+?) (with (?:its|their) skills? negated)(?: for the (?:turn|battle))? in a combo$/, "$1 in a combo $2"),
     )) &&
     /\bcombo\b/.test(t)
   ) {
@@ -3340,6 +3636,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // guarding (BT30-098, BT31-085).
   if ((m = /^switch your card (?:that['’]s|that is) in (?:a|the) battle with (.+)$/.exec(t))) {
     const ref = refFor(m[1], c);
+    // Audit selectors 2: only one of your own cards can take your seat (8-1-7-2), so the card chosen for it — "Choose up
+    // to 1 <Vegito> or <Vegito: Xeno> card -- both black … -- and switch your card that's in a battle with the chosen
+    // card" (BT31-085), which names no owner (R-205) — is chosen among yours.
+    const chosen = ref && "var" in ref ? c.choices.find((ch) => ch.var === ref.var) : undefined;
+    if (chosen && chosen.sel.side === "both" && !chosen.sel.areaSides) chosen.sel.side = "you";
     return ref ? withChoice(ref, clause, c, (target) => ({ op: "swapBattle", target })) : null;
   }
 
@@ -3899,20 +4200,39 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   const onTopFirst =
     /^((?:play|activate) .+?) (on top of (?:this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)) (from (?:your|their|its owner's|their owner's) [^,;]+?)((?: in (?:rest|active) mode)?(?: with (?:its|their) (?:(?:non-)?keyword )?skills negated(?: for (?:the )?(?:turn|game|battle)| until the end of your opponent's next turn)?)?)$/.exec(t);
   const tOnTop = onTopFirst && !/\bon top of\b/.test(onTopFirst[3]) ? `${onTopFirst[1]} ${onTopFirst[3]} ${onTopFirst[2]}${onTopFirst[4]}` : t;
+  // Audit effects 2: three more hosts — "…play this card from your hand **on top of the attacking card**" (BT22-063,
+  // BT22-068), "…then play this card from your hand **on top of the card you played with this skill**" (BT6-126), and one
+  // described, "…**on top of a <Vegeta> card in your Battle Area with an energy cost of 3**" (BT7-057), chosen first. Each
+  // was dropped, and the card played on its own.
   if (
     (m =
-      /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card)(?: in (rest|active) mode)?(?: with (?:its|their) ((?:non-)?keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(
+      /^(?:play|activate) (.+?)(?: in (rest|active) mode)? on top of (this card|it|the played card|the (?:originally )?chosen card|that (?:chosen )?card|the attacking card|the card (?:you )?played (?:with|by) this skill|an? [^,]+? card in your battle area(?: with an energy cost of \d+(?: or (?:more|less))?)?)(?: in (rest|active) mode)?(?: with (?:its|their) ((?:non-)?keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(
         tOnTop,
       ))
   ) {
-    const onto = hostOf(m[3], c);
+    const playedHere = /^the card (?:you )?played (?:with|by) this skill$/.test(m[3]);
+    const described = /^an? .+ card in your battle area/.test(m[3]);
+    let onto = playedHere ? (c.lastPlayed ? { var: c.lastPlayed } : null) : described ? null : hostOf(m[3], c);
+    const hostOps: Op[] = [];
+    if (described) {
+      const sel = parseTarget(m[3].replace(/^an? /, "1 "));
+      if (!sel || sel.special || sel.fromVar || sel.area !== "battle" || sel.side !== "you" || sel.filter?.unreadable) return null;
+      const h = `c${c.n++}`;
+      hostOps.push({ op: "choose", sel: { ...sel, count: 1 }, as: h, reason: `the card to play on top of: ${m[3]}` });
+      onto = { var: h };
+    }
     // "…Battle Card **whose card name is in the text of a skill on the chosen
     // card** from your Warp" (BT30-084, #542): the phrase is the filter's
     // `nameInSkillTextOf`, bound to the choice it points at (`c.last`, which the
     // price's choice, #550, left). Struck out of the description first, or
     // "the chosen card" in it would be taken for the target.
     const inText = NAME_IN_SKILL_TEXT.exec(m[1]);
-    const ref = refFor(inText ? m[1].replace(NAME_IN_SKILL_TEXT, "") : m[1], c);
+    // Audit selectors 2: "…look at up to 1 card from the top of your deck, then play up to 1 yellow ≪Heroic≫ <Son Gohan:
+    // Adolescence> card on top of the chosen card in Active Mode" (BT28-103): a counted card that names no place, right
+    // after a look, is one of the cards looked at — as "add up to 1 … to your hand" after a look is. Read bare, it was a
+    // card already in play.
+    const afterLook = !inText && c.lastOp === "look" && c.lastSeen && /^(?:up to )?(?:\d+|an?) /.test(m[1]) && !/\b(?:from|in|among|of)\b/.test(m[1].replace(/\bin (?:its|their) (?:card|character) names?\b/g, ""));
+    const ref = afterLook ? (() => { const sel = parseTarget(m![1], c.lastSeen!); return sel ? { sel } : null; })() : refFor(inText ? m[1].replace(NAME_IN_SKILL_TEXT, "") : m[1], c);
     if (inText) {
       // Nothing chosen to look in, or a description that is not a selector: unread (ground rule 5).
       if (!c.last || !ref || !("sel" in ref)) return null;
@@ -3933,14 +4253,27 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       const v = `p${c.n++}`;
       c.lastPlayed = v;
       return [
+        ...hostOps,
         { op: "choose", sel: ref.sel, as: v, reason: clause },
         { op: "play", target: { var: v }, ...extra },
         ...thenNegate({ var: v }),
       ];
     }
-    return [{ op: "play", target: ref, ...extra }, ...thenNegate(ref)];
+    return [...hostOps, { op: "play", target: ref, ...extra }, ...thenNegate(ref)];
   }
 
+  // Audit effects 2: "…play up to 1 red ≪Bardock's Crew≫ card … among them **with its [auto] skills negated for the turn**"
+  // (P-437): one kind of skill of the played card negated (`negateSkillsOfKind`), its [Permanent] and [Activate] skills
+  // live. It read as every skill negated.
+  {
+    const kindNegated = /^(play .+?) with (?:its|their) \[(auto|activate|permanent)\] skills? negated(?: for (?:the )?(turn|game))?$/.exec(t);
+    if (kindNegated) {
+      const played = compileClause(kindNegated[1], c);
+      const play = played?.filter((o): o is Extract<Op, { op: "play" }> => o.op === "play").pop();
+      if (!played || !play || play.negated) return null;
+      return [...played, { op: "negateSkillsOfKind", target: play.target, kind: kindNegated[2] as "auto" | "activate" | "permanent", until: kindNegated[3] === "game" ? "game" : "turn" }];
+    }
+  }
   // Playing a card by a skill (5-5-3).
   // "Activate" is what the text calls playing an Extra card (12-2), so the two
   // words lead to the same place. A card that says "play … in Rest Mode" is
@@ -3984,6 +4317,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // A Leader is never played, so "activate your Leader Card's [Activate: Main]" (P-208, cut at its list commas
     // before the "even when") is not one either.
     if (/^activate (?:your )?leader(?: card)?'s \[/.test(tp)) return null;
+    // Audit effects 2: "You may play that card **by paying its energy cost**" (TB1-029): a play at its price, which no
+    // play step pays — unread rather than the free play a skill's play is (5-5-3), which it read as.
+    if (/\bby paying (?:its|their) (?:energy|skill) costs?\b/.test(m[1])) return null;
     // "…and **activate its [Activate: Main] skill**" (BT5-002, #979) uses a
     // skill of a card; it does not play the card that bears it (12-2-4). The
     // bounded Desire choice before it is read whole above; when what "its"
@@ -3992,13 +4328,32 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // rather than read as the play of the card it names. Before the bound was
     // readable the choice itself failed and there was nothing to point at.
     if (/^activate its \[activate[^\]]*\]\s*skills?\b/.test(t) && c.choices.some((ch) => ch.var === c.last && ch.sel.filter?.costAtMostEnergy)) return null;
+    // Audit effects 2 (12-2-4): a skill named — "activate its [activate: battle] skill without paying its skill cost"
+    // (BT15-092's back), "Activate this card's [Activate: Main] skill" (BT28-103), "activate up to 1 of that card's
+    // [Activate: Main] skills from the Drop" (BT26-096, BT26-112, BT26-113, BT26-114, P-637), "…1 [Activate: Main] skill
+    // on each of those cards" (BT26-110), "…[activate: battle] skill on a red Extra … by paying its skill cost" (P-723),
+    // "…the [Activate: Main] skill on a {Tragic Awakening} in its owner's Drop" (P-564) — is never the play of the card
+    // that bears it, which is what each read as. One the readers before this did not take (a hand Extra's line,
+    // `invokeSkill`) stays unread: the engine activates no line of a card in the Drop by another card's effect yet.
+    if (/^activate\b/.test(tp) && /\[(?:activate|counter|auto)\b[^\]]*\] skills?\b/.test(tp)) return null;
+    // Audit effects 2 review: the same for any skill the words name that no "with" describes a card by — "…you can
+    // activate **[Revive] skills on ≪Namekian≫ cards** from your Drop without paying their skills costs" (BT27-058), "you
+    // can activate **a skill that includes a marker skill cost on this card** twice for the turn" (BT27-067): the first
+    // played every ≪Namekian≫ in the Drop, the second played the card itself. ("Activate 1 … Extra Card **with** … the
+    // [field] skill", BT13-080, describes the card.)
+    if (/^activate\b/.test(tp) && /\bskills?\b/.test(m[1]) && !/\bwith\b[^,]*\bskills?\b/.test(m[1])) return null;
     // "…and play it **in your opponent's Battle Area**" (BT15-118, BT18-087):
     // the card goes to the other side of the table, and `play` has no word for
     // whose Battle Area it lands in — read without it, the card was played
     // into your own. Left unread (ground rule 5).
     // Prohibition batch 6: "…play the Unison Card under this card **in your
     // opponent's Unison Area**" (BT15-129) is the same gap for a Unison.
-    if (/\b(?:in|into) (?:your|their|an|the) opponent'?s (?:battle|unison) areas?\b/.test(m[1])) return null;
+    // Audit selectors 2: the Battle Area is said now (`toOpponent`) — "play up to 1 red ≪Saiyan≫ card with 500 power from
+    // your deck **to your opponent's Battle Area**" (BT13-028, BT13-029, BT22-006), "…play it in your opponent's Battle
+    // Area" (BT15-118, BT18-087). Read without it, the card was played into your own. The Unison Area stays unread.
+    const toOpponent = /\b(?:to|in|into) (?:your|their|an|the) opponent'?s battle area\b/.test(m[1]);
+    if (toOpponent) m[1] = m[1].replace(/\s*\b(?:to|in|into) (?:your|their|an|the) opponent'?s battle area\b/, "");
+    if (/\b(?:in|into|to) (?:your|their|an|the) opponent'?s (?:battle|unison) areas?\b/.test(m[1])) return null;
     const mode = m[2] as "rest" | "active" | undefined;
     // 9-1-5: "played … with its skills negated", which the sets print with and
     // without the article before "game". Phrasing batch 4: "…with its **non-keyword** skills negated" is the
@@ -4015,6 +4370,10 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const thenNegate = (target: Ref): Op[] => (half ? negateHalf(half, target, durationOf(t.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : []);
     let ref = refFor(m[1], c);
     if (!ref) return null;
+    // Audit effects 2: "…and if the Battle Card being played has an energy cost of 7 or less, **play it in Rest Mode**"
+    // (BT23-118): the card being played lands rested — its own play, changed (`resolvingPlay`), as "it is played in Rest
+    // Mode" reads (BT23-123). Read as a play, it was a second play of a card not yet in play.
+    if ("sel" in ref && ref.sel.special === "resolving" && mode === "rest" && !/skills negated/.test(t) && !/^activate\b/.test(tp)) return [{ op: "resolvingPlay", mode: "rest" }];
     // "Look at up to 1 card from the top of your deck, **play up to 1 black
     // ≪Maiden Squadron≫ card**, then send the rest to their owner's Warp"
     // (BT30-106): the play's twin of the `add … to your hand` rule above.
@@ -4043,8 +4402,17 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // the [Activate: Main] skill of {Name}", "activate this skill when you play
     // {Name}" and the permissions ("you may activate {Name} from your hand
     // without paying its energy cost") are other things.
-    const activating = /^activate\b/.test(tp) && /^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from (?!.*\bwithout paying\b).+)?$/.test(m[1]);
-    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...arrivesWith } as const;
+    // Audit effects 2 (12-1-3): the same for an Extra the skill has just chosen — "…choose up to 1 {Broly Control
+    // Mechanism} from your deck **and activate it**" (BT6-064, P-179, XD3-01), "choose 1 {Tora's Red Armband} … in your
+    // hand, activate it" (EB1-59), "…Extra Card … and the [Field] skill in your hand and activate it" (BT13-064) — and
+    // for one described as an Extra or a [Field] card: "Activate 1 mono-green Extra Card with … the [field] skill from
+    // your Drop Area" (BT13-080). They were played; an Extra with no [Field] is activated through its [Activate: Main]
+    // line in the hand (the VM's `activating`, 12-2-4).
+    const extraLike = (sel: Selector | undefined) => !!sel?.filter && !sel.special && (sel.filter.type === "EXTRA" || sel.filter.keywords.includes("Field") || (sel.filter.names.length > 0 && !sel.filter.type));
+    const chosenSel = "var" in ref ? c.choices.find((ch) => ch.var === (ref as { var: string }).var)?.sel : ref.sel;
+    const activating = /^activate\b/.test(tp) && !/\bwithout paying\b|^(?:(?:up to )?\d+ |an? |the |its |their |this card's |that card's )?\[[^\]]*\] skills?\b|\bskills? (?:of|on)\b/.test(m[1])
+      && (/^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from .+)?$/.test(m[1]) || (/^(?:it|them|that card|those cards|the chosen cards?)$/.test(m[1]) ? extraLike(chosenSel) : "sel" in ref && extraLike(ref.sel)));
+    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...(toOpponent ? { toOpponent: true as const } : {}), ...arrivesWith } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;
@@ -4055,6 +4423,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
         ...thenNegate({ var: v }),
       ];
     }
+    // Audit effects 2: "the card you played with this skill" (BT6-126) is the card a play of a bound name played too.
+    if ("var" in ref) c.lastPlayed = ref.var;
     return [{ op: "play", target: ref, ...extra }, ...thenNegate(ref)];
   }
 
@@ -4281,7 +4651,15 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   if (c.last && /^(?:up to )?\d+ /.test(t)) {
     const sel = parseTarget(clause, undefined, c.lastSeen ?? undefined);
     if (sel) {
+      // Audit selectors 2: a list whose first card named no place and whose later card names one out of play — "choose
+      // up to 1 <A> card **and** 1 <B> card with … in your hand" in a shape `named-set-shape.ts` does not read — lost
+      // the place off its first half, which then read as a card on the table (either player's, R-205). Refused whole.
+      const before = c.choices.find((ch) => ch.var === c.last);
+      const placeless = before && before.sel.area === "play" && !before.sel.areas && !before.sel.special && !/\b(?:your|their|opponent'?s?|in play|areas?|players?)\b/i.test(before.reason ?? "");
+      if (placeless && c.lastOp === "choose" && (sel.area ?? sel.areas?.[0]) && ![sel.area, ...(sel.areas ?? [])].every((a) => !a || a === "play" || a === "battle" || a === "leader" || a === "unison")) return null;
       const v = `c${c.n++}`;
+      // Audit selectors 2: the list goes on — a plural pronoun after it means every card it chose (`groupOf`).
+      if (c.lastOp === "choose") c.group = [...(c.group && c.group[c.group.length - 1] === c.last ? c.group : [c.last]), v];
       return [{ op: "choose", sel, as: v, reason: clause }];
     }
   }
@@ -4643,15 +5021,26 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
     return [{ op: "forbid", what: "attack", side: "opponent", until: "nextTurn", uses: 1, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
   }
-  const counted = /^(you|your opponent'?s?)\s+can only attack(?: with (.+?))?\s+(one|\d+) more times?(?: with (.*?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
+  // Audit conditions 2 review: the "with …" may follow the span — "your opponent can only attack one more time **for the
+  // turn with a Battle Card or Unison Card with 20000 power or more**" (BT15-058); the span's tail swallowed it, and the
+  // budget fell on every attack, the Leader's included (Q&A BT15-058: the Leader may still attack).
+  const counted = /^(you|your opponent'?s?)\s+can only attack(?: with (.+?))?\s+(one|\d+) more times?(?: with (.*?))?(?:\s+for (?:the turn|the duration of the turn) with (.+))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
   if (counted) {
     const side: Side = counted[1] === "you" ? "you" : "opponent";
-    const withWhat = counted[2] ?? counted[4];
+    const withWhat = counted[2] ?? counted[4] ?? counted[5];
     const uses = counted[3] === "one" ? 1 : Number(counted[3]);
     if (!(uses >= 1)) return null;
-    const filter = withWhat ? filterFor(withWhat, null) : undefined;
+    // Audit conditions 2 review (R-232): a measure said once after two kinds of attacker — "…with a Battle Card or Unison
+    // Card **with 20000 power or more**" (BT15-058) — is both kinds' measure; read by the description reader it stayed on
+    // the Unison, and every Battle Card's attack spent the budget. Only kinds that attack (Leader, Battle, Unison).
+    const KIND = "(?:battle cards?|unison cards?|unisons?|leader cards?)";
+    const kinds = withWhat ? new RegExp(`^(?:an? )?(${KIND}(?:,? or (?:an? )?${KIND})+) (with .+)$`, "i").exec(withWhat) : null;
+    const shared = kinds ? kinds[1].split(/,? or (?:an? )?/i).map((k) => filterFor(`${k} ${kinds[2]}`, null)) : null;
+    if (shared?.some((f) => !f)) return null;
+    const filter = shared ? { ...parseFilter(""), anyOf: shared as CardFilter[] } : withWhat ? filterFor(withWhat, null) : undefined;
     if (filter === null) return null;
-    const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
+    // A description of two kinds ("a Battle Card or Unison Card …") keeps both; the type is added only to a lone one.
+    const type = !withWhat || filter?.type || filter?.anyOf?.length ? null : /\bleader cards?\b/.test(withWhat) ? "LEADER" : /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
     return [{ op: "forbid", what: "attack", side, until, uses, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
   }
   // The subject may be missing: "it gets +10000 power **and** can't attack for
@@ -5031,6 +5420,16 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       }
       if (side === "both") return null;
       const what = mm[1];
+      // Audit effects 2: "…you can't play any Battle Cards **except ≪Universe 7≫ cards**" (EB1-08) bans every Battle Card
+      // but those (`exceptFilter`, as "can only play …" is read); it read as a ban on exactly the ≪Universe 7≫ ones.
+      // (Bare "any cards other than …" — BT23-005 — is the reader below's, with no kind of card named.)
+      const except = /^(?:any )?(.+? cards?) (?:except|other than) (.+? cards?)(?:\s+(?:for|during|until)\b.*)?$/.exec(what);
+      if (except && !/\bthis card\b/.test(what) && /\b(?:battle|extra|unison) cards?$/.test(except[1])) {
+        const kinds = filterFor(except[1], null);
+        const allowed = filterFor(except[2], null);
+        if (kinds && allowed && !unreadFilterWords(except[1], kinds).length && !unreadFilterWords(except[2], allowed).length)
+          return [{ op: "forbid", what: "play", side, until, filter: kinds, exceptFilter: allowed, ...withUnless }];
+      }
       if (/\bcopies of this card\b|\banother copy of this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, sameNameAsSelf: true, ...withUnless }];
       // "You can't play this card from any area **using skills**" (BT14-152):
       // a play by a skill only — read as the bare form it banned the play
@@ -5230,6 +5629,45 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
         ];
       }
     }
+    // Audit effects 2: your own lock on the skills of the cards you describe, wherever they are — "you can't activate
+    // skills on cards other than this card in any of your areas for the turn" (BT26-140, `otherCards`), "…skills on
+    // <Trunks: Future> cards in any of your areas for the turn" (BT26-125, BT26-126), "…skills on cards with an energy
+    // cost of 4 or more in any of your areas for the game" (BT30-016, whose Q&As name an Extra, a [Field] and a Unison
+    // among them), "…the skills of non-≪Android≫ Battle Cards with energy costs of 7 or less in all areas" (BT17-032's
+    // drawback). Each was skipped as a reminder (`connective`), and the skill lost its price. As the reader above: every
+    // [Activate] and [Auto] line, every [Counter], and a [Blocker] (owner ruling A2).
+    if (side === "you") {
+      const own = /^activate (?:the )?skills (?:on|of) (.+?)(?: in any of your areas| in all (?:of your )?areas| in any area| from any area)?(?:\s+(?:for the|until|during)\b.*)?$/.exec(rest);
+      const said = own?.[1];
+      if (said &&!/\b(?:this card|it|them|that card)\b/.test(said.replace(/^cards other than this card$/, ""))) {
+        const others = said === "cards other than this card";
+        const filter = others ? parseFilter("") : filterFor(said, null);
+        if (!filter || (!others && unreadFilterWords(said, filter).length)) return null;
+        const which = /\bbattle cards?\b/.test(said) ? { ...filter, type: "BATTLE" as const } : filter;
+        // "…in all areas" names where the cards are, not a span ("…in all areas until the end of your opponent's next
+        // turn", BT17-032): read without it, as `durationOf` reads "in all areas" as the game.
+        const span = durationOf(t.replace(/ in (?:any of your areas|all (?:of your )?areas|any area)\b/, ""));
+        const narrow = { ...(others ? { otherCards: true as const } : {}), ...withUnless };
+        return [
+          { op: "forbid", what: "activateSkill", side, until: span, filter: which, ...narrow },
+          { op: "forbid", what: "activateCounter", side, until: span, ...(others ? {} : { filter: which }), ...narrow },
+          { op: "forbid", what: "block", side, until: span, filter: which, ...narrow },
+        ];
+      }
+    }
+    // Audit effects 2: "…activate it, and you can't activate [Field] cards for the duration of the game" (XD3-01): 12-1-3's
+    // "activating an Extra Card" said of the Extras with the [Field] skill — as "you can't activate Extras" below.
+    // R-270 (owner, 3 Nov 2026): and every other activation of a [Field] card too — the one another card's skill makes
+    // from the deck or the Drop ("activate {X}", 22-3-3) — so Cell Games Arena stays the only field (the [Field]
+    // keyword line itself, `keywordSkill`, asked by `fieldLineOf`).
+    if (/^activate \[field\] cards(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) {
+      const field = { ...parseFilter(""), type: "EXTRA" as const, keywords: ["Field" as const] };
+      return [
+        { op: "forbid", what: "activateSkill", side, until, filter: field, extraCardActivation: true, ...withUnless },
+        { op: "forbid", what: "activateCounter", side, until, filter: field, ...withUnless },
+        { op: "forbid", what: "activateSkill", side, until, keywordSkill: "Field", ...withUnless },
+      ];
+    }
     // "You can't activate Extras" (BT20-024; owner ruling 26 Oct 2026): 12-1-3's
     // "activating an Extra Card" — an [Activate] or [Counter] skill of an Extra
     // used from the hand (`extraCardActivation`), the reading BT10-097's taxed
@@ -5331,6 +5769,12 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
         { op: "forbid", what: "beMovedBySkill", side, until, cardsOf: side, fromArea: "any", toArea: "energy", ...withUnless },
       ];
     }
+    // Audit conditions 2: "…you can't place cards in your Energy Area **by your skills** for the game" (BT22-031): the
+    // player's own skills' moves of their cards into their Energy Area, from anywhere — not the Charge Phase, and not a
+    // skill of the opponent's (Q&A BT22-031: that one resolves). Read as the charge alone, it stopped the one thing the
+    // card lets through and let the skills through.
+    if (side !== "both" && /^place cards? (?:in|into) (?:your|their) energy(?: area)? by (?:your|their) (?:own )?skills?(?:\s+(?:for|during|until)\b.*)?$/.test(rest))
+      return [{ op: "forbid", what: "beMovedBySkill", side, until, cardsOf: side, fromArea: "any", toArea: "energy", ...withUnless }];
     // "You can't place cards in your energy for the turn" (EX22-02): the
     // Charge Phase, which the engine offers as an action of its own (3-8).
     if (/^place cards? (?:in|into) (?:your|their) energy\b/.test(rest)) return [{ op: "forbid", what: "placeEnergy", side, until, ...withUnless }];
@@ -6015,10 +6459,8 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
   // "play 1 Shadow Token, and that card gets…" (BT26-079) say the same thing.
   // "…Chilled's Army Token with 10000 power**;** it gains [Blocker] for the turn" (EB1-22, phrasing batch 2): the
   // semicolon carries the sentence on as the comma does.
-  const bound = /^\s*(?:\([^)]*\))?\s*(?:with [\d,]+ power\s*)?(?:in rest mode\s*)?(?:[,.;]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|those cards|the tokens?|that (?:card|token))\b/i.test(after)
-    // "Play **up to** 2 Cell Jr. Tokens …, and those cards get …" (BT21-088): the token op makes the number it is given,
-    // so a sentence that goes on about the tokens of an "up to" play is not read as if all of them were made.
-    && !/^play up to /i.test(m[0]);
+  const bound = /^\s*(?:\([^)]*\))?\s*(?:with [\d,]+ power\s*)?(?:in rest mode\s*)?(?:[,.;]|and|then)?\s*(?:and\s+)?(?:they|it|those tokens?|those cards|the tokens?|that (?:card|token))\b/i.test(after);
+  // ("Play **up to** 2 Cell Jr. Tokens …, and those cards get …", BT21-088: each offer's token joins one name below.)
   // "play 2 Ghost Tokens **with 15000 power**" (BT31-134, BT28-020, EB1-48): the
   // skill prints the token's power itself and that figure, not the 5000 default
   // or a reminder's, is the power the tokens arrive with (#907, left over from #1023).
@@ -6041,7 +6483,19 @@ function compileToken(clause: string, c: Ctx): Op[] | null {
     // Phrasing batch 4: "play 1 Ghost Token with 15000 power **in Rest Mode**" (P-683): how the tokens arrive.
     ...(/\btokens?\b(?:\s*\([^)]*\))?(?: with [\d,]+ power)?\s+in rest mode\b/i.test(clause) ? { mode: "rest" as const } : {}),
   });
-  if (upTo) return oneAtATime(Array.from({ length: Number(m[1]) }, () => [token(1)]), clause);
+  // Audit selectors 2 (round-1 doubt, BT21-088): "play up to 2 Cell Jr. Tokens …, and **those cards** get +5000 power" —
+  // each offer's token under a name of its own, the names a list (`Ctx.group`) the clause after acts on once per token
+  // (one at a time had dropped the name, and the clause was unread).
+  if (upTo) {
+    const names = Array.from({ length: Number(m[1]) }, () => (bound ? `t${c.n++}` : undefined));
+    const ops = oneAtATime(names.map((name) => [token(1, name)]), clause);
+    const made = names.filter((x): x is string => !!x);
+    if (made.length) {
+      c.group = made.length > 1 ? made : undefined;
+      c.lastTarget = { var: made[made.length - 1] };
+    }
+    return ops;
+  }
   return [token(Number(m[1]), bound ? `t${c.n++}` : undefined)];
 }
 
@@ -6100,6 +6554,8 @@ function exactCount(c: Ctx, v: string): { atLeast?: number } {
  */
 function track(o: Op, c: Ctx): void {
   if (o.op === "choose") {
+    // A choice that is not the choice list's own ends it (audit selectors 2).
+    if (c.group && !c.group.includes(o.as)) c.group = undefined;
     c.last = o.as;
     c.choices.push({ var: o.as, sel: o.sel, reason: o.reason });
     c.lastTarget = { var: o.as };
@@ -6127,11 +6583,16 @@ function track(o: Op, c: Ctx): void {
     // TB3-059): once this card is under another it is out of play, and what the sentence goes on about is the host.
     c.lastTarget = o.under;
   } else if ("target" in o && o.target) c.lastTarget = o.target;
+  // Audit effects 2 review: a pick from the pile under a chosen card (see `Ctx.pilePick`).
+  if (o.op === "choose" && o.sel.underHost && "fromVar" in o.sel.underHost && o.sel.underHost.fromVar && o.sel.underHost.fromVar !== o.as) (c.pilePick ??= {})[o.as] = o.sel.underHost.fromVar;
   if (o.op === "moveTo" && o.to === "warp" && o.as) c.sentToWarp = o.as;
   else if (o.op === "moveTo" && o.to === "warp" && "var" in o.target && !o.target.minus) c.sentToWarp = o.target.var;
   if ((o.op === "power" || o.op === "grant") && (o.until === "battle" || o.until === "turn")) c.lastUntil = o.until;
   if (o.op === "ko" && "var" in o.target && !o.target.minus) c.koed = o.target.var;
-  if (o.op === "moveTo" && o.to === "drop" && "var" in o.target && !o.target.minus) c.dropped = o.target.var;
+  if (o.op === "moveTo" && o.to === "drop" && "var" in o.target && !o.target.minus) c.dropped = o.as ?? o.target.var;
+  // Audit conditions 2: cards placed in your Drop from the top of your deck (`mill`) are cards this skill placed there too —
+  // "place 3 cards from the top of your deck in your Drop Area. If all of the cards placed in your Drop Area are black" (BT4-098).
+  if (o.op === "mill" && o.as && o.side !== "opponent") c.dropped = o.as;
 }
 
 /**
@@ -6207,6 +6668,15 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     const filter = said ? described(`${said} card`) : null;
     if (said && !filter) return null;
     return { kind: "count", sel: { fromVar: c.dropped, area: "drop", ...(filter ? { filter } : {}) }, atLeast: 1 };
+  }
+  // Audit conditions 2: "…place 3 cards from the top of your deck in your Drop Area. **If all of the cards placed in your
+  // Drop Area are black**, draw 1 card" (BT4-098): every card this skill placed there — not every card in the Drop,
+  // where one older card of another colour stopped the draw.
+  if ((m = /^if all (?:of )?the cards (?:you )?placed in (?:your|a|the) drop(?: area)?(?: (?:using|with|by) this skill)? (?:are|were) (.+)$/.exec(t)) && c.dropped) {
+    const filter = described(/\bcards?$/.test(m[1]) ? m[1] : `${m[1]} cards`);
+    if (!filter) return null;
+    const placed: Selector = { fromVar: c.dropped, area: "drop" };
+    return { kind: "every", sel: placed, matching: { ...placed, filter } };
   }
   if ((m = /^if its power is (\d+) or (more|less)$/.exec(t)) && lastVar) {
     return { kind: "power", sel: { fromVar: lastVar, area: "play" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) };
@@ -6575,6 +7045,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
      */
     sink?: Op[];
     sinkCond?: Cond;
+    /**
+     * Audit effects 2: the group a hinge opened ("if you do", "if they don't"). What follows the hinge is its effect,
+     * never a second half of a condition said without "if": "…If they don't, your Leader Card doesn't take damage from
+     * attacks by their Unison Cards …" (BT13-150) read as a condition, and the consequence vanished.
+     */
+    hinge?: true;
   };
   const groups: Group[] = [{ conds: [], ops: [] }];
   /**
@@ -6612,14 +7088,30 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   // that kept them under the opening condition. A "Then, if …" is a condition
   // of its own, not one added to the first.
   let afterThen = false;
+  let afterCapitalThen = false;
   /** The subject of the last count condition read ("you have", "your opponent has"), for a bare count joined to it by "and". */
   let countSubject: { said: string; area: boolean; clause: string } | null = null;
+  /** Audit effects 2: the choices of one list ("choose A and B and …"), and the clause that added the last of them. */
+  let choiceList: { vars: string[]; ops: Extract<Op, { op: "choose" }>[]; at: number } = { vars: [], ops: [], at: -1 };
   for (let i = 0; i < clauses.length; i++) {
+    // Audit conditions 2: "…switch it to Rest Mode, and **KO it if it's a skill-less Battle Card**" (EX19-36): the
+    // condition printed after the act it governs, about the card the act is on — said the usual way round, "if it's …"
+    // then the act. Only as the last clause, so nothing after it falls under the condition.
+    if (i === clauses.length - 1) {
+      const late = /^((?:and |then )?(?:ko|negate|return|place|send|switch|draw)\b.+?) if (?:it'?s|it is|that card is) (an? .+)$/i.exec(clauses[i].trim().replace(/\.$/, ""));
+      if (late) {
+        clauses.splice(i, 1, `if it's ${late[2]}`, late[1].replace(/^(?:and|then) /i, ""));
+        joined.splice(i + 1, 0, false);
+      }
+    }
     const clause = clauses[i];
     const mayBefore = pendingMay as Extract<Op, { op: "may" }> | null;
     pendingMay = null;
     const thenHere = afterThen || /^then,?\s+/i.test(clause.trim());
+    // A capital "Then" (a sentence of its own), on this clause or on the bare "Then," cut off before it.
+    const capitalThen = afterCapitalThen || /^Then,?\s+\S/.test(clause.trim());
     afterThen = /^then[.,]?$/i.test(clause.trim());
+    afterCapitalThen = /^Then[.,]?$/.test(clause.trim());
     {
       const here = groups[groups.length - 1];
       // Two "Then" tails are not follow-ups of their own but the end of what the condition opened: a shuffle
@@ -6636,6 +7128,15 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // draw and the discard. The same back references stay inside.
       const newSentence = /^[A-Z]/.test(clause.trim()) && !/^(?:If|When|While|Unless|Otherwise|Additionally|At|Then|Instead|Also|During|Until|For)\b/.test(clause.trim());
       if ((thenHere || newSentence) && !tailOfCondition && here.conds.length && here.ops.length && !here.delay && !here.sink) groups.push({ conds: [], ops: [] });
+      // Audit effects 2: the same for a "Then," sentence after an "If you do" written into the offer's own branch (`sink`):
+      // "…you may place 1 card from your hand in the Drop Area. If you do so, choose up to 2 … and KO those cards. **Then,
+      // this card gains [Double Strike]** for the duration of the turn" (BT1-090) — its Q&A: it gains [Double Strike] even
+      // with no card placed. R-206's "Then" with no comma (BT5-080's back) was made lower case by `splitClausesJoined` and
+      // stays inside.
+      else if (capitalThen && !tailOfCondition && here.sink && !here.delay) {
+        here.sink = undefined;
+        here.sinkCond = undefined;
+      }
     }
     // "You can activate its [Awaken] skill **even if you have 5 or more life**" (BT7-069, EX06-03, EX25-02, P-208,
     // P-500, P-508, P-548, P-694, BT1-051): the permission lifts a keyword's life gate. The trailing "even if"
@@ -6745,6 +7246,38 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       }
       refuse(clause);
       continue;
+    }
+    // Audit effects 2 (12-2-4): the same said of any hand Extra and any one kind of line — "Activate the [activate: main]
+    // skill of up to 1 {Big Bang Kamehameha} in your hand" (BT31-052), "Activate an [activate: battle] skill on 1 green
+    // Extra from your hand with both {Cell} and {Kamehameha} in its card name without paying its energy cost" (BT21-070).
+    // A pick from the hand may come up empty anyway (5-2-7), so "1" is "up to 1". "…by paying its skill cost" (P-723) is
+    // another price and stays unread, as every other wording does.
+    {
+      const said = /^activate (?:an?|the|up to 1) \[activate: ?(main|battle|main\/battle)\] skill (?:of|on) (?:up to )?(?:1|an?) (.+?) (?:in|from) your hand((?: with .+?)?)(?: without paying its energy cost)?[.]?$/i.exec(clause.trim());
+      if (said && !/\bby paying\b/i.test(clause)) {
+        const sel = parseTarget(`up to 1 ${said[2]} in your hand${said[3]}`);
+        if (sel?.side === "you" && sel.area === "hand" && sel.count === 1 && sel.upTo === true && (sel.filter?.type === "EXTRA" || (sel.filter?.names.length && !sel.filter.type)) && !sel.filter?.unreadable && !sel.special && !sel.fromVar) {
+          push([{ op: "invokeSkill", sel, skillKind: `activate:${said[1].toLowerCase().replace(" ", "")}` as "activate:main" | "activate:battle" | "activate:main/battle", from: "hand" }]);
+          continue;
+        }
+        refuse(clause);
+        continue;
+      }
+    }
+    // Audit effects 2 (12-2-4): "Choose up to 1 ≪Shadow Dragon≫ Extra Card in your hand **and activate its [Activate:
+    // Main/Battle] skill without paying its energy cost**" (P-313): the same activation of a hand Extra's own line, its
+    // costs waived, said as a choice and its verb — BT31-116's one-clause form above. The line's kind is the one named.
+    {
+      const handExtra = /^choose up to 1 (.+?) in your hand$/i.exec(clause.trim());
+      const itsLine = handExtra ? /^(?:and )?activate its \[activate: ?(main|battle|main\/battle)\] skill(?: without paying its (?:energy|skill) costs?)?[.]?$/i.exec(clauses[i + 1]?.trim() ?? "") : null;
+      if (handExtra && itsLine) {
+        const sel = parseTarget(`up to 1 ${handExtra[1]} in your hand`);
+        if (sel?.side === "you" && sel.area === "hand" && sel.count === 1 && sel.upTo === true && sel.filter?.type === "EXTRA" && !sel.filter.unreadable && !sel.special && !sel.fromVar) {
+          push([{ op: "invokeSkill", sel, skillKind: `activate:${itsLine[1].toLowerCase().replace(" ", "")}` as "activate:main" | "activate:battle" | "activate:main/battle", from: "hand" }]);
+          i++;
+          continue;
+        }
+      }
     }
     // BT2-009 (#539): fill one named card's stack to a total, using the
     // current count after *each* top-deck placement. The printed number is a
@@ -6858,6 +7391,17 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // Mechanism batch 4: "This card gets [Triple Strike] **and +5000 power for each Extra Card … for the turn**"
     // (BT13-064): the keyword and a counted power, cut at the "and" — the power half has no subject and the keyword half
     // no span. Each gets the other's: the subject is the card, the span closes both.
+    // Audit effects 2: "…, **this card and all of your Ghost tokens** gain [double strike]" (BT2-014; its Q&A: the tokens
+    // gain it too): two subjects of one grant, each read as its own clause. "This card" alone was read.
+    {
+      const selfAnd = /^this card and ((?:all (?:of )?)?your [^,]+?) (gain|get)s? (.+)$/i.exec(clause.trim());
+      if (selfAnd) {
+        clauses.splice(i, 1, `this card ${selfAnd[2].toLowerCase()}s ${selfAnd[3]}`, `${selfAnd[1]} ${selfAnd[2].toLowerCase()} ${selfAnd[3]}`);
+        joined.splice(i, 1, joined[i], true);
+        i--;
+        continue;
+      }
+    }
     const kwThenCount = /^(this card|it) gets? (\[[^\]]+\])[.]?$/i.exec(clause.trim());
     const countTail = kwThenCount && i + 1 < clauses.length ? /^([+-]\d+ power for each .+?)( for the (?:turn|battle))[.]?$/i.exec(clauses[i + 1].trim()) : null;
     if (kwThenCount && countTail) {
@@ -6921,6 +7465,23 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // 9-1-5, the same shape: "choose up to 1 keyword skill on …" names the
     // skill the next clause negates, and apart the first half read as a choice
     // of a card and the second negated every skill of it.
+    // Audit effects 2: "choose **all of the keyword skills** on your opponent's Battle Cards and negate them for the turn"
+    // (P-744): every keyword skill of those cards, and nothing else of them (`negateSkillsOfKind` keyword) — it read as a
+    // choice of the cards and every skill of them negated.
+    {
+      const allKeywords = /^choose all (?:of )?(?:the )?keyword skills (?:on|of) (.+?)[.,]?$/i.exec(clause.trim());
+      const negateThem = allKeywords && i + 1 < clauses.length ? /^(?:and )?negate them\b/i.exec(clauses[i + 1].trim()) : null;
+      if (allKeywords && negateThem) {
+        const ref = refFor(allKeywords[1], c);
+        if (ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !ref.sel.filter?.unreadable) push([{ op: "negateSkillsOfKind", target: { sel: { ...ref.sel, count: 99 } }, kind: "keyword", until: durationOf(clauses[i + 1]) }]);
+        else {
+          refuse(clause);
+          refuse(clauses[i + 1]);
+        }
+        i++;
+        continue;
+      }
+    }
     if (KEYWORD_SKILL_CHOICE.test(clause.trim()) && i + 1 < clauses.length && NEGATE_THAT_SKILL.test(clauses[i + 1].trim())) {
       clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;
@@ -6939,7 +7500,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // of this card in your hand by 1" (BT20-068): the count leads the reducer, which
     // reads it trailing ("by 1 for each ..."); the condition in front is its own clause.
     const leadFor = /^(if .+?), (for (?:each|every) .+)$/i.exec(clause.trim());
-    if (leadFor && i + 1 < clauses.length && COST_REDUCER.test(clauses[i + 1].trim()) && simpleCount(leadFor[2].replace(/^for (?:each|every) /i, ""))) {
+    if (leadFor && i + 1 < clauses.length && COST_REDUCER.test(clauses[i + 1].trim()) && (simpleCount(leadFor[2].replace(/^for (?:each|every) /i, "")) || /^for (?:each|every) markers? on /i.test(leadFor[2]))) {
       clauses.splice(i, 1, leadFor[1], leadFor[2]);
       i--;
       continue;
@@ -6972,10 +7533,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // Phrasing batch 8: a printed ceiling — "…by 1. **(Up to 2)**" (P-464) — is read now, as the amount capped there
     // (`capped`); two of them in one line are still refused.
     const ceiling = /\(up to (\d+)\)/i.exec(c.raw);
-    const permanentReduction = c.skillKind === "permanent" && i === 0 && i + 1 < clauses.length && /^reduce the (?:z-energy |energy |combo )?cost of this card\b/i.test(clauses[i + 1].trim()) && (!ceiling || (c.raw.match(/\(up to \d+\)/gi) ?? []).length === 1);
+    // Audit conditions 2: after the condition it hangs on ("If you have 4 or more energy, for each marker on your Z-Unison,
+    // reduce the energy cost on this card …", BT24-139), and with "cost **on** this card" as the card prints it.
+    const permanentReduction = c.skillKind === "permanent" && (i === 0 || /^if\b/i.test(clauses[i - 1]?.trim() ?? "")) && i + 1 < clauses.length && /^reduce the (?:z-energy |energy |combo )?cost (?:of|on) this card\b/i.test(clauses[i + 1].trim()) && (!ceiling || (c.raw.match(/\(up to \d+\)/gi) ?? []).length === 1);
     // Phrasing batch 8: and a count that opens a later clause of the effect (BT21-149's "[Counter: Play] Play this card,
     // **for every card in your opponent's Z-Deck**, place up to 1 …", cut from the play by `COUNT_LEADS_CLAUSE`).
-    const leadCount = ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || permanentReduction) && i === 0) || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || c.skillKind?.startsWith("counter")) && i > 0) ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
+    const leadCount = permanentReduction || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate")) && i === 0) || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || c.skillKind?.startsWith("counter")) && i > 0) ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
     const countOnly = !!leadCount && !/,\s*(?:then\s+)?(?:add|draw|choose|play|place|send|switch|ko|look|reveal|discard|return|remove|negate|reduce|this card|it|they|your opponent)\b/i.test(leadCount[2]) && !/\bdifferent card names?\b/i.test(leadCount[2]);
     // Mechanism batch 4: "For each ≪Turtle School≫ card with **a different character name** in your Z-Energy, this card
     // gets +5000 power …" (BT18-059b, BT18-091) is read now — the trailing reader keeps the count's
@@ -7053,7 +7616,15 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // A branch the group is writing into is part of what was asked.
       const all = prev.sinkCond ? [...prev.conds, prev.sinkCond] : prev.conds;
       const asked: Cond = all.length === 1 ? all[0] : { kind: "all", conds: [...all] };
-      groups.push({ conds: [{ kind: "not", cond: asked }], ops: [] });
+      // Audit effects 2 review: "Then, if your opponent has 3 or less energy, reveal the top card of your opponent's deck.
+      // If that card is a Battle Card, place it in your opponent's energy in Rest Mode, otherwise, draw 1 card then your
+      // opponent shuffles their deck" (BT7-042): the "otherwise" is about a card that was revealed. When the step that
+      // binds it sits under a condition of its own, a card no step turned up is not "otherwise" — read bare, the draw
+      // and the shuffle happened whenever the opponent had 4 or more energy.
+      const bindsDeep = (ops: Op[], v: string): boolean => ops.some((o) => ("as" in o && o.as === v) || (o.op === "if" && (bindsDeep(o.then, v) || bindsDeep(o.else ?? [], v))) || ((o.op === "may" || o.op === "delay") && bindsDeep(o.ops, v)));
+      const about = asked.kind === "varMatches" ? asked.var : null;
+      const boundUnderCondition = !!about && groups.slice(0, -1).some((g) => (g.conds.length > 0 || !!g.sink) && (bindsDeep(g.ops, about) || bindsDeep(g.sink ?? [], about)));
+      groups.push({ conds: [boundUnderCondition ? { kind: "all", conds: [{ kind: "chose", var: about! }, { kind: "not", cond: asked }] } : { kind: "not", cond: asked }], ops: [] });
       continue;
     }
     // 20-16: "if you do" / "if you don't" point at the decision just before
@@ -7189,7 +7760,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         for (const rest of clauses.slice(i)) refuse(rest);
         break;
       }
-      groups.push({ conds: [decided], ops: [] });
+      groups.push({ conds: [decided], ops: [], hinge: true });
       continue;
     }
     if (conn === "ifNotDone") {
@@ -7200,13 +7771,15 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         for (const rest of clauses.slice(i)) refuse(rest);
         break;
       }
-      groups.push({ conds: [{ kind: "not", cond: decided }], ops: [] });
+      groups.push({ conds: [{ kind: "not", cond: decided }], ops: [], hinge: true });
       continue;
     }
     // "ignoring [Barrier]" lifts 22-16 for the choice just made (22-16, 20-4).
     if (/^ignoring \[barrier\]$/i.test(clause.trim())) {
       const lastChoose = [...groups.flatMap((g) => g.ops)].reverse().find((o) => o.op === "choose");
       if (lastChoose && lastChoose.op === "choose") lastChoose.sel.ignoreBarrier = true;
+      // A list of choices (`choiceList`) runs on past it.
+      if (choiceList.at === i - 1) choiceList.at = i;
       continue;
     }
     // Mechanism batch 4: "play up to 1 {SS3 Broly, Saiyan Berserker} from your Drop, **ignoring its [permanent]
@@ -7248,7 +7821,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     if (would) {
       c.replacing = { ...would, ...(durationTail ? { until: durationOf(durationTail[1]) } : timedLeave ? { until: "turn" as const } : {}) };
       // "…it goes to the Warp instead" — "it" is the card the phrase named.
-      c.lastTarget = { sel: { special: "self" } };
+      // (Review of audit selectors 2: when the phrase named another card — "your ≪Namekian≫ card with a [Revive] skill
+      // would be removed …, you may KO **that card** instead" (BT27-062) — that is the card whose departure is replaced,
+      // the replacement program's subject (`replace.ts` runs it with `subject` = that card). It read "KO this card".)
+      c.lastTarget = { sel: { special: would.subject ? "subject" : "self" } };
       continue;
     }
     const wouldLife = parseWouldMoveFromLife(clause);
@@ -7362,6 +7938,18 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // move just before it moved, which is "that card" said the long way.
       // "…by this skill" is the price's card (P-628), not the effect's last
       // move, so that form is left to the readings that know the price.
+      // Audit conditions 2: "If that card **was your own** Battle Card, draw 1 card" (BT4-045): owned by you (1-2) —
+      // Q&A BT4-045: a card of yours the opponent controlled counts, one you took from them does not. Read as "that card
+      // is a Battle Card" it always held, and the draw followed returning an opponent's card too.
+      const own = /^(?:if|when) (?:that card|it) (?:is|was) (?:one of )?your own (.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+      const ownVar = c.lastNamed ?? c.last;
+      if (own && ownVar) {
+        const filter = filterFor(own[1], null);
+        if (filter === null) { refuse(clause); continue; }
+        groups.push({ conds: [{ kind: "count", sel: { fromVar: ownVar, ownedByYou: true, ...(filter ? { filter } : {}) }, atLeast: 1 }], ops: [] });
+        c.lastTarget = { var: ownVar };
+        continue;
+      }
       const seen = /\bby this skill\b/i.test(clause)
         ? null
         : /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card|the card (?:sent|placed|moved|added|returned) (?:to|into|in) (?:your|its owner'?s|their) [a-z-]+(?: area)?) (?:is )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
@@ -7431,7 +8019,9 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // A second condition with nothing between them joins the same group, so
     // both have to hold rather than the first being quietly dropped.
     const open = groups[groups.length - 1];
-    const chaining = open.ops.length === 0 && (open.conds.length > 0 || !!open.innerConds?.length);
+    // After a hinge only a clause that says "if" adds a condition ("If you do, for the turn, if your Leader Card is …",
+    // EX06-03): a bare one is the hinge's effect.
+    const chaining = open.ops.length === 0 && (!open.hinge || /^\s*if\b/i.test(clause)) && (open.conds.length > 0 || !!open.innerConds?.length);
     // Phrasing batch 2: the second count of "If your opponent has 2 or more energy **and 1 or more Battle Card in their
     // Warp**" (BT13-147), "If you have 3 or more energy **and 3 or more Z-Energy**" (BT25-148), "…and **a black Unison
     // in play**" (BT29-087): the "and" cut the count off the subject it shares with the one before it, which is said
@@ -7525,7 +8115,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // (Not for "your opponent chooses A and B, ignoring [Barrier], and sends
     // them …", whose reader takes the words itself, #1015.)
     const inlineIgnoresBarrier = /\S\s+ignoring \[barrier\]/i.test(saidWhole) && !opponentChoiceWords(saidWhole);
-    const said = inlineIgnoresBarrier ? saidWhole.replace(/\s+ignoring \[barrier\]/i, "") : saidWhole;
+    const saidBare = inlineIgnoresBarrier ? saidWhole.replace(/\s+ignoring \[barrier\]/i, "") : saidWhole;
+    // Audit effects 2: "play up to 1 green <Broly: Br> card … from your deck **and up to 1 green <Cheelai: Br> or <Lemo:
+    // Br> card from your deck**" (EX13-21): the second card of "play A and B" is played too — read alone it was chosen
+    // and left in the deck.
+    const playsToo = joined[i] && i > 0 && /^(?:then,? )?play (?:up to )?\d+ /i.test(clauses[i - 1].trim()) && /^(?:and )?up to \d+ .+ from (?:your|their) (?:deck|drop(?: area)?|hand|warp)[.]?$/i.test(saidBare.trim());
+    const said = playsToo ? `play ${saidBare.trim().replace(/^and /i, "")}` : saidBare;
     // 20-16: "your opponent **may** choose 1 of their Battle Cards and KO it"
     // — the offer is theirs to decline, and the "if they don't" after it reads
     // their answer. `compileClause` strips "you may" so every pattern sees a
@@ -7550,7 +8145,8 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // than an offer, and is read by `compileProhibition`.
     // "You can use … Rest Mode … cards in combos" lifts a rule (5-7); it is a
     // permission standing for the turn, not a choice made now.
-    const offered = /^(?:you may|you can(?! only)|the player may)\s+\S/i.test(said.trim()) && !/^you can use .*\brest mode\b.* in combos?\b/i.test(said.trim());
+    const offered = /^(?:you may|you can(?! only)|the player may)\s+\S/i.test(said.trim()) && !/^you can use .*\brest mode\b.* in combos?\b/i.test(said.trim())
+      && !REST_COMBO_SELF.test(said.trim().toLowerCase().replace(/[.]$/, "")) && !REST_COMBO_DESCRIBED.test(said.trim().toLowerCase().replace(/[.]$/, ""));
     const optional = !c.permanent && offered;
     // Only as a fallback: several patterns read the subject themselves and say
     // it better than this can — "your opponent sends 1 card from their hand to
@@ -7591,6 +8187,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         if (o.op === "choose") o.sel.ignoreBarrier = true;
         else if (o.op === "may") for (const m of o.ops) if (m.op === "choose") m.sel.ignoreBarrier = true;
       }
+      // Audit selectors 2: "choose up to 1 card in your opponent's hand, up to 1 of their Z-Energy, and up to 1 of their
+      // Battle Cards**—all ignoring [barrier]—**" (BT30-150): the aside's "all" is every choice of the list.
+      const list = c.group;
+      const own = marked.find((o): o is Extract<Op, { op: "choose" }> => o.op === "choose");
+      if (list && own && /[―—–]\s*all ignoring \[barrier\]\s*[―—–]/i.test(saidWhole) && list.includes(own.as))
+        for (const ch of c.choices) if (list.includes(ch.var)) ch.sel.ignoreBarrier = true;
     }
     if (!got) {
       if (c.replacing) {
@@ -7664,7 +8266,8 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // an area of its own, is not the card leaving the Battle Area — read as a
       // redirect, the ≪Maiden Squadron≫ card the skill protects was itself
       // removed from the game. It is a substitute, below.
-      const selfMove = only?.op === "moveTo" && "sel" in only.target && only.target.sel.special === "self" && !only.target.sel.area && !only.target.sel.areas?.length;
+      // (Review of audit selectors 2: with another card named, "it" is the replacement's subject — the same card.)
+      const selfMove = only?.op === "moveTo" && "sel" in only.target && (only.target.sel.special === "self" || (!!subject && only.target.sel.special === "subject")) && !only.target.sel.area && !only.target.sel.areas?.length;
       if (replaceEvent !== "life" && replaceEvent !== "marker" && only && only.op === "moveTo" && selfMove && only.to !== "under" && only.to !== "play" && !only.under && !oncePerTurn) {
         // When the rule names other cards, they are the ones it is about —
         // not whatever "it" happened to point at in the second half.
@@ -7731,6 +8334,49 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // Only who picks changes: the selectors already point at their cards,
     // because the sentence said "their Drop Area".
     if (opponentDoes || theirOffer) for (const o of got) if (o.op === "choose") o.chooser = "opponent";
+    // Audit effects 2: a list of choices the sentence then acts on as one — "choose 1 card in your hand and up to 3
+    // ≪Shadow Dragon≫ Extra Cards in your Drop Area and place them at the bottom of your deck" (BT14-123), "choose up to 1
+    // of your Battle Cards and up to 1 of your energy and switch them to Active Mode" (DB2-063), "…up to 1 of your
+    // opponent's Battle Cards and up to 1 card from their hand, and place them on top of their owner's deck" (BT4-036),
+    // "…up to 1 card in your opponent's hand, up to 1 of their Z-Energy, and up to 1 of their Battle Cards … and place them
+    // into their owner's Drop" (BT30-150): "them" is the cards of every choice in the list, each acted on. It was the
+    // last choice alone, and the cards of the others stayed where they were.
+    {
+      const one = got.length === 1 && got[0].op === "choose" ? got[0] : null;
+      if (one && choiceList.vars.length && choiceList.at === i - 1 && /^(?:and )?(?:up to )?(?:\d+|an?) /i.test(clause.trim())) {
+        // The area the list names once, at its end — "Choose up to 1 blue <Kale> card and 1 yellow <Caulifla> card with
+        // energy costs of 2 or less **in your hand**" (BT7-075), "…<Android 17> card and up to 1 <Android 18> card … **in your
+        // Drop Area**" (BT9-054), "…{Super Saiyan Blue Vegeta} … and up to 1 {SSB Son Goku, the Sweeper} **from your
+        // deck**" (BT7-031), "choose 1 red card and 1 green card **in your energy**" (BT7-057's back): a member that named no
+        // place of its own is chosen there too, and a plural "with energy costs of …" measures every member. Each first
+        // member was a card in play.
+        const tail = /\b(?:in|from) (?:your|their|your opponent'?s) (?:hand|drop(?: area)?|warp|deck|energy(?: area)?|z-energy|life)$/i.test(clause.trim().replace(/[.,]$/, ""));
+        for (const earlier of choiceList.ops) {
+          if (!tail || earlier.sel.area !== "play" || earlier.sel.areas || earlier.sel.special || earlier.sel.fromVar || /\b(?:in|from|of) (?:your|their|the|play)\b|\bin play\b|\bbattle areas?\b|\bbattle cards?\b/i.test(earlier.reason ?? "")) continue;
+          earlier.sel = { ...earlier.sel, area: one.sel.area, ...(one.sel.side ? { side: one.sel.side } : {}) };
+          if (/\bwith energy costs of\b/i.test(clause) && earlier.sel.filter && earlier.sel.filter.costMin == null && earlier.sel.filter.costMax == null)
+            earlier.sel.filter = { ...earlier.sel.filter, costMin: one.sel.filter?.costMin ?? null, costMax: one.sel.filter?.costMax ?? null };
+        }
+        choiceList = { vars: [...choiceList.vars, one.as], ops: [...choiceList.ops, one], at: i };
+      } else if (one) choiceList = { vars: [one.as], ops: [one], at: i };
+      else {
+        const last = choiceList.vars[choiceList.vars.length - 1];
+        // Not "place **the chosen cards from your Drop Area** under the chosen card in your Battle Area" (TB3-055): one
+        // member named, the other its host.
+        const actsOnLast = (o: Op) => "target" in o && !!o.target && typeof o.target === "object" && "var" in o.target && o.target.var === last && o.target.minus === undefined
+          && !(o.op === "moveTo" && o.under && "var" in o.under && choiceList.vars.includes(o.under.var));
+        if (choiceList.vars.length > 1 && choiceList.at === i - 1 && /\b(?:them|those cards|the chosen cards(?! (?:from|in|under)\b))\b/i.test(clause) && got.length && got.every(actsOnLast)) {
+          // Audit effects 2 review: the cards a list sends to the Warp go under one name as well (as `named-set`'s do),
+          // so a later "the cards sent to Warps by this skill" is all of them: "choose this card and up to 1 of your
+          // opponent's Battle Cards … and send them to their owners' Warps; at the end of the turn, … play them to their
+          // owners' Battle Areas" (BT13-096) played back the opponent's card alone, and this card stayed in the Warp.
+          const sent = got.some((o) => o.op === "moveTo" && o.to === "warp") ? `w${c.n++}` : null;
+          const listed = got;
+          got = choiceList.vars.flatMap((v) => listed.map((o) => ({ ...o, target: { var: v }, ...(sent && o.op === "moveTo" && o.to === "warp" ? { as: sent } : {}) }) as Op));
+        }
+        choiceList = { vars: [], ops: [], at: -1 };
+      }
+    }
     for (const o of got) track(o, c);
     // The offer wraps whatever the clause turned out to be. A clause whose
     // first op is *already* a declinable choice asks by itself — "you may

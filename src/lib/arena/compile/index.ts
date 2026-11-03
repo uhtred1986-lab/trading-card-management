@@ -7,16 +7,17 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { readsMomentsOneByOne, triggersOf, unreadMoments } from "../gaps";
 import { effectHead, keywordOf, maskNames, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, type MomentCause } from "../text/triggers";
+import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, type MomentCause } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, Selector } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
 import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
-import { allConditions, parseConditionClause } from "./conditions";
+import { allConditions, parseConditionClause, playedHowGate } from "./conditions";
 import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, taxWordings } from "./effects";
 import { bondDescriptorOnly } from "../text/bond";
+import { readsAsNothingSilently } from "./silent";
 import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
@@ -54,7 +55,84 @@ export function compileSkill(skill: Skill): Script {
   // compiled as the skill it quotes; its record is the grant's program (which
   // says for itself when the granted [Auto]'s moment is not read).
   if (skill.granted) return compileQuotedSkill(skill.granted.skill);
-  return attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))));
+  const script = momentChoicesAreChoices(skill, opponentHandUnseen(attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))))));
+  // Audit effects 2: a line that reads as nothing and says nothing about it (`readsAsNothingSilently`, the
+  // `KNOWN_SILENT` list) is unread — an honest gap — never a blank the engine plays as done: BT14-074's +5000 combo
+  // power, BT18-003's battle ban, BT20-017/BT20-019's +5000 to the card above, BT25-133's combo cost, BT4-003's
+  // [Counter] ban, BT13-084's copies-of-[Field] ban.
+  return readsAsNothingSilently(skill, script) ? { ...script, unsupported: [skill.effect.replace(/\s+/g, " ").trim()] } : script;
+}
+
+/**
+ * R-204's second half (owner, 3 Nov 2026): a printed "choose" of the card a moment names — "choose that card and it gets
+ * -10000 power" (EX13-02), "choose it and switch it to Rest Mode" (BT16-081), "choose that card and return it to its
+ * owner's hand" (DB2-059), "When the Battle Card is played, choose up to 1 of those Battle Cards" (DB1-020) — is a
+ * choice, so [Barrier] (22-16-2) and every "can't be chosen" (20-4) apply unless the text says "ignoring [Barrier]".
+ * The `subject` and `resolving` specials name the card without choosing it; the `choice` flag on the selector says the
+ * text chose it. Only as many of the program's choices of those cards as the text prints "choose" for them, first
+ * first: the compiler also writes a choice for wordings that print none ("play it in Rest Mode", BT23-118; "play it in
+ * your Battle Area instead", BT20-136), and those are no choice.
+ */
+const PRINTED_MOMENT_CHOICE = /\bchoose (?:up to \d+ of )?(?:that (?:battle |unison )?card|it|them|those (?:battle |unison )?cards?|the (?:battle |unison )?cards? being played|the played (?:battle )?card)\b/g;
+function momentChoicesAreChoices(skill: Skill, script: Script): Script {
+  let printed = (maskNames(stripNotes(skill.effect)).text.toLowerCase().match(PRINTED_MOMENT_CHOICE) ?? []).length;
+  if (!printed) return script;
+  let changed = false;
+  const walk = (x: unknown): unknown => {
+    if (Array.isArray(x)) return x.map(walk);
+    if (!x || typeof x !== "object") return x;
+    const o = x as Record<string, unknown>;
+    const sel = o.sel as Selector | undefined;
+    const mark = o.op === "choose" && (sel?.special === "subject" || sel?.special === "resolving") && !sel.ignoreBarrier && printed > 0;
+    if (mark) printed--;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(o)) out[k] = walk(v);
+    if (mark) {
+      out.sel = { ...sel, choice: true };
+      changed = true;
+    }
+    return out;
+  };
+  const ops = walk(script.ops) as Op[];
+  return changed ? { ...script, ops } : script;
+}
+
+/**
+ * Audit selectors 2 (round-1 doubt): "choose up to 1 card **in your opponent's hand** or up to 1 of their Battle Cards"
+ * (BT13-146, BT15-063, TB1-052, BT17-065, BT3-063…): a hand is a secret area (3-1-3), and nothing in these skills
+ * looks at it, so the cards are picked unseen — offered by position (`blind`), as the opponent's face-down Life is
+ * (#916). Without it the prompt laid the opponent's hand open to the chooser. A choice the opponent makes of their own
+ * hand, a choice out of a look ("look at your opponent's hand, choose 1 card in it", `fromVar`), one after the program
+ * looked at or revealed that hand, and one that asks something of the card (a filter only a seen card can be measured
+ * by) are left as they are.
+ */
+function opponentHandUnseen(script: Script): Script {
+  if (script.unsupported.length) return script;
+  let seen = false;
+  let changed = false;
+  const handOf = (sel: Selector | undefined) => !!sel && sel.side === "opponent" && (sel.area === "hand" || !!sel.areas?.includes("hand"));
+  // A card type is no measure of a hidden card's face ("1 of their Battle Cards" names an area); anything else is.
+  const blank = emptyFilter() as unknown as Record<string, unknown>;
+  const plain = (sel: Selector) => !sel.filter || Object.entries(sel.filter).every(([k, v]) => k === "type" || v === undefined || JSON.stringify(v) === JSON.stringify(blank[k]));
+  const walk = (ops: readonly Op[]): Op[] =>
+    ops.map((o): Op => {
+      if ((o.op === "look" && o.side === "opponent" && o.area === "hand") || (o.op === "reveal" && handOf(o.sel))) seen = true;
+      // (A choice of all of them — "the rest of their hand" — and one at random pick no card by sight.)
+      if (o.op === "choose" && !seen && !o.blind && !o.chooser && !o.sel.fromVar && !o.sel.special && !o.sel.atRandom && (o.sel.count ?? 1) < 99) {
+        const parts = [o.sel, ...(o.sel.alsoFrom ?? [])];
+        const hand = parts.filter((p) => handOf({ ...p, side: p.side ?? o.sel.side }));
+        if (hand.length && hand.every(plain)) {
+          changed = true;
+          return { ...o, blind: true };
+        }
+      }
+      if (o.op === "if") return { ...o, then: walk(o.then), ...(o.else ? { else: walk(o.else) } : {}) };
+      if (o.op === "may" || o.op === "delay") return { ...o, ops: walk(o.ops) };
+      if (o.op === "chooseMode") return { ...o, modes: o.modes.map((m) => ({ ...m, ops: walk(m.ops) })) };
+      return o;
+    });
+  const ops = walk(script.ops);
+  return changed ? { ...script, ops } : script;
 }
 
 /**
@@ -154,6 +232,11 @@ function momentIsRead(skill: Skill, script: Script): Script {
   // BT13-017), is not half read: its moment clause is unread.
   if (unreadMoments(skill).length || (readsMomentsOneByOne(skill) && coordinatedSubject(skill) === null))
     return { ...script, unsupported: [momentClauseOf(skill) ?? skill.effect.trim()] };
+  // Audit triggers 2: "…is KO'd by an opponent's skill **or leaves a Battle Area**" (BT6-114) names one moment inside the
+  // other — a KO is a departure — and the engine would pend the skill twice for the one KO (9-6-2-1 counts the trigger
+  // condition fulfilled once). Unread until the record can say "either, once".
+  const departs = script.trigger ?? triggersOf(skill);
+  if (departs.includes("yourCardLeftBattle") && departs.length > 1) return { ...script, unsupported: [momentClauseOf(skill) ?? skill.effect.trim()] };
   if ((script.trigger ?? triggersOf(skill)).length) {
     // A moment this batch reads is not made readable on an effect that plays the Leader (3-1-2: a Leader stays in the
     // Leader Area): "…if your Leader Card is green, you may play it by paying its energy cost" (BT5-071) points "it"
@@ -341,7 +424,31 @@ function compileQuotedSkill(quoted: Skill): Script {
   return script;
 }
 
-function compileSkillWithoutDeckBuilding(skill: Skill): Script {
+/**
+ * Audit conditions 2 (3 Nov 2026): "[activate: main]{r}{r}{r}: **If your Leader Card is a red <Gogeta: Br> card and you
+ * have 4 or more energy:** Choose up to 1 …" (EX15-01): after the price's own colon, a condition closed by a colon of its
+ * own. R-230 (owner, 3 Nov 2026): it is the line's activation condition — the skill can't be activated unless it holds,
+ * so the {r}{r}{r} is never paid for nothing — the same as "{u}, if your Leader is mono-blue …:" printed inside the price
+ * (P-409). It joins the price ("{r}{r}{r}, if …"), where the price reader takes it as the record's condition. Read as
+ * printed, the second colon left the condition's last half and the whole effect unread. Only an [Activate] or [Counter]
+ * line whose effect opens on "If", and only a colon in the effect's first sentence outside any name.
+ */
+function effectConditionColon(skill: Skill): Skill {
+  if (!skill.cost || !/^(?:activate|counter)/.test(skill.kind) || !/^if\b/i.test(skill.effect.trim())) return skill;
+  const e = skill.effect.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  let depth = 0;
+  for (let i = 0; i < e.length; i++) {
+    const ch = e[i];
+    if ("([{<≪".includes(ch)) depth++;
+    else if (")]}>≫".includes(ch)) depth = Math.max(0, depth - 1);
+    else if (depth === 0 && ch === ".") return skill;
+    else if (depth === 0 && ch === ":") return { ...skill, cost: `${skill.cost}, ${e.slice(0, i).trim().replace(/^If\b/, "if")}`, effect: e.slice(i + 1).trim() };
+  }
+  return skill;
+}
+
+function compileSkillWithoutDeckBuilding(given: Skill): Script {
+  const skill = effectConditionColon(given);
   if (isPotaraSkill(skill) && !compilePotaraMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [POTARA_REBUILD] };
   if (needsEvolutionContract(skill) && !compileEvolutionBase(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [EVOLUTION_REBUILD] };
   if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
@@ -908,6 +1015,9 @@ function compileSkillText(skill: Skill): Script {
   const priceOps = compileCostProgram(skill)?.ops ?? [];
   for (const o of priceOps) {
     if (o.op !== "choose") continue;
+    // Audit effects 2 review: a price's pick from the pile under its chosen card ("…and place 2 of the cards from under
+    // that card into their owner's Drop", BT28-079's back) is not "the chosen card" of the effect (`Ctx.pilePick`).
+    if (o.sel.underHost?.fromVar && o.sel.underHost.fromVar !== o.as) (c.pilePick ??= {})[o.as] = o.sel.underHost.fromVar;
     c.last = o.as;
     c.lastTarget = { var: o.as };
     c.priceChoice = o.as;
@@ -1059,6 +1169,16 @@ function compileSkillText(skill: Skill): Script {
     // attacks" (BT4-019) has no gate for one half and stays refused.
     const unionPlay = UNION_PLAY_TRIGGER.exec(trigger.trim());
     if (unionPlay) triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: unionPlay[1] ? UNION_VARIANT[unionPlay[1].toLowerCase() as keyof typeof UNION_VARIANT] : "Union" };
+    // Audit conditions 2: how else the play had to be made — "with [Swap]", "using [Arrival]", "with the skill of
+    // {Majin Buu's Sealed Ball}", "without using skills", "during your opponent's turn" (`playedHowGate`). Words it
+    // cannot read whole refuse the skill: answering every play is wider than the card.
+    const how = skill.kind === "auto" && !unionPlay ? playedHowGate(trigger) : undefined;
+    if (how === null) return { ops: [], unsupported: [trigger, ...clauses] };
+    if (how) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, how] } : how;
+    // Audit conditions 2: "When this card **attacks twice in the same turn**" (EX01-04): the moment is the attack, and it
+    // has to be this card's second this turn (`attacked`, the count [Dual Attack] keeps). Dropped, the first attack
+    // already gave [Double Strike].
+    if (skill.kind === "auto" && /^when this card attacks twice in (?:the same|a single|one) turn[.,]?$/i.test(trigger.trim())) triggerCond = { kind: "attacked", sel: { special: "self" }, atLeast: 2 };
     // "At the end of a turn in which this card was placed in a Battle Area"
     // (BT15-118, 5-5-4): the moment is every turn's end (`turnEnd` and
     // `opponentTurnEnd`), and the rest of the sentence is a condition on it —
@@ -1111,10 +1231,14 @@ function compileSkillText(skill: Skill): Script {
     if (discardCause) {
       const cause = filterFor(discardCause, null);
       if (!cause) return { ops: [], unsupported: [trigger, ...clauses] };
-      const subject = { special: "subject" } as const;
-      triggerCond = { kind: "any", conds: [
-        { kind: "not", cond: { kind: "count", sel: subject, atLeast: 1 } },
-        { kind: "count", sel: { ...subject, filter: cause }, atLeast: 1 },
+      // Audit conditions 2: "…discarded by **your** Leader's skill" (P-491) is your own Leader's skill, not the
+      // opponent's; and a moment that is the discard alone ("When this card is discarded by …") has no play half, so a
+      // discard naming no card is not let through as one.
+      const subject = { special: "subject", ...(/\bdiscarded by (?:your|one of your) /i.test(trigger) ? { side: "you" as const } : {}) } as const;
+      const has: Cond = { kind: "count", sel: { ...subject, filter: cause }, atLeast: 1 };
+      triggerCond = /^when this card is discarded by\b/i.test(trigger.trim()) ? has : { kind: "any", conds: [
+        { kind: "not", cond: { kind: "count", sel: { special: "subject" }, atLeast: 1 } },
+        has,
       ] };
     }
     // "When this card is [played or] switched to Rest Mode by one of your yellow
@@ -1157,6 +1281,10 @@ function compileSkillText(skill: Skill): Script {
       triggerCond = { kind: "inBattle", sel: { area: kind === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
       if (kind === "battle") c.attacksBattleCard = true;
     }
+    // Audit conditions 2: "When this card attacks **a Leader or Unison**" (BT18-059): the guard is the opponent's Leader or
+    // one of their Unisons — either; read with no guard at all the skill answered an attack on a Battle Card too.
+    if (/^when this card attacks (?:an? |your opponent'?s )?leader(?: card)? or (?:an? )?unison(?: card)?[.,]?$/i.test(trigger.trim()))
+      triggerCond = { kind: "any", conds: [{ kind: "inBattle", sel: { area: "leader", side: "opponent" }, role: "guard" }, { kind: "inBattle", sel: { area: "unison", side: "opponent" }, role: "guard" }] };
     // Audit triggers 1: "At the end of the battle **for this card**" (BT25-039's wording), "…a battle **in which this card
     // attacked**", "…**after this card attacks**", "…**in which this card was attacked**" (8-5): the moment is every
     // battle's end (`battleEnd`), and this card's part in the battle is a condition on it — dropped, the skill answered
@@ -1169,9 +1297,10 @@ function compileSkillText(skill: Skill): Script {
       triggerCond = { kind: "inBattle", sel: { side: "you", ...(/\bbattle cards?$/i.test(said) ? { area: "battle" as const } : {}), filter: attacker }, role: "attacker" };
     } else if (battlePart && battlePart !== "any") triggerCond = { kind: "inBattle", sel: { special: "self" }, ...(battlePart === "self" ? {} : { role: battlePart }) };
     // Audit triggers 1: the card a `kos` moment KO'd is its subject, and what the words say about it is a condition on it.
-    // The head is read whole: "attacks and KOs …" is cut at its "and" into clauses (below).
+    // The head is read whole: "attacks and KOs …" is cut at its "and" into clauses (below). A condition in front may end
+    // in a comma, the sets' bar or (audit triggers 2) a colon left in the effect.
     const kosMasked = maskNames(skill.effect);
-    const kosHead = /^(?:if [^,|]{0,90}[,|]\s*)?(when this card (?:attacks and )?kos [^,:]*)/i.exec(kosMasked.text.trim())?.[1];
+    const kosHead = /^(?:if (?:[^,|:<]|<[^<>]*>){0,90}[,|:]\s*)?(when this card (?:attacks and )?kos [^,:]*)/i.exec(kosMasked.text.trim())?.[1];
     const koedSaid = skill.kind === "auto" && coordinated === undefined && kosHead ? kosMasked.unmask(koedDescription(kosHead)) : "";
     if (koedSaid) {
       const koedFilter = filterFor(koedSaid, null);
@@ -1205,13 +1334,13 @@ function compileSkillText(skill: Skill): Script {
     // BT15-091: "when a player places a [Field] Extra Card in a Battle Area",
     // "when a player's [Field] Extra Card leaves a Battle Area" — either
     // player's card, its description the condition on it.
-    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim()) || /^when a player(?:'?s)? /i.test(trigger.trim())) {
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim()) || /^when a player(?:'?s)? /i.test(trigger.trim()) || !!watchedMomentOf(trigger)) {
       // "When you play a red ≪Alien≫, **it** gains +5000 power" (BT1-006, phrasing batch 1): the card played is the
       // one thing the sentence has named, so "it" is that card too.
       // "When you combo with a skill-less card, **that card** gets +5000 combo power" (BT6-105b, phrasing batch 2): the
       // card used in the combo, likewise.
       // "When you use a red skill-less Battle Card … in a combo, **it** gets +6000 combo power" (BT14-001b, phrasing batch 3).
-      if (/\byour\b/i.test(trigger) || /^when you (?:play|combo with|use) (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
+      if (/\byour\b/i.test(trigger) || !!watchedMomentOf(trigger) || /^when you (?:play|combo with|use) (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
       // "When your **mono-red ≪Saiyan≫** Leader Card is attacked" (SD15-02,
       // #1168, 8-1-3): the moment is `yourLeaderAttacked`, whose subject is
       // the Leader attacked, and the description is a condition on that
@@ -1477,6 +1606,9 @@ function coordinatedSubject(skill: Skill): { cond: Cond | null } | null | undefi
     const battle = battleEndPart(h.toLowerCase());
     if (battle !== undefined && battle !== "any") return null;
     if (koedDescription(h)) return null;
+    // Audit triggers 2: "…played or attacks **an opponent's Battle Card**" (BT26-100): what this card attacks is a
+    // condition on the attack alone.
+    if (/^when this card attacks\s+\S/i.test(h)) return null;
   }
   const watched = heads.filter((h) => !own(h));
   if (!watched.length) return { cond: null };

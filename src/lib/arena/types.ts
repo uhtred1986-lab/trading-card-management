@@ -276,7 +276,7 @@ export interface ReplacementResult {
 /**
  * What 20-13 can be told to skip here. The three phases the turn is made of
  * and the two steps of a battle that have a step of their own to refuse;
- * `turn` (BT31-097), which is a whole later turn refused wholesale, checked
+ * `turn` (#278; not BT31-097, whose turn in progress ends), a whole later turn refused wholesale, checked
  * once at that turn's own `turn.start` rather than at any one phase; and
  * `span` (BT21-104), a standing entry that reaches further still — the rest
  * of this turn, the whole of the opponent's next turn, and this player's own
@@ -1183,6 +1183,8 @@ export type Trigger =
   | "energyToDropBySkill"
   /** "When one of your energy is placed in your Drop by your Leader's skill" (EX22-03): your Leader's skill, the energy the subject. */
   | "yourEnergyToDropByYourLeader"
+  /** "When a card in your energy is placed in your Drop Area by one of your skills" (XD2-04): any skill of yours, the energy the subject. */
+  | "yourEnergyToDropByYou"
   /** "When this card is placed in your Drop from a Battle Area by one of your skills" (BT18-023). */
   | "droppedFromBattleByYou"
   /** "When this card is placed in your Drop by a skill" (P-421): from any area; the skill's card is the subject. */
@@ -1191,6 +1193,50 @@ export type Trigger =
   | "toDropByYou"
   /** "When this card is placed into its owner's Drop by an opponent's skill" (BT30-058). */
   | "toDropByOpponent"
+  // Audit triggers 2 (3 Nov 2026): the watched-card moments of the moment grammar (`watchedMomentOf`). The card the
+  // moment is about is the subject; what the sentence says about it is a condition on it, asked before pending.
+  /** "When one of your ≪Red Ribbon Army≫ cards is removed from your Battle Area by a skill" (BT17-038): any skill's. */
+  | "yourCardRemovedBySkill"
+  /** "When one of your opponent's Battle Cards is removed from their Battle Area by a skill" (DB3-103). */
+  | "opponentCardRemovedBySkill"
+  /** "When one of your green Battle Cards is KO'd by an opponent's skill" (BT15-072). */
+  | "yourCardKoedByOpponentSkill"
+  /** "When your green ≪Boujack Brigade≫ card is KO'd by one of your skills" (BT25-077). */
+  | "yourCardKoedByYourSkill"
+  /** "When an opponent's Battle Card is KO'd by one of your skills" (BT24-008). */
+  | "opponentCardKoedByYourSkill"
+  /** "When a <Krillin> card … in your Battle Area is KO'd by your opponent" (TB3-035): their attack or their skill. */
+  | "yourCardKoedByOpponent"
+  /** "When one of your green Battle Cards attacks and KOs an opponent's Battle Card" (BT16-050): the battle's KO; the attacker is the subject. */
+  | "yourCardKosByAttack"
+  /** "When one of your cards is attacked" (BT13-023): the card attacked is the subject. */
+  | "yourCardAttacked"
+  /** "When one of your green Unison Cards is placed in your Drop Area" (BT17-069): from your Unison Area (its Q&A). */
+  | "yourUnisonToDrop"
+  /** "When your Battle Card is removed from a Battle Area" (BT27-059), "…leaves the Battle Area" (BT26-030): any departure, a KO and a combo included. */
+  | "yourCardLeftBattle"
+  /** "When a black Battle Card is played from your Warp" (BT16-110): one of your cards played from there. */
+  | "yourCardPlayedFromWarp"
+  /** "When a blue card is played from your energy" (BT17-032b). */
+  | "yourCardPlayedFromEnergy"
+  /** "When you play a Battle Card from your life" (P-406). */
+  | "yourCardPlayedFromLife"
+  /** "When one of your yellow ≪Android≫ Battle Cards is switched to Rest Mode by a skill" (BT13-092): any skill's, in a Battle Area. */
+  | "yourBattleCardRestedBySkill"
+  /** "When one of your opponent's Battle Cards is switched to Rest Mode by a skill" (DB1-075). */
+  | "opponentBattleCardRestedBySkill"
+  /**
+   * "When an opponent's card is switched to Rest Mode by one of your skills" (BT10-139, BT19-148): any card of theirs on
+   * the table — Leader, Battle Card, Unison or energy (R-208, pending). `restedTheirsBySkill` is the narrower "Battle
+   * Card or energy" (XD1-01).
+   */
+  | "opponentCardRestedByYourSkill"
+  /** "When a yellow Battle Card activates an [EX-Evolve] skill from your hand" (BT16-073): the evolving card is the subject. */
+  | "yourCardExEvolveFromHand"
+  /** "When you activate [Swap]", "When one of your red Battle Cards activates a [Swap] skill" (BT11-004): the card returned is the subject. */
+  | "swapActivated"
+  /** "When this card activates [Aegis]" (EX05-03), "…its [Aegis Blue/Yellow] skill" (BT16-130). */
+  | "aegisActivated"
   | "yourCardReturnedToHand"
   /**
    * "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b): another
@@ -1651,6 +1697,8 @@ export interface Replacement {
    * you may … instead" (BT10-036, BT10-047) — so it answers only when that
    * card is the one being taken, and is read while that card lies in the Life
    * Area (9-1-3-3). Absent, the rule is about whichever life card is taken.
+   * Audit conditions 2: a card face up in the life is not *revealed* as it is
+   * taken (Q&A BT10-036, BT10-040), so it is never offered for one.
    */
   lifeSelf?: true;
   /** "Add that card to your energy in Rest Mode instead" — the mode it arrives in. */

@@ -21,7 +21,7 @@
   },
   "ALLY#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "1ee4edb3"
   },
   "ALLYC#0": {
     "outcome": "notOffered",
@@ -89,11 +89,11 @@
   },
   "BLUEWATCH#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "046d0d6a"
   },
   "BOOSTWATCH#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "bf1db76c"
   },
   "BOTHPAY#0": {
     "outcome": "notOffered",
@@ -341,7 +341,7 @@
   },
   "GLOATER#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "be8a2e2c"
   },
   "GOGETA#0": {
     "outcome": "inForce",
@@ -361,7 +361,7 @@
   },
   "GRUDGE#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "9177b69e"
   },
   "HIDER#0": {
     "outcome": "fired",
@@ -425,7 +425,7 @@
   },
   "LIFEWATCH#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "046d0d6a"
   },
   "LIMITED2#0": {
     "outcome": "fired",
@@ -465,7 +465,7 @@
   },
   "MOURNER#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "03475366"
   },
   "MUTEAUTO#0": {
     "outcome": "fired",
@@ -545,7 +545,7 @@
   },
   "OVERWATCH#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "65cfdac6"
   },
   "PAYER#0": {
     "outcome": "inForce",
@@ -641,7 +641,7 @@
   },
   "RESTWATCH#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "03c9f7e9"
   },
   "REVEALER#0": {
     "outcome": "inForce",
@@ -652,8 +652,8 @@
     "digest": "6df4b6ba"
   },
   "SAIYANWATCH#0": {
-    "outcome": "fired",
-    "digest": "7dc41913"
+    "outcome": "didNotFire",
+    "digest": "0dea0082"
   },
   "SB-HOST#0": {
     "outcome": "fired",
@@ -788,8 +788,8 @@
     "digest": "015c59fa"
   },
   "TURNSKIP#0": {
-    "outcome": "fired",
-    "digest": "c35301cd"
+    "outcome": "notOffered",
+    "digest": "57e8d89b"
   },
   "TWOKILL#0": {
     "outcome": "fired",
@@ -833,7 +833,7 @@
   },
   "UWATCH#0": {
     "outcome": "noScenario",
-    "digest": "b80d3483"
+    "digest": "bf1db76c"
   },
   "WARDEN#0": {
     "outcome": "inForce",

@@ -615,6 +615,9 @@ DEFINE KEYWORD Swap
   -- the move's stored continuation (`vm/swap-costs.ts`, #729), before this
   -- `DO` runs. The card returns to the hand as the cost whether or not one is
   -- chosen, and the chosen card is played through the [Counter: Play] window.
+  -- The play says it is [Swap]'s (`using:`), which the card played remembers
+  -- for "when you play this card with [Swap]" (BT4-083; audit conditions 2);
+  -- [Arrival] and [Successor] say so the same way.
   offer: "activate:main"
   REFUSE zone(area: battle) UNLESS count([self] IN you.battle) >= 1
   REFUSE target(reason: "no specified cost-{x} Battle Card in your hand") UNLESS count((type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand asPrinted) >= 1
@@ -622,7 +625,7 @@ DEFINE KEYWORD Swap
   DO {
     choose(sel: UP TO 1 (type = BATTLE AND costMin = $x AND costMax = $x) IN you.hand asPrinted, as: "swapIn", reason: "[Swap]: the Battle Card to play in its place, or none")
     moveTo(target: [self], to: hand, cause: cost)
-    play(target: $swapIn, counterWindow: true)
+    play(target: $swapIn, counterWindow: true, using: "Swap")
   }
 
 -- 22-29
@@ -639,7 +642,7 @@ DEFINE KEYWORD Arrival
   REFUSE condition(text: "Battle Cards whose original colours cover {colors:and} in your Combo Area") UNLESS covers(sel: IN you.combo, colors: $colors, original: true)
   label: "Arrival {colors}: play {card}"
   DO {
-    play(target: [self], counterWindow: true)
+    play(target: [self], counterWindow: true, using: "Arrival")
   }
 
 -- 22-30
@@ -748,7 +751,7 @@ DEFINE KEYWORD Successor
     choose(sel: (colors = [Green, Yellow] AND notColors = [Red, Blue, Black, White, Colorless]) IN you.battle, as: "paid", reason: "[Successor]: green/yellow Battle Cards to drop", sumTo: attr([self], energyCost))
     if(cond: count(FROM $paid) >= 1, then: {
       moveTo(target: $paid, to: drop, cause: cost)
-      play(target: [self], counterWindow: true)
+      play(target: [self], counterWindow: true, using: "Successor")
     })
   }
 

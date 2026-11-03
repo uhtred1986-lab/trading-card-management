@@ -32,8 +32,11 @@ export function readsAsNothingSilently(skill: Skill, script: Script): boolean {
  * and "silent blank" can never disagree about the same line.
  */
 export function emptyOnPurpose(skill: Skill): boolean {
-  if (skill.keyword) return true;
   const text = skill.effect.replace(/\s+/g, " ").trim();
+  // Audit effects 2 review: a keyword's own line is the engine's; a [Permanent], [Auto] or [Activate] that names a
+  // keyword beside its tag and prints a sentence of its own is not — "[permanent][evolve] Skills on yellow ≪Demon
+  // Realm≫ cards in your hand can also activate at [counter: play] timings" (BT30-067's back) read as nothing.
+  if (skill.keyword && (skill.kind === "keyword" || !text || /^[(（].*[)）]\.?$/.test(text))) return true;
   if (!text) return true;
   if (/^[(（].*[)）]\.?$/.test(text)) return true;
   // A deck-building clause read whole, with no game text beside it. A mixed line is not empty:
@@ -67,6 +70,6 @@ export const KNOWN_SILENT = new Set<string>([
   // ("This card can't be played from any area if/unless …" — BT9-078, BT9-079,
   // P-281, BT22-077 — is no longer skipped: `compileProhibition` reads the
   // "unless" form, and an "if" form it cannot read is reported unread.)
-  // Wordings no reader takes and none reports: found by this check, not yet fixed.
-  "BT13-084#20", "BT14-074#10", "BT18-003#20", "BT20-017#0", "BT20-019#0", "BT25-133#20", "BT4-003#40",
+  // (BT13-084#20, BT14-074#10, BT18-003#20, BT20-017#0, BT20-019#0, BT25-133#20, BT4-003#40 — wordings no reader takes —
+  // are reported unread since audit effects 2: `compileSkill` makes a silent blank unread, so none can hide here.)
 ]);
