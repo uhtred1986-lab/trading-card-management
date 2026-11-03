@@ -1491,6 +1491,10 @@ DEFINE TRIGGER yourDeckToDrop
 
 -- §12-1-3 — "When your opponent activates an Extra Card" (BT10-092, BT10-095):
 -- their side of `extraActivated`, an Extra's skill used from the hand.
+-- Their Q&A: activating {The Final Guardian} (BT7-024) from the Drop through
+-- its own [Permanent] counts too; an Extra's [Activate: Main] used in the Drop
+-- (BT9-109) does not. Those Drop activations are unread today; the one that
+-- teaches them adds that origin here and to `extraActivated`.
 DEFINE TRIGGER opponentExtraActivated
   ON skillActivated(extra: true, from: hand, watcher: opponent)
   BIND "subject"
