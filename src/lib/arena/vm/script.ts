@@ -2209,6 +2209,8 @@ function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { 
     if (was.fromArea === "energy") {
       h.pend("energyToDropBySkill", id, frame.card);
       if (yours && frame.card && h.areaOf(frame.card) === "leader" && h.masterOf(frame.card) === frame.master) h.pend("yourEnergyToDropByYourLeader", id, id);
+      // Audit conditions 2 review: "…placed in your Drop Area by one of your skills" (XD2-04) — any skill of yours.
+      if (yours) h.pend("yourEnergyToDropByYou", id, id);
     }
     if (was.pileHost) {
       h.pend("underToDropBySkill", id, frame.card);

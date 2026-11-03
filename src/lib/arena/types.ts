@@ -1183,6 +1183,8 @@ export type Trigger =
   | "energyToDropBySkill"
   /** "When one of your energy is placed in your Drop by your Leader's skill" (EX22-03): your Leader's skill, the energy the subject. */
   | "yourEnergyToDropByYourLeader"
+  /** "When a card in your energy is placed in your Drop Area by one of your skills" (XD2-04): any skill of yours, the energy the subject. */
+  | "yourEnergyToDropByYou"
   /** "When this card is placed in your Drop from a Battle Area by one of your skills" (BT18-023). */
   | "droppedFromBattleByYou"
   /** "When this card is placed in your Drop by a skill" (P-421): from any area; the skill's card is the subject. */

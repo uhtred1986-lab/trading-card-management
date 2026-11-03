@@ -1136,6 +1136,7 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   underLeaderToDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", fromPile: "leader" } },
   energyToDropBySkill: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill" } },
   yourEnergyToDropByYourLeader: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill", byOpponent: false, byLeader: true } },
+  yourEnergyToDropByYou: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill", byOpponent: false, yourSkill: true } },
   droppedFromBattleByYou: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill", byOpponent: false } },
   toDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill" } },
   toDropByYou: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", byOpponent: false } },
@@ -1182,7 +1183,7 @@ const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop", "
 /** Phrasing batch 5: the watched moves pended by name, once, about the moved card (`id` and the subject both), and answered by every watcher the declaration names. */
 // Phrasing batch 7: and a skill's damage, about the skill's card, answered by its master's watchers (BT9-104).
 // Moments batch 1: and a skill's power change, about the card changed; and your energy your Leader's skill dropped.
-const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader",
+const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader", "yourEnergyToDropByYou",
   "yourCardPowerRaisedByYou", "yourCardPowerLowered", "opponentCardPowerLowered", "opponentCardPowerLoweredByBattleCard", "eitherCardPowerLowered"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */

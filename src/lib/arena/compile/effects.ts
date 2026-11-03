@@ -4645,15 +4645,26 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
     const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
     return [{ op: "forbid", what: "attack", side: "opponent", until: "nextTurn", uses: 1, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
   }
-  const counted = /^(you|your opponent'?s?)\s+can only attack(?: with (.+?))?\s+(one|\d+) more times?(?: with (.*?))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
+  // Audit conditions 2 review: the "with …" may follow the span — "your opponent can only attack one more time **for the
+  // turn with a Battle Card or Unison Card with 20000 power or more**" (BT15-058); the span's tail swallowed it, and the
+  // budget fell on every attack, the Leader's included (Q&A BT15-058: the Leader may still attack).
+  const counted = /^(you|your opponent'?s?)\s+can only attack(?: with (.+?))?\s+(one|\d+) more times?(?: with (.*?))?(?:\s+for (?:the turn|the duration of the turn) with (.+))?(?:\s+(?:for|during|until)\b.*)?$/.exec(q);
   if (counted) {
     const side: Side = counted[1] === "you" ? "you" : "opponent";
-    const withWhat = counted[2] ?? counted[4];
+    const withWhat = counted[2] ?? counted[4] ?? counted[5];
     const uses = counted[3] === "one" ? 1 : Number(counted[3]);
     if (!(uses >= 1)) return null;
-    const filter = withWhat ? filterFor(withWhat, null) : undefined;
+    // Audit conditions 2 review (R-232): a measure said once after two kinds of attacker — "…with a Battle Card or Unison
+    // Card **with 20000 power or more**" (BT15-058) — is both kinds' measure; read by the description reader it stayed on
+    // the Unison, and every Battle Card's attack spent the budget. Only kinds that attack (Leader, Battle, Unison).
+    const KIND = "(?:battle cards?|unison cards?|unisons?|leader cards?)";
+    const kinds = withWhat ? new RegExp(`^(?:an? )?(${KIND}(?:,? or (?:an? )?${KIND})+) (with .+)$`, "i").exec(withWhat) : null;
+    const shared = kinds ? kinds[1].split(/,? or (?:an? )?/i).map((k) => filterFor(`${k} ${kinds[2]}`, null)) : null;
+    if (shared?.some((f) => !f)) return null;
+    const filter = shared ? { ...parseFilter(""), anyOf: shared as CardFilter[] } : withWhat ? filterFor(withWhat, null) : undefined;
     if (filter === null) return null;
-    const type = withWhat && /\bleader cards?\b/.test(withWhat) ? "LEADER" : withWhat && /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
+    // A description of two kinds ("a Battle Card or Unison Card …") keeps both; the type is added only to a lone one.
+    const type = !withWhat || filter?.type || filter?.anyOf?.length ? null : /\bleader cards?\b/.test(withWhat) ? "LEADER" : /\bbattle cards?\b/.test(withWhat) ? "BATTLE" : null;
     return [{ op: "forbid", what: "attack", side, until, uses, filter: filter || type ? { ...(filter ?? parseFilter("")), ...(type ? { type } : {}) } : undefined }];
   }
   // The subject may be missing: "it gets +10000 power **and** can't attack for

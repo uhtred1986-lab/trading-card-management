@@ -37,6 +37,9 @@ function items(list: string): string[] {
       continue;
     }
     const m = /^(,\s+and\s+|,\s+|\s+and\s+)/i.exec(list.slice(i));
+    // Audit conditions 2 review: "…with an energy cost **between 2 and 4** that isn't a <Syn Shenron> card" (BT12-108) is
+    // one range, not a second slot of 4 cards.
+    if (m && /^\s+and\s+$/i.test(m[1]) && /\bbetween\s+\d+$/i.test(list.slice(start, i))) continue;
     if (m) {
       out.push(list.slice(start, i).trim());
       start = i + m[1].length;

@@ -224,6 +224,37 @@ let records = 0;
   records += 6;
 }
 
+// F. The review's repairs (round 2's items the fix pass left).
+{
+  const LEADER = { type: "LEADER" as const, energyCost: null, comboCost: null, comboPower: null };
+  const deep = (c: Cond | null | undefined): Cond[] => (!c ? [] : c.kind === "any" || c.kind === "all" ? [c, ...c.conds.flatMap(deep)] : [c]);
+  const priceCond = (rec: Rec) => deep((rec.cost as { condition?: Cond | null }).condition ?? null);
+  // BT19-001's [Awaken]: "…or you have 2 or more energy and a <Son Goku>, <Vegeta>, or <Trunks: Future> card—all red
+  // and with [EX-Evolve]—in play" — 2 energy, and one such card (any of the three names, each red with [EX-Evolve]).
+  const b19 = priceCond(record("[Awaken] When your life is at 4 or less, or you have 2 or more energy and a <Son Goku>, <Vegeta>, or <Trunks: Future> card—all red and with [EX-Evolve]—in play: You may draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.", "BT19-001", LEADER));
+  assert.ok(b19.some((c) => c.kind === "count" && c.sel.area === "energy" && c.atLeast === 2 && !c.sel.filter?.characters.length), "F: BT19-001 — 2 or more energy, any energy");
+  const named = b19.filter((c): c is Extract<Cond, { kind: "count" }> => c.kind === "count" && c.sel.area === "play");
+  assert.deepEqual(named.map((c) => [c.sel.filter?.characters.join(), c.sel.filter?.colors.join(), c.sel.filter?.keywordsExact?.join(), c.atLeast]), [["son goku", "Red", "EX-Evolve", 1], ["vegeta", "Red", "EX-Evolve", 1], ["trunks: future", "Red", "EX-Evolve", 1]], "F: BT19-001 — one red [EX-Evolve] card of any of the three names");
+  // BT18-001's [Awaken]: "…2 or more energy and both <Son Goku: GT> and <Vegeta: GT> cards in your Z-Energy".
+  const b18a = priceCond(record("[Awaken] When your life is at 4 or less or you have 2 or more energy and both <Son Goku: GT> and <Vegeta: GT> cards in your Z-Energy: You may draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.", "BT18-001", LEADER));
+  assert.ok(b18a.some((c) => c.kind === "count" && c.sel.area === "energy" && c.atLeast === 2 && !c.sel.filter), "F: BT18-001 — 2 or more energy");
+  for (const name of ["son goku: gt", "vegeta: gt"]) assert.ok(b18a.some((c) => c.kind === "count" && c.sel.area === "zEnergy" && c.sel.filter?.characters.join() === name && c.atLeast === 1), `F: BT18-001 — a ${name} card in the Z-Energy`);
+  // BT10-038: "if you haven't added life to your hand due to an opponent's attack this turn" — history no condition holds:
+  // unread, where it read as a card of your hand attacking.
+  assert.ok(only("[Auto] If your Leader Card is a blue <Trunks: Future> card and you return this card to its owner's hand: At the end of your opponent's turn, if you haven't added life to your hand due to an opponent's attack this turn, choose up to 1 {SSB Son Goku, Hope for Victory} in your hand and play it.", "BT10-038").unread.length > 0, "F: BT10-038 — unread");
+  // BT15-058: "…can only attack one more time for the turn with a Battle Card or Unison Card with 20000 power or more"
+  // (R-232, pending): the budget is those attacks alone, the measure on both kinds.
+  const b15 = forbids(record("[Counter: Attack] If your Leader Card is a ≪Universe 6≫ card: Negate the attack. You may choose 1 blue card in your hand and discard it. If you do, your opponent can only attack one more time for the turn with a Battle Card or Unison Card with 20000 power or more.", "BT15-058", { type: "EXTRA", power: null }));
+  assert.deepEqual(b15.map((o) => [o.what, o.side, o.uses, o.filter?.anyOf?.map((a) => [a.type, a.powerMin])]), [["attack", "opponent", 1, [["BATTLE", 20000], ["UNISON", 20000]]]], "F: BT15-058 — one more attack by a 20000-power Battle Card or Unison");
+  // BT12-108's price: "…with an energy cost between 2 and 4 that isn't a <Syn Shenron> card" is one card, not 1 and 4.
+  const b12 = only("[activate: main][once per turn] If your Leader Card is a yellow ≪Shadow Dragon≫ card and you send 1 mono-yellow ≪Shadow Dragon≫ card with an energy cost between 2 and 4 that isn't a <Syn Shenron> card from your Drop Area to its owner's Warp: Add up to 1 card from your life to your hand.", "BT12-108");
+  const sent = ((b12.cost as { program?: Op[] | null }).program ?? []).filter((o): o is Extract<Op, { op: "choose" }> => o.op === "choose");
+  assert.deepEqual(sent.map((o) => [o.sel.count, o.sel.filter?.costMin, o.sel.filter?.costMax, o.sel.filter?.notCharacters.join()]), [[1, 2, 4, "syn shenron"]], "F: BT12-108 — one card costing 2 to 4, not a <Syn Shenron>");
+  // XD2-04: "When a card in your energy is placed in your Drop Area by one of your skills" — your skills alone.
+  assert.deepEqual(record("[Auto] When a card in your energy is placed in your Drop Area by one of your skills, you may play this card from your hand.", "XD2-04").trigger, ["yourEnergyToDropByYou"], "F: XD2-04 — your skill's move of your energy");
+  records += 6;
+}
+
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const DRAW = "draw 1 card.";
 const defs: Record<string, CardDef> = {
@@ -242,9 +273,13 @@ const defs: Record<string, CardDef> = {
   AC2_BOUNCE: card("AC2_BOUNCE", { skill: "[Activate: Main] Choose up to 1 of your Battle Cards and return it to its owner's hand." }),
   AC2_TODROP: card("AC2_TODROP", { skill: "[Activate: Main] Choose up to 1 of your Battle Cards and place it in its owner's Drop Area." }),
   AC2_OWNED: card("AC2_OWNED", { skill: "[Activate: Main] Choose up to 1 card you own in your opponent's Battle Area and it gains [Servant] until the end of your opponent's next turn." }),
+  // F. your energy to your Drop by one of your skills (XD2-04)
+  AC2_MYBURN: card("AC2_MYBURN", { skill: "[Activate: Main] Choose up to 1 card in your energy and place it in its owner's Drop Area." }),
+  AC2_THEIRBURN: card("AC2_THEIRBURN", { skill: "[Activate: Main] Choose up to 1 card in your opponent's energy and place it in its owner's Drop Area." }),
+  AC2_XD2: card("AC2_XD2", { skill: `[Auto] When a card in your energy is placed in your Drop Area by one of your skills, ${DRAW}` }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
-for (const d of ["AC2_SEAL", "AC2_BYSEAL", "AC2_NOSKILL", "AC2_SWAPPER", "AC2_SWAPPED"]) for (const r of skillRecords(defs[d])) assert.deepEqual(r.unread, [], `${d}: read`);
+for (const d of ["AC2_SEAL", "AC2_BYSEAL", "AC2_NOSKILL", "AC2_SWAPPER", "AC2_SWAPPED", "AC2_MYBURN", "AC2_THEIRBURN", "AC2_XD2"]) for (const r of skillRecords(defs[d])) assert.deepEqual(r.unread, [], `${d}: read`);
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
@@ -410,6 +445,20 @@ for (const seat of ["p1", "p2"] as const) {
     const w = stage(s, seat, "AC2_WARPER", "battle");
     s = settle(take(s, offerOf(s, a)!.action), pick(w));
     assert.ok(s.sides[seat].zones[to].includes(w), `${seat}: C1: ${actor} — it went to the ${to}`);
+    cases++;
+  }
+  // F1. "When a card in your energy is placed in your Drop Area by one of your skills" (XD2-04): your own skill's burn of
+  // your energy answers; the opponent's skill burning it does not.
+  for (const [n, burner, mine] of [[12, "AC2_MYBURN", true], [13, "AC2_THEIRBURN", false]] as const) {
+    let s = fresh(seat, seed(n));
+    const a = stage(s, seat, burner, "battle");
+    const owner = mine ? seat : other(seat);
+    const watcher = stage(s, owner, "AC2_XD2", "battle");
+    const energy = stage(s, owner, "V1", "energy");
+    s = settle(take(s, offerOf(s, a)!.action), pick(energy));
+    assert.ok(s.sides[owner].zones.drop.includes(energy), `${seat}: F1: ${burner} — the energy went to the Drop`);
+    assert.ok(s.sides[owner].zones.battle.includes(watcher), `${seat}: F1: the watcher stays`);
+    assert.equal(hand(s, owner), mine ? 1 : 0, `${seat}: F1: ${burner} — ${mine ? "your skill: answers" : "the opponent's skill: no trigger"}`);
     cases++;
   }
 }

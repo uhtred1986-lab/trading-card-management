@@ -536,7 +536,13 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // (life or energy) and the rest (#728).
   // #907 round 4: the "and" between two names of one count ("1 or more <A> and <B> cards in your
   // Combo Area", BT19-035b) is the list's own, read whole by the each-name reading above.
-  const holdNames = (s: string) => s.replace(new RegExp(`((?:${NAMED_CARD},?\\s+)*${NAMED_CARD}) and (${NAMED_CARD})(?=\\s+cards?\\s+(?:in|among)\\b)`, "gi"), "$1\u0001$2");
+  // Audit conditions 2 review: so is an "and" inside a qualifier set off by dashes — "you have 2 or more energy and a
+  // <Son Goku>, <Vegeta>, or <Trunks: Future> card**—all red and with [EX-Evolve]—**in play" (BT19-001's [Awaken]). Cut
+  // there, the halves read as 2 or more energy named <Son Goku> or <Vegeta>, or 2 or more red <Trunks: Future> cards.
+  const holdNames = (s: string) =>
+    s
+      .replace(new RegExp(`((?:${NAMED_CARD},?\\s+)*${NAMED_CARD}) and (${NAMED_CARD})(?=\\s+cards?\\s+(?:in|among)\\b)`, "gi"), "$1\u0001$2")
+      .replace(/([—―–])([^—―–]*)([—―–])/g, (_w, open: string, inside: string, close: string) => open + inside.replaceAll(" and ", "\u0001") + close);
   const unhold = (s: string) => s.replaceAll("\u0001", " and ");
   // #930, P-226: "you have only <Son Goten: GT> cards in play **or no Battle
   // Cards in play**". The "or" has no subject after it, so the split below
@@ -619,7 +625,10 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       // or more {Support Broadcast} cards in the Energy Area.
       const namedPlaced = /^(?:\{[^}]+\}|<[^>]+>|≪[^≫]+≫)(?: cards?)? in (?:your|their|your opponent'?s) /.test(half);
       const namesACard =
-        (/^(?:an?|\d+ or (?:more|less|fewer)) /.test(half) || namedPlaced) &&
+        // Audit conditions 2 review: "…2 or more energy **and both <Son Goku: GT> and <Vegeta: GT> cards in your
+        // Z-Energy**" (BT18-001's [Awaken]) opens on "both" and carries the "you have" the same way; read bare it fell to
+        // the count below, which made the whole one count of 2 energy cards with both names.
+        (/^(?:an?|both|\d+ or (?:more|less|fewer)) /.test(half) || namedPlaced) &&
         !/\b(?:has|have|is|are)\b/.test(half) &&
         /\b(?:cards?|unisons?|z-unisons?|extras?|z-extras?|leaders?|energy)\b|\{[^}]+\}|<[^>]+>|≪[^≫]+≫/.test(half) &&
         !/^an? (?:energy|combo) cost\b|^an? specified cost\b/.test(half);
@@ -976,7 +985,10 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // this card attacks **your opponent's Leader**" (BT21-034): the guard card of the battle, as "when this card attacks a
   // Battle Card" is read as a moment (BT2-029). Read as "is attacking", an attack on the Leader passed for one on a
   // Battle Card and the other way round. Any other object is still not read.
-  if (!/\b(?:can'?t|cannot|can|won'?t|will not|may|must|should|would)\s+(?:only\s+)?attacks?\b/.test(t) && (m = /^(.+?) attacks? (.+)$/.exec(t))) {
+  // Audit conditions 2 review: "attack" after an article or a possessive is the noun — "if you haven't added life to
+  // your hand due to **an opponent's attack** this turn" (BT10-038) is history no condition holds, not a card of your
+  // hand attacking (which never held, so the play never came).
+  if (!/\b(?:can'?t|cannot|can|won'?t|will not|may|must|should|would)\s+(?:only\s+)?attacks?\b/.test(t) && !/(?:\b(?:an?|the|your|their|its)|'s?)\s+attacks?\b/.test(t) && (m = /^(.+?) attacks? (.+)$/.exec(t))) {
     const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
     if (sel) {
       delete sel.count;

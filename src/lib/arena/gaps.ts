@@ -173,6 +173,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   pileToDropBySkill: "when a skill places a card from under this card in the Drop",
   energyToDropBySkill: "when a skill places this card from your energy in the Drop",
   yourEnergyToDropByYourLeader: "when your Leader's skill places one of your energy in the Drop",
+  yourEnergyToDropByYou: "when one of your skills places one of your energy in the Drop",
   droppedFromBattleByYou: "when one of your skills sends this card from a Battle Area to the Drop",
   toDropBySkill: "when a skill places this card in the Drop",
   toDropByYou: "when one of your skills places this card in the Drop",
