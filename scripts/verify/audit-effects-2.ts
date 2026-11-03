@@ -19,6 +19,7 @@ import { parseSkills } from "../../src/lib/arena/text/cards";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import { correctSkillText } from "../../src/lib/catalog/errata";
 import { describeScript } from "../../src/lib/arena/vm/script-schema";
+import { describeOnlyReading } from "../lib/refresh-ids";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { Op } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -230,6 +231,23 @@ for (const [id, text, op, n] of [
   const counter = record("P-171", "[Counter: Play] Draw 1 card, then your opponent may choose 1 Extra Card from their hand and place it in their Drop Area. If they don't, the Battle Card being played has its skills negated for the duration of the turn.");
   const branch = opOf(counter, "if").find((o) => o.cond.kind === "not");
   assert.ok(branch && branch.then.some((o) => o.op === "resolvingPlay" && o.negated), "I: P-171: if they don't, the card being played is negated");
+}
+
+// J. `arena:refresh-ids --describe-only` writes the text the full compile writes — a granted line keeps its "granted by
+// skill #N, not this card's own: " (it dropped it on 17 production rows), and every other line is unchanged.
+for (const [id, text, back] of [
+  ["BT29-083", "[Auto] When this card is played, play up to 1 yellow ≪Ginyu Force≫ card with an energy cost of 3 or less from your Drop, and your ≪Ginyu Force≫ Leader gains the following skill for the turn-\n\"[auto][bond 2] ≪Ginyu Force≫ card: When your ≪Ginyu Force≫ card is played by this card's skill, it gets +5000 power for the turn.\"", undefined],
+  ["BT30-064", "[Activate: Main] Choose up to 1 of your green <Majin Buu> cards with an energy cost of 4 and it gains the following skill for the turn—\n\"[union absorb][once per turn] If your opponent has 2 or more energy, choose 1 Battle Card in your Drop or your opponent's Battle Area and place it under this card: Play up to 1 green <Majin Buu> card with an energy cost of 6 from your deck or Drop on top of this card in Active Mode, then shuffle your deck.\"", undefined],
+  ["E2-GRANT-BACK", "[Activate: Main] Draw 1 card.", "[Auto] When this card attacks, this card gains the following skill for the turn: \n\"[Activate: Main] Draw 1 card.\""],
+] as const) {
+  const recs = skillRecords(card(id, { skill: text, ...(back ? { back: { name: id, power: null, skill: back } as CardDef["back"] } : {}) }));
+  const granted = recs.filter((r) => r.reads.startsWith("granted by skill #"));
+  assert.ok(granted.length >= 1, `J: ${id}: a granted line`);
+  for (const r of recs) {
+    const row = roundtrip({ ops: r.ops, cond: r.cond, kind: r.kind, skill_index: r.skillIndex });
+    assert.equal(describeOnlyReading(row, id, r.side === "back" ? back : text), r.reads, `J: ${id}#${r.skillIndex}${r.side === "back" ? "b" : ""}: describe-only writes what the compile writes`);
+    records++;
+  }
 }
 
 // ── the VM ──────────────────────────────────────────────────────────────────
