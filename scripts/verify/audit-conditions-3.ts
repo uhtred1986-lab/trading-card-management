@@ -18,6 +18,8 @@
  *     their energy (EX08-02), the card played with this skill (BT7-108), the pile under this card (BT6-030); "this card
  *     can only attack or be used in a combo if …" (BT22-013); colours other than black (EX23-50, EX23-45); only this card
  *     and one other in the Combo Area (BT14-013).
+ * F.  "When you combo with 1 of your cards during your turn, if your Combo Area has 2 or more ≪Boujack Brigade≫ cards that
+ *     you comboed with from a Battle Area" (BT6-080): the turn, and `comboFrom` counted.
  * E.  "Additionally, if this card was played from a Drop" (BT31-050, BT31-045, BT31-044, BT31-047): the copy's memory of
  *     where it was played from this turn (`VmCard.playedFrom`, `placedThisTurn` with `from`).
  *
@@ -167,7 +169,7 @@ let records = 0;
   const ex02 = count(record("[Activate: Main/Battle][Limit 1] Remove this card from under a red <Jiren> card from the game: Choose up to 1 of your red <Jiren> Battle Cards and switch it to Active Mode. Additionally, if one of your Unisons has 5 or more markers on it, choose up to 1 of your opponent's Battle Cards or Unisons and it gets -15000 power for the turn.", "EX23-02", { type: "UNISON" }), "EX23-02", (c) => c.sel.area === "unison");
   assert.equal(ex02.sel.filter?.markersMin, 5, "B: EX23-02 — one Unison with 5 markers");
   const ex21 = the(record("[Auto][Limit 1] If this card has 1 marker: When this card is played, add a marker to it for every 2 multicolor cards in your energy.", "EX19-21"), "markers", "EX19-21");
-  assert.deepEqual([ex21.atLeast, ex21.atMost], [1, 1], "B: EX19-21 — exactly 1 marker");
+  assert.deepEqual([ex21.atLeast, ex21.atMost], [1, 1], "B: EX19-21 — exactly 1 marker (R-300, pending)");
   assert.equal(conds(record("[Auto] If your opponent has 4 or more energy: At the start of your Charge Phase, if this card is the only card in your hand, you may play this card from your hand.", "DB2-123")).filter((c) => c.kind === "count" && c.sel.area === "hand").length, 2, "B: DB2-123 — this card in the hand, and nothing else");
   // A list piece that opens a clause of its own is still a joint: "…in your energy and your life is at 4 or less" (BT8-022).
   assert.ok(conds(record("[Permanent] If you have a multicolor card in your energy and your life is at 4 or less, you can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.", "BT8-022")).some((c) => c.kind === "life"), "B: BT8-022 — the life condition stays");
@@ -188,7 +190,7 @@ let records = 0;
   const p411 = conds(record("[activate: main][once per turn] If no player has a Leader with its front side facing up and your opponent has 3 or more energy: This card gets +16000 power and [critical] until the start of your next Main Phase.", "P-411")).filter((c) => c.kind === "leaderFlipped");
   assert.deepEqual(p411.map((c) => c.kind === "leaderFlipped" && [c.side ?? "you", c.flipped]), [["you", true], ["opponent", true]], "C: P-411 — both Leaders awakened");
   const p176 = the(record("[Activate: Battle] If your Leader Card is a ≪Shenron≫ card: Choose one- ・If your Leader Card has 10000 power and you have 5 or less life, your Leader Card gets +5000 power for the duration of the turn. ・Choose your Leader Card or 1 of your Battle Cards and it gets +5000 power for the duration of the battle.", "P-176"), "power", "P-176");
-  assert.deepEqual([p176.atLeast, p176.atMost], [10000, 10000], "C: P-176 — exactly 10000 power");
+  assert.deepEqual([p176.atLeast, p176.atMost], [10000, 10000], "C: P-176 — exactly 10000 power (R-300, pending)");
   const b24 = any(record("[activate: main][limit 1]{r}, if your Leader is a mono-red <Son Goku> card and {Son Gohan, Awakened Hidden Power} is under your Leader or your opponent's Leader: Add up to 1 {Power Pole} from your Drop to your hand and play this card from your hand.", "BT24-008"), "BT24-008");
   assert.deepEqual(b24.conds.map((c) => c.kind === "count" && c.sel.underHost?.side), ["you", "opponent"], "C: BT24-008 — either Leader's pile");
   const b19 = record("[Activate: Main][Limit 1] If a red <Son Goku> <Vegeta> <Trunks: Future> Leader is under your Z-Leader: Choose up to 1 of your red <Son Goku> Z-Leaders and it gets +30000 power and [Critical] for the turn.", "BT19-030");
@@ -219,7 +221,7 @@ let records = 0;
   const tb1 = record("[Auto] [Once per turn] When you attack with a ≪Saiyan≫ Battle Card, if that card is ≪Universe 7≫ or ≪Universe 6≫, draw 1 card and choose the attacking card. The chosen card and this card gain +5000 power for the duration of the turn.", "TB1-001", { type: "LEADER" });
   const tb1If = tb1.ops.find((o): o is Extract<Op, { op: "if" }> => o.op === "if");
   assert.ok(tb1If && tb1If.cond.kind === "count" && tb1If.cond.sel.special === "attacker", "D: TB1-001 — \"that card\" is the attacker");
-  assert.equal(tb1If!.then.filter((o) => o.op === "power").length, 2, "D: TB1-001 — the +5000s are the condition's (\"the chosen card\" points back)");
+  assert.equal(tb1If!.then.filter((o) => o.op === "power").length, 2, "D: TB1-001 — the +5000s are the condition's (\"the chosen card\" points back, R-301 pending)");
   for (const [what, text, to] of [
     ["BT4-106", "[Auto] When this card attacks, your opponent chooses 1 card from their hand and sends it to their Warp. If that card was a Battle Card, combo with it in your Combo Area.", "warp"],
     ["BT3-073", "[Auto] When you play this card, your opponent chooses 1 card from their hand and places it in the Drop Area. If that card is a Battle Card with an energy cost of 4 or more, draw 1 card.", "drop"],
@@ -281,6 +283,15 @@ let records = 0;
     assert.deepEqual([from.sel.special, from.played, from.from], ["self", true, ["drop"]], `E: ${what} — played from a Drop`);
     records++;
   }
+}
+
+// F. A watched combo on your own turn, and cards counted by where they entered the combo (BT6-080).
+{
+  const b6 = record("[Auto] When you combo with 1 of your cards during your turn, if your Combo Area has 2 or more ≪Boujack Brigade≫ cards that you comboed with from a Battle Area, choose up to 1 of your opponent's Battle Cards in Rest Mode and KO it, and if you KO'd a card, negate this skill for the duration of the turn.", "BT6-080", { type: "LEADER" });
+  assert.ok(conds(b6).some((c) => c.kind === "isTurnPlayer" && !c.who), "F: BT6-080 — on your turn");
+  const from = the(b6, "comboFrom", "BT6-080");
+  assert.deepEqual([from.sel.area, from.areas, from.atLeast], ["combo", ["battle"], 2], "F: BT6-080 — 2 or more entered from a Battle Area");
+  records++;
 }
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────

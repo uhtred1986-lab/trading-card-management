@@ -1380,6 +1380,13 @@ function compileSkillText(skill: Skill): Script {
         triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, how] } : how;
       }
     }
+    // Audit conditions 3: "When you combo with 1 of your cards **during your turn**" (BT6-080 both sides): a watched combo
+    // (`youCombo`) only on your own turn — a defender combos too. ("When you combo with this card during your turn" is the
+    // combo record's own `turn`.)
+    if (skill.kind === "auto" && /^when you combo with (?!this card\b)[^,]+ during your (opponent'?s )?turn$/i.test(trigger.trim())) {
+      const turn: Cond = /opponent/i.test(trigger) ? { kind: "isTurnPlayer", who: "opponent" } : { kind: "isTurnPlayer" };
+      triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, turn] } : turn;
+    }
     if (coordinated?.cond) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, coordinated.cond] } : coordinated.cond;
     // "When this card attacks and KOs an opponent's Battle Card", "when this
     // card is revealed from the top of your deck and placed in your Drop Area"

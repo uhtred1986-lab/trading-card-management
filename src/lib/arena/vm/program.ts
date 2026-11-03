@@ -2112,11 +2112,12 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     case "comboFrom": {
       const origins = state.battle?.comboOrigins;
       if (!origins) return false;
-      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => {
+      const entered = resolveSelector(ctx, game, state, frame, c.sel).filter((id) => {
         const from = origins[id];
         if (from === undefined || findCard(state, id)?.zone !== "combo") return false;
         return (c.areas as string[]).includes(from);
       });
+      return entered.length >= (c.atLeast ?? 1);
     }
   }
 }

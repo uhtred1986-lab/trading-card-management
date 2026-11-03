@@ -703,8 +703,10 @@ export type Cond =
    * and forgotten when it leaves the Combo Area at the end), so the question
    * is asked of the battle, and a card that is in no Combo Area has no origin
    * and answers false.
+   * Audit conditions 3: `atLeast` counts them — "if your Combo Area has 2 or more ≪Boujack Brigade≫ cards that you
+   * comboed with from a Battle Area" (BT6-080): at least that many of the selected cards entered from those areas.
    */
-  | { kind: "comboFrom"; sel: Selector; areas: ScriptArea[] };
+  | { kind: "comboFrom"; sel: Selector; areas: ScriptArea[]; atLeast?: number };
 
 /**
  * The card attributes `modifyAttr` may change: the two numbers a continuous

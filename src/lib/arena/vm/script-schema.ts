@@ -1809,10 +1809,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: "has one of these cards used a skill with a marker price this turn (13-4-2: one a turn per card)? [Rejuvenate]'s gate, `NOT markerSkillUsed(sel: [self])`; a keyword move refused by it on its own card is a marker skill itself, and using it spends the card's one (22-42-2). A `DEFINE KEYWORD` body's word (#155)",
   },
   comboFrom: {
-    fields: [SEL, { name: "areas", type: { list: { enum: AREAS } }, required: true }],
+    fields: [SEL, { name: "areas", type: { list: { enum: AREAS } }, required: true }, AT_LEAST],
     sentence: (raw) => {
       const c = raw as CondOf<"comboFrom">;
       const where = c.areas.map((a) => (a in ZONE_NOUNS ? ZONE_NOUNS[a as keyof typeof ZONE_NOUNS] : a)).join(" or ");
+      if (c.atLeast && c.atLeast > 1) return `${c.atLeast} or more of ${describeSelector(c.sel)} were used in a combo from the ${where}`;
       return `${describeSelector(c.sel, "any of the")} was used in a combo from the ${where}`;
     },
     doc: "did one of these cards enter the Combo Area of the battle in progress from one of these areas — \"this card was used in a combo from your deck or hand\" (BT12-071, -072, -074, -075)? The engine keeps the area a combo card left (`VmBattle.comboOrigins`) until the card leaves the Combo Area at the end of the battle, so the question is asked of the battle; a card in no Combo Area has no origin and answers false",

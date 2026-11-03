@@ -964,6 +964,14 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     if (!areas) return null;
     return { cond: { kind: "comboFrom", sel: { special: "self" }, areas }, subject: { sel: { special: "self" } } };
   }
+  // Audit conditions 3: "if **your Combo Area has 2 or more ≪Boujack Brigade≫ cards that you comboed with from a Battle
+  // Area**" (BT6-080 both sides): that many of the cards there entered the combo from a Battle Area (`comboFrom` counted).
+  if ((m = /^your combo area has (\d+) or more (.+?) that you comboed with from (?:a|your) (battle area|hand|drop(?: area)?|deck|energy)$/.exec(t))) {
+    const filter = filterFor(m[2], null);
+    const area = comboSourceAreas(m[3]);
+    if (!filter || filter.unreadable || !area) return null;
+    return { cond: { kind: "comboFrom", sel: { side: "you", area: "combo", ...(filterIsBlank(filter) ? {} : { filter }) }, areas: area, atLeast: Number(m[1]) } };
+  }
   // A card's own mode as a condition (1-10).
   if ((m = /^this card is in (rest|active) mode$/.exec(t))) {
     return { cond: { kind: "count", sel: { special: "self", mode: m[1] as "rest" | "active" }, atLeast: 1 }, subject: { sel: { special: "self" } } };
