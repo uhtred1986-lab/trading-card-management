@@ -1819,9 +1819,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // rule said in words and is dropped by `connective`, just above.
   // Audit effects 2 review: not so — BT31-097's own Q&As end the turn in progress at once ("the 'end of your opponent's
   // turn' timing is skipped"; [Over Realm] cards stay in the Battle Area, never sent to the Warp at this turn's end).
-  // `skip` "turn" refuses the player's NEXT turn and let this one finish: a misread, so unread until the engine can
-  // end the turn in progress.
-  if (t === "skip your turn") return null;
+  // Audit effects 3: `skip` "rest" is exactly that — this Main Phase ends now, the Main Phase End and the End Phase are
+  // skipped, and the opponent's turn begins with its Charge Phase ("and begin your opponent's Charge Phase" says so).
+  if (t === "skip your turn and begin your opponent's charge phase" || t === "skip your turn") return [{ op: "skip", what: "rest" }];
   // "Skip all phases until the Charge Phase in your next turn" (BT21-104):
   // the rest of this turn, the opponent's whole next turn, and this card's
   // controller's own next Charge Phase, landing at that Main Phase — three
@@ -6536,7 +6536,9 @@ const ONE_AREA_WORD = String.raw`(?:z-energy|energy(?: area)?|drop(?: area)?|war
 const BARE_OR_AREAS = new RegExp(String.raw`\b(?:in|from) (?:your |their |your opponent'?s )?${ONE_AREA_WORD} or (?:(?:in|from) )?(?:your |their )?${ONE_AREA_WORD}\b`, "i");
 const AREA_LABEL: Partial<Record<ScriptArea, string>> = { drop: "Drop Area", warp: "Warp", hand: "hand", deck: "deck", life: "life", energy: "Energy Area", zEnergy: "Z-Energy", battle: "Battle Area" };
 export function oneAreaOfTwo(effect: string, ops: Op[]): Op[] {
-  if (/\btotal\b|\bany areas\b|\beach\b|\band\/or\b/i.test(effect)) return ops;
+  // The printed words decide, never a rewrite of them: "look at your deck and life, add up to 2 …" is said "from your deck
+  // or life" by the time a choice reads it, and is the pooled search it always was.
+  if (/\btotal\b|\bany areas\b|\beach\b|\band\/or\b/i.test(effect) || !BARE_OR_AREAS.test(effect)) return ops;
   const walk = (list: Op[]): Op[] =>
     list.map((o): Op => {
       if (o.op === "if") return { ...o, then: walk(o.then), ...(o.else ? { else: walk(o.else) } : {}) };
@@ -6927,8 +6929,12 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
     .replace(/ from your (hand|z-deck|drop(?: area)?|warp)\b/i, " in your $1");
   // "...place a Z-Extra in your Battle Area" (BT23-081): a Z-card is placed from the Z-Deck.
   if ((verb === "place" || verb === "play") && /\bin your battle area$/i.test(scope)) {
-    if (!/\bz-/i.test(scope)) return null;
-    scope = scope.replace(/ in your battle area$/i, " in your z-deck");
+    // Audit effects 3: "…the next {Piercing Special Beam Cannon} you **place** in your Battle Area this turn" (BT23-041,
+    // itself that Z-Extra): a card named that is placed, not played, is a Z-Extra placed from the Z-Deck (17-2-1) or a
+    // [Field] Extra placed from the hand (22-3) — the price is paid from one of the two, so both are looked at.
+    if (verb === "place" && /^\{[^}]+\}$/.test(scope.replace(/ in your battle area$/i, "").trim())) scope = scope.replace(/ in your battle area$/i, " in your z-deck or hand");
+    else if (!/\bz-/i.test(scope)) return null;
+    else scope = scope.replace(/ in your battle area$/i, " in your z-deck");
   }
   const word = (noun ?? "").toLowerCase();
   if (/\band\/or\b|\bunder\b/i.test(scope)) return null;

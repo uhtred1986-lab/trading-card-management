@@ -68,7 +68,7 @@ import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
 import { RulesetBroken, NotYet } from "./errors";
 import { savedXKey, type ScriptFrame } from "./script";
-import { endGame, gameEndForbidden } from "./flow";
+import { answered, endGame, gameEndForbidden } from "./flow";
 import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
@@ -411,6 +411,17 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // names — a phase by its declared `skip:` word (`vm/flow.ts`), a battle
     // step by `vm/battle.ts`'s own work, a whole turn as it begins.
     addSkip: (p, what, when) => {
+      // Audit effects 3: "Skip your turn and begin your opponent's Charge Phase" (BT31-097) — the rest of the turn in
+      // progress. Its Main Phase ends now (the question it is asking the player is answered for them, so the runner
+      // moves on once this program and its checkpoint are done), and the Main Phase End and End Phase are skipped as
+      // they begin (20-13), so the next turn starts with its Charge Phase.
+      if (what === "rest") {
+        addSkip(state, p, "main", "this");
+        addSkip(state, p, "end", "this");
+        const top = state.flow[state.flow.length - 1];
+        if (state.turnPlayer === p && top?.phase === "main" && top.asking?.[0] === p) answered(state);
+        return;
+      }
       addSkip(state, p, what, when);
     },
     // 19-1: a card no catalog row describes, so its row is its id — the

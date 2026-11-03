@@ -9,6 +9,10 @@
  * D.  "When … attacks during that turn, …" (BT21-142) is a delayed trigger the engine lacks: unread, never a condition now.
  * E.  "Only 1 {X} can be played in your Battle Area" (21-11-2): a second copy that arrives anyway is processed like
  *     [Unique] — the master keeps one (BT6-047's Mafuba Q&A).
+ * F.  "Skip your turn and begin your opponent's Charge Phase" (BT31-097): `skip` "rest" — the turn in progress ends now,
+ *     nothing at its end happens, and the opponent's turn begins (its Q&As).
+ * G.  "Reduce the energy cost of the next {X} you place in your Battle Area this turn" (BT23-041): one purchase, from
+ *     the Z-Deck or the hand.
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules language's
  * print and reparse) and, where the engine learned something, a short play on the rules engine.
@@ -122,6 +126,21 @@ for (const [id, text] of [
   assert.ok(opOf(rec, "forbid").some((o) => o.what === "play" && (o.sameNameAsSelf || o.filter?.names.length === 1)), `E: ${id}: a ban on its own name`);
 }
 
+// F. "Skip your turn": the turn in progress.
+{
+  const rec = record("BT31-097", "[activate: main] If your Leader is an <Aeos> card: Skip your turn and begin your opponent's Charge Phase");
+  assert.deepEqual(opOf(rec, "skip"), [{ op: "skip", what: "rest" }], "F: BT31-097: the rest of this turn, not the next one");
+}
+
+// G. The next named card placed in the Battle Area: one purchase this turn, wherever its price is paid from.
+{
+  const rec = record("BT23-041", "[auto][limit 1] If your Leader is a mono-blue <Son Goku> card and you remove this card from the game: When your blue <Piccolo> card attacks, the attacking card gains [critical] for the battle, then reduce the energy cost of the next {Piercing Special Beam Cannon} you place in your Battle Area this turn by {u}. Additionally, you may choose 1 of your blue <Son Goku> Battle Cards and KO it. If you do, choose up to 1 of your opponent's Battle Cards and place it at the bottom of its owner's deck, then the attacking card gets +15000 power for the battle.", { type: "EXTRA" });
+  const cut = opOf(rec, "costReduction");
+  assert.equal(cut.length, 1, "G: BT23-041: one cost change");
+  const sel = (cut[0].target as { sel: { area: string; areas?: string[]; filter?: { names: string[] } } }).sel;
+  assert.deepEqual([sel.areas, sel.filter?.names, cut[0].uses, cut[0].until, cut[0].colors], [["zDeck", "hand"], ["piercing special beam cannon"], 1, "turn", ["Blue"]], "G: BT23-041: the next one this turn, by {u}, from the Z-Deck or the hand");
+}
+
 // ── the VM ──────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,
@@ -129,6 +148,8 @@ const defs: Record<string, CardDef> = {
   E3_LIMITED: card("E3_LIMITED", { name: "E3 Limited", skill: "[Permanent] Only 1 {E3 Limited} can be played in your Battle Area." }),
   E3_COPY: card("E3_COPY", { name: "E3 Copy", skill: "[Permanent] Only 1 copy of this card can be played in your Battle Area." }),
   E3_DRAWER: card("E3_DRAWER", { skill: "[Activate: Main] Draw 1 card." }),
+  E3_SKIPPER: card("E3_SKIPPER", { skill: "[Activate: Main] Skip your turn and begin your opponent's Charge Phase" }),
+  E3_LATER: card("E3_LATER", { skill: "[Activate: Main] At the end of the turn, draw 2 cards." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
@@ -236,7 +257,33 @@ for (const seat of ["p1", "p2"] as const) {
     assert.ok([a, c1, c2].every((id) => s.sides[seat].zones.battle.includes(id)), `${seat}: E: one limited copy and two of another name stay`);
     cases++;
   }
-  void other;
+  // F. Skip your turn: the Main Phase ends at once, the "at the end of the turn" draw never happens, and the opponent's
+  // turn begins with its Charge Phase.
+  {
+    let s = fresh(seat, seed(4));
+    const later = stage(s, seat, "E3_LATER", "battle");
+    const skipper = stage(s, seat, "E3_SKIPPER", "battle");
+    s = activate(s, later);
+    const hand = s.sides[seat].zones.hand.length;
+    const turn = s.turn;
+    const offer = offerOf(s, skipper);
+    assert.ok(offer, `${seat}: F: the skip is offered`);
+    s = take(s, offer.action);
+    for (let i = 0; i < 20 && s.turnPlayer === seat; i++) {
+      const q = s.prompt;
+      const who = (q as { player: PlayerId }).player;
+      if (q.kind === "orderPending") s = take(s, { type: "orderPending", player: who, index: 0 } as Action);
+      else if (q.kind === "chooseCards") s = take(s, { type: "choose", player: who, cards: q.choice.candidates.slice(0, Math.max(1, q.choice.min)) });
+      else if (q.kind === "main") assert.fail(`${seat}: F: the Main Phase asked again after the skip`);
+      else s = take(s, { type: "pass", player: who } as Action);
+    }
+    assert.equal(s.turnPlayer, other(seat), `${seat}: F: the opponent's turn`);
+    assert.equal(s.turn, turn + 1, `${seat}: F: …the very next turn`);
+    assert.equal(s.prompt.kind, "charge", `${seat}: F: …at its Charge Phase`);
+    assert.equal(s.sides[seat].zones.hand.length, hand, `${seat}: F: the end-of-turn draw never happened (its timing was skipped)`);
+    assert.deepEqual(s.sides[seat].skips ?? [], [], `${seat}: F: no skip entry is left over`);
+    cases++;
+  }
 }
 
 console.log(`verify/audit-effects-3: ok (${records} records, ${cases} VM cases across both seats)`);

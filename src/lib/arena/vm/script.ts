@@ -3396,6 +3396,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // Charge skip already does.
       case "skip":
         for (const p of sideOf(master, op.side ?? "you")) {
+          // Audit effects 3: "rest" (BT31-097) is the turn in progress — the host ends its Main Phase now.
           if (op.what === "span") {
             h.addSkip(p, "end", "this");
             h.addSkip(sideOf(p, "opponent")[0], "turn", "next");

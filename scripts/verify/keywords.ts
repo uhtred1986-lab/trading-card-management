@@ -3004,9 +3004,10 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   // player's NEXT turn refused — does not say, so the wording is unread until the engine can end a turn early. The op
   // itself is still the language's, and is played here off a hand-written record.
   DEFS.TURNSKIP = { ...DEFS.V1, id: "TURNSKIP", name: "TURNSKIP", skill: "[Activate: Main] Skip your turn and begin your opponent's Charge Phase." };
+  // Audit effects 3: it is `skip` "rest" — the turn in progress ends now (audit-effects-3.ts plays it).
   const rule = compileSkill(parseSkills(DEFS.TURNSKIP.skill!)[0]);
-  assert.deepEqual(rule.ops, [], "BT31-097's 'skip your turn' is not the next turn's skip");
-  assert.equal(rule.unsupported.length, 1, "…and is unread");
+  assert.deepEqual(rule.ops, [{ op: "skip", what: "rest" }], "BT31-097's 'skip your turn' is the turn in progress, not the next turn's skip");
+  assert.equal(rule.unsupported.length, 0, "…and is read");
   const ctx = withRecord("TURNSKIP", { ops: [{ op: "skip", what: "turn" }], unsupported: [] });
   const step = (st: EngineState, ...actions: Parameters<typeof playG>[1][]): EngineState => actions.reduce((acc, a) => IMPL.apply(ctx, acc, a).state, st);
 

@@ -149,7 +149,7 @@ void _everyKeywordListed;
 
 /** `Area` (13), the places a card can actually be. `AREAS` above is `ScriptArea` (15): the two extra values, `under` and `play`, are effect-language routes ("place it under this card", "the card resolving a skill"), not board zones a `.rules` file declares. */
 /** `SkipWhat` (20-13), as a runtime list the schema row and `verify/rulesets.ts` read. */
-export const SKIP_WHATS = ["charge", "main", "end", "offense", "defense", "turn", "span"] as const satisfies readonly SkipWhat[];
+export const SKIP_WHATS = ["charge", "main", "end", "offense", "defense", "turn", "span", "rest"] as const satisfies readonly SkipWhat[];
 type MissingSkipWhat = Exclude<SkipWhat, (typeof SKIP_WHATS)[number]>;
 const _everySkipWhatListed: MissingSkipWhat extends never ? true : never = true;
 void _everySkipWhatListed;
@@ -642,11 +642,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const their = op.side === "you" || op.side == null ? "your" : "their";
       if (op.what === "turn") return `${whose} ${verb} ${their} next turn`;
       if (op.what === "span") return `${whose} ${verb} every phase until the Charge Phase of ${their} next turn, then start ${their} Main Phase`;
+      // Audit effects 3: BT31-097's "Skip your turn and begin your opponent's Charge Phase".
+      if (op.what === "rest") return `${whose} ${verb} the rest of ${their} turn: it ends now, with no End Phase, and the next turn begins`;
       const which = op.when === "this" ? "this turn's" : "the next";
       const what = op.what === "offense" || op.what === "defense" ? `${op.what === "offense" ? "Offense" : "Defense"} Step` : `${{ charge: "Charge", main: "Main", end: "End" }[op.what]} Phase`;
       return `${whose} ${verb} ${which} ${what}`;
     },
-    doc: 'the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. "when":"this" is the occurrence in the turn the skill resolved on, "next" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). "what":"turn" refuses the player\'s whole next turn, checked once at that turn\'s own start rather than at any one phase (no printed card says it: BT31-097\'s "skip your turn" ends the turn in progress, by its Q&As, and is unread). "what":"span" reaches further: the rest of the turn this resolves in, the opponent\'s whole next turn, and this player\'s own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own.',
+    doc: 'the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. "when":"this" is the occurrence in the turn the skill resolved on, "next" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). "what":"turn" refuses the player\'s whole next turn, checked once at that turn\'s own start rather than at any one phase (no printed card says it). "what":"rest" (audit effects 3) is BT31-097\'s "Skip your turn and begin your opponent\'s Charge Phase": by its Q&As the turn in progress ends at once — the Main Phase\'s question is answered for the player, the Main Phase End and the End Phase are skipped ("the \'end of your opponent\'s turn\' timing is skipped": nothing at the end of the turn happens, and effects that end then end now, 20-13-5), and the next turn begins with its Charge Phase. "what":"span" reaches further: the rest of the turn this resolves in, the opponent\'s whole next turn, and this player\'s own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own.',
   },
   control: {
     fields: [TARGET, { name: "to", type: "side", default: "you" }, { name: "until", type: "duration" }],

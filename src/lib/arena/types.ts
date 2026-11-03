@@ -285,7 +285,8 @@ export interface ReplacementResult {
  * carried as one. Not the Damage Step, which is where a battle's result is
  * worked out rather than a moment anything acts in.
  */
-export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense" | "turn" | "span";
+/** "rest" (audit effects 3, BT31-097): the rest of the turn in progress — its Main Phase ends at once, and the Main Phase End and the End Phase are skipped. */
+export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense" | "turn" | "span" | "rest";
 
 export type Phase = "setup" | "charge" | "main" | "mainEnd" | "end" | "over";
 export type BattleStep = "declared" | "offense" | "defense" | "damage" | "battleEnd";
