@@ -20,6 +20,8 @@
  *     and one other in the Combo Area (BT14-013).
  * F.  "When you combo with 1 of your cards during your turn, if your Combo Area has 2 or more ≪Boujack Brigade≫ cards that
  *     you comboed with from a Battle Area" (BT6-080): the turn, and `comboFrom` counted.
+ * G.  A battle condition printed after what it gates: "…your opponent may not activate [counter] during battles where this
+ *     card is attacking" (BT4-003), "…get +5000 combo power while this card is in a battle" (BT14-074).
  * E.  "Additionally, if this card was played from a Drop" (BT31-050, BT31-045, BT31-044, BT31-047): the copy's memory of
  *     where it was played from this turn (`VmCard.playedFrom`, `placedThisTurn` with `from`).
  *
@@ -292,6 +294,15 @@ let records = 0;
   const from = the(b6, "comboFrom", "BT6-080");
   assert.deepEqual([from.sel.area, from.areas, from.atLeast], ["combo", ["battle"], 2], "F: BT6-080 — 2 or more entered from a Battle Area");
   records++;
+}
+
+// G. A battle condition said after what it gates (BT4-003, BT14-074).
+{
+  const b4 = record("[permanent] If this card's power is 40000 or more and your Leader Card is a red ≪Saiyan≫ card, your opponent may not activate [counter] during battles where this card is attacking.", "BT4-003");
+  assert.ok(conds(b4).some((c) => c.kind === "inBattle" && c.sel.special === "self" && c.role === "attacker") && conds(b4).some((c) => c.kind === "power") && conds(b4).some((c) => c.kind === "leaderMatches"), "G: BT4-003 — power, Leader, and this card attacking");
+  const b14 = record("[Permanent] If your Leader Card is a green ≪Earthling≫ card, green skill-less Battle Cards in your Combo Area get +5000 combo power while this card is in a battle.", "BT14-074");
+  assert.ok(conds(b14).some((c) => c.kind === "inBattle" && c.sel.special === "self" && !c.role), "G: BT14-074 — while this card is in a battle");
+  records += 2;
 }
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────

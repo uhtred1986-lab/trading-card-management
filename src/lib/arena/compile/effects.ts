@@ -6241,6 +6241,14 @@ export function taxWordings(text: string): string {
     // Audit conditions 3: "This card **can only** attack or be used in a combo **if** your Leader is a red <Son Gohan: SH>
     // card" (BT22-013, BT22-014): each act is banned unless the condition holds — the "can't … unless" a ban with an
     // escape is read as (20-14), one ban per act.
+    // Audit conditions 3: "If this card's power is 40000 or more and your Leader Card is a red ≪Saiyan≫ card, your opponent
+    // may not activate [counter] **during battles where this card is attacking**" (BT4-003): the battle is one more
+    // condition of the ban, said after it; put in front, the "If …," chain reads it as BT6-060's leading "During battles
+    // where this card is attacking, …" is read.
+    .replace(/(^|\]\s*|[.:]\s+)(if [^,.]+?), (your opponent (?:may not|can(?:'|no)t) activate \[counter\](?: skills)?) (during battles (?:where|in which|when) this card is attacking)(?=\.|$)/gi, (_m, lead: string, cond: string, ban: string, battle: string) => `${lead}${cond}, ${battle}, ${ban}`)
+    // …and "If your Leader Card is a green ≪Earthling≫ card, green skill-less Battle Cards in your Combo Area get +5000 combo
+    // power **while this card is in a battle**" (BT14-074): the same for a grant said before its "while".
+    .replace(/(^|\]\s*|[.:]\s+)(if [^,.]+?), ([^,.]+? (?:gets?|gains?) [+-]\d+ (?:combo )?power) (while this card is in (?:a|the) battle)(?=\.|$)/gi, (_m, lead: string, cond: string, grant: string, battle: string) => `${lead}${cond}, ${battle}, ${grant}`)
     .replace(/(^|\]\s*|[.:]\s+)this card can only (attack|be used in a combo)(?: or (attack|be used in a combo))? if ([^.]+?)(?=\.|$)/gi, (_m, lead: string, a: string, b: string | undefined, escape: string) =>
       `${lead}${[a, b].filter(Boolean).map((act, i) => `${i ? "This" : "this"} card can't ${act} unless ${escape}`).join(". ")}`)
     .replace(/(^|\]\s*|[.:]\s+)if you (?:don'?t|do not) have ((?:<[^>]+>,\s*)+<[^>]+>,? and <[^>]+>) in your (drop area|battle area|hand|warp), (you can(?:'|no)t play this card from any area)(?=\.|$)/gi, (_m, lead: string, names: string, area: string, ban: string) => `${lead}${ban} unless you have ${names} in your ${area}`)
