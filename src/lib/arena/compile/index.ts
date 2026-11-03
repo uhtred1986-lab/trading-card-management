@@ -14,7 +14,7 @@ import type { CardFilter } from "../text/filters";
 import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
-import { allConditions, parseConditionClause } from "./conditions";
+import { allConditions, parseConditionClause, playedHowGate } from "./conditions";
 import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, taxWordings } from "./effects";
 import { bondDescriptorOnly } from "../text/bond";
 import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
@@ -1059,6 +1059,12 @@ function compileSkillText(skill: Skill): Script {
     // attacks" (BT4-019) has no gate for one half and stays refused.
     const unionPlay = UNION_PLAY_TRIGGER.exec(trigger.trim());
     if (unionPlay) triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: unionPlay[1] ? UNION_VARIANT[unionPlay[1].toLowerCase() as keyof typeof UNION_VARIANT] : "Union" };
+    // Audit conditions 2: how else the play had to be made — "with [Swap]", "using [Arrival]", "with the skill of
+    // {Majin Buu's Sealed Ball}", "without using skills", "during your opponent's turn" (`playedHowGate`). Words it
+    // cannot read whole refuse the skill: answering every play is wider than the card.
+    const how = skill.kind === "auto" && !unionPlay ? playedHowGate(trigger) : undefined;
+    if (how === null) return { ops: [], unsupported: [trigger, ...clauses] };
+    if (how) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, how] } : how;
     // "At the end of a turn in which this card was placed in a Battle Area"
     // (BT15-118, 5-5-4): the moment is every turn's end (`turnEnd` and
     // `opponentTurnEnd`), and the rest of the sentence is a condition on it —

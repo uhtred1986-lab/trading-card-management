@@ -1869,6 +1869,24 @@ export function unionEntryMatches(what: string, using: string | undefined): bool
   return what === "Union" || what === using;
 }
 
+/**
+ * Audit conditions 2 (3 Nov 2026): does one entry of `card` — the keyword play that landed it (`using`) and the card
+ * whose skill made the play (`by`, "" for a skill play that named no card, undefined for a play its player declared) —
+ * answer this `playedUsing`? The lasting entry's question, not [Over Realm]'s turn-long one (`VmCard.playedUsing`).
+ * `what: "skill"` is any skill's play, narrowed by `by` (another card's, or this card's own) and by `source` (the card
+ * whose skill it was, as it stands).
+ */
+export function entryAnswers(ctx: EngineContext, game: GameDefinition, state: VmState, c: Extract<Cond, { kind: "playedUsing" }>, card: string, using: string | undefined, by: string | undefined): boolean {
+  if (c.what === "Union" || c.what.startsWith("Union-")) return unionEntryMatches(c.what, using);
+  if (c.what === "Evolve") return !!using && EVOLVE_PLAY.test(using);
+  if (c.what !== "skill") return using === c.what;
+  if (by === undefined) return false;
+  if (c.by === "other" && by === card) return false;
+  if (c.by === "self" && by !== card) return false;
+  if (c.source) return !!by && !!state.cards[by] && predicateOf(c.source, game)(attrsNow(ctx, game, state, by));
+  return true;
+}
+
 /** Does this condition hold? The legacy `condHolds`, case for case. */
 export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, c: Cond): boolean {
   const between = (n: number, atLeast?: number, atMost?: number) => (atLeast == null || n >= atLeast) && (atMost == null || n <= atMost);
@@ -1927,24 +1945,20 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // 2026): BT6-036 KO'd before its on-play Auto resolves still counts.
     // A named variant (#930, "when this card is played using [Union-Potara]")
     // is that keyword's entry only (`unionEntryMatches`).
+    // EX04-04 (prohibition batch 6): "if you played this card with [evolve]" —
+    // the copy's lasting memory of entering by an evolution of any kind
+    // (22-5-2-2), as [Union]'s is. Audit conditions 2: so is every other
+    // keyword's play ([Swap], [Arrival], [Successor], [EX-Evolve]) and a
+    // skill's play (`what: skill`, `VmCard.enteredBy`), all read by
+    // `entryAnswers`; an [Auto] reads the entry as it was when triggered.
     case "playedUsing": {
-      if (c.what === "Union" || c.what.startsWith("Union-")) {
-        const union = (using: string | undefined) => unionEntryMatches(c.what, using);
-        if (c.sel.special === "self" && union(frame.selfEnteredUsing)) return true;
-        // …and the moment's subject as it was when the Auto was triggered
-        // ("when your <X> card is played by a [Union] skill", #930).
-        if (c.sel.special === "subject" && !c.sel.filter && union(frame.subjectEnteredUsing)) return true;
-        return resolveSelector(ctx, game, state, frame, c.sel).some((id) => union(state.cards[id]?.enteredUsing));
-      }
-      // EX04-04 (prohibition batch 6): "if you played this card with
-      // [evolve]" — the copy's lasting memory of entering by an evolution of
-      // any kind (22-5-2-2), as [Union]'s is.
-      if (c.what === "Evolve") {
-        const evolved = (using: string | undefined) => !!using && EVOLVE_PLAY.test(using);
-        if (c.sel.special === "self" && evolved(frame.selfEnteredUsing)) return true;
-        return resolveSelector(ctx, game, state, frame, c.sel).some((id) => evolved(state.cards[id]?.enteredUsing));
-      }
-      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => state.cards[id]?.playedUsing === c.what);
+      if (c.what === "Over Realm") return resolveSelector(ctx, game, state, frame, c.sel).some((id) => state.cards[id]?.playedUsing === c.what);
+      const answers = (id: string, using: string | undefined, by: string | undefined) => entryAnswers(ctx, game, state, c, id, using, by);
+      if (c.sel.special === "self" && answers(frame.card, frame.selfEnteredUsing, frame.selfEnteredBy)) return true;
+      // …and the moment's subject as it was when the Auto was triggered
+      // ("when your <X> card is played by a [Union] skill", #930).
+      if (c.sel.special === "subject" && !c.sel.filter && answers(frame.subject ?? "", frame.subjectEnteredUsing, undefined)) return true;
+      return resolveSelector(ctx, game, state, frame, c.sel).some((id) => answers(id, state.cards[id]?.enteredUsing, state.cards[id]?.enteredBy));
     }
     // BT15-118's "a turn in which this card was placed in a Battle Area"
     // (5-5-4): the card's memory of arriving (`VmCard.placedThisTurn`).

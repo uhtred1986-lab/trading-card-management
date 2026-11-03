@@ -1656,3 +1656,66 @@ function parseCountCondition(t: string): Cond | null {
   if (!num) return { kind: "count", sel, ...(bare && bare[1] === "0" ? { atMost: 0 } : { atLeast: bare ? Number(bare[1]) : 1 }) };
   return { kind: "count", sel, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
 }
+
+/**
+ * Audit conditions 2 (3 Nov 2026): how the play an [Auto] answers had to be made — the words after "when you play this
+ * card" / "when this card is played" that say it. Read as a plain `played` before, every one of these fired on an
+ * ordinary play too:
+ * - a keyword's own play: "…**with [Swap]**" (BT4-075, BT4-083), "…**using [Arrival]**" (BT25-129), "…**with
+ *   [successor]**" (BT9-113), "…**by [evolve]**" (BT19-009), "…**using [ex-evolve]**" (BT16-075);
+ * - "…**with Evolve by placing it on top of {Maiden Squadron Leader Ribrianne}**" (P-052): an evolution onto that card,
+ *   which stays under this one (22-5);
+ * - a skill's play: "…**using a skill**" (BT16-051), "…**by another card's skill**" (BT20-104), "…**using this card's
+ *   skill**" (P-628), "…**with the skill of {Majin Buu's Sealed Ball}**" (BT2-028), "…**with <Trunks: Future> skill**"
+ *   (BT2-041), "…**by a yellow <Turles> card's skill**" (BT24-100);
+ * - "…**without using skills**" (BT15-042, BT28-040) and "…**without using a <Rasin> card's skills**" (BT24-104);
+ * - "…**during your opponent's turn**" (BT9-058, BT7-058, P-138): whose turn it is as the card is played.
+ * `undefined` when the trigger says none of these (or is not about this card's own play); `null` when it says how but in
+ * words this cannot read whole — the caller refuses the skill rather than firing it on every play.
+ */
+export function playedHowGate(trigger: string): Cond | null | undefined {
+  const t = trigger.trim().replace(/[.,:]$/, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/’/g, "'");
+  const head = /^when (?:you play this card|this card is played) (.+)$/i.exec(t);
+  if (!head) return undefined;
+  const how = head[1].trim();
+  const self = { special: "self" } as const;
+  const lower = how.toLowerCase();
+  // "…played **by** [over realm]" (P-450), "…by an [Over Realm] skill" (EX23-43): the moment `playedUsingOverRealm`
+  // reads only "using" and "with", so these arrive as a plain `played`, and the gate is [Over Realm]'s play.
+  if (/^by (?:an? |the )?\[over realm\](?: skills?)?$/.test(lower)) return { kind: "playedUsing", sel: self, what: "Over Realm" };
+  // Said elsewhere: [Union] (`UNION_PLAY_TRIGGER`), [Over Realm] (its own moment), and where the card came from.
+  if (/\[(?:union|dark over realm|over realm)\b/.test(lower) || /^from your (?:hand|drop|deck|warp)\b/.test(lower)) return undefined;
+  const turn = /^during your (opponent's )?turn$/.exec(lower);
+  if (turn) return turn[1] ? { kind: "isTurnPlayer", who: "opponent" } : { kind: "isTurnPlayer" };
+  const keyword = /^(?:using|with|by) (?:an? |the )?\[(swap|arrival|successor|ex-evolve|evolve)\](?: skills?)?$/.exec(lower);
+  if (keyword) {
+    const what = ({ swap: "Swap", arrival: "Arrival", successor: "Successor", "ex-evolve": "EX-Evolve", evolve: "Evolve" } as const)[keyword[1] as "swap"];
+    return { kind: "playedUsing", sel: self, what };
+  }
+  const onto = /^with evolve by placing it on top of (.+)$/i.exec(how);
+  if (onto) {
+    const base = filterFor(onto[1], null);
+    if (!base) return null;
+    return { kind: "all", conds: [{ kind: "playedUsing", sel: self, what: "Evolve" }, { kind: "count", sel: { side: "you", area: "under", filter: base }, atLeast: 1 }] };
+  }
+  if (/^(?:using|with|by) (?:a |one of your )?skills?$/.test(lower)) return { kind: "playedUsing", sel: self, what: "skill" };
+  if (/^(?:using|with|by) another card's skills?$/.test(lower)) return { kind: "playedUsing", sel: self, what: "skill", by: "other" };
+  // "…using this card's skill" (P-628); "…using its [Counter: Attack] skill" (BT13-135) is the same card's own line.
+  if (/^(?:using|with|by) (?:this card's|its) (?:own )?(?:\[[^\]]+\] )?skills?$/.test(lower)) return { kind: "playedUsing", sel: self, what: "skill", by: "self" };
+  const without = /^without using (?:(?:an? |the )?(.+?)(?: card)?'s )?skills?$/i.exec(how);
+  if (without) {
+    if (!without[1]) return { kind: "not", cond: { kind: "playedUsing", sel: self, what: "skill" } };
+    const source = filterFor(without[1], null);
+    return source ? { kind: "not", cond: { kind: "playedUsing", sel: self, what: "skill", source } } : null;
+  }
+  const whose = /^(?:using|with|by) (?:the skills? of (?:an? |the )?(.+)|(?:an? |the |your )?(.+?)(?: card)?'s skills?|(?:an? |the |your )?(<[^>]+>|\{[^}]+\}) skills?)$/i.exec(how);
+  if (whose) {
+    const said = (whose[1] ?? whose[2] ?? whose[3]).trim();
+    // "…a [successor] skill that was activated by choosing …" (BT21-145) and other tails are not a card's description.
+    if (/\[|\bthat\b|\bwhich\b/i.test(said)) return null;
+    const source = filterFor(said, null);
+    return source ? { kind: "playedUsing", sel: self, what: "skill", source } : null;
+  }
+  // Any other "with …" / "using …" / "by …" says how in words not read here.
+  return /^(?:using|with|by|without)\b/i.test(how) ? null : undefined;
+}

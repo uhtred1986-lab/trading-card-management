@@ -41,8 +41,9 @@ import { NotYet, RulesetBroken } from "./errors";
 import { fire, log } from "./events";
 import { moved } from "./flow";
 import type { VmState } from "./state";
-import { attrsNow, queryHookStatics, unionEntryMatches } from "./program";
-import { skillsShowing, unionPlayGate, unionPlayedGate, type VmPending } from "./triggers";
+import { attrsNow, condHolds, entryAnswers, queryHookStatics, unionEntryMatches } from "./program";
+import { playGates, skillsShowing, unionPlayedGate, type VmPending } from "./triggers";
+import type { Cond } from "./script";
 import { SETUP_ZONES, findCard, moveCard } from "./zones";
 import { predicateOf } from "./filters";
 
@@ -304,12 +305,21 @@ export function resolvePlay(
   // — so from any other play (ordinary, failed, another variant) it is
   // withdrawn before anything sees it: not pended, nothing to order, no
   // [Once per turn] used (9-6-2). The gate is the record's (`unionPlayGate`).
+  // Audit conditions 2 (3 Nov 2026): the same for every other question about
+  // how this play was made (`playGates`) — "when you play this card with
+  // [Swap]" (BT4-083), "…using [Arrival]" (BT25-129), "…with the skill of
+  // {Majin Buu's Sealed Ball}" (BT2-028), "…without using skills" (BT15-042).
+  const playedBy = opts.by === "skill" ? (opts.byCard ?? "") : undefined;
   const gated = state.pending.filter((p): p is VmPending => !pendedBefore.has(p) && p.card === card && p.kind !== "hook" && (p.trigger === "played" || p.trigger === "playedFromHand" || p.trigger === "playedFromDrop"));
   if (gated.length) {
     const scripts = skillsShowing(ctx, state, card).scripts;
     for (const p of gated) {
-      const what = unionPlayGate(scripts.bySkill[p.skillIndex]?.ops);
-      if (what !== null && !(success && unionEntryMatches(what, opts.using))) state.pending.splice(state.pending.indexOf(p), 1);
+      const gates = playGates(scripts.bySkill[p.skillIndex]?.ops, "self");
+      const holds = (g: Cond): boolean =>
+        g.kind === "not" ? !holds(g.cond)
+          : g.kind === "playedUsing" ? entryAnswers(ctx, game, state, g, card, opts.using, playedBy)
+            : condHolds(ctx, game, state, { ops: [], ip: 0, vars: {}, card, master: p.master }, g);
+      if (gates.length && !(success && gates.every(holds))) state.pending.splice(state.pending.indexOf(p), 1);
     }
   }
   // #930: the same gate on another card's [Auto] about this play — "when
@@ -327,13 +337,18 @@ export function resolvePlay(
     if (!(success && unionEntryMatches(gate.what, opts.using) && meets)) state.pending.splice(state.pending.indexOf(p), 1);
   }
   // EX04-04 (prohibition batch 6): an evolution's successful entry is kept
-  // the same way, for "if you played this card with [evolve]".
-  if (success && opts.using && /^(?:EX-|Xeno-)?Evolve$/.test(opts.using)) state.cards[card].enteredUsing = opts.using;
-  if (success && opts.using?.startsWith("Union-")) {
+  // the same way, for "if you played this card with [evolve]". Audit
+  // conditions 2: so is every other keyword's play, and the card whose skill
+  // made the play (`VmCard.enteredBy`) — never a play the player declared.
+  if (success && opts.using) {
     state.cards[card].enteredUsing = opts.using;
     for (const p of state.pending) if (!pendedBefore.has(p) && p.card === card && p.kind !== "hook") p.selfEnteredUsing = opts.using;
     // …and the Autos it pended about this card carry it as their subject's.
     for (const p of state.pending) if (!pendedBefore.has(p) && p.subject === card && p.kind !== "hook") p.subjectEnteredUsing = opts.using;
+  }
+  if (success && playedBy !== undefined) {
+    state.cards[card].enteredBy = playedBy;
+    for (const p of state.pending) if (!pendedBefore.has(p) && p.card === card && p.kind !== "hook") p.selfEnteredBy = playedBy;
   }
   // 22-5-2-3/4: evolution is a successful play, separate from using the
   // keyword from hand. Failed/countered plays and ordinary stacks have none.
