@@ -136,7 +136,7 @@ let records = 0;
   // "Without keyword skills" (BT7-126) and "with a keyword skill" (EX24-42).
   assert.equal(chosen(record("[auto] When this card attacks, choose all Battle Cards without keyword skills in your Drop Area and combo with them in your Combo Area.", "BT7-126")).filter?.noKeywords, true, "B: BT7-126 — none");
   assert.equal(chosen(record("[auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with a keyword skill, ignoring [barrier], and use it in a combo in your Combo Area.", "EX24-42")).filter?.someKeyword, true, "B: EX24-42 — one at least");
-  // "With 2 or more character names including <SH>" (EX24-25): two names, SH inside them.
+  // "With 2 or more character names including <SH>" (EX24-25): two names, SH inside them (R-231, pending).
   const sh = chosen(record("[Auto] When this card is played, choose up to 2 of your Battle Cards with 2 or more character names including <SH> and they gain [Barrier] until the end of your opponent's turn.", "EX24-25"));
   assert.deepEqual([sh.filter?.charactersMin, sh.filter?.charactersIncluding, sh.filter?.characters], [2, ["SH"], []], "B: EX24-25 — two or more names, <SH> inside them");
   const pairSH = card("AC2_PAIRSH", { characters: ["Gamma 1: SH", "Gamma 2: SH"] });
@@ -199,7 +199,7 @@ let records = 0;
 
 // D. The extra items of the round.
 {
-  // "{r}{r}{r}: If …: Choose …" (EX15-01): a condition closed by a colon inside the effect.
+  // "{r}{r}{r}: If …: Choose …" (EX15-01): a condition closed by a colon inside the effect (R-230, pending).
   const ex15 = record("[activate: main]{r}{r}{r}: If your Leader Card is a red <Gogeta: Br> card and you have 4 or more energy: Choose up to 1 mono-red <Gogeta: Br> card with an energy cost of 8 or less from your deck or hand, play it on top of this card, then shuffle your deck if you looked through it. You can't activate the [activate: main] skill on copies of this card for the turn.", "EX15-01");
   assert.ok(conds(ex15).some((c) => c.kind === "leaderMatches") && conds(ex15).some((c) => c.kind === "count" && c.sel.area === "energy" && c.atLeast === 4), "D: EX15-01 — both halves of the condition");
   assert.ok(ops(ex15).some((o) => o.op === "play"), "D: EX15-01 — …and the play under them");
