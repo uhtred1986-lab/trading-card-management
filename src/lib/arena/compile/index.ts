@@ -1027,6 +1027,8 @@ function compileSkillText(skill: Skill): Script {
     c.priceChoice = o.as;
     c.priceDiscarded = priceOps.some((p) => p.op === "moveTo" && "var" in p.target && p.target.var === o.as && p.to === "drop");
   }
+  // Audit selectors 3: where each of the price's choices was made, for "the chosen cards from your opponent's Drop Area".
+  c.priceChoices = priceOps.filter((o): o is Extract<Op, { op: "choose" }> => o.op === "choose").map((o) => ({ var: o.as, sel: o.sel }));
   c.priceChosen = priceOps
     .filter((o): o is Extract<Op, { op: "choose" }> => o.op === "choose")
     .map((o) => o.as)

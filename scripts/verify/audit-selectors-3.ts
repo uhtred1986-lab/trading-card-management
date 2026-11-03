@@ -174,6 +174,16 @@ let records = 0;
   const vegeta = record("[Auto][Once per turn] When your blue ≪Universe 6≫ card is played, draw 1 card. Additionally, if it's your opponent's turn, switch up to 1 of your blue energy to Active Mode, and the played card gains [Barrier] for the turn.", "AS3-BT26-033");
   assert.deepEqual(opOf(vegeta.ops, "grant")[0].target, { sel: { special: "subject" } }, "E6 — the played card is the moment's, not the energy");
   assert.ok(vegeta.reads.startsWith("if that card is a blue"), `E6 — the moment's description kept: ${vegeta.reads}`);
+  const super17 = record("[Activate: Main][Limit 1] If this card is under a green <Super 17> card: Choose up to 1 of your opponent's Battle Cards and place it under a <Super 17> card on top of this card, then switch a <Super 17> card on top of this card to Active Mode at the end of the turn.", "AS3-EX23-27");
+  const under = opOf(super17.ops, "moveTo")[0];
+  assert.deepEqual(under.target, { var: opOf(super17.ops, "choose")[0].as }, "E7 — the chosen card goes under, not this one");
+  assert.equal((under.under as { sel: Selector }).sel.special, "onTop", "E7 — under the <Super 17> on top of this card");
+  const shenron = record("[Activate: Main] Choose 2 Battle Cards from your Drop Area with energy costs of 4 or less and 15000 power or more, and 2 Battle Cards from your opponent's Drop Area with energy costs of 4 or less and 15000 power or more: If your Leader Card is a ≪Shenron≫ card, play the chosen cards from your opponent's Drop Area in their Battle Area, then play the chosen cards from your Drop Area in your Battle Area in Rest Mode.", "AS3-BT6-116");
+  const [theirs, mine] = opOf(shenron.ops, "play");
+  assert.ok(theirs.toOwners && mine.mode === "rest" && !mine.toOwners, "E8 — the opponent's cards to their side, yours to yours in Rest Mode");
+  assert.notDeepEqual(theirs.target, mine.target, "E8 — two choices, told apart by place");
+  const universe = skillRecords(card("AS3-BT16-068", { skill: "[Auto] If your Leader Card is a green <Beerus> or green <Champa> card and you switch this card to Rest Mode: When your opponent attacks, choose 1 of your green Battle Cards in Rest Mode with the same ≪Universe≫ special trait as your Leader Card and switch the target of attack to that card." }))[0];
+  assert.ok(universe.unread.some((u) => /same ≪Universe≫ special trait/.test(u)), "E9 — a trait measured against the Leader's is unread, an honest gap");
   const own = record("[auto] When this card is played from your hand, it gets +5000 power and [double strike] for the turn.", "AS3-BT16-119");
   assert.deepEqual(selOf(opOf(own.ops, "power")[0]), { special: "self" }, "E4 — \"it\" after \"when this card\" is this card");
 }

@@ -100,6 +100,8 @@ export interface Ctx {
    * when the effect has chosen nothing of its own.
    */
   priceChosen?: string[];
+  /** Audit selectors 3: the price's choices with their selectors — which place each was made in (BT6-116). */
+  priceChoices?: { var: string; sel: Selector }[];
   /**
    * The price's choice is a discard: it moves the cards it chose to the Drop
    * Area. "The cards discarded by this skill" (BT20-090, BT20-107..109) means

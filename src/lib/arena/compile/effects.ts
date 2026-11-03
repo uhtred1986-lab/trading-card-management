@@ -311,6 +311,16 @@ function refFor(clause: string, c: Ctx): Ref | null {
     // this card is the played card, not a chosen one (as BT23-007's reading has it), so the chosen card is the price's.
     // Read as the last choice it was this card, moved under itself.
     if (/\bthe chosen cards?\b/i.test(clause)) {
+      // Audit selectors 3: "…play **the chosen cards from your opponent's Drop Area** in their Battle Area, then play **the
+      // chosen cards from your Drop Area** in your Battle Area" (BT6-116): two choices told apart by whose place each was
+      // made in. Read as the last choice both times, the opponent's two cards were played twice and yours never.
+      const fromWhere = /\bthe chosen cards? from (your opponent'?s|their|your) (drop(?: area)?|hand|warp|deck|energy(?: area)?)\b/i.exec(clause);
+      if (fromWhere) {
+        const side = /your$/i.test(fromWhere[1]) ? "you" : "opponent";
+        const area = fromWhere[2].toLowerCase().replace(/ area$/, "");
+        const made = [...c.choices, ...(c.priceChoices ?? [])].filter((ch) => ch.sel.side === side && ch.sel.area === area && !ch.sel.areas?.length);
+        if (made.length === 1) return { var: made[0].var };
+      }
       const priced = c.priceChosen ?? [];
       if (priced.length === 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) return { var: priced[0] };
       // Audit effects 2 review: a card taken from the pile under a chosen card is not "the chosen card" — "use 1 card
@@ -3765,6 +3775,15 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     if (!ref || !("sel" in ref) || ref.sel.area !== "zDeck" || ref.sel.count !== 1 || ref.sel.filter?.type !== "LEADER") return null;
     return withChoice(ref, clause, c, (target) => ({ op: "placeOnTop", target }));
   }
+  // Audit selectors 3: "Choose up to 1 of your opponent's Battle Cards and **place it under a <Super 17> card on top of
+  // this card**" (EX23-27): the chosen card goes under the card on top of this one (23-2, `onTop`) — not this card under
+  // the chosen one, which the stack read below made of it.
+  if ((m = /^(?:place|put) (it|them|that card|those cards|the chosen cards?) under (?:a|an|the) (.+?) on top of this card$/.exec(t))) {
+    const moved = refFor(m[1], c);
+    const above = filterFor(m[2], null);
+    if (!moved || above === null) return null;
+    return [{ op: "moveTo", target: moved, to: "under", under: { sel: { special: "onTop", ...(above ? { filter: above } : {}) } } }];
+  }
   // The same stack said from the other end: this card ends up underneath.
   if ((m = /^(?:place|put) (.+?) on top of this card$/.exec(t))) {
     const host = refFor(m[1], c);
@@ -4351,8 +4370,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // Mechanism batch 3: "…and play them **to their owners' Battle Areas**" (BT13-096), "…in their owners' Battle Areas"
   // (EX21-15): each card goes to its own owner's side (`toOwners`) — read as a plain play, the opponent's card came back
   // into the master's Battle Area.
-  const toOwners = /^play (?:it|them|those cards|that card) (?:to|in|into) (?:their owners?'?s?|its owner'?s?) battle areas?$/.test(tp);
-  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) ((?:non-)?keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(toOwners ? tp.replace(/ (?:to|in|into) (?:their owners?'?s?|its owner'?s?) battle areas?$/, "") : tp))) {
+  // (Audit selectors 3: "play the chosen cards from your opponent's Drop Area **in their Battle Area**" (BT6-116) is the
+  // same: the opponent's cards to the opponent's side; "…from your Drop Area in your Battle Area" is a plain play.)
+  const theirs = /^play the chosen cards? from your opponent'?s [a-z -]+? (?:to|in|into) their battle areas?$/.test(tp);
+  const toOwners = theirs || /^play (?:it|them|those cards|that card) (?:to|in|into) (?:their owners?'?s?|its owner'?s?) battle areas?$/.test(tp);
+  if ((m = /^(?:play|activate) (.+?)(?: in (rest|active) mode)?(?: with (?:its|their) ((?:non-)?keyword )?skills negated(?: for (?:the )?(turn|game|battle)| until the end of your opponent's next turn)?)?$/.exec(toOwners ? tp.replace(/ (?:to|in|into) (?:their owners?'?s?|its owner'?s?|their) battle areas?$/, "") : tp.replace(/^(play the chosen cards? from your [a-z -]+?) (?:in|into) your battle area((?: in (?:rest|active) mode)?)$/, "$1$2")))) {
     if (/token/.test(t)) return compileToken(clause, c);
     // "During this turn, you can activate your Leader's [Awaken] **even if your life is at 6 or less**" (P-500,
     // P-508, P-548, P-694, BT1-051, BT7-069, EX06-03, EX25-02, P-208): a permission that lifts the life gate of a

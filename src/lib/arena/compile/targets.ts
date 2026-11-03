@@ -490,6 +490,11 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // card in your Drop Area from your life" (BT12-005, BT12-006, BT12-009, BT12-010): the card printing the skill, said
   // with the side it was just flipped to. Read as a description, any face-up card in the life was played or dropped.
   if (/\bthis face[- ]up card\b/i.test(phrase)) return parseTarget(phrase.replace(/\bthis face[- ]up card\b/gi, "this card"), looked, pool);
+  // Audit selectors 3: "…your green Battle Cards in Rest Mode **with the same ≪Universe≫ special trait as your Leader
+  // Card**" (BT16-068): a trait measured against the Leader's (≪Universe 7≫, ≪Universe 6≫ …), which no filter field holds.
+  // Read as the bare trait ≪Universe≫ — and the Leader Card as the place — the redirect looked in the Leader Area for a
+  // trait no card has. Unread until it is taught (an honest gap).
+  if (/\bwith the same ≪[^≫]+≫ special traits? as\b/i.test(phrase)) return null;
   // Audit selectors 3: "choose **all** of your opponent's skill-less Battle Cards **and** Battle Cards with 15000 power or
   // less―all in Rest Mode―" (EX25-35): every card of either description — all of A and all of B is all of A-or-B. Read
   // as one description the "and" made each card both, and a skill-less 20000 or a 10000 with skills was left out.
