@@ -1560,7 +1560,10 @@ const WATCHED_MOMENT: Record<WatchedEvent, Partial<Record<"you" | "opponent" | "
   swap: { you: ["swapActivated"] },
   usedInCombo: { you: ["youCombo"], opponent: ["opponentCombos"], both: ["youCombo", "opponentCombos"] },
   toZEnergy: { you: ["yourCardToZEnergy"], opponent: ["opponentCardToZEnergy"] },
-  comboToDrop: { you: ["comboToDrop"] },
+  // Review of audit triggers 3 (R-280): "…is placed in your Drop Area from your Combo Area, you may play it from your
+  // Drop Area" (BT12-085) is the move as it happens (8-5-8), so the card is in the Drop when its Auto resolves — not
+  // 8-5-6's advance notice of "a card in your Combo Area" (`comboToDrop`, BT24-025), which resolves before the move.
+  comboToDrop: { you: ["yourCardComboToDrop"] },
   // Audit triggers 3: "When {King Vegeta's Dynasty} in your Battle Area is placed in its owner's Drop Area" — any card's.
   battleToDrop: { you: ["yourCardBattleToDrop"] },
 };

@@ -1502,6 +1502,19 @@ DEFINE TRIGGER eitherBattleToDrop
   BIND "subject"
   text: "when a card goes from a Battle Area to a Drop"
 
+-- §8-5-8, R-280 (review of audit triggers 3) — "When a yellow skill-less
+-- Battle Card with 15000 power is placed in your Drop Area from your Combo
+-- Area, you may play it from your Drop Area" (BT12-085): the move itself,
+-- heard as it happens (the battle's 8-5-8, or a skill's move), so the card is
+-- in the Drop when the Auto resolves. Not `comboToDrop`, 8-5-6's advance
+-- notice of "a card in your Combo Area", which resolves at 8-5-7 while the
+-- card still stands in the Combo Area. The card is the subject; one that left
+-- another player's Combo Area is not "from your Combo Area".
+DEFINE TRIGGER yourCardComboToDrop
+  ON moved(from: combo, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards goes from your Combo Area to your Drop"
+
 -- ── the counter windows (4-3, 9-7) ─────────────────────────────────────────
 -- A [Counter] answers to a window rather than to a card's moment, so these
 -- five carry a name a card's WHEN never says. The shape is the same: the

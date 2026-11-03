@@ -272,6 +272,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   yourDeckToDrop: "when a card goes from your deck to your Drop",
   eitherBattleToDrop: "when a card goes from a Battle Area to a Drop",
   opponentExtraActivated: "when your opponent activates an Extra",
+  yourCardComboToDrop: "when one of your cards goes from your Combo Area to your Drop",
 };
 export const TRIGGERS = Object.keys(TRIGGER_IN_WORDS) as Trigger[];
 

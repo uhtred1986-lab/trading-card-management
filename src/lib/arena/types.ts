@@ -1295,6 +1295,12 @@ export type Trigger =
   | "eitherBattleToDrop"
   /** Audit triggers 3: "When your opponent activates an Extra Card" (BT10-092): the Extra is the subject. */
   | "opponentExtraActivated"
+  /**
+   * Review of audit triggers 3 (R-280): "When a yellow skill-less Battle Card with 15000 power is placed in your Drop
+   * Area from your Combo Area, you may play it from your Drop Area" (BT12-085): a card of yours gone from your Combo
+   * Area to your Drop, heard as it moves (8-5-8) — not 8-5-6's advance notice (`comboToDrop`). The card is the subject.
+   */
+  | "yourCardComboToDrop"
   | "yourCardReturnedToHand"
   /**
    * "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b): another

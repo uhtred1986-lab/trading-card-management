@@ -2207,7 +2207,7 @@ export const epochVar = (name: string): string => `${name}@epoch`;
  * skill's. Read with where the card was (`fromArea`; a pile is in no area, 23-2, so its `pileHost`) and whose it was,
  * both taken before the move.
  */
-function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { fromArea: Area | null; pileHost: string | null | undefined; movedMaster: PlayerId; revealed: boolean }): void {
+function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { fromArea: Area | null; pileHost: string | null | undefined; movedMaster: PlayerId; revealed: boolean; negated?: number[] }): void {
   const to = h.areaOf(id);
   const yours = was.movedMaster === frame.master;
   if (to === "drop") {
@@ -2239,7 +2239,8 @@ function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { 
   // Audit triggers 3 (3-10): "When this card is sent to its owner's Warp by a skill" (BT31-018), and an opponent's card
   // your skill sent from their hand or Drop to the Warp, watched by your cards ("…by one of your skills", P-346, BT13-148).
   if (to === "warp") {
-    h.pend("toWarpBySkill", id, frame.card);
+    // 9-6-9-2 (review of audit triggers 3): with the [Auto]s negated in the Battle Area it left, which do not answer.
+    h.pend("toWarpBySkill", id, frame.card, was.negated);
     if (!yours && was.fromArea === "hand") h.pend("opponentHandToWarpByYou", id, id);
     if (!yours && was.fromArea === "drop") h.pend("opponentDropToWarpByYou", id, id);
   }
@@ -3287,7 +3288,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // a condition the rule asks of it — the same way `restedBySkill`
           // hands on the card that rested it.
           if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
-          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal });
+          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal, ...(negatedThere?.length ? { negated: negatedThere } : {}) });
           if (op.mode) h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only

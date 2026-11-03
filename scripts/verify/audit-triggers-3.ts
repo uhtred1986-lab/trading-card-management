@@ -14,6 +14,10 @@
  * D.  The VM, both seats: [Over Realm] watched and [Dark Over Realm] not; a card your skill sent from the opponent's hand
  *     to their Warp; a card placed under a described card from the hand.
  * E.  The probe: "when your ≪Saiyan≫ card is played / attacks" is tried with a ≪Saiyan≫.
+ * F.  The review's repairs: 9-6-9-2 for the self-moments of a move out of a Battle Area (a card whose [Auto]s were negated
+ *     there does not answer "when this card is sent to its owner's Warp" and kin), and R-280 — "…placed in your Drop Area
+ *     from your Combo Area, you may play it from your Drop Area" (BT12-085) is heard as the card moves at 8-5-8, so it is
+ *     in the Drop when its Auto resolves (8-5-6's advance notice, `comboToDrop`, resolves while it is in the Combo Area).
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -24,13 +28,14 @@ import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
+import { run } from "../../src/lib/arena/vm/flow";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { correctSkillText } from "../../src/lib/catalog/errata";
 import { TRIGGERS } from "../../src/lib/arena/gaps";
 import { pendedNameHasMoment } from "../../src/lib/arena/vm/host";
 import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
 import { probe, scenariosFor, type ProbeRule } from "../../src/lib/arena/probe";
-import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
+import type { Action, CardDef, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { Cond } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
 
@@ -97,7 +102,8 @@ const A: [string, string, string[], ((rec: Rec) => void)?][] = [
   ["BT13-061", "[Auto][Once per turn] When you activate a green Extra Card with an original energy cost of 2 and the [Field] skill, draw 1 card.", ["extraActivated"],
     (r) => assert.deepEqual([subjectOf(r)?.sel.filter?.keywords, subjectOf(r)?.sel.filter?.originalCostMin], [["Field"], 2])],
   // The grammar's own table.
-  ["BT12-085", "[Auto][Once per turn] If it's your opponent's turn: When a yellow skill-less Battle Card with 15000 power is placed in your Drop Area from your Combo Area, you may play it from your Drop Area.", ["comboToDrop"],
+  // R-280 (review): the move as it happens (8-5-8), not 8-5-6's advance notice — the card is in the Drop when it resolves.
+  ["BT12-085", "[Auto][Once per turn] If it's your opponent's turn: When a yellow skill-less Battle Card with 15000 power is placed in your Drop Area from your Combo Area, you may play it from your Drop Area.", ["yourCardComboToDrop"],
     (r) => assert.equal(subjectOf(r)?.sel.filter?.powerMin, 15000)],
   ["BT24-025", "[Auto] When a card in your Combo Area is placed in its owner's Drop, you may play up to 2 blue ≪Hero≫ cards with energy costs of 1 from your Combo Area in Rest Mode. If you do, negate this skill for the turn.", ["comboToDrop"]],
   ["SD9-02", "[Auto] When {King Vegeta's Dynasty} in your Battle Area is placed in its owner's Drop Area, activate this skill. If {Raditz, Earth Invader} isn't in play in your Battle Area, you may play this card from your hand.", ["yourCardBattleToDrop"]],
@@ -183,9 +189,19 @@ const defs: Record<string, CardDef> = {
   AT3_W_WARP: card("AT3_W_WARP", { skill: `[Auto] When a card in your opponent's hand is sent to their Warp by one of your skills, ${DRAW}` }),
   AT3_HOST: card("AT3_HOST", { characters: ["Host"], skill: "[Activate: Main] Choose 1 card in your hand and place it under this card." }),
   AT3_UNDER: card("AT3_UNDER", { skill: `[Auto] When this card in your hand is placed under a <Host> card in your Battle Area, ${DRAW}` }),
+  // F (the review's repairs).
+  AT3R_NEG: card("AT3R_NEG", { skill: "[Activate: Main] Choose 1 of your Battle Cards other than this card, and negate its skills for the turn." }),
+  AT3R_SEND: card("AT3R_SEND", { skill: "[Activate: Main] Choose 1 of your Battle Cards other than this card and send it to its owner's Warp." }),
+  AT3R_BOUNCE: card("AT3R_BOUNCE", { skill: "[Activate: Main] Choose 1 of your Battle Cards other than this card and return it to its owner's hand." }),
+  AT3R_BTW: card("AT3R_BTW", { skill: `[Auto] When this card is sent from a Battle Area to a Warp, ${DRAW}` }),
+  AT3R_TW: card("AT3R_TW", { skill: `[Auto] When this card is sent to its owner's Warp, ${DRAW}` }),
+  AT3R_TWS: card("AT3R_TWS", { skill: `[Auto] When this card is sent to its owner's Warp by a skill, ${DRAW}` }),
+  AT3R_BTH: card("AT3R_BTH", { skill: `[Auto] When this card is returned to its owner's hand from the Battle Area, ${DRAW}` }),
+  AT3R_WHIS: card("AT3R_WHIS", { colors: ["Yellow"], skill: "[Auto][Once per turn] If it's your opponent's turn: When a yellow skill-less Battle Card with 15000 power is placed in your Drop Area from your Combo Area, you may play it from your Drop Area." }),
+  AT3R_Y15: card("AT3R_Y15", { colors: ["Yellow"], power: 15000 }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
-for (const k of ["AT3_W_OR", "AT3_WARP_HAND", "AT3_W_WARP", "AT3_HOST", "AT3_UNDER"]) assert.deepEqual(skillRecords(defs[k]).flatMap((r) => r.unread), [], `${k}: read`);
+for (const k of ["AT3_W_OR", "AT3_WARP_HAND", "AT3_W_WARP", "AT3_HOST", "AT3_UNDER", "AT3R_NEG", "AT3R_SEND", "AT3R_BOUNCE", "AT3R_BTW", "AT3R_TW", "AT3R_TWS", "AT3R_BTH", "AT3R_WHIS"]) assert.deepEqual(skillRecords(defs[k]).flatMap((r) => r.unread), [], `${k}: read`);
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
 const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
 const take = (s: VmState, action: Action): VmState => roundtrip(RULES.apply(ctx, roundtrip(s), action).state as VmState);
@@ -227,6 +243,7 @@ function settle(s0: VmState, want: string[] = []): VmState {
     } else if (q.kind === "orderPending") s = take(s, { type: "orderPending", player: who, index: 0 } as Action);
     else if (q.kind === "payCost") s = take(s, { type: "payCost", player: who, option: 0 } as Action);
     else if (q.kind === "counter") s = take(s, { type: "counter", player: who, card: null } as Action);
+    else if (q.kind === "chooseMode") s = take(s, { type: "chooseMode", player: who, index: 0 } as Action);
     else s = take(s, { type: "pass", player: who } as Action);
   }
   assert.equal(s.prompt.kind, "main", `settled (at ${s.prompt.kind})`);
@@ -278,6 +295,58 @@ for (const seat of ["p1", "p2"] as const) {
     assert.equal(hand(s, seat), 1, `${seat}: D3: …and it drew 1 (placedUnderFromHand)`);
     cases++;
   }
+}
+
+// ── F. the review's repairs ──────────────────────────────────────────────────
+for (const seat of ["p1", "p2"] as const) {
+  const seed = (n: number) => 53400 + n * 2 + (seat === "p1" ? 0 : 1);
+  // F1. 9-6-9-2: an area-movement [Auto] negated in the Battle Area does not answer the move out of it, though the move
+  // ended the negation; the same card un-negated does.
+  for (const [i, [watcher, mover]] of ([["AT3R_BTW", "AT3R_SEND"], ["AT3R_TW", "AT3R_SEND"], ["AT3R_TWS", "AT3R_SEND"], ["AT3R_BTH", "AT3R_BOUNCE"]] as const).entries()) {
+    for (const negated of [false, true]) {
+      let s = fresh(seat, seed(i * 2 + (negated ? 1 : 0)));
+      const neg = negated ? stage(s, seat, "AT3R_NEG", "battle") : null;
+      const me = stage(s, seat, mover, "battle");
+      const t = stage(s, seat, watcher, "battle");
+      if (neg) s = activate(s, neg, [t]);
+      s = activate(s, me, [t]);
+      assert.ok(!s.sides[seat].zones.battle.includes(t), `${seat}: F1: ${watcher} left the Battle Area`);
+      const drew = hand(s, seat) - (mover === "AT3R_BOUNCE" ? 1 : 0);
+      assert.equal(drew, negated ? 0 : 1, `${seat}: F1: ${watcher} ${negated ? "negated there does not answer (9-6-9-2)" : "answers"}`);
+      cases++;
+    }
+  }
+}
+// F2. R-280: BT12-085's Auto is heard as the combo card lands in the Drop (8-5-8), so the play is from the Drop. Staged at
+// the Battle End Step of p1's turn, the watcher and the combo card p2's.
+{
+  let s = fresh("p1", 53500);
+  const attacker = stage(s, "p1", "AT3_PLAIN", "battle");
+  const guard = stage(s, "p2", "AT3_PLAIN", "battle");
+  stage(s, "p2", "AT3R_WHIS", "battle");
+  const combo = stage(s, "p2", "AT3R_Y15", "combo");
+  s.battle = { attacker, guard, target: guard, step: "battleEnd", negated: false, blockerOffered: false, counters: [] } as unknown as VmState["battle"];
+  s.phase = "battle";
+  s.flow.push({ phase: "battle", index: game.phases.battle.steps.indexOf("battleEnd"), repeats: 0 });
+  const ev: GameEvent[] = [];
+  run(ctx, game, s, ev);
+  s = roundtrip(s);
+  let offered = false;
+  for (let i = 0; i < 40 && s.prompt.kind !== "main"; i++) {
+    const q = s.prompt;
+    const who = (q as { player: PlayerId }).player;
+    if (q.kind === "zEnergyFromCombo") s = take(s, { type: "zEnergyFromCombo", player: who, card: null } as Action);
+    else if (q.kind === "chooseMode") {
+      assert.ok(s.sides.p2.zones.drop.includes(combo), "F2: when the play is offered, the combo card is in the Drop (8-5-8 before the Auto)");
+      offered = true;
+      s = take(s, { type: "chooseMode", player: who, index: 0 } as Action);
+    } else if (q.kind === "chooseCards") s = take(s, { type: "choose", player: who, cards: q.choice.candidates.slice(0, Math.max(1, q.choice.min)) } as Action);
+    else if (q.kind === "orderPending") s = take(s, { type: "orderPending", player: who, index: 0 } as Action);
+    else s = take(s, { type: "pass", player: who } as Action);
+  }
+  assert.ok(offered, "F2: BT12-085's offer was made");
+  assert.ok(s.sides.p2.zones.battle.includes(combo), "F2: …and the card was played from the Drop");
+  cases++;
 }
 
 // ── E. the probe ─────────────────────────────────────────────────────────────
