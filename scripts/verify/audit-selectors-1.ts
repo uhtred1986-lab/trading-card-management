@@ -164,8 +164,9 @@ for (const [text, what, kind] of [
   // choice, so [Barrier] and "can't be chosen" are asked — of either player's card; "the attacking Battle Card" is the
   // attack's own card (special).
   if (what === "BT10-030") assert.ok(sel.battleRole === "attacker" && sel.side === "both" && !!sel.upTo && !!sel.ignoreBarrier, `B2: ${what} — the attacker (${JSON.stringify(sel)})`);
-  else assert.ok(sel.special === "attacker" && (sel.filter?.type ?? null) === kind && !sel.upTo, `B2: ${what} — the attacker (${JSON.stringify(sel)})`);
-  assert.match(rec.reads, what === "P-203" ? /choose the attacking Battle Card/ : /choose up to 1 card in each player's Leader Area or Battle Area that is attacking/, `B2: ${what} — said so`);
+  // R-204 (integration 2): "choose the attacking Battle Card" is a battle-role choice too, so [Barrier] is asked.
+  else assert.ok(sel.battleRole === "attacker" && sel.side === "both" && sel.area === "battle" && (sel.filter?.type ?? null) === kind && !sel.upTo, `B2: ${what} — the attacker (${JSON.stringify(sel)})`);
+  assert.match(rec.reads, what === "P-203" ? /choose 1 Battle Card in each player's Battle Area that is attacking/ : /choose up to 1 card in each player's Leader Area or Battle Area that is attacking/, `B2: ${what} — said so`);
   records++;
 }
 {
@@ -188,8 +189,8 @@ for (const [text, what, side] of [
   const choose = opOf(rec, "choose")[0];
   // Integration 2: a counted choice ("1 of your attacking cards") is audit-conditions-1's battle-role choice, whose side
   // says whose attacker it may be; "the attacking Battle Card" stays the special.
-  assert.ok((choose.sel.special === "attacker" && choose.sel.side === side) || (choose.sel.battleRole === "attacker" && choose.sel.side === side), `B3: ${what} — the attacker, ${side ?? "either player's"} (${JSON.stringify(choose.sel)})`);
-  assert.match(rec.reads, side === "you" ? /your attacking card|card you have in play that is attacking/ : side === "opponent" ? /your opponent's attacking Battle Card|Battle Card in your opponent's Battle Area that is attacking/ : /the attacking Battle Card/, `B3: ${what} — said so (${rec.reads})`);
+  assert.ok((choose.sel.special === "attacker" && choose.sel.side === side) || (choose.sel.battleRole === "attacker" && choose.sel.side === (side ?? "both")), `B3: ${what} — the attacker, ${side ?? "either player's"} (${JSON.stringify(choose.sel)})`);
+  assert.match(rec.reads, side === "you" ? /your attacking card|card you have in play that is attacking/ : side === "opponent" ? /your opponent's attacking Battle Card|Battle Card in your opponent's Battle Area that is attacking/ : /the attacking Battle Card|Battle Card in each player's Battle Area that is attacking/, `B3: ${what} — said so (${rec.reads})`);
   attackerSel[what] = choose;
   records++;
 }

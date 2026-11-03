@@ -54,7 +54,39 @@ export function compileSkill(skill: Skill): Script {
   // compiled as the skill it quotes; its record is the grant's program (which
   // says for itself when the granted [Auto]'s moment is not read).
   if (skill.granted) return compileQuotedSkill(skill.granted.skill);
-  return leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill)));
+  return attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))));
+}
+
+/**
+ * R-204 (owner, 3 Nov 2026): "**Choose** the attacking Battle Card, KO it" (P-203), "choose up to 1 of the attacking
+ * Battle Cards" (P-409), "choose the attacking card, ignoring [Barrier]" (BT10-123, BT13-030) choose — so [Barrier]
+ * (22-16-2) and every other "can't be chosen" (20-4) are asked unless the text says "ignoring [Barrier]". The
+ * `attacker` special names the card without choosing it (`resolveSelector` asks neither), which is right for "the
+ * attacking card gets -5000" and wrong inside a `choose`. There it becomes the battle-role choice audit-conditions-1
+ * reads "choose up to 1 attacking Battle Card or Leader Card" as (BT10-030): the attack card, either player's unless an
+ * owner is printed, in the area its noun names. Only `attacker`: the compiler also writes `choose` for wordings that
+ * print no "choose" ("KO that card after the battle", BT1-015's guard), and those are no choice.
+ */
+function attackerChoicesAreChoices(script: Script): Script {
+  let changed = false;
+  const asChoice = (sel: Selector): Selector => {
+    const { side, count, upTo, filter, ...rest } = sel;
+    delete rest.special;
+    const area = filter?.type === "BATTLE" ? "battle" : filter?.type === "LEADER" ? "leader" : "play";
+    changed = true;
+    return { ...rest, side: side ?? "both", area, ...(filter ? { filter } : {}), count: count ?? 1, upTo: !!upTo, battleRole: "attacker" };
+  };
+  const walk = (x: unknown): unknown => {
+    if (Array.isArray(x)) return x.map(walk);
+    if (!x || typeof x !== "object") return x;
+    const o = x as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(o)) out[k] = walk(v);
+    if (o.op === "choose" && (o.sel as Selector | undefined)?.special === "attacker") out.sel = asChoice(o.sel as Selector);
+    return out;
+  };
+  const ops = walk(script.ops) as Op[];
+  return changed ? { ...script, ops } : script;
 }
 
 /**
@@ -65,8 +97,42 @@ export function compileSkill(skill: Skill): Script {
  * moment it reads, BT5-071).
  */
 function leaderNeverPlayed(script: Script): Script {
-  if (script.unsupported.length || !playsTheLeader(script.ops)) return script;
-  return { ...script, unsupported: ["this effect would play the Leader, which no card does (3-1-2): the card it plays is not read"] };
+  if (script.unsupported.length) return script;
+  if (playsTheLeader(script.ops)) return { ...script, unsupported: ["this effect would play the Leader, which no card does (3-1-2): the card it plays is not read"] };
+  if (playsACardInPlay(script.ops)) return { ...script, unsupported: ["this effect would play a card that is already in play: where the card it plays comes from is not read"] };
+  return script;
+}
+
+/**
+ * Integration 2 (with R-205): a card is played from outside play (a hand, the deck, a Drop, the Warp, energy, life, a
+ * pile) onto the table; one already in a Battle, Leader or Unison Area is never played. "Play up to 1 <Frieza> card and
+ * up to 1 <Cooler> card ―both …― from your hand" (EX23-01) lost "from your hand" on its first card, and the choice
+ * fell to 20-1-6's "a card on the table" — a program that played a card already in play, read as if understood (14 rows
+ * of the catalog of 2 Nov 2026, the "play A and B from X" family). Left unread, the row is open and says why.
+ */
+function playsACardInPlay(ops: readonly Op[]): boolean {
+  // In program order: a choice binds its name (a later choice of the same name — another option of a "choose one" —
+  // binds it afresh), and a move out of play ("send it to your Warp, … play that card from your Warp", BT4-044) frees it.
+  const IN_PLAY = new Set(["battle", "leader", "unison", "play"]);
+  const onTable = new Map<string, boolean>();
+  let found = false;
+  const walk = (v: unknown): void => {
+    if (found) return;
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    const varOf = (t: unknown) => (t && typeof t === "object" && "var" in t ? String((t as { var: unknown }).var) : null);
+    if (o.op === "choose" && typeof o.as === "string") {
+      const sel = o.sel as Selector | undefined;
+      const areas = sel?.areas ?? (sel?.area ? [sel.area] : []);
+      onTable.set(o.as, !!sel && !sel.special && !sel.fromVar && areas.length > 0 && areas.every((x) => IN_PLAY.has(x)));
+    }
+    if (o.op === "moveTo" && typeof o.to === "string" && !IN_PLAY.has(o.to)) { const v = varOf(o.target); if (v) onTable.set(v, false); }
+    if (o.op === "play") { const v = varOf(o.target); if (v && onTable.get(v)) { found = true; return; } }
+    for (const k of Object.keys(o)) if (k !== "sel" && k !== "target") walk(o[k]);
+  };
+  walk(ops);
+  return found;
 }
 
 /**

@@ -1097,6 +1097,20 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // The pile under a card is the area, and it was named by words that have
   // already been taken off the phrase.
   if (!allAreas && !area && !fromVar && !underSelf && !underHostSel) return null;
+  // R-205 (owner, 3 Nov 2026): cards in play described with no owner — "choose up to 1 Battle Card, and it gets -5000
+  // power" (BT22-026), "choose up to 1 Battle Card or Unison" (BT18-020) — are either player's. 20-1-2 and 20-1-5 say
+  // where a Battle Card or a Unison is, not whose; read as the caster's alone, Hachimaru's -5000 could only hit your
+  // own cards. Only the areas in play: a hand, deck, Drop or life names its owner when it means one.
+  const unowned = !/\byour\b|\btheir\b|\bopponent\b|\byou control\b|\bplayers?'?s?\b/.test(chosen.replace(/\btheir owners?'?s?\b/g, " "));
+  // A card type names the area ("Battle Card", "Unison", "Leader Card"), or "in play" is printed. A bare name or trait
+  // ("up to 1 <Kale> card") falls to 20-1-6's "on the table" and stays the caster's for now: "choose up to 1 <Kale> card
+  // and 1 <Caulifla> card … in your hand" (BT7-075) arrives here as its first half with the place cut off, and read as
+  // either player's that misread would reach the opponent's board (the two-named search, not built yet).
+  const inPlayOnly = (pair ?? (area ? [area] : [])).every((a) => a === "battle" || a === "unison" || a === "leader" || (a === "play" && /\bin play\b|\bbattle cards?\b|\bunisons?\b|\bleaders?\b/.test(t)));
+  // A choice only: the phrase starts with its count ("up to 1 …", "1 …"). The same grammar reads a condition's cards
+  // ("if <Pan> is in your Battle Area") and a cost change's, whose owner is said around the phrase, not in it.
+  const counted = /^(?:choose )?(?:up to )?\d+\b(?! or more\b)/.test(t.trim());
+  if (side === "you" && counted && unowned && inPlayOnly && (area || pair) && !fromVar && !underSelf && !underHostSel) side = "both";
 
   let count = 1;
   let upTo = false;

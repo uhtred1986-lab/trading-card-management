@@ -154,12 +154,13 @@ for (const [text, what, sel] of [
   const walk = (x: unknown): void => {
     if (!x || typeof x !== "object") return;
     const o = x as { sel?: { special?: string } };
-    if (o.sel?.special === "attacker") found.push(o.sel as { count?: number; upTo?: boolean });
+    // Integration 2 (R-204): a choice of the attacker is a battle-role choice, so [Barrier] is asked.
+    if (o.sel?.special === "attacker" || (o.sel as { battleRole?: string } | undefined)?.battleRole === "attacker") found.push(o.sel as { count?: number; upTo?: boolean });
     Object.values(x).forEach(walk);
   };
   walk(rec.ops);
   const got = found[0];
-  assert.ok(got && !!got.upTo === !!want.upTo && (got.count ?? null) === (want.count ?? null) && !JSON.stringify(rec.ops).includes('"side":"you","area":"battle"'), `A: ${what} — the attacker${sel.includes("upTo") ? ", up to 1" : ""}, not one of your Battle Cards (${rec.reads})`);
+  assert.ok(got && !!got.upTo === !!want.upTo && (got.count ?? 1) === (want.count ?? 1) && !JSON.stringify(rec.ops).includes('"side":"you","area":"battle"'), `A: ${what} — the attacker${sel.includes("upTo") ? ", up to 1" : ""}, not one of your Battle Cards (${rec.reads})`);
   records++;
 }
 

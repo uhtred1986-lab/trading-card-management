@@ -328,8 +328,16 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   push(text.length, 0);
   const clauses: string[] = [];
   const joined: boolean[] = [];
+  // R-206 (owner, 3 Nov 2026): a "Then" sentence right after an "If you do" sentence goes on with what was done — "Remove
+  // 7 [Dragon Ball] cards … from the game. If you do, … this card gets +15000 power for the duration of the turn. Then
+  // flip this card over at the end of the turn." (BT5-080's back): no Dragon Balls, no flip. The capital below (lane C)
+  // is kept for every other "Then" sentence.
+  let afterIfYouDo = false;
   out.forEach((raw, k) => {
-    const c = raw
+    const opening = raw.trim();
+    const thenAfterIfYouDo = afterIfYouDo && /^Then\s+[a-z]/.test(opening);
+    if (/^[A-Z]/.test(opening) && !thenAfterIfYouDo) afterIfYouDo = /^If (?:you (?:do|did)|so)\b/.test(opening);
+    const c = (thenAfterIfYouDo ? opening.replace(/^Then\s+/, "then ") : raw)
       // "If you do so" is "if you do" with a word on the end. The strip
       // below would take the phrase and leave the "so", which reads as a
       // bare connective — so the condition was thrown away and everything
