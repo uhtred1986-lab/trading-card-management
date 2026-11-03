@@ -1511,6 +1511,13 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const last = moved?.[moved.length - 1];
     if (moved && last && last.op === "moveTo") return [...moved.slice(0, -1), { ...last, faceUp: true }];
   }
+  // Audit effects 2: "…choose 1 card in your hand and **place it face up in your life**" (P-275): the same said before the
+  // place. The "face up" was dropped and the card went into the life face down.
+  if (/^(?:place|put|add) (?:it|them|that card|the chosen cards?) face[- ]up (?:in|into|to) (?:your|its owner'?s) life(?: area)?$/.test(t)) {
+    const moved = compileClause(clause.replace(/\s+face[- ]up\b/i, ""), c);
+    const last = moved?.[moved.length - 1];
+    if (moved && last && last.op === "moveTo" && last.to === "life") return [...moved.slice(0, -1), { ...last, faceUp: true }];
+  }
 
   // "This card gains +5000 power and [Critical] **during your turn**" (9-9):
   // a tail that says *when* the rest holds, not how long it lasts — so it is a
@@ -4015,6 +4022,18 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     return [...hostOps, { op: "play", target: ref, ...extra }, ...thenNegate(ref)];
   }
 
+  // Audit effects 2: "…play up to 1 red ≪Bardock's Crew≫ card … among them **with its [auto] skills negated for the turn**"
+  // (P-437): one kind of skill of the played card negated (`negateSkillsOfKind`), its [Permanent] and [Activate] skills
+  // live. It read as every skill negated.
+  {
+    const kindNegated = /^(play .+?) with (?:its|their) \[(auto|activate|permanent)\] skills? negated(?: for (?:the )?(turn|game))?$/.exec(t);
+    if (kindNegated) {
+      const played = compileClause(kindNegated[1], c);
+      const play = played?.filter((o): o is Extract<Op, { op: "play" }> => o.op === "play").pop();
+      if (!played || !play || play.negated) return null;
+      return [...played, { op: "negateSkillsOfKind", target: play.target, kind: kindNegated[2] as "auto" | "activate" | "permanent", until: kindNegated[3] === "game" ? "game" : "turn" }];
+    }
+  }
   // Playing a card by a skill (5-5-3).
   // "Activate" is what the text calls playing an Extra card (12-2), so the two
   // words lead to the same place. A card that says "play … in Rest Mode" is
@@ -4058,6 +4077,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // A Leader is never played, so "activate your Leader Card's [Activate: Main]" (P-208, cut at its list commas
     // before the "even when") is not one either.
     if (/^activate (?:your )?leader(?: card)?'s \[/.test(tp)) return null;
+    // Audit effects 2: "You may play that card **by paying its energy cost**" (TB1-029): a play at its price, which no
+    // play step pays — unread rather than the free play a skill's play is (5-5-3), which it read as.
+    if (/\bby paying (?:its|their) (?:energy|skill) costs?\b/.test(m[1])) return null;
     // "…and **activate its [Activate: Main] skill**" (BT5-002, #979) uses a
     // skill of a card; it does not play the card that bears it (12-2-4). The
     // bounded Desire choice before it is read whole above; when what "its"
@@ -4097,6 +4119,10 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const thenNegate = (target: Ref): Op[] => (half ? negateHalf(half, target, durationOf(t.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : []);
     let ref = refFor(m[1], c);
     if (!ref) return null;
+    // Audit effects 2: "…and if the Battle Card being played has an energy cost of 7 or less, **play it in Rest Mode**"
+    // (BT23-118): the card being played lands rested — its own play, changed (`resolvingPlay`), as "it is played in Rest
+    // Mode" reads (BT23-123). Read as a play, it was a second play of a card not yet in play.
+    if ("sel" in ref && ref.sel.special === "resolving" && mode === "rest" && !/skills negated/.test(t) && !/^activate\b/.test(tp)) return [{ op: "resolvingPlay", mode: "rest" }];
     // "Look at up to 1 card from the top of your deck, **play up to 1 black
     // ≪Maiden Squadron≫ card**, then send the rest to their owner's Warp"
     // (BT30-106): the play's twin of the `add … to your hand` rule above.
@@ -5124,6 +5150,16 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       }
       if (side === "both") return null;
       const what = mm[1];
+      // Audit effects 2: "…you can't play any Battle Cards **except ≪Universe 7≫ cards**" (EB1-08) bans every Battle Card
+      // but those (`exceptFilter`, as "can only play …" is read); it read as a ban on exactly the ≪Universe 7≫ ones.
+      // (Bare "any cards other than …" — BT23-005 — is the reader below's, with no kind of card named.)
+      const except = /^(?:any )?(.+? cards?) (?:except|other than) (.+? cards?)(?:\s+(?:for|during|until)\b.*)?$/.exec(what);
+      if (except && !/\bthis card\b/.test(what) && /\b(?:battle|extra|unison) cards?$/.test(except[1])) {
+        const kinds = filterFor(except[1], null);
+        const allowed = filterFor(except[2], null);
+        if (kinds && allowed && !unreadFilterWords(except[1], kinds).length && !unreadFilterWords(except[2], allowed).length)
+          return [{ op: "forbid", what: "play", side, until, filter: kinds, exceptFilter: allowed, ...withUnless }];
+      }
       if (/\bcopies of this card\b|\banother copy of this card\b/.test(what)) return [{ op: "forbid", what: "play", side, until, sameNameAsSelf: true, ...withUnless }];
       // "You can't play this card from any area **using skills**" (BT14-152):
       // a play by a skill only — read as the bare form it banned the play
@@ -6746,6 +6782,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   // that kept them under the opening condition. A "Then, if …" is a condition
   // of its own, not one added to the first.
   let afterThen = false;
+  let afterCapitalThen = false;
   /** The subject of the last count condition read ("you have", "your opponent has"), for a bare count joined to it by "and". */
   let countSubject: { said: string; area: boolean; clause: string } | null = null;
   /** Audit effects 2: the choices of one list ("choose A and B and …"), and the clause that added the last of them. */
@@ -6755,7 +6792,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     const mayBefore = pendingMay as Extract<Op, { op: "may" }> | null;
     pendingMay = null;
     const thenHere = afterThen || /^then,?\s+/i.test(clause.trim());
+    // A capital "Then" (a sentence of its own), on this clause or on the bare "Then," cut off before it.
+    const capitalThen = afterCapitalThen || /^Then,?\s+\S/.test(clause.trim());
     afterThen = /^then[.,]?$/i.test(clause.trim());
+    afterCapitalThen = /^Then[.,]?$/.test(clause.trim());
     {
       const here = groups[groups.length - 1];
       // Two "Then" tails are not follow-ups of their own but the end of what the condition opened: a shuffle
@@ -6772,6 +6812,15 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // draw and the discard. The same back references stay inside.
       const newSentence = /^[A-Z]/.test(clause.trim()) && !/^(?:If|When|While|Unless|Otherwise|Additionally|At|Then|Instead|Also|During|Until|For)\b/.test(clause.trim());
       if ((thenHere || newSentence) && !tailOfCondition && here.conds.length && here.ops.length && !here.delay && !here.sink) groups.push({ conds: [], ops: [] });
+      // Audit effects 2: the same for a "Then," sentence after an "If you do" written into the offer's own branch (`sink`):
+      // "…you may place 1 card from your hand in the Drop Area. If you do so, choose up to 2 … and KO those cards. **Then,
+      // this card gains [Double Strike]** for the duration of the turn" (BT1-090) — its Q&A: it gains [Double Strike] even
+      // with no card placed. R-206's "Then" with no comma (BT5-080's back) was made lower case by `splitClausesJoined` and
+      // stays inside.
+      else if (capitalThen && !tailOfCondition && here.sink && !here.delay) {
+        here.sink = undefined;
+        here.sinkCond = undefined;
+      }
     }
     // "You can activate its [Awaken] skill **even if you have 5 or more life**" (BT7-069, EX06-03, EX25-02, P-208,
     // P-500, P-508, P-548, P-694, BT1-051): the permission lifts a keyword's life gate. The trailing "even if"
@@ -7026,6 +7075,17 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // Mechanism batch 4: "This card gets [Triple Strike] **and +5000 power for each Extra Card … for the turn**"
     // (BT13-064): the keyword and a counted power, cut at the "and" — the power half has no subject and the keyword half
     // no span. Each gets the other's: the subject is the card, the span closes both.
+    // Audit effects 2: "…, **this card and all of your Ghost tokens** gain [double strike]" (BT2-014; its Q&A: the tokens
+    // gain it too): two subjects of one grant, each read as its own clause. "This card" alone was read.
+    {
+      const selfAnd = /^this card and ((?:all (?:of )?)?your [^,]+?) (gain|get)s? (.+)$/i.exec(clause.trim());
+      if (selfAnd) {
+        clauses.splice(i, 1, `this card ${selfAnd[2].toLowerCase()}s ${selfAnd[3]}`, `${selfAnd[1]} ${selfAnd[2].toLowerCase()} ${selfAnd[3]}`);
+        joined.splice(i, 1, joined[i], true);
+        i--;
+        continue;
+      }
+    }
     const kwThenCount = /^(this card|it) gets? (\[[^\]]+\])[.]?$/i.exec(clause.trim());
     const countTail = kwThenCount && i + 1 < clauses.length ? /^([+-]\d+ power for each .+?)( for the (?:turn|battle))[.]?$/i.exec(clauses[i + 1].trim()) : null;
     if (kwThenCount && countTail) {
@@ -7089,6 +7149,23 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // 9-1-5, the same shape: "choose up to 1 keyword skill on …" names the
     // skill the next clause negates, and apart the first half read as a choice
     // of a card and the second negated every skill of it.
+    // Audit effects 2: "choose **all of the keyword skills** on your opponent's Battle Cards and negate them for the turn"
+    // (P-744): every keyword skill of those cards, and nothing else of them (`negateSkillsOfKind` keyword) — it read as a
+    // choice of the cards and every skill of them negated.
+    {
+      const allKeywords = /^choose all (?:of )?(?:the )?keyword skills (?:on|of) (.+?)[.,]?$/i.exec(clause.trim());
+      const negateThem = allKeywords && i + 1 < clauses.length ? /^(?:and )?negate them\b/i.exec(clauses[i + 1].trim()) : null;
+      if (allKeywords && negateThem) {
+        const ref = refFor(allKeywords[1], c);
+        if (ref && "sel" in ref && !ref.sel.special && !ref.sel.fromVar && !ref.sel.filter?.unreadable) push([{ op: "negateSkillsOfKind", target: { sel: { ...ref.sel, count: 99 } }, kind: "keyword", until: durationOf(clauses[i + 1]) }]);
+        else {
+          refuse(clause);
+          refuse(clauses[i + 1]);
+        }
+        i++;
+        continue;
+      }
+    }
     if (KEYWORD_SKILL_CHOICE.test(clause.trim()) && i + 1 < clauses.length && NEGATE_THAT_SKILL.test(clauses[i + 1].trim())) {
       clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;

@@ -1080,6 +1080,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // `uses` is how many attacks are still allowed before the ban bites (BT3-104: "can only attack one more time"): said as the allowance, not as a ban.
       if (op.what === "attack" && op.filter && !op.target && op.uses != null) return `${who} can attack with ${describeFilter(op.filter)} only ${op.uses === 1 ? "one more time" : `${describeAmount(op.uses)} more times`}${escape}${forThe(op.until, r)}`;
       if (op.what === "attack" && op.filter && !op.target) return `${who} can't attack with ${describeFilter(op.filter)}${measure}${op.uses != null ? (op.uses === 1 ? " once more" : ` ${describeAmount(op.uses)} more times`) : ""}${escape}${forThe(op.until, r)}`;
+      // Audit effects 2: the allowance with no cards named — "your opponent can only attack 2 more times for the turn"
+      // (BT19-092, BT19-099) read "can't attack 2 more times", the opposite.
+      if (op.what === "attack" && !op.filter && !op.target && !op.attackTarget && op.uses != null && !op.unless && !op.unlessPay?.length) return `${who} can attack only ${op.uses === 1 ? "one more time" : `${describeAmount(op.uses)} more times`}${forThe(op.until, r)}`;
       // #930: "you can only play Battle Cards by using [Union-Fusion]" (P-069, P-226).
       if (op.what === "play" && op.exceptUnion?.length) return `${who} can only ${op.target ? "be played" : `play ${op.filter ? describeFilter(op.filter, { plural: true }) : "cards"}`} by using ${op.exceptUnion.map((v) => `[Union-${v}]`).join(" or ")}${escape}${forThe(op.until, r)}`;
       const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? (op.exceptEvolve ? " by a skill other than an [Evolve]" : " by a skill") : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];

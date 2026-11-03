@@ -233,6 +233,47 @@ for (const [id, text, op, n] of [
   assert.ok(branch && branch.then.some((o) => o.op === "resolvingPlay" && o.negated), "I: P-171: if they don't, the card being played is negated");
 }
 
+// K. Clauses that were dropped or turned, one wording each.
+{
+  const goku = record("EB1-08", "[Activate: Main][Once per turn] If you have red and blue cards in your Energy Area and you place 1 card from your life in your Drop Area: For the turn, this card gets +20000 power and can't attack your opponent's Leader Card, and you can't play any Battle Cards except ≪Universe 7≫ cards.");
+  const ban = opOf(goku, "forbid").find((o) => o.what === "play");
+  assert.ok(ban && ban.filter?.type === "BATTLE" && ban.exceptFilter?.traits.includes("universe 7"), "K: EB1-08: every Battle Card but ≪Universe 7≫ ones");
+  const keywords = record("P-744", "[auto] When this card is played, choose all of the keyword skills on your opponent's Battle Cards and negate them for the turn.");
+  assert.deepEqual(keywords.ops.map((o) => o.op), ["negateSkillsOfKind"], "K: P-744: the keyword skills alone");
+  const crew = record("P-437", "[auto][limit 1] When this card is played, look at up to 5 cards from the top of your deck, play up to 1 red ≪Bardock's Crew≫ card with an energy cost of 1 among them with its [auto] skills negated for the turn, and shuffle your deck.");
+  assert.ok(!opOf(crew, "play")[0].negated && opOf(crew, "negateSkillsOfKind").some((o) => o.kind === "auto"), "K: P-437: only its [Auto] skills negated");
+  const beerus = record("BT8-126", "[Auto] When you play this card, choose up to 1 <Beerus> card in your Drop Area with an energy cost of 3 or more, add it to your hand, then if you have 5 or less cards in your hand also draw 1 card.");
+  assert.ok(opOf(beerus, "if").some((o) => o.then.some((x) => x.op === "draw")), "K: BT8-126: the conditional draw");
+  const trunks = record("P-275", "[Auto] If your Leader Card is a blue <Trunks: Future> card: When this card is played, you may add 1 card from your life to your hand. If you do, choose 1 card in your hand and place it face up in your life.");
+  assert.ok(opOf(trunks, "moveTo").some((o) => o.to === "life" && o.faceUp), "K: P-275: back into the life face up");
+  const vegito = record("BT1-090", "[Auto] When you play this card, you may place 1 card from your hand in the Drop Area. If you do so, choose up to 2 opponent Rest Mode Battle Cards and KO those cards. Then, this card gains [Double Strike] for the duration of the turn.");
+  assert.ok(vegito.ops.some((o) => o.op === "grant"), "K: BT1-090: [Double Strike] whether or not a card was placed (its Q&A)");
+  const kaio = record("BT6-117", "[Activate: Battle] Choose up to 1 of your Battle Cards or Leader Cards, it gets +5000 power for the duration of the battle, and if it's a skill-less Battle Card it gets an additional +5000 power for the duration of the battle.");
+  assert.equal(opOf(kaio, "power").length, 2, "K: BT6-117: +5000, and +5000 more for a skill-less Battle Card");
+  const gotenks = record("BT2-014", "[permanent] If you have 4 or less cards in your hand, this card and all of your Ghost tokens gain [double strike].");
+  assert.equal(opOf(gotenks, "grant").length, 2, "K: BT2-014: this card and the Ghost tokens");
+  const goku7 = record("BT23-118", "[Counter: Play][Limit 1] If your Leader is a yellow ≪Universe 7≫ <Son Goku> card: Play this card, and if the Battle Card being played has an energy cost of 7 or less, play it in Rest Mode.");
+  assert.ok(opOf(goku7, "resolvingPlay").some((o) => o.mode === "rest") && opOf(goku7, "play").length === 1, "K: BT23-118: the card being played lands rested, no second play");
+  const leader = record("EX17-03", "[auto][limit 2] (You can only activate this skill twice per turn across all copies of this card.) [spirit boost 2] (You must remove 2 markers from your Unison Card to activate this skill.) If your opponent has 3 or more energy and it's your turn: When this card attacks or at the end of a battle in which this card was used in a combo from your hand, choose up to 1 of your mono-blue Leader Cards and switch it to Active Mode, it gets +5000 power for the turn, then negate its keyword skills for the turn and you can't activate your Leader Card's non-keyword skills for the turn.");
+  assert.ok(opOf(leader, "forbid").some((o) => o.what === "activateSkill" && o.filter?.type === "LEADER"), "K: EX17-03: your Leader's non-keyword skills can't be activated");
+  assert.equal(describeScript([{ op: "forbid", what: "attack", side: "opponent", until: "turn", uses: 2 }]), "your opponent can attack only 2 more times for the turn", "K: BT19-092: the allowance, said as one");
+}
+// Catalog text (errata.ts): BT30-135's shuffle, BT29-146's lock, P-657's switch, BT25-008's name.
+{
+  const goten = record("BT30-135", "[activate: main] Look at up to 7 cards from the top of your deck, play up to 1  <Son Goku: GT>, <Pan>, or <Trunks: GT> card -- all white and with an energy cost of 1 -- shuffle your deck, then choose up to 1 of your white Battle CArds with an energy cost of 1, switch it to Hidden Mode, then switch that card to Revealed Mode at the end of your opponent's turn.");
+  assert.ok(opOf(goten, "shuffle").length === 1 && opOf(goten, "choose")[0].sel.fromVar === "looked", "K: BT30-135: played out of the look, then the shuffle");
+  const lock = record("BT29-146", "[activate: main][limit 1]{y}, if your Leader is yellow, your opponent has 2 or more energy, and you place this card from your hand into its owner's Z-Deck face-up: Draw 1 card, choose up to 2 total of your opponent's Battle Cards and/or Unisons-both in Rest Mode-and they can't switch to Active Mode until the end of your opponent's turn, then play this card from your Z-Deck at the start of your next Main Phase.");
+  assert.ok(opOf(lock, "forbid").some((o) => o.what === "switchToActive"), "K: BT29-146: the chosen cards can't switch to Active Mode");
+}
+// Unread, never a misread: a play at its price (TB1-029), and the lines that read as nothing in silence.
+{
+  const tien = skillRecords(card("TB1-029", { skill: "[Activate: Main] [Once per turn] Look at up to 7 cards from the top of your deck and choose up to 1 ≪Universe 7≫  among them. You may play that card by paying its energy cost. Then, shuffle your deck." }))[0];
+  assert.deepEqual(tien.unread, ["You may play that card by paying its energy cost"], "K: TB1-029: the paid play is unread");
+  const silent = skillRecords(card("BT14-074", { skill: "[Permanent] If your Leader Card is a green ≪Earthling≫ card, green skill-less Battle Cards in your Combo Area get +5000 combo power while this card is in a battle." }))[0];
+  assert.equal(silent.unread.length, 1, "K: BT14-074: a silent blank is unread");
+  records += 2;
+}
+
 // J. `arena:refresh-ids --describe-only` writes the text the full compile writes — a granted line keeps its "granted by
 // skill #N, not this card's own: " (it dropped it on 17 production rows), and every other line is unchanged.
 for (const [id, text, back] of [

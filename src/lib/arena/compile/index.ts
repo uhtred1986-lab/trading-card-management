@@ -17,6 +17,7 @@ import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause } from "./conditions";
 import { compileClauseList, holdForGame, isComboDropReplacement, splitModal, taxWordings } from "./effects";
 import { bondDescriptorOnly } from "../text/bond";
+import { readsAsNothingSilently } from "./silent";
 import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
 import type { Ctx } from "./shared";
 import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
@@ -54,7 +55,12 @@ export function compileSkill(skill: Skill): Script {
   // compiled as the skill it quotes; its record is the grant's program (which
   // says for itself when the granted [Auto]'s moment is not read).
   if (skill.granted) return compileQuotedSkill(skill.granted.skill);
-  return attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))));
+  const script = attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))));
+  // Audit effects 2: a line that reads as nothing and says nothing about it (`readsAsNothingSilently`, the
+  // `KNOWN_SILENT` list) is unread — an honest gap — never a blank the engine plays as done: BT14-074's +5000 combo
+  // power, BT18-003's battle ban, BT20-017/BT20-019's +5000 to the card above, BT25-133's combo cost, BT4-003's
+  // [Counter] ban, BT13-084's copies-of-[Field] ban.
+  return readsAsNothingSilently(skill, script) ? { ...script, unsupported: [skill.effect.replace(/\s+/g, " ").trim()] } : script;
 }
 
 /**

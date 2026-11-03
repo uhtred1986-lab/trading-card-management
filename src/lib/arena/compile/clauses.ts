@@ -185,6 +185,16 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // (BT30-150): the dashes held the action inside the last choice, and it was lost. Said as "ignoring [Barrier]" after
   // the last choice (the only one in a Battle Area), then the action.
   text = text.replace(/\s*[—–―-]\s*all ignoring \[barrier\]\s*[—–―-]\s*and\b/gi, ", ignoring [Barrier], and");
+  // Audit effects 2: "…, and if it's a skill-less Battle Card **it gets an additional +5000 power** for the duration of the
+  // battle" (BT6-117): no comma closes the condition, so its effect was read into it and lost; "an additional +5000" is
+  // +5000 more, on top of the first.
+  text = text.replace(/\b(if it'?s an? [^,.;:]+?) (it (?:gets|gains)) an additional ([+-]\d+ (?:combo )?power)\b/gi, "$1, $2 $3");
+  // Audit effects 2: "…and you can't activate **your Leader Card's non-keyword skills** for the turn" (EX17-03) is the
+  // "non-keyword Leader Card skills" ban `compileProhibition` reads; it read as a negation of the chosen card's [Counter]s.
+  text = text.replace(/\byou can(?:'|no)t activate your leader(?: card)?'s non-keyword skills\b/gi, "you can't activate non-keyword leader card skills");
+  // Audit effects 2: "…, then if you have 5 or less cards in your hand **also draw 1 card**" (BT8-126): no comma closes the
+  // condition, so the draw was read into it and lost.
+  text = text.replace(/\b(if you have \d+ or (?:less|fewer|more) cards in your hand) also (draw|add|play)\b/gi, "$1, $2");
   // BT6-015: these are properties of the same Leader, not new clauses with
   // an anonymous "it". Fold the equivalent colour phrase before splitting.
   text = text.replace(/\b(your leader(?: card)?) is (a ≪[^≫]+≫ card) and it is (red|blue|green|yellow|black|white) and no other colou?rs?\b/gi,

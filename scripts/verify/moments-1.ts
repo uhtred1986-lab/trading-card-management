@@ -78,7 +78,8 @@ let records = 0;
   // A keyword hook names its moments through its keyword.
   assert.ok(skillRecords(card("REV", { skill: "[Revenge]" })).every((r) => !r.unread.length), "A: a keyword line is not refused");
   // A misread effect is not made readable by its moment: BT5-071's "it" names the condition's Leader.
-  assert.ok(/names the Leader/.test(only("[Auto] When this card is placed in your Drop Area from your deck, if your Leader Card is green, you may play it by paying its energy cost.", "BT5-071").unread[0] ?? ""), "A: BT5-071 stays unread");
+  // (Audit effects 2: its paid play — "…by paying its energy cost" — is unread before the pronoun is asked.)
+  assert.ok(/names the Leader|by paying its energy cost/.test(only("[Auto] When this card is placed in your Drop Area from your deck, if your Leader Card is green, you may play it by paying its energy cost.", "BT5-071").unread[0] ?? ""), "A: BT5-071 stays unread");
   records += 6;
 }
 

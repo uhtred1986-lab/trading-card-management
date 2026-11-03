@@ -67,6 +67,6 @@ export const KNOWN_SILENT = new Set<string>([
   // ("This card can't be played from any area if/unless …" — BT9-078, BT9-079,
   // P-281, BT22-077 — is no longer skipped: `compileProhibition` reads the
   // "unless" form, and an "if" form it cannot read is reported unread.)
-  // Wordings no reader takes and none reports: found by this check, not yet fixed.
-  "BT13-084#20", "BT14-074#10", "BT18-003#20", "BT20-017#0", "BT20-019#0", "BT25-133#20", "BT4-003#40",
+  // (BT13-084#20, BT14-074#10, BT18-003#20, BT20-017#0, BT20-019#0, BT25-133#20, BT4-003#40 — wordings no reader takes —
+  // are reported unread since audit effects 2: `compileSkill` makes a silent blank unread, so none can hide here.)
 ]);

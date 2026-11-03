@@ -247,6 +247,12 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   // Childhood **cards**" (no closing bracket) lost the name and the +5000 after it.
   "P-657": [[/black\s+Z-Battle\s+Cards\s+ad\s+switch\s+it/g, "black Z-Battle Cards and switch it"]],
   "BT25-008": [[/red\s+<Son\s+Goku:\s+Childhood\s+cards\s+and/g, "red <Son Goku: Childhood> cards and"]],
+  // "…Battle Cards and/or Unisons**-**both in Rest Mode**-**and they can't switch to Active Mode …": hyphens for the dashes,
+  // so the lock was read into the choice's description and lost.
+  "BT29-146": [[/Unisons-both\s+in\s+Rest\s+Mode-and\s+they/g, "Unisons—both in Rest Mode—and they"]],
+  // "…<Trunks: GT> card **--** all white and with an energy cost of 1 **--** shuffle your deck": double hyphens for the
+  // dashes and no comma before the shuffle, so the shuffle was read into the card's description and lost.
+  "BT30-135": [[/card\s+--\s+all\s+white\s+and\s+with\s+an\s+energy\s+cost\s+of\s+1\s+--\s+shuffle\s+your\s+deck/g, "card—all white and with an energy cost of 1—, shuffle your deck"]],
 
   // ── Official errata, all of them (errata-official-1, 2 Nov 2026) ──────────
   // Bandai's errata page (https://www.dbs-cardgame.com/us-en/rule/errata-cards.php), snapshot in
