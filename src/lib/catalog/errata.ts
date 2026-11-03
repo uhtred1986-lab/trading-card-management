@@ -161,6 +161,10 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
     [/and\s+ngate\s+their\s+skills/g, "and negate their skills"],
     [/can't\s+witch\s+Battle\s+Cards/g, "can't switch Battle Cards"],
   ],
+  // Audit selectors 3: the special trait printed without its brackets — "Add up to 1 green Great Ape card …" (P-415; the
+  // card's ≪Great Ape≫, the trait every other card prints bracketed). Unbracketed, the filter dropped it and any green
+  // [Blocker] card costing 4 or less was added.
+  "P-415": [[/Add\s+up\s+to\s+1\s+green\s+Great\s+Ape\s+card/g, "Add up to 1 green ≪Great Ape≫ card"]],
   // Audit triggers 1: "When your red Z-Card is palyed or attacks" — the play half was lost to the typo.
   "BT31-006": [[/Z-Card\s+is\s+palyed\s+or\s+attacks/g, "Z-Card is played or attacks"]],
   // Audit triggers 2 (3 Nov 2026): catalog typos in a moment's own words. BT26-100: the official card list prints

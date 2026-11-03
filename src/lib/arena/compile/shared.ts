@@ -74,6 +74,11 @@ export interface Ctx {
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
   lastPlayed: string | null;
   /**
+   * Audit selectors 3: the moment is another card's play ("When your blue ≪Universe 6≫ card is played", BT26-033), so
+   * "the played card" is that card — the moment's subject — while the skill has played none of its own.
+   */
+  playedSubject?: boolean;
+  /**
    * The card the skill's price chose, by the name the price binds it to —
    * "the card that was switched to Hidden Mode **by this skill**" (BT28-105,
    * BT28-121) is that card and no other. Absent when the price chose nothing.

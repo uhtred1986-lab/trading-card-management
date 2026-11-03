@@ -140,10 +140,13 @@ const AREA_LISTED: Record<string, ScriptArea> = { ...AREA_NAMED, "leader area": 
  * Card in your **Unison Area and Drop Area**" (P-379) — is the two areas, as a list of three is. Read as before, the
  * pair reader did not know the Unison Area and the count kept the Drop alone. Two areas on the board ("Battle Area or
  * Leader Area", BT3-087) stay the cards you have in play.
+ * Audit selectors 3: but "…in your **Battle Area or Unison Area**" (P-623's back) is those two — read as the Unison Area
+ * alone, a green Battle Card with {Trunks} in its name could not be chosen.
  */
 const ON_BOARD = new Set<ScriptArea>(["battle", "leader", "unison"]);
 function pairOffBoard(words: string[]): boolean {
   const areas = words.map((w) => AREA_LISTED[w]);
+  if (areas.length === 2 && new Set(areas).size === 2 && areas.every((a) => a === "battle" || a === "unison")) return true;
   return areas.length === 2 && areas.every(Boolean) && areas[0] !== areas[1] && !areas.every((a) => ON_BOARD.has(a)) && areas.some((a) => a === "leader" || a === "unison");
 }
 
@@ -483,7 +486,19 @@ function alternativePlaces(phrase: string, looked?: string, pool?: string): Sele
 }
 
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
-  // Audit conditions 2: "…then, at the end of the turn, place **the card you placed in your energy with this skill** in its
+  // Audit selectors 3: "…then play **this face-up card** from your life. If you didn't play a card, place this face-up
+  // card in your Drop Area from your life" (BT12-005, BT12-006, BT12-009, BT12-010): the card printing the skill, said
+  // with the side it was just flipped to. Read as a description, any face-up card in the life was played or dropped.
+  if (/\bthis face[- ]up card\b/i.test(phrase)) return parseTarget(phrase.replace(/\bthis face[- ]up card\b/gi, "this card"), looked, pool);
+  // Audit selectors 3: "choose **all** of your opponent's skill-less Battle Cards **and** Battle Cards with 15000 power or
+  // less―all in Rest Mode―" (EX25-35): every card of either description — all of A and all of B is all of A-or-B. Read
+  // as one description the "and" made each card both, and a skill-less 20000 or a 10000 with skills was left out.
+  {
+    const both = /^((?:choose )?all (?:of )?(?:your opponent'?s |your |their )?)((?:(?!\band\b)[^,])+?\b(?:battle cards|cards|unisons|extras))\s+and\s+((?:(?:[a-z-]+|<[^>]+>|≪[^≫]+≫) )*?(?:battle cards|cards|unisons|extras)\b.*)$/i.exec(phrase.trim());
+    // (Not "Battle Cards and Unisons", the two areas read below, nor a bare noun twice.)
+    if (both && !/^(?:unisons?|leaders?)\b/i.test(both[3].trim()) && !/^(?:battle cards|cards)$/i.test(both[2].trim())) return parseTarget(`${both[1]}${both[2]} or ${both[3]}`, looked, pool);
+  }
+  // Audit conditions 2:"…then, at the end of the turn, place **the card you placed in your energy with this skill** in its
   // owner's Drop Area" (BT10-035): the card the skill's one move to the Energy Area took (`PLACED_IN_ENERGY`, bound by the
   // compiler as for BT10-054's condition) — read as a description it was every card in the Energy Area.
   if (/^the card you placed in your energy(?: area)? (?:with|by|using) this skill$/i.test(phrase.trim())) return { fromVar: PLACED_IN_ENERGY, area: "energy" };
@@ -1290,7 +1305,13 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // as the place the cards must be — so the span is the only thing said.
   if (allAreas) return { side, areas: ALL_AREAS, filter, count, upTo, ...floor, mode, hidden, notSelf };
   if (otherAreas) return { side, areas: otherAreas, filter, count, upTo, ...floor, mode, hidden, notSelf };
-  if (bothAreas) return { side, area: leaderOrBattle || leadersBattlesUnisons ? "leader" : "battle", areas: leadersBattlesUnisons ? ["leader", "battle", "unison"] : leaderOrBattle ? ["leader", "battle"] : ["battle", "unison"], filter, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
+  // Audit selectors 3: the kinds the phrase names are the kinds taken — "choose all of your opponent's Rest Mode **Battle
+  // Cards and Unisons** … and place them into their owner's Drop" (BT28-149): not a Hidden Mode card, which has no card
+  // type (23-5-2, Q&A of BT28-038), nor a [Field] Extra in the Battle Area. With the type words dropped (one field holds
+  // one type) every card in the two areas was swept. As "Battle Cards" alone already keeps its type there (`filterFor`).
+  const kindsSaid = (leadersBattlesUnisons ? ["LEADER", "BATTLE", "UNISON"] : leaderOrBattle ? ["LEADER", "BATTLE"] : ["BATTLE", "UNISON"]) as ("LEADER" | "BATTLE" | "UNISON")[];
+  const typedBoth = bothAreas && !filter?.type && !filter?.anyOf?.length ? { ...(filter ?? emptyFilter()), anyOf: kindsSaid.map((type) => ({ ...emptyFilter(), type })) } : filter;
+  if (bothAreas) return { side, area: leaderOrBattle || leadersBattlesUnisons ? "leader" : "battle", areas: leadersBattlesUnisons ? ["leader", "battle", "unison"] : leaderOrBattle ? ["leader", "battle"] : ["battle", "unison"], filter: typedBoth, count, upTo, ...floor, mode, hidden, fromVar, notSelf };
   // #930, BT30-064's quoted Absorb: "choose 1 Battle Card **in your Drop or
   // your opponent's Battle Area**" — each area with its own owner. Read with
   // one side, the possessive nearest the second area took both, and the price
@@ -1311,6 +1332,22 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // off the first noun alone, the ≪Android≫ Battle Cards were never offered.
   if (area === "leader" && !fromVar && !/\bleader area\b/.test(t) && filter?.anyOf?.some((a) => a.type === "LEADER") && filter.anyOf.some((a) => a.type == null)) {
     return { side, area: "leader", areas: ["leader", "battle"], filter, count, upTo, ...floor, mode, hidden, notSelf };
+  }
+  // Audit selectors 3: the same for a Unison — "choose up to 1 of your **black ≪God≫ cards or black Unisons**" (BT29-103):
+  // a Unison, or a card the other description names wherever it is in play. Read off the type noun the choice was of the
+  // Unison Area alone, and a black ≪God≫ Battle Card or Leader was never offered.
+  if (area === "unison" && !fromVar && !/\bunison area\b/.test(t) && filter?.anyOf?.some((a) => a.type === "UNISON") && filter.anyOf.some((a) => a.type == null)) {
+    return { side, area: "play", filter, count, upTo, ...floor, mode, hidden, notSelf };
+  }
+  // Audit selectors 3: "choose all Battle Cards with 25000 or less power other than this card **or your <Caulifla>**"
+  // (TB1-015): a sweep of both boards that spares your own <Caulifla> alone — the opponent's is swept with the rest. The
+  // exclusion read as a filter spared every <Caulifla>; it is now the opponent's cards as described, and yours less it
+  // (`alsoFrom`, one choice of all of them).
+  const yoursSpared = side === "both" && area && !fromVar && /\b(?:other than|except for|besides) (?:this card,? )?(?:or|and|and\/or) your (?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?=\s*(?:,|$|cards?\b))/i.exec(phrase);
+  if (yoursSpared && filter) {
+    const theirs = filterFor(phrase.replace(/,? (?:or|and|and\/or) your (?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:\s*cards?)?/i, ""), area);
+    if (!theirs) return null;
+    return { side: "opponent", area: area ?? undefined, filter: theirs, count, upTo, ...floor, mode, hidden, notSelf, alsoFrom: [{ side: "you", area: area ?? undefined, filter, ...(mode ? { mode } : {}) }] };
   }
   return { side, area: area ?? undefined, filter, count, upTo, ...floor, mode, hidden, fromVar, take, fromEnd, notSelf };
 }

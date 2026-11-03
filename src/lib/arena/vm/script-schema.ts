@@ -471,7 +471,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const op = raw as OpOf<"choose">;
       // Audit-selectors-1: "your opponent chooses 1 of their Battle Cards" (SD16-02, BT28-030, TB1-072…): the record
       // says who chooses (`chooser`), and the reading said "choose", which a player reads as their own pick.
-      const choose = op.chooser === "opponent" ? "your opponent chooses" : "choose";
+      // Audit selectors 3: a choice of the one card a moment names that may be declined — "you may choose that card"
+      // (DB2-023), "choose up to 1 of those Battle Cards" being played (DB1-020) — says so; the selector names one card
+      // and prints no "up to".
+      const declinable = op.chooser !== "opponent" && op.sel.upTo && (op.sel.special === "subject" || op.sel.special === "resolving");
+      const choose = op.chooser === "opponent" ? "your opponent chooses" : declinable ? "you may choose" : "choose";
       // "Any number of …, up to the number of …" (BT29-139): the selector's own
       // count is not read, so it is not said either.
       if (op.atMost !== undefined && op.owed) {
@@ -838,7 +842,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const request = op.requestedTo ? ` to the ${op.requestedTo}` : "";
       const duration = op.until ? DURATION_IN_WORDS[op.until] : "";
       const position = op.position === "bottom" ? " to the bottom of" : op.position === "top" ? " to the top of" : " to the";
-      return `if ${describeRef(op.target ?? { sel: { special: "self" } })} would ${cause}${request}, it ${op.optional ? "may go" : "goes"}${position} ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""}${duration} instead`;
+      return `if ${describeEachRef(op.target ?? { sel: { special: "self" } })} would ${cause}${request}, it ${op.optional ? "may go" : "goes"}${position} ${op.to}${op.mode === "rest" ? " in Rest Mode" : ""}${duration} instead`;
     },
     doc: '9-10: "to" is the replacement destination; "from" explicitly names valid departure areas (including Combo), otherwise ordinary in-play departure scope applies; "by" narrows the cause ("skillOrKoBySkill": a skill\'s move or a skill\'s KO, never the battle\'s — owner ruling 26 Oct 2026, "if this card would be removed from the Battle Area by your opponent\'s skill, … instead"), "bySide" narrows whose skill, and "requestedTo" narrows the original requested destination. "position" specifies top or bottom of a pile. Omit "until" for a [Permanent] (9-5-1); a timed effect records this redirect for the stated duration. Omit "target" for this card',
   },
@@ -859,7 +863,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const as = replaceAs(raw as Op);
       if (as.op !== "replace") return describeScript([as], r);
       const op = raw as OpOf<"replace">;
-      const who = describeRef(op.target ?? { sel: { special: "self" } });
+      const who = describeEachRef(op.target ?? { sel: { special: "self" } });
       const whose = op.bySide === "opponent" ? "an opponent's skill" : op.bySide === "you" ? "one of your skills" : "a skill";
       const instead = `${op.optional ? "you may have this happen" : "this happens"} instead: ${describeScript(op.with, r)}`;
       // 13-5-2: the one marker loss a replacement is read at (`by` is always "attack").
@@ -868,7 +872,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         op.event === "play"
           ? "the card being played would be played"
           : op.event === "life"
-            ? `${who} would move from your life to your ${op.to === "drop" ? "Drop Area" : op.to === "hand" ? "hand" : "hand or your Drop Area"}`
+            ? // Audit selectors 3: with no target it is any card of the master's life (BT10-031, SD18-01), not "this card" — a
+              // Leader that is never in the life.
+              `${op.target ? who : "a card"} would move from your life to your ${op.to === "drop" ? "Drop Area" : op.to === "hand" ? "hand" : "hand or your Drop Area"}`
             : op.event === "ko" || op.by === "ko"
               ? `${who} would be KO'd${op.by === "koInBattle" ? " in battle" : op.bySide === "opponent" ? " by an opponent's skill" : ""}`
               : op.by === "skill"
@@ -2756,6 +2762,14 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
     const { anyOf: _alts, ...rest } = f;
     void _alts;
     const besides = describeFilter(rest, noun);
+    // Audit selectors 3: kinds alone ("Battle Cards or Unisons with 25000 power or more", BT28-149's sweep) are the noun
+    // of what the rest says — "Battle Cards or Unison Cards with 25000 power or more", not "(and cards with …)".
+    const kindsOnly = f.anyOf.every((alt) => !!alt.type && describeFilter(alt, noun) === describeFilter({ type: alt.type }, noun));
+    const card = /\bcards?\b/.exec(besides);
+    if (kindsOnly && card && besides !== describeFilter({}, noun)) {
+      const kinds = f.anyOf.map((alt) => describeFilter({ type: alt.type }, card[0] === "cards" ? { plural: true } : { plural: false })).join(" or ");
+      return `${besides.slice(0, card.index)}${kinds}${besides.slice(card.index + card[0].length)}`;
+    }
     return besides === describeFilter({}, noun) ? either : `${either} (and ${besides})`;
   }
   const bits: string[] = [];
@@ -2954,6 +2968,7 @@ export const ZONE_NOUNS: Record<Exclude<ScriptArea, "play" | "under" | "removed"
   zDeck: "Z-Deck",
   zEnergy: "Z-Energy Area",
 };
+const EVERY_AREA = Object.keys(ZONE_NOUNS) as ScriptArea[];
 
 /**
  * Where a selector looks, in the game's own words for its areas: "in your
@@ -2962,6 +2977,16 @@ export const ZONE_NOUNS: Record<Exclude<ScriptArea, "play" | "under" | "removed"
  * (`under`, `play`) and the cards removed from the game have no area to be
  * "in", so they are said the way the card text says them.
  */
+/**
+ * Audit selectors 3: a replacement answers each card its description fits, one at a time — "if **a** ≪Turles Crusher
+ * Corps≫ card in your Battle Area would be placed in its owner's Drop Area" (BT12-056), "when **a** black <Son Goku:
+ * Childhood> card … would be removed" (BT19-136). "If all … cards would be removed" read as a wipe of every one at once.
+ */
+function describeEachRef(ref: Ref): string {
+  if ("sel" in ref && !ref.sel.special && !ref.sel.fromVar && (ref.sel.count == null || ref.sel.count === 99) && !ref.sel.upTo && ref.sel.take == null) return describeSelector({ ...ref.sel, count: 1 }).replace(/^1 /, "a ");
+  return describeRef(ref);
+}
+
 function describeWhere(sel: Selector): string {
   const areas: ScriptArea[] = sel.areas?.length ? sel.areas : [sel.area ?? "play"];
   // #930: an owner per area — "in your Drop or your opponent's Battle Area".
@@ -2969,6 +2994,8 @@ function describeWhere(sel: Selector): string {
   const owner = sel.side === "opponent" ? "your opponent's" : sel.side === "both" ? "each player's" : "your";
   const has = sel.side === "opponent" ? "your opponent has" : sel.side === "both" ? "either player has" : "you have";
   const zones = areas.filter((a) => a !== "play" && a !== "under" && a !== "removed").map((a) => ZONE_NOUNS[a as keyof typeof ZONE_NOUNS] ?? a);
+  // Audit selectors 3: every one of the twelve areas is "in all areas" (P-268, BT21-001's back, BT23-072).
+  if (EVERY_AREA.every((a) => areas.includes(a)) && areas.length === EVERY_AREA.length) return `in all of ${owner} areas`;
   const parts: string[] = [];
   if (zones.length) parts.push(`in ${owner} ${zones.join(" or ")}`);
   if (areas.includes("play")) parts.push(`${has} in play`);

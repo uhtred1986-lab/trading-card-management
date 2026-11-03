@@ -565,6 +565,10 @@ function awakenDrawIsMandatory(script: Script): Script {
   const draws: Op[] = [];
   let i = 0;
   while (first.ops[i]?.op === "draw") draws.push(first.ops[i++]);
+  // Audit selectors 3 (R-320): "You may draw 2 cards, **and add cards from your life to your hand until you have 6 life
+  // left**" (P-434) — the life step said in the same offer is the [Awaken]'s too, as the draw is: the "you may" is the
+  // choice to awaken. Kept in the offer, a player could awaken, draw, and keep the life the card takes.
+  while (first.ops[i]?.op === "lifeDownTo") draws.push(first.ops[i++]);
   const kept = first.ops.slice(i);
   return { ...script, ops: [...draws, ...(kept.length ? [{ ...first, ops: kept } as Op] : []), ...rest] };
 }
@@ -1313,7 +1317,24 @@ function compileSkillText(skill: Skill): Script {
     // and the card the trigger is about is the one played — "it" is that
     // card, not this one. Only the means phrase is set aside; any other
     // "this card" in the trigger still makes it the antecedent.
-    if (/\bthis card\b/i.test(trigger.replace(BY_THIS_CARDS_SKILL, ""))) c.lastTarget = { sel: { special: "self" } };
+    // Audit selectors 3: the card a combo card combos **with** — "When this card is used in a combo from your hand with a
+    // ≪Heroine≫ card in your Leader Area or Battle Area, **that card** gets +5000 power and [double strike]" (EB1-45), "When
+    // you combo this card with a skill-less Battle Card with 10000 power, you may choose **that card** and switch it to
+    // Active Mode" (DB2-003), "…used in a combo with a red <Yamcha> card, **it** gets +5000 combo power" (BT10-017) — is
+    // your card in the battle (5-7-1). What the words say of it is a condition, and "that card" names it ("it" stays this
+    // card, the one the combo power is on). Dropped, the description fired for any battle and "that card" was this one.
+    let partnerTarget: { sel: Selector } | null = null;
+    const partnerSaid = skill.kind === "auto" ? /^when (?:this card is used in a combo|you use this card in a combo|you combo this card)(?: from your hand)? with (?:an?|1) (.+?)(?: in your (?:leader area or battle area|battle area or leader area|battle area|leader area))?[.,]?$/i.exec(trigger.trim()) : null;
+    if (partnerSaid) {
+      const partner = filterFor(partnerSaid[1], null);
+      if (!partner || unreadFilterWords(partnerSaid[1], partner).length) return { ops: [], unsupported: [trigger, ...clauses] };
+      const yours: Selector = { side: "you", area: "leader", areas: ["leader", "battle"], filter: partner, battleRole: "any" };
+      const has: Cond = { kind: "inBattle", sel: { side: "you", filter: partner } };
+      triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, has] } : has;
+      if (clauses.some((cl) => /\bthat card\b/i.test(cl))) partnerTarget = { sel: yours };
+    }
+    if (skill.kind === "auto" && triggersOf(skill).some((t) => t === "youPlayed" || t === "opponentPlayed")) c.playedSubject = true;
+    if (/\bthis card\b/i.test(trigger.replace(BY_THIS_CARDS_SKILL, ""))) c.lastTarget = partnerTarget ?? { sel: { special: "self" } };
     // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
     // attacks a Battle Card, **it** gets +10000 power for the turn" — a
     // trigger about some *other* card, which the engine already binds as the

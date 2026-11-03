@@ -628,6 +628,23 @@ function warpSelfOps(ops: readonly Op[]): Op[] {
 }
 
 /**
+ * Audit selectors 3 (9-1-3-2): the same for the Drop — "reduce the energy cost of this card in your hand **and Drop
+ * Area** by 1" (BT9-071, EX21-03): the change to this card's own cost that names the Drop holds while it lies there,
+ * where a play from the Drop asks it (BT9-075's cost-2-or-less play). Read in the hand alone, the Drop half was lost.
+ */
+function dropSelfOps(ops: readonly Op[]): Op[] {
+  const out: Op[] = [];
+  for (const op of ops) {
+    if (op.op === "if") {
+      const then = dropSelfOps(op.then);
+      const other = op.else ? dropSelfOps(op.else) : [];
+      if (then.length || other.length) out.push({ ...op, then, ...(other.length ? { else: other } : {}) });
+    } else if (op.op === "costReduction" && op.target && "sel" in op.target && op.target.sel.special === "self" && (op.target.sel.area === "drop" || !!op.target.sel.areas?.includes("drop"))) out.push(op);
+  }
+  return out;
+}
+
+/**
  * What a card in a Combo Area can answer: its replacements of a departure from the Combo Area, kept
  * inside the conditions they are printed under ("If your Leader Card is …"), and nothing else of the program.
  */
@@ -667,15 +684,15 @@ function zonePlan(game: GameDefinition) {
  * printed card (#1009). `permanents` runs on every value asked for, and testing the text of every
  * card of the deck, the Drop and the Life Area with a regex each time cost most of a move.
  */
-const printedAreaFlags = new WeakMap<object, { allAreas: boolean; life: boolean; zEnergy: boolean }>();
-const NO_AREA_FLAGS = { allAreas: false, life: false, zEnergy: false };
-function areaFlags(printed: { skill?: string | null; back?: { skill?: string | null } | null } | undefined): { allAreas: boolean; life: boolean; zEnergy: boolean } {
+const printedAreaFlags = new WeakMap<object, { allAreas: boolean; life: boolean; zEnergy: boolean; drop: boolean }>();
+const NO_AREA_FLAGS = { allAreas: false, life: false, zEnergy: false, drop: false };
+function areaFlags(printed: { skill?: string | null; back?: { skill?: string | null } | null } | undefined): { allAreas: boolean; life: boolean; zEnergy: boolean; drop: boolean } {
   if (!printed) return NO_AREA_FLAGS;
   let flags = printedAreaFlags.get(printed);
   if (!flags) {
     const text = `${printed.skill ?? ""} ${printed.back?.skill ?? ""}`;
     const allAreas = /all areas/i.test(text);
-    flags = { allAreas, life: allAreas || /this card from your life/i.test(text), zEnergy: /can also be activated from your z-energy/i.test(text) };
+    flags = { allAreas, life: allAreas || /this card from your life/i.test(text), zEnergy: /can also be activated from your z-energy/i.test(text), drop: /\bcost of this card in your (?:hand (?:and|or) )?drop\b/i.test(text) };
     printedAreaFlags.set(printed, flags);
   }
   return flags;
@@ -730,7 +747,7 @@ export function permanents(
         const printed = ctx.defs[card.cardId];
         // The text tests are cached per printed card (#1009), and asked before the negation scan below.
         // BT19-077/078/081/082: a Z-Energy card's one [Permanent], about its own [Evolve] line used from there.
-        if (extra && !areaFlags(printed).allAreas && !(zone === "zEnergy" && areaFlags(printed).zEnergy)) continue;
+        if (extra && !areaFlags(printed).allAreas && !(zone === "zEnergy" && areaFlags(printed).zEnergy) && !(zone === "drop" && areaFlags(printed).drop)) continue;
         // A life card is looked at only when it prints a rule about itself in the Life Area (a life card is read on every statics pass).
         if (zone === "life" && !areaFlags(printed).life) continue;
         if (skillsNegated(state, src)) continue;
@@ -750,7 +767,7 @@ export function permanents(
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
           if (!sparkingIsValid(state, p, sk.validity)) continue;
           if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
-          const ops = extra ? program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy"))
+          const ops = extra ? [...program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy")), ...(zone === "drop" && areaFlags(printed).drop ? dropSelfOps(program.ops) : [])]
             : zone === "life" ? lifeSelfOps(program.ops)
             : zone === "warp" ? [...program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op)), ...warpSelfOps(program.ops)]
             : zone === "combo" ? comboDepartures(program.ops) : program.ops;

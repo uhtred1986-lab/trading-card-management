@@ -814,7 +814,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 
 {
   const one = (text: string) => compileSkill(parseSkills(text)[0]);
-  const sel = (sc: { ops: unknown[] }) => (sc.ops[0] as { target: { sel?: { area?: string } } }).target.sel;
+  const sel = (sc: { ops: unknown[] }) => (sc.ops[0] as { target: { sel?: { area?: string; areas?: string[] } } }).target.sel;
 
   // The area the text names is part of the target. It used to be stripped out
   // of the phrase, so a reducer for cards "in your hand" selected cards in
@@ -826,9 +826,10 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   // A phrase that names no area is about the card you are about to play, not
   // about a card on the table — 20-1-6's default is the one place a cost
   // reduction can never matter.
+  // (Audit selectors 3: and the Q&A of BT21-001, the one card printing it, says "in all of your areas".)
   const named = one("[Permanent] Reduce the energy cost of a {Power Pole} by {r}.");
   assert.deepEqual(named.unsupported, []);
-  assert.equal(sel(named)?.area, "hand");
+  assert.equal(sel(named)?.areas?.length, 12);
   assert.equal((named.ops[0] as { amount: number }).amount, 1, "an orb is one less");
 
   // "For each …" is the same count amount the power statics take.
