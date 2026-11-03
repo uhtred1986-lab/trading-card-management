@@ -163,6 +163,14 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   ],
   // Audit triggers 1: "When your red Z-Card is palyed or attacks" — the play half was lost to the typo.
   "BT31-006": [[/Z-Card\s+is\s+palyed\s+or\s+attacks/g, "Z-Card is played or attacks"]],
+  // Audit triggers 2 (3 Nov 2026): catalog typos in a moment's own words. BT26-100: the official card list prints
+  // "…played or attacks an opponent's Battle Card" (docs/arena-backlog/962.md).
+  "BT26-100": [[/is\s+played\s+or\s+attacks\s+and\s+opponent's\s+Battle\s+Card/g, "is played or attacks an opponent's Battle Card"]],
+  "BT30-016": [[/When\s+you\s+blue\s+≪Earthling≫\s+card\s+attacks/g, "When your blue ≪Earthling≫ card attacks"]],
+  "BT21-102": [[/with\s+an\s+energy\s+cost\s+of\s+5\s+of\s+or\s+more\s+attacks/g, "with an energy cost of 5 or more attacks"]],
+  "BT26-077": [[/When\s+this\s+ard\s+is\s+used\s+in\s+a\s+combo/g, "When this card is used in a combo"]],
+  "BT26-003": [[/placed\s+from\s+our\s+life\s+into\s+your\s+Drop/g, "placed from your life into your Drop"]],
+  "BT26-002": [[/When\s+this\s+card\s+is\s+place\s+in\s+your\s+Leader\s+Area/g, "When this card is placed in your Leader Area"]],
   "BT31-016": [[/from\s+its\s+owner'\s+Warp/g, "from its owner's Warp"]],
   "BT31-017": [[/at\s+5\s+or\s+lees/g, "at 5 or less"]],
   "BT31-041": [

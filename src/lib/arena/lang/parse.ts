@@ -39,6 +39,7 @@ export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   revealed: (s) => (s.hidden = false),
   fromEnd: (s) => (s.fromEnd = true),
   ignoringBarrier: (s) => (s.ignoreBarrier = true),
+  asChoice: (s) => (s.choice = true),
   notInBattle: (s) => (s.notInBattle = true),
   inBattle: (s) => (s.battleRole = "any"),
   attacking: (s) => (s.battleRole = "attacker"),

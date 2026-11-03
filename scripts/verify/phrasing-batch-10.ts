@@ -41,7 +41,6 @@ const plain = (v: unknown) =>
   }));
 /** Moments batch 1: the lines here whose moment is not read yet — only that clause is unread. */
 const MOMENT_UNREAD: Record<string, string> = {
-  "BT6-125": "When 1 of your green Battle Cards with an energy cost of 7 or more is removed from a Battle Area by a skill or KO'd",
   "BT30-109": "When this card is removed from the game by a white ≪King Kai's Planet≫ <Son Goku> card's skill",
 };
 /** The record of `text` (its only one, or the one at `index`), read whole, through the stored-row round trip and the language's print and reparse. */
@@ -50,7 +49,7 @@ function record(text: string, what: string, o: Partial<CardDef> = {}, index?: nu
   const rec = index === undefined ? (assert.equal(recs.length, 1, `${what}: one record`), recs[0]) : recs.find((r) => r.skillIndex === index);
   assert.ok(rec, `${what}: a record at ${index}`);
   // Moments batch 1: a line whose moment no reader places records that clause as unread; its effect is still the
-  // reading proved here (BT6-125, BT30-109).
+  // reading proved here (BT30-109; BT6-125 until audit triggers 2 read its moment).
   assert.deepEqual(rec.unread, MOMENT_UNREAD[what] ? [MOMENT_UNREAD[what]] : [], `${what}: nothing unread`);
   const rule = asRule(rec);
   assert.equal(validateRule(rule, rec.kind), null, `${what}: the record validates`);
@@ -70,15 +69,17 @@ for (const [text, what] of [
   ["[Auto] When 1 of your green Battle Cards with an energy cost of 7 or more is removed from a Battle Area by a skill or KO'd, activate this skill. You may choose all cards other than this card from your hand and place them in your Drop Area, and if you do, play this card from your hand.", "BT6-125"],
 ] as const) {
   const rec = record(text, what);
-  const offer = rec.ops[0];
+  // Audit triggers 2: BT6-125's moment is read, and what it says of the card removed is an IF around the program.
+  const body = rec.ops.length === 1 && rec.ops[0].op === "if" && !rec.ops[0].else ? rec.ops[0].then : rec.ops;
+  const offer = body[0];
   assert.ok(offer.op === "may", `A: ${what} — an offer first (${JSON.stringify(offer).slice(0, 200)})`);
   const all = offer.ops[0];
   assert.ok(all.op === "choose" && all.sel.count === 99 && !all.sel.upTo, `A: ${what} — of all of them, never "any number" (${JSON.stringify(all).slice(0, 200)})`);
   // The move only uses what the offer chose, so it stays after it: declined, nothing was chosen and nothing moves.
   assert.ok(opOf(rec, "moveTo").some((o) => o.to === "drop" && "var" in o.target && o.target.var === all.as), `A: ${what} — …what it chose placed in the Drop`);
-  const gate = rec.ops.find((o): o is Extract<Op, { op: "if" }> => o.op === "if");
+  const gate = body.find((o): o is Extract<Op, { op: "if" }> => o.op === "if");
   assert.ok(gate && gate.cond.kind === "chose" && gate.cond.var === all.as, `A: ${what} — "if you do" reads the offer's choice (${JSON.stringify(gate?.cond)})`);
-  assert.ok(/^you may: choose all /.test(rec.reads), `A: ${what} — and says so (${rec.reads})`);
+  assert.ok(/^(?:if that card is [^:]+: )?you may: choose all /.test(rec.reads), `A: ${what} — and says so (${rec.reads})`);
   records++;
 }
 // BT7-039's second choice stays "all" of theirs with energy costs of 4 or less (a measure, mechanism batch 3).

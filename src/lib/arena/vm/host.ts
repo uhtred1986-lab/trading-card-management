@@ -1095,6 +1095,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // opponent's life added to their Z-Energy by a skill, watched by the skill's master's cards (BT23-103). Both are
   // pended on each watcher with the moved card as the subject, which is the card the moment is about.
   yourCardRemovedByOpponent: { event: "moved", args: { from: "battle", asPlay: false, by: "skill", byOpponent: true } },
+  // Audit triggers 2: the same move by any skill, watched by the removed card's master's cards and by the other side's.
+  yourCardRemovedBySkill: { event: "moved", args: { from: "battle", asPlay: false, by: "skill" } },
+  opponentCardRemovedBySkill: { event: "moved", args: { from: "battle", asPlay: false, by: "skill" } },
   opponentLifeToZBySkill: { event: "moved", args: { from: "life", to: "zEnergy", asPlay: false, by: "skill", byOpponent: true } },
   // 3-10: pended by `moveTo` when your skill sends your card from your deck to
   // the Warp (BT30-106); the plain `moved` moment carries no cause, so the
@@ -1182,7 +1185,7 @@ const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop", "
 /** Phrasing batch 5: the watched moves pended by name, once, about the moved card (`id` and the subject both), and answered by every watcher the declaration names. */
 // Phrasing batch 7: and a skill's damage, about the skill's card, answered by its master's watchers (BT9-104).
 // Moments batch 1: and a skill's power change, about the card changed; and your energy your Leader's skill dropped.
-const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader",
+const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "yourCardRemovedBySkill", "opponentCardRemovedBySkill", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader",
   "yourCardPowerRaisedByYou", "yourCardPowerLowered", "opponentCardPowerLowered", "opponentCardPowerLoweredByBattleCard", "eitherCardPowerLowered"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */

@@ -1772,13 +1772,14 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // "can't be chosen" rule about itself the moment it sat in a hand — that
     // rule is `ownProhibitions`' own doc claim, "wherever it sits" (9-1-3-3),
     // and has nothing to do with [Barrier].
-    if (!sel.special && !sel.ignoreBarrier && sel.side !== "you" && zoneOf(state, id) !== "hand" && masterOf(game, state, id) !== frame.master && queryHookStatics(ctx, game, state, id, "chooseable").some((f) => f.op === "forbid"))
+    // R-204: a printed "choose" of the card a moment names (`choice`) is a choice like any other.
+    if ((!sel.special || sel.choice) && !sel.ignoreBarrier && sel.side !== "you" && zoneOf(state, id) !== "hand" && masterOf(game, state, id) !== frame.master && queryHookStatics(ctx, game, state, id, "chooseable").some((f) => f.op === "forbid"))
       return false;
     // 20-4: every other "can't be chosen" prohibition — `state.effects`, a
     // [Permanent], or the card's own rule about itself — wherever the card
     // sits. `hooks: false` leaves the fact just checked above out, so it is
     // not re-applied here without its own exemptions.
-    if (!sel.special && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id, hooks: false }))
+    if ((!sel.special || sel.choice) && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id, hooks: false }))
       return false;
     // 9-1-4: a card no skill may touch (#154). The one place immunity is
     // enforced, as on the legacy engine — every op reaches a card through a

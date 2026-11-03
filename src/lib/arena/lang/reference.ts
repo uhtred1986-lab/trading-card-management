@@ -177,6 +177,7 @@ const SELECTOR_FLAG_DOCS: Record<keyof typeof SELECTOR_FLAGS, string> = {
   revealed: "cards in Revealed Mode (23-5)",
   fromEnd: "count from the bottom of the area's order instead of the top",
   ignoringBarrier: "may target a card with [Barrier] all the same",
+  asChoice: "the card a moment names, chosen as printed — [Barrier] and \"can't be chosen\" apply (R-204: \"choose that card\", EX13-02)",
   notInBattle: "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)",
   inBattle: "only the attack card or the guard card of the battle in progress — \"your cards that's in a battle\" (BT24-078)",
   attacking: "only the attack card of the battle in progress — \"choose 1 of your attacking cards\" (BT1-005)",
