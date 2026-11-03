@@ -169,6 +169,14 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "BT30-016": [[/When\s+you\s+blue\s+≪Earthling≫\s+card\s+attacks/g, "When your blue ≪Earthling≫ card attacks"]],
   "BT21-102": [[/with\s+an\s+energy\s+cost\s+of\s+5\s+of\s+or\s+more\s+attacks/g, "with an energy cost of 5 or more attacks"]],
   "BT26-077": [[/When\s+this\s+ard\s+is\s+used\s+in\s+a\s+combo/g, "When this card is used in a combo"]],
+  // Audit triggers 3 (3 Nov 2026): the same moment's words with one dropped — "used **in** combo", "used **a** combo".
+  "BT26-014": [[/When\s+this\s+card\s+is\s+used\s+in\s+combo\b/g, "When this card is used in a combo"]],
+  // Audit triggers 3: the moment's closing dash runs straight into the effect ("…in your Battle Area―choose up to 1 …"),
+  // so the moment swallowed the choice. The comma the other moments print is put back.
+  "BT20-014": [[/(both\s+red\s+and\s+in\s+your\s+Battle\s+Area―)\s*choose/g, "$1, choose"]],
+  "BT20-016": [[/(both\s+red\s+and\s+in\s+your\s+Battle\s+Area―)\s*choose/g, "$1, choose"]],
+  "BT20-018": [[/(both\s+red\s+and\s+in\s+your\s+Battle\s+Area―)\s*choose/g, "$1, choose"]],
+  "BT26-058": [[/When\s+this\s+card\s+is\s+used\s+a\s+combo\b/g, "When this card is used in a combo"]],
   "BT26-003": [[/placed\s+from\s+our\s+life\s+into\s+your\s+Drop/g, "placed from your life into your Drop"]],
   "BT26-002": [[/When\s+this\s+card\s+is\s+place\s+in\s+your\s+Leader\s+Area/g, "When this card is placed in your Leader Area"]],
   "BT31-016": [[/from\s+its\s+owner'\s+Warp/g, "from its owner's Warp"]],

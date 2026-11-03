@@ -2236,6 +2236,13 @@ function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { 
     }
   }
   if (to === "hand" && was.pileHost && h.exists(was.pileHost)) h.pend("underReturnedToHand", was.pileHost, id);
+  // Audit triggers 3 (3-10): "When this card is sent to its owner's Warp by a skill" (BT31-018), and an opponent's card
+  // your skill sent from their hand or Drop to the Warp, watched by your cards ("…by one of your skills", P-346, BT13-148).
+  if (to === "warp") {
+    h.pend("toWarpBySkill", id, frame.card);
+    if (!yours && was.fromArea === "hand") h.pend("opponentHandToWarpByYou", id, id);
+    if (!yours && was.fromArea === "drop") h.pend("opponentDropToWarpByYou", id, id);
+  }
 }
 
 /**
@@ -3492,9 +3499,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // for the skill that did). After the negation: a card used "with its skills negated" answers to nothing (9-1-5).
           h.pend("comboUsed", id);
           // 5-7-2: a combo a skill makes is a combo. Both sides watch it, the
-          // same as one the player declared.
-          for (const w of h.cardsInPlay(master)) h.pend("youCombo", w, id);
-          for (const w of h.cardsInPlay(master === "p1" ? "p2" : "p1")) h.pend("opponentCombos", w, id);
+          // same as one the player declared — pended once about the card used,
+          // and every watcher the declaration names answers (audit triggers 3:
+          // pended per watcher, the names had no moment, so nothing answered).
+          h.pend("youCombo", id, id);
+          h.pend("opponentCombos", id, id);
         }
         break;
       }

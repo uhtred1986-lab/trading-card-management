@@ -1576,6 +1576,8 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
+  // Audit triggers 3 (3-9-2-1): a face-up Life card, read before the move turns it face down (3-1-4).
+  const wasFaceUpLife = from === "life" && !!state.cards[id]?.faceUp;
   // 9-10: a replacement stands in front of a card leaving play, and a
   // substitute keeps it where it is (9-10-1-1) — nothing below happens then.
   const route = leaveRoute(ctx, game, state, ev, id, from, asked, {
@@ -1617,6 +1619,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
   const moment = movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder);
+  if (wasFaceUpLife) moment.args.faceUp = true;
   if (returnInfo && (to === "hand" || from === "unison")) moment.subjectInfo = returnInfo;
   if (sourceNegated) moment.sourceNegated = sourceNegated;
   emit(ctx, game, state, ev, moment, shown);

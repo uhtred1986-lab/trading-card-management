@@ -334,8 +334,12 @@ function refFor(clause: string, c: Ctx): Ref | null {
   // "Add up to 1 <Son Goku> card among them to your hand" names its own target
   // and only says *where to look* for it. Read before "it"/"them", which would
   // otherwise take the "them" and hand back whatever the last clause acted on.
-  if (/\b(?:among them|from among them|of those cards)\b/i.test(clause)) {
-    const among = parseTarget(clause, undefined, c.lastSeen ?? undefined);
+  // Audit triggers 3: "…look at the bottom card of your deck and add up to 1 <Janemba> card **from it** to your hand"
+  // (BT5-048): after a look, "from it" says where to look as "among them" does — read as "it" alone, it took the card
+  // the clause before acted on (an opponent's card sent to the Warp) and put that in your hand.
+  const looked = c.lastOp === "look" && c.lastSeen && c.lastSeenOwnDeck && /\bfrom it(?: to your hand)?$/i.test(clause.trim()) ? clause.replace(/\bfrom it\b/i, "among them") : clause;
+  if (/\b(?:among them|from among them|of those cards)\b/i.test(looked)) {
+    const among = parseTarget(looked, undefined, c.lastSeen ?? undefined);
     if (among) return { sel: among };
   }
   // A pronoun inside a trailing modifier is not pointing at an earlier clause,
@@ -6570,6 +6574,7 @@ function track(o: Op, c: Ctx): void {
   } else if (o.op === "look") {
     c.lastSeen = o.as;
     c.lastNamed = o.as;
+    c.lastSeenOwnDeck = (o.side ?? "you") === "you" && (o.area ?? "deck") === "deck";
   } else if (o.op === "mill" && o.as) {
     // A card placed in the Drop from the top of the deck is turned over on the
     // way, so "if that card is red" means it just as much as a card a reveal

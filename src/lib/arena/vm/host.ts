@@ -232,13 +232,17 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `placeUnder` fires none either — only the client-visible picture),
     // which is why this is `log`, not `emit`.
     placeUnder: (id, host) => {
+      // Audit triggers 3: where it came from, read before it joins the pile (which is in no area, 23-2).
+      const from = zoneOf(state, id);
       const result = moveCard(state, game, id, "drop", { under: host });
       if (!result.ok) return false;
       clearAutoReveal(state, id);
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
       // 23-2: going into the pile is a moment for the card itself — "when
-      // this card is placed under a <Vegito> card" (BT29-140).
-      emit(ctx, game, state, ev, { event: "placedUnder", card: id, controller: masterOf(game, state, host), args: { to: "under" } }, null);
+      // this card is placed under a <Vegito> card" (BT29-140) — and where it
+      // came from is part of it ("when this card in your hand is placed
+      // under …", BT23-025; audit triggers 3).
+      emit(ctx, game, state, ev, { event: "placedUnder", card: id, controller: masterOf(game, state, host), args: { to: "under", ...(from ? { from } : {}) } }, null);
       return true;
     },
     // "Place a Z-Extra from under this card on top of this card" (BT31-005,
@@ -286,7 +290,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       clearAutoReveal(state, host);
       log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} is placed on top of ${nameOfCard(ctx, state, host)}` });
       log(ev, { type: "stack", top: id, under: state.cards[id].under.slice() });
-      emit(ctx, game, state, ev, { event: "placedUnder", card: host, controller: masterOf(game, state, id), args: { to: "under" } }, null);
+      emit(ctx, game, state, ev, { event: "placedUnder", card: host, controller: masterOf(game, state, id), args: { to: "under", from: at.zone } }, null);
       // 6-2-4, 22-46-6-3: a card placed in the Leader Area — "when your Leader is placed" answers it.
       if (leaderStack) emit(ctx, game, state, ev, { event: "moved", card: id, controller: at.owner, args: { to: at.zone, asPlay: false } }, null);
       return true;
@@ -824,6 +828,8 @@ function moveTo(
     ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
+  // Audit triggers 3 (3-9-2-1): a face-up Life card, read before the move turns it face down (3-1-4).
+  const wasFaceUpLife = from === "life" && !!state.cards[id]?.faceUp;
   // 9-10: what stands in front of a card leaving play (`vm/replace.ts`) — a
   // redirect changes `to`, a substitute keeps the card where it is.
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
@@ -882,7 +888,7 @@ function moveTo(
   if (cleanupDeparture) substitute.actualDrop = { controller: owner };
   if (!opts.evolutionBase && opts.reason !== "areaExtension") emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
     ...(returnInfo && (to === "hand" || from === "unison") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
-    args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
+    args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
   // this is the one script-level mover every DO program's own `moveTo` op
   // runs through (the charge action's own `DO { moveTo(..., to: energy) }`
@@ -1119,6 +1125,13 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   markerRemoved: { event: "markerRemoved", args: {} },
   // 5-7-5-3: the card's own combo entry, pended by `comboFrom` after a skill puts it in the Combo Area (a declared combo fires it itself).
   comboUsed: { event: "comboUsed", args: { to: "combo" } },
+  // Audit triggers 3: …and that combo's watchers (5-7-2), "when you combo" and "when your opponent combos", pended once
+  // about the card used — the same `comboUsed` moment a declared combo fires (`vm/battle.ts`'s `applyCombo`).
+  youCombo: { event: "comboUsed", args: { to: "combo" } },
+  opponentCombos: { event: "comboUsed", args: { to: "combo" } },
+  // Audit triggers 3: the new target of an attack a skill redirected (`redirectAttack`, 8-1) — "when this card is
+  // attacked", as a [Blocker]'s new target hears it (`vm/battle.ts`). Pended by name with no moment, it was a note.
+  attacked: { event: "attackDeclared", args: { role: "target" } },
   // Phrasing batch 7 (owner's ruling of 27 Oct 2026, BT9-104): a skill's damage to the opponent, pended by the `damage`
   // op about the skill's card — the battle damage `yourCardDealtDamage` already answers through `battle.ts`'s own fire.
   yourCardDealtDamage: { event: "damage", args: { role: "source" } },
@@ -1162,7 +1175,22 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   opponentCardPowerLowered: { event: "powerChanged", args: { by: "skill", dir: "down" } },
   opponentCardPowerLoweredByBattleCard: { event: "powerChanged", args: { by: "skill", dir: "down", byOpponent: true, fromBattleCard: true } },
   eitherCardPowerLowered: { event: "powerChanged", args: { by: "skill", dir: "down" } },
+  // Audit triggers 3 (3-10): a skill's move to the Warp, pended by `pendMovedBySkill` — this card's own, and an opponent's
+  // card from their hand or Drop, watched by the skill's master's cards.
+  toWarpBySkill: { event: "moved", args: { to: "warp", asPlay: false, by: "skill" } },
+  opponentHandToWarpByYou: { event: "moved", args: { from: "hand", to: "warp", asPlay: false, by: "skill", byOpponent: true } },
+  opponentDropToWarpByYou: { event: "moved", args: { from: "drop", to: "warp", asPlay: false, by: "skill", byOpponent: true } },
 };
+
+/**
+ * Audit triggers 3: does a program's `pend(name)` reach a moment — one the table above names, or one the mover or
+ * `setMode` has already fired (`FIRED_BY_MOVE`, `FIRED_BY_SET_MODE`)? A name that does neither is the note
+ * `pendByName` logs ("…is a moment no declaration names"), which the production fuzz of 3 Nov 2026 found for every
+ * combo a skill made (`youCombo`). `scripts/verify/audit-triggers-3.ts` holds every name the interpreter pends to it.
+ */
+export function pendedNameHasMoment(trigger: string): boolean {
+  return Object.hasOwn(MOMENT_OF, trigger) || FIRED_BY_SET_MODE.has(trigger) || FIRED_BY_MOVE.has(trigger);
+}
 
 /**
  * Moments batch 1: the self-moments pended by name whose subject is the skill's card. It goes on the moment as its
@@ -1170,7 +1198,7 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
  */
 const BATCH1_SELF = new Set(["droppedFromHandByOpponent", "deckToDropBySkill", "deckToDropByYou", "revealedTopToDrop", "underToDropBySkill",
   "underLeaderToDropBySkill", "energyToDropBySkill", "droppedFromBattleByYou", "toDropBySkill", "toDropByYou", "toDropByOpponent",
-  "pileToDropBySkill", "powerRaisedBySkill", "powerLoweredBySkill", "dropToWarpBySkill"]);
+  "pileToDropBySkill", "powerRaisedBySkill", "powerLoweredBySkill", "dropToWarpBySkill", "toWarpBySkill"]);
 
 /** Phrasing batch 8: the names pended on the cards of the side the moment is *not* about (see `pendByName`). */
 const ABOUT_THE_OTHER_SIDE = new Set(["opponentTookDamage", "opponentTookBoardSkillDamage"]);
@@ -1193,7 +1221,8 @@ const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop", "
 /** Phrasing batch 5: the watched moves pended by name, once, about the moved card (`id` and the subject both), and answered by every watcher the declaration names. */
 // Phrasing batch 7: and a skill's damage, about the skill's card, answered by its master's watchers (BT9-104).
 // Moments batch 1: and a skill's power change, about the card changed; and your energy your Leader's skill dropped.
-const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "yourCardRemovedBySkill", "opponentCardRemovedBySkill", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader", "yourEnergyToDropByYou",
+// Audit triggers 3: and a skill's combo (5-7-2), about the card used; and an opponent's card a skill sent to the Warp.
+const WATCHED_MOVE = new Set(["youCombo", "opponentCombos", "opponentHandToWarpByYou", "opponentDropToWarpByYou", "yourCardRemovedByOpponent", "yourCardRemovedBySkill", "opponentCardRemovedBySkill", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader", "yourEnergyToDropByYou",
   "yourCardPowerRaisedByYou", "yourCardPowerLowered", "opponentCardPowerLowered", "opponentCardPowerLoweredByBattleCard", "eitherCardPowerLowered"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */

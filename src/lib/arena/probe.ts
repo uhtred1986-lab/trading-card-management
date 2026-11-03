@@ -83,6 +83,8 @@ const MATCH = "PROBE-MATCH";
 const SOURCE = "PROBE-SOURCE";
 const LEADER = "PROBE-LEADER";
 const THEIR_LEADER = "PROBE-RIVAL";
+/** Audit triggers 3: the card a watched moment is about, built from what the rule says of it (`watchedSubject`). */
+const WATCHED = "PROBE-WATCHED";
 
 /** Names, so the log reads as a board rather than as a row of identifiers. */
 const NAMES: Record<string, string> = {
@@ -214,7 +216,7 @@ function propsFor(rule: ProbeRule, trace = false): { defs: Record<string, CardDe
 // ── which board the rule needs ─────────────────────────────────────────────
 
 const PLAY_TRIGGERS = ["played", "playedFromHand", "playedFromDrop", "youPlayed", "youPlayedByThisCard", "placed", "yourCardPlaced", "evolvedInto", "opponentPlayed", "opponentPlayedBySkill", "overRealmPlayed", "playedUsingOverRealm"];
-const BATTLE_TRIGGERS = ["attacks", "attacked", "kos", "dealtDamage", "opponentAttacks", "battleEnd", "yourLeaderAttacked", "offenseStart", "defenseStart", "damageStart", "blockerUsed", "koed"];
+const BATTLE_TRIGGERS = ["attacks", "attacked", "kos", "dealtDamage", "opponentAttacks", "battleEnd", "yourLeaderAttacked", "offenseStart", "defenseStart", "damageStart", "blockerUsed", "koed", "yourCardAttacks"];
 const COMBO_TRIGGERS = ["comboUsed", "comboed", "youCombo", "opponentCombos"];
 const MOMENT_TRIGGERS = ["turnEnd", "mainEnd", "mainStart", "chargeStart", "opponentTurnEnd", "opponentTurnStart", "opponentMainStart"];
 
@@ -352,7 +354,38 @@ export function scenarioFromKey(rule: ProbeRule, key: string): ProbeScenario | n
 function stagedInHand(rule: ProbeRule, family: ProbeFamily): boolean {
   const keyword = skillsOf(rule.def, rule.side).find((sk) => sk.index === rule.skillIndex)?.keyword?.name ?? null;
   const home = homeOf(rule.def);
-  return family === "counter" || family === "combo" || (family === "keyword" && keyword != null && FROM_HAND.includes(keyword)) || (family === "play" && (home === "battle" || home === "hand"));
+  return family === "counter" || family === "combo" || (family === "keyword" && keyword != null && FROM_HAND.includes(keyword)) || (family === "play" && (home === "battle" || home === "hand") && !watchedSubject(rule, WATCHED_PLAYS));
+}
+
+/** Audit triggers 3: the moments about another card of yours played, or one of yours attacking. */
+const WATCHED_PLAYS = ["youPlayed", "yourCardPlayedFromHand", "eitherCardPlayed"];
+const WATCHED_ATTACKS = ["yourCardAttacks"];
+
+/**
+ * Audit triggers 3: what a watched moment's rule says about the card the moment is about — the `count(subject …)`
+ * condition in the record's leading chain of plain IFs, alone or inside an `all` (`vm/triggers.ts`'s gate) — when the
+ * rule answers one of `moments` and the card under test is not such a card itself. "When your ≪Saiyan≫ card is
+ * played" on a card that is no ≪Saiyan≫ was probed by playing that card (or a nameless filler), which the
+ * description refuses, so the board read "did not fire" about a moment it never staged. Undefined otherwise: the
+ * board plays the card itself, as before.
+ */
+function watchedSubject(rule: ProbeRule, moments: readonly string[]): CardFilter | undefined {
+  if (!rule.trigger.some((t) => moments.includes(t))) return undefined;
+  const find = (c: Cond): CardFilter | undefined =>
+    c.kind === "all" ? c.conds.map(find).find((f) => f !== undefined)
+      : c.kind === "count" && c.sel.special === "subject" && c.sel.filter && (c.atLeast ?? 1) <= 1 && c.atMost === undefined ? c.sel.filter : undefined;
+  for (let at: Op[] | undefined = rule.ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) {
+    const f = find(at[0].cond);
+    if (f) return matches(rule.def, f) ? undefined : f;
+  }
+  return undefined;
+}
+
+/** Audit triggers 3: the watched card staged from the rule's description of it, and the line the input says it in. */
+function stageWatched(ctx: EngineContext, rule: ProbeRule, f: CardFilter, what: string): string {
+  ctx.defs[WATCHED] = { ...countedDef(WATCHED, f, rule.def), ...(f.type ? {} : { type: "BATTLE" as const }) };
+  const exact = matches(ctx.defs[WATCHED], f);
+  return `a card the rule's description of the ${what} matches (${ctx.defs[WATCHED].name})${exact ? "" : " — the probe could not make one it matches exactly; the nearest it could is staged"}`;
 }
 
 /**
@@ -571,7 +604,7 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, trace = false, setup?: 
   // family than the rule now is — the attack board, for a WHEN rewritten as
   // `played`. That board is the one the card attacks on, which is what it was.
   const ownFamily = familyOf(rule) === family;
-  const theyAttack = family === "attack" && ownFamily && !rule.trigger.some((t) => ["attacks", "kos", "dealtDamage", "offenseStart", "battleEnd"].includes(t));
+  const theyAttack = family === "attack" && ownFamily && !rule.trigger.some((t) => ["attacks", "kos", "dealtDamage", "offenseStart", "battleEnd", "yourCardAttacks"].includes(t));
   const fromHand = stagedInHand(rule, family);
   const reducer = scenario.variant === "reduced" ? selfSpecifiedReducer(rule.ops) : null;
   const theirs = scenario.variant === "opponentTurn" || (family === "permanent" && !reducer) || family === "combo" || family === "counter" || theyAttack || (family === "keyword" && !fromHand);
@@ -698,12 +731,18 @@ function stage(rule: ProbeRule, scenario: ProbeScenario, trace = false, setup?: 
   } else if (family === "play" && fromHand) {
     goals.push({ what: `play ${rule.def.name}`, by: YOU, at: ["main"], match: (a) => onCard(a, card) && ["play", "playZ", "playUnison", "activate"].includes(a.type) });
   } else if (family === "play") {
-    // A Leader's or Unison's "when you play a card": somebody else's card is played.
-    const other = put(ctx, s, actor, FILLER, "hand");
+    // A Leader's or Unison's "when you play a card": somebody else's card is played. Audit triggers 3: the card the
+    // rule describes ("when your ≪Saiyan≫ card is played"), built from its description, when the rule says one.
+    const described = ownFamily ? watchedSubject(rule, WATCHED_PLAYS) : undefined;
+    if (described) input.push(stageWatched(ctx, rule, described, "card played"));
+    const other = put(ctx, s, actor, described ? WATCHED : FILLER, "hand");
     input.push(`a Battle Card in ${actor === YOU ? "your" : "the opponent's"} hand to play`);
-    goals.push({ what: "a Battle Card is played", by: actor, at: ["main"], match: (a) => a.type === "play" && a.card === other });
+    goals.push({ what: "a Battle Card is played", by: actor, at: ["main"], match: (a) => onCard(a, other) && ["play", "playZ", "playUnison"].includes(a.type) });
   } else if (family === "attack" && !theyAttack) {
-    const attacker = home === "battle" ? card : put(ctx, s, YOU, FILLER, "battle");
+    // Audit triggers 3: "When your ≪Saiyan≫ card attacks": the attacker built from the rule's description of it.
+    const described = ownFamily ? watchedSubject(rule, WATCHED_ATTACKS) : undefined;
+    if (described) input.push(stageWatched(ctx, rule, described, "attacking card"));
+    const attacker = described ? put(ctx, s, YOU, WATCHED, "battle") : home === "battle" ? card : put(ctx, s, YOU, FILLER, "battle");
     // "When this card KOs a Battle Card" needs something it can KO: a rested
     // body, since 8-1-1 offers no active one, and a weak one so the clash goes
     // the attacker's way. Everything else attacks the Leader, which is the

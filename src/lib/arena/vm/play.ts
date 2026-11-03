@@ -375,6 +375,8 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   // order chosen. Each with the pile it already carried (23-2-6), read before
   // anything moves, so the stack ends as card, first + its pile, second + its pile.
   const groups = [host, ...extra].map((id) => [id, ...(state.cards[id]?.under ?? [])]);
+  // Audit triggers 3: where each card going under was, for "when this card in your Battle Area is placed under …".
+  const cameFrom = new Map([host, ...extra].map((id) => [id, findCard(state, id)?.zone]));
   moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, onto: host, ...cause });
   // 23-2-1, 23-2-2: the stack is a single card in the host's area — this
   // player's, 3-1-1 — so the arrival must be standing in that very area before
@@ -416,7 +418,10 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   log(ev, { type: "stack", top: card, under: state.cards[card].under.slice() });
   // It has not left the area (23-2-2-2), but going under is still a moment
   // the card may name: "when this card is placed under a … card" (BT29-140).
-  for (const id of placed) fire(ctx, game, state, { event: "placedUnder", card: id, controller: player, args: { to: "under" } });
+  for (const id of placed) {
+    const from = cameFrom.get(id);
+    fire(ctx, game, state, { event: "placedUnder", card: id, controller: player, args: { to: "under", ...(from ? { from } : {}) } });
+  }
 }
 
 /** The base type a zone is chosen by (14-1, 19-1) — `vm/filters.ts`'s reading of the same attribute. */

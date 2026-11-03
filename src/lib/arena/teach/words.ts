@@ -154,8 +154,11 @@ function signature(name: string, fields: RefField[]): string {
   return `${name}(${shown.map((f) => `${f.name}${f.required ? "" : "?"}: ${fieldType(f)}`).join(", ")})`;
 }
 
-/** Above this the reference drops its per-row docs first, then the sentences. A budget, not a target. */
-export const REFERENCE_BUDGET = 38_000;
+/**
+ * Above this the reference drops its per-row docs first, then the sentences. A budget, not a target. Audit triggers 3
+ * declared 36 more moments, and the reference with its sentences grew past 38,000 (to about 38,900).
+ */
+export const REFERENCE_BUDGET = 40_000;
 
 /**
  * The language reference as the prompt carries it: `languageReference()`

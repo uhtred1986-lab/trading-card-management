@@ -426,7 +426,17 @@ const BATCH1_GATED = new Set<string>(["droppedFromHandByOpponent", "activeBySkil
   // of 2 is played" (BT21-115) was spent by the first card of any kind you played, and "{1}: When an opponent's Battle
   // Card with an energy cost of 4 or less attacks" (DB2-148) asked its price for a Leader's attack.
   "youPlayed", "eitherCardPlayed", "yourCardPlayedFromHand", "yourCardPlayedFromDrop", "yourCardAttacks", "opponentAttacks",
-  "evolveActivated"]);
+  "evolveActivated",
+  // Audit triggers 3: a keyword's move, watched — the card whose move it is, described ("When your yellow <Garlic Jr.>
+  // activates an [Overlord] skill", P-568; "When you activate the [Blocker] skill on one of your yellow Battle Cards",
+  // EX18-01).
+  "awakenActivated", "wishActivated", "overRealmPlayed", "darkOverRealmActivated", "overlordActivated", "rejuvenateActivated",
+  "yourCardBlockerUsed", "opponentBlockerUsed", "youCounter", "yourCardExEvolveFromZEnergy",
+  // …and the watched moves and combos the grammar now reads with a description ("When a yellow skill-less Battle Card with
+  // 15000 power is placed in your Drop Area from your Combo Area", BT12-085; "When you use a black ≪Evil Wizard≫, … card
+  // in a combo", BT12-142; "When a Battle Card in your opponent's Drop Area is sent to their Warp by one of your skills",
+  // BT13-148).
+  "comboToDrop", "youCombo", "opponentCombos", "yourCardBattleToDrop", "opponentCardToZEnergy", "opponentDropToWarpByYou"]);
 
 /** A condition about the moment's subject alone: `count(subject …)`, or an any/all/not of such. */
 function aboutTheSubject(cond: Cond): boolean {

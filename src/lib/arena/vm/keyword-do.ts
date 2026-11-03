@@ -283,6 +283,10 @@ export function keywordWords(text: string, def: KeywordDef, sk: Skill, card: str
  * an Absorb and "when you activate a [Union] skill" hears every [Union].
  */
 export function keywordMomentNames(def: KeywordDef, sk: Skill): string[] {
+  // Audit triggers 3: [Dark Over Realm] (22-23) is a keyword of its own that the ruleset writes as [Over Realm]'s dark
+  // variant (one body, `dark: true`); its move is announced under its own name, so "when you activate [Over Realm]"
+  // (22-15) never hears it and "when you activate [Dark Over Realm]" does.
+  if (def.name === "Over Realm" && (sk.keyword as { dark?: unknown } | null)?.dark === true) return ["Dark Over Realm"];
   const variant = (sk.keyword as { variant?: unknown } | null)?.variant;
   if (typeof variant !== "string" || variant === def.name) return [def.name];
   return [def.name, variant.includes(def.name) ? variant : `${def.name}-${variant}`];
