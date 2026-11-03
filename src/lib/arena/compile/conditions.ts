@@ -146,13 +146,39 @@ function namesShareQualifiers(parts: string[]): boolean {
   const mask = (p: string) => p.trim().toLowerCase().replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "N");
   const masked = parts.map(mask);
   const colour = `(?:${COLOR_WORD}|mono-?${COLOR_WORD}|multi-?colou?r)`;
-  const bare = new RegExp(`^(?:an?\\s+)?(?:${colour}\\s+)?N$`);
+  // Audit lane C: the bare names may be a list ("a red ≪Earthling≫, ≪Namekian≫, or ≪Shenron≫ card", BT28-018) and the
+  // colour a pair ("a blue or green ≪Saiyan≫ or ≪Android≫", BT21-144): the colour in front is still every name's.
+  const bare = new RegExp(`^(?:an?\\s+)?(?:${colour}(?:\\s+or\\s+${colour})?\\s+)?N(?:\\s*,\\s*N)*$`);
   const last = masked[masked.length - 1];
   if (!masked.slice(0, -1).every((p) => bare.test(p))) return false;
   if (!/^N\b/.test(last) || new RegExp(`\\b${colour}\\b`).test(last.replace(/\bcolou?rless\b/, ""))) return false;
   const colourInFront = new RegExp(`^(?:an?\\s+)?${colour}\\s`).test(masked[0]);
-  const measureAfter = /\bcards?\s+(?:with|that|whose)\b/.test(last);
+  // Audit lane C: "a <Son Goku> or <Frieza> **with [Warrior of Universe 7]**" (P-508) — no noun, the measure on the name.
+  const measureAfter = /\b(?:cards?|N)\s+(?:with|that|whose)\b/.test(last);
   return colourInFront || measureAfter;
+}
+
+/**
+ * Audit-selectors-1: a Leader said to be several colours joined by "and" — "if your opponent's Leader Card is **red,
+ * blue, green, and yellow**" (P-264) — is one Leader of every colour named, a multicolour card (2-2); read as a colour
+ * list it took a Leader of any one of them.
+ */
+function everyColourLeader(text: string): CardFilter | null {
+  if (!/^(?:(?:red|blue|green|yellow|black|white),?\s+)+and\s+(?:red|blue|green|yellow|black|white)$/i.test(text.trim())) return null;
+  return { ...parseFilter(text), multiColor: true };
+}
+
+/**
+ * The alternatives of a Leader description: `splitDisjunction`'s, with a lone colour at the head of a comma list cut
+ * off as one of its own — "if your Leader Card is **yellow, a <Son Gohan: Adolescence> card, or a <Piccolo> card**"
+ * (BT17-148, audit-selectors-1) is three Leaders, the yellow one any yellow Leader; read as two, "yellow" landed on
+ * the <Son Gohan: Adolescence> and a yellow <Piccolo> or a non-yellow Gohan Leader failed.
+ */
+function leaderAlternatives(text: string): string[] {
+  return splitDisjunction(text, { measured: true }).flatMap((part) => {
+    const lone = /^((?:mono-?)?(?:red|blue|green|yellow|black|white)),\s+(an?\s.+)$/i.exec(part.trim());
+    return lone ? [lone[1], lone[2]] : [part];
+  });
 }
 
 /** An "or" alternative of a Leader description that names nothing (#990): the part was not read. */
@@ -257,8 +283,11 @@ const DASH = "(?:[—―–]|--|\\?)";
 
 const COLOUR_QUALIFIER = "(?:mono-)?(?:red|blue|green|yellow|black|white)";
 const CARD_NAME = "(?:<[^>]+>|≪[^≫]+≫|\\{[^}]+\\})";
+// Audit lane C (2 Nov 2026): the closing dash is not always printed — "If your Leader is a <Majin Buu> or <Evil Wizard
+// Babidi> card**—both yellow:** When …" (BT20-105, BT20-111), "…<Evil Saiyan> or <Cumber> card—both black: When …"
+// (BT20-128). Without it the qualifier ends the condition: the colon (or the end of the text it was cut from).
 const BOTH_QUALIFIER = new RegExp(
-  `\\b(is|are)\\s+(an?\\s+)?(${CARD_NAME}(?:(?:\\s*,\\s*(?:or\\s+)?|\\s+or\\s+)${CARD_NAME})*)\\s+(cards?)\\s*${DASH}\\s*(?:both|all)\\s+(${COLOUR_QUALIFIER})\\s*${DASH}\\s*(?:((?:and|or)\\b|[,:.])|($)|(?=\\S))`,
+  `\\b(is|are)\\s+(an?\\s+)?(${CARD_NAME}(?:(?:\\s*,\\s*(?:or\\s+)?|\\s+or\\s+)${CARD_NAME})*)\\s+(cards?)\\s*${DASH}\\s*(?:both|all)\\s+(${COLOUR_QUALIFIER})\\s*(?:${DASH}\\s*(?:((?:and|or)\\b|[,:.])|($)|(?=\\S))|(?=[:,]|$))`,
   "gi",
 );
 
@@ -407,6 +436,28 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       return { cond: { kind: "count", sel: { side: "you", area: "under", underHost: { side: "you", area: "leader" }, filter }, atLeast: 1 }, subject: { sel: { special: "leader" } } };
     }
   }
+  // Audit lane C (2 Nov 2026): the pile under **either** Leader — "if there is a {Son Gohan, Awakened Hidden Power} under
+  // your Leader or your opponent's Leader" (BT21-003, BT21-009, BT21-010, BT21-014) — and under the opponent's one,
+  // said of the Leader: "your opponent's Leader doesn't have a {Son Gohan, Awakened Hidden Power} under it" (BT21-021,
+  // BT21-022). The Son Gohan is placed under the opponent's Leader (BT21-021), so the second Leader is the usual one;
+  // read as "your Leader" alone the condition was false where the card is played, and the negative half of BT21-021
+  // was swallowed into its back-side name.
+  {
+    const underLeader = (side: "you" | "opponent", filter: CardFilter): Selector => ({ side, area: "under", underHost: { side, area: "leader" }, filter });
+    const either = /^there(?: is|'s| are) (?:an? |1 or more )?(.+?) under your leader(?: card)? or (?:under )?your opponent'?s leader(?: card)?$/.exec(t);
+    if (either && /^[{<≪]/.test(either[1])) {
+      const filter = parseFilter(either[1]);
+      if (filter.unreadable || filterIsBlank(filter)) return null;
+      return { cond: { kind: "any", conds: [{ kind: "count", sel: underLeader("you", filter), atLeast: 1 }, { kind: "count", sel: underLeader("opponent", filter), atLeast: 1 }] } };
+    }
+    const has = /^your (opponent'?s )?leader(?: card)? (has|does\s?n'?o?t have|does not have) (?:an? |any )?(.+?) under it$/.exec(t);
+    if (has && /^[{<≪]/.test(has[3])) {
+      const filter = parseFilter(has[3]);
+      if (filter.unreadable || filterIsBlank(filter)) return null;
+      const sel = underLeader(has[1] ? "opponent" : "you", filter);
+      return { cond: has[2] === "has" ? { kind: "count", sel, atLeast: 1 } : { kind: "count", sel, atMost: 0 }, subject: { sel: { special: has[1] ? "opponentLeader" : "leader" } } };
+    }
+  }
   // Only as a whole condition: as one part of an "and" chain (BT20-078's "this card and {X} are in your Warp") a
   // single name would be read without the part the chain split off. A pair of names is whole in itself.
   const shaped = costConditionShape(t, allowBare);
@@ -422,6 +473,37 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Phrasing batch 6: the same list with no count at all — "if you have <Android 14>, <Android 15> and <Android 13> in
   // your Drop Area", "if there are <A> and <B> cards in your Drop Area", "if you have a <A>, a <B> and a <C> in …" — is
   // one card of each name too; read as one description, any ONE of them was enough.
+  // Audit-selectors-1: the same "each" said of colours — "if you have **blue and green cards** in your Energy Area"
+  // (BT14-149, EB1-08), "if you have at least 1 **mono-red, mono-blue, mono-green, and mono-yellow** card in your Drop
+  // Area" (DB2-131) — is a card of each colour, every one counted; read as one description, one card of ANY of the
+  // colours was enough. And "1 or more **each of** red <Gamma 1: SH> and <Gamma 2: SH> cards" (BT22-004): each name,
+  // the leading colour said of both (as a colour in front of an either-name list is).
+  // (DB2-131 goes on "…in your Drop Area **and have 4 or more energy**": the second requirement shares "you have".)
+  const eachColour = new RegExp(`^(?:there (?:is|are)|you have)\\s+(?:(?:at least\\s+)?(\\d+)\\s+(?:or more\\s+)?)?((?:(?:mono-)?${COLOR_WORD},?\\s+)+and\\s+(?:mono-)?${COLOR_WORD})\\s+cards?\\s+((?:in|among)\\s.+?)(?:\\s+and\\s+(?:you\\s+)?(have\\s.+))?$`).exec(t);
+  if (eachColour && !/\b(?:both|each|all|or|and)\b/.test(eachColour[3])) {
+    const conds: Cond[] = [];
+    for (const colour of eachColour[2].match(new RegExp(`(?:mono-)?${COLOR_WORD}`, "g")) ?? []) {
+      const one = parseConditionClause(`if there are ${eachColour[1] ?? "1"} or more ${colour} cards ${eachColour[3]}`, true);
+      if (!one) return null;
+      conds.push(one.cond);
+    }
+    if (eachColour[4]) {
+      const rest = parseConditionClause(`if you ${eachColour[4]}`, true);
+      if (!rest) return null;
+      conds.push(rest.cond);
+    }
+    return { cond: { kind: "all", conds } };
+  }
+  const eachOf = new RegExp(`^(?:there (?:is|are)|you have)\\s+(\\d+)\\s+or more each of\\s+((?:${COLOR_WORD}\\s+)*)((?:${NAMED_CARD},?\\s+)+and\\s+${NAMED_CARD})\\s+cards?\\s+((?:in|among)\\s.+)$`).exec(t);
+  if (eachOf && !/\b(?:both|each|all|or)\b/.test(eachOf[4])) {
+    const conds: Cond[] = [];
+    for (const name of eachOf[3].match(new RegExp(NAMED_CARD, "g")) ?? []) {
+      const one = parseConditionClause(`if there are ${eachOf[1]} or more ${eachOf[2]}${name} cards ${eachOf[4]}`, true);
+      if (!one) return null;
+      conds.push(one.cond);
+    }
+    return { cond: { kind: "all", conds } };
+  }
   const eachName =
     new RegExp(`^(?:there (?:is|are)|you have)\\s+(?:at least\\s+)?(\\d+)\\s*(?:or more\\s+)?((?:${NAMED_CARD},?\\s+)+and\\s+${NAMED_CARD})\\s+cards?\\s+((?:in|among)\\s.+)$`).exec(t) ??
     (() => {
@@ -575,22 +657,43 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // both the condition's subject and what "it" then refers to.
   // "If your Leader Card is a yellow <Boujack> card **on its front side**" (EX13-24, phrasing batch 1): the
   // description and the side it shows — not awakened (22-2), the `leaderFlipped` question asked the other way.
-  if ((m = /^your leader(?: card)? is (.+?) on its (front|back) side$/.exec(t))) {
+  // Audit lane C (2 Nov 2026): with no description at all — "If your Leader Card is **on its front side**" (BT9-094) —
+  // it is the side alone (read as a description, the empty one matched every Leader); and "a ≪Bardock's Crew≫ card
+  // **with its back facing up**" (BT18-098) is the same question in other words.
+  if ((m = /^your leader(?: card)? is on its (front|back) side$/.exec(t))) return { cond: { kind: "leaderFlipped", flipped: m[1] === "back" }, subject: { sel: { special: "leader" } } };
+  if ((m = /^your leader(?: card)? is (.+?) (?:on its (front|back) side|with its (front|back)(?: side)? facing up)$/.exec(t))) {
     const leader = parseConditionClause(`your leader is ${m[1]}`, true);
     if (!leader) return null;
-    return { cond: { kind: "all", conds: [leader.cond, { kind: "leaderFlipped", flipped: m[2] === "back" }] }, subject: leader.subject };
+    return { cond: { kind: "all", conds: [leader.cond, { kind: "leaderFlipped", flipped: (m[2] ?? m[3]) === "back" }] }, subject: leader.subject };
   }
   // "…your Leader's back side is {X}, **its front side is facing up**, …" (P-473): the Leader is not awakened.
   if ((m = /^(?:its|your leader(?: card)?'s) (front|back) side is facing up$/.exec(t))) return { cond: { kind: "leaderFlipped", flipped: m[1] === "back" } };
+  // Audit lane C (2 Nov 2026): a keyword the Leader has — "if your Leader **is a [Warrior of Universe 7] card**"
+  // (EX21-21), "if your Leader **has [Warrior of Universe 7]**" (SD21-07, SD21-05). The filter reads a keyword after
+  // "with"; said in front of the noun, or after "has", it was read as nothing and the Leader condition held for any.
+  if ((m = /^your leader(?: card)? (?:is an? (\[[^\]]+\]) card|has (\[[^\]]+\]))$/.exec(t))) {
+    const filter = parseFilter(`a card with ${m[1] ?? m[2]}`);
+    if (!filter.keywords.length && !filter.keywordsExact?.length) return null;
+    return { cond: { kind: "leaderMatches", filter }, subject: { sel: { special: "leader" } } };
+  }
   if ((m = /^your leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
-    const parts = splitDisjunction(m[1], { measured: true });
+    const every = everyColourLeader(m[1]);
+    if (every) return { cond: { kind: "leaderMatches", filter: every }, subject: { sel: { special: "leader" } } };
+    const parts = leaderAlternatives(m[1]);
     if (parts.length > 1 && namesShareQualifiers(parts)) {
       return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]) }, subject: { sel: { special: "leader" } } };
     }
     if (parts.length > 1) {
       if (hasBlankPart(parts)) return null;
-      const conds = parts.map((part) => ({
+      // Audit lane C: "a black ≪Saiyan≫-only or ≪God≫-only card" (BT13-123) — the colour said once in front of two
+      // names that each keep their own "-only" is each one's, as a count reads it (`parseCountCondition`'s
+      // `sharedColour`). Kept apart, not folded: one filter of both traits would let a Leader with the two through.
+      // Only when the first part is the colour and a bare name, and only onto a part that starts with its name: "…a red
+      // ≪Earthling≫ card **or a ≪Heroine≫ card**" (EB1-03) brings its own article and description, and keeps them.
+      const sharedColour = /^(?:an?\s+)?((?:(?:mono-)?(?:red|blue|green|yellow|black|white)\s+)+)(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})(?:-only)?$/i.exec(parts[0])?.[1];
+      const coloured = sharedColour ? parts.map((p, i) => (i > 0 && /^[<≪{]/.test(p) ? `${sharedColour}${p}` : p)) : parts;
+      const conds = coloured.map((part) => ({
         kind: "leaderMatches" as const,
         filter: parseFilter(part),
       }));
@@ -602,7 +705,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "If your opponent's Leader Card is red or blue" — the same test, other side.
   if ((m = /^your opponent's leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
-    const parts = splitDisjunction(m[1], { measured: true });
+    const every = everyColourLeader(m[1]);
+    if (every) return { cond: { kind: "leaderMatches", side: "opponent", filter: every }, subject: { sel: { special: "opponentLeader" } } };
+    const parts = leaderAlternatives(m[1]);
     if (parts.length > 1 && namesShareQualifiers(parts)) {
       return { cond: { kind: "leaderMatches", side: "opponent", filter: parseFilter(m[1]) }, subject: { sel: { special: "opponentLeader" } } };
     }
@@ -616,6 +721,23 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
       return { cond: { kind: "any", conds }, subject: { sel: { special: "opponentLeader" } } };
     }
     return { cond: { kind: "leaderMatches", side: "opponent", filter: parseFilter(m[1]) }, subject: { sel: { special: "opponentLeader" } } };
+  }
+  // Audit lane C (2 Nov 2026): two counts against each other — "if your opponent has more cards in their hand than you"
+  // (BT16-067, BT19-152), "if you have less cards in hand than your opponent" (P-027), "if your opponent has more energy
+  // than you" (EX21-09), "…you have less energy than your opponent" (EX03-27, DB3-035, TB2-027), "if your opponent has
+  // 2 or more energy than you" (P-183). Read as one side's count alone ("your opponent has 1 or more cards in hand") it
+  // held almost always (`outnumbers`).
+  {
+    const vs = /^(you|your opponent) (?:have|has) (?:(\d+) or )?(more|less|fewer) (cards in (?:your |their )?hand|energy) than (you|your opponent)$/.exec(t);
+    if (vs && (vs[1] === "you") !== (vs[5] === "you")) {
+      const area = /hand/.test(vs[4]) ? "hand" : "energy";
+      const subject: Selector = { side: vs[1] === "you" ? "you" : "opponent", area };
+      const other: Selector = { side: vs[5] === "you" ? "you" : "opponent", area };
+      const more = vs[3] === "more";
+      const by = vs[2] ? Number(vs[2]) : undefined;
+      if (by !== undefined && !more) return null;
+      return { cond: { kind: "outnumbers", sel: more ? subject : other, than: more ? other : subject, ...(by !== undefined && by !== 1 ? { by } : {}) } };
+    }
   }
   // Life, both sides and both directions. "Or more" reads the other bound of
   // the same condition, which the engine has always had and the compiler used
@@ -748,12 +870,19 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   // "If your Leader Card has ≪Saiyan≫ in its special trait", "… has {Son Goku}
   // in its card name", "… has <Vegeta> in its character name".
-  if ((m = /^your leader(?: card)? has (.+) in its (?:special traits?|card name|character names?)$/.exec(t))) {
-    return { cond: { kind: "leaderMatches", filter: parseFilter(m[1]) }, subject: { sel: { special: "leader" } } };
+  // Audit lane C (2 Nov 2026): the phrase is the measure — a name or trait **in** the Leader's, not the whole of it
+  // (`charactersIncluding`, `namesIncluding`, `traitsIncluding`). Cut off before the filter read it, "has <Gotenks> in
+  // its character name" (BT18-085) asked for a Leader named exactly <Gotenks>, and "has ≪Universe≫ in its special
+  // trait" (BT16-004, P-203) for a trait no card has.
+  if ((m = /^your leader(?: card)? has (.+) in its (special traits?|card name|character names?)$/.exec(t))) {
+    return { cond: { kind: "leaderMatches", filter: parseFilter(`${m[1]} in its ${m[2]}`) }, subject: { sel: { special: "leader" } } };
   }
   // "If this card has 3 or more markers on it" (13-2).
-  if ((m = /^this card has (\d+) or (more|less|fewer) markers?(?: on it)?$/.exec(t))) {
-    return { cond: { kind: "markers", sel: { special: "self" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) }, subject: { sel: { special: "self" } } };
+  // Audit lane C review (2 Nov 2026): "If **there are 4 or more markers on this card**" (BT18-125) is the same question
+  // with the markers as the subject; read as a count, it asked for 4 or more of this card and never held.
+  if ((m = /^(?:this card has (\d+) or (more|less|fewer) markers?(?: on it)?|there (?:are|is) (\d+) or (more|less|fewer) markers? on this card)$/.exec(t))) {
+    const n = Number(m[1] ?? m[3]);
+    return { cond: { kind: "markers", sel: { special: "self" }, ...((m[2] ?? m[4]) === "more" ? { atLeast: n } : { atMost: n }) }, subject: { sel: { special: "self" } } };
   }
   // Delayed/replacement batch 1: "If this card has 1 or more cards under it" (P-436, BT17-144) and "if 1 or more
   // cards are under this card" (BT20-149): this card's own pile, counted — the gate of their 9-10 substitute, which
@@ -837,18 +966,32 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Leaders" (BT21-077, #1005) a prohibition; read as "if … attack" and chained
   // behind an "if", either was taken for a second condition and swallowed the
   // clause whole — the rule it printed vanished with no unread clause.
-  if (!/\b(?:can'?t|cannot|can|won'?t|will not|may|must|should|would)\s+(?:only\s+)?attacks?\b/.test(t) && (m = /^(.+?) attacks? .+$/.exec(t))) {
+  // Audit lane C (2 Nov 2026): the object is read when it is one end of the battle the card names — "if this card
+  // attacks **a Battle Card**" (BT1-002), "when your <Gogeta: GT> cards attack **your opponent's Battle Cards**"
+  // (BT18-001), "during a battle in which one of your Battle Cards attacks **an opponent's Battle Card**" (P-368), "if
+  // this card attacks **your opponent's Leader**" (BT21-034): the guard card of the battle, as "when this card attacks a
+  // Battle Card" is read as a moment (BT2-029). Read as "is attacking", an attack on the Leader passed for one on a
+  // Battle Card and the other way round. Any other object is still not read.
+  if (!/\b(?:can'?t|cannot|can|won'?t|will not|may|must|should|would)\s+(?:only\s+)?attacks?\b/.test(t) && (m = /^(.+?) attacks? (.+)$/.exec(t))) {
     const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
     if (sel) {
       delete sel.count;
       delete sel.upTo;
-      return { cond: { kind: "inBattle", sel, role: "attacker" }, subject: { sel } };
+      const attacker: Cond = { kind: "inBattle", sel, role: "attacker" };
+      const guard: Selector | null = /^(?:an?|the|1) (?:opponent'?s )?battle cards?$|^(?:your|an|the) opponent'?s battle cards?$/.test(m[2])
+        ? { side: "opponent", area: "battle" }
+        : /^(?:an?|the) leader(?: card)?$|^(?:your|an|the) opponent'?s leader(?: card)?$/.test(m[2])
+          ? { special: "opponentLeader" }
+          : null;
+      return { cond: guard ? { kind: "all", conds: [attacker, { kind: "inBattle", sel: guard, role: "guard" }] } : attacker, subject: { sel } };
     }
   }
   // "If this card is in a battle", "if this card isn't in a battle", "if your
   // <Son Goku> card is in a battle" (8-1).
   if ((m = /^(this card|.+?) (is|isn't|is not) in a battle$/.exec(t))) {
-    const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1]);
+    // Audit lane C: "your <Son Goku> **Leader** is in a battle" (BT20-112) is the Leader, as "…Leader Card" reads; the
+    // bare noun was read as any <Son Goku> card in play.
+    const sel: Selector | null = m[1] === "this card" ? { special: "self" } : parseTarget(m[1].replace(/^(your .+? leader)$/, "$1 card"));
     if (sel) {
       delete sel.count;
       delete sel.upTo;
@@ -1309,9 +1452,25 @@ function parseCountCondition(t: string): Cond | null {
   // (BT2-032, BT2-006).
   // "If your opponent has 11 or more cards **in hand**" (SD7-03): the hand is theirs, as "in their
   // hand" says; the bare "in hand" was read as a description of cards "in play".
+  // Audit lane C: "a <Lord Slug> card in your **Battle Area or Leader Area**" (BT6-068) is the pair the other order
+  // names; read this way round, the Leader Area became a second description (any Leader Card).
+  t = t.replace(/\bin (your|your opponent's) battle area or (?:(?:your|their) )?leader area\b/, "in $1 leader area or battle area");
+  // Audit lane C review: "If there are **less than 2** Battle Cards in your Battle Area with an original power of
+  // 10000, this card can't attack" (DB1-041) is "1 or less"; the comparison was not read, and the count asked for 1 or
+  // more — the ban held exactly when the card printed it lifted.
+  t = t.replace(/^(you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:(less|fewer)|more) than (\d+) /, (_w, lead: string, under: string | undefined, n: string) =>
+    under ? (Number(n) > 0 ? `${lead} ${Number(n) - 1} or less ` : _w) : `${lead} ${Number(n) + 1} or more `);
   const m = /^(?:you have|your opponent has|there(?: (?:are|is)|'s|'re)) (?:only )?(?:(no)|(?:an?|any) |(\d+) or (more|less|fewer) )?(.+)$/.exec(t.replace(/^(your opponent has .+) in hand$/, "$1 in their hand"));
   if (!m) return null;
   const [, none, num, dir, said] = m;
+  // Audit lane C (2 Nov 2026): "…there are no cards in your opponent's Combo Area **at the beginning of that battle's
+  // Damage Step**" (BT21-034): a count asked at a later moment, which no condition can wait for. Read now, the Combo
+  // Area was always empty when the attack was declared. Refused until a delayed check exists.
+  if (/\bat the (?:beginning|start|end) of\b/.test(said)) return refuseCount();
+  // …and "you have **placed** a card in your Energy Area during your Charge Phase this turn" (EX03-27) is something
+  // the player did, not cards they have: a past participle after "have" is history, read as a count of the place
+  // named it held whenever the player had any energy at all.
+  if (!none && !num && /^(?:placed|sent|added|discarded|played|used|drawn|returned|removed|switched|chosen|revealed|activated|attacked|paid)\b/.test(said)) return refuseCount();
   // "There are 4 or more **colors among** cards in your energy" (BT16-016,
   // P-393, SD21-01…): the number is of colors, not of cards. Read as "4 or more
   // cards in your energy" it held with four energy of one color. Any other
@@ -1338,6 +1497,13 @@ function parseCountCondition(t: string): Cond | null {
   // never has a second subject in it. Read as one, the action became a colour
   // filter on the Drop and the price was neither checked nor charged.
   if (/\band you\b/.test(said)) return null;
+  // Audit lane C (2 Nov 2026): nor after a comma — "you have 2 or more energy**, you send** 1 black card and 1 white
+  // card from your Drop to their owner's Warp" (BT29-095, BT29-108), "4 or more energy**, for each** marker …"
+  // (BT24-139): the count ends at the comma, and read through it the next clause's cards became the ones counted.
+  if (/,\s*(?:then\s+)?(?:you|there|it'?s|for each)\b|,\s*then\b/.test(said)) return null;
+  // …nor through the colon that ends a condition ("…and you have 4 or more energy**:** Choose up to 1 mono-red
+  // <Gogeta: Br> card…", EX15-01): a colon outside a name is the end of the condition.
+  if (/:/.test(said.replace(/<[^>]*>|≪[^≫]*≫|\{[^}]*\}/g, "N"))) return null;
   // Three wordings a count cannot state yet are refused rather than read as a
   // plainer count (#915). "Cards with different **character** names" asks for
   // another measure than "different card names" (`differentNames`), and read
@@ -1359,6 +1525,18 @@ function parseCountCondition(t: string): Cond | null {
   const either = !none && num ? unionCount(said, /^you have/.test(t) ? "your" : /^your opponent has/.test(t) ? "your opponent's" : null) : null;
   if (either) return { kind: "count", sel: either, ...(dir === "more" ? { atLeast: Number(num) } : { atMost: Number(num) }) };
   if (/\band\/or\b/.test(said.replace(/\s+(?:in|among) (?:all cards in )?(?:your|their|your opponent's)\b.*$/, ""))) return refuseCount();
+  // Audit lane C review (2 Nov 2026): "If you have 1 or more **copies of both <Tapion> and <Minotia> cards** in your
+  // Drop Area" (P-113): one of each name, at the same bound — two counts, not one card printing both names (#768's "a
+  // card with both <A> and <B>", the description `charactersAll` is for). No card has both, so read that way the free
+  // play never came.
+  const eachOf = !none ? /^(?:cop(?:y|ies) of )?both ((?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})) and ((?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})) cards? (in .+)$/.exec(said) : null;
+  if (eachOf) {
+    const lead = /^(you have|your opponent has|there(?: (?:are|is)|'s|'re))/.exec(t)![1];
+    const bound = num ? `${num} or ${dir}` : "1 or more";
+    const first = parseCountCondition(`${lead} ${bound} ${eachOf[1]} cards ${eachOf[3]}`);
+    const second = parseCountCondition(`${lead} ${bound} ${eachOf[2]} cards ${eachOf[3]}`);
+    return first && second ? { kind: "all", conds: [first, second] } : null;
+  }
   // Nor a second count: "1 or more red <Son Goku> cards **and 1 or more** red
   // <Vegeta> cards in your Drop" (BT31-001), "1 or more black cards and 1 or
   // more white cards in your Drop" (BT29-085) are two counts, and read as one
@@ -1393,7 +1571,14 @@ function parseCountCondition(t: string): Cond | null {
   // "a red Battle Card with 30000 **power or more** in play" (BT25-013): the "or"
   // ends the measure, as it does in a Leader description (`measured`, #990); cut
   // there the count asked for the card or for "more in play".
-  const parts = total ? [rest] : splitDisjunction(rest, { measured: true });
+  // Audit lane C (2 Nov 2026): "a <Son Goku> or <Vegeta> card**―both red and with an energy cost of 3 and
+  // [EX-Evolve]―**in play" (BT19-009, BT19-013, BT19-015), "a <King Piccolo> or ≪Demon Clan≫ card―both green and with
+  // an energy cost of 2 or more―in your Battle Area" (BT18-084): the dashes carry what holds for every name. Cut at the
+  // "or", the qualifier stayed on the last name and any card of the first name counted. Each name gets the qualifier
+  // and the noun, the place after the closing dash stays at the end for every part.
+  const both = total ? null : new RegExp(`^(?:an?\\s+)?(${CARD_NAME}(?:(?:\\s*,\\s*(?:or\\s+)?|\\s+or\\s+)${CARD_NAME})+)\\s+(cards?)\\s*${DASH}\\s*((?:both|all)\\s+[^—―–?]+?)\\s*${DASH}\\s*(.*)$`, "i").exec(rest);
+  const distributed = both ? [...both[1].matchAll(new RegExp(CARD_NAME, "g"))].map((n) => `${n[0]} ${both[2]}—${both[3]}—${both[4] ? ` ${both[4]}` : ""}`.trim()) : null;
+  const parts = total ? [rest] : distributed ?? splitDisjunction(rest, { measured: true });
   // "a **black** <Vegito> or <Vegito: Xeno> card in play" (BT31-087), "a red
   // <Gamma 1: SH> or <Gamma 2: SH> card" (BT22-025): one colour word in front of
   // two names, and the "or" cut it off the second. Nothing in the manual
@@ -1409,12 +1594,32 @@ function parseCountCondition(t: string): Cond | null {
     // Phrasing batch 2: "…red ≪God≫ or ≪Alien≫ cards in play in your Battle Area **other than this card**" (DB1-006):
     // the exclusion closes the shared area and is shared with it — left on the last part alone, the first part
     // counted this card.
-    const trailingAreaMatch = /\s+(in (?:play(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?|(?:a|an|the|your|your opponent's) [a-z- ]+? area|(?:your|your opponent's) (?:drop|warp|hand|energy|deck|life|combo|battle|unison|z-deck|z-energy)|play)(?: other than this card)?)$/i.exec(parts[parts.length - 1]);
+    // Audit lane C: "red ≪Namekian≫ or ≪Demon Clan≫ cards **flipped face up** in your life" (BT12-002, BT13-011): the
+    // face-up qualifier before the shared place is shared with it.
+    const trailingAreaMatch = /\s+((?:(?:flipped )?face[- ]up )?in (?:play(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?|(?:a|an|the|your|your opponent's) [a-z- ]+? area|(?:your|your opponent's) (?:drop|warp|hand|energy|deck|life|combo|battle|unison|z-deck|z-energy)|play)(?: other than this card)?)$/i.exec(parts[parts.length - 1]);
     const trailingArea = trailingAreaMatch ? trailingAreaMatch[1] : null;
 
     const conds: Cond[] = [];
     for (let i = 0; i < parts.length; i++) {
       let part = parts[i];
+      // Audit lane C (2 Nov 2026): "a blue Battle Card with an energy cost of 8 or more **or an original power of 30000
+      // or more** in play" (P-454): a second measure of the same card, not a second card. Read alone it counted any
+      // card of that power, of any colour or kind.
+      // …and "a yellow <Vegeta> card in play **or in your Z-Energy**" (SD22-05, SD22-06, SD22-07, EX24-36): the same card
+      // in a second place. Read alone the place was any card at all there.
+      if (i > 0 && /^in (?:play|your|their|the)\b/.test(part)) {
+        const desc = parts[i - 1].replace(/\s+in (?:play(?: in [a-z' -]+)?|(?:your|their|the) [a-z' -]+)$/, "");
+        if (desc !== parts[i - 1]) part = `${desc} ${part}`;
+      }
+      const head = i > 0 ? /^(.+?\bwith)\s/.exec(parts[i - 1]) : null;
+      if (head && /^(?:an?\s+)?(?:original power|energy cost|combo power|power|combo cost) (?:of )?\d/.test(part)) part = `${head[1]} ${part}`;
+      // "If you have **a Z-Leader** or Z-Battle Card in play" (P-446): the Leader, which is the one card a Leader Area
+      // holds — read as a count it was any Z-card in play, a Z-Extra or Z-Unison included.
+      const zLeader = /^(?:an?\s+)?((?:(?:mono-)?(?:red|blue|green|yellow|black|white)\s+)*)z-leader(?: card)?(?:\s+in (?:play|your leader area))?$/.exec(part);
+      if (zLeader && mine && !none && !num) {
+        conds.push({ kind: "leaderMatches", filter: parseFilter(`${zLeader[1]}z-leader`) });
+        continue;
+      }
       if (trailingArea && !/\bin (?:play|your|your opponent's)/i.test(part)) {
         part = `${part} ${trailingArea}`;
       }

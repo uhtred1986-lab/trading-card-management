@@ -82,9 +82,12 @@ const BT10_079 = "[Auto] When you play this card, look at up to 3 cards from the
     ], `${what}: those on top, every other one at the bottom`);
   };
   each(record(BT10_081, "BT10-081").ops, "looked", "BT10-081");
-  each(opsDeep(record(BT9_037, "BT9-037").ops), "looked", "BT9-037");
-  each(opsDeep(record(BT10_079, "BT10-079").ops), "looked", "BT10-079 (the remaining cards)");
-  assert.ok(!JSON.stringify(record(BT10_079, "BT10-079").ops).includes("chooseMode"), "BT10-079: no longer one end for the whole remainder");
+  // Audit-effects-1 (R-202, BT9-037's official Q&A, superseding R-007 for "or"): "top or bottom … in any order" is one
+  // end for all of them; only "top and/or bottom" (BT10-081) is each card's own.
+  for (const [text, what] of [[BT9_037, "BT9-037"], [BT10_079, "BT10-079 (the remaining cards)"]] as const) {
+    const end = record(text, what).ops.flatMap((o) => (o.op === "chooseMode" ? [o] : o.op === "if" ? o.then.filter((x) => x.op === "chooseMode") : [])) as Extract<Op, { op: "chooseMode" }>[];
+    assert.ok(end.length === 1 && end[0].modes.map((m) => (m.ops[0] as Extract<Op, { op: "moveTo" }>).position).join() === "top,bottom", `${what}: one end for all of them`);
+  }
   records += 3;
 }
 

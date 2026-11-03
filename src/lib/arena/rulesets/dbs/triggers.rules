@@ -68,6 +68,14 @@ DEFINE TRIGGER playedFromHand
   BIND "self"
   text: "when this card is played from your hand"
 
+-- Audit triggers 1 — when this card is played from the Drop (TB3-039, "When you
+-- play this card from a Drop Area"): the same arrival as `playedFromHand`, asking
+-- for the Drop as the origin the move captured.
+DEFINE TRIGGER playedFromDrop
+  ON moved(asPlay: true, from: drop, to: [battle, unison])
+  BIND "self"
+  text: "when this card is played from your Drop"
+
 -- §22-15 — when this card is played using [Over Realm]: the same arrival,
 -- made by [Over Realm]'s own move, which says so on its `play` (`using:` in
 -- keywords.rules). An ordinary play carries no `using`, so it never matches.
@@ -279,6 +287,37 @@ DEFINE TRIGGER koed
   BIND "self"
   text: "when this card is KO'd"
 
+-- Audit triggers 1 — this card KO'd and how: "…KO'd by an opponent's attack"
+-- (EX21-05, BT15-071; a battle's KO, 8-4-6-2), "…KO'd by your opponent" (BT15-006;
+-- their attack or their skill), "…KO'd by an opponent's skill" (BT20-078), "…by
+-- one of your skills" (BT23-039), "…by a <Vegeta> card's skill" (BT25-051; any
+-- skill, the card that KO'd it the subject the compiler asks). Plain `koed` above
+-- is every KO.
+DEFINE TRIGGER koedByAttack
+  ON ko(role: koed, to: drop, by: battle)
+  BIND "self"
+  text: "when this card is KO'd by an attack"
+
+DEFINE TRIGGER koedByOpponent
+  ON ko(role: koed, to: drop, byOpponent: true)
+  BIND "self"
+  text: "when this card is KO'd by your opponent"
+
+DEFINE TRIGGER koedBySkill
+  ON ko(role: koed, to: drop, by: skill)
+  BIND "self"
+  text: "when this card is KO'd by a skill"
+
+DEFINE TRIGGER koedByYourSkill
+  ON ko(role: koed, to: drop, by: skill, byOpponent: false)
+  BIND "self"
+  text: "when this card is KO'd by one of your skills"
+
+DEFINE TRIGGER koedByOpponentSkill
+  ON ko(role: koed, to: drop, by: skill, byOpponent: true)
+  BIND "self"
+  text: "when this card is KO'd by an opponent's skill"
+
 -- §21-14 — when this card KOs a card
 DEFINE TRIGGER kos
   ON ko(role: cause)
@@ -290,6 +329,14 @@ DEFINE TRIGGER yourCardKoed
   ON ko(role: koed, watcher: controller)
   BIND "subject"
   text: "when one of your cards is KO'd"
+
+-- Audit triggers 1 — "When one of your Battle Cards is KO'd by an opponent's
+-- attack" (P-409): a battle's KO (8-4-6-2) of one of your cards, the card the
+-- subject its description is asked of.
+DEFINE TRIGGER yourCardKoedByAttack
+  ON ko(role: koed, by: battle, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is KO'd by an attack"
 
 -- §21-14 — when an opponent's card is KO'd
 DEFINE TRIGGER opponentCardKoed
@@ -450,6 +497,25 @@ DEFINE TRIGGER yourEnergyToDeck
   ON moved(from: energy, to: deck, watcher: controller)
   BIND "subject"
   text: "when your energy is placed in its owner's deck"
+
+-- Audit triggers 1 — "When one of your blue Battle Cards is added to your
+-- Z-Energy" (BT19-034's back), "…or one of your <Goku Black> is added to your
+-- Z-Energy" (EX22-05): any card of yours, any cause; the description is a
+-- condition on the card added.
+DEFINE TRIGGER yourCardToZEnergy
+  ON moved(to: zEnergy, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is added to your Z-Energy"
+
+-- Audit triggers 1 — "When this card is placed in a Battle Area or removed
+-- from the game" (BT27-094): its move to the removed area (20-10), heard there.
+-- From an area only: a card under another card that moves answers to no
+-- area-movement [Auto] (23-2-5-1; Q&A BT27-094, removed from under BT27-069),
+-- and a pile card's move names no area it came from.
+DEFINE TRIGGER removedFromGame
+  ON moved(from: [deck, hand, drop, battle, combo, energy, life, warp, unison, zDeck, zEnergy], to: removed)
+  BIND "self"
+  text: "when this card is removed from the game"
 
 -- Phrasing batch 6 — "When one of your opponent's cards is added to their
 -- Z-Energy" (BT21-038): any card of theirs, any cause.
@@ -731,6 +797,19 @@ DEFINE TRIGGER opponentCounter
   BIND "subject"
   text: "when your opponent activates a [Counter] skill"
 
+-- Audit triggers 1 — "When your opponent activates a [Counter: Play] skill"
+-- (EX13-19), "…a [Counter: Attack] skill": only that [Counter] (4-3), which the
+-- activation says (`window`, the line's printed kind).
+DEFINE TRIGGER opponentCounterPlay
+  ON skillActivated(kind: counter, window: play, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent activates a [Counter: Play] skill"
+
+DEFINE TRIGGER opponentCounterAttack
+  ON skillActivated(kind: counter, window: attack, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent activates a [Counter: Attack] skill"
+
 -- §12-1-3 — when you activate an Extra Card from your hand. "Activating an
 -- Extra Card" is using its [Activate] or [Counter] skill from the hand unless
 -- the card says otherwise, [Field] included (22-3-1), so `from: hand` is the
@@ -925,6 +1004,147 @@ DEFINE TRIGGER addedToZEnergy
   ON moved(to: zEnergy)
   BIND "self"
   text: "when this card is added to your Z-Energy"
+
+-- ── moments batch 1 (2 Nov 2026) ───────────────────────────────────────────
+-- The [Auto] moments of the triggerless list. Every one is pended by name by
+-- the program step that causes it (`vm/host.ts`'s `MOMENT_OF`), never by a
+-- native move: a skill's move from the hand, the deck, a pile, the energy or
+-- a Battle Area, a power change (`power`) and a pile left. A self-moment hands
+-- the skill's card on as the subject, so the cause a card prints ("by your
+-- Leader's skill", "by a <Dr. Hedo: SH> card skill") is a condition on it.
+
+-- §20-7-1 — when an opponent's skill discards this card (BT13-098)
+DEFINE TRIGGER droppedFromHandByOpponent
+  ON moved(by: skill, byOpponent: true, from: hand, to: drop)
+  BIND "self"
+  text: "when an opponent's skill sends this card from your hand to the Drop"
+
+-- §1-10-1 — when a skill switches this card to Active Mode (BT22-019). The
+-- switch carries the skill's card (`modeSwitched`'s source), the subject.
+DEFINE TRIGGER activeBySkill
+  ON modeSwitched(by: skill, mode: active, in: [battle, leader, unison])
+  BIND "self"
+  text: "when this card is switched to Active Mode by a skill"
+
+-- §1-10-1 — when a skill switches your energy to Active Mode (BT22-137), once
+-- per energy card switched
+DEFINE TRIGGER yourEnergyActiveBySkill
+  ON modeSwitched(by: skill, in: energy, mode: active, watcher: controller)
+  BIND "subject"
+  text: "when your energy is switched to Active Mode by a skill"
+
+-- Power changed by a skill's effect (`power` op, 5-6): once per card and per
+-- change (BT9-002's Q&A: -10000 and -5000 are two moments).
+DEFINE TRIGGER powerRaisedBySkill
+  ON powerChanged(by: skill, dir: up)
+  BIND "self"
+  text: "when this card's power is increased by a skill"
+
+DEFINE TRIGGER powerLoweredBySkill
+  ON powerChanged(by: skill, dir: down)
+  BIND "self"
+  text: "when this card's power is decreased by a skill"
+
+DEFINE TRIGGER yourCardPowerRaisedByYou
+  ON powerChanged(by: skill, byOpponent: false, dir: up, watcher: controller)
+  BIND "subject"
+  text: "when one of your skills increases the power of one of your cards"
+
+DEFINE TRIGGER yourCardPowerLowered
+  ON powerChanged(by: skill, dir: down, watcher: controller)
+  BIND "subject"
+  text: "when the power of one of your cards is decreased"
+
+DEFINE TRIGGER opponentCardPowerLowered
+  ON powerChanged(by: skill, dir: down, watcher: opponent)
+  BIND "subject"
+  text: "when the power of one of your opponent's cards is decreased"
+
+-- §20-1-2: "by the skill of one of your Battle Cards" — a Battle Card in your
+-- Battle Area (BT9-002's Q&A), pended only then.
+DEFINE TRIGGER opponentCardPowerLoweredByBattleCard
+  ON powerChanged(by: skill, byOpponent: true, dir: down, fromBattleCard: true, watcher: opponent)
+  BIND "subject"
+  text: "when the skill of one of your Battle Cards decreases the power of an opponent's card"
+
+DEFINE TRIGGER eitherCardPowerLowered
+  ON powerChanged(by: skill, dir: down, watcher: both)
+  BIND "subject"
+  text: "when the power of a card of either player is decreased"
+
+-- A skill's move out of the deck into the Drop (BT16-009, SD16-02), and the
+-- card a skill revealed from the top of the deck and placed there (BT14-095).
+DEFINE TRIGGER deckToDropBySkill
+  ON moved(by: skill, from: deck, to: drop)
+  BIND "self"
+  text: "when a skill places this card from your deck in the Drop"
+
+DEFINE TRIGGER deckToDropByYou
+  ON moved(by: skill, byOpponent: false, from: deck, to: drop)
+  BIND "self"
+  text: "when one of your skills places this card from your deck in the Drop"
+
+DEFINE TRIGGER revealedTopToDrop
+  ON moved(by: skill, from: deck, revealed: true, to: drop)
+  BIND "self"
+  text: "when this card is revealed from the top of your deck and placed in the Drop"
+
+-- §23-2: a pile is in no area, so its moments are its host's (`pileLeft`)
+-- and the card's own move out of it (`fromPile: true`).
+DEFINE TRIGGER underReturnedToHand
+  ON pileLeft(to: hand)
+  BIND "self"
+  text: "when a card under this card is returned to its owner's hand"
+
+DEFINE TRIGGER underToDropBySkill
+  ON moved(by: skill, fromPile: true, to: drop)
+  BIND "self"
+  text: "when a skill places this card from under a card in the Drop"
+
+DEFINE TRIGGER underLeaderToDropBySkill
+  ON moved(by: skill, fromPile: leader, to: drop)
+  BIND "self"
+  text: "when a skill places this card from under a Leader in the Drop"
+
+DEFINE TRIGGER pileToDropBySkill
+  ON pileLeft(by: skill, to: drop)
+  BIND "self"
+  text: "when a skill places a card from under this card in the Drop"
+
+-- A skill's move out of the Energy Area into the Drop (EB1-16, EX22-03).
+DEFINE TRIGGER energyToDropBySkill
+  ON moved(by: skill, from: energy, to: drop)
+  BIND "self"
+  text: "when a skill places this card from your energy in the Drop"
+
+DEFINE TRIGGER yourEnergyToDropByYourLeader
+  ON moved(by: skill, byLeader: true, byOpponent: false, from: energy, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when your Leader's skill places one of your energy in the Drop"
+
+-- §3-1: "by one of your skills" from a Battle Area (BT18-023), and the Drop
+-- reached from any area by a skill (P-421), yours (P-701), theirs (BT30-058).
+-- A skill's KO is a move to the Drop too (5-12-1): its native move carries the
+-- cause (`flow.ts`), so these answer it without a name.
+DEFINE TRIGGER droppedFromBattleByYou
+  ON moved(by: skill, byOpponent: false, from: battle, to: drop)
+  BIND "self"
+  text: "when one of your skills sends this card from a Battle Area to the Drop"
+
+DEFINE TRIGGER toDropBySkill
+  ON moved(by: skill, to: drop)
+  BIND "self"
+  text: "when a skill places this card in the Drop"
+
+DEFINE TRIGGER toDropByYou
+  ON moved(by: skill, byOpponent: false, to: drop)
+  BIND "self"
+  text: "when one of your skills places this card in the Drop"
+
+DEFINE TRIGGER toDropByOpponent
+  ON moved(by: skill, byOpponent: true, to: drop)
+  BIND "self"
+  text: "when an opponent's skill places this card in the Drop"
 
 -- ── the counter windows (4-3, 9-7) ─────────────────────────────────────────
 -- A [Counter] answers to a window rather than to a card's moment, so these

@@ -79,6 +79,10 @@
     "outcome": "fired",
     "digest": "2620d020"
   },
+  "BLOCK-DRAW#10": {
+    "outcome": "didNotFire",
+    "digest": "cfd02cc2"
+  },
   "BLOCK-HUNTER#0": {
     "outcome": "fired",
     "digest": "ce1782c9"
@@ -401,7 +405,7 @@
   },
   "L-RED#0": {
     "outcome": "notOffered",
-    "digest": "deeffd05"
+    "digest": "7234caae"
   },
   "LEADERGRAB#0": {
     "outcome": "fired",

@@ -65,6 +65,9 @@ export function unreadFilterWords(text: string, filter: CardFilter): string[] {
   // "Earthling Tokens": the name is read from the bare words before "token",
   // and printed back in braces.
   if (filter.token) for (const n of filter.names) for (const w of words(n)) read.add(w);
+  // "…with a color other than red" (errata-official-2, BT7-125…129) is read as either a non-red card or a
+  // multicolour one, which describes itself without the word "colour".
+  if (filter.anyOf?.some((a) => a.multiColor) && filter.anyOf.some((a) => a.notColors?.length)) for (const w of ["color", "colour"]) read.add(w);
   const unread: string[] = [];
   const said = words(text);
   for (let i = 0; i < said.length; i++) {

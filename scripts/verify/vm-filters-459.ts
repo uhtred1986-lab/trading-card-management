@@ -43,6 +43,8 @@ export const FILTER_MATCHES_459: Record<keyof CardFilter, FixedSet> = {
   onlyTraits: { only: ["TRAITED"] },
   // #907 round 5: TRAITED is [Saiyan, God]; the sample asks for both side by side.
   traitsAll: { only: ["TRAITED"] },
+  // Audit lane C: TRAITED has ≪Saiyan≫; the sample asks for "Saiy" inside a trait.
+  traitsIncluding: { only: ["TRAITED"] },
   names: { only: ["BIG"] },
   notNames: { except: ["BIG"] },
   namesIncluding: { only: ["CRIT", "PUMPCRIT"] },

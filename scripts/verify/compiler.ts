@@ -763,7 +763,8 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   );
   // Without the turn half it is the memory alone.
   const anyTurn = one("[Auto] If this card participated in a battle, draw 1 card.");
-  assert.deepEqual(anyTurn.unsupported, []);
+  // Moments batch 1: this synthetic [Auto] names no moment, so it would never fire; it says so, and keeps its program.
+  assert.deepEqual(anyTurn.unsupported, ["If this card participated in a battle"]);
   assert.deepEqual(anyTurn.ops, [{ op: "if", cond: { kind: "battled", sel: { special: "self" } }, then: [{ op: "draw", n: 1 }] }]);
 
   // A price paid at the end of the battle: what hangs on it happens then too.

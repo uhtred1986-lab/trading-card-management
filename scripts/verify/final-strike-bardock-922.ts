@@ -78,7 +78,10 @@ const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
   // The trigger's wording is exact: no other mode phrase reads as it.
   const sk = (text: string) => parseSkills(`[Auto] ${text}, draw 1 card.`)[0];
   assert.ok(autoTriggerMatches(sk("When this card is switched from Rest Mode to Active Mode"), TRIGGER as Trigger));
-  for (const text of ["When this card is switched to Active Mode", "When your energy is switched to Active Mode by a skill", "When this card is played", "When a card evolves into this card", "When this card is switched from Active Mode to Rest Mode"]) {
+  // Moments batch 1: "When this card is switched to Active Mode" (BT31-029) is the same moment — a card switches to
+  // Active Mode only from Rest Mode, and BT31-029's Q&A answers that the Charge Phase's switch counts.
+  assert.ok(autoTriggerMatches(sk("When this card is switched to Active Mode"), TRIGGER as Trigger));
+  for (const text of ["When your energy is switched to Active Mode by a skill", "When this card is played", "When a card evolves into this card", "When this card is switched from Active Mode to Rest Mode"]) {
     assert.ok(!autoTriggerMatches(sk(text), TRIGGER as Trigger), `not: ${text}`);
   }
   // The same sentence shape elsewhere in the catalog stays the plain discard / its own reading.

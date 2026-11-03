@@ -22,7 +22,11 @@ Read before touching the catalog import, errata, card images, TCGplayer or CardT
   one with an UPDATE**: the catalog upsert sets `skill = excluded.skill`, so a hand-edited row is
   silently overwritten by the next `sync:catalog`. `syncCatalogFor` re-checks every entry against
   the fetched payload and warns if one stops matching. Only unambiguous errors are corrected, and a
-  name correction is checked against Bandai's art first, never guessed.
+  name correction is checked against Bandai's art first, never guessed. Bandai's official errata to
+  what a card *is* go in the same file (errata-official-2): `FIELD_CORRECTIONS` (card name, back name,
+  character names, applied by `shapeCatalog` before the search text is built and re-checked against
+  the payload like skill text) and `SPECIFIED_COST_CORRECTIONS` (written into `specified_cost`, where
+  it wins over a hand entry; `-` means no colour requirement, BT19-140).
 - **No card-number prefix belongs to both games** — BT/EX/SD/TB/EB/DB/XD/P/TOKEN vs
   FB/FS/FP/SB/ST/E — so `gameOfSetCode` is a lookup, not a guess. Watch the `E`/`E01` pair in
   `sets.ts` and `normaliseNumber`'s `BARE_SET_CODES`.

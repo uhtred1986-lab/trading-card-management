@@ -111,7 +111,7 @@ const SELF = { sel: { special: "self" } };
   assert.deepEqual([m.what, m.side, m.cardsOf, m.filter?.type], ["removeMarkers", "opponent", "you", "UNISON"], "P-676");
   assert.match(reads(p676), /^markers on your Unison Cards can't be removed by your opponent's skills/);
   const bt9 = "[Counter: Attack] If your Leader Card is black: Negate the attack, and you may choose 1 card from your hand and place it in your Drop Area. If you placed a card in your Drop Area, choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and it can't attack, be placed in your opponent's Combo Area, or activate skills until the end of your next turn.";
-  assert.deepEqual(forbids(ops(bt9)).map((f) => [f.what, f.until]), [["attack", "ownTurn"], ["combo", "ownTurn"], ["activateSkill", "ownTurn"], ["block", "ownTurn"]], "BT9-087: every action, through the next turn of yours");
+  assert.deepEqual(forbids(ops(bt9)).map((f) => [f.what, f.until]), [["attack", "ownNextTurn"], ["combo", "ownNextTurn"], ["activateSkill", "ownNextTurn"], ["block", "ownNextTurn"]], "BT9-087: every action, through the next turn of yours (`ownNextTurn` since audit-effects-1; the same end for a [Counter])");
   const bt8 = "[Auto] When a Battle Card attacks, the player who attacked can't attack with tokens or Battle Cards with energy costs of 7 or less other than the card they attacked with for the duration of the turn.";
   const [b] = forbids(ops(bt8));
   assert.deepEqual([b.what, b.side, b.turnPlayer, b.until, b.exceptCards, b.filter?.anyOf?.map((f) => [f.token, f.type, f.costMax])], ["attack", "both", true, "turn", { sel: { special: "attacker" } }, [[true, undefined, undefined], [undefined, "BATTLE", 7]]], "BT8-089");

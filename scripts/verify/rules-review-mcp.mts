@@ -250,6 +250,9 @@ const faqHtml = '<h5 class="points baseTxt box-in">SD2-01\u3000Son Goku</h5><dl 
 const parsedFaq = parseCardFaq(faqHtml);
 assert.deepEqual(parsedFaq["SD2-001"], [{ name: "Son Goku", qa: [{ q: "Q one?", a: "Yes.\nReally & truly." }] }]);
 assert.equal(faqKey("BT18-020_SPR"), "BT18-020");
+const fusedFaq = parseCardFaq('<h5 class="points">BT2-105Overpowering King Cold</h5><dl><dt><span class="textCol">Q?</span></dt><dd><span class="textCol">A.</span></dd></dl>');
+assert.deepEqual(Object.keys(fusedFaq), ["BT2-105"], "a name written straight after the id is not an id suffix");
+assert.equal(fusedFaq["BT2-105"][0].name, "Overpowering King Cold");
 const faqPacket = (await tool("get_card_review", { cardId: "BT1-001" })).out;
 assert.ok(Array.isArray(faqPacket.faq), "FAQ is an array (BT1-001 has official Q/As)");
 assert.ok(faqPacket.faq.length > 0 && faqPacket.faq[0].qa.length > 0);

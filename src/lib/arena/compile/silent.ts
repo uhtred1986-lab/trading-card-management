@@ -62,9 +62,8 @@ export function isDeckBuildingLine(reading: DeckBuildingReading): boolean {
  * Shared by `arena:readings --silent` and `arena:corpus` (#897).
  */
 export const KNOWN_SILENT = new Set<string>([
-  // "When you activate this card, you can't activate {X} for the turn": a
-  // reminder `connective()` skips on purpose (the Extra's own once-per-name rule).
-  "BT6-051#0", "BT7-024#20", "BT7-048#20", "BT7-073#20", "BT7-098#20", "BT8-063#0", "BT8-087#0",
+  // ("When you activate this card, you can't activate {X} for the turn" — BT6-051, BT7-024, BT7-048, BT7-073, BT7-098,
+  // BT8-063, BT8-087 — is read since audit-effects-1: the Extra's own once-per-name rule, `OWN_ACTIVATION`.)
   // ("This card can't be played from any area if/unless …" — BT9-078, BT9-079,
   // P-281, BT22-077 — is no longer skipped: `compileProhibition` reads the
   // "unless" form, and an "if" form it cannot read is reported unread.)

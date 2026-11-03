@@ -44,8 +44,15 @@ export type Side = "you" | "opponent" | "both";
  * the end of a turn of its controller's (7-4-5) — the turn it was made on
  * when that is theirs, or their next one when it was made on the opponent's
  * turn ("when this card is removed from a Unison Area" can happen then).
+ *
+ * `ownNextTurn` is "until the end of **your next** turn" (audit lane E: BT12-132,
+ * P-394, DB3-142, BT9-087): it ends at the end of a turn of its controller's
+ * that is later than the one it was made on — the very next turn when made on
+ * the opponent's (a [Counter], "when attacked"), the turn after the opponent's
+ * when made on the controller's own. Read as "for the turn" it lapsed at once on
+ * the opponent's turn, before the turn it names.
  */
-export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "game" | "whileSourceInPlay" | "battleOrTurn";
+export type Duration = "battle" | "turn" | "opponentTurn" | "nextTurn" | "afterNextCharge" | "afterOpponentCharge" | "nextMain" | "ownTurn" | "ownNextTurn" | "game" | "whileSourceInPlay" | "battleOrTurn";
 
 /** What a `negate` step switches off (9-1-5): a card's skills, one kind of them, one named keyword, or the skill resolving now. */
 export type NegateScope = "skills" | "kind" | "keyword" | "own";
@@ -154,6 +161,42 @@ export interface Selector {
    * the guard card of the battle in progress (8-1-2). Outside a battle, every card.
    */
   notInBattle?: true;
+  /**
+   * Audit lane C (2 Nov 2026), the other half of `notInBattle` (8-1-2): "choose 1 of your **attacking** cards" (BT1-005,
+   * TB2-012) is the attack card (`attacker`); "…your cards **that's in a battle**" (BT24-078, BT29-055, DB1-017,
+   * P-648) the attack card or the guard card (`any`); "…in Rest Mode **that isn't attacking**" (BT19-114) any card but
+   * the attack card (`notAttacker`). Read as nothing, the choice reached every card of that description in play.
+   */
+  battleRole?: "any" | "attacker" | "notAttacker";
+  /**
+   * Audit lane C (2 Nov 2026): "**a copy of this card**" — another card with this card's card name (2-3): "if you don't
+   * have a copy of this card in play" (EB1-54, DB2-002), "if a copy of this card isn't in play in your Battle Area"
+   * (P-202), "no copies of this card in your Drop" (BT20-010). Read as this card itself, the count asked where the card
+   * printing it stood — in the hand, never in play — and the condition was always true or always false.
+   */
+  copyOfSelf?: true;
+  /**
+   * Audit lane C review (2 Nov 2026): "…your yellow <Son Goku: Childhood> cards in Rest Mode **that hasn't attacked this
+   * turn**" (SD20-05) — only a card that has declared no attack this turn (`VmCard.attacksThisTurn`, cleared with the
+   * turn and with a change of area, 3-1-4). Dropped, a card that had already attacked could be switched to Active Mode
+   * for a second attack.
+   */
+  notAttackedThisTurn?: true;
+  /**
+   * "Choose **this card or** up to 1 <Broly: Br> card in your Battle Area" (P-092b's erratum, BT1-001b, EX03-01b,
+   * EX12-02, BT17-059b): the card the skill is on is on offer too, beside the cards the selector describes — one choice
+   * among them all. This card needs none of the selector's measures or areas.
+   */
+  orSelf?: true;
+  /**
+   * Audit-selectors-1: "choose up to 1 of your opponent's **Battle Cards or energy**" (BT7-083, DB2-103…), "up to 1
+   * card **in your opponent's hand or** up to 1 of their Battle Cards" (BT13-146), "play 1 blue <Son Goku> card … **from
+   * your energy or from under {Conflict}**" (BT31-034): one choice among the cards this selector describes and the
+   * cards each of these does — each description with its own area, owner and measures, so "Battle Cards" narrows the
+   * Battle Area and not the energy. The count, "up to" and the set-wide bounds are this selector's; an alternative
+   * carries only where to look and what to look for. Only a `choose`'s own selector carries it (`validateProgram`).
+   */
+  alsoFrom?: Selector[];
   /**
    * "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
    * deck flags 26 Oct 2026): which cards is no player's choice — they are taken
@@ -414,6 +457,13 @@ export type Cond =
   | { kind: "life"; side: Side; atLeast?: number; atMost?: number }
   /** "When your life is less than or equal to your opponent's life" — the two counts against each other. */
   | { kind: "lifeVsOpponent"; atMost?: boolean; atLeast?: boolean }
+  /**
+   * Audit lane C (2 Nov 2026): "if your opponent has **more cards in their hand than you**" (BT16-067, BT19-152), "if
+   * you have **less energy than your opponent**" (EX03-27, DB3-035), "…has **2 or more energy than you**" (P-183): two
+   * counts against each other — `sel` finds at least `by` (1 when absent) more cards than `than` does. "Fewer" is the
+   * same question with the two sides swapped. Read as a count of one side alone it held almost always.
+   */
+  | { kind: "outnumbers"; sel: Selector; than: Selector; by?: number }
   | { kind: "leaderColor"; color: Color }
   /** "If your Leader is a <Baby> card" — colour, character name and traits alike. */
   | { kind: "leaderMatches"; filter: CardFilter; side?: Side; back?: boolean }
@@ -995,6 +1045,8 @@ export type Op =
       what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
+      /** Audit lane E: with `skillKind: "activate"`, the one timing printed — "[Activate: Main]" or "[Activate: Battle]"; an "[Activate: Main/Battle]" line is either. */
+      activateTiming?: "main" | "battle";
       /**
        * With `what: "skill"`/`"evolve"`: the keyword skill the change reaches
        * ("reduce the [Z-Awaken] skill cost of ...", "the next time you activate
@@ -1963,6 +2015,15 @@ const INERT_OPS = new Set(["choose", "look", "reveal", "note", "hidden"]);
  * cards can't attack Leader Cards" — keeps what that choice bound when the rule
  * is made, since the escape is asked long after the skill has resolved.
  */
+/**
+ * Audit lane C (2 Nov 2026): who is negating, for 20-14's `beNegated` — "…can't be negated **by your opponent's
+ * skills**" (DB1-021, P-680) and "…by the skills of your red <Garlic Jr.> cards" (P-641, P-642) are asked of the
+ * skill doing it: its controller (the rule's `side`) and its card (the rule's `byFilter`).
+ */
+function negatedBy(frame: ScriptFrame): { player: PlayerId; source?: string } {
+  return { player: frame.master, ...(frame.card ? { source: frame.card } : {}) };
+}
+
 function escapeVars(cond: Cond, frame: ScriptFrame): { unlessVars?: Record<string, string[]> } {
   const names = new Set<string>();
   JSON.stringify(cond, (k, v) => {
@@ -2097,6 +2158,65 @@ function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "swi
 export const epochVar = (name: string): string => `${name}@epoch`;
 
 /** Mechanism batch 2: a card in a secret area nobody may read — the deck, or a face-down card in a life (3-2-2, 3-9-2). */
+/**
+ * Moments batch 1: the moments of a card a skill moved, named for `triggers.rules` (`vm/host.ts`'s `MOMENT_OF`).
+ * A self-moment hands the skill's card on as the subject, so what a card prints about the cause ("by your Leader's
+ * skill", 20-7-2/20-7-3) is a condition on it; "your" and "an opponent's" are the moved card's master against the
+ * skill's. Read with where the card was (`fromArea`; a pile is in no area, 23-2, so its `pileHost`) and whose it was,
+ * both taken before the move.
+ */
+function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { fromArea: Area | null; pileHost: string | null | undefined; movedMaster: PlayerId; revealed: boolean }): void {
+  const to = h.areaOf(id);
+  const yours = was.movedMaster === frame.master;
+  if (to === "drop") {
+    h.pend("toDropBySkill", id, frame.card);
+    h.pend(yours ? "toDropByYou" : "toDropByOpponent", id, frame.card);
+    // 20-7-1: a discard is any card placed from a hand in its owner's Drop.
+    if (was.fromArea === "hand" && !yours) h.pend("droppedFromHandByOpponent", id, frame.card);
+    if (was.fromArea === "battle" && yours) h.pend("droppedFromBattleByYou", id, frame.card);
+    if (was.fromArea === "deck") {
+      h.pend("deckToDropBySkill", id, frame.card);
+      if (yours) h.pend("deckToDropByYou", id, frame.card);
+      // 20-11-1: "revealed from the top of your deck and placed in your Drop" is a card the skill revealed as it moved
+      // it (`moveTo`'s `reveal`, which "reveal the top card of your deck and place it in your Drop" compiles to).
+      if (was.revealed) h.pend("revealedTopToDrop", id, frame.card);
+    }
+    if (was.fromArea === "energy") {
+      h.pend("energyToDropBySkill", id, frame.card);
+      if (yours && frame.card && h.areaOf(frame.card) === "leader" && h.masterOf(frame.card) === frame.master) h.pend("yourEnergyToDropByYourLeader", id, id);
+    }
+    if (was.pileHost) {
+      h.pend("underToDropBySkill", id, frame.card);
+      if (h.exists(was.pileHost) && h.areaOf(was.pileHost) === "leader") h.pend("underLeaderToDropBySkill", id, frame.card);
+      if (h.exists(was.pileHost)) h.pend("pileToDropBySkill", was.pileHost, frame.card);
+    }
+  }
+  if (to === "hand" && was.pileHost && h.exists(was.pileHost)) h.pend("underReturnedToHand", was.pileHost, id);
+}
+
+/**
+ * Moments batch 1: a skill's `power` change of a card in play, named for `triggers.rules` once per card and per change
+ * — BT9-002's Q&A: "-10000 and -5000 power" enters pending twice, and two cards decreased is two moments. The skill's
+ * card is the subject of the self-moments; the card changed is the subject of the watched ones. "By the skill of one
+ * of your Battle Cards" (BT9-002) asks that card to be in its master's Battle Area (20-1-2, BT9-002's Q&A).
+ * A [Permanent]'s standing change is not a skill's effect resolving and pends nothing here (see the glossary).
+ */
+function pendPowerChanged(h: ScriptHost, frame: ScriptFrame, id: string, n: number): void {
+  const at = h.areaOf(id);
+  if (at !== "battle" && at !== "leader" && at !== "unison") return;
+  const yours = h.masterOf(id) === frame.master;
+  if (n > 0) {
+    h.pend("powerRaisedBySkill", id, frame.card);
+    if (yours) h.pend("yourCardPowerRaisedByYou", id, id);
+    return;
+  }
+  h.pend("powerLoweredBySkill", id, frame.card);
+  h.pend("yourCardPowerLowered", id, id);
+  h.pend("opponentCardPowerLowered", id, id);
+  h.pend("eitherCardPowerLowered", id, id);
+  if (!yours && frame.card && h.exists(frame.card) && h.areaOf(frame.card) === "battle" && h.masterOf(frame.card) === frame.master) h.pend("opponentCardPowerLoweredByBattleCard", id, id);
+}
+
 function inSecretPile(h: ScriptHost, id: string): boolean {
   const area = h.areaOf(id);
   return area === "deck" || (area === "life" && !h.isFaceUp(id));
@@ -2280,7 +2400,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const n = h.amount(frame, op.n);
           for (let i = 0; i < n && h.zone(p, "deck").length; i++) {
             const id = h.zone(p, "deck")[0];
+            const movedMaster = h.masterOf(id);
             h.move(id, "drop", p, { reason: "effect", reveal: true });
+            // Moments batch 1: a skill's move out of the deck — "placed in your Drop from your deck by a skill" (BT16-009).
+            // Placed face up, but not a reveal (20-11-1): "revealed from the top of your deck" is a skill that says so.
+            if (h.areaOf(id) === "drop") pendMovedBySkill(h, frame, id, { fromArea: "deck", pileHost: undefined, movedMaster, revealed: false });
             milled.push(id);
             frame.acted = (frame.acted ?? 0) + 1;
           }
@@ -2983,6 +3107,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const fromTheirLife = h.areaOf(id) === "life" && h.masterOf(id) !== master;
           // Phrasing batch 5 (BT12-130): "…sent from your Drop Area to your Warp by a skill".
           const fromDrop = h.areaOf(id) === "drop";
+          // Moments batch 1: where the card was and whose it was, read before the move — a pile is in no area (23-2), so
+          // its host is what says where it was.
+          const fromArea = h.areaOf(id);
+          const pileHost = fromArea ? undefined : h.hostOf(id);
+          const movedMaster = h.masterOf(id);
           // 9-6-9-2: read before the move ends the effects on the card.
           const negatedThere = h.areaOf(id) === "battle" ? h.autosNegatedNow(id) : undefined;
           // Mechanism batch 2 (3-1-7): a card a description picked out of a secret area, moved on into another secret
@@ -3047,6 +3176,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // a condition the rule asks of it — the same way `restedBySkill`
           // hands on the card that rested it.
           if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
+          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal });
           if (op.mode) h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only
@@ -3253,7 +3383,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           h.move(id, "combo", master, { reason: "combo", reveal: true, ...(frame.card ? { source: frame.card } : {}) });
           // #1117: a price's combo is paid by a card that really stands in the Combo Area now.
           if (frame.saveVarsAs && h.areaOf(id) !== "combo") frame.priceUnpaid ??= `${h.nameOf(id)} did not join the combo`;
-          if (op.negated) h.negateAll(id);
+          if (op.negated && !h.forbids("beNegated", { card: id, ...negatedBy(frame) })) h.negateAll(id);
           // 5-7-5-3: a card placed in a Combo Area is a combo entry for its own [Auto]s, whoever placed it (BT7-030 asks
           // for the skill that did). After the negation: a card used "with its skills negated" answers to nothing (9-1-5).
           h.pend("comboUsed", id);
@@ -3336,8 +3466,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       case "power":
       case "comboPower": {
         const n = h.amount(frame, op.amount);
-        for (const id of h.resolveRef(frame, op.target))
-          h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
+        for (const id of h.resolveRef(frame, op.target)) {
+          const made = h.addEffect({ master: frame.master, source: frame.card, target: id, kind: op.op === "power" ? "power" : "comboPower", value: n, until: op.until });
+          if (made && op.op === "power" && n !== 0) pendPowerChanged(h, frame, id, n);
+        }
         break;
       }
 
@@ -3425,7 +3557,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         for (const id of h.resolveRef(frame, op.target)) {
           // 9-1-5: "This card's skills can't be negated in any area" beats the
           // instruction, like every other prohibition (0-2-5).
-          if (h.forbids("beNegated", { card: id })) continue;
+          if (h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
           if (op.until === "game") h.negateAll(id);
           else h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateSkills", value: 0, until: op.until });
         }
@@ -3437,7 +3569,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // negated one not — and negated on that card alone for the duration.
         const offered: { card: string; keyword: KeywordSkill["name"] }[] = [];
         for (const id of h.resolveRef(frame, op.target)) {
-          if (!h.exists(id) || h.forbids("beNegated", { card: id })) continue;
+          if (!h.exists(id) || h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
           for (const name of KEYWORD_NAMES) if (h.hasKeyword(id, name)) offered.push({ card: id, keyword: name });
         }
         if (!offered.length) break;
@@ -3467,7 +3599,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // `until`) is a [Permanent]'s and does nothing here — the statics walk reads it.
         if (op.until)
           for (const id of op.target ? h.resolveRef(frame, op.target) : [frame.card]) {
-            if (!h.exists(id) || h.forbids("beNegated", { card: id })) continue;
+            if (!h.exists(id) || h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
             h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateKeyword", value: op.keyword, until: op.until });
           }
         break;
@@ -3477,7 +3609,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // duration the card printed — "in all areas" compiles to the game,
         // and shortening that to a turn here was a silent change of rule.
         for (const id of h.resolveRef(frame, op.target)) {
-          if (h.forbids("beNegated", { card: id })) continue;
+          if (h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
           h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "negateSkillKind", value: op.kind, until: op.until });
         }
         break;
@@ -3654,7 +3786,13 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // So it is not pinned to the cards in the hand now: it is one change
         // keyed by the description (`matching`), read live where the line's
         // price is read and spent (`vm/costs.ts`' `onCard`).
-        if (kind === "skillCost" && uses !== undefined && op.tag === "union" && op.target && "sel" in op.target && op.target.sel.area === "hand" && !op.target.sel.areas?.length && !op.target.sel.special && !op.target.sel.fromVar) {
+        // Audit lane E (R-201, pending): the same wording about any other line — "the next time you activate a [Swap]
+        // skill on a ≪Goku's Lineage≫ card with an energy cost of 5 during this turn" (BT26-092), "[Arrival Red/Yellow]
+        // on a <Beerus> card … in your hand" (BT24-002), "an [Activate: Main] skill on {Tien Shinhan, …} from your hand"
+        // (BT28-061), "the [EX-Evolve] skill on a yellow … <Son Gohan: Youth> card from your hand" (EX25-26) — waits the
+        // same way for the next such activation this turn, wherever the description looks. Pinned to the cards there
+        // when it resolved, a card played or drawn later was never reached.
+        if ((kind === "skillCost" || kind === "evolveCost") && uses !== undefined && !op.onto && op.target && "sel" in op.target && !op.target.sel.areas?.length && !op.target.sel.special && !op.target.sel.fromVar) {
           // Every card it finds, not a count of them (the compiler's `count: 99`).
           const sel: Selector = { ...op.target.sel };
           delete sel.count;
@@ -3668,6 +3806,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             until: op.until ?? "turn",
             tag: op.tag,
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+            ...(op.activateTiming ? { activateTiming: op.activateTiming } : {}),
             ...(op.colors?.length ? { colors: op.colors } : {}),
             uses,
             matching: { sel, vars: Object.fromEntries(Object.entries(frame.vars).map(([name, ids]) => [name, [...ids]])) },
@@ -3685,6 +3824,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             value: by,
             until: op.until ?? "turn",
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+            ...(op.activateTiming ? { activateTiming: op.activateTiming } : {}),
             ...(op.colors?.length && (kind === "cost" || kind === "skillCost" || kind === "evolveCost") ? { colors: op.colors } : {}),
             ...(uses !== undefined ? { uses } : {}),
             ...(op.tag && (kind === "skillCost" || kind === "evolveCost") ? { tag: op.tag } : {}),
@@ -3799,7 +3939,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const card = h.resolvingCard();
           if (!card) break;
           if (op.mode === "rest") h.setPlayRest(card);
-          if (op.negated) h.setPlayNegated(card);
+          if (op.negated && !h.forbids("beNegated", { card, ...negatedBy(frame) })) h.setPlayNegated(card);
           break;
         }
         h.replaceResolvingPlay([{ op: "moveTo", target: { sel: { special: "resolving" } }, to: op.instead, ...(op.position ? { position: op.position } : {}) }]);
@@ -3967,7 +4107,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":

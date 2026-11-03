@@ -5,10 +5,10 @@ import { compileEvolutionBase } from "./evolution-base";
 import { needsEvolutionContract, EVOLUTION_REBUILD } from "../vm/evolution-base";
 import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
-import { triggersOf } from "../gaps";
-import { keywordOf, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion } from "../text/triggers";
-import type { CardScripts, Cond, Op, Script } from "../vm/script";
+import { readsMomentsOneByOne, triggersOf, unreadMoments } from "../gaps";
+import { effectHead, keywordOf, maskNames, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
+import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, type MomentCause } from "../text/triggers";
+import type { CardScripts, Cond, Op, Script, Selector } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
 import { emptyFilter } from "../text/filters";
@@ -41,7 +41,7 @@ import { deckBuildingOfSkill } from "./silent";
  * real effect, and the engine does need it compiled.
  */
 /** SD13-05's trigger, printed with "if" (`droppedFromHand` in `text/triggers.ts`). */
-const IF_DROPPED_FROM_HAND = /^if this card is placed in (?:a|your|its owner'?s) drop area from (?:your|its owner'?s|the) hand by (?:a|any) skill\b/i;
+const IF_DROPPED_FROM_HAND = /^if this card is placed in (?:a|your|its owner'?s) drop area from (?:your|its owner'?s|the) hand by (?:a|any) skill\b|^if this card is removed from (?:a|the|your) battle area by (?:an? |one of )?(?:your )?opponent'?s? skills?$/i;
 
 /** #930: "when this card is played using [Union]" / "when you play this card with [union]" / "…by a [union] skill", and a named variant ("using [Union-Potara]", captured). The whole trigger clause, nothing coordinated after it. */
 const UNION_PLAY_TRIGGER = /^when (?:you play this card|this card is played) (?:using|with|by) (?:an? |the )?\[union(?:[- ](fusion|potara|absorb))?\](?: skill)?[,.]?$/i;
@@ -51,8 +51,171 @@ const KEYWORD_HANDLES_THE_LINE =new Set<KeywordSkill["name"]>(["Evolve", "Union"
 
 export function compileSkill(skill: Skill): Script {
   // #1166: a line printed in quotation marks that another line grants is
-  // compiled as the skill it quotes; its record is the grant's program.
+  // compiled as the skill it quotes; its record is the grant's program (which
+  // says for itself when the granted [Auto]'s moment is not read).
   if (skill.granted) return compileQuotedSkill(skill.granted.skill);
+  return attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))));
+}
+
+/**
+ * R-204 (owner, 3 Nov 2026): "**Choose** the attacking Battle Card, KO it" (P-203), "choose up to 1 of the attacking
+ * Battle Cards" (P-409), "choose the attacking card, ignoring [Barrier]" (BT10-123, BT13-030) choose — so [Barrier]
+ * (22-16-2) and every other "can't be chosen" (20-4) are asked unless the text says "ignoring [Barrier]". The
+ * `attacker` special names the card without choosing it (`resolveSelector` asks neither), which is right for "the
+ * attacking card gets -5000" and wrong inside a `choose`. There it becomes the battle-role choice audit-conditions-1
+ * reads "choose up to 1 attacking Battle Card or Leader Card" as (BT10-030): the attack card, either player's unless an
+ * owner is printed, in the area its noun names. Only `attacker`: the compiler also writes `choose` for wordings that
+ * print no "choose" ("KO that card after the battle", BT1-015's guard), and those are no choice.
+ */
+function attackerChoicesAreChoices(script: Script): Script {
+  let changed = false;
+  const asChoice = (sel: Selector): Selector => {
+    const { side, count, upTo, filter, ...rest } = sel;
+    delete rest.special;
+    const area = filter?.type === "BATTLE" ? "battle" : filter?.type === "LEADER" ? "leader" : "play";
+    changed = true;
+    return { ...rest, side: side ?? "both", area, ...(filter ? { filter } : {}), count: count ?? 1, upTo: !!upTo, battleRole: "attacker" };
+  };
+  const walk = (x: unknown): unknown => {
+    if (Array.isArray(x)) return x.map(walk);
+    if (!x || typeof x !== "object") return x;
+    const o = x as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(o)) out[k] = walk(v);
+    if (o.op === "choose" && (o.sel as Selector | undefined)?.special === "attacker") out.sel = asChoice(o.sel as Selector);
+    return out;
+  };
+  const ops = walk(script.ops) as Op[];
+  return changed ? { ...script, ops } : script;
+}
+
+/**
+ * Audit-selectors-1 review: a program that plays the Leader is a misread, whatever led to it — a Leader stays in the
+ * Leader Area (3-1-2) and no card plays one. EX15-01's "Choose up to 1 mono-red <Gogeta: Br> card … from your deck or
+ * hand, play it on top of this card" lost its choice to the condition in front of it and played "your leader"; read
+ * whole, it played the wrong card. Left unread, the row is open and says why (moments batch 1 refused the same on a
+ * moment it reads, BT5-071).
+ */
+function leaderNeverPlayed(script: Script): Script {
+  if (script.unsupported.length) return script;
+  if (playsTheLeader(script.ops)) return { ...script, unsupported: ["this effect would play the Leader, which no card does (3-1-2): the card it plays is not read"] };
+  if (playsACardInPlay(script.ops)) return { ...script, unsupported: ["this effect would play a card that is already in play: where the card it plays comes from is not read"] };
+  return script;
+}
+
+/**
+ * Integration 2 (with R-205): a card is played from outside play (a hand, the deck, a Drop, the Warp, energy, life, a
+ * pile) onto the table; one already in a Battle, Leader or Unison Area is never played. "Play up to 1 <Frieza> card and
+ * up to 1 <Cooler> card ―both …― from your hand" (EX23-01) lost "from your hand" on its first card, and the choice
+ * fell to 20-1-6's "a card on the table" — a program that played a card already in play, read as if understood (14 rows
+ * of the catalog of 2 Nov 2026, the "play A and B from X" family). Left unread, the row is open and says why.
+ */
+function playsACardInPlay(ops: readonly Op[]): boolean {
+  // In program order: a choice binds its name (a later choice of the same name — another option of a "choose one" —
+  // binds it afresh), and a move out of play ("send it to your Warp, … play that card from your Warp", BT4-044) frees it.
+  const IN_PLAY = new Set(["battle", "leader", "unison", "play"]);
+  const onTable = new Map<string, boolean>();
+  let found = false;
+  const walk = (v: unknown): void => {
+    if (found) return;
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    const varOf = (t: unknown) => (t && typeof t === "object" && "var" in t ? String((t as { var: unknown }).var) : null);
+    if (o.op === "choose" && typeof o.as === "string") {
+      const sel = o.sel as Selector | undefined;
+      const areas = sel?.areas ?? (sel?.area ? [sel.area] : []);
+      onTable.set(o.as, !!sel && !sel.special && !sel.fromVar && areas.length > 0 && areas.every((x) => IN_PLAY.has(x)));
+    }
+    if (o.op === "moveTo" && typeof o.to === "string" && !IN_PLAY.has(o.to)) { const v = varOf(o.target); if (v) onTable.set(v, false); }
+    if (o.op === "play") { const v = varOf(o.target); if (v && onTable.get(v)) { found = true; return; } }
+    for (const k of Object.keys(o)) if (k !== "sel" && k !== "target") walk(o[k]);
+  };
+  walk(ops);
+  return found;
+}
+
+/**
+ * Moments batch 1: an [Auto] answers only to the moments its record names (9-6-2), so one whose moment no
+ * reader places never fires — and before this nothing said so. The production audit of 2 Nov 2026 found 443
+ * [Auto] skills stored read whole with an empty trigger list. A line like that now keeps its program and records
+ * its moment clause, as printed, as unread: the row is open, and the referee and the worklist see why.
+ *
+ * Not refused: a keyword hook (the keyword's own line answers its own moments, `keywordTriggers`), and the one
+ * [Auto] that is moment-less by design — a replacement of its card's own departure from a Combo Area ("When this
+ * card would be placed in its owner's Drop Area from a Combo Area, you may play it instead", BT12-071), which never
+ * fires and stands in the Combo Area like a [Permanent] (`vm/effects.ts`'s `comboDepartures`). A line that prints
+ * no moment at all (P-417 as the catalog prints it) says so.
+ */
+function momentIsRead(skill: Skill, script: Script): Script {
+  if (skill.kind !== "auto" || skill.keyword || script.unsupported.length) return script;
+  // Audit triggers 1: a coordinated head with a moment no reader places, or with a condition one of its moments alone
+  // would carry ("…KOs one of your opponent's Battle Cards with an original energy cost of 2 or more or is removed …",
+  // BT13-017), is not half read: its moment clause is unread.
+  if (unreadMoments(skill).length || (readsMomentsOneByOne(skill) && coordinatedSubject(skill) === null))
+    return { ...script, unsupported: [momentClauseOf(skill) ?? skill.effect.trim()] };
+  if ((script.trigger ?? triggersOf(skill)).length) {
+    // A moment this batch reads is not made readable on an effect that plays the Leader (3-1-2: a Leader stays in the
+    // Leader Area): "…if your Leader Card is green, you may play it by paying its energy cost" (BT5-071) points "it"
+    // at the condition's Leader, which no card means.
+    if (momentsBatch1(effectHead(maskNames(skill.effect).text)).length && playsTheLeader(script.ops)) return { ...script, unsupported: ["\"it\" in this effect names the Leader, which is never played (3-1-2)"] };
+    return script;
+  }
+  if (standsInTheComboArea(script.ops)) return script;
+  const clause = momentClauseOf(skill);
+  return { ...script, unsupported: [clause ?? `an [Auto] that names no moment never fires: ${skill.effect.trim()}`] };
+}
+
+/** The leading clause of an [Auto]'s effect that names its moment, as printed; null when the line names none. */
+export function momentClauseOf(skill: Pick<Skill, "effect">): string | null {
+  const masked = maskNames(stripNotes(skill.effect).trim());
+  // A tag's colon ("the [Activate: Battle] skill", BT15-019) and a character name's ("<Broly: Br>") are no clause
+  // boundary: they are held aside as card names are.
+  const tags: string[] = [];
+  const text = masked.text.replace(/\[[^[\]]*\]|<[^<>]*>/g, (m) => `[${tags.push(m) - 1}]`);
+  const pieces = text.split(/[,.:]/).map((p) => p.trim()).filter(Boolean);
+  const said = (p: string) => masked.unmask(p.replace(/\[(\d+)\]/g, (m, i: string) => tags[Number(i)] ?? m));
+  for (let i = 0; i < pieces.length; i++) {
+    const piece = pieces[i];
+    if (/^(?:when(?:ever)?|at the (?:start|end|beginning)|each time|activate this skill when|after)\b/i.test(piece)) return said(piece);
+    // "During your turn, when …" and "If your Leader is red, when …" put a turn or a condition before the moment.
+    if (/^(?:during (?:your|your opponent'?s|each|a) turn|if\b)/i.test(piece) && /^(?:when|whenever|at the)\b/i.test(pieces[i + 1] ?? "")) continue;
+    // "If this card is removed from a Battle Area by a skill, …" (BT10-038): an older card's moment said with "if".
+    if (i === 0 && /^if\b/i.test(piece)) return said(piece);
+    return null;
+  }
+  return null;
+}
+
+/** A `play` of the cards a choice of the Leader bound. */
+function playsTheLeader(ops: readonly Op[]): boolean {
+  const leaders = new Set<string>();
+  const plays: string[] = [];
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    if (o.op === "choose" && typeof o.as === "string" && (o.sel as { special?: string } | undefined)?.special === "leader") leaders.add(o.as);
+    if (o.op === "play" && o.target && typeof o.target === "object" && "var" in o.target) plays.push(String((o.target as { var: unknown }).var));
+    for (const k of Object.keys(o)) if (k !== "sel" && k !== "target") walk(o[k]);
+  };
+  walk(ops);
+  return plays.some((p) => leaders.has(p));
+}
+
+/** BT12-071's shape: every step a replacement of a departure from the Combo Area, under the conditions printed above it. */
+function standsInTheComboArea(ops: readonly Op[]): boolean {
+  let found = false;
+  const walk = (list: readonly Op[]): boolean => list.every((op) => {
+    if (op.op === "if") return walk(op.then) && walk(op.else ?? []);
+    const combo = (op.op === "replaceLeave" || (op.op === "replace" && op.event === "leave")) && !!op.from?.includes("combo");
+    found ||= combo;
+    return combo;
+  });
+  return walk(ops) && found;
+}
+
+function compileSkillUnguarded(skill: Skill): Script {
   if (skill.grants) return compileGrantingLine(skill, skill.grants);
   // A deck-building clause is not a rule of play (6-1; #1146): take it out and compile what is left of the
   // line. A line that is nothing else reads as empty, on purpose, and says so by having nothing unread.
@@ -116,10 +279,10 @@ function compileGrantingLine(skill: Skill, grants: { index: number; skill: Skill
   const plain: Skill = { ...skill, grants: undefined };
   const at = /\bthe following skill\b/i.exec(skill.effect);
   const stand = GRANT_STAND_INS.find((k) => !new RegExp(`\\[${k}\\]`, "i").test(`${skill.cost} ${skill.effect}`));
-  if (!at || !stand) return compileSkill(plain);
+  if (!at || !stand) return compileSkillUnguarded(plain);
   const tail = skill.effect.slice(at.index + at[0].length).replace(/[\s\-—–―:,.]+$/, "").trim();
   const clause = skill.effect.slice(at.index).replace(/[\s\-—–―:,.]+$/, "");
-  const compiled = compileSkill({ ...plain, effect: `${skill.effect.slice(0, at.index)}[${stand}]${tail ? ` ${tail}` : ""}.` });
+  const compiled = compileSkillUnguarded({ ...plain, effect: `${skill.effect.slice(0, at.index)}[${stand}]${tail ? ` ${tail}` : ""}.` });
   const back = (s: string) => s.replace(new RegExp(`\\[${stand}\\]`, "gi"), "the following skill");
   const refuse = (why: string): Script => ({ ...compiled, ops: [], unsupported: [...compiled.unsupported.map(back).filter((u) => !/the following skill/i.test(u)), clause, why] });
   if (skill.kind === "permanent") return refuse("a [Permanent] granting a skill in quotation marks has no typed standing grant (#1166)");
@@ -173,7 +336,7 @@ const GRANT_DURATIONS = /^(?:for the turn|until the end of your opponent's(?: ne
 function compileQuotedSkill(quoted: Skill): Script {
   if ((quoted.kind === "keyword" || quoted.keyword) && !isAbsorbSkill(quoted)) return { kind: quoted.kind, ops: [], usage: compileUsage(quoted), validity: compileValidity(quoted), unsupported: [quoted.raw, "a keyword skill granted in quotation marks is not supported (#1166)"] };
   if (/\bat the end of (?:a|the) battle in which this card attack/i.test(quoted.effect)) return { kind: quoted.kind, ops: [], usage: compileUsage(quoted), validity: compileValidity(quoted), unsupported: [quoted.raw, "\"a battle in which this card attacked\" is not a moment the engine asks (#1166)"] };
-  const script = compileSkill(quoted);
+  const script = compileSkillUnguarded(quoted);
   if (quoted.kind === "auto" && !script.unsupported.length && !(script.trigger ?? triggersOf(quoted)).length) return { ...script, ops: [], unsupported: [quoted.raw, "the granted [Auto]'s moment is not read (#1166)"] };
   return script;
 }
@@ -599,6 +762,7 @@ function compileSkillText(skill: Skill): Script {
     replacing: null,
     n: 0,
     raw: skill.effect,
+    ...(skill.tokenReminders ? { tokenReminders: skill.tokenReminders } : {}),
     skillKind: skill.kind,
     xBound: priceX(skill) !== null,
     ...(skill.spiritBoost ? { spiritBoost: skill.spiritBoost } : {}),
@@ -766,6 +930,8 @@ function compileSkillText(skill: Skill): Script {
       if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
     }
   }
+  // Audit-selectors-1 review: "the card that was sent to the Warp by this skill" (BT7-080) after a price that sent this card there.
+  if (priceOps.some((p) => p.op === "moveTo" && p.to === "warp" && "sel" in p.target && p.target.sel.special === "self")) c.priceSentSelfToWarp = true;
   // "The revealed card" (#930, EX13-14 / SD19-03) is what the price revealed.
   const priceReveal = priceOps.filter((o): o is Extract<Op, { op: "reveal" }> => o.op === "reveal");
   if (priceReveal.length === 1) c.priceRevealed = priceReveal[0].as;
@@ -787,6 +953,12 @@ function compileSkillText(skill: Skill): Script {
   const modal = splitModal(spoken);
   const split = splitClausesJoined(modal ? modal.head : spoken);
   const clauses = [...split.clauses];
+  // Audit lane C (2 Nov 2026): "you may choose 1 card from your hand and place it in your Drop Area. **If you do,
+  // choose one—** ・…" (BT7-017, BT7-036, BT7-063, BT11-030): the menu hangs on the head's own decision (20-16). The
+  // hinge is the head's last clause with nothing after it, which the clause list drops as an empty group, and the menu
+  // was then offered whether or not the card was placed.
+  const modalIfDone = !!modal && clauses.length > 1 && /^(?:then,? )?if (?:you do(?: so)?|so|you did)[,.]?$/i.test(clauses[clauses.length - 1].trim());
+  if (modalIfDone) clauses.pop();
   // BT3-096/098: keep the own-turn condition, but consume this battle's
   // cleanup timing as the Auto trigger rather than schedule another delay.
   const ownComboEnd = skill.kind === "auto" && comboBattleEndYourTurn(skill);
@@ -832,6 +1004,23 @@ function compileSkillText(skill: Skill): Script {
     // (BT31-015, #940): a coordinated alternative the trigger readers could
     // not place is left unread, not dropped silently with the clause.
     if (playedOrUnplacedAlternative(skill)) return { ops: [], unsupported: [trigger, ...clauses] };
+    // Audit triggers 1: a head that coordinates moments answers to each (`triggersOf`), and what it says about a card a
+    // moment hands on is read off that moment. One that no reader places, or a condition one moment alone would carry,
+    // leaves the moment clause unread (`momentIsRead`), the program kept as for any unread moment.
+    const coordinated = readsMomentsOneByOne(skill) ? coordinatedSubject(skill) ?? { cond: null } : undefined;
+    // Moments batch 1: what a moment says about the skill's card that caused it — "by your Leader's skill", "by a
+    // <Dr. Hedo: SH> card skill", "by the skills of a ≪Prison Planet≫ card in any of your areas" — is a condition on
+    // the subject the moment hands on (20-7-2, 20-7-3); so is the kind of card a watched power change is about. A
+    // cause the target grammar cannot read whole refuses the skill: firing for any skill would be wider than the card.
+    let momentRead = false;
+    if (skill.kind === "auto") {
+      const b1 = coordinated !== undefined ? undefined : batch1Condition(trigger);
+      if (b1 === null) return { ops: [], unsupported: [trigger, ...clauses] };
+      if (b1) {
+        momentRead = true;
+        if (b1.cond) triggerCond = b1.cond;
+      }
+    }
     const returned = RETURNED_FROM_YOUR_BATTLE.exec(trigger.trim());
     if (returned) {
       returnedFromBattle = true;
@@ -918,7 +1107,7 @@ function compileSkillText(skill: Skill): Script {
     // was is a condition on a subject — and only the discard half has one. The
     // play has none, which is what "no subject" says; a description that cannot
     // be read refuses the skill rather than widening the discard to any skill.
-    const discardCause = skill.kind === "auto" ? discardedBySkillCause(trigger) : null;
+    const discardCause = skill.kind === "auto" && !momentRead ? discardedBySkillCause(trigger) : null;
     if (discardCause) {
       const cause = filterFor(discardCause, null);
       if (!cause) return { ops: [], unsupported: [trigger, ...clauses] };
@@ -952,17 +1141,43 @@ function compileSkillText(skill: Skill): Script {
     // (SD5-01, BT6-014, 8-1-3): the moment is the attack, and what it attacks
     // is a condition on the card being attacked. Dropped with the trigger, the
     // skill fired on every attack (owner's card review, 4 Oct 2026, #536).
-    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(leader|battle) card\b(.*)$/i.exec(trigger.trim());
+    // Audit lane C review (2 Nov 2026): the Leader is also said without "Card" — "When this card attacks **your
+    // opponent's Leader**" (P-027, front and back), "…attacks **a Leader**" (BT31-124): the same guard. Only the
+    // bare noun at the end of the moment; "a Leader or Unison" (BT18-059) names a second guard and is not this.
+    const attacking = /^when this card attacks (?:an? |1 of your opponent'?s |your opponent'?s |an opponent'?s )?(?:(leader|battle) card\b(.*)|(leader))$/i.exec(trigger.trim());
     if (attacking) {
+      const kind = (attacking[1] ?? attacking[3]).toLowerCase();
       // "…a Battle Card **with an energy cost of 8 or more**" (BT19-035b,
       // #1005): the tail describes the card attacked. Dropped, the skill fired
       // on every attack at a Battle Card; a tail the filter cannot read refuses
       // the skill rather than widening it.
-      const tail = attacking[2].trim().replace(/[.,]$/, "");
-      const guardFilter = tail ? filterFor(`${attacking[1]} card ${tail}`, null) : undefined;
+      const tail = (attacking[2] ?? "").trim().replace(/[.,]$/, "");
+      const guardFilter = tail ? filterFor(`${kind} card ${tail}`, null) : undefined;
       if (tail && (!guardFilter || !/^with\b/i.test(tail) || unreadFilterWords(tail, guardFilter).length)) return { ops: [], unsupported: [trigger, ...clauses] };
-      triggerCond = { kind: "inBattle", sel: { area: attacking[1].toLowerCase() === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
-      if (attacking[1].toLowerCase() === "battle") c.attacksBattleCard = true;
+      triggerCond = { kind: "inBattle", sel: { area: kind === "leader" ? "leader" : "battle", side: "opponent", ...(guardFilter ? { filter: guardFilter } : {}) }, role: "guard" };
+      if (kind === "battle") c.attacksBattleCard = true;
+    }
+    // Audit triggers 1: "At the end of the battle **for this card**" (BT25-039's wording), "…a battle **in which this card
+    // attacked**", "…**after this card attacks**", "…**in which this card was attacked**" (8-5): the moment is every
+    // battle's end (`battleEnd`), and this card's part in the battle is a condition on it — dropped, the skill answered
+    // the end of every battle on the board.
+    const battlePart = skill.kind === "auto" ? battleEndPart(trigger.trim().toLowerCase()) : undefined;
+    if (battlePart === "yourAttacker") {
+      const said = battleAttackerSaid(trigger) ?? "";
+      const attacker = filterFor(said, null);
+      if (!attacker || unreadFilterWords(said, attacker).length) return { ops: [], unsupported: [trigger, ...clauses] };
+      triggerCond = { kind: "inBattle", sel: { side: "you", ...(/\bbattle cards?$/i.test(said) ? { area: "battle" as const } : {}), filter: attacker }, role: "attacker" };
+    } else if (battlePart && battlePart !== "any") triggerCond = { kind: "inBattle", sel: { special: "self" }, ...(battlePart === "self" ? {} : { role: battlePart }) };
+    // Audit triggers 1: the card a `kos` moment KO'd is its subject, and what the words say about it is a condition on it.
+    // The head is read whole: "attacks and KOs …" is cut at its "and" into clauses (below).
+    const kosMasked = maskNames(skill.effect);
+    const kosHead = /^(?:if [^,|]{0,90}[,|]\s*)?(when this card (?:attacks and )?kos [^,:]*)/i.exec(kosMasked.text.trim())?.[1];
+    const koedSaid = skill.kind === "auto" && coordinated === undefined && kosHead ? kosMasked.unmask(koedDescription(kosHead)) : "";
+    if (koedSaid) {
+      const koedFilter = filterFor(koedSaid, null);
+      if (!koedFilter || unreadFilterWords(koedSaid, koedFilter).length) return { ops: [], unsupported: [trigger, ...clauses] };
+      const has: Cond = { kind: "count", sel: { special: "subject", filter: koedFilter }, atLeast: 1 };
+      triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, has] } : has;
     }
     // "When your ≪Ginyu Force≫ card is played **by this card's skill**, it
     // gets +5000 power" (BT29-083, #1163): "this card's skill" is the means,
@@ -1014,7 +1229,8 @@ function compileSkillText(skill: Skill): Script {
         // anything of theirs that attacked. The engine binds the card as the
         // trigger's subject, so what the clause said about it becomes a
         // condition on that subject and the skill stays where it was printed.
-        const subject = subjectFilterOf(trigger);
+        // Audit triggers 1: a coordinated head's description is read off its own moment (`coordinatedSubject`).
+        const subject = momentRead || coordinated !== undefined ? undefined : subjectFilterOf(trigger);
         if (subject) triggerCond = { kind: "count", sel: { special: "subject", filter: subject }, atLeast: 1 };
       }
       // #930: "When your <X> card is played by a [Union] skill" (BT22-033,
@@ -1035,6 +1251,7 @@ function compileSkillText(skill: Skill): Script {
         triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, how] } : how;
       }
     }
+    if (coordinated?.cond) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, coordinated.cond] } : coordinated.cond;
     // "When this card attacks and KOs an opponent's Battle Card", "when this
     // card is revealed from the top of your deck and placed in your Drop Area"
     // — the trigger splits on its "and", and the second half is still the
@@ -1102,7 +1319,26 @@ function compileSkillText(skill: Skill): Script {
       const silent = modal.options.filter((_, i) => !modes[i].ops.length);
       return { ops: [], unsupported: unsupported.length ? unsupported : silent };
     }
-    if (modes.some((mode) => mode.ops.length)) ops.push({ op: "chooseMode", modes });
+    if (modes.some((mode) => mode.ops.length)) {
+      // What "if you do" reads (20-16): the offer taken, or the choice made, just before it.
+      const gate: Cond | null = !modalIfDone ? null : c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last } : null;
+      if (modalIfDone && !gate) return { ops: [], unsupported: [...unsupported, "If you do"] };
+      // Audit lane C: a head that ends on a condition hangs the menu on it — "…it gets +15000 power for the duration of
+      // the battle, **and if it is your turn, also choose one—**" (EX06-21). Nested in a condition the head opened, the
+      // condition is a branch still waiting for its effect (an `if` with nothing in it at the end of the head); on its
+      // own, a group the clause list drops for being empty, and the head's last clause says it again.
+      const dangling = (list: Op[]): Op[] | null => {
+        const last = list[list.length - 1];
+        if (last?.op !== "if" || last.else) return null;
+        return last.then.length ? dangling(last.then) : last.then;
+      };
+      const lastClause = clauses[clauses.length - 1]?.trim() ?? "";
+      const host = gate ? null : dangling(ops);
+      const trailing = gate || host || !/^if\b/i.test(lastClause) ? null : parseConditionClause(lastClause, true);
+      const menu: Op = { op: "chooseMode", modes };
+      if (host) host.push(menu);
+      else ops.push(gate ? { op: "if", cond: gate, then: [menu] } : trailing ? { op: "if", cond: trailing.cond, then: [menu] } : menu);
+    }
     // "If your Leader Card is a green <Cheelai: Br> card or yellow <Broly:
     // Br> card, choose one— ・…" (EX19-13, TB3-066): the head is nothing but
     // the condition that gates the whole menu, with no effect of its own for
@@ -1202,6 +1438,129 @@ function attackedLeaderDescription(trigger: string): CardFilter | null | undefin
   const filter = filterFor(`${said} leader card`, null);
   if (!filter || unreadFilterWords(said, filter).length) return null;
   return filter;
+}
+
+/**
+ * Audit triggers 1: "When this card [attacks and] KOs an opponent's Battle Card **with an energy cost of 2 or more**"
+ * (P-384, BT13-017): the KO'd card's description when it says more than "Battle Card" — a condition on the card the
+ * `kos` moment hands on (`vm/battle.ts`'s `koCard`) — or "" for none ("…by attacking it" is how, not which).
+ */
+function koedDescription(trigger: string): string {
+  const m = /^when this card (?:attacks and )?kos (?:an?|one of your opponent'?s|your opponent'?s|an opponent'?s) (battle cards?|cards?)( .+)?$/i.exec(trigger.trim().replace(/[,.]$/, "").replace(/ by attacking(?: it)?$/i, ""));
+  return m?.[2] ? `${m[1]}${m[2]}` : "";
+}
+
+/** This card's own moments that hand on no other card (no `source` on the moment): a description beside them is asked only of a card one hands on. */
+const SUBJECTLESS = new Set<string>(["attacks", "attacked", "played", "playedFromHand", "playedFromDrop", "comboUsed", "comboed", "blockerUsed", "turnEnd", "opponentTurnEnd", "battleEnd", "mainStart", "opponentMainStart"]);
+
+/**
+ * Audit triggers 1: what a coordinated head (`momentPartSkills`) says about the card a moment hands on, read off the
+ * moment that says it. `undefined` for a head that names one moment; `null` for one the record cannot put on the
+ * moment it belongs to (unread); otherwise the condition, or none.
+ *
+ *  - each moment about the same described card ("When your opponent's Battle Card is played or attacks", BT29-004;
+ *    "When your red Z-Card is played or attacks", BT31-006): the description, asked of the card either hands on;
+ *  - this card's moment beside another card's ("When this card attacks or your opponent plays a Battle Card", BT4-016):
+ *    the description asked only when a card is handed on, which this card's own moments here never do;
+ *  - a cause one moment of this card names ("…or placed in your Drop by a <Vegeta> card's skill") would be a condition
+ *    on that moment alone, which a record cannot say: unread.
+ */
+function coordinatedSubject(skill: Skill): { cond: Cond | null } | null | undefined {
+  const parts = momentPartSkills(skill);
+  if (!parts) return undefined;
+  const heads = parts.map((p) => p.effect.replace(/, \.$/, ""));
+  const own = (h: string) => /^(?:when this card\b|at the )/i.test(h);
+  for (const h of heads) {
+    const b1 = batch1Condition(h);
+    if (b1 === null || b1?.cond) return null;
+    // A battle-end of this card's own battle, or a KO of a described card, is a condition on that moment alone.
+    const battle = battleEndPart(h.toLowerCase());
+    if (battle !== undefined && battle !== "any") return null;
+    if (koedDescription(h)) return null;
+  }
+  const watched = heads.filter((h) => !own(h));
+  if (!watched.length) return { cond: null };
+  const said = watched.map((h) => subjectFilterOf(h)).filter((f): f is CardFilter => !!f);
+  if (!said.length) return { cond: null };
+  if (said.length !== watched.length || new Set(said.map((f) => JSON.stringify(f))).size > 1) return null;
+  const has: Cond = { kind: "count", sel: { special: "subject", filter: said[0] }, atLeast: 1 };
+  if (watched.length === heads.length) return { cond: has };
+  if (parts.some((p, i) => own(heads[i]) && triggersOf(p).some((t) => !SUBJECTLESS.has(t)))) return null;
+  return { cond: { kind: "any", conds: [{ kind: "not", cond: { kind: "count", sel: { special: "subject" }, atLeast: 1 } }, has] } };
+}
+
+/**
+ * Moments batch 1 (`momentsBatch1`, `text/triggers.ts`): the condition a moment's own words put on the card it hands
+ * on — the skill's card for a self-moment ("…by your Leader's skill"), the card changed for a watched power change
+ * ("…one of your opponent's **Battle Cards**") — and the turn ("…by a skill **during your turn**", EX06-01).
+ * `undefined` for a trigger that is none of these moments; `null` when the cause or the card cannot be read whole.
+ */
+function batch1Condition(trigger: string): { cond: Cond | null } | null | undefined {
+  const masked = maskNames(trigger.trim().replace(/[,.]$/, ""));
+  const lower = masked.text.toLowerCase();
+  const read = momentsBatch1(lower)[0];
+  if (!read) return undefined;
+  const conds: Cond[] = [];
+  if (read.cause) {
+    // The cause in its printed case, names put back: the target grammar reads it.
+    const at = lower.lastIndexOf(read.cause);
+    const said = at < 0 ? read.cause : masked.unmask(masked.text.slice(at, at + read.cause.length));
+    const cause = momentCauseOf(said);
+    if (!cause) return null;
+    // A moment named for its side ("…by one of your skills" is `…ByYou`) asks nothing more of a cause that says no more.
+    // "By your {Soul Punisher, the Cleansing Light} or a blue <Gogeta> card skill" (BT22-039): either card, each read
+    // on its own — one filter would ask for a card that is both.
+    const parts = !cause.desc ? [cause] : splitAlternatives(cause.desc).map((desc) => ({ ...cause, desc }));
+    const sels = parts.map((part) => (read.sided && !part.desc ? undefined : causeSelector(part)));
+    if (sels.some((sel) => sel === null)) return null;
+    const asked = sels.filter((sel): sel is Selector => !!sel).map((sel): Cond => ({ kind: "count", sel, atLeast: 1 }));
+    if (asked.length) conds.push(asked.length === 1 ? asked[0] : { kind: "any", conds: asked });
+  }
+  // 20-1-2: "Battle Cards" are cards in a Battle Area; a Leader is no Battle Card.
+  const whose = read.trigger.startsWith("opponentCardPower") ? ({ side: "opponent" } as const) : read.trigger === "yourCardPowerLowered" ? ({ side: "you" } as const) : {};
+  if (read.subject === "battle") conds.push({ kind: "count", sel: { special: "subject", ...whose, area: "battle" }, atLeast: 1 });
+  if (read.subject === "leader") conds.push({ kind: "count", sel: { special: "subject", ...whose, area: "leader" }, atLeast: 1 });
+  if (/\bduring your turn$/i.test(masked.text)) conds.push({ kind: "isTurnPlayer" });
+  return { cond: conds.length === 0 ? null : conds.length === 1 ? conds[0] : { kind: "all", conds } };
+}
+
+/**
+ * The skill's card a cause describes, as a selector of the moment's subject: whose it is ("your", "an opponent's",
+ * "in any of your areas"), where it is ("in your Battle Area"; a Battle Card's skill with no area named is one in a
+ * Battle Area, 20-1-2 and 20-7-2; a <Character> or ≪trait≫ card's anywhere, 20-7-3), and what it is. `undefined` when
+ * the cause says nothing about the card; `null` when the description cannot be read whole.
+ */
+/**
+ * The alternatives of a cause, at a top-level " or " between two descriptions of different kinds ("{Serpent Road}"
+ * beside "a white ≪King Kai's Planet≫ card"): each alternative carries the area said at the end ("…in your Battle
+ * Area") and ends in "card". Names side by side with one colour each ("yellow <Majin Buu> or yellow <Evil Wizard
+ * Babidi> card") split the same way, which asks the same thing.
+ */
+function splitAlternatives(desc: string): string[] {
+  const masked = maskNames(desc);
+  if (!/ or /i.test(masked.text)) return [desc];
+  const where = / in your battle area$/i.exec(masked.text)?.[0] ?? "";
+  const body = where ? masked.text.slice(0, -where.length) : masked.text;
+  return body.split(/ or /i).map((part) => {
+    const one = part.trim().replace(/^(?:an?|your) /i, "");
+    return masked.unmask(`${/\bcard$|\}$/i.test(one) ? one : `${one} card`}${where}`);
+  });
+}
+
+function causeSelector(cause: MomentCause): Selector | null | undefined {
+  const side = cause.side === "any" ? undefined : cause.side;
+  if (!cause.desc) return side ? { special: "subject", side } : undefined;
+  let desc = cause.desc.trim();
+  let area: Selector["area"];
+  if (/ in your battle area$/i.test(desc)) {
+    area = "battle";
+    desc = desc.replace(/ in your battle area$/i, "");
+  }
+  if (/^leader(?: card)?$/i.test(desc)) return { special: "subject", area: "leader", ...(side ? { side } : {}) };
+  if (!area && /\bbattle card$/i.test(desc)) area = "battle";
+  const filter = filterFor(/\bcard$|\}$/i.test(desc) ? desc : `${desc} card`, null);
+  if (filter === null || (filter && unreadFilterWords(desc, filter).length)) return null;
+  return { special: "subject", ...(side ? { side } : {}), ...(area ? { area } : {}), ...(filter ? { filter } : {}) };
 }
 
 const cardCache = new WeakMap<CardDef, { front: CardScripts; back: CardScripts }>();

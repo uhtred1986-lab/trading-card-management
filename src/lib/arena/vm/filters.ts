@@ -36,7 +36,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import { identityKey, keywordName, keywordsInSkills, parseSkills } from "../text/cards";
-import { emptyFilter, sparkingTags, type CardFilter } from "../text/filters";
+import { emptyFilter, keywordMatchesExact, sparkingTags, type CardFilter } from "../text/filters";
 import type { KeywordSkill, Skill, SkillKindPrefix } from "../types";
 import { FILTER_FIELD_NAMES } from "../lang";
 import type { GameDefinition } from "../rulesets";
@@ -98,6 +98,7 @@ export const MEASURES: Record<keyof CardFilter, Measure> = {
   onlyCharacters: { reads: ["characters"] },
   onlyTraits: { reads: ["traits"] },
   traitsAll: { reads: ["traits"] },
+  traitsIncluding: { reads: ["traits"] },
   names: { reads: ["name"], also: ["alsoNames"] },
   notNames: { reads: ["name"], also: ["alsoNames"] },
   namesIncluding: { reads: ["name"], also: ["alsoNames"] },
@@ -275,8 +276,8 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
     // A parameter the description printed (#941): the keyword's printed name, number and Dark included.
     if (f.keywordsExact?.length || f.notKeywordsExact?.length) {
       const have = new Set([...keywords.map((k) => keywordName(k).toLowerCase()), ...sparkingTags(skills)]);
-      if (f.keywordsExact?.some((k) => !have.has(k.toLowerCase()))) return false;
-      if (f.notKeywordsExact?.some((k) => have.has(k.toLowerCase()))) return false;
+      if (f.keywordsExact?.some((k) => !keywordMatchesExact(have, k))) return false;
+      if (f.notKeywordsExact?.some((k) => keywordMatchesExact(have, k))) return false;
     }
     if (f.noKeywords && keywords.length) return false;
     if (f.skillKind && !skills.some((sk) => sk.kind.startsWith(f.skillKind as SkillKindPrefix))) return false;
@@ -286,7 +287,8 @@ function matchesAttrs(f: CardFilter, attrs: Attrs): boolean {
   const partChars = f.charactersIncluding ?? [];
   const traits = list(attrs.traits);
   const characterOk = !(f.characters.length || partChars.length) || f.characters.some((c) => same(characters, c)) || partChars.some((c) => part(characters, c));
-  const traitOk = !f.traits.length || f.traits.some((t) => same(traits, t));
+  const partTraits = f.traitsIncluding ?? [];
+  const traitOk = !(f.traits.length || partTraits.length) || f.traits.some((t) => same(traits, t)) || partTraits.some((t) => part(traits, t));
   // "with both <A> and <B>" (#768): each one, where `characters` takes any.
   if (!(f.charactersAll ?? []).every((c) => same(characters, c))) return false;
   // "a ≪Great Ape≫ ≪Saiyan≫ card" (#907 round 5): every trait named.
