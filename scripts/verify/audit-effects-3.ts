@@ -4,8 +4,8 @@
  *
  * A.  "An [Activate: Main/Battle] skill" in a description is a line of that timing (BT31-132, BT31-116), never any [Activate].
  * B.  "…with [blocker] and without ≪Great Ape≫" is one description, the trait named out (P-487): a moment, not a replacement.
- * C.  "…in your Drop Area or Warp" is one area, picked first (DB2-019's Q&A, R-340); "and/or", "a total of" and "shuffle
- *     any areas you looked through" pool the two.
+ * C.  "…in your Drop Area or Warp" is one area, picked first (DB2-019's Q&A, R-340); "…from your Drop Area or Warp"
+ *     pools the two (BT6-126's Q&A), as do "and/or", "a total of" and "shuffle any areas you looked through".
  * D.  "When … attacks during that turn, …" (BT21-142) is a delayed trigger the engine lacks: unread, never a condition now.
  * E.  "Only 1 {X} can be played in your Battle Area" (21-11-2): a second copy that arrives anyway is processed like
  *     [Unique] — the master keeps one (BT6-047's Mafuba Q&A).
@@ -90,13 +90,12 @@ for (const [id, text] of [
   assert.equal(opOf(rec, "play").length, 1, "B: P-487: …then this card is played");
 }
 
-// C. One area of two (R-340): DB2-019 picks the Drop Area or the Warp first; "and/or", "a total of" and "shuffle any
-// areas you looked through" keep the pooled choice.
+// C. One area of two (R-340): DB2-019 picks the Drop Area or the Warp first (its Q&A), and DB3-133's "in your deck or
+// hand" the same way; "from your Drop Area or Warp" (BT6-126's Q&A: 3 from the Warp and 2 from the Drop, yes), "from
+// your deck or Drop Area", "and/or", "a total of" and "shuffle any areas you looked through" keep the pooled choice.
 for (const [id, text, areas] of [
   ["DB2-019", "[Activate: Main][Once per turn] Choose up to 2 skill-less Battle Cards with an energy cost of 1 in your Drop Area or Warp and play them.", ["drop", "warp"]],
-  ["BT6-126", "[Auto] When you play this card, if there is an <Evil Wizard Babidi> card under this card, choose up to 5 ≪Agent of Destruction≫ cards from your Drop Area or Warp and play them.", ["drop", "warp"]],
-  ["P-336", "[auto] When this card is played, add up to 2 cards with [dragon ball] from your deck or Drop Area to your hand, then shuffle your deck if you looked through it.", ["deck", "drop"]],
-  ["EX13-30", "[-1][Activate: Main] Play up to 2 skill-less Battle Cards with energy costs of 1 from your deck or Drop Area, then shuffle your deck if you looked through it.", ["deck", "drop"]],
+  ["DB3-133", "[-6][Activate: Main] If your Leader Card is red: Choose up to 2 mono-red Battle Cards with different card names, energy costs of 3 or less, and 19000 power or less in your deck or hand, play them, then shuffle your deck if you looked through it.", ["deck", "hand"]],
 ] as const) {
   const rec = record(id, text);
   const mode = opOf(rec, "chooseMode");
@@ -107,6 +106,9 @@ for (const [id, text, areas] of [
   assert.equal(vars.size, 1, `C: ${id}: …both modes bind the one variable the rest reads`);
 }
 for (const [id, text] of [
+  ["BT6-126", "[Auto] When you play this card, if there is an <Evil Wizard Babidi> card under this card, choose up to 5 ≪Agent of Destruction≫ cards from your Drop Area or Warp and play them."],
+  ["P-336", "[auto] When this card is played, add up to 2 cards with [dragon ball] from your deck or Drop Area to your hand, then shuffle your deck if you looked through it."],
+  ["EX13-30", "[-1][Activate: Main] Play up to 2 skill-less Battle Cards with energy costs of 1 from your deck or Drop Area, then shuffle your deck if you looked through it."],
   ["DB2-031", "[Activate: Main] Choose up to 2 skill-less Battle Cards with 10000 power in your Drop Area and/or Warp and play them."],
   ["BT6-106", "[Activate: Main] Switch this card to Rest Mode: Choose up to 2 [Dragon Ball] cards from your deck or life and add them to your hand. Then shuffle any areas you looked through."],
   ["BT21-051", "[Auto][Limit 1] If your Leader is mono-blue and your opponent has 3 or more energy: When this card is played, draw 1 card, choose up to a total of 3 Battle Cards in your opponent's Battle Area or Drop and add them to its owner's Z-Energy."],
@@ -218,8 +220,11 @@ for (const id of ["BT2-047", "BT2-055"]) {
 const defs: Record<string, CardDef> = {
   ...DEFS,
   E3_ONE_AREA: card("E3_ONE_AREA", { skill: "[Activate: Main] Choose up to 2 skill-less Battle Cards with an energy cost of 1 in your Drop Area or Warp and play them." }),
+  E3_POOLED: card("E3_POOLED", { skill: "[Activate: Main] Choose up to 2 skill-less Battle Cards with an energy cost of 1 from your Drop Area or Warp and play them." }),
   E3_LIMITED: card("E3_LIMITED", { name: "E3 Limited", skill: "[Permanent] Only 1 {E3 Limited} can be played in your Battle Area." }),
   E3_COPY: card("E3_COPY", { name: "E3 Copy", skill: "[Permanent] Only 1 copy of this card can be played in your Battle Area." }),
+  // (A full stop inside the braces, as BT8-016's "{Dr.Myuu, the Mastermind}" prints one.)
+  E3_DOTTED: card("E3_DOTTED", { name: "Dr.E3, the Limited", skill: "[Permanent] Only 1 {Dr.E3, the Limited} can be played in your Battle Area, and reduce the energy cost of this card in your hand by 1." }),
   E3_DRAWER: card("E3_DRAWER", { skill: "[Activate: Main] Draw 1 card." }),
   E3_SKIPPER: card("E3_SKIPPER", { skill: "[Activate: Main] Skip your turn and begin your opponent's Charge Phase" }),
   E3_LATER: card("E3_LATER", { skill: "[Activate: Main] At the end of the turn, draw 2 cards." }),
@@ -308,10 +313,23 @@ for (const seat of ["p1", "p2"] as const) {
     assert.ok(s.sides[seat].zones.battle.includes(inWarp) && s.sides[seat].zones.drop.includes(inDrop), `${seat}: C: …the Warp's card played, the Drop's left`);
     cases++;
   }
+  // …while "from your Drop Area or Warp" (BT6-126's Q&A) offers both at once, and both are played.
+  {
+    let s = fresh(seat, seed(8));
+    const me = stage(s, seat, "E3_POOLED", "battle");
+    const inDrop = stage(s, seat, "V1", "drop");
+    const inWarp = stage(s, seat, "V1", "warp");
+    const offered: string[][] = [];
+    // (A Warp is chosen from one card at a time, R-006: the first question offers both, the second the one left.)
+    s = activate(s, me, { cards: (q) => (offered.push(q.choice.candidates), q.choice.candidates.slice(0, 1)) });
+    assert.deepEqual([...offered[0]].sort(), [inDrop, inWarp].sort(), `${seat}: C: the pooled choice offers the Drop's and the Warp's card together`);
+    assert.ok([inDrop, inWarp].every((id) => s.sides[seat].zones.battle.includes(id)), `${seat}: C: …and plays 1 from each`);
+    cases++;
+  }
 
   // E. Two copies in one Battle Area while the limit is in force (the Mafuba case): the master keeps one at once.
-  for (const def of ["E3_LIMITED", "E3_COPY"]) {
-    let s = fresh(seat, seed(def === "E3_LIMITED" ? 1 : 2));
+  for (const def of ["E3_LIMITED", "E3_COPY", "E3_DOTTED"]) {
+    let s = fresh(seat, seed(def === "E3_LIMITED" ? 1 : def === "E3_COPY" ? 2 : 9));
     const drawer = stage(s, seat, "E3_DRAWER", "battle");
     const a = stage(s, seat, def, "battle");
     const b = stage(s, seat, def, "battle");

@@ -453,7 +453,7 @@ function compileSkillWithoutDeckBuilding(given: Skill): Script {
   if (needsEvolutionContract(skill) && !compileEvolutionBase(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [EVOLUTION_REBUILD] };
   if (isFusionSkill(skill) && !compileFusionMaterials(skill)) return { kind: skill.kind, ops: [], usage: compileUsage(skill), validity: compileValidity(skill), unsupported: ["unsupported Fusion material description; record both complete named material filters"] };
   const read0 = narrowHiddenChoices(compileSkillText(skill));
-  // Audit effects 3 (R-340): "in your Drop Area or Warp" is one area, picked first (DB2-019's Q&A).
+  // Audit effects 3 (R-340): "in your Drop Area or Warp" is one area, picked first (DB2-019's Q&A; "from …" pools, BT6-126's).
   const read = read0.unsupported.length ? read0 : { ...read0, ops: oneAreaOfTwo(skill.effect, read0.ops) };
   // "Declare 1 number: …" (prices.ts `declaredNumber`): the number is named
   // first, whichever way the rest of the effect reads.

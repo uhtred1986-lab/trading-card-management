@@ -6574,17 +6574,21 @@ export function splitModal(text: string): { head: string; options: string[] } | 
 }
 
 /**
- * Audit effects 3 (R-340): "Choose up to 2 skill-less Battle Cards with an energy cost of 1 in your Drop Area **or** Warp
- * and play them" (DB2-019) is one area — Bandai's answer on the card: you can't play 1 from the Drop Area and 1 from the
- * Warp. "…in your Drop Area **and/or** Warp" (DB2-031) is the pooled choice (the same question, answered yes), and so is
- * "up to **a total of** 3 … in your opponent's Battle Area or Drop" (BT21-051), and "…from your deck or life …, then
- * **shuffle any areas you looked through**" (BT6-106, BT6-027, TB3-049, TB3-064: 1 from each, answered yes). A choice of
- * two or more cards whose printed words join two areas with a bare "or", on a line that says none of those, becomes the
- * player's pick of the area first (`chooseMode`, one mode per area, each the same choice in that area alone, binding the
- * same variable), then the cards. One card is the same choice either way and is left as it was.
+ * Audit effects 3 (R-340): "Choose up to 2 skill-less Battle Cards with an energy cost of 1 **in** your Drop Area **or**
+ * Warp and play them" (DB2-019) is one area — Bandai's answer on the card: you can't play 1 from the Drop Area and 1 from
+ * the Warp. "…**from** your Drop Area or Warp and play them" (BT6-126) is the pooled choice — Bandai's answer on that card:
+ * 3 from the Warp and 2 from the Drop Area, yes — and so is "…**from** your deck or life …" (BT6-106, BT6-027, TB3-049,
+ * TB3-064, SD7-01: 1 from each, answered yes). The two official answers on the same construction part on the one printed
+ * word that differs, "in" against "from", and that is the line drawn here (the same wording, official answers first): a
+ * choice of two or more cards **in** two areas joined by a bare "or" becomes the player's pick of the area first
+ * (`chooseMode`, one mode per area, each the same choice in that area alone, binding the same variable), then the cards.
+ * "…in your Drop Area **and/or** Warp" (DB2-031, answered yes), "up to **a total of** 3 … in your opponent's Battle Area or
+ * Drop" (BT21-051, answered yes), "each" and "shuffle any areas you looked through" pool them whatever the preposition.
+ * One card is the same choice either way and is left as it was. Review of audit effects 3: the fix read "from" the same
+ * way, which turned BT6-126 against its own answer and the "from your deck or Drop Area" searches (EX13-30 …) with it.
  */
 const ONE_AREA_WORD = String.raw`(?:z-energy|energy(?: area)?|drop(?: area)?|warp|hand|deck|life(?: area)?|battle area)`;
-const BARE_OR_AREAS = new RegExp(String.raw`\b(?:in|from) (?:your |their |your opponent'?s )?${ONE_AREA_WORD} or (?:(?:in|from) )?(?:your |their )?${ONE_AREA_WORD}\b`, "i");
+const BARE_OR_AREAS = new RegExp(String.raw`\bin (?:your |their |your opponent'?s )?${ONE_AREA_WORD} or (?:in )?(?:your |their )?${ONE_AREA_WORD}\b`, "i");
 const AREA_LABEL: Partial<Record<ScriptArea, string>> = { drop: "Drop Area", warp: "Warp", hand: "hand", deck: "deck", life: "life", energy: "Energy Area", zEnergy: "Z-Energy", battle: "Battle Area" };
 export function oneAreaOfTwo(effect: string, ops: Op[]): Op[] {
   // The printed words decide, never a rewrite of them: "look at your deck and life, add up to 2 …" is said "from your deck

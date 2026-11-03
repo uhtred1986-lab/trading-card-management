@@ -117,8 +117,11 @@ function group(ctx: EngineContext, game: GameDefinition, state: VmState, side: P
 const UNIQUE_WORD = /\[unique\]/gi;
 /** A line whose leading run of bracketed tags carries [Unique]: the card's own keyword. */
 const OWN_KEYWORD = /^\s*(?:\[[^\]]*\]\s*)*\[unique\]/i;
-/** Audit effects 3: a line that may limit the card's own name (21-11-2's wording, `limitsItsName`) — only a pre-filter. */
-const OWN_LIMIT = /\bonly (?:have up to )?1\b[^.]*?\b(?:can be played in|in play in) your battle area\b/i;
+/**
+ * Audit effects 3: a line that may limit the card's own name (21-11-2's wording, `limitsItsName`) — only a pre-filter.
+ * A name in braces may hold a full stop ("Only 1 {Dr.Myuu, the Mastermind} can be played …", BT8-016, BT8-057).
+ */
+const OWN_LIMIT = /\bonly (?:have up to )?1\b(?:\{[^}]*\}|[^.{])*?\b(?:can be played in|in play in) your battle area\b/i;
 
 /** The printed text of both faces, split into lines. */
 const linesOf = (text: string | null | undefined): string[] => (text ?? "").split(/<br\s*\/?>/i);
