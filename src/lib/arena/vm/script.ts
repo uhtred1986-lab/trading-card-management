@@ -3517,7 +3517,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const id = h.resolveRef(frame, op.target).find((x) => x !== b.attacker && x !== b.guard && h.masterOf(x) === defender && (h.areaOf(x) === "battle" || h.areaOf(x) === "leader"));
         if (!id) break;
         h.setGuard(id, frame.card);
-        h.pend("attacked", id);
+        // 8-1-7-2: a guard card changed by an effect makes no "when this card is attacked" pending — only [Blocker]
+        // says otherwise (22-4-3-1). (Audit triggers 3: the name pended here had no moment and logged a note.)
         break;
       }
 

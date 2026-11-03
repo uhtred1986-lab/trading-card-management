@@ -1129,9 +1129,6 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // about the card used — the same `comboUsed` moment a declared combo fires (`vm/battle.ts`'s `applyCombo`).
   youCombo: { event: "comboUsed", args: { to: "combo" } },
   opponentCombos: { event: "comboUsed", args: { to: "combo" } },
-  // Audit triggers 3: the new target of an attack a skill redirected (`redirectAttack`, 8-1) — "when this card is
-  // attacked", as a [Blocker]'s new target hears it (`vm/battle.ts`). Pended by name with no moment, it was a note.
-  attacked: { event: "attackDeclared", args: { role: "target" } },
   // Phrasing batch 7 (owner's ruling of 27 Oct 2026, BT9-104): a skill's damage to the opponent, pended by the `damage`
   // op about the skill's card — the battle damage `yourCardDealtDamage` already answers through `battle.ts`'s own fire.
   yourCardDealtDamage: { event: "damage", args: { role: "source" } },
