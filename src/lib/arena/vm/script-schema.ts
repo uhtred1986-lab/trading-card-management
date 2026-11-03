@@ -731,8 +731,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'a Leader turned over (22-2-4): "to":"back" awakens it ("flip this card to its back side"), "to":"front" turns an awakened one back ("flip this card to its front", BT15-091); absent, it is turned over whichever side it shows ("flip this card over")',
   },
   faceUp: { fields: [TARGET, { name: "faceUp", type: "boolean", default: true }], sentence: "turn {target} face {faceUp:up|down}", doc: "turn a card in a life area face up (3-9-2-1); false turns it back down" },
-  addMarker: { fields: [TARGET, n()], sentence: "add {n} marker" },
-  removeMarker: { fields: [TARGET, n()], sentence: "remove {n} marker" },
+  // Audit effects 2: a counted number of markers (BT17-003, BT18-076, P-633) reads "add markers: 1 for each …", never
+  // "add 1 for each … marker".
+  addMarker: { fields: [TARGET, n()], sentence: (raw, r) => (typeof (raw as OpOf<"addMarker">).n === "number" ? renderTemplate("add {n} marker", raw as unknown as Record<string, unknown>, OP_SCHEMA.addMarker.fields, r) : `add markers: ${describeAmount((raw as OpOf<"addMarker">).n)}`) },
+  removeMarker: { fields: [TARGET, n()], sentence: (raw, r) => (typeof (raw as OpOf<"removeMarker">).n === "number" ? renderTemplate("remove {n} marker", raw as unknown as Record<string, unknown>, OP_SCHEMA.removeMarker.fields, r) : `remove markers: ${describeAmount((raw as OpOf<"removeMarker">).n)}`) },
   token: {
     fields: [
       { name: "name", type: "string", required: true },
@@ -3022,6 +3024,8 @@ function describeUnderHost(sel: Selector): string {
       resolving: "the card being played",
       onTop: "the card on top of this card",
     }[sel.special];
+  // Audit effects 2 (BT25-004, BT29-085's back): a pile under a card chosen before.
+  if (sel.fromVar && !sel.filter && !sel.area) return "the chosen card";
   const who = sel.side === "opponent" ? "your opponent's " : sel.side === "both" ? "each player's " : "your ";
   const words = selectorWords(sel);
   const kind =

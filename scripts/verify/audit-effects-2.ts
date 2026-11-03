@@ -143,6 +143,95 @@ for (const [id, text, until, check] of [
   assert.ok(check(locks.find((o) => o.what === "activateSkill")!), `C: ${id}: …of the cards it describes`);
 }
 
+// D. "You can combo with this card even when it is in Rest Mode" is a permission, never the action of a combo.
+for (const [id, text, what, until] of [
+  ["BT23-030", "[permanent] You can combo with this card even when it is in Rest Mode.", "comboRestSelf", "game"],
+  ["BT23-125", "[permanent] You can use this card in a combo even when it is in Rest Mode.", "comboRestSelf", "game"],
+  ["TB2-010", "[Permanent] You can combo with this card from your Battle Area even when it is in Rest Mode.", "comboRestSelf", "game"],
+  ["BT6-080", "[Permanent] You can combo with ≪Boujack Brigade≫ cards in Rest Mode in your Battle Area.", "comboRest", "game"],
+] as const) {
+  const rec = record(id, text);
+  assert.deepEqual(rec.ops.map((o) => o.op), ["permit"], `D: ${id}: a permit`);
+  const permit = rec.ops[0] as Extract<Op, { op: "permit" }>;
+  assert.equal(permit.what, what, `D: ${id}: ${what}`);
+  assert.equal(permit.until, until, `D: ${id}: …for the ${until}`);
+  if (what === "comboRest") assert.deepEqual(permit.filter?.traits, ["boujack brigade"], `D: ${id}: …of the cards described`);
+}
+{
+  const rec = record("BT21-081", "[auto] When this card is played from under a {Hyperbolic Time Chamber} in your Battle Area, this card gets +5000 power and you may use this card in a combo in Rest Mode for the turn.");
+  const permit = opOf(rec, "permit")[0];
+  assert.ok(permit && permit.what === "comboRestSelf" && permit.until === "turn", "D: BT21-081: a permission for the turn");
+  assert.equal(opOf(rec, "comboFrom").length + opOf(rec, "may").length, 0, "D: BT21-081: …never a combo now");
+}
+
+// E. "…in a combo with its skill negated" (singular) and "…with its skills negated for the turn in a combo".
+for (const [id, text] of [
+  ["BT27-103", "[auto] When this card attacks, use up to 1 black Battle Card with 5000 combo power from your Warp in a combo with its skill negated for the turn."],
+  ["BT30-089", "[activate: battle] [limit 1] If this card isn't in a battle: Use up to 1 black ≪Universe 7≫ card from your Drop in a combo with its skill negated for the turn."],
+  ["BT21-123", "[auto][limit 1] When this card attacks, look at up to 3 cards from the top of your deck, use up to 1 yellow ≪Frieza's Army≫ with its skills negated for the turn in a combo, and place the rest at the bottom of your deck in any order."],
+] as const) {
+  const combo = opOf(record(id, text), "comboFrom");
+  assert.equal(combo.length, 1, `E: ${id}: one combo`);
+  assert.equal(combo[0].negated, true, `E: ${id}: …with its skills negated`);
+}
+
+// F. "Play this card … on top of" the attacking card, the card played with this skill, a card described.
+{
+  const gohan = record("BT22-063", "[activate: battle][limit 1]{g}, if your green <Son Gohan: Adolescence> card with an energy cost of 4 is attacking: Play this card from your hand on top of the attacking card, and this card gains [critical] for the battle.");
+  assert.deepEqual(opOf(gohan, "play")[0].onto, { sel: { special: "attacker" } }, "F: BT22-063: onto the attacking card");
+  const babidi = record("BT6-126", "[Activate: Main] {6}, choose 1 <Evil Wizard Babidi> card in your Drop Area or Warp: Play the chosen card, then play this card from your hand on top of the card you played with this skill.");
+  const [first, second] = opOf(babidi, "play");
+  assert.ok("var" in first.target && second.onto && "var" in second.onto && second.onto.var === first.target.var, "F: BT6-126: this card onto the Babidi played first");
+  const vegeta = record("BT7-057", "[Activate: Main] If there is a {Power Ball} in your Battle Area and {Great Ape Vegeta, Energy Manipulation} is not in play in your Battle Area: Play this card from your hand on top of a <Vegeta> card in your Battle Area with an energy cost of 3.");
+  const host = opOf(vegeta, "choose").find((o) => o.sel.area === "battle");
+  assert.ok(host && host.sel.count === 1 && !host.sel.upTo && host.sel.filter?.characters.includes("vegeta") && host.sel.filter.costMin === 3, "F: BT7-057: the <Vegeta> host is chosen");
+  assert.deepEqual(opOf(vegeta, "play")[0].onto, { var: host.as }, "F: BT7-057: …and played onto");
+}
+
+// G. A list of choices acted on as one ("…and switch them to Active Mode"); "play A and B"; a pile under the chosen card.
+for (const [id, text, op, n] of [
+  ["DB2-063", "[Counter: Attack] Negate the attack, and your opponent reveals the top card of their deck. If that card is a Battle Card, choose up to 1 of your Battle Cards and up to 1 of your energy and switch them to Active Mode.", "switchMode", 2],
+  ["BT14-123", "[+1][Activate: Main] Draw 1 card, then choose 1 card in your hand and up to 3 ≪Shadow Dragon≫ Extra Cards in your Drop Area and place them at the bottom of your deck in any order.", "moveTo", 2],
+  ["BT4-036", "[auto] When you play this card, choose up to 1 of your opponent's Battle Cards and up to 1 card from their hand, and place them on top of their owner's deck in any order.", "moveTo", 2],
+  ["BT30-150", "[auto] When this card is played or attacks, choose up to 1 card in your opponent's hand, up to 1 of their Z-Energy, and up to 1 of their Battle Cards—all ignoring [barrier]—and place them into their owner's Drop.", "moveTo", 3],
+] as const) {
+  const rec = record(id, text);
+  const chosen = opOf(rec, "choose").map((o) => o.as);
+  const acts = opsDeep(rec.ops).filter((o) => o.op === op) as Extract<Op, { target: unknown }>[];
+  assert.equal(acts.length, n, `G: ${id}: ${n} ${op}s`);
+  assert.deepEqual(acts.map((o) => ("var" in (o.target as object) ? (o.target as { var: string }).var : "?")).sort(), chosen.slice(-n).sort(), `G: ${id}: …one for each choice of the list`);
+}
+{
+  const kale = record("BT7-075", "[Activate: Main] When you have 3 or more energy: Choose up to 1 blue <Kale> card and 1 yellow <Caulifla> card with energy costs of 2 or less in your hand and play them, then negate this skill for the duration of the game.");
+  const picks = opOf(kale, "choose");
+  assert.ok(picks.every((o) => o.sel.area === "hand" && o.sel.filter?.costMax === 2), "G: BT7-075: both from the hand, both cost 2 or less");
+  assert.equal(opOf(kale, "play").length, 2, "G: BT7-075: …and both played");
+  const broly = record("EX13-21", "[Activate: Main] If your Leader Card is a <Cheelai: Br/Lemo: Br> card and you choose 1 card in your hand and discard it: Choose one? ・If you have no cards in your Battle Area, play up to 1 green <Broly: Br> card with an energy cost of 4 from your deck and up to 1 green <Cheelai: Br> or <Lemo: Br> card from your deck, then shuffle your deck. ・Play up to 1 green <Cheelai: Br> or <Lemo: Br> card from your Drop Area.");
+  assert.equal(opOf(broly, "play").length, 3, "G: EX13-21: both deck cards of the first mode are played");
+  const egg = record("BT25-004", "[+1][Activate: Main] Choose up to 1 of your {King Piccolo's Egg, Terror is Born}, place up to 1 ≪Demon Clan≫ card from your Z-Energy under that card, and play up to 1 red ≪Demon Clan≫ card with an energy cost of 3 from under the chosen card.");
+  const fromPile = opOf(egg, "choose").find((o) => o.sel.area === "under");
+  assert.ok(fromPile && fromPile.sel.underHost?.fromVar === opOf(egg, "choose")[0].as && fromPile.sel.filter?.costMin === 3, "G: BT25-004: a red cost-3 ≪Demon Clan≫ from under the Egg");
+  assert.deepEqual(opOf(egg, "play")[0].target, { var: fromPile.as }, "G: BT25-004: …is the card played");
+}
+
+// H. Markers counted, not flat: "for each card under this card. (Up to 3.)", "for each card in your Z-Energy".
+{
+  const saiyan = record("BT17-003", "[0][Activate: Main] Place 1 ≪Saiyan≫ card from your hand under this card: Draw 1 card, then add a marker to this card for each card under this card. (Up to 3.)");
+  assert.deepEqual(plain(opOf(saiyan, "addMarker")[0].n), plain({ capped: [{ count: { side: "you", area: "under", count: 99 } }, 3] }), "H: BT17-003: one per card under, up to 3");
+  const rival = record("BT18-076", "[activate: main][limit 1]{g}, if you have {Son Goku, Fated Rival} in play: Play this card from your hand, then choose up to 1 of your opponent's Unisons and remove 1 marker from it for each card in your Z-Energy.");
+  assert.deepEqual(plain(opOf(rival, "removeMarker")[0].n), { count: { side: "you", area: "zEnergy", count: 99 } }, "H: BT18-076: one per Z-Energy");
+}
+
+// I. After a hinge ("if they don't"), the clause is its effect, never a condition; an unreadable one is unread.
+{
+  const unison = skillRecords(card("BT13-150", { skill: "[Activate: Battle] Choose 1 of your opponent's Unison Cards: Your opponent may remove a marker from that card. If they don't, your Leader Card doesn't take damage from attacks by their Unison Cards with [Strike] skills for the battle." }))[0];
+  assert.deepEqual(unison.unread, ["your Leader Card doesn't take damage from attacks by their Unison Cards with [Strike] skills for the battle"], "I: BT13-150: the consequence is unread, never dropped");
+  records++;
+  const counter = record("P-171", "[Counter: Play] Draw 1 card, then your opponent may choose 1 Extra Card from their hand and place it in their Drop Area. If they don't, the Battle Card being played has its skills negated for the duration of the turn.");
+  const branch = opOf(counter, "if").find((o) => o.cond.kind === "not");
+  assert.ok(branch && branch.then.some((o) => o.op === "resolvingPlay" && o.negated), "I: P-171: if they don't, the card being played is negated");
+}
+
 // ── the VM ──────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,

@@ -243,6 +243,10 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "P-685": [[/Active\s+Mode\s+until\s+te\s+end\s+of/g, "Active Mode until the end of"]],
   // Audit lane E review: "When this card is placed in a Batte Area" left the [Auto]'s moment unread.
   "BT27-124": [[/placed\s+in\s+a\s+Batte\s+Area/g, "placed in a Battle Area"]],
+  // Audit effects 2 (3 Nov 2026): "…black Z-Battle Cards **ad** switch it to Active Mode" lost the switch; "…red <Son Goku:
+  // Childhood **cards**" (no closing bracket) lost the name and the +5000 after it.
+  "P-657": [[/black\s+Z-Battle\s+Cards\s+ad\s+switch\s+it/g, "black Z-Battle Cards and switch it"]],
+  "BT25-008": [[/red\s+<Son\s+Goku:\s+Childhood\s+cards\s+and/g, "red <Son Goku: Childhood> cards and"]],
 
   // ── Official errata, all of them (errata-official-1, 2 Nov 2026) ──────────
   // Bandai's errata page (https://www.dbs-cardgame.com/us-en/rule/errata-cards.php), snapshot in
