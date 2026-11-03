@@ -544,6 +544,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   const trailing = trailingTrigger(sk);
   const head = trailing ? `${trailing}, ${printed}` : printed;
   if (sk.kind === "auto" && momentsBatch1(head).some((m) => m.trigger === trigger)) return true;
+  // Audit triggers 2: a watched card's moment, read by the grammar (`watchedMomentOf`) when its description reads whole.
+  if (sk.kind === "auto") {
+    const watched = watchedMomentOf(effect.unmask(printed));
+    if (watched?.triggers.includes(trigger) && readableSubject({ unmask: (s) => s }, watched.said)) return true;
+  }
   switch (trigger) {
     case "played":
       // 12-2: activating an Extra *is* playing it, and the sets print both.
@@ -599,7 +604,14 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return OPPONENT_TOOK_BOARD_SKILL_DAMAGE.test(head);
     // 3-9: a life card leaving the Life Area, however it leaves.
     case "lifeLeft":
-      return /when your life (?:moves|is moved|is placed|leaves|is added)/.test(head);
+      // Audit triggers 2: "When a card is moved from your life to another area" (BT31-058, BT31-072) is the same moment.
+      return /when your life (?:moves|is moved|is placed|leaves|is added)/.test(head) || /^when a card is moved from your life to another area(?:,|$)/.test(head);
+    // Audit triggers 2: the keyword moves "When this card activates [Aegis]" (EX05-03), "…activates its [Aegis Blue/Yellow]
+    // skill" (BT16-130), "When this card's [Aegis] skill activates", and "When you activate [Swap]" (BT28-086).
+    case "aegisActivated":
+      return /^when (?:this card activates (?:its |the )?\[aegis(?: [a-z/ ]+)?\](?: skill)?|this card'?s \[aegis(?: [a-z/ ]+)?\](?: skill)? activates)(?:,|$)/.test(head);
+    case "swapActivated":
+      return /^when you activate (?:an? )?\[swap\](?: skills?)?(?:,|$)/.test(head);
     case "koed":
       // "…removed from a Battle Area by a skill **or KO'd**" is the KO half of
       // a wording whose other half is `removedFromBattle`.
@@ -957,7 +969,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       const passive = /when (a|an|your) ([^,]{0,120}?)(?:[-—–]\s*)?is played\b/.exec(t);
       if (!spoken && !passive) return false;
       const said = expandSharedCardDescription(spoken ? spoken[1] : `${passive![1]} ${passive![2]}`);
-      if (/^your opponent/.test(said)) return false;
+      if (/^your opponent|^(?:an?|one) opponent'?s\b/.test(said)) return false;
       // This fires for *every* card that player plays, and the effect then acts
       // on it — so a description the compiler cannot turn into a filter must
       // not fire at all. "A blue **or** yellow ≪Universe 6≫ card" is the shape
@@ -1267,6 +1279,22 @@ export function momentParts(head: string): string[] | null {
   // split re-said it as "would be is placed …", a head that is neither.
   if (/\bwould\b/.test(clause)) return null;
   clause = clause.replace(/^when you play this card,? or (?:when you )?(?:use it in a combo|combo with it|use this card in a combo|combo with this card)\b/, "when this card is played or used in a combo");
+  // Audit triggers 2: two subjects of one predicate — "When this card **or an opponent's card** is played" (BT27-085),
+  // "When this card **or one of your opponent's cards** attacks" (BT11-012), "…**or your opponent** attacks" (BT21-149):
+  // the predicate said of each, and each of those split again where it coordinates moments of its own.
+  const either = /^when this card or (?=\S)/.exec(clause);
+  if (either) {
+    const body = clause.slice(either[0].length);
+    const at = topLevel(body, (i) => i > 0 && body[i - 1] === " " && MOMENT_VERB.test(body.slice(i)))[0];
+    if (at === undefined) return null;
+    const other = body.slice(0, at).trim();
+    if (!/^(?:your|one of your|an?|1|an opponent'?s)\b/.test(other)) return null;
+    const pred = body.slice(at);
+    const mine = `when this card ${/^plays?\b/.test(pred) ? "" : pred.replace(/^are\b/, "is")}`;
+    const theirs = `when ${other} ${pred}`;
+    if (mine === "when this card ") return null;
+    return [...(momentParts(mine) ?? [mine]), ...(momentParts(theirs) ?? [theirs])];
+  }
   let subject: string, rest: string;
   const self = /^when (this card(?: in (?:your|a) (?:hand|battle area|drop(?: area)?|energy(?: area)?|deck or hand|hand or deck))?) (.+)$/.exec(clause);
   if (self) [subject, rest] = [self[1], self[2]];
@@ -1389,4 +1417,148 @@ export function spiritBoostPayerOf(trigger: string): string | null {
   const names = maskNames(trigger.trim());
   const m = SPIRIT_BOOST_PAYER.exec(names.text);
   return m ? names.unmask(m[1]).trim() : null;
+}
+
+// ── audit triggers 2 (3 Nov 2026): the watched-card moment grammar ──────────
+
+/** Whose card a watched moment is about, as its subject phrase says it. "a" waits for the area the sentence names. */
+type WatchedWhose = "you" | "opponent" | "both" | "a";
+const WATCHED_WHOSE: readonly [RegExp, WatchedWhose][] = [
+  [/^when (?:one of |1 of )?your opponent'?s /, "opponent"],
+  [/^when (?:an?|1|one) opponent'?s /, "opponent"],
+  [/^when (?:you or your opponent'?s|your or your opponent'?s|a player'?s) /, "both"],
+  [/^when (?:one of |1 of )?your (?!opponent\b|leader'?s\b|leader card'?s\b|life\b|energy\b|skills?\b|deck\b|hand\b)/, "you"],
+  [/^when (?:an?|1) (?!opponent\b|player\b|card (?:in|from|is|under)\b|skill\b)/, "a"],
+  // A card named and nothing more ("When {Fateful Reunion Son Goku} is played in your Battle Area", TB2-037).
+  [/^when (?=\{\d+\} )/, "a"],
+];
+/**
+ * The active voice, said as the passive the events are read in: "when you play X …" is "when your X is played …",
+ * "when your opponent plays X" is "when your opponent's X is played", "when you attack with X" is "when your X
+ * attacks", "when you or your opponent play X" is either player's X played, "when a player attacks" is either
+ * player's card attacking.
+ */
+const WATCHED_ACTIVE: readonly [RegExp, string, "played" | "attacks" | ""][] = [
+  [/^when you play (?:an?|1|one) (?!card\b)/, "when your ", "played"],
+  [/^when you play (?=\{\d+\}|<[^>]+>)/, "when your ", "played"],
+  [/^when your opponent plays (?:an?|1|one) /, "when your opponent's ", "played"],
+  [/^when you or your opponent plays? (?:an?|1|one) /, "when you or your opponent's ", "played"],
+  [/^when you attack with (?:an?|1|one) (?!card\b)/, "when your ", "attacks"],
+  [/^when a player attacks$/, "when a player's card attacks", ""],
+];
+/**
+ * What happened to the card: the event, with its cause or origin where the sentence names one, and the Battle Area it
+ * names (whose it is says whose the card was). Each reads the whole rest of the moment clause after the description.
+ */
+type WatchedEvent = "removedBySkill" | "removedByOpponent" | "leftBattle" | "koed" | "koedByOpponentSkill" | "koedByYourSkill" | "koedByOpponent"
+  | "kosByAttack" | "attacked" | "attacks" | "unisonToDrop" | "played" | "playedFromHand" | "playedFromDrop" | "playedFromWarp" | "playedFromEnergy" | "playedFromLife"
+  | "restedByYou" | "restedBySkill" | "evolveFromHand" | "exEvolveFromHand" | "swap";
+const BATTLE_AREA = String.raw`(?:a|the|(your|their)) battle area`;
+const WATCHED_EVENTS: readonly { re: RegExp; event: WatchedEvent }[] = [
+  { re: new RegExp(String.raw` (?:is|are) removed from ${BATTLE_AREA} by (?:a|any) skills?$`), event: "removedBySkill" },
+  { re: new RegExp(String.raw` (?:is|are) removed from ${BATTLE_AREA} by (?:(?:an? |one of )?(?:your )?opponent'?s?(?: card'?s?)? skills?|one of their skills)$`), event: "removedByOpponent" },
+  // No cause: any departure (BT28-066's Q&A: a token used in a combo from the Battle Area was removed from it).
+  { re: new RegExp(String.raw` (?:(?:is|are) removed from|leaves?) ${BATTLE_AREA}$`), event: "leftBattle" },
+  { re: / (?:is|are) ko'd$/, event: "koed" },
+  { re: / (?:is|are) ko'd by (?:an? |your |one of your )?opponent'?s (?:card'?s? )?skills?$/, event: "koedByOpponentSkill" },
+  { re: / (?:is|are) ko'd by (?:one of )?your skills?$/, event: "koedByYourSkill" },
+  { re: / (?:is|are) ko'd by (?:your|an?) opponent$/, event: "koedByOpponent" },
+  { re: / attacks? and kos? (?:an? |one of your |your )?opponent'?s battle cards?$/, event: "kosByAttack" },
+  { re: / (?:is|are) attacked$/, event: "attacked" },
+  { re: / attacks?$/, event: "attacks" },
+  { re: / (?:is|are) placed (?:in|into) (?:your|its owner'?s) drop(?: area)?$/, event: "unisonToDrop" },
+  { re: / (?:is|are) played(?: in (your) battle area)?$/, event: "played" },
+  { re: / (?:is|are) played from (your) hand$/, event: "playedFromHand" },
+  { re: / (?:is|are) played from (your) drop(?: area)?$/, event: "playedFromDrop" },
+  { re: / (?:is|are) played from (your) warp$/, event: "playedFromWarp" },
+  { re: / (?:is|are) played from (your) energy(?: area)?$/, event: "playedFromEnergy" },
+  { re: / (?:is|are) played from (your) life$/, event: "playedFromLife" },
+  { re: / (?:is|are) switched (?:from active mode )?to rest mode by (?:one of )?your (?:card )?skills?$/, event: "restedByYou" },
+  { re: / (?:is|are) switched to rest mode by (?:a|any) skills?$/, event: "restedBySkill" },
+  // 22-5-2: an [Evolve] is activated from the hand; an [EX-Evolve] from the hand or the Z-Energy (only the hand is read).
+  { re: / activates? (?:an? |the )?\[evolve\](?: skill)?(?: from your hand)?$/, event: "evolveFromHand" },
+  { re: / activates? (?:an? |the )?\[ex-evolve\](?: skill)? from (your) hand$/, event: "exEvolveFromHand" },
+  { re: / activates? (?:an? |the )?\[swap\](?: skills?)?$/, event: "swap" },
+];
+/** The declared moments for each (side, event): one table, so a new wording of a known moment costs a row, not a reader. */
+const WATCHED_MOMENT: Record<WatchedEvent, Partial<Record<"you" | "opponent" | "both", Trigger[]>>> = {
+  removedBySkill: { you: ["yourCardRemovedBySkill"], opponent: ["opponentCardRemovedBySkill"] },
+  removedByOpponent: { you: ["yourCardRemovedByOpponent"] },
+  leftBattle: { you: ["yourCardLeftBattle"] },
+  koed: { you: ["yourCardKoed"], opponent: ["opponentCardKoed"] },
+  koedByOpponentSkill: { you: ["yourCardKoedByOpponentSkill"] },
+  koedByYourSkill: { you: ["yourCardKoedByYourSkill"], opponent: ["opponentCardKoedByYourSkill"] },
+  koedByOpponent: { you: ["yourCardKoedByOpponent"] },
+  kosByAttack: { you: ["yourCardKosByAttack"] },
+  attacked: { you: ["yourCardAttacked"] },
+  // 8-1-3: either player's attack is two moments of the engine, one for each side; only one happens at a time.
+  attacks: { you: ["yourCardAttacks"], opponent: ["opponentAttacks"], both: ["yourCardAttacks", "opponentAttacks"] },
+  unisonToDrop: { you: ["yourUnisonToDrop"] },
+  played: { you: ["youPlayed"], opponent: ["opponentPlayed"], both: ["eitherCardPlayed"] },
+  playedFromHand: { you: ["yourCardPlayedFromHand"] },
+  playedFromDrop: { you: ["yourCardPlayedFromDrop"] },
+  playedFromWarp: { you: ["yourCardPlayedFromWarp"] },
+  playedFromEnergy: { you: ["yourCardPlayedFromEnergy"] },
+  playedFromLife: { you: ["yourCardPlayedFromLife"] },
+  restedByYou: { opponent: ["restedTheirsBySkill"] },
+  restedBySkill: { you: ["yourBattleCardRestedBySkill"], opponent: ["opponentBattleCardRestedBySkill"] },
+  evolveFromHand: { you: ["evolveActivated"] },
+  exEvolveFromHand: { you: ["yourCardExEvolveFromHand"] },
+  swap: { you: ["swapActivated"] },
+};
+
+/**
+ * Audit triggers 2: a watched card's moment read as subject × event × cause — "When one of your ≪Red Ribbon Army≫
+ * cards is removed from your Battle Area by a skill" (BT17-038), "When an opponent's Battle Card is KO'd by one of your
+ * skills" (BT24-008), "When one of your green Battle Cards attacks and KOs an opponent's Battle Card" (BT16-050), "When
+ * a ≪Universe 7≫ <Son Goku> card in your Battle Area is attacked" (SD21-03), "When one of your green Unison Cards is
+ * placed in your Drop Area" (BT17-069), "When a black Battle Card is played from your Warp" (BT16-110), "When you play
+ * a blue Battle Card from your Drop Area" (BT14-034). The subject phrase says whose card it is ("your", "one of your
+ * opponent's", "an opponent's", "a player's"; "a … in your Battle Area", "a … removed from / played from your …" is
+ * yours), the rest of the clause what happened to it, from where, and who caused it; `WATCHED_MOMENT` names the
+ * declared moments for the pair, and the description is returned as said (lower case, names put back) — a condition
+ * on the card the moment hands on (`subjectFilterOf`), asked before the Auto is pended (`vm/triggers.ts`). `null` for
+ * any other clause.
+ */
+export function watchedMomentOf(text: string): { triggers: Trigger[]; said: string } | null {
+  const masked = maskNames(text.trim());
+  let clause = momentClause(masked.text.toLowerCase().replace(TURN_THEN_WHEN, ""));
+  for (const [re, voice, verb] of WATCHED_ACTIVE) {
+    if (!re.test(clause)) continue;
+    clause = clause.replace(re, voice);
+    // "…X from your Drop Area" / "…X in your Battle Area" after "you play": the place is the play's.
+    const place = verb === "played" ? / (?:from your (?:hand|drop|warp|energy|life)(?: area)?|in your battle area)$/.exec(clause)?.[0] ?? "" : "";
+    if (verb) clause = `${clause.slice(0, clause.length - place.length)} ${verb === "played" ? "is played" : "attacks"}${place}`;
+    break;
+  }
+  const whose = WATCHED_WHOSE.find(([re]) => re.test(clause));
+  if (!whose) return null;
+  const rest = clause.replace(whose[0], "");
+  for (const { re, event } of WATCHED_EVENTS) {
+    const m = re.exec(rest);
+    if (!m) continue;
+    let said = rest.slice(0, m.index).trim();
+    // "a <Bulma> card in your Battle Area is removed from your Battle Area": the place says whose card it was.
+    const inYours = / in your battle area\b/.test(said);
+    said = said.replace(/ in your (?:battle|unison) area\b/, "").trim();
+    const area = m[1];
+    let side: "you" | "opponent" | "both" | null = whose[1] === "a" ? (inYours || area === "your" ? "you" : null) : whose[1];
+    if ((area === "their" && side !== "opponent") || (area === "your" && side !== "you")) side = null;
+    // A Unison leaves for the Drop from its Unison Area (Q&A BT17-059, BT17-069): only a Unison's.
+    if (event === "unisonToDrop" && !/\bunison(?: cards?)?$|\bunison cards? with\b/.test(said)) return null;
+    // A switch by your skill of "an opponent's card" is any of theirs (`restedTheirsBySkill`, energy included); one by any
+    // skill is read only of a Battle Card (20-1-2: one in a Battle Area), which is all its moment asks about.
+    if (event === "restedByYou" && !/^cards?$/.test(said)) return null;
+    if (event === "restedBySkill" && !/\bbattle cards?$/.test(said)) return null;
+    // A description says no verb: "…cards is KO'd by an opponent's attack" is a KO, not an attack. "Other than" a kind
+    // ("…other than a <Bulma> card", BT10-011; "…other than their Leader", BT25-085) is not read by the filter, which
+    // took the excluded kind for the one asked: only a card name is set aside ("…other than {Cell, …}", P-190). Nor is
+    // a means or a time ("…a Battle Card using a non-keyword skill", BT11-124; "…using [Arrival]", BT15-033): no event
+    // here carries it, so the moment stays unread rather than answering every play.
+    if (!side || !said || /\b(?:this card|it|is|are|was|were|or (?:your|a|an)|and|using|by|on your|during|until|from)\b|\bother than (?!\{)|\bexcept\b/.test(said)) return null;
+    // A Leader attacked has its own moment and readers (`yourLeaderAttacked`, `attackedLeaderDescription`; 8-1-3).
+    const triggers = event === "attacked" && /\bleader(?: cards?)?$/.test(said) ? undefined : WATCHED_MOMENT[event][side];
+    return triggers?.length ? { triggers, said: masked.unmask(said) } : null;
+  }
+  return null;
 }

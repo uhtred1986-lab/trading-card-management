@@ -7,7 +7,7 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { readsMomentsOneByOne, triggersOf, unreadMoments } from "../gaps";
 import { effectHead, keywordOf, maskNames, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, type MomentCause } from "../text/triggers";
+import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, type MomentCause } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, Selector } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
@@ -154,6 +154,11 @@ function momentIsRead(skill: Skill, script: Script): Script {
   // BT13-017), is not half read: its moment clause is unread.
   if (unreadMoments(skill).length || (readsMomentsOneByOne(skill) && coordinatedSubject(skill) === null))
     return { ...script, unsupported: [momentClauseOf(skill) ?? skill.effect.trim()] };
+  // Audit triggers 2: "…is KO'd by an opponent's skill **or leaves a Battle Area**" (BT6-114) names one moment inside the
+  // other — a KO is a departure — and the engine would pend the skill twice for the one KO (9-6-2-1 counts the trigger
+  // condition fulfilled once). Unread until the record can say "either, once".
+  const departs = script.trigger ?? triggersOf(skill);
+  if (departs.includes("yourCardLeftBattle") && departs.length > 1) return { ...script, unsupported: [momentClauseOf(skill) ?? skill.effect.trim()] };
   if ((script.trigger ?? triggersOf(skill)).length) {
     // A moment this batch reads is not made readable on an effect that plays the Leader (3-1-2: a Leader stays in the
     // Leader Area): "…if your Leader Card is green, you may play it by paying its energy cost" (BT5-071) points "it"
@@ -1205,13 +1210,13 @@ function compileSkillText(skill: Skill): Script {
     // BT15-091: "when a player places a [Field] Extra Card in a Battle Area",
     // "when a player's [Field] Extra Card leaves a Battle Area" — either
     // player's card, its description the condition on it.
-    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim()) || /^when a player(?:'?s)? /i.test(trigger.trim())) {
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim()) || /^when a player(?:'?s)? /i.test(trigger.trim()) || !!watchedMomentOf(trigger)) {
       // "When you play a red ≪Alien≫, **it** gains +5000 power" (BT1-006, phrasing batch 1): the card played is the
       // one thing the sentence has named, so "it" is that card too.
       // "When you combo with a skill-less card, **that card** gets +5000 combo power" (BT6-105b, phrasing batch 2): the
       // card used in the combo, likewise.
       // "When you use a red skill-less Battle Card … in a combo, **it** gets +6000 combo power" (BT14-001b, phrasing batch 3).
-      if (/\byour\b/i.test(trigger) || /^when you (?:play|combo with|use) (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
+      if (/\byour\b/i.test(trigger) || !!watchedMomentOf(trigger) || /^when you (?:play|combo with|use) (?:an?|1) /i.test(trigger.trim())) c.lastTarget = { sel: { special: "subject" } };
       // "When your **mono-red ≪Saiyan≫** Leader Card is attacked" (SD15-02,
       // #1168, 8-1-3): the moment is `yourLeaderAttacked`, whose subject is
       // the Leader attacked, and the description is a condition on that

@@ -1191,6 +1191,44 @@ export type Trigger =
   | "toDropByYou"
   /** "When this card is placed into its owner's Drop by an opponent's skill" (BT30-058). */
   | "toDropByOpponent"
+  // Audit triggers 2 (3 Nov 2026): the watched-card moments of the moment grammar (`watchedMomentOf`). The card the
+  // moment is about is the subject; what the sentence says about it is a condition on it, asked before pending.
+  /** "When one of your ≪Red Ribbon Army≫ cards is removed from your Battle Area by a skill" (BT17-038): any skill's. */
+  | "yourCardRemovedBySkill"
+  /** "When one of your opponent's Battle Cards is removed from their Battle Area by a skill" (DB3-103). */
+  | "opponentCardRemovedBySkill"
+  /** "When one of your green Battle Cards is KO'd by an opponent's skill" (BT15-072). */
+  | "yourCardKoedByOpponentSkill"
+  /** "When your green ≪Boujack Brigade≫ card is KO'd by one of your skills" (BT25-077). */
+  | "yourCardKoedByYourSkill"
+  /** "When an opponent's Battle Card is KO'd by one of your skills" (BT24-008). */
+  | "opponentCardKoedByYourSkill"
+  /** "When a <Krillin> card … in your Battle Area is KO'd by your opponent" (TB3-035): their attack or their skill. */
+  | "yourCardKoedByOpponent"
+  /** "When one of your green Battle Cards attacks and KOs an opponent's Battle Card" (BT16-050): the battle's KO; the attacker is the subject. */
+  | "yourCardKosByAttack"
+  /** "When one of your cards is attacked" (BT13-023): the card attacked is the subject. */
+  | "yourCardAttacked"
+  /** "When one of your green Unison Cards is placed in your Drop Area" (BT17-069): from your Unison Area (its Q&A). */
+  | "yourUnisonToDrop"
+  /** "When your Battle Card is removed from a Battle Area" (BT27-059), "…leaves the Battle Area" (BT26-030): any departure, a KO and a combo included. */
+  | "yourCardLeftBattle"
+  /** "When a black Battle Card is played from your Warp" (BT16-110): one of your cards played from there. */
+  | "yourCardPlayedFromWarp"
+  /** "When a blue card is played from your energy" (BT17-032b). */
+  | "yourCardPlayedFromEnergy"
+  /** "When you play a Battle Card from your life" (P-406). */
+  | "yourCardPlayedFromLife"
+  /** "When one of your yellow ≪Android≫ Battle Cards is switched to Rest Mode by a skill" (BT13-092): any skill's, in a Battle Area. */
+  | "yourBattleCardRestedBySkill"
+  /** "When one of your opponent's Battle Cards is switched to Rest Mode by a skill" (DB1-075). */
+  | "opponentBattleCardRestedBySkill"
+  /** "When a yellow Battle Card activates an [EX-Evolve] skill from your hand" (BT16-073): the evolving card is the subject. */
+  | "yourCardExEvolveFromHand"
+  /** "When you activate [Swap]", "When one of your red Battle Cards activates a [Swap] skill" (BT11-004): the card returned is the subject. */
+  | "swapActivated"
+  /** "When this card activates [Aegis]" (EX05-03), "…its [Aegis Blue/Yellow] skill" (BT16-130). */
+  | "aegisActivated"
   | "yourCardReturnedToHand"
   /**
    * "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b): another

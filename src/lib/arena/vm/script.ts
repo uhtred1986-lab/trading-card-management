@@ -3143,6 +3143,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               // removed card is the subject.
               h.pend("yourCardRemovedByOpponent", id, id);
             }
+            // Audit triggers 2: the same move by any skill, watched by either side's cards — "When one of your
+            // ≪Red Ribbon Army≫ cards is removed from your Battle Area by a skill" (BT17-038), "When one of your
+            // opponent's Battle Cards is removed from their Battle Area by a skill" (DB3-103). The removed card is the subject.
+            h.pend("yourCardRemovedBySkill", id, id);
+            h.pend("opponentCardRemovedBySkill", id, id);
             // The narrower wording, which names where it ended up as well —
             // and the one that names no cause, which covers this too.
             if (h.areaOf(id) === "drop") {

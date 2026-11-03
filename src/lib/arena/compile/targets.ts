@@ -1,5 +1,6 @@
 import { ENERGY_BOUND, ENERGY_COST_VS_ENERGY, emptyFilter, energyBoundOf, expandSharedCardDescription, parseFilter, readsOr, type CardFilter } from "../text/filters";
 import { maskNames } from "../text/cards";
+import { watchedMomentOf } from "../text/triggers";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
 import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER } from "./shared";
@@ -82,7 +83,7 @@ const AREA_TYPE_WORDS: [RegExp, ScriptArea][] = [
   // Leaders" (BT24-005), "your white Leader" (BT28-112), "your yellow <Broly: Br> Leaders" (P-539), "your opponent's
   // Leaders" (BT22-009). Unread, the phrase named no area and 20-1-6's "a card on the table" let a Battle Card stand in
   // for the Leader.
-  [/\bleader cards?\b|\b(?:your|their|opponent'?s) (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:(?:<[^>]+>|≪[^≫]+≫) ?)*leaders?\b/, "leader"],
+  [/(?<!non-)\bleader cards?\b|\b(?:your|their|opponent'?s) (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?(?:(?:<[^>]+>|≪[^≫]+≫) ?)*leaders?\b/, "leader"],
   [/\bbattle cards?\b/, "battle"],
   [/\bunison cards?\b|\bunisons\b/, "unison"],
   // 20-1-6: an unqualified "cards" means the Leader Area and the Battle Area.
@@ -1344,6 +1345,8 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // player's card (`aPlayerPlacesInBattle`, `aPlayersCardLeftBattle`).
     /^a player places (?:an?|1) (.+?) in a battle area$/.exec(t)?.[1] ??
     /^a player'?s (.+?) leaves? a battle area$/.exec(t)?.[1] ??
+    // Audit triggers 2: the card a watched moment of the moment grammar is about (`watchedMomentOf`).
+    watchedMomentOf(`when ${t}`)?.said ??
     null;
   // "A Battle Card **or** Unison Card" is two kinds, and `parseFilter` keeps
   // only one of them — which would stop the skill on the other. A filter that

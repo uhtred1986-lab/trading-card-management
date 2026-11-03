@@ -1146,6 +1146,137 @@ DEFINE TRIGGER toDropByOpponent
   BIND "self"
   text: "when an opponent's skill places this card in the Drop"
 
+-- ── audit triggers 2 (3 Nov 2026): the watched-card moment grammar ─────────
+-- One sentence shape — whose card × what happened to it × who caused it — read
+-- by one grammar (`watchedMomentOf`, text/triggers.ts), each pair naming one of
+-- these. The card the moment is about is the subject, and what the sentence
+-- says about it is a condition on it, asked before pending (9-6-2).
+
+-- §3-1 — "When one of your ≪Red Ribbon Army≫ cards is removed from your Battle
+-- Area by a skill" (BT17-038), any skill's; the opponent's side of it (DB3-103).
+-- Pended by name from a skill's move (`moveTo`), about the card moved.
+DEFINE TRIGGER yourCardRemovedBySkill
+  ON moved(by: skill, from: battle, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is removed from a Battle Area by a skill"
+
+DEFINE TRIGGER opponentCardRemovedBySkill
+  ON moved(by: skill, from: battle, watcher: opponent)
+  BIND "subject"
+  text: "when one of your opponent's cards is removed from a Battle Area by a skill"
+
+-- §5-12 — a KO told by its cause, watched: "When one of your green Battle
+-- Cards is KO'd by an opponent's skill" (BT15-072), "…by one of your skills"
+-- (BT25-077), "When an opponent's Battle Card is KO'd by one of your skills"
+-- (BT24-008), "…KO'd by your opponent" (TB3-035: their attack or their skill).
+DEFINE TRIGGER yourCardKoedByOpponentSkill
+  ON ko(role: koed, by: skill, byOpponent: true, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is KO'd by an opponent's skill"
+
+DEFINE TRIGGER yourCardKoedByYourSkill
+  ON ko(role: koed, by: skill, byOpponent: false, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is KO'd by one of your skills"
+
+DEFINE TRIGGER opponentCardKoedByYourSkill
+  ON ko(role: koed, by: skill, byOpponent: true, watcher: opponent)
+  BIND "subject"
+  text: "when one of your opponent's cards is KO'd by one of your skills"
+
+DEFINE TRIGGER yourCardKoedByOpponent
+  ON ko(role: koed, byOpponent: true, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is KO'd by your opponent"
+
+-- §8-4-6-2 — "When one of your green Battle Cards attacks and KOs an
+-- opponent's Battle Card" (BT16-050): the battle's KO, the attacker the subject.
+DEFINE TRIGGER yourCardKosByAttack
+  ON ko(role: cause, by: battle, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards attacks and KOs an opponent's Battle Card"
+
+-- §8-1-3 — "When one of your cards is attacked" (BT13-023), "When a ≪Universe
+-- 7≫ <Son Goku> card in your Battle Area is attacked" (SD21-03).
+DEFINE TRIGGER yourCardAttacked
+  ON attackDeclared(role: target, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is attacked"
+
+-- §13-2 — "When one of your green Unison Cards is placed in your Drop Area"
+-- (BT17-069): from your Unison Area, never one discarded from the hand (its
+-- Q&A, and BT17-059's).
+DEFINE TRIGGER yourUnisonToDrop
+  ON moved(from: unison, to: drop, watcher: fromHolder)
+  BIND "subject"
+  text: "when one of your Unison Cards is placed in your Drop Area from your Unison Area"
+
+-- §3-1-5 — "When your Battle Card is removed from a Battle Area" (BT27-059),
+-- "When your {Power-Infused Shocking Death Ball} leaves the Battle Area"
+-- (BT26-030): no cause named, so any departure — a KO, a skill's move, a
+-- combo from the Battle Area (BT28-066's Q&A) — read off the original holder.
+DEFINE TRIGGER yourCardLeftBattle
+  ON moved(from: battle, watcher: fromHolder)
+  BIND "subject"
+  text: "when one of your cards leaves a Battle Area"
+
+-- §5-5 — one of your cards played from a place the sentence names: "When a
+-- black Battle Card is played from your Warp" (BT16-110), "When a blue card is
+-- played from your energy" (BT17-032b), "When you play a Battle Card from your
+-- life" (P-406); `yourCardPlayedFromHand`/`…FromDrop` are the other two.
+DEFINE TRIGGER yourCardPlayedFromWarp
+  ON moved(asPlay: true, from: warp, to: [battle, unison], watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is played from your Warp"
+
+DEFINE TRIGGER yourCardPlayedFromEnergy
+  ON moved(asPlay: true, from: energy, to: [battle, unison], watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is played from your Energy Area"
+
+DEFINE TRIGGER yourCardPlayedFromLife
+  ON moved(asPlay: true, from: life, to: [battle, unison], watcher: controller)
+  BIND "subject"
+  text: "when one of your cards is played from your Life Area"
+
+-- §1-10 — a Battle Card (20-1-2: in a Battle Area) switched to Rest Mode by any
+-- skill, watched: "When one of your yellow ≪Android≫ Battle Cards is switched
+-- to Rest Mode by a skill" (BT13-092), "When one of your opponent's Battle Cards
+-- is switched to Rest Mode by a skill" (DB1-075). `restedTheirsBySkill` is the
+-- switch of any card of theirs by your skill.
+DEFINE TRIGGER yourBattleCardRestedBySkill
+  ON modeSwitched(by: skill, in: battle, mode: rest, watcher: controller)
+  BIND "subject"
+  text: "when one of your Battle Cards is switched to Rest Mode by a skill"
+
+DEFINE TRIGGER opponentBattleCardRestedBySkill
+  ON modeSwitched(by: skill, in: battle, mode: rest, watcher: opponent)
+  BIND "subject"
+  text: "when one of your opponent's Battle Cards is switched to Rest Mode by a skill"
+
+-- §22-5 — "When a yellow Battle Card activates an [EX-Evolve] skill from your
+-- hand" (BT16-073): the move's own moment, from the hand, the evolving card the
+-- subject. `evolveActivated` is any [Evolve] of yours.
+DEFINE TRIGGER yourCardExEvolveFromHand
+  ON keywordActivated(from: hand, keyword: "EX-Evolve", watcher: controller)
+  BIND "subject"
+  text: "when one of your cards activates [EX-Evolve] from your hand"
+
+-- §22-22 — "When you activate [Swap]" (BT28-086), "When one of your red Battle
+-- Cards activates a [Swap] skill" (BT11-004): the move's own moment, the card
+-- that returns to the hand the subject.
+DEFINE TRIGGER swapActivated
+  ON keywordActivated(keyword: Swap, watcher: controller)
+  BIND "subject"
+  text: "when you activate a [Swap] skill"
+
+-- §22-30 — "When this card activates [Aegis]" (EX05-03), "…activates its [Aegis
+-- Blue/Yellow] skill" (BT16-130): the move's own moment, on the card itself.
+DEFINE TRIGGER aegisActivated
+  ON keywordActivated(keyword: Aegis)
+  BIND "self"
+  text: "when this card activates [Aegis]"
+
 -- ── the counter windows (4-3, 9-7) ─────────────────────────────────────────
 -- A [Counter] answers to a window rather than to a card's moment, so these
 -- five carry a name a card's WHEN never says. The shape is the same: the
