@@ -217,9 +217,35 @@
       "sentence": "shuffle"
     },
     {
+      "name": "arrange",
+      "class": "primitive",
+      "signature": "{\"op\":\"arrange\",\"target\":TARGET,\"position\"?:\"top\"|\"bottom\"}",
+      "fields": [
+        {
+          "name": "target",
+          "required": true,
+          "nullable": false,
+          "type": "ref"
+        },
+        {
+          "name": "position",
+          "required": false,
+          "nullable": false,
+          "defaultText": "\"top\"",
+          "type": "enum",
+          "enumValues": [
+            "top",
+            "bottom"
+          ]
+        }
+      ],
+      "sentence": "put this card back on top of the deck in any order",
+      "doc": "the cards go back to that end of their owner's deck in the order the master picks, one card at a time, the first pick nearest the end; no card changes area (20-12-2), a card no longer in a deck is left out"
+    },
+    {
       "name": "invokeSkill",
       "class": "primitive",
-      "signature": "{\"op\":\"invokeSkill\",\"trait\"?:\"…\",\"sel\"?:SELECTOR,\"skillKind\":\"activate:main\"|\"activate:main/battle\",\"from\":\"hand\",\"maxCost\"?:\"currentEnergy\"}",
+      "signature": "{\"op\":\"invokeSkill\",\"trait\"?:\"…\",\"sel\"?:SELECTOR,\"skillKind\":\"activate:main\"|\"activate:battle\"|\"activate:main/battle\",\"from\":\"hand\",\"maxCost\"?:\"currentEnergy\"}",
       "fields": [
         {
           "name": "trait",
@@ -240,6 +266,7 @@
           "type": "enum",
           "enumValues": [
             "activate:main",
+            "activate:battle",
             "activate:main/battle"
           ]
         },
@@ -262,7 +289,7 @@
           ]
         }
       ],
-      "sentence": "activate the chosen Desire card's activate:main skill",
+      "sentence": "choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill",
       "doc": "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs."
     },
     {
@@ -644,7 +671,7 @@
           "name": "activating",
           "required": false,
           "nullable": false,
-          "offCard": "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; any other card is played as before",
+          "offCard": "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; an Extra with none in its master's hand is activated through its [Activate: Main] line, its costs waived (12-2-4, \"choose 1 {Tora's Red Armband} … in your hand, activate it\", EB1-59); any other card is played as before",
           "type": "boolean"
         },
         {
@@ -673,7 +700,10 @@
             "Xeno-Evolve",
             "Union-Fusion",
             "Union-Potara",
-            "Union-Absorb"
+            "Union-Absorb",
+            "Swap",
+            "Arrival",
+            "Successor"
           ]
         },
         {
@@ -681,6 +711,13 @@
           "required": false,
           "nullable": false,
           "offCard": "mechanism batch 3: \"play them to their owners' Battle Areas\" (BT13-096, EX21-15) - each card lands in its own owner's Battle Area rather than its master's",
+          "type": "boolean"
+        },
+        {
+          "name": "toOpponent",
+          "required": false,
+          "nullable": false,
+          "offCard": "audit selectors 2: \"play up to 1 red ≪Saiyan≫ card with 500 power from your deck **to your opponent's Battle Area**\" (BT13-028, BT13-029, BT22-006) - the card lands in the other player's Battle Area, under their control, its owner unchanged",
           "type": "boolean"
         },
         {
@@ -806,7 +843,7 @@
         }
       ],
       "sentence": "you skip the next Charge Phase",
-      "doc": "the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. \"when\":\"this\" is the occurrence in the turn the skill resolved on, \"next\" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). \"what\":\"turn\" refuses the player's whole next turn, checked once at that turn's own start rather than at any one phase (BT31-097). \"what\":\"span\" reaches further: the rest of the turn this resolves in, the opponent's whole next turn, and this player's own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own."
+      "doc": "the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. \"when\":\"this\" is the occurrence in the turn the skill resolved on, \"next\" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). \"what\":\"turn\" refuses the player's whole next turn, checked once at that turn's own start rather than at any one phase (no printed card says it: BT31-097's \"skip your turn\" ends the turn in progress, by its Q&As, and is unread). \"what\":\"span\" reaches further: the rest of the turn this resolves in, the opponent's whole next turn, and this player's own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own."
     },
     {
       "name": "control",
@@ -3227,7 +3264,7 @@
     {
       "kind": "playedUsing",
       "class": "macro over `count`",
-      "signature": "{\"kind\":\"playedUsing\",\"sel\":SELECTOR,\"what\":\"Over Realm\"|\"Union\"|\"Union-Fusion\"|…}",
+      "signature": "{\"kind\":\"playedUsing\",\"sel\":SELECTOR,\"what\":\"Over Realm\"|\"Union\"|\"Union-Fusion\"|…,\"by\"?:\"other\"|\"self\",\"source\"?:FILTER}",
       "fields": [
         {
           "name": "sel",
@@ -3246,23 +3283,50 @@
             "Union-Fusion",
             "Union-Potara",
             "Union-Absorb",
-            "Evolve"
+            "Evolve",
+            "EX-Evolve",
+            "Swap",
+            "Arrival",
+            "Successor",
+            "skill"
           ]
+        },
+        {
+          "name": "by",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "other",
+            "self"
+          ]
+        },
+        {
+          "name": "source",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
         }
       ],
       "sentence": "1 card in your Battle Area was played with [Over Realm] this turn",
-      "doc": "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026). `what: Union-Fusion` / `Union-Potara` / `Union-Absorb` is that [Union] keyword only. As the lone IF of an [Auto] on `played` — \"when this card is played using [Union]\" (BT14-114, BT28-097 …) — it is the trigger's own condition: `resolvePlay` withdraws the Auto from any play that was not such an entry, so it is never triggered by an ordinary, failed or other-variant play. With `sel: subject`, beside the description of the played card in an `all`, on an [Auto] on `youPlayed` — \"when your <X> card is played by a [Union] skill\" (BT22-033, BT25-036 back, P-682), \"when you play a Battle Card using a [Union-Fusion] skill\" (BT12-122) — it is the same trigger condition about that card, and the [Auto] carries the subject's entry as it was when triggered. `what: Evolve` (prohibition batch 6, EX04-04's \"if you played this card with [evolve]\") is the same lasting memory of a successful entry by an [Evolve], [EX-Evolve] or [Xeno-Evolve] play (22-5-2-2: \"[Evolve]\" is every one of them), kept while the copy stays in the area"
+      "doc": "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026). `what: Union-Fusion` / `Union-Potara` / `Union-Absorb` is that [Union] keyword only. As the lone IF of an [Auto] on `played` — \"when this card is played using [Union]\" (BT14-114, BT28-097 …) — it is the trigger's own condition: `resolvePlay` withdraws the Auto from any play that was not such an entry, so it is never triggered by an ordinary, failed or other-variant play. With `sel: subject`, beside the description of the played card in an `all`, on an [Auto] on `youPlayed` — \"when your <X> card is played by a [Union] skill\" (BT22-033, BT25-036 back, P-682), \"when you play a Battle Card using a [Union-Fusion] skill\" (BT12-122) — it is the same trigger condition about that card, and the [Auto] carries the subject's entry as it was when triggered. `what: Evolve` (prohibition batch 6, EX04-04's \"if you played this card with [evolve]\") is the same lasting memory of a successful entry by an [Evolve], [EX-Evolve] or [Xeno-Evolve] play (22-5-2-2: \"[Evolve]\" is every one of them), kept while the copy stays in the area. Audit conditions 2 (3 Nov 2026): `what: EX-Evolve` / `Swap` / `Arrival` / `Successor` is that keyword's own play alone (\"when you play this card with [Swap]\", BT4-083; \"…using [Arrival]\", BT25-129), the same lasting memory; `what: skill` is a play a skill made (\"…played using a skill\", BT16-051), `by: other` another card's skill (BT20-104), `by: self` the card's own (P-628), and `source` the card whose skill it was, as it stands (\"…with the skill of {Majin Buu's Sealed Ball}\", BT2-028; \"…with <Trunks: Future> skill\", BT2-041) — a play its player declared is no skill's. Under `not` it is \"…played without using skills\" (BT15-042). Every one of them, as a lone IF of an [Auto] on `played`, is the trigger's own condition (`playGates`)"
     },
     {
       "kind": "placedThisTurn",
       "class": "macro over `count`",
-      "signature": "{\"kind\":\"placedThisTurn\",\"sel\":SELECTOR}",
+      "signature": "{\"kind\":\"placedThisTurn\",\"sel\":SELECTOR,\"played\"?:true|false}",
       "fields": [
         {
           "name": "sel",
           "required": true,
           "nullable": false,
           "type": "selector"
+        },
+        {
+          "name": "played",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
       "sentence": "1 card in your Battle Area was placed in a Battle Area this turn",
@@ -4019,6 +4083,10 @@
       "part": "flag"
     },
     {
+      "field": "choice",
+      "part": "flag"
+    },
+    {
       "field": "notInBattle",
       "part": "flag"
     },
@@ -4048,6 +4116,14 @@
     },
     {
       "field": "ownedByOpponent",
+      "part": "flag"
+    },
+    {
+      "field": "ownedByYou",
+      "part": "flag"
+    },
+    {
+      "field": "charactersNotInPlay",
       "part": "flag"
     },
     {
@@ -4113,6 +4189,10 @@
       "doc": "may target a card with [Barrier] all the same"
     },
     {
+      "word": "asChoice",
+      "doc": "the card a moment names, chosen as printed — [Barrier] and \"can't be chosen\" apply (R-204: \"choose that card\", EX13-02)"
+    },
+    {
       "word": "notInBattle",
       "doc": "excludes the attack card and the guard card of the battle in progress — \"that's not in a battle\" (BT29-036)"
     },
@@ -4147,6 +4227,14 @@
     {
       "word": "ownedByOpponent",
       "doc": "only cards you control whose owner is your opponent — a control exchange's loans (20-9); EX24-10's \"Battle Cards whose owner is your opponent\""
+    },
+    {
+      "word": "ownedByYou",
+      "doc": "only cards you own, wherever they stand — audit conditions 2, BT20-114's \"choose up to 1 card you own in your opponent's Battle Area\""
+    },
+    {
+      "word": "charactersNotInPlay",
+      "doc": "only a card whose character names are none of those of your Battle Cards in play — EB1-33's \"with a character name different from any Battle Cards you have in play\""
     },
     {
       "word": "otherThanSelf",
@@ -4439,6 +4527,22 @@
       "printed": "card and no keyword skills",
       "openTo": [
         "boolean"
+      ]
+    },
+    {
+      "field": "someKeyword",
+      "type": "boolean",
+      "printed": "card with a keyword skill",
+      "openTo": [
+        "boolean"
+      ]
+    },
+    {
+      "field": "charactersMin",
+      "type": "number",
+      "printed": "card with 3 or more character names",
+      "openTo": [
+        "number"
       ]
     },
     {
@@ -5437,6 +5541,10 @@
       "words": "when your Leader's skill places one of your energy in the Drop"
     },
     {
+      "name": "yourEnergyToDropByYou",
+      "words": "when one of your skills places one of your energy in the Drop"
+    },
+    {
       "name": "droppedFromBattleByYou",
       "words": "when one of your skills sends this card from a Battle Area to the Drop"
     },
@@ -5451,6 +5559,82 @@
     {
       "name": "toDropByOpponent",
       "words": "when an opponent's skill places this card in the Drop"
+    },
+    {
+      "name": "yourCardRemovedBySkill",
+      "words": "when one of your cards is removed from a Battle Area by a skill"
+    },
+    {
+      "name": "opponentCardRemovedBySkill",
+      "words": "when one of your opponent's cards is removed from a Battle Area by a skill"
+    },
+    {
+      "name": "yourCardKoedByOpponentSkill",
+      "words": "when one of your cards is KO'd by an opponent's skill"
+    },
+    {
+      "name": "yourCardKoedByYourSkill",
+      "words": "when one of your cards is KO'd by one of your skills"
+    },
+    {
+      "name": "opponentCardKoedByYourSkill",
+      "words": "when one of your opponent's cards is KO'd by one of your skills"
+    },
+    {
+      "name": "yourCardKoedByOpponent",
+      "words": "when one of your cards is KO'd by your opponent"
+    },
+    {
+      "name": "yourCardKosByAttack",
+      "words": "when one of your cards attacks and KOs an opponent's Battle Card"
+    },
+    {
+      "name": "yourCardAttacked",
+      "words": "when one of your cards is attacked"
+    },
+    {
+      "name": "yourUnisonToDrop",
+      "words": "when one of your Unison Cards is placed in your Drop Area from your Unison Area"
+    },
+    {
+      "name": "yourCardLeftBattle",
+      "words": "when one of your cards leaves a Battle Area"
+    },
+    {
+      "name": "yourCardPlayedFromWarp",
+      "words": "when one of your cards is played from your Warp"
+    },
+    {
+      "name": "yourCardPlayedFromEnergy",
+      "words": "when one of your cards is played from your Energy Area"
+    },
+    {
+      "name": "yourCardPlayedFromLife",
+      "words": "when one of your cards is played from your Life Area"
+    },
+    {
+      "name": "yourBattleCardRestedBySkill",
+      "words": "when one of your Battle Cards is switched to Rest Mode by a skill"
+    },
+    {
+      "name": "opponentBattleCardRestedBySkill",
+      "words": "when one of your opponent's Battle Cards is switched to Rest Mode by a skill"
+    },
+    {
+      "name": "opponentCardRestedByYourSkill",
+      "words": "when one of your opponent's cards is switched to Rest Mode by one of your skills"
+    },
+    {
+      "name": "yourCardExEvolveFromHand",
+      "words": "when one of your cards activates [EX-Evolve] from your hand"
+    },
+    {
+      "name": "swapActivated",
+      "words": "when you activate a [Swap] skill"
+    },
+    {
+      "name": "aegisActivated",
+      "words": "when this card activates [Aegis]"
     }
   ],
   "literals": [

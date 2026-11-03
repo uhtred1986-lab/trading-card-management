@@ -2355,7 +2355,11 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   assert.deepEqual(played.unsupported, []);
   // 20-16: the flip is offered, and "if you do" is the answer to that offer.
   // It used to be read as simply done, and the draw simply followed.
-  const mayFlip = one("[Auto] When one of your yellow Battle Cards is switched to Rest Mode by a skill, you may flip this card over. If you do, draw 1 card.");
+  const mayFlipped = one("[Auto] When one of your yellow Battle Cards is switched to Rest Mode by a skill, you may flip this card over. If you do, draw 1 card.");
+  // Audit triggers 2: "one of your **yellow** Battle Cards" is asked of the card the moment hands on, around the effect.
+  const subjectGate = mayFlipped.ops[0] as { op: string; cond?: { sel?: { special?: string } }; then?: typeof mayFlipped.ops };
+  assert.ok(subjectGate.op === "if" && subjectGate.cond?.sel?.special === "subject", "the yellow Battle Card is the subject's condition");
+  const mayFlip = { ...mayFlipped, ops: subjectGate.then ?? [] };
   assert.deepEqual(
     mayFlip.ops.map((o) => o.op),
     ["may", "if"],
