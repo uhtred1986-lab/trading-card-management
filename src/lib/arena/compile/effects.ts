@@ -2021,6 +2021,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       // "If that card is red" after "up to 1" is the one card placed; after
       // "up to 2" no single card is "that card", so nothing is named for it.
       if (n === 1) c.lastNamed = vars[0];
+      c.milledPile = vars;
       return oneAtATime(vars.map((v): Op[] => [{ op: "mill", n: 1, as: v }]), "place 1 card from the top of your deck in the Drop Area");
     }
     return [{ op: "mill", n: Number(m[2]), ...(m[3] === "your" ? {} : { side: "opponent" as const }), as: `m${c.mills++}` }];
@@ -6237,6 +6238,11 @@ export function taxWordings(text: string): string {
     // not cut at its comma into a condition and a ban that would hold always.
     .replace(/(^|\]\s*|[.:]\s+)unless ([^,.]+?), (you can(?:'|no)t (?:place this card in your combo area|play this card) from any area)(?=\.|$)/gi, (_m, lead: string, escape: string, ban: string) => `${lead}${ban} unless ${escape}`)
     .replace(/(^|\]\s*|[.:]\s+)if (<[^>]+>|\{[^}]+\}) is not under this card, (?:it|this card) (can(?:'|no)t) attack(?=\.|$)/gi, (_m, lead: string, named: string, cant: string) => `${lead}this card ${cant} attack unless ${named} is under this card`)
+    // Audit conditions 3: "This card **can only** attack or be used in a combo **if** your Leader is a red <Son Gohan: SH>
+    // card" (BT22-013, BT22-014): each act is banned unless the condition holds — the "can't … unless" a ban with an
+    // escape is read as (20-14), one ban per act.
+    .replace(/(^|\]\s*|[.:]\s+)this card can only (attack|be used in a combo)(?: or (attack|be used in a combo))? if ([^.]+?)(?=\.|$)/gi, (_m, lead: string, a: string, b: string | undefined, escape: string) =>
+      `${lead}${[a, b].filter(Boolean).map((act, i) => `${i ? "This" : "this"} card can't ${act} unless ${escape}`).join(". ")}`)
     .replace(/(^|\]\s*|[.:]\s+)if you (?:don'?t|do not) have ((?:<[^>]+>,\s*)+<[^>]+>,? and <[^>]+>) in your (drop area|battle area|hand|warp), (you can(?:'|no)t play this card from any area)(?=\.|$)/gi, (_m, lead: string, names: string, area: string, ban: string) => `${lead}${ban} unless you have ${names} in your ${area}`)
     // Errata-official-2: the errata of BT7-125…BT7-129 (24 Jul 2019) put the condition after the ban — "You can't
     // play this card from any area if you have cards in areas other than your deck, hand, or life that are any color
@@ -6593,6 +6599,7 @@ function track(o: Op, c: Ctx): void {
   // Audit conditions 2: cards placed in your Drop from the top of your deck (`mill`) are cards this skill placed there too —
   // "place 3 cards from the top of your deck in your Drop Area. If all of the cards placed in your Drop Area are black" (BT4-098).
   if (o.op === "mill" && o.as && o.side !== "opponent") c.dropped = o.as;
+  if (o.op === "mill" && o.as && o.side !== "opponent" && !c.milledPile?.includes(o.as)) c.milledPile = [o.as];
 }
 
 /**
@@ -6655,7 +6662,9 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     const filter = described(m[2] === "has" ? `card with ${m[3]}` : m[3]);
     return filter ? { kind: "varMatches", var: lastVar, filter } : null;
   }
-  if ((m = /^if the card you placed in (?:the|your) drop(?: area)? (?:with|using|by) this skill (?:is|was) (?:an? )?(.+)$/.exec(t)) && c.priceChoice && c.priceDiscarded) {
+  // Audit conditions 3: "…place 1 blue Battle Card … into its owner's Drop: Play this card from your hand. Additionally, if
+  // **the card placed into its owner's Drop by this skill** is a ≪Phantom Demon≫ card" (P-628): the same price's card.
+  if ((m = /^if the card (?:you placed|placed) (?:in|into) (?:the|your|its owner'?s) drop(?: area)? (?:with|using|by) this skill (?:is|was) (?:an? )?(.+)$/.exec(t)) && c.priceChoice && c.priceDiscarded) {
     const filter = described(m[1]);
     return filter ? { kind: "count", sel: { fromVar: c.priceChoice, area: "drop", filter }, atLeast: 1 } : null;
   }
@@ -6700,9 +6709,75 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
   }
   // "…use up to 1 mono-red card … from under this card in a combo … **if the card used in the combo is a <Son Goku>,
   // <Vegeta>, or <Trunks: Future> card**, …" (P-553): the card the last choice put in the Combo Area, there now.
-  if ((m = /^if the card used in the combo (?:is|was) (?:an? )?(.+)$/.exec(t)) && c.last && c.lastOp === "comboFrom") {
+  // Audit conditions 3: "…if the card used in **a** combo is a ≪Cell Games≫ card" (BT26-109) the same.
+  if ((m = /^if the card used in (?:the|a) combo (?:is|was) (?:an? )?(.+)$/.exec(t)) && c.last && c.lastOp === "comboFrom") {
     const filter = described(m[1]);
     return filter ? { kind: "count", sel: { fromVar: c.last, area: "combo", filter }, atLeast: 1 } : null;
+  }
+  // "…choose up to 1 of your opponent's Battle Cards and negate its skills for the duration of the turn. **If the chosen
+  // card is in Rest Mode**, …" (BT9-066): the card the last choice took, in that mode now.
+  if ((m = /^if the chosen card is in (rest|active) mode$/.exec(t)) && c.last) return { kind: "count", sel: { fromVar: c.last, mode: m[1] as "rest" | "active" }, atLeast: 1 };
+  // "…choose up to 1 of your opponent's Battle Cards …, place it in your opponent's energy in Rest Mode, then **if you
+  // placed an opponent's card in their energy**, …" (EX08-02): the card the last choice took, in their Energy Area now.
+  if (/^(?:then )?if you placed (?:an opponent'?s|your opponent'?s) card in their energy(?: area)?$/.test(t) && lastVar) return { kind: "count", sel: { fromVar: lastVar, side: "opponent", area: "energy" }, atLeast: 1 };
+  // Audit conditions 3: what the skill's own steps did, asked of the cards they bound.
+  // "…choose a total of up to 7 of your opponent's Battle Cards and/or Unisons and they get -10000 power for the turn.
+  // Additionally, **if you chose 5 or more cards with this skill**, …" (BT19-149): how many the last choice took.
+  if ((m = /^(?:additionally,? )?if you chose (\d+) or more cards?(?: (?:with|using) this skill)?$/.exec(t)) && c.last) return { kind: "chose", var: c.last, atLeast: Number(m[1]) };
+  // "Choose up to 1 <Gotenks: Xeno> card … from your hand or Warp and play it. **If you played that card from your
+  // hand**, draw 1 card" (P-306), "…Play up to 1 {Gogeta, Pursuit of Power} … from your hand or Drop. Additionally, if
+  // you played it from your hand, …" (EX23-18): the play happened, and the card was taken from that area
+  // (`choseFrom`, read where it was chosen). "If you played it", "if you played this card" (EX17-01, BT13-036): the play.
+  {
+    const played = c.lastPlayed ?? (c.lastOp === "play" ? c.last : null);
+    if ((m = /^(?:additionally,? )?if you played (?:it|that card|this card|them)(?: from your (hand|drop(?: area)?|warp|deck|energy))?$/.exec(t)) && played) {
+      const did: Cond = { kind: "did", what: "play" };
+      if (!m[1]) return did;
+      const area = ({ hand: "hand", drop: "drop", "drop area": "drop", warp: "warp", deck: "deck", energy: "energy" } as const)[m[1] as "hand"];
+      return { kind: "all", conds: [did, { kind: "choseFrom", var: played, areas: [area] }] };
+    }
+    // "Choose up to 1 black Battle Card … in your Warp and play it. **If the Battle Card played with this skill has [Over
+    // Realm] or [Dark Over Realm]**, …" (BT7-108): the card the play took, described.
+    if ((m = /^if the (?:battle )?card (?:you )?played (?:with|using|by) this skill (has|is) (?:an? )?(.+)$/.exec(t)) && played) {
+      const filter = described(m[1] === "has" ? `card with ${m[2]}` : m[2]);
+      return filter ? { kind: "varMatches", var: played, filter } : null;
+    }
+  }
+  // "…you may add 1 mono-yellow ≪Frieza's Army≫ card … from your hand to your life face up. **If you added a card to
+  // your life**, …" (EX21-30): the card the last choice took, in the life now.
+  if (/^if you added (?:a|1|the) card to your life$/.test(t) && c.last) return { kind: "count", sel: { fromVar: c.last, area: "life" }, atLeast: 1 };
+  // "…choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area and add them to your hand.
+  // **If you added 2 cards to your hand**, …" (P-108): one card for each of the choices, each in the hand.
+  if ((m = /^if you added (\d+) cards to your hand$/.exec(t)) && c.choices.length >= Number(m[1])) {
+    const picks = c.choices.slice(-Number(m[1]));
+    if (Number(m[1]) < 2 || picks.some((p) => p.sel.count !== 1)) return null;
+    return { kind: "all", conds: picks.map((p): Cond => ({ kind: "count", sel: { fromVar: p.var, area: "hand" }, atLeast: 1 })) };
+  }
+  // "…you may send 1 card in your opponent's life to their Warp for every 10 cards in their Warp. **If you sent cards from
+  // your opponent's life to their Warp**, …" (P-289): the cards the choice took, in their Warp now.
+  if (/^if you sent (?:a card|cards|1 or more cards) from your opponent'?s life to their warp$/.test(t) && c.last) return { kind: "count", sel: { fromVar: c.last, area: "warp" }, atLeast: 1 };
+  // "Place up to 3 cards from the top of your deck in the Drop Area. **If there was 1 or more ≪Frieza Clan≫ among them**"
+  // (BT2-101): any card of the placed pile, in the Drop now; "…place the top 5 cards of your deck into your Drop.
+  // Additionally, **if 1 or more ≪Earthling≫ cards are placed into your Drop by this skill**" (BT30-031): the same of one
+  // placement. Only "1 or more": a pile placed one card at a time is not counted together.
+  {
+    const pile = c.milledPile && (!c.lastSeen || c.milledPile.includes(c.lastSeen)) ? c.milledPile : null;
+    const said =
+      /^(?:additionally,? )?if there (?:was|were|is|are) 1 or more (.+?) among them$/.exec(t)?.[1] ??
+      /^(?:additionally,? )?if 1 or more (.+?) (?:is|are|was|were) placed (?:in|into) (?:your|the) drop(?: area)? (?:by|with|using) this skill$/.exec(t)?.[1];
+    if (said && pile) {
+      const filter = described(/\bcards?$/.test(said) ? said : `${said} card`);
+      if (!filter) return null;
+      const one = (v: string): Cond => ({ kind: "count", sel: { fromVar: v, area: "drop", filter }, atLeast: 1 });
+      return pile.length === 1 ? one(pile[0]) : { kind: "any", conds: pile.map(one) };
+    }
+  }
+  // "…choose up to 1 of your opponent's Battle Cards and it gets -15000 power for the turn. Additionally, **if this skill
+  // reduces the chosen card's power to 0 or less**, draw 1 card" (BT16-006, P-575 "that card's"), "…choose it, and it gets
+  // +5000 power for the turn. **If this raises that card's power to 20000 or more**, draw 1 card" (SD17-01): that card's
+  // power as the skill's change leaves it — asked after the change, as EX23-52's "makes this card's power" is.
+  if ((m = /^(?:additionally,? )?if this (?:skill )?(reduces|raises|makes) (?:the chosen card|that card|it)'?s? power (?:to )?(\d+) or (less|more)$/.exec(t)) && lastVar && c.lastOp === "power" && (m[1] !== "reduces" || m[3] === "less") && (m[1] !== "raises" || m[3] === "more")) {
+    return { kind: "power", sel: { fromVar: lastVar, area: "play" }, ...(m[3] === "more" ? { atLeast: Number(m[2]) } : { atMost: Number(m[2]) }) };
   }
   // "Switch 1 or more of your energy to Revealed Mode: … **if 3 or more energy is switched to Revealed Mode by this
   // skill**, …" (BT30-111): how many the price switched.
@@ -7120,7 +7195,10 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // the rest in your Drop Area").
       const tail = clause.trim().replace(/^then,?\s*/i, "");
       // A pronoun the clause binds itself ("choose up to 1 … and it gets …") points back at nothing.
-      const tailOfCondition = /^shuffle\b/i.test(tail) || (/\b(?:it|them|the rest|that card|those cards)\b/i.test(tail) && !OWN_CHOICE_PRONOUN.test(tail));
+      // Audit conditions 3: "…if that card is ≪Universe 7≫ or ≪Universe 6≫, draw 1 card and choose the attacking card. **The
+      // chosen card** and this card gain +5000 power" (TB1-001's back): "the chosen card" points back at a choice the
+      // condition's own part made, so the sentence is that part's too.
+      const tailOfCondition = /^shuffle\b/i.test(tail) || (/\b(?:it|them|the rest|that card|those cards)\b/i.test(tail) && !OWN_CHOICE_PRONOUN.test(tail)) || (/^the chosen cards?\b/i.test(tail) && here.ops.some((o) => o.op === "choose"));
       // Phrasing batch 2 (owner's ruling of 26 Oct 2026 on BT26-027): a new sentence — a clause opening on a capital
       // letter, the way the catalog starts every sentence — that is not itself a condition, a connective or a
       // timing is outside the condition the sentence before it opened, as a "Then," follow-up is (BT3-043's FAQ):
@@ -7908,16 +7986,73 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // (BT18-120): the card attacking in the battle in progress (8-1), asked of
     // the battle itself rather than of anything the skill chose. Only the plain
     // description; a negated one would need its negation checked (see below).
-    const attackingIs = /^(?:if|when) the attacking card is (?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+    // Audit conditions 3: "Additionally, if **the attacker was** a ≪Saiyan≫ card" (BT20-083) is the same card.
+    const attackingIs = /^(?:additionally,? )?(?:if|when) the (?:attacking card|attacker) (?:is|was) (?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
     // A later "choose **it**, KO **it**" (BT15-080) means this card, which no
     // pronoun here is bound to — read, it landed on whatever was seen last — so
     // a sentence that goes on to say "it" stays unread.
-    const pronounAfter = clauses.slice(i + 1).some((x) => /\b(?:it|them|that card)\b/i.test(x));
+    // Audit conditions 3: the pronoun is now bound to the attacking card (`lastTarget`), so "If the attacking card is a
+    // ≪Great Ape≫ or ≪Demon Clan≫ Battle Card, **choose it, KO it**" (BT15-080) KOs the attacker — only on a [Counter:
+    // Attack], whose sentence has no card of its own before the condition.
+    // A pronoun after a choice of the sentence's own ("choose up to 1 of your <Super 17> cards and switch **it** to Active
+    // Mode", BT20-083) is that choice's.
+    const pronounAfter = (() => {
+      for (const x of clauses.slice(i + 1)) {
+        if (/^choose\b/i.test(x.trim()) && !/^choose (?:it|that card)\b/i.test(x.trim())) return false;
+        if (/\b(?:it|them|that card)\b/i.test(x)) return true;
+      }
+      return false;
+    })() && !(c.skillKind === "counter:attack" && /^choose (?:it|that card)$/i.test(clauses[i + 1]?.trim().replace(/[.,]$/, "") ?? ""));
     if (attackingIs && !pronounAfter && !/\b(?:not|non|other than|except|besides)\b/i.test(attackingIs[1])) {
       const filter = filterFor(attackingIs[1], null);
       if (filter) {
         groups.push({ conds: [{ kind: "count", sel: { special: "attacker", filter }, atLeast: 1 }], ops: [] });
+        c.lastTarget = { sel: { special: "attacker" } };
         continue;
+      }
+    }
+    // Audit conditions 3: "When your Battle Card attacks a Leader Card, **if the attacking card has 15000 or more power**"
+    // (BT1-001): the attacking card's power now (8-1).
+    const attackingPower = /^(?:if|when) the (?:attacking card|attacker) has (\d+) or (more|less) power$|^(?:if|when) the (?:attacking card|attacker) has (\d+) power or (more|less)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+    if (attackingPower) {
+      const n = Number(attackingPower[1] ?? attackingPower[3]);
+      groups.push({ conds: [{ kind: "power", sel: { special: "attacker" }, ...((attackingPower[2] ?? attackingPower[4]).toLowerCase() === "more" ? { atLeast: n } : { atMost: n }) }], ops: [] });
+      continue;
+    }
+    // Audit conditions 3: "When you play a red <Beerus> or <Whis> card, **if the played card is a <Beerus> card**, …"
+    // (P-570's back): the card the moment played (its subject).
+    const playedIs = /^(?:if|when) the played card is (?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+    if (playedIs && /\bwhen you play an?\b/i.test(c.raw) && !/\b(?:not|non|other than|except|besides)\b/i.test(playedIs[1])) {
+      const filter = filterFor(playedIs[1], null);
+      if (filter) {
+        groups.push({ conds: [{ kind: "count", sel: { special: "subject", filter }, atLeast: 1 }], ops: [] });
+        continue;
+      }
+    }
+    // Audit conditions 3: "When you attack with a ≪Saiyan≫ Battle Card, **if that card is** ≪Universe 7≫ or ≪Universe 6≫"
+    // (TB1-001): with nothing named yet, "that card" is the one attacking.
+    const attackerIs = !c.last && !c.lastNamed && /\bwhen you attack with\b/i.test(c.raw) ? /^(?:if|when) (?:that card|it) is (?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, "")) : null;
+    if (attackerIs && !/\b(?:not|non|other than|except|besides)\b/i.test(attackerIs[1])) {
+      const filter = filterFor(attackerIs[1], null);
+      if (filter) {
+        groups.push({ conds: [{ kind: "count", sel: { special: "attacker", filter }, atLeast: 1 }], ops: [] });
+        c.lastTarget = { sel: { special: "attacker" } };
+        continue;
+      }
+    }
+    // Audit conditions 3: "…your opponent chooses 1 card from their hand and sends it to their Warp. **If that card was a
+    // Battle Card**, …" (BT4-106, P-048, BT10-133, BT3-073): the card their discard took. The discard is said as the two
+    // steps it lowers to (the owner's choice, then the move, 20-7), so the card has a name to be asked about.
+    if (!c.lastNamed && c.lastOp === "discard" && /^(?:if|when) (?:that card|it|the card (?:your opponent|they) (?:sent|placed|discarded) (?:to|into|in) (?:their|its owner'?s) [a-z-]+(?: area)?) (?:is|was) /i.test(clause.trim())) {
+      const open = groups[groups.length - 1];
+      const list = open.sink ?? open.ops;
+      const last = list[list.length - 1];
+      if (last?.op === "discard" && last.side === "opponent" && last.n === 1) {
+        const v = `c${c.n++}`;
+        list.splice(list.length - 1, 1,
+          { op: "choose", sel: { side: "opponent", area: "hand", count: 1 }, as: v, chooser: "opponent", reason: "your opponent chooses 1 card in their hand" },
+          { op: "moveTo", target: { var: v }, to: last.to ?? "drop", reveal: true });
+        c.lastNamed = v;
       }
     }
 
@@ -7952,7 +8087,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       }
       const seen = /\bby this skill\b/i.test(clause)
         ? null
-        : /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card|the card (?:sent|placed|moved|added|returned) (?:to|into|in) (?:your|its owner'?s|their) [a-z-]+(?: area)?) (?:is )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
+        : /^(?:if|when) (?:that card|it|it'?s|the (revealed|chosen) card|the card (?:(?:your opponent|they) )?(?:sent|placed|moved|added|returned|discarded) (?:to|into|in) (?:your|its owner'?s|their) [a-z-]+(?: area)?) (?:is |was )?(?:an? )?(.+)$/i.exec(clause.trim().replace(/[.,]$/, ""));
       // "The chosen card" is the choice; "that card" is whatever was last
       // turned up, and only falls back to the choice when nothing was.
       const v = seen?.[1]?.toLowerCase() === "chosen" ? c.last : (c.lastNamed ?? c.last);

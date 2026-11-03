@@ -75,6 +75,8 @@ function maskLists(text: string): string {
   return text
     .replace(new RegExp(`(\\b(?:in|among all cards in) your ${LIST_AREA_WORD})((?:\\s*,\\s*(?:and\\/or |and |or )?(?:your )?${LIST_AREA_WORD})+)`, "gi"), (_w, head: string, tail: string) => head + mask(tail))
     .replace(new RegExp(`(${NAMED_CARD})((?:\\s*,\\s*(?:and |or )?${NAMED_CARD})+)`, "g"), (_w, head: string, tail: string) => head + tail.replace(new RegExp(`(${NAMED_CARD})|[^<{]+`, "g"), (x, name?: string) => (name ? x : mask(x))))
+    // "…and you only have this card **and** 1 red skill-less Battle Card in your Combo Area" (BT14-013).
+    .replace(/(\bonly have this card)( and )(?=(?:1|an?) [^,]+? in your combo area)/gi, (_w, a: string, and: string) => a + mask(and))
     // "…you have 1 or more <Android 17> card **and** 1 or more <Hell Fighter 17> card in your Combo Area" (BT26-023).
     .replace(new RegExp(`(\\b\\d+ or (?:more|less|fewer) ${NAMED_CARD}(?: cards?)?)( and )(?=\\d+ or (?:more|less|fewer) ${NAMED_CARD} cards? in )`, "gi"), (_w, a: string, and: string) => a + mask(and));
 }
@@ -519,6 +521,27 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     const n = Number(m[2]);
     return { cond: { kind: "count", sel: { ...sel, filter: { ...(sel.filter ?? emptyFilter()), ...(m[3] === "more" ? { markersMin: n } : { markersMax: n }) } }, atLeast: 1 } };
   }
+  // Audit conditions 3: "…and you **only have this card and 1 red skill-less Battle Card** in your Combo Area" (BT14-013,
+  // BT14-012): the Combo Area holds exactly two cards, this one and one other that fits.
+  if ((m = /^you (?:only have|have only) this card and (?:1|an?) (.+?) in your combo area$/.exec(t))) {
+    const other = filterFor(m[1], null);
+    if (!other || other.unreadable || filterIsBlank(other) || unreadFilterWords(m[1], other).length) return null;
+    return { cond: { kind: "all", conds: [
+      { kind: "count", sel: { special: "self", area: "combo", side: "you" }, atLeast: 1 },
+      { kind: "count", sel: { side: "you", area: "combo" }, atLeast: 2, atMost: 2 },
+      { kind: "count", sel: { side: "you", area: "combo", filter: other, notSelf: "card" }, atLeast: 1 },
+    ] }, subject: { sel: { special: "self" } } };
+  }
+  // Audit conditions 3: "If there are 2 or less **non-black colors present among black multicolor cards** in your energy"
+  // (EX23-50), "…3 or more non-black colors on black multicolor cards in your energy" (EX23-50, EX23-45): the colours those
+  // cards carry other than black. Every such card is black, so black is always one of the colours counted
+  // (`distinctColors`, 1-8-1-1) whenever there is any: N other colours are N + 1 in all, and with no such card both sides
+  // are none.
+  if ((m = /^there (?:are|is) (\d+) or (more|less|fewer) non-(red|blue|green|yellow|black|white) colou?rs (?:present )?(?:among|on) (red|blue|green|yellow|black|white) multicolou?r(?:ed)? cards in your energy(?: area)?$/.exec(t)) && m[3] === m[4]) {
+    const colour = (m[3][0].toUpperCase() + m[3].slice(1)) as CardFilter["colors"][number];
+    const n = Number(m[1]) + 1;
+    return { cond: { kind: "count", sel: { side: "you", area: "energy", filter: { ...emptyFilter(), colors: [colour], multiColor: true }, distinctColors: true }, ...(m[2] === "more" ? { atLeast: n } : { atMost: n }) } };
+  }
   // Audit conditions 3: "if **this card is the only card in your hand**" (DB2-123): this card is in your hand and nothing
   // else is.
   if (/^this card is the only card in your hand$/.test(t)) {
@@ -654,6 +677,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     s
       // Audit conditions 3: "…, and **this card and all of your energy** are in Rest Mode" (BT29-071): one subject of two.
       .replace(/\bthis card and (all (?:of )?your energy (?:is|are) in (?:rest|active) mode)\b/gi, "this card\u0001$1")
+      // …and "you only have **this card and** 1 red skill-less Battle Card in your Combo Area" (BT14-013).
+      .replace(/\b(only have this card) and ((?:1|an?) [^,]+? in your combo area)\b/gi, "$1\u0001$2")
       // …and "1 or more <Son Goku> **and** 1 or more <Son Gohan: Childhood> cards in Rest Mode" (BT26-118): two counts
       // sharing the noun and the place after them (`parseCountCondition`'s `two`).
       .replace(new RegExp(`(\\b\\d+ or (?:more|less|fewer) ${NAMED_CARD}(?: cards?)?) and (\\d+ or (?:more|less|fewer) ${NAMED_CARD} cards? in )`, "gi"), "$1\u0001$2")
@@ -1016,7 +1041,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Delayed/replacement batch 1: "If this card has 1 or more cards under it" (P-436, BT17-144) and "if 1 or more
   // cards are under this card" (BT20-149): this card's own pile, counted — the gate of their 9-10 substitute, which
   // places that pile in the Drop instead.
-  if ((m = /^(?:this card has (\d+) or more cards? under it|(\d+) or more cards? (?:are|is) under this card)$/.exec(t))) {
+  // Audit conditions 3: "If 7 or more cards **are placed** under this card" (BT6-030) is the same pile, counted now.
+  if ((m = /^(?:this card has (\d+) or more cards? under it|(\d+) or more cards? (?:are|is) (?:placed )?under this card)$/.exec(t))) {
     return { cond: { kind: "count", sel: { side: "you", area: "under" }, atLeast: Number(m[1] ?? m[2]) }, subject: { sel: { special: "self" } } };
   }
   // "If a {Dr.Uiro's Lab} in your Battle Area has 17 or more cards under it"

@@ -1646,7 +1646,8 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [{ name: "var", type: "string", required: true }, AT_LEAST],
     sentence: (raw) => {
       const c = raw as CondOf<"chose">;
-      return c.atLeast && c.atLeast > 1 ? `you took all ${c.atLeast}` : "you took that choice";
+      // Audit conditions 3: "if you chose 5 or more cards with this skill" (BT19-149) asks at least 5 of up to 7.
+      return c.atLeast && c.atLeast > 1 ? `you took ${c.atLeast} or more` : "you took that choice";
     },
     doc: '"If you do so" (20-16): whether an earlier choice was answered, and with how many',
   },

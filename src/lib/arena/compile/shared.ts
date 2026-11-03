@@ -144,6 +144,12 @@ export interface Ctx {
    * clause — "Switch this card to Active Mode and it gets +5000 power" means
    * this card — so the last target of any clause counts, not only a choice.
    */
+  /**
+   * Audit conditions 3: every variable a placement of the top of the deck in the Drop bound — "place up to 3 cards from
+   * the top of your deck in the Drop Area. **If there was 1 or more ≪Frieza Clan≫ among them**" (BT2-101): one `mill`
+   * of 1 per card, so "them" is all of them.
+   */
+  milledPile?: string[];
   lastTarget: Ref | null;
   /**
    * The antecedent that was standing when a clause in this skill went unread.

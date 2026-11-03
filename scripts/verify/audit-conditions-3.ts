@@ -11,6 +11,13 @@
  *     BT18-107, BT20-060/062, BT20-012, BT4-032, BT2-042, BT3-107b, BT3-032, BT26-093, BT9-021b, BT26-118, BT23-071b,
  *     EX06-14, BT24-096, BT15-149, P-625, EX23-02, EX19-21, DB2-123.
  * C.  Leaders: BT19-066, BT19-037, BT18-053, BT20-121, P-411, P-176, BT24-008, BT19-030, BT26-023, BT29-071.
+ * D.  What the skill's own steps did: the attacker (BT20-083, BT15-080, BT1-001, TB1-001), the played card (P-570), the
+ *     opponent's discarded card (BT4-106, BT3-073), the milled pile (BT2-101, BT30-031), a choice's count (BT19-149), a
+ *     play and where from (P-306, EX23-18, EX17-01), cards added (EX21-30, P-108), sent (P-289), the card the price placed
+ *     (P-628), a power after the change (SD17-01, BT16-006), the chosen card's mode (BT9-066), an opponent's card placed in
+ *     their energy (EX08-02), the card played with this skill (BT7-108), the pile under this card (BT6-030); "this card
+ *     can only attack or be used in a combo if …" (BT22-013); colours other than black (EX23-50, EX23-45); only this card
+ *     and one other in the Combo Area (BT14-013).
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and the conditions asked of staged boards in the VM (`condHolds`).
@@ -22,6 +29,8 @@ import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { condHolds } from "../../src/lib/arena/vm/program";
+import { matches } from "../../src/lib/arena/text/filters";
+import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { Cond, Op, Selector } from "../../src/lib/arena/vm/script";
@@ -138,7 +147,8 @@ let records = 0;
   const tapion = count(record("[Permanent] If <Tapion> is in your Drop Area or Warp, this card gains [Double Strike] and [Barrier].", "BT4-032"), "BT4-032");
   assert.deepEqual(areasOf(tapion.sel), ["drop", "warp"], "B: BT4-032 — either place");
   assert.equal(conds(record("[permanent] If both <Son Goku> and <Vegeta> are in your Battle Area or Drop Area, this card gains [triple strike] (This card inflicts 3 damage instead of 1 when attacking).", "BT2-042")).filter((c) => c.kind === "count").length, 2, "B: BT2-042 — each name");
-  assert.deepEqual([count(record("[Permanent] If your Warp has 5 cards or more in it, this card gains [Critical].", "BT3-107"), "BT3-107").sel.area, count(record("[Permanent] If your Warp has 5 cards or more in it, this card gains [Critical].", "BT3-107")).atLeast].join(), "warp,5", "B: BT3-107 — the Warp");
+  const warp = count(record("[Permanent] If your Warp has 5 cards or more in it, this card gains [Critical].", "BT3-107"), "BT3-107");
+  assert.deepEqual([warp.sel.area, warp.atLeast], ["warp", 5], "B: BT3-107 — the Warp");
   const none = count(record("[Activate: Main] Place 1 card from your hand in the Drop Area: If you have no energy, choose 2 cards in your life and add them to your energy.", "BT3-032"), "BT3-032");
   assert.deepEqual([none.sel.area, none.atMost], ["energy", 0], "B: BT3-032 — no energy");
   assert.equal(count(record("[Permanent] If this card has a <Son Goku> card under it, it gets +10000 power.", "BT26-093"), "BT26-093").sel.area, "under", "B: BT26-093 — its own pile");
@@ -189,6 +199,74 @@ let records = 0;
   const b29 = conds(record("[activate: battle][limit 1] If it's your opponent's turn, and this card and all of your energy are in Rest Mode: Switch the target of attack to this card.", "BT29-071"));
   assert.ok(b29.some((c) => c.kind === "isTurnPlayer" && c.who === "opponent") && b29.some((c) => c.kind === "every") && b29.some((c) => c.kind === "count" && c.sel.special === "self" && c.sel.mode === "rest"), "C: BT29-071 — their turn, this card and all energy rested");
   records += 9;
+}
+
+// D. What the skill's own steps did.
+{
+  const b20 = the(record("[Counter: Attack][Limit 1] Negate the attack. Additionally,  if the attacker was a ≪Saiyan≫ card, choose up to 1 of your <Super 17> cards and switch it to Active Mode.", "BT20-083", { type: "EXTRA" }), "count", "BT20-083");
+  assert.deepEqual([b20.sel.special, b20.sel.filter?.traits.map((x) => x.toLowerCase())], ["attacker", ["saiyan"]], "D: BT20-083 — the attacker");
+  const b15 = record("[Counter: Attack] Negate the attack and play this card in Rest Mode. If the attacking card is a ≪Great Ape≫ or ≪Demon Clan≫ Battle Card, choose it, KO it, and your opponent draws 1 card.", "BT15-080");
+  const ko = b15.ops.find((o): o is Extract<Op, { op: "if" }> => o.op === "if")!;
+  const chosen = ko.then.find((o): o is Extract<Op, { op: "choose" }> => o.op === "choose");
+  assert.equal(chosen?.sel.battleRole, "attacker", "D: BT15-080 — \"choose it\" is the attacking card");
+  assert.ok(ko.then.some((o) => o.op === "ko"), "D: BT15-080 — …and it is KO'd");
+  const b1 = conds(only("[Auto] [Once per turn] When your Battle Card attacks a Leader Card, if the attacking card has 15000 or more power, draw 1 card.", "BT1-001")).length;
+  void b1;
+  const p570 = conds(record("[Auto][Once per turn] When you play a red <Beerus> or <Whis> card, if the played card is a <Beerus> card, this card gets +5000 power for the turn. If the played card is a <Whis> card, choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.", "P-570")).filter((c) => c.kind === "count" && c.sel.special === "subject");
+  assert.ok(p570.length >= 2, "D: P-570 — the played card, each name");
+  const tb1 = record("[Auto] [Once per turn] When you attack with a ≪Saiyan≫ Battle Card, if that card is ≪Universe 7≫ or ≪Universe 6≫, draw 1 card and choose the attacking card. The chosen card and this card gain +5000 power for the duration of the turn.", "TB1-001", { type: "LEADER" });
+  const tb1If = tb1.ops.find((o): o is Extract<Op, { op: "if" }> => o.op === "if");
+  assert.ok(tb1If && tb1If.cond.kind === "count" && tb1If.cond.sel.special === "attacker", "D: TB1-001 — \"that card\" is the attacker");
+  assert.equal(tb1If!.then.filter((o) => o.op === "power").length, 2, "D: TB1-001 — the +5000s are the condition's (\"the chosen card\" points back)");
+  for (const [what, text, to] of [
+    ["BT4-106", "[Auto] When this card attacks, your opponent chooses 1 card from their hand and sends it to their Warp. If that card was a Battle Card, combo with it in your Combo Area.", "warp"],
+    ["BT3-073", "[Auto] When you play this card, your opponent chooses 1 card from their hand and places it in the Drop Area. If that card is a Battle Card with an energy cost of 4 or more, draw 1 card.", "drop"],
+  ] as const) {
+    const rec = record(text, what);
+    const pick = rec.ops.find((o): o is Extract<Op, { op: "choose" }> => o.op === "choose");
+    assert.deepEqual([pick?.chooser, pick?.sel.area, (rec.ops.find((o) => o.op === "moveTo") as Extract<Op, { op: "moveTo" }> | undefined)?.to], ["opponent", "hand", to], `D: ${what} — their choice, then the move`);
+    assert.ok(conds(rec).some((c) => c.kind === "varMatches" && c.var === pick!.as && c.filter.type === "BATTLE"), `D: ${what} — that card is asked`);
+    records++;
+  }
+  const b2 = the(record("[Activate: Main] [Once per turn] Place up to 3 cards from the top of your deck in the Drop Area. If there was 1 or more ≪Frieza Clan≫ among them, this card gains +5000 power for the duration of the turn.", "BT2-101"), "any", "BT2-101");
+  assert.equal(b2.conds.length, 3, "D: BT2-101 — any of the three cards placed");
+  const b30 = the(record("[auto][limit 1] If your Leader is blue: When this card is played, place the top 5 cards of your deck into your Drop. Additionally, if 1 or more ≪Earthling≫ cards are placed into your Drop by this skill, add the top card of your deck to your energy in Rest Mode.", "BT30-031"), "count", "BT30-031", (c) => !!c.sel.fromVar);
+  assert.deepEqual([b30.sel.area, b30.sel.filter?.traits.map((x) => x.toLowerCase())], ["drop", ["earthling"]], "D: BT30-031 — the placed cards");
+  assert.equal(the(record("[auto] When this card is played, choose a total of up to 7 of your opponent's Battle Cards and/or Unisons and they get -10000 power for the turn. Additionally, if you chose 5 or more cards with this skill, this card gets +10000 power and [double strike] for the turn.", "BT19-149"), "chose", "BT19-149").atLeast, 5, "D: BT19-149 — 5 or more chosen");
+  for (const [what, text] of [
+    ["P-306", "[Activate: Main] Choose this card and 1 of your <Trunks: Xeno> cards and send them to their owners' Warps: Choose up to 1 <Gotenks: Xeno> card with an energy cost of 3 from your hand or Warp and play it. If you played that card from your hand, draw 1 card."],
+    ["EX23-18", "[activate: main][limit 1]{u}, if your Leader's back side is {SSB Vegito, Godhood Transcended} and you send this card from your Drop to your Warp: Play up to 1 {Gogeta, Pursuit of Power} with 1 marker on it from your hand or Drop. Additionally, if you played it from your hand, draw 1 card."],
+  ] as const) {
+    const rec = record(text, what);
+    assert.ok(conds(rec).some((c) => c.kind === "did" && c.what === "play") && conds(rec).some((c) => c.kind === "choseFrom" && c.areas[0] === "hand"), `D: ${what} — played, from the hand`);
+    records++;
+  }
+  assert.ok(conds(record("[+1][Activate: Main] If your Leader Card is mono-blue: You may switch this card to Rest Mode. If you do, choose up to 1 blue skill-less Battle Card with an energy cost of 2 in your energy and play it; if you played it, place the top card of your deck in your energy in Rest Mode at the end of the turn.", "EX17-01")).some((c) => c.kind === "did" && c.what === "play"), "D: EX17-01 — the play");
+  assert.equal(the(record("[Auto] If your Leader's back side is {Frieza, Resurrected}: When this card is played, you may add 1 mono-yellow ≪Frieza's Army≫ card or mono-yellow Unison from your hand to your life face up. If you added a card to your life, draw 1 card, and place 1 card from your life in your Drop.", "EX21-30"), "count", "EX21-30", (c) => !!c.sel.fromVar).sel.area, "life", "D: EX21-30 — the card in the life");
+  const p108 = conds(record("[Auto] When this card is KO'd, if your Leader Card is a blue <Gogeta: Br> card, choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area and add them to your hand. If you added 2 cards to your hand, add 2 cards from the top of your deck to your energy.", "P-108")).filter((c) => c.kind === "count" && c.sel.fromVar && c.sel.area === "hand");
+  assert.equal(p108.length, 2, "D: P-108 — each choice's card in the hand");
+  assert.equal(the(record("[Auto][Once per turn] When this card attacks, you may send 1 card in your opponent's life to their Warp for every 10 cards in their Warp. If you sent cards from your opponent's life to their Warp, send 1 card from your life to your Warp.", "P-289"), "count", "P-289", (c) => !!c.sel.fromVar).sel.area, "warp", "D: P-289 — the cards in their Warp");
+  assert.equal(the(record("[activate: main][limit 1]{u}{u}{u}{u}, place 1 blue Battle Card with an energy cost of 5 or more into its owner's Drop: Play this card from your hand. Additionally, if the card placed into its owner's Drop by this skill is a ≪Phantom Demon≫ card, draw 2 cards.", "P-628"), "count", "P-628", (c) => !!c.sel.fromVar).sel.filter?.traits[0]?.toLowerCase(), "phantom demon", "D: P-628 — the price's card");
+  const sd17 = the(record("[Auto][Once per turn] When you play a Battle Card, choose it, and it gets +5000 power for the turn. If this raises that card's power to 20000 or more, draw 1 card.", "SD17-01", { type: "LEADER" }), "power", "SD17-01");
+  assert.deepEqual([!!sd17.sel.fromVar, sd17.atLeast], [true, 20000], "D: SD17-01 — that card's power after the raise");
+  const b16 = the(record("[Auto] If your Leader Card is a ≪Universe 7≫ card: When this card is played, choose up to 1 of your opponent's Battle Cards and it gets -15000 power for the turn. Additionally, if this skill reduces the chosen card's power to 0 or less, draw 1 card.", "BT16-006"), "power", "BT16-006");
+  assert.deepEqual([!!b16.sel.fromVar, b16.atMost], [true, 0], "D: BT16-006 — 0 or less after the reduction");
+  assert.equal(the(record("[Auto] If your Leader Card is yellow: When you play this card, choose up to 1 of your opponent's Battle Cards and negate its skills for the duration of the turn. If the chosen card is in Rest Mode, it can't be switched to Active Mode during your opponent's next Charge Phase.", "BT9-066"), "count", "BT9-066", (c) => !!c.sel.fromVar).sel.mode, "rest", "D: BT9-066 — the chosen card rested");
+  const b7 = the(record("[Activate: Main] Choose up to 1 black Battle Card with an energy cost of 4 or less in your Warp and play it. If the Battle Card played with this skill has [Over Realm] or [Dark Over Realm], choose up to 2 of your energy and switch them to Active Mode.", "BT7-108", { type: "EXTRA" }), "varMatches", "BT7-108");
+  assert.ok(matches(card("AC3_DOR", { skill: "[Dark Over Realm 7] (blah)" }), b7.filter) && !matches(card("AC3_NOR", { skill: "[Blocker]" }), b7.filter), "D: BT7-108 — [Over Realm] of either kind");
+  assert.equal(the(record("[Activate: Main] [Once per turn] Place a card from the top of your deck under this card: If 7 or more cards are placed under this card, this card gains [Triple Strike] for the duration of the turn.", "BT6-030"), "count", "BT6-030").atLeast, 7, "D: BT6-030 — the pile under this card");
+  const ex08 = conds(record("[Activate: Battle] If your Leader Card is a <Zamasu> card and it's your opponent's turn: Choose one- ・Choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less, place it in your opponent's energy in Rest Mode, then if you placed an opponent's card in their energy, at the end of the turn your opponent chooses 1 of their energy and places it in its owner's Drop Area. ・Draw 1 card, then choose 1 card in your opponent's hand, place it in their energy in Rest Mode, then if you placed an opponent's card in their energy, at the end of the turn your opponent chooses 1 of their energy and places it in its owner's Drop Area.", "EX08-02", { type: "EXTRA" })).filter((c) => c.kind === "count" && c.sel.fromVar && c.sel.area === "energy");
+  assert.equal(ex08.length, 1, "D: EX08-02 — each mode asks the card it placed (the same question, deduplicated)");
+  // "This card can only attack or be used in a combo if …" (BT22-013): two bans, each with the escape.
+  const b22 = record("[Permanent] This card can only attack or be used in a combo if your Leader is a red <Son Gohan: SH> card.", "BT22-013").ops.filter((o): o is Extract<Op, { op: "forbid" }> => o.op === "forbid");
+  assert.deepEqual(b22.map((o) => [o.what, o.unless?.kind]), [["attack", "leaderMatches"], ["combo", "leaderMatches"]], "D: BT22-013 — no attack and no combo unless the Leader is one");
+  // EX23-50, EX23-45: colours other than black among black multicolour cards — black is always one of them.
+  const ex50 = the(record("[Permanent] If there are 2 or less non-black colors present among black multicolor cards in your energy, this card gets -6000 power.", "EX23-50"), "count", "EX23-50");
+  assert.deepEqual([ex50.sel.distinctColors, ex50.sel.filter?.colors, ex50.sel.filter?.multiColor, ex50.atMost], [true, ["Black"], true, 3], "D: EX23-50 — 2 others and black");
+  // BT14-013: only this card and one red skill-less Battle Card in the Combo Area.
+  const b14 = conds(record("[Auto] If your Leader Card is a mono-red ≪Universe 7≫ card, and you only have this card and 1 red skill-less Battle Card in your Combo Area: When this card is used in a combo, draw 1 card.", "BT14-013"));
+  assert.ok(b14.some((c) => c.kind === "count" && c.sel.area === "combo" && c.atLeast === 2 && c.atMost === 2), "D: BT14-013 — exactly two cards in the Combo Area");
+  records += 26;
 }
 
 // ── 2. the VM ────────────────────────────────────────────────────────────────
@@ -309,6 +387,44 @@ let cases = 0;
   s.battle = null as unknown as VmState["battle"];
   assert.equal(holds(s, ex19, theirs), false, "VM: EX19-14 — no battle");
   cases += 6;
+}
+
+// EX23-50: colours other than black among black multicolour energy.
+{
+  const ex50 = whole(record("[Permanent] If there are 2 or less non-black colors present among black multicolor cards in your energy, this card gets -6000 power.", "EX23-50"));
+  defs.AC3_BR = card("AC3_BR", { colors: ["Black", "Red"] });
+  defs.AC3_BU = card("AC3_BU", { colors: ["Black", "Blue"] });
+  defs.AC3_BG = card("AC3_BG", { colors: ["Black", "Green"] });
+  const s = fresh();
+  assert.equal(holds(s, ex50), true, "VM: EX23-50 — no black multicolour energy: no other colours");
+  stage(s, "p1", "AC3_BR", "energy");
+  stage(s, "p1", "AC3_BU", "energy");
+  assert.equal(holds(s, ex50), true, "VM: EX23-50 — red and blue: two");
+  stage(s, "p1", "AC3_BG", "energy");
+  assert.equal(holds(s, ex50), false, "VM: EX23-50 — red, blue and green: three");
+  cases += 3;
+}
+// BT3-073: the opponent's discarded card, asked — a cost-4 Battle Card draws, a cost-1 one does not.
+{
+  defs.AC3_DISC = card("AC3_DISC", { skill: "[Activate: Main] Your opponent chooses 1 card from their hand and places it in the Drop Area. If that card is a Battle Card with an energy cost of 4 or more, draw 1 card." });
+  defs.AC3_COST4 = card("AC3_COST4", { energyCost: 4 });
+  for (const [what, cost, draws] of [["AC3_COST4", 4, 1], ["V1", 1, 0]] as const) {
+    const ctx2: EngineContext = { ...ctx, defs, scripts: rulesFromRows(roundtrip(Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow))), defs) };
+    let s = fresh();
+    const a = stage(s, "p1", "AC3_DISC", "battle");
+    stage(s, "p2", what, "hand");
+    const offer = RULES.legalActions(ctx2, s).find((l) => l.action.type === "activate" && l.action.card === a);
+    assert.ok(offer, `VM: BT3-073 (${cost}) — offered`);
+    s = roundtrip(RULES.apply(ctx2, roundtrip(s), offer!.action).state as VmState);
+    for (let i = 0; i < 20 && s.prompt.kind !== "main"; i++) {
+      const q = s.prompt as { kind: string; player: PlayerId; choice?: { candidates: string[]; min: number } };
+      const act = q.kind === "chooseCards" ? { type: "choose", player: q.player, cards: q.choice!.candidates.slice(0, Math.max(1, q.choice!.min)) } : { type: "pass", player: q.player };
+      s = roundtrip(RULES.apply(ctx2, roundtrip(s), act as Action).state as VmState);
+    }
+    assert.equal(s.sides.p2.zones.drop.length, 1, `VM: BT3-073 (${cost}) — their card is in the Drop`);
+    assert.equal(s.sides.p1.zones.hand.length, draws, `VM: BT3-073 (${cost}) — ${draws ? "a draw" : "no draw"}`);
+    cases++;
+  }
 }
 
 console.log(`audit-conditions-3: ${records} records, ${cases} VM cases — ok`);

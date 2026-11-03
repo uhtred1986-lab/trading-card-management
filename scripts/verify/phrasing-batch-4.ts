@@ -197,7 +197,12 @@ for (const [text, what, n] of [
   records++;
 }
 // Two choices of one card each, and a card counted by where it came from, are not this.
-assert.ok(skillRecords(card("P-108", { skill: "[Auto] When this card is KO'd, if your Leader Card is a blue <Gogeta: Br> card, choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area and add them to your hand. If you added 2 cards to your hand, add 2 cards from the top of your deck to your energy." }))[0].unread.length > 0, "B6: P-108's two one-card choices stay unread");
+// (Audit conditions 3 reads P-108's "If you added 2 cards to your hand" after two one-card choices as each choice's card in
+// the hand — never as one choice of at least 2.)
+{
+  const p108 = skillRecords(card("P-108", { skill: "[Auto] When this card is KO'd, if your Leader Card is a blue <Gogeta: Br> card, choose up to 1 red <Son Goku: Br> card and 1 red <Vegeta: Br> card from your Drop Area and add them to your hand. If you added 2 cards to your hand, add 2 cards from the top of your deck to your energy." }))[0];
+  assert.ok(p108.unread.length > 0 || !condsDeep(p108).some((c) => c.kind === "chose"), "B6: P-108's two one-card choices are not one choice of 2");
+}
 // "…from your hand" is read since phrasing batch 6 (owner's ruling of 26 Oct 2026 on EX16-02, `choseFrom`).
 assert.deepEqual(unreadOf("[+1][Activate: Main] You may choose 1 <Dark Broly> card in your hand or Drop Area and place it at the bottom of your deck. If you placed a card from your hand at the bottom of your deck, draw 1 card."), [], "B6: \"from your hand\" is read (batch 6)");
 
