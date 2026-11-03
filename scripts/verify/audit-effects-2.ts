@@ -4,6 +4,12 @@
  *
  * A.  "…and put them back in any order" / "…place them on top of your deck in any order" after a look is `arrange`: the
  *     master orders the cards one at a time, the first pick on top, and none of them leaves the deck (20-12-2).
+ * B.  "Activate it" is an activation (a [Field] by its skill, a hand Extra by its [Activate: Main], 12-2-4); a skill named
+ *     is never its card's play — unread where no reader activates it.
+ * C.  Your own locks on the skills of the cards you describe; "you can't activate [Field] cards" (R-270, pending).
+ * D–I. Rest Mode combo permissions, negated combos, played on top, lists of choices, counted markers, hinges.
+ * K.  One wording each; a capital "Then," closes an offer's branch (R-271, pending); silent blanks are unread.
+ * J.  `arena:refresh-ids --describe-only` writes the reading the compile writes.
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules language's
  * print and reparse) and, where the engine learned something, a short play on the rules engine.
