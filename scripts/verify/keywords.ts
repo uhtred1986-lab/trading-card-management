@@ -2994,18 +2994,25 @@ function skipsOf(s: EngineState, p: PlayerId): string[] {
   // not the turn it is leaving did anything). On the rules engine the entry
   // is spent as the turn's first phase is entered (`vm/flow.ts`'s
   // `skippedAs`), and every phase of that turn is entered skipped.
+  //
+  // Audit effects 2 review: BT31-097's own wording is not this op. Its official Q&As end the turn in progress at once
+  // (the "end of your opponent's turn" timing is skipped; [Over Realm] cards stay in play), which `skip` "turn" — the
+  // player's NEXT turn refused — does not say, so the wording is unread until the engine can end a turn early. The op
+  // itself is still the language's, and is played here off a hand-written record.
   DEFS.TURNSKIP = { ...DEFS.V1, id: "TURNSKIP", name: "TURNSKIP", skill: "[Activate: Main] Skip your turn and begin your opponent's Charge Phase." };
   const rule = compileSkill(parseSkills(DEFS.TURNSKIP.skill!)[0]);
-  assert.deepEqual(rule.ops, [{ op: "skip", what: "turn" }], "the trailing clause names the same rule's own destination and adds nothing");
-  assert.deepEqual(rule.unsupported, []);
+  assert.deepEqual(rule.ops, [], "BT31-097's 'skip your turn' is not the next turn's skip");
+  assert.equal(rule.unsupported.length, 1, "…and is unread");
+  const ctx = withRecord("TURNSKIP", { ops: [{ op: "skip", what: "turn" }], unsupported: [] });
+  const step = (st: EngineState, ...actions: Parameters<typeof playG>[1][]): EngineState => actions.reduce((acc, a) => IMPL.apply(ctx, acc, a).state, st);
 
   let s = arenaG({ battle: ["TURNSKIP"] });
   const card = findG(s, "p1", "battle", "TURNSKIP");
-  s = playG(s, { type: "activate", player: "p1", card, skill: 0 });
+  s = step(s, { type: "activate", player: "p1", card, skill: 0 });
   assert.deepEqual(skipsOf(s, "p1"), ["turn:next"]);
 
   const turnBefore = s.turn;
-  s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
+  s = step(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
   assert.equal(s.turnPlayer, "p2");
   assert.equal(s.prompt.kind, "main");
 

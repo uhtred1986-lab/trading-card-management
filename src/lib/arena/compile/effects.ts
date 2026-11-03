@@ -168,6 +168,11 @@ function refFor(clause: string, c: Ctx): Ref | null {
       const host = hostOf(underChosen[2], c);
       const sel = parseTarget(`${underChosen[1]} under this card`);
       if (!host || !("var" in host) || !sel || sel.special || sel.fromVar || sel.area !== "under" || sel.filter?.unreadable) return null;
+      // Audit effects 2 review: the pick gets a name of its own, past the host's. The price's choice and the effect's
+      // first share `c0` (4-3-3), so EX21-29's pick from under its price's Trunks was bound as `c0` too, and "then switch
+      // the chosen card to Active Mode" switched the card just used in the combo.
+      const at = /^[a-z]+(\d+)$/.exec(host.var);
+      if (at) c.n = Math.max(c.n, Number(at[1]) + 1);
       return { sel: { ...sel, underHost: { fromVar: host.var } } };
     }
   }
@@ -254,6 +259,15 @@ function refFor(clause: string, c: Ctx): Ref | null {
     if (/\bthe chosen cards?\b/i.test(clause)) {
       const priced = c.priceChosen ?? [];
       if (priced.length === 1 && !c.choices.some((ch) => /^c\d+$/.test(ch.var))) return { var: priced[0] };
+      // Audit effects 2 review: a card taken from the pile under a chosen card is not "the chosen card" — "use 1 card
+      // from under the chosen card in a combo, then switch **the chosen card** to Active Mode" (EX21-29), "Choose 1 of
+      // your yellow <Vegito> Battle Cards and place 2 of the cards from under that card into their owner's Drop: **The
+      // chosen card** gets +5000 power" (BT28-079's back): the host the pile hangs from (`pilePick`).
+      if (c.last && c.pilePick?.[c.last] && /\bthe chosen card\b/i.test(clause)) {
+        let host = c.last;
+        for (let guard = 0; c.pilePick[host] && guard < 8; guard++) host = c.pilePick[host];
+        return { var: host };
+      }
       return c.last ? { var: c.last } : c.lastTarget;
     }
     // Phrasing batch 3: "Choose 1 other ≪Namekian≫ card in your Battle Area: Place this card under **the chosen
@@ -1288,6 +1302,17 @@ function compileClause(clause: string, c: Ctx): Op[] | null {
 }
 
 function compileClauseRead(clause: string, c: Ctx): Op[] | null {
+  // Audit effects 2 review: "You may choose Battle Cards in your Drop **when choosing cards to use with** a blue <Gogeta:
+  // Br> card's [Union] skill" (BT26-031), "…when choosing a <Goku Black> card to use with a [Union] skill …" (BT26-061's
+  // back), "…**when choosing cards for** this card's [Z-Stack] conditions" (BT20-028), "…with this card's [union] skill
+  // from your hand" (EX21-12): a keyword's material choice widened (22-13-4-2-1, 22-47-4-1). The wordings
+  // `compileSkillUnguarded` reads whole (`unionFusionAreas`, `unionFusionDropBottom`, `unionFusionWarp`) never get here;
+  // any other was read as a choice made now out of the Drop, and moved the cards it chose. Unread.
+  if (/\bwhen choosing (?:cards?|an? .+? cards?|the specified .+?) (?:to use with|for)\b/i.test(clause)) return null;
+  // Audit effects 2 review: "Choose up to 1 **[Permanent] skill** other than a keyword skill on your yellow ≪Frieza Clan≫
+  // card … and negate it" (BT27-070): one line of a card, which no selector names — it read as a choice of the card, and
+  // every skill of it was negated. (The keyword-skill choice before a negation or a copy is read by its own merge.)
+  if (/^choose (?:up to )?(?:\d+|an?) \[[^\]]+\] skills?\b/i.test(clause.trim())) return null;
   // Mechanism batch 2 (BT10-051): "…and you can't place cards in your energy **or play cards other than mono-blue
   // <Zamasu> or <Goku Black> cards** for the turn" is two prohibitions with one span. Read as one, the second was lost.
   const twoBans = /^(?:and )?you can'?t place cards in your energy(?: area)? or (play .+?) for the (turn|game)[.]?$/i.exec(clause.trim());
@@ -1605,6 +1630,13 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       const amount = op && (op.op === "power" || op.op === "comboPower") && typeof op.amount === "object" && "count" in op.amount && !op.amount.per ? op.amount : null;
       return op && amount ? [{ ...op, amount: { capped: [amount, Number(maximum[1]) * (amount.times ?? 1)] } } as Op] : null;
     }
+    // Audit effects 2 review: "Deal 1 damage to your opponent for every 2 colors on ≪God≫ cards in your Battle Area.
+    // **(2 damage max.)**" (BT16-017): the damage's printed ceiling — six colours would deal 3. Two are refused.
+    const damageCap = counted?.length === 1 && counted[0].op === "damage" ? c.raw.match(/\((\d+) damage max\.?\)/gi) : null;
+    if (counted && damageCap) {
+      const op = counted[0] as Extract<Op, { op: "damage" }>;
+      return damageCap.length === 1 && typeof op.n === "object" ? [{ ...op, n: { capped: [op.n, Number(/\d+/.exec(damageCap[0])![0])] } } as Op] : null;
+    }
     // Audit effects 2: "…add a marker to this card for each card under this card. **(Up to 3.)**" (BT17-003): a marker
     // count's printed ceiling, as BT9-076's is a power's. Two ceilings in one line are refused.
     const markerCap = counted?.length === 1 && (counted[0].op === "addMarker" || counted[0].op === "removeMarker") ? c.raw.match(/\(up to (\d+)\.?\)/gi) : null;
@@ -1639,7 +1671,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // "Skip your turn" (BT31-097): every phase of the next turn, refused at
   // once (20-13-1) — "and begin your opponent's Charge Phase" is that same
   // rule said in words and is dropped by `connective`, just above.
-  if (t === "skip your turn") return [{ op: "skip", what: "turn" }];
+  // Audit effects 2 review: not so — BT31-097's own Q&As end the turn in progress at once ("the 'end of your opponent's
+  // turn' timing is skipped"; [Over Realm] cards stay in the Battle Area, never sent to the Warp at this turn's end).
+  // `skip` "turn" refuses the player's NEXT turn and let this one finish: a misread, so unread until the engine can
+  // end the turn in progress.
+  if (t === "skip your turn") return null;
   // "Skip all phases until the Charge Phase in your next turn" (BT21-104):
   // the rest of this turn, the opponent's whole next turn, and this card's
   // controller's own next Charge Phase, landing at that Main Phase — three
@@ -2375,6 +2411,16 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // this from being cut in half at its "and" first, with "reduce the energy
   // cost" and "Z-Energy cost of X … by N" left as two clauses, neither of
   // them a sentence.
+  // Audit effects 2 review: "reduce the energy cost of **the first Extra you activate** from under one of your <Broly: Br>
+  // cards by {g}" (BT19-074, BT19-089), "…of **the next {Piercing Special Beam Cannon} you place** in your Battle Area
+  // this turn by {u}" (BT23-041): one purchase still to come, the "the next time you … , reduce its … cost" change said
+  // the other way round (`nextTimeReduction`, `uses: 1`). The reader below took the card for one already there — "1
+  // Extra Card under your <Broly: Br> card costs 1 less". Where `nextTimeReduction` cannot say the scope (a card bought
+  // from under another; a placement in the Battle Area of no Z-card), the clause is unread.
+  if ((m = /^(?:reduce|decrease) the (?:(energy|skill|specified) )?cost of the (?:first|next) (.+?) you (activate|play|place|use)\b(.*?)(?:,? (?:during |for )?this turn)? by (\d+|(?:\{[rugykbw\d]+\})+)$/.exec(qq))) {
+    const verb = m[3];
+    return nextTimeReduction(verb, `${m[2]}${m[4]}`, m[1] ?? (verb === "activate" || verb === "use" ? "skill" : "energy"), m[5], durationOf(clause.replace(/,? (?:during |for )?this turn\b/i, " for the turn")), c, true);
+  }
   if ((m = /^(reduce|increase|decrease) the energy costs? and z-energy costs? (?:of|on) (.+?) by (\d+|(?:\{[rugykbw\d]+\})+)$/.exec(qq))) {
     const sign = m[1] === "increase" ? -1 : 1;
     const ref = refFor(m[2], c);
@@ -2470,7 +2516,16 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
             : kindWordTrim === "evolve"
               ? ({ what: "evolve" as const })
               : {};
-    return (listed && listed.length > 1 ? listed : [ref]).map((target) => ({ op: "costReduction", target, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(activateTiming ? { activateTiming } : {}), ...(scopeTag ? { tag: scopeTag } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }) as Op);
+    const reduced = (listed && listed.length > 1 ? listed : [ref]).map((target) => ({ op: "costReduction", target, amount: by, ...what, ...(skillKind ? { skillKind } : {}), ...(activateTiming ? { activateTiming } : {}), ...(scopeTag ? { tag: scopeTag } : {}), ...(orbs ? { colors: orbsToList(orbs) } : {}), until: durationOf(clause) }) as Op);
+    // Audit effects 2 review: "decrease the energy cost **(and specified green cost)** of <Caulifla> and <Kale> in your
+    // hand by 1" (P-041): the bracket is part of the effect, not a reminder (`stripNotes` took it off) — the green orb
+    // demanded goes down with the total (the specified half, owner's BT19-039 ruling), or a {g}-cost card got nothing.
+    const alsoSpecified = !kindWordTrim || kindWordTrim === "energy" ? /\(and specified (red|blue|green|yellow|black|white) cost\)/i.exec(c.raw) : null;
+    if (alsoSpecified && sign === 1 && !orbs && typeof by === "number") {
+      const color = (alsoSpecified[1][0].toUpperCase() + alsoSpecified[1].slice(1).toLowerCase()) as Color;
+      return [...reduced, ...reduced.map((o) => ({ ...o, what: "specified" as const, amount: by, colors: Array.from({ length: by as number }, () => color) }) as Op)];
+    }
+    return reduced;
   }
 
   // "X get -N combo cost" (BT22-055, BT22-056, BT23-072): the same standing
@@ -4096,6 +4151,12 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // that bears it, which is what each read as. One the readers before this did not take (a hand Extra's line,
     // `invokeSkill`) stays unread: the engine activates no line of a card in the Drop by another card's effect yet.
     if (/^activate\b/.test(tp) && /\[(?:activate|counter|auto)\b[^\]]*\] skills?\b/.test(tp)) return null;
+    // Audit effects 2 review: the same for any skill the words name that no "with" describes a card by — "…you can
+    // activate **[Revive] skills on ≪Namekian≫ cards** from your Drop without paying their skills costs" (BT27-058), "you
+    // can activate **a skill that includes a marker skill cost on this card** twice for the turn" (BT27-067): the first
+    // played every ≪Namekian≫ in the Drop, the second played the card itself. ("Activate 1 … Extra Card **with** … the
+    // [field] skill", BT13-080, describes the card.)
+    if (/^activate\b/.test(tp) && /\bskills?\b/.test(m[1]) && !/\bwith\b[^,]*\bskills?\b/.test(m[1])) return null;
     // "…and play it **in your opponent's Battle Area**" (BT15-118, BT18-087):
     // the card goes to the other side of the table, and `play` has no word for
     // whose Battle Area it lands in — read without it, the card was played
@@ -6291,6 +6352,8 @@ function track(o: Op, c: Ctx): void {
     // TB3-059): once this card is under another it is out of play, and what the sentence goes on about is the host.
     c.lastTarget = o.under;
   } else if ("target" in o && o.target) c.lastTarget = o.target;
+  // Audit effects 2 review: a pick from the pile under a chosen card (see `Ctx.pilePick`).
+  if (o.op === "choose" && o.sel.underHost && "fromVar" in o.sel.underHost && o.sel.underHost.fromVar && o.sel.underHost.fromVar !== o.as) (c.pilePick ??= {})[o.as] = o.sel.underHost.fromVar;
   if (o.op === "moveTo" && o.to === "warp" && o.as) c.sentToWarp = o.as;
   else if (o.op === "moveTo" && o.to === "warp" && "var" in o.target && !o.target.minus) c.sentToWarp = o.target.var;
   if ((o.op === "power" || o.op === "grant") && (o.until === "battle" || o.until === "turn")) c.lastUntil = o.until;
@@ -7298,7 +7361,15 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       // A branch the group is writing into is part of what was asked.
       const all = prev.sinkCond ? [...prev.conds, prev.sinkCond] : prev.conds;
       const asked: Cond = all.length === 1 ? all[0] : { kind: "all", conds: [...all] };
-      groups.push({ conds: [{ kind: "not", cond: asked }], ops: [] });
+      // Audit effects 2 review: "Then, if your opponent has 3 or less energy, reveal the top card of your opponent's deck.
+      // If that card is a Battle Card, place it in your opponent's energy in Rest Mode, otherwise, draw 1 card then your
+      // opponent shuffles their deck" (BT7-042): the "otherwise" is about a card that was revealed. When the step that
+      // binds it sits under a condition of its own, a card no step turned up is not "otherwise" — read bare, the draw
+      // and the shuffle happened whenever the opponent had 4 or more energy.
+      const bindsDeep = (ops: Op[], v: string): boolean => ops.some((o) => ("as" in o && o.as === v) || (o.op === "if" && (bindsDeep(o.then, v) || bindsDeep(o.else ?? [], v))) || ((o.op === "may" || o.op === "delay") && bindsDeep(o.ops, v)));
+      const about = asked.kind === "varMatches" ? asked.var : null;
+      const boundUnderCondition = !!about && groups.slice(0, -1).some((g) => (g.conds.length > 0 || !!g.sink) && (bindsDeep(g.ops, about) || bindsDeep(g.sink ?? [], about)));
+      groups.push({ conds: [boundUnderCondition ? { kind: "all", conds: [{ kind: "chose", var: about! }, { kind: "not", cond: asked }] } : { kind: "not", cond: asked }], ops: [] });
       continue;
     }
     // 20-16: "if you do" / "if you don't" point at the decision just before
@@ -8017,8 +8088,15 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         // member named, the other its host.
         const actsOnLast = (o: Op) => "target" in o && !!o.target && typeof o.target === "object" && "var" in o.target && o.target.var === last && o.target.minus === undefined
           && !(o.op === "moveTo" && o.under && "var" in o.under && choiceList.vars.includes(o.under.var));
-        if (choiceList.vars.length > 1 && choiceList.at === i - 1 && /\b(?:them|those cards|the chosen cards(?! (?:from|in|under)\b))\b/i.test(clause) && got.length && got.every(actsOnLast))
-          got = choiceList.vars.flatMap((v) => got!.map((o) => ({ ...o, target: { var: v } }) as Op));
+        if (choiceList.vars.length > 1 && choiceList.at === i - 1 && /\b(?:them|those cards|the chosen cards(?! (?:from|in|under)\b))\b/i.test(clause) && got.length && got.every(actsOnLast)) {
+          // Audit effects 2 review: the cards a list sends to the Warp go under one name as well (as `named-set`'s do),
+          // so a later "the cards sent to Warps by this skill" is all of them: "choose this card and up to 1 of your
+          // opponent's Battle Cards … and send them to their owners' Warps; at the end of the turn, … play them to their
+          // owners' Battle Areas" (BT13-096) played back the opponent's card alone, and this card stayed in the Warp.
+          const sent = got.some((o) => o.op === "moveTo" && o.to === "warp") ? `w${c.n++}` : null;
+          const listed = got;
+          got = choiceList.vars.flatMap((v) => listed.map((o) => ({ ...o, target: { var: v }, ...(sent && o.op === "moveTo" && o.to === "warp" ? { as: sent } : {}) }) as Op));
+        }
         choiceList = { vars: [], ops: [], at: -1 };
       }
     }

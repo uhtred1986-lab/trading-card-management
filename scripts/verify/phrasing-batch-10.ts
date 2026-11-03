@@ -89,10 +89,14 @@ for (const [text, what] of [
   records++;
 }
 // A bare plural after "you can choose" stays a choice of how many (EX21-12's [Union] permission).
+// (Audit effects 2 review: EX21-12's own line is a widened [Union] material choice — "…when choosing cards to use with
+// this card's [union] skill" — and is unread now; the same grammar said as an effect keeps the check.)
 {
-  const recs = skillRecords(card("EX21-12", { skill: "[permanent] If your Leader is a yellow <Gotenks: Adolescence> card, you can choose Battle Cards in your Drop when choosing cards to use with this card's [union] skill from your hand. If you do, place the chosen cards at the bottom of your deck in any order." }));
+  const recs = skillRecords(card("PB10-PLURAL", { skill: "[Auto] When this card is played, you can choose Battle Cards in your Drop. If you do, place the chosen cards at the bottom of your deck in any order." }));
   const pick = recs.flatMap((r) => opsDeep(r.ops)).find((o): o is Extract<Op, { op: "choose" }> => o.op === "choose");
-  assert.ok(pick?.sel.upTo, `A: EX21-12 — a bare plural is still "any number" (${JSON.stringify(pick?.sel).slice(0, 160)})`);
+  assert.ok(pick?.sel.upTo, `A: a bare plural after "you can choose" is still "any number" (${JSON.stringify(pick?.sel ?? null).slice(0, 160)})`);
+  const ex2112 = skillRecords(card("EX21-12", { skill: "[permanent] If your Leader is a yellow <Gotenks: Adolescence> card, you can choose Battle Cards in your Drop when choosing cards to use with this card's [union] skill from your hand. If you do, place the chosen cards at the bottom of your deck in any order." }));
+  assert.ok(ex2112.every((r) => r.unread.length), "A: EX21-12's [Union] material permission is unread, never a choice made now");
   records++;
 }
 // "Any number of": as many as the player likes, none included.

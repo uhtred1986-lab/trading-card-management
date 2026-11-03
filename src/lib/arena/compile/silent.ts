@@ -32,8 +32,11 @@ export function readsAsNothingSilently(skill: Skill, script: Script): boolean {
  * and "silent blank" can never disagree about the same line.
  */
 export function emptyOnPurpose(skill: Skill): boolean {
-  if (skill.keyword) return true;
   const text = skill.effect.replace(/\s+/g, " ").trim();
+  // Audit effects 2 review: a keyword's own line is the engine's; a [Permanent], [Auto] or [Activate] that names a
+  // keyword beside its tag and prints a sentence of its own is not — "[permanent][evolve] Skills on yellow ≪Demon
+  // Realm≫ cards in your hand can also activate at [counter: play] timings" (BT30-067's back) read as nothing.
+  if (skill.keyword && (skill.kind === "keyword" || !text || /^[(（].*[)）]\.?$/.test(text))) return true;
   if (!text) return true;
   if (/^[(（].*[)）]\.?$/.test(text)) return true;
   // A deck-building clause read whole, with no game text beside it. A mixed line is not empty:

@@ -8,7 +8,7 @@
  *     is never its card's play — unread where no reader activates it.
  * C.  Your own locks on the skills of the cards you describe; "you can't activate [Field] cards" (R-270, pending).
  * D–I. Rest Mode combo permissions, negated combos, played on top, lists of choices, counted markers, hinges.
- * K.  One wording each; a capital "Then," closes an offer's branch (R-271, pending); silent blanks are unread.
+ * K.  One wording each; a capital "Then," closes an offer's branch (R-271, BT1-090's Q&A); silent blanks are unread.
  * J.  `arena:refresh-ids --describe-only` writes the reading the compile writes.
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules language's
@@ -297,6 +297,68 @@ for (const [id, text, back] of [
   }
 }
 
+// R. The review of this lane (adversarial pass, 3 Nov 2026): what the fixes above left wrong, and lane items left over.
+{
+  // A list's cards sent to the Warp go under one name, so "all cards sent to Warps by this skill" is every one of them.
+  const xeno = record("BT13-096", "[Auto] When this card is played, choose this card and up to 1 of your opponent's Battle Cards with an energy cost of 3 or less and send them to their owners' Warps; at the end of the turn, negate the skills of all cards sent to Warps by this skill for the turn and play them to their owners' Battle Areas.");
+  const sends = opOf(xeno, "moveTo").filter((o) => o.to === "warp");
+  assert.equal(sends.length, 2, "R: BT13-096: both cards of the list are sent");
+  assert.ok(sends[0].as && sends.every((o) => o.as === sends[0].as), "R: BT13-096: …under one name");
+  const back = opOf(xeno, "delay")[0];
+  assert.ok(back && JSON.stringify(back.ops).includes(`"fromVar":"${sends[0].as}"`), "R: BT13-096: the end-of-turn play reads all of them, this card included");
+  // A pick from the pile under the chosen card gets a name of its own, and is never "the chosen card".
+  const trunks = record("EX21-29", "[Auto] Choose 1 <Trunks: Future> card in your Battle Area: When this card attacks or activates [Blocker], use 1 card from under the chosen card in a combo, then switch the chosen card to Active Mode and it can't attack for the turn.");
+  const pick = opOf(trunks, "choose").find((o) => o.sel.area === "under")!;
+  const host = pick.sel.underHost?.fromVar;
+  assert.ok(host && pick.as !== host, "R: EX21-29: the pick from under the price's card is not bound over it");
+  assert.deepEqual(opOf(trunks, "comboFrom")[0].target, { var: pick.as }, "R: EX21-29: …the pick is used in the combo");
+  assert.deepEqual(opOf(trunks, "switchMode")[0].target, { var: host }, "R: EX21-29: …and the chosen card itself stands up");
+  assert.deepEqual(opOf(trunks, "forbid")[0].target, { var: host }, "R: EX21-29: …and can't attack");
+  const vegito = record("BT28-079", "[activate: main][once per turn] Choose 1 of your yellow <Vegito> Battle Cards and place 2 of the cards from under that card into their owner's Drop: The chosen card gets +5000 power and [critical] for the turn.");
+  const priced = (vegito.cost as { program?: Op[] }).program ?? [];
+  const vegitoVar = priced.find((o): o is Extract<Op, { op: "choose" }> => o.op === "choose" && o.sel.area === "battle")!.as;
+  assert.ok(opOf(vegito, "power").every((o) => "var" in o.target && o.target.var === vegitoVar), "R: BT28-079: the chosen <Vegito>, not the cards from under it, gets +5000");
+  // "Otherwise" of a card a condition may never have revealed.
+  const black = record("BT7-042", "[Auto] When you play this card and your Leader Card is a <Goku Black> or <Zamasu> card, choose up to 1 of your opponent's Battle Cards, place it in your opponent's energy in Rest Mode, then play 1 Shadow Token. (Shadow Tokens have 10000 power, 0 combo cost, and 5000 combo power.) Then, if your opponent has 3 or less energy, reveal the top card of your opponent's deck. If that card is a Battle Card, place it in your opponent's energy in Rest Mode, otherwise, draw 1 card then your opponent shuffles their deck.");
+  const otherwise = opOf(black, "if").find((o) => o.then.some((x) => x.op === "draw"))!;
+  assert.equal(otherwise.cond.kind, "all", "R: BT7-042: the draw needs a card revealed…");
+  assert.ok(otherwise.cond.kind === "all" && otherwise.cond.conds.some((x) => x.kind === "chose"), "R: BT7-042: …and one that is not a Battle Card");
+  // "(2 damage max.)" caps the damage; "(and specified green cost)" is the effect's.
+  const priest = record("BT16-017", "[activate: main]{r}{u}{g}{y}{1}, if your Leader Card is a <Great Priest> card: Deal 1 damage to your opponent for every 2 colors on ≪God≫ cards in your Battle Area. (2 damage max.) Additionally, if you have 12 or more multicolor ≪God≫ cards in play, you win the game.");
+  const dmg = opOf(priest, "damage")[0];
+  assert.ok(typeof dmg.n === "object" && "capped" in dmg.n && dmg.n.capped[1] === 2, "R: BT16-017: at most 2 damage");
+  const kale = record("P-041", "[Permanent] While this card is in play in your Battle Area, decrease the energy cost (and specified green cost) of <Caulifla> and <Kale> in your hand by 1.");
+  const cuts = opOf(kale, "costReduction");
+  assert.ok(cuts.some((o) => !o.what) && cuts.some((o) => o.what === "specified" && o.colors?.join() === "Green"), "R: P-041: the total and the green orb both go down");
+  // The catalog's run-on lines (errata.ts): each skill on its own line, read.
+  const baby = skillRecords(card("EX25-36", { skill: correctSkillText("EX25-36", "[energy-exhaust][offering] [arrival red/yellow]{y}, if your Leader is {Super Baby 2, Awakened Malevolence}: [activate: battle][once per turn] Choose 1 of your red or yellow ≪Brainwashed≫ cards and KO it: Choose up to 1 of your opponent's Battle Cards, ignoring [barrier], switch it to Rest Mode, and it can't switch to Active Mode until the end of your opponent's turn.") ?? "" }));
+  assert.ok(baby.some((r) => r.kind === "activate:battle" && !r.unread.length && r.ops.some((o) => o.op === "switchMode")), "R: EX25-36: the [Activate: Battle] is its own line, read");
+  records++;
+}
+// Unread, never a misread: each of these was a misread at the fix head.
+for (const [id, text, why] of [
+  ["BT19-074", "[activate: main][limit 1] If your Leader is a green <Broly: Br> card: During your opponent's next turn, reduce the energy cost of the first Extra you activate from under one of your <Broly: Br> cards by {g}.", /first Extra you activate/],
+  ["BT23-041", "[auto][limit 1] If your Leader is a mono-blue <Son Goku> card and you remove this card from the game: When your blue <Piccolo> card attacks, the attacking card gains [critical] for the battle, then reduce the energy cost of the next {Piercing Special Beam Cannon} you place in your Battle Area this turn by {u}.", /next \{Piercing Special Beam Cannon\} you place/],
+  ["BT27-058", "[Auto] When this card is played, draw 1 card, and you can activate [Revive] skills on ≪Namekian≫ cards from your Drop without paying their skills costs until the end of your opponent's turn.", /\[Revive\] skills/],
+  ["BT27-067", "[Auto][Once per turn]{y}: When your Battle Card is played or when this card attacks, you can activate a skill that includes a marker skill cost on this card twice for the turn.", /marker skill cost/],
+  ["BT26-031", "[Permanent] You may choose Battle Cards in your Drop when choosing cards to use with a blue <Gogeta: Br> card's [Union] skill from your hand. If you do, add the chosen cards to your Z-Energy.", /when choosing cards to use with/],
+  ["BT20-028", "[Permanent] You may choose up to 1 of your opponent's Battle Cards when choosing cards for this card's [Z-Stack] conditions.", /when choosing cards for/],
+  ["BT27-070", "[Activate: Main] Place 3 cards from under this card into their owner's Drop: Choose up to 1 [Permanent] skill other than a keyword skill on your yellow ≪Frieza Clan≫ card with an energy cost of 11 and negate it for the turn.", /\[Permanent\] skill other than a keyword skill/],
+  ["BT31-097", "[activate: main] If your Leader is an <Aeos> card: Skip your turn and begin your opponent's Charge Phase", /Skip your turn/],
+] as const) {
+  const recs = skillRecords(card(id, { skill: text }));
+  const rec = recs[recs.length - 1];
+  assert.ok(rec.unread.some((u) => why.test(u)), `R: ${id}: unread (${rec.unread.join(" | ") || rec.reads})`);
+  assert.equal(opsDeep(rec.ops).filter((o) => o.op === "play" || o.op === "skip").length, 0, `R: ${id}: …nothing played or skipped in its place`);
+  records++;
+}
+// A [Permanent] that names a keyword and prints a sentence of its own is not a keyword line: unread, never silent.
+{
+  const realm = skillRecords(card("BT30-067", { skill: "[permanent][evolve] Skills on yellow ≪Demon Realm≫ cards in your hand can also activate at [counter: play] timings." }))[0];
+  assert.equal(realm.unread.length, 1, "R: BT30-067's back: unread, not a blank");
+  records++;
+}
+
 // ── the VM ──────────────────────────────────────────────────────────────────
 const defs: Record<string, CardDef> = {
   ...DEFS,
@@ -306,6 +368,7 @@ const defs: Record<string, CardDef> = {
   E2_ARMBAND: card("E2_ARMBAND", { name: "E2 Armband", type: "EXTRA", energyCost: 3, power: null, comboCost: null, comboPower: null, skill: "[Activate: Main] Draw 2 cards." }),
   E2_LOCK: card("E2_LOCK", { skill: "[Activate: Main] Draw 1 card, and you can't activate skills on cards other than this card in any of your areas for the turn." }),
   E2_DRAWER: card("E2_DRAWER", { skill: "[Activate: Main] Draw 1 card." }),
+  E2_XENO: card("E2_XENO", { skill: "[Activate: Main] Choose this card and up to 1 of your opponent's Battle Cards and send them to their owners' Warps; at the end of the turn, negate the skills of all cards sent to Warps by this skill for the turn and play them to their owners' Battle Areas." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
@@ -420,6 +483,28 @@ for (const seat of ["p1", "p2"] as const) {
     s = activate(s, lock);
     assert.equal(offerOf(s, drawer), undefined, `${seat}: C: …not after the lock`);
     assert.ok(offerOf(s, lock), `${seat}: C: …while this card's own still is`);
+    cases++;
+  }
+
+  // R. "Choose this card and up to 1 of your opponent's Battle Cards and send them to their owners' Warps; at the end of
+  // the turn, … play them to their owners' Battle Areas" (BT13-096): both come back, each to its own owner's side.
+  {
+    let s = fresh(seat, seed(4));
+    const me = stage(s, seat, "E2_XENO", "battle");
+    const theirs = stage(s, foe, "V1", "battle");
+    s = activate(s, me);
+    assert.ok(s.sides[seat].zones.warp.includes(me) && s.sides[foe].zones.warp.includes(theirs), `${seat}: R: both cards are in their owners' Warps`);
+    s = take(s, { type: "endMain", player: seat } as Action);
+    for (let i = 0; i < 40 && s.turnPlayer === seat; i++) {
+      const q = s.prompt;
+      const who = (q as { player: PlayerId }).player;
+      if (q.kind === "chooseCards") s = take(s, { type: "choose", player: who, cards: q.choice.candidates.slice(0, Math.max(1, q.choice.min)) });
+      else if (q.kind === "orderPending") s = take(s, { type: "orderPending", player: who, index: 0 } as Action);
+      else if (q.kind === "counter") s = take(s, { type: "counter", player: who, card: null } as Action);
+      else s = take(s, { type: "pass", player: who } as Action);
+    }
+    assert.ok(s.sides[seat].zones.battle.includes(me), `${seat}: R: this card is played back at the end of the turn`);
+    assert.ok(s.sides[foe].zones.battle.includes(theirs), `${seat}: R: …and the opponent's card, on their side`);
     cases++;
   }
 }

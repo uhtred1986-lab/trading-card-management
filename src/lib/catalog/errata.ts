@@ -528,6 +528,19 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
     [/\[energy-exhaust\]\s+\[arrival/g, "[energy-exhaust]<br>[arrival"],
     [/(\{Super\s+Baby\s+2,\s+Awakened\s+Malevolence\}):\s+\[permanent\]/g, "$1:<br>[permanent]"],
   ],
+  // Audit effects 2 review: the same run-on lines on EX25-36, EX25-38 and P-693 (the keywords, the [Arrival] and the
+  // skill after it in one line), and BT4-069's [activate: main] run on into its [Field] reminder: each keyword line
+  // swallowed the skill after it, and the card read as nothing at all. Their own lines, as the card prints them.
+  "EX25-36": [
+    [/\[offering\]\s+\[arrival/g, "[offering]<br>[arrival"],
+    [/(\{Super\s+Baby\s+2,\s+Awakened\s+Malevolence\}):\s+\[activate:\s+battle\]/g, "$1:<br>[activate: battle]"],
+  ],
+  "EX25-38": [
+    [/\[blocker\]\s+\[arrival/g, "[blocker]<br>[arrival"],
+    [/(\{Super\s+Baby\s+2,\s+Awakened\s+Malevolence\}):\s+\[permanent\]/g, "$1:<br>[permanent]"],
+  ],
+  "P-693": [[/\[offering\]\s+\[permanent\]\s+For\s+every\s+2\s+markers/g, "[offering]<br>[permanent] For every 2 markers"]],
+  "BT4-069": [[/Drop\s+Area\)\s*\[activate:\s+main\]/g, "Drop Area)<br>[activate: main]"]],
 
   // Audit lane C (2 Nov 2026). NOT official errata: catalog misprints the compiler read literally, each a condition or
   // a measure lost. A name no card has ("<Suepr 17>", "{Zen-Oh, Once Who Wipes Away}" — the Leader is {Zen-Oh, One

@@ -914,6 +914,9 @@ function compileSkillText(skill: Skill): Script {
   const priceOps = compileCostProgram(skill)?.ops ?? [];
   for (const o of priceOps) {
     if (o.op !== "choose") continue;
+    // Audit effects 2 review: a price's pick from the pile under its chosen card ("…and place 2 of the cards from under
+    // that card into their owner's Drop", BT28-079's back) is not "the chosen card" of the effect (`Ctx.pilePick`).
+    if (o.sel.underHost?.fromVar && o.sel.underHost.fromVar !== o.as) (c.pilePick ??= {})[o.as] = o.sel.underHost.fromVar;
     c.last = o.as;
     c.lastTarget = { var: o.as };
     c.priceChoice = o.as;

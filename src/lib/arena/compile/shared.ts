@@ -64,6 +64,13 @@ export interface Ctx {
    * pile hangs from, whatever choice was made in between.
    */
   underHost?: Record<string, string>;
+  /**
+   * Audit effects 2 review: cards taken out of the pile under a card chosen before — "use 1 card **from under the chosen
+   * card** in a combo" (EX21-29), "…place 2 of the cards **from under that card** into their owner's Drop" (BT28-079's
+   * price) — keyed by the pick's variable, valued with the host's. The pick is never "the chosen card": "…then switch
+   * **the chosen card** to Active Mode" names the host the pile hangs from.
+   */
+  pilePick?: Record<string, string>;
   /** The variable bound by the last "play …" choice — what "the card you played with this skill" means. */
   lastPlayed: string | null;
   /**
