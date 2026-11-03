@@ -181,10 +181,9 @@ export function splitClauses(text: string): string[] {
  * readings of 40-odd [Awaken] lines already treat as outside the offer.
  */
 export function splitClausesJoined(text: string): { clauses: string[]; joined: boolean[] } {
-  // Audit effects 2: "…up to 1 of their Battle Cards**—all ignoring [barrier]—and** place them into their owner's Drop"
-  // (BT30-150): the dashes held the action inside the last choice, and it was lost. Said as "ignoring [Barrier]" after
-  // the last choice (the only one in a Battle Area), then the action.
-  text = text.replace(/\s*[—–―-]\s*all ignoring \[barrier\]\s*[—–―-]\s*and\b/gi, ", ignoring [Barrier], and");
+  // (BT30-150's "…Battle Cards—all ignoring [barrier]—and place them…": the closing dash opens the next clause below, and
+  // the aside's "all" is every choice of the list — `effects.ts`, audit selectors 2; integration 3 kept that reading over
+  // a rewrite that gave "ignoring [Barrier]" to the last choice only.)
   // Audit effects 2: "…, and if it's a skill-less Battle Card **it gets an additional +5000 power** for the duration of the
   // battle" (BT6-117): no comma closes the condition, so its effect was read into it and lost; "an additional +5000" is
   // +5000 more, on top of the first.
