@@ -188,8 +188,10 @@ const rowOf = (id: string) => skillRecords(DEFS[id]).find((r) => r.kind === "aut
   // The misprint with a full stop where the siblings print the comma (BT26-020, BT26-101).
   assert.ok(priceCondition(parseSkills("[Activate: Main][Limit 1]{r}. if your Leader's back side is a red <Super 17> card and you have 2 or more energy: Play this card from your hand.")[0]), "BT26-020's '{r}. if' reads as the comma");
   clean("[Activate: Main][Limit 1]{r}. if your Leader's back side is a red <Super 17> card and you have 2 or more energy: Play this card from your hand.");
-  // And/or with something that is not two plain descriptions stays refused.
-  assert.ok(compile("[Permanent] If you have 2 or more red cards and/or blue cards in your Battle Area and Drop Area, this card gets +5000 power.").unsupported.length > 0);
+  // Audit conditions 3: and/or of two colours over two places is one count of either colour across both.
+  const redBlue = compile("[Permanent] If you have 2 or more red cards and/or blue cards in your Battle Area and Drop Area, this card gets +5000 power.");
+  assert.deepEqual(redBlue.unsupported, []);
+  assert.ok(JSON.stringify(redBlue.ops).includes('"areas":["battle","drop"]'), "one count over the Battle Area and the Drop");
 
   // A card that fits both descriptions counts once.
   DEFS.MULTI907 = card("MULTI907", { colors: ["Red", "Blue"] });

@@ -141,7 +141,8 @@ const ops = (text: string): CostOp[] => {
 {
   const [all] = ops("[Permanent] Treat ≪Universe 9≫ cards in all areas as if they have no specified cost.");
   assert.deepEqual([all.what, all.all], ["specified", true]);
-  assert.deepEqual(all.target.sel?.areas, ["hand", "zDeck"], "the two places a price is asked, as [Warrior of Universe 7]");
+  // R-323 (owner): "in all areas" is every area of both players — a specified cost measured anywhere sees none.
+  assert.ok(["hand", "zDeck", "deck", "battle", "drop"].every((a) => ((all.target.sel?.areas ?? []) as string[]).includes(a)), `every area (${JSON.stringify(all.target.sel?.areas)})`);
   const [hand] = ops("[Permanent] Treat ≪Agent of Destruction≫ cards in your hand as if they had no specified cost.");
   assert.equal(hand.target.sel?.area, "hand");
   const [self] = ops("[permanent] If your Leader Card is a ≪Saiyan≫ card, treat this card in your hand as if it has no specified cost.");

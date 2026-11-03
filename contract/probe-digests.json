@@ -652,8 +652,8 @@
     "digest": "6df4b6ba"
   },
   "SAIYANWATCH#0": {
-    "outcome": "didNotFire",
-    "digest": "0dea0082"
+    "outcome": "fired",
+    "digest": "0fb8f1bc"
   },
   "SB-HOST#0": {
     "outcome": "fired",
@@ -788,8 +788,8 @@
     "digest": "015c59fa"
   },
   "TURNSKIP#0": {
-    "outcome": "notOffered",
-    "digest": "57e8d89b"
+    "outcome": "fired",
+    "digest": "1f783463"
   },
   "TWOKILL#0": {
     "outcome": "fired",
