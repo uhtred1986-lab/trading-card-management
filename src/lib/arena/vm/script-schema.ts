@@ -478,7 +478,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
         return `${choose} exactly ${describeAmount(op.exactly)} of ${cards}`;
       }
-      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
+      // Audit selectors 2: a blind choice (the opponent's hand or face-down Life) is made without seeing the cards, and
+      // the reading says so.
+      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {}) + (op.blind ? ", without seeing them" : "");
     },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
@@ -570,6 +572,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         offCard: "mechanism batch 3: \"play them to their owners' Battle Areas\" (BT13-096, EX21-15) - each card lands in its own owner's Battle Area rather than its master's",
       },
       {
+        name: "toOpponent",
+        type: "boolean",
+        offCard: "audit selectors 2: \"play up to 1 red ≪Saiyan≫ card with 500 power from your deck **to your opponent's Battle Area**\" (BT13-028, BT13-029, BT22-006) - the card lands in the other player's Battle Area, under their control, its owner unchanged",
+      },
+      {
         name: "ignoreOwnPermanent",
         type: "boolean",
         offCard: "mechanism batch 4: \"play … from your Drop, ignoring its [permanent] skill\" (EX21-31; owner's ruling of 27 Oct 2026) - a prohibition the played card's own [Permanent] puts on playing it does not refuse this play; every other card's rule still does",
@@ -588,6 +595,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         // "…on top of this card with its skills negated for the game" (BT31-088/089, BT10-073): where it lands and what it arrives with.
         + (op.onto ? ` on top of ${describeRef(op.onto)}` : "")
         + (op.toOwners ? " in their owners' Battle Areas" : "")
+        + (op.toOpponent ? " in your opponent's Battle Area" : "")
         + (op.ignoreOwnPermanent ? ", ignoring its own [Permanent] skill" : "")
         + (op.negated ? ` with its skills negated${op.negated === "game" ? " for the game" : " for the turn"}` : "");
       // "…with a marker on it" (13-2-3, #980): what the card arrives with.
@@ -2775,9 +2783,11 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // The noun has to be settled before the trailing measures are hung off it,
   // and a name asked for **in part** is one of those — printed after the word
   // it qualifies, the way the card prints it.
+  // (Audit selectors 2: several parts are any one of them, as the matcher's one `some` takes them — "with <Son Gohan> or
+  // <Piccolo> in its character name", BT19-110.)
   const partial = [
-    ...f.charactersIncluding.map((x) => `with <${x}> in its character name`),
-    ...f.namesIncluding.map((x) => `with {${x}} in its card name`),
+    ...(f.charactersIncluding.length ? [`with ${f.charactersIncluding.map((x) => `<${x}>`).join(" or ")} in its character name`] : []),
+    ...(f.namesIncluding.length ? [`with ${f.namesIncluding.map((x) => `{${x}}`).join(" or ")} in its card name`] : []),
     // Audit lane C: either word, in a trait (`traitsIncluding`).
     ...(f.traitsIncluding?.length ? [`with ${f.traitsIncluding.map((x) => `≪${x}≫`).join(" or ")} in its special traits`] : []),
     // "with both <A> and <B>" (#768): the parser reads exactly two tokens, so
@@ -2995,7 +3005,8 @@ export function describeSelector(sel: Selector, all = "all"): string {
   // of them to pick.
   const count =
     sel.take != null
-      ? `the ${sel.fromEnd ? "bottom" : "top"} ${sel.take}`
+      ? // (Audit selectors 2: "up to the top 2" — how many is the master's, which cards is not.)
+        `${sel.upTo ? "up to " : ""}the ${sel.fromEnd ? "bottom" : "top"} ${sel.take}`
       : sel.count == null
         ? all
         : sel.count === 99 && sel.minCount !== undefined && sel.minCount < 99
@@ -3051,6 +3062,9 @@ function describeUnderHost(sel: Selector): string {
   // "Your <Son Goku> Battle Card": the type word, now kept in the Battle Area
   // (`selectorWords`), already is the noun.
   if (kind === "card" && /\bbattle card$/.test(words)) return `${who}${words}`;
+  // Audit selectors 2: "your {Spaceship, Vessel of Hope} unison card" — the type word the words already end on is the
+  // noun (it read "unison card unison card", BT17-010).
+  if (words.endsWith(kind)) return `${who}${words}`;
   return `${who}${words ? `${words} ` : ""}${kind}`;
 }
 

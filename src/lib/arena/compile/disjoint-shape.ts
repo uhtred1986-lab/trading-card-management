@@ -13,6 +13,8 @@ const SRC = "((?:your|the|their|its owner'?s?) [^,;:.]+?)";
 /** "send LIST from SRC to WARP", "place LIST from SRC in DROP", "place LIST in DROP from SRC". */
 const SHAPES = [
   new RegExp(`^(send) (.+?) from ${SRC} to ${WARP}$`, "i"),
+  // Audit selectors 2: "you may choose 1 red card and 1 green card in your energy and switch them to Rest Mode" (BT7-057).
+  new RegExp(`^(switch) (.+?) from ${SRC} to rest mode$`, "i"),
   new RegExp(`^(place) (.+?) from ${SRC} (?:in|into) ${DROP}$`, "i"),
   new RegExp(`^(place) (.+?) (?:in|into) ${DROP} from ${SRC}$`, "i"),
 ];
@@ -51,7 +53,7 @@ function items(list: string): string[] {
 }
 
 export interface DisjointWords {
-  verb: "send" | "place";
+  verb: "send" | "place" | "switch";
   source: string;
   /** Each slot as "N <description> card", the noun restored where the list said it once. */
   slots: string[];
@@ -63,11 +65,14 @@ export function disjointWords(clause: string): DisjointWords | null {
   // Warp" (DB2-166 and five more) is "send 1 red card and 1 green card from your
   // Drop Area to your Warp" said as a choice and a move: the same slots, source
   // and place, so it is read as that.
-  const said = clause.trim().replace(/[.]$/, "").replace(/^choose (.+?) (?:in|from) ((?:your|the|their|its owner'?s?) [^,;:.]+?) and (send|place) them (to|in|into) (.+)$/i, (_all, list: string, src: string, verb: string, prep: string, dest: string) => `${verb} ${list} from ${src} ${prep} ${dest}`);
+  const said = clause
+    .trim()
+    .replace(/[.]$/, "")
+    .replace(/^choose (.+?) (?:in|from) ((?:your|the|their|its owner'?s?) [^,;:.]+?) and (send|place|switch) them (to|in|into) (.+)$/i, (_all, list: string, src: string, verb: string, prep: string, dest: string) => `${verb} ${list} from ${src} ${prep} ${dest}`);
   for (const shape of SHAPES) {
     const m = shape.exec(said);
     if (!m) continue;
-    const verb = m[1].toLowerCase() as "send" | "place";
+    const verb = m[1].toLowerCase() as "send" | "place" | "switch";
     const source = m[3].trim();
     const raw = items(m[2]);
     if (raw.length < 2 || raw.some((x) => !/^[1-9]\d?\s+\S/.test(x) || NOT_A_PLAIN_SLOT.test(x))) return null;

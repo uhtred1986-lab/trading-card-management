@@ -587,7 +587,10 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // not lost here: the compiler reads them into a condition on the attacked
     // Leader (`attackedLeaderDescription`), or leaves the skill unread.
     case "yourLeaderAttacked":
-      return /when your [^,]{0,60}leader(?: card)? is attacked/.test(head);
+      // (Review of audit selectors 2: "When **your opponent attacks your Leader Card**, you may have it get +5000 power"
+      // (P-314), "…switch up to 1 of your opponent's energy to Rest Mode" (P-390) — the same moment said from the attacker's
+      // side. Read as `opponentAttacks` it answered every attack, and P-314's "it" pumped the attacker.)
+      return /when your [^,]{0,60}leader(?: card)? is attacked|when your opponent attacks your leader(?: card)?\s*(?:,|:|\.|$)/.test(head);
     // 21-3: damage from a skill, which is the only damage the `damage` op
     // deals — battle damage takes a different path — so "from a non-keyword
     // skill" is satisfied by the moment itself.
@@ -1012,7 +1015,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // Phrasing batch 4: also as the second moment of a play — "When this card is played **or one of your opponent's
       // cards attacks**" (P-716), "…played **or your opponent attacks**" (BT16-145, BT16-146).
       return /when your opponent attacks\b|when your opponent's [a-z ]*cards? attacks?\b|when one of your opponent's [a-z ]*cards? attacks\b|when (?:this card is played|you play this card),? or (?:when )?(?:your opponent attacks|one of your opponent's [a-z ]*cards? attacks)\b/.test(t)
-        && !/when your opponent attacks your .+? with a specified cost of \d+\b/.test(head.toLowerCase());
+        && !/when your opponent attacks your .+? with a specified cost of \d+\b/.test(head.toLowerCase())
+        && !/when your opponent attacks your leader(?: card)?\s*(?:,|:|\.|$)/.test(head.toLowerCase());
     case "opponentEnergyActiveBySkill":
       return /when your opponent switches energy to active mode using a non-\[awaken\] skill during their turn\b/.test(head.toLowerCase());
     case "opponentOwnEnergyActiveBySkill":

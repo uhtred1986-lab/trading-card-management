@@ -152,8 +152,10 @@ type Sel = { area?: string; areas?: string[]; side?: string; filter?: { costMin:
   const total = compile("[Auto] When you play this card, choose up to 1 ≪Universe 9≫ in your hand with an energy cost less than or equal to your total energy and play it.");
   assert.equal((find(total.ops, "choose")[0].sel as Sel).area, "hand", "TB1-040: 'your total energy' is the bound, not the Energy Area");
 
+  // Audit selectors 2: read now — one card of each name, each a card of its own (`notIn`), all three placed in the Drop
+  // (the same list BT8-068 prints, whose Q&A wants a card per name).
   const pairs = compile("[activate: main] {r}, choose 1 <Natt>, <Bizu>, and <Ribet> card from your hand or Battle Area and place them in their owners' Drop Areas: Play this card from your hand.");
-  assert.notDeepEqual(pairs.unsupported, [], "EX06-06: three names behind a '1' is one card of each, which no selector counts: refused");
+  assert.deepEqual(pairs.unsupported, [], "EX06-06: three names behind a '1' is one card of each");
 }
 
 console.log("census round 4 (#907): ok");

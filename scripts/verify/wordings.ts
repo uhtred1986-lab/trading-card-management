@@ -2070,6 +2070,8 @@ import type { EngineState, Trigger } from "./harness";
   const tb = one("[Auto] When you play this card, choose 1 card in your life and add it to your hand. If you do so, choose any number of your opponent's Battle Cards for which the total cost adds up to 3 or less and KO them.");
   const ko = JSON.stringify(tb.ops).match(/"op":"ko","target":\{"var":"(c\d+)"\}/);
   assert.ok(ko && ko[1] !== "c0", "the KO lands on the opponent's chosen cards, not on the life card");
-  // "Play it in your opponent's Battle Area" (BT15-118) is not a play into your own.
-  assert.ok(one("[Activate: Main] Play up to 1 blue Battle Card from your Drop in your opponent's Battle Area in Rest Mode.").unsupported.length > 0);
+  // "Play it in your opponent's Battle Area" (BT15-118) is not a play into your own: since audit selectors 2 it is one
+  // into theirs (`toOpponent`).
+  const theirs = one("[Activate: Main] Play up to 1 blue Battle Card from your Drop in your opponent's Battle Area in Rest Mode.");
+  assert.ok(!theirs.unsupported.length && JSON.stringify(theirs.ops).includes('"toOpponent":true'), "BT15-118: played into the opponent's Battle Area");
 }

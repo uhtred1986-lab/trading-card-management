@@ -17,6 +17,12 @@
 const DASH = "(?:[―—–]|--)";
 const NAME = "(?:<[^>]+>|≪[^≫]+≫|\\{[^}]+\\})";
 const COLOUR = "(?:red|blue|green|yellow|black|white)";
+/**
+ * Audit selectors 2: a place with nothing after it — no "and" opening another clause (an "and/or" between two places
+ * stays), no "then", no measure left over ("with their skills negated…" is a play's, which a bare choice has none of).
+ */
+const SOURCE_REST = "(?:(?!\\band\\b(?!\\/)|\\bthen\\b|\\bwith\\b).)+?";
+const SOURCE_ALONE = `((?:your|their) ${SOURCE_REST}|under (?:this card|(?:the|an?|your) ${SOURCE_REST}))`;
 
 /**
  * "choose LIST from SRC and place them under this card" and "place LIST from SRC under this card".
@@ -64,12 +70,29 @@ const SHAPES = [
   // card and 1 <Nappa> card with energy costs of 2 or less and 10000 power from your deck, send them to your Warp"
   // (BT7-051). The comma form of "and play them" / "and send them" is said the "and" way first (`namedSetWords`).
   { verb: "send", dest: "warp", required: false, re: /^choose (up to 1 .+?) from ((?:your|their) (?:(?!\bwith\b).)+?) and send them to (?:your|their|its owner'?s?|their owners?'?) warps?$/i },
+  // Audit selectors 2: the pair played from under a card — "Play up to 1 <Android 17> and up to 1 <Android 18>―both red
+  // and with an energy cost of 3 or less―from under this card" (BT23-022), "…from under a {Spaceship, Vessel of Hope} in
+  // your Unison Area" (BT17-010) — and a pair that must be had: "play 1 <Son Gohan: Xeno> card with an energy cost of 1
+  // and 1 <Trunks: Xeno> card with an energy cost of 1 from your deck or Drop Area" (BT12-138).
+  { verb: "play", dest: "battle", required: false, rest: false, re: /^play (up to 1 .+?) from (under (?:this card|(?:an?|your) (?:(?!\b(?:with|in rest mode|in active mode|into|to|on top)\b).)+?))$/i },
+  { verb: "play", dest: "battle", required: true, rest: false, re: /^play (1 .+?) from ((?:your|their) (?!.*\b(?:with|in rest mode|in active mode|into|to|on top)\b).+?)$/i },
+  // Audit selectors 2: the pair chosen and nothing done to it yet — "choose up to 1 <Son Goku> card and 1 <Vegeta> card
+  // in your deck or Drop Area with energy costs of 2 or less, negate their skills, play them in Rest Mode" (EX06-02),
+  // "Choose 1 {Shu, Trusted Lackey} and 1 {Mai, Trusted Lackey} in your Battle Area, and they get +5000 power"
+  // (BT5-016), "choose up to 1 yellow {Super Saiyan Blue Vegeta} with an energy cost of 2 and up to 1 {SSB Son Goku, the
+  // Sweeper} from your deck, add them to your hand" (BT7-031): one choice per name, and what the next clauses do to
+  // "them" is done to each (`Ctx.group`). The place names nothing after it: an "and" there is another clause's.
+  { verb: "choose", dest: "none", required: false, re: new RegExp(`^choose (up to 1 .+?) (?:from|in) ${SOURCE_ALONE}$`, "i") },
+  { verb: "choose", dest: "none", required: true, re: new RegExp(`^choose (1 .+?) (?:from|in) ${SOURCE_ALONE}$`, "i") },
 ] as const;
 
 export interface NamedSetWords {
   verb: "choose" | "place" | "add" | "play" | "send";
-  /** Where every card taken goes: under this card, to the hand, played to the Battle Area, or (phrasing batch 3) to the Warp. */
-  dest: "under" | "hand" | "battle" | "warp";
+  /**
+   * Where every card taken goes: under this card, to the hand, played to the Battle Area, or (phrasing batch 3) to the
+   * Warp. `none` (audit selectors 2): nowhere yet — the clauses after the choice say what is done to "them".
+   */
+  dest: "under" | "hand" | "battle" | "warp" | "none";
   /** A play "in Rest Mode". */
   rest?: boolean;
   /** Phrasing batch 3: a play "with their skills negated for the turn/game". */
@@ -100,11 +123,25 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     // those places ("among all cards" names no card of its own, as `saidTheShortWay` reads it),
     // and a plain "and" between two places is one choice across both (the "and/or" pair).
     .replace(/\bfrom among all (?:of )?(?:the )?cards in /i, "from ")
+    // Audit selectors 2: "Play or add to your hand up to 1 <A> card … and up to 1 <B> card … from your deck" (BT11-029)
+    // is the pair played or the pair added (its Q&A); `compileClause` reads the two options, each in this shape — here
+    // it is only kept whole.
+    .replace(/^play or add to your hand (up to 1 )/i, "play $1")
+    // Audit selectors 2: "…, and 1 <Videl> card**—all from under this card**" (BT24-007, a price that ends at its colon):
+    // the place every card is chosen from, said once in an aside the colon closes.
+    .replace(/\s*[―—–]\s*all (from|in) ((?:under|your|their)\b[^―—–]*)$/i, " $1 $2")
     .replace(new RegExp(`\\bfrom (your|their) (${AREA}) and (?:your |their )?(${AREA})\\b(?!/)`, "i"), "from $1 $2 and/or $3")
     // Phrasing batch 7: "Choose up to 1 blue <Son Goku> and 1 yellow <Vegeta> card **in your hand with energy costs of
     // 2 or less** and play them" (BT7-025): the place and the plural measure are every card's, said once after the
     // last name. The first name used to be read alone, as a card in play, and never played.
     .replace(/^(choose up to 1 .+?) in ((?:your|their) (?:hand|deck|drop(?: area)?)) (with energy costs of \d+(?: or (?:less|more))?) and play them$/i, "$1 $3 from $2 and play them")
+    // Audit selectors 2: the same with the measure before the place — "Choose up to 1 blue <Kale> card and 1 yellow
+    // <Caulifla> card with energy costs of 2 or less **in your hand** and play them" (BT7-075), "…up to 1 <Android 18>
+    // card with energy costs of 4 or less **in your Drop Area** and play them" (BT9-054): "in" says what "from" says.
+    .replace(/^(choose (?:up to )?1 .+?) in ((?:your|their) (?:(?!\bwith\b|\band\b(?!\/)).)+?) and (play them|add them to your hand)$/i, "$1 from $2 and $3")
+    // …and a plural measure after the place of a bare choice: "…1 <Vegeta> card in your deck or Drop Area **with energy
+    // costs of 2 or less**" (EX06-02) is every card's, as it is before the place.
+    .replace(/^(choose (?:up to )?1 .+?) (in|from) ((?:your|their) (?:(?!\bwith\b|\band\b(?!\/)).)+?) (with energy costs of \d+(?: or (?:less|more))?)$/i, "$1 $4 $2 $3")
     // Mechanism batch 2: "choose up to 1 {A} and 1 {B} from your deck**,** play them" (P-156), "…from your deck, send
     // them to your Warp" (BT7-051): the comma says what the "and" says.
     .replace(/^(choose up to 1 .+? from (?:your|their) .+?),\s+(?:and\s+)?(play them|send them to (?:your|their) warps?)$/i, "$1 and $2")
@@ -116,6 +153,8 @@ export function namedSetWords(clause: string): NamedSetWords | null {
   for (const shape of SHAPES) {
     const m = shape.re.exec(said);
     if (!m) continue;
+    // A place cut inside a name ("from under a {Spaceship" of "{Spaceship, Vessel of Hope}", BT17-010) is no place.
+    if (/<[^>]*$|\{[^}]*$|≪[^≫]*$/.test(m[2])) return null;
     const rest = "rest" in shape && shape.rest ? { rest: true } : {};
     // Phrasing batch 3: "…with their skills negated for the turn/game", the span the played cards are negated for.
     const negated = shape.verb === "play" && m[3] ? { negated: m[3].toLowerCase() as "turn" | "game" } : {};
@@ -130,7 +169,8 @@ export function namedSetWords(clause: string): NamedSetWords | null {
     let measure = "";
     let adjective = "";
     // ("both with energy costs of 1", BT20-079, says no colour at all; #1208, FS02-03: "…—both with a cost of 2 or less—".)
-    const aside = new RegExp(`\\s*${DASH}\\s*(?:all|both)\\s+(?:((?:mono-)?${COLOUR})|(?=with|without|skill-less))((?:,?\\s*(?:and\\s+)?(?:${ASIDE_PART}))*)\\s*,?\\s*${DASH}\\s*$`, "i").exec(list);
+    // (Audit selectors 2: "―both Red/Blue multicolor and with an energy cost of 5―", EX23-01: a multicolour card of both.)
+    const aside = new RegExp(`\\s*${DASH}\\s*(?:all|both)\\s+(?:((?:mono-)?${COLOUR}|${COLOUR}\\/${COLOUR} multicolou?r)|(?=with|without|skill-less))((?:,?\\s*(?:and\\s+)?(?:${ASIDE_PART}))*)\\s*,?\\s*${DASH}\\s*$`, "i").exec(list);
     if (aside) {
       colour = aside[1] ? aside[1].toLowerCase() : null;
       const parts = [...aside[2].matchAll(new RegExp(ASIDE_PART, "gi"))].map((x) => x[0].toLowerCase().trim());
@@ -158,25 +198,35 @@ export function namedSetWords(clause: string): NamedSetWords | null {
       measure = ` ${plural[1].toLowerCase().replace(/energy costs/, "an energy cost")}`;
       list = list.slice(0, plural.index);
     }
+    // Audit selectors 2: a measure a slot says of itself, in the singular, before the "and" — "up to 1 yellow {Super
+    // Saiyan Blue Vegeta} **with an energy cost of 2** and up to 1 {SSB Son Goku, the Sweeper}" (BT7-031), "1 <Son Gohan:
+    // Xeno> card with an energy cost of 1 and 1 <Trunks: Xeno> card with an energy cost of 1" (BT12-138) — is that slot's
+    // alone. One the last slot alone says may be every card's or its own: refused, not guessed (as `disjoint-shape.ts`).
+    const split = listItems(list).map((x) => {
+      const mm = new RegExp(`^(.*?)\\s+(${SLOT_MEASURE})$`, "i").exec(x);
+      return mm ? { head: mm[1], own: ` ${mm[2].toLowerCase()}` } : { head: x, own: "" };
+    });
+    if (split.some((p) => p.own) && (measure || (split[split.length - 1].own && split.some((p) => !p.own)))) return null;
     // "1 <Android 14> and <Android 15> card" says "card" once, at the end.
-    const items = listItems(list);
+    const items = split.map((p) => p.head);
     // Phrasing batch 3: "Play up to 1 <Son Goku: GT> and up to 1 <Vegeta: GT> -- both mono-green, … --" (BT31-041b)
     // gives the cards no noun at all; the dashes' aside says what they are.
-    // A list of names alone — "up to 1 <Gravy> and 1 <Putine>" (EX07-11) — names one card per name likewise.
-    const noun = /\bcards?$/i.test(items[items.length - 1] ?? "") || items.every((x) => new RegExp(`^(?:up to )?(?:1 )?${NAME}$`, "i").test(x)) || (!!aside && items.every((x) => new RegExp(`${NAME}$`).test(x)));
+    // A list of names alone — "up to 1 <Gravy> and 1 <Putine>" (EX07-11) — names one card per name likewise, a colour in
+    // front of a name or not ("up to 1 yellow {Super Saiyan Blue Vegeta} …", BT7-031, audit selectors 2).
+    const noun = /\bcards?$/i.test(items[items.length - 1] ?? "") || items.every((x) => new RegExp(`^(?:up to )?(?:1 )?(?:${SLOT_COLOUR} )?(?:skill-less )?${NAME}$`, "i").test(x)) || (!!aside && items.every((x) => new RegExp(`${NAME}$`).test(x)));
     // #1208: Fusion World prints the bare name, "up to 1 <Son Goten> and up to 1 <Trunks : Youth>", with no "card".
     // Mechanism batch 2: a slot may name its card by a character name it includes — "up to 1 card with <Son Goten> in
     // its character name and 1 card with <Trunks> in its character name—both blue …—" (BT19-066).
     const including = new RegExp(`^(?:up to )?(?:1 )?(?:(?:mono-)?${COLOUR} )?cards? with ${NAME} in (?:its|their) character names?$`, "i");
     const raw = items.map((x) => ((shape.required || noun || shape.dest === "hand") && !/\bcards?$/i.test(x) && !including.test(x) ? `${x} card` : x));
-    if (raw.length < 2 || raw.some((x) => !new RegExp(`^(?:up to )?(?:1 )?(?:(?:mono-)?${COLOUR} )?${NAME} cards?$`, "i").test(x) && !including.test(x))) return null;
+    if (raw.length < 2 || raw.some((x) => !new RegExp(`^(?:up to )?(?:1 )?(?:${SLOT_COLOUR} )?(?:skill-less )?${NAME} cards?$`, "i").test(x) && !including.test(x))) return null;
     // Only the first slot says "up to 1"; every item is one named card. A colour in front of an
-    // item (BT6-012) is that item's own and wins over the one the dashes give all of them.
-    const slots = raw.map((x) => {
+    // item (BT6-012) is that item's own and wins over the one the dashes give all of them ("red or green", P-326).
+    const slots = raw.map((x, i) => {
       const body = x.replace(/^(?:up to )?(?:1 )?/i, "").replace(/ cards$/i, " card");
-      const own = new RegExp(`^((?:mono-)?${COLOUR}) `, "i").exec(body);
+      const own = new RegExp(`^(${SLOT_COLOUR}) `, "i").exec(body);
       const here = own ? own[1].toLowerCase() : colour;
-      return `${shape.required ? "1" : "up to 1"} ${here ? `${here} ` : ""}${adjective}${own ? body.slice(own[0].length) : body}${measure}`;
+      return `${shape.required ? "1" : "up to 1"} ${here ? `${here} ` : ""}${adjective}${own ? body.slice(own[0].length) : body}${split[i].own || measure}`;
     });
     // The same name twice would be one slot twice over.
     if (new Set(slots.map((x) => x.toLowerCase())).size !== slots.length) return null;
@@ -186,7 +236,12 @@ export function namedSetWords(clause: string): NamedSetWords | null {
 }
 
 /** Phrasing batch 3: one thing a "both <colour> …" aside says of every card — a measure, a keyword it lacks, or no skills. */
-const ASIDE_PART = "with (?:an? )?(?:(?:original )?(?:energy )?costs? of \\d+(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power)(?: and \\d+ power)?|without \\[[^\\]]+\\]|skill-less";
+// (Audit selectors 2: "―both red and with 15000 power or less―", BT17-010, says the bound after the word "power".)
+const ASIDE_PART = "with (?:an? )?(?:(?:original )?(?:energy )?costs? of \\d+(?: or (?:less|more))?|\\d+ power(?: or (?:less|more))?|\\d+ (?:or (?:less|more) )?power)(?: and \\d+ power)?|without \\[[^\\]]+\\]|skill-less";
+/** Audit selectors 2: one slot's own measure, said in the singular before the next slot (BT7-031, BT12-136, BT12-138). */
+const SLOT_MEASURE = "with (?:an? )?(?:original )?energy cost of \\d+(?: or (?:less|more))?|with \\d+ power(?: or (?:less|more))?";
+/** A slot's own colour: one, a mono-colour, or either of two ("up to 1 red or green <Vegeta> card", P-326). */
+const SLOT_COLOUR = `(?:mono-)?${COLOUR}(?: or (?:mono-)?${COLOUR})?`;
 
 const DASH_ANYWHERE = /[―—–]|--/;
 /** A place a "from your A and B" pair names. */
@@ -215,16 +270,32 @@ function eachOfSlots(list: string): { colour: string | null; slots: string[] } |
 /** Where in a skill's text a clause of this shape lies, for `splitClauses` to leave whole. */
 export function namedSetSpans(text: string): [number, number][] {
   const out: [number, number][] = [];
-  const start = new RegExp(`\\b(?:choose|place|add|play|send) (?:up to )?1 (?:each of )?(?:${COLOUR} )?(?:cards? with )?${NAME}`, "gi");
+  const start = new RegExp(`\\b(?:choose|place|add|play(?: or add to your hand)?|send) (?:up to )?1 (?:each of )?(?:${SLOT_COLOUR} )?(?:skill-less )?(?:cards? with )?${NAME}`, "gi");
   for (let m = start.exec(text); m; m = start.exec(text)) {
+    let bare: number | null = null;
     for (let end = m.index + 1; end <= text.length; end++) {
       // #930, EX23-11: "…to your hand, shuffle your deck if you looked through it": a plain comma
       // ends the clause too (only where the words up to it are the whole shape).
       const stops = end === text.length || ".;,".includes(text[end]) || text.startsWith(" then ", end);
-      if (!stops || !namedSetWords(text.slice(m.index, end))) continue;
-      out.push([m.index, end]);
-      start.lastIndex = end;
-      break;
+      // A bare choice may also end at an "and" that opens what is done to the pair: "…in your deck **and** play them
+      // with their non-keyword skills negated for the game" (P-326).
+      const andStop = !stops && text.startsWith(" and ", end);
+      const words = stops || andStop ? namedSetWords(text.slice(m.index, end)) : null;
+      if (andStop && words?.dest !== "none") continue;
+      // Audit selectors 2: a bare choice ("choose up to 1 <A> and 1 <B> from your deck") is kept only when the sentence
+      // does not go on to say, in this shape, what is done with the pair ("…from your deck, play them", P-156).
+      if (words && words.dest !== "none") {
+        bare = null;
+        out.push([m.index, end]);
+        start.lastIndex = end;
+        break;
+      }
+      if (words) bare ??= end;
+      if (bare !== null && (end === text.length || text[end] === "." || text[end] === ";")) break;
+    }
+    if (bare !== null) {
+      out.push([m.index, bare]);
+      start.lastIndex = bare;
     }
   }
   return out;
