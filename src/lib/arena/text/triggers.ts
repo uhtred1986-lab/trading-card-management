@@ -1500,7 +1500,7 @@ const WATCHED_MOMENT: Record<WatchedEvent, Partial<Record<"you" | "opponent" | "
   playedFromWarp: { you: ["yourCardPlayedFromWarp"] },
   playedFromEnergy: { you: ["yourCardPlayedFromEnergy"] },
   playedFromLife: { you: ["yourCardPlayedFromLife"] },
-  restedByYou: { opponent: ["restedTheirsBySkill"] },
+  restedByYou: { opponent: ["opponentCardRestedByYourSkill"] },
   restedBySkill: { you: ["yourBattleCardRestedBySkill"], opponent: ["opponentBattleCardRestedBySkill"] },
   evolveFromHand: { you: ["evolveActivated"] },
   exEvolveFromHand: { you: ["yourCardExEvolveFromHand"] },
@@ -1546,7 +1546,8 @@ export function watchedMomentOf(text: string): { triggers: Trigger[]; said: stri
     if ((area === "their" && side !== "opponent") || (area === "your" && side !== "you")) side = null;
     // A Unison leaves for the Drop from its Unison Area (Q&A BT17-059, BT17-069): only a Unison's.
     if (event === "unisonToDrop" && !/\bunison(?: cards?)?$|\bunison cards? with\b/.test(said)) return null;
-    // A switch by your skill of "an opponent's card" is any of theirs (`restedTheirsBySkill`, energy included); one by any
+    // A switch by your skill of "an opponent's card" is any of theirs on the table, their Leader too
+    // (`opponentCardRestedByYourSkill`, R-208); one by any
     // skill is read only of a Battle Card (20-1-2: one in a Battle Area), which is all its moment asks about.
     if (event === "restedByYou" && !/^cards?$/.test(said)) return null;
     if (event === "restedBySkill" && !/\bbattle cards?$/.test(said)) return null;
@@ -1556,8 +1557,17 @@ export function watchedMomentOf(text: string): { triggers: Trigger[]; said: stri
     // a means or a time ("…a Battle Card using a non-keyword skill", BT11-124; "…using [Arrival]", BT15-033): no event
     // here carries it, so the moment stays unread rather than answering every play.
     if (!side || !said || /\b(?:this card|it|is|are|was|were|or (?:your|a|an)|and|using|by|on your|during|until|from)\b|\bother than (?!\{)|\bexcept\b/.test(said)) return null;
+    // Review of audit triggers 2: where the moment's card may stand outside the Battle Area — an attacker or the card
+    // attacked may be a Leader (8-1-3) — "in your Battle Area" is a condition as well as whose card it is: "When a
+    // ≪Universe 7≫ <Son Goku> card in your Battle Area is attacked" (SD21-03) is not your U7 <Son Goku> Leader attacked,
+    // nor is "a blue <Beerus> card in your Battle Area attacks and KOs" (BT16-039) your blue <Beerus> Leader's attack.
+    // A card in the Battle Area that attacks or is attacked is one that is no Leader.
+    if (inYours && (event === "attacked" || event === "attacks" || event === "kosByAttack") && !/\bbattle cards?$/.test(said)) {
+      if (!/\bcards?$/.test(said)) return null;
+      said = said.replace(/\b(cards?)$/, "non-leader $1");
+    }
     // A Leader attacked has its own moment and readers (`yourLeaderAttacked`, `attackedLeaderDescription`; 8-1-3).
-    const triggers = event === "attacked" && /\bleader(?: cards?)?$/.test(said) ? undefined : WATCHED_MOMENT[event][side];
+    const triggers = event === "attacked" && /(?<!non-)\bleader(?: cards?)?$/.test(said) ? undefined : WATCHED_MOMENT[event][side];
     return triggers?.length ? { triggers, said: masked.unmask(said) } : null;
   }
   return null;

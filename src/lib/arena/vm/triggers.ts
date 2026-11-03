@@ -415,7 +415,13 @@ const BATCH1_GATED = new Set<string>(["droppedFromHandByOpponent", "activeBySkil
   "opponentCardKoedByYourSkill", "yourCardKoedByOpponent", "yourCardKosByAttack", "yourCardAttacked", "yourUnisonToDrop",
   "yourCardLeftBattle", "yourCardPlayedFromWarp", "yourCardPlayedFromEnergy", "yourCardPlayedFromLife",
   "yourBattleCardRestedBySkill", "opponentBattleCardRestedBySkill", "yourCardExEvolveFromHand", "swapActivated",
-  "opponentPlayed", "yourCardToZEnergy", "yourCardRemovedByOpponent"]);
+  "opponentPlayed", "yourCardToZEnergy", "yourCardRemovedByOpponent",
+  // Review of audit triggers 2: the older watched moments the grammar now also names, whose description was likewise
+  // asked only as the Auto resolved — so "[Once per turn] When one of your yellow <Son Goku> cards with an energy cost
+  // of 2 is played" (BT21-115) was spent by the first card of any kind you played, and "{1}: When an opponent's Battle
+  // Card with an energy cost of 4 or less attacks" (DB2-148) asked its price for a Leader's attack.
+  "youPlayed", "eitherCardPlayed", "yourCardPlayedFromHand", "yourCardPlayedFromDrop", "yourCardAttacks", "opponentAttacks",
+  "evolveActivated"]);
 
 /** A condition about the moment's subject alone: `count(subject …)`, or an any/all/not of such. */
 function aboutTheSubject(cond: Cond): boolean {
@@ -562,13 +568,12 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // Phrasing batch 7: the same for "…is placed from your Battle Area in your Drop" (BT20-054b, `yourCardBattleToDrop`,
       // the card as it left) and "…is KO'd by your red card's attack or skill" (BT28-001b, `yourCardKos`, the card that KO'd).
       // Phrasing batch 8: and "…by attacking with a blue card" (BT30-017, `yourCardDealtBattleDamage`, the attacker).
+      // Review of audit triggers 2: the description is found anywhere in the leading chain of lone IFs, behind a condition
+      // the price states ("If it's your opponent's turn: When your blue <Janemba> card … is … KO'd", BT22-032; "If your
+      // Leader Card is red: When a <Bulma> card … is … KO'd", BT8-111), as for a Leader attacked below.
       if (sk.kind === "auto" && (match.trigger === "yourCardKoed" || match.trigger === "opponentCardKoed" || match.trigger === "yourCardBattleToDrop" || match.trigger === "yourCardKos" || match.trigger === "yourCardDealtBattleDamage") && match.subject && state.cards[match.subject]) {
-        const ops = showing.scripts.bySkill[sk.index]?.ops;
-        const first = ops?.[0];
-        if (ops?.length === 1 && first?.op === "if" && !first.else && first.cond.kind === "count" && first.cond.sel.special === "subject" && first.cond.sel.filter
-          && (first.cond.atLeast ?? 1) <= 1 && !first.cond.atMost) {
-          if (!predicateOf(first.cond.sel.filter, game)(subjectInfo ?? attrsNow(ctx, game, state, match.subject))) continue;
-        }
+        const filter = leadingSubjectFilter(showing.scripts.bySkill[sk.index]?.ops);
+        if (filter && !predicateOf(filter, game)(subjectInfo ?? attrsNow(ctx, game, state, match.subject))) continue;
       }
       // "When you remove a marker from one of your **red** Unison Cards using a
       // [Spirit Boost] skill" (SD15-05, #1169, 22-43-3): a payment from a

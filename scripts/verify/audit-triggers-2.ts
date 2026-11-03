@@ -13,10 +13,14 @@
  * C.  R-204 (owner, 3 Nov 2026): "choose that card", "choose it", "choose up to 1 of those Battle Cards" are choices
  *     (`choice`), the choices the compiler writes for wording that prints none are not.
  * D.  The VM, both seats: a watched removal by any skill, an opponent's card KO'd by your skill, a Unison placed in the
- *     Drop from the Unison Area (and not from the hand), and [Barrier] against "choose that card".
+ *     Drop from the Unison Area (and not from the hand), and [Barrier] against "choose that card". From the review of
+ *     this round: a description asked before pending, so a [Once per turn] is not spent on another card (D5, D7); "in
+ *     your Battle Area" kept where the card could be a Leader (D6); a Leader rested by your skill is "an opponent's card"
+ *     (D8, R-208).
  *
  * Rulings: R-204 (owner), R-135 (owner) for "removed … by an opponent's skill or KO'd", R-207 (pending, best-guess) for "attacks
- * and KOs" — the battle's KO only.
+ * and KOs" — the battle's KO only, R-208 (pending, best-guess) for "an opponent's card is switched to Rest Mode by one of
+ * your skills" — any card of theirs on the table.
  */
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
@@ -91,7 +95,11 @@ const A: [string, string, string[], ((rec: Rec) => void)?][] = [
   // attacks and KOs (8-4-6-2), is attacked, attacks (8-1-3)
   ["[auto][limit 1]{g}, if your Leader Card is green and this card is in your Combo Area: When one of your green Battle Cards attacks and KOs an opponent's Battle Card, play this card from your Combo Area.", "BT16-050", ["yourCardKosByAttack"],
     (rec) => assert.deepEqual(subject(rec)?.sel.filter?.colors, ["Green"], "BT16-050: the attacker is green")],
-  ["[Auto] When a ≪Universe 7≫ <Son Goku> card in your Battle Area is attacked, negate the attack, and negate this skill for the game.", "SD21-03", ["yourCardAttacked"]],
+  // Review: "in your Battle Area" is a condition where the card could be a Leader — no U7 <Son Goku> Leader, no <Beerus> Leader.
+  ["[Auto] When a ≪Universe 7≫ <Son Goku> card in your Battle Area is attacked, negate the attack, and negate this skill for the game.", "SD21-03", ["yourCardAttacked"],
+    (rec) => assert.deepEqual([lower(subject(rec)?.sel.filter?.characters), subject(rec)?.sel.filter?.notType], [["son goku"], "LEADER"], "SD21-03: a U7 <Son Goku> card that is no Leader")],
+  ["[Auto][Limit 1] If this card is in your Combo Area: When a blue <Beerus> card in your Battle Area attacks and KOs an opponent's Battle Card, draw 1 card.", "BT16-039", ["yourCardKosByAttack"],
+    (rec) => assert.equal(subject(rec)?.sel.filter?.notType, "LEADER", "BT16-039: the attacker is no Leader")],
   ["[auto][once per turn] When a player attacks, add a marker to this card.", "BT17-033", ["opponentAttacks", "yourCardAttacks"]],
   ["[auto]{1}: When an opponent's Battle Card with an energy cost of 4 or less attacks, negate the attack, then negate this skill for the turn.", "DB2-148", ["opponentAttacks"],
     (rec) => assert.equal(subject(rec)?.sel.filter?.costMax, 4, "DB2-148: an energy cost of 4 or less")],
@@ -120,7 +128,9 @@ const A: [string, string, string[], ((rec: Rec) => void)?][] = [
   ["[Auto] When this card or one of your opponent's cards attacks, draw 1 card.", "BT11-012", ["attacks", "opponentAttacks"]],
   ["[Auto] When this card or your opponent attacks, draw 1 card.", "BT21-149", ["attacks", "opponentAttacks"]],
   // switched to Rest Mode (1-10)
-  ["[auto][limit 1]{1}, if your life is at 4 or less: When an opponent's card is switched to Rest Mode by one of your skills, play this card from your hand.", "BT19-148", ["restedTheirsBySkill"]],
+  // Review: any card of theirs on the table, their Leader too (R-208, pending) — not XD1-01's "Battle Card or energy".
+  ["[auto][limit 1]{1}, if your life is at 4 or less: When an opponent's card is switched to Rest Mode by one of your skills, play this card from your hand.", "BT19-148", ["opponentCardRestedByYourSkill"]],
+  ["[auto][once per turn] When one of your opponent's cards is switched to Rest Mode by one of your skills, this card gains [Blocker] for the turn.", "BT12-105", ["opponentCardRestedByYourSkill"]],
   ["[Auto] When one of your yellow ≪Android≫ Battle Cards is switched to Rest Mode by a skill, draw 1 card.", "BT13-092", ["yourBattleCardRestedBySkill"]],
   ["[Auto] If you have 5 or more energy: When one of your opponent's Battle Cards is switched to Rest Mode by a skill, you may play this card from your hand.", "DB1-075", ["opponentBattleCardRestedBySkill"]],
   // keyword moves (22-5, 22-22, 22-30)
@@ -198,6 +208,17 @@ const defs: Record<string, CardDef> = {
   AT2_DISCARD: card("AT2_DISCARD", { skill: "[Activate: Main] Choose 1 card in your hand and discard it." }),
   AT2_W_UNISON: card("AT2_W_UNISON", { skill: `[Auto] When one of your green Unison Cards is placed in your Drop Area, ${DRAW}` }),
   AT2_BARRIER: card("AT2_BARRIER", { power: 20000, skill: "[Barrier]" }),
+  // Review: a description asked before pending, and "in your Battle Area" kept.
+  AT2_GOKU2: card("AT2_GOKU2", { colors: ["Yellow"], characters: ["Son Goku"], energyCost: 2 }),
+  AT2_GOKU3: card("AT2_GOKU3", { colors: ["Yellow"], characters: ["Son Goku"], energyCost: 3 }),
+  AT2_PLAY: card("AT2_PLAY", { skill: "[Activate: Main] Choose up to 1 card with an energy cost of 3 or less in your hand and play it." }),
+  AT2_W_PLAYED: card("AT2_W_PLAYED", { skill: `[Auto][Once per turn] When one of your yellow <Son Goku> cards with an energy cost of 2 is played, ${DRAW}` }),
+  AT2_U7: card("AT2_U7", { traits: ["Universe 7"], characters: ["Son Goku"], power: 5000 }),
+  AT2_L_U7: card("AT2_L_U7", { type: "LEADER", traits: ["Universe 7"], characters: ["Son Goku"], energyCost: null, comboCost: null, comboPower: null }),
+  AT2_W_ATTACKED: card("AT2_W_ATTACKED", { skill: `[Auto] When a ≪Universe 7≫ <Son Goku> card in your Battle Area is attacked, ${DRAW}` }),
+  AT2_W_OPP_ATTACKS: card("AT2_W_OPP_ATTACKS", { skill: `[Auto][Once per turn] When an opponent's Battle Card with an energy cost of 4 or less attacks, ${DRAW}` }),
+  AT2_REST_THEIRS: card("AT2_REST_THEIRS", { skill: "[Activate: Main] Choose up to 1 of your opponent's cards and switch it to Rest Mode." }),
+  AT2_W_RESTED: card("AT2_W_RESTED", { skill: `[Auto] When an opponent's card is switched to Rest Mode by one of your skills, ${DRAW}` }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
@@ -340,6 +361,78 @@ for (const seat of ["p1", "p2"] as const) {
     assert.deepEqual(resolveSelector(ctx, game, s, frame(barrier), { special: "subject", choice: true, ignoreBarrier: true }), [barrier], `${seat}: D4: …unless ignoring [Barrier]`);
     assert.deepEqual(resolveSelector(ctx, game, s, frame(barrier), { special: "subject" }), [barrier], `${seat}: D4: the moment's card named, not chosen, is still that card`);
     assert.deepEqual(resolveSelector(ctx, game, s, frame(plainCard), { special: "subject", choice: true }), [plainCard], `${seat}: D4: a card without [Barrier] is chosen`);
+    cases += 4;
+  }
+
+  // D5. Review: a watched card's description is a trigger condition (9-6-2), asked before pending — a card of another
+  // kind played first does not spend the [Once per turn] (`youPlayed`, BT21-115).
+  {
+    let s = fresh(seat, seed(8));
+    const other3 = stage(s, seat, "AT2_GOKU3", "hand");
+    const goku2 = stage(s, seat, "AT2_GOKU2", "hand");
+    const first = stage(s, seat, "AT2_PLAY", "battle");
+    stage(s, seat, "AT2_W_PLAYED", "battle");
+    s = activate(s, first, [other3]);
+    assert.ok(s.sides[seat].zones.battle.includes(other3), `${seat}: D5: the cost-3 <Son Goku> played`);
+    assert.equal(hand(s, seat), 1, `${seat}: D5: …and nothing drawn`);
+    const second = stage(s, seat, "AT2_PLAY", "battle");
+    s = activate(s, second, [goku2]);
+    assert.ok(s.sides[seat].zones.battle.includes(goku2), `${seat}: D5: the cost-2 <Son Goku> played`);
+    assert.equal(hand(s, seat), 1, `${seat}: D5: …and the [Once per turn] draw is still there for it`);
+    cases += 2;
+  }
+
+  // D6. Review: "a ≪Universe 7≫ <Son Goku> card in your Battle Area is attacked" (SD21-03) — not that Leader attacked.
+  {
+    let s = fresh(seat, seed(9));
+    s.cards[s.sides[foe].zones.leader[0]].cardId = "AT2_L_U7";
+    stage(s, foe, "AT2_W_ATTACKED", "battle");
+    let deck = s.sides[foe].zones.deck.length;
+    s = settle(take(s, { type: "attack", player: seat, attacker: s.sides[seat].zones.leader[0], target: s.sides[foe].zones.leader[0] }));
+    assert.equal(deck - s.sides[foe].zones.deck.length, 0, `${seat}: D6: the U7 <Son Goku> Leader attacked is no trigger`);
+    s = fresh(seat, seed(10));
+    const goku = stage(s, foe, "AT2_U7", "battle");
+    s.cards[goku].mode = "rest";
+    stage(s, foe, "AT2_W_ATTACKED", "battle");
+    deck = s.sides[foe].zones.deck.length;
+    s = settle(take(s, { type: "attack", player: seat, attacker: s.sides[seat].zones.leader[0], target: goku }));
+    assert.equal(deck - s.sides[foe].zones.deck.length, 1, `${seat}: D6: the U7 <Son Goku> Battle Card attacked is (yourCardAttacked)`);
+    cases += 2;
+  }
+
+  // D7. Review: "[Once per turn] When an opponent's Battle Card with an energy cost of 4 or less attacks" (DB2-148's
+  // wording, `opponentAttacks`): their Leader's attack is no trigger and spends nothing; their cost-1 Battle Card's is.
+  {
+    let s = fresh(seat, seed(11));
+    stage(s, foe, "AT2_W_OPP_ATTACKS", "battle");
+    const attacker = stage(s, seat, "AT2_PLAIN", "battle");
+    const deck = s.sides[foe].zones.deck.length;
+    s = settle(take(s, { type: "attack", player: seat, attacker: s.sides[seat].zones.leader[0], target: s.sides[foe].zones.leader[0] }));
+    assert.equal(deck - s.sides[foe].zones.deck.length, 0, `${seat}: D7: a Leader's attack is no trigger`);
+    s = settle(take(s, { type: "attack", player: seat, attacker, target: s.sides[foe].zones.leader[0] }));
+    assert.equal(deck - s.sides[foe].zones.deck.length, 1, `${seat}: D7: …and the Battle Card's attack still draws`);
+    cases += 2;
+  }
+
+  // D8. Review (R-208, pending): "When an opponent's card is switched to Rest Mode by one of your skills" answers their
+  // Leader rested by "choose up to 1 of your opponent's cards" (`opponentCardRestedByYourSkill`); their own skill's switch does not.
+  {
+    let s = fresh(seat, seed(12));
+    const me = stage(s, seat, "AT2_REST_THEIRS", "battle");
+    stage(s, seat, "AT2_W_RESTED", "battle");
+    const leader = s.sides[foe].zones.leader[0];
+    s.cards[leader].mode = "active";
+    s = activate(s, me, [leader]);
+    assert.equal(s.cards[leader].mode, "rest", `${seat}: D8: their Leader rested`);
+    assert.equal(hand(s, seat), 1, `${seat}: D8: …and the watcher drew 1`);
+    // The watcher's own card rested by its opponent's skill is neither "an opponent's card" nor "one of your skills".
+    s = fresh(seat, seed(13));
+    const theirs = stage(s, seat, "AT2_REST_THEIRS", "battle");
+    stage(s, foe, "AT2_W_RESTED", "battle");
+    const own = stage(s, foe, "AT2_PLAIN", "battle");
+    s = activate(s, theirs, [own]);
+    assert.equal(s.cards[own].mode, "rest", `${seat}: D8: the watcher's own Battle Card rested`);
+    assert.equal(hand(s, foe), 0, `${seat}: D8: …and its watcher drew nothing`);
     cases += 4;
   }
 }

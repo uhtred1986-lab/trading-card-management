@@ -238,6 +238,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   yourCardPlayedFromLife: "when one of your cards is played from your Life Area",
   yourBattleCardRestedBySkill: "when one of your Battle Cards is switched to Rest Mode by a skill",
   opponentBattleCardRestedBySkill: "when one of your opponent's Battle Cards is switched to Rest Mode by a skill",
+  opponentCardRestedByYourSkill: "when one of your opponent's cards is switched to Rest Mode by one of your skills",
   yourCardExEvolveFromHand: "when one of your cards activates [EX-Evolve] from your hand",
   swapActivated: "when you activate a [Swap] skill",
   aegisActivated: "when this card activates [Aegis]",

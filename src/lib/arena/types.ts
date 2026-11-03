@@ -1223,6 +1223,12 @@ export type Trigger =
   | "yourBattleCardRestedBySkill"
   /** "When one of your opponent's Battle Cards is switched to Rest Mode by a skill" (DB1-075). */
   | "opponentBattleCardRestedBySkill"
+  /**
+   * "When an opponent's card is switched to Rest Mode by one of your skills" (BT10-139, BT19-148): any card of theirs on
+   * the table — Leader, Battle Card, Unison or energy (R-208, pending). `restedTheirsBySkill` is the narrower "Battle
+   * Card or energy" (XD1-01).
+   */
+  | "opponentCardRestedByYourSkill"
   /** "When a yellow Battle Card activates an [EX-Evolve] skill from your hand" (BT16-073): the evolving card is the subject. */
   | "yourCardExEvolveFromHand"
   /** "When you activate [Swap]", "When one of your red Battle Cards activates a [Swap] skill" (BT11-004): the card returned is the subject. */

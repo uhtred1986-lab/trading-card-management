@@ -1243,8 +1243,8 @@ DEFINE TRIGGER yourCardPlayedFromLife
 -- §1-10 — a Battle Card (20-1-2: in a Battle Area) switched to Rest Mode by any
 -- skill, watched: "When one of your yellow ≪Android≫ Battle Cards is switched
 -- to Rest Mode by a skill" (BT13-092), "When one of your opponent's Battle Cards
--- is switched to Rest Mode by a skill" (DB1-075). `restedTheirsBySkill` is the
--- switch of any card of theirs by your skill.
+-- is switched to Rest Mode by a skill" (DB1-075). `opponentCardRestedByYourSkill`
+-- below is the switch of any card of theirs by your skill.
 DEFINE TRIGGER yourBattleCardRestedBySkill
   ON modeSwitched(by: skill, in: battle, mode: rest, watcher: controller)
   BIND "subject"
@@ -1254,6 +1254,18 @@ DEFINE TRIGGER opponentBattleCardRestedBySkill
   ON modeSwitched(by: skill, in: battle, mode: rest, watcher: opponent)
   BIND "subject"
   text: "when one of your opponent's Battle Cards is switched to Rest Mode by a skill"
+
+-- §1-10 — "When an opponent's card is switched to Rest Mode by one of your
+-- skills" (BT10-139, BT19-148, EX06-22), "When one of your opponent's cards is
+-- …" (BT12-105, DB2-108), "…by your skill" (BT8-075): any card of theirs on the
+-- table — their Leader too, which "your opponent's cards" chooses (20-1-6), a
+-- Unison, and energy (R-208, pending: the legacy engine's reading of the
+-- sentence named energy). `restedTheirsBySkill` keeps XD1-01's narrower
+-- "an opponent's Battle Card or energy".
+DEFINE TRIGGER opponentCardRestedByYourSkill
+  ON modeSwitched(by: skill, byOpponent: true, in: [leader, battle, unison, energy], mode: rest, watcher: opponent)
+  BIND "subject"
+  text: "when one of your opponent's cards is switched to Rest Mode by one of your skills"
 
 -- §22-5 — "When a yellow Battle Card activates an [EX-Evolve] skill from your
 -- hand" (BT16-073): the move's own moment, from the hand, the evolving card the
