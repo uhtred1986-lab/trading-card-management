@@ -568,6 +568,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         offCard: "mechanism batch 3: \"play them to their owners' Battle Areas\" (BT13-096, EX21-15) - each card lands in its own owner's Battle Area rather than its master's",
       },
       {
+        name: "toOpponent",
+        type: "boolean",
+        offCard: "audit selectors 2: \"play up to 1 red ≪Saiyan≫ card with 500 power from your deck **to your opponent's Battle Area**\" (BT13-028, BT13-029, BT22-006) - the card lands in the other player's Battle Area, under their control, its owner unchanged",
+      },
+      {
         name: "ignoreOwnPermanent",
         type: "boolean",
         offCard: "mechanism batch 4: \"play … from your Drop, ignoring its [permanent] skill\" (EX21-31; owner's ruling of 27 Oct 2026) - a prohibition the played card's own [Permanent] puts on playing it does not refuse this play; every other card's rule still does",
@@ -586,6 +591,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         // "…on top of this card with its skills negated for the game" (BT31-088/089, BT10-073): where it lands and what it arrives with.
         + (op.onto ? ` on top of ${describeRef(op.onto)}` : "")
         + (op.toOwners ? " in their owners' Battle Areas" : "")
+        + (op.toOpponent ? " in your opponent's Battle Area" : "")
         + (op.ignoreOwnPermanent ? ", ignoring its own [Permanent] skill" : "")
         + (op.negated ? ` with its skills negated${op.negated === "game" ? " for the game" : " for the turn"}` : "");
       // "…with a marker on it" (13-2-3, #980): what the card arrives with.
@@ -2969,7 +2975,8 @@ export function describeSelector(sel: Selector, all = "all"): string {
   // of them to pick.
   const count =
     sel.take != null
-      ? `the ${sel.fromEnd ? "bottom" : "top"} ${sel.take}`
+      ? // (Audit selectors 2: "up to the top 2" — how many is the master's, which cards is not.)
+        `${sel.upTo ? "up to " : ""}the ${sel.fromEnd ? "bottom" : "top"} ${sel.take}`
       : sel.count == null
         ? all
         : sel.count === 99 && sel.minCount !== undefined && sel.minCount < 99

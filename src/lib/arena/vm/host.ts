@@ -729,7 +729,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         // BT20-125 (#927): its own [Permanent] has a [Union] card played from the hand
         // in the opponent's Battle Area.
         // Mechanism batch 3: "play them to their owners' Battle Areas" (BT13-096, EX21-15) - each into its owner's.
-        const side = opts.toOwners && !union && !opts.onto ? state.cards[id].owner : union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
+        // Audit selectors 2: "…from your deck to your opponent's Battle Area" (BT13-028, BT22-006) - the other player's side.
+        const side = opts.toOpponent && !union && !opts.onto ? otherPlayer(opts.player) : opts.toOwners && !union && !opts.onto ? state.cards[id].owner : union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
         const played = resolvePlay(ctx, game, state, ev, id, opts.player, {
           mode: r?.rest ? "rest" : energyBase ? "active" : opts.mode,
           onto: opts.onto,

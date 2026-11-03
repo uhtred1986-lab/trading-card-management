@@ -233,7 +233,7 @@ function refFor(clause: string, c: Ctx): Ref | null {
   //   and "you can activate **this card's** [Activate: Battle]" are about this
   //   one — which is the same head/tail distinction the pronoun test below
   //   makes, for the same reason.
-  const mentions = named.replace(/\b(?:other than|except for|besides) (?:copies of )?this card\b/gi, " ");
+  const mentions = named.replace(/\b(?:other than|except for|besides|not) (?:a copy of |copies of )?this card\b/gi, " ");
   // "The card this card attacked" (BT19-035b, #1005): the pronoun is the
   // subject of a relative clause, and the phrase names the other end of the
   // battle. The mention test below took it for "this card".
@@ -438,7 +438,7 @@ function refsFor(phrase: string, c: Ctx): Ref[] | null {
  */
 function withChoice(ref: Ref, clause: string, c: Ctx, act: (target: Ref) => Op): Op[] {
   // Phrasing batch 10: "place **any number of** red Extras from your Drop under that card" (P-724) is a choice too.
-  if ("sel" in ref && !ref.sel.special && ref.sel.take == null && ref.sel.count != null && (ref.sel.count < 99 || ref.sel.upTo)) {
+  if ("sel" in ref && !ref.sel.special && (ref.sel.take == null || ref.sel.upTo) && ref.sel.count != null && (ref.sel.count < 99 || ref.sel.upTo)) {
     const v = `c${c.n++}`;
     return [{ op: "choose", sel: ref.sel, as: v, reason: clause }, act({ var: v })];
   }
@@ -643,7 +643,9 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
     // Owner ruling 26 Oct 2026 (A9): a removal with no cause named answers
     // every removal a skill makes and every KO, the battle's included
     // (`skillOrKo`, the reading "…by a skill or KO'd" has).
-    const by = verb === "leave" ? undefined : opener[6] ? ("skillOrKo" as const) : opener[4] ? ("skillOrKoBySkill" as const) : ("skillOrKo" as const);
+    // Audit selectors 2: "would leave the Battle Area **by a skill**" (BT25-014) names the cause too — a skill's removal
+    // or KO, never the battle's; only a bare "would leave" covers every cause.
+    const by = verb === "leave" ? (opener[4] ? ("skillOrKoBySkill" as const) : undefined) : opener[6] ? ("skillOrKo" as const) : opener[4] ? ("skillOrKoBySkill" as const) : ("skillOrKo" as const);
     // The cause was named and it was not one of the player's own skills, so
     // it is the opponent's — the one distinction `by` alone cannot draw.
     // "…by your skill", "…by one of your skills": the card's own controller's.
@@ -2062,6 +2064,15 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       ];
     }
     const sel = parseTarget(m[1]);
+    // Audit selectors 2: "Reveal **up to 3** cards from the top of your deck and place them in your Drop" (EX23-32): how
+    // many is the master's (`take` with `upTo`, asked by the choice), then the top that many are revealed.
+    if (sel && sel.take != null && sel.upTo && !sel.special && !sel.fromVar) {
+      const v = `c${c.n++}`;
+      return [
+        { op: "choose", sel, as: v, reason: clause },
+        { op: "reveal", sel: { fromVar: v }, as: "revealed" },
+      ];
+    }
     if (sel) return [{ op: "reveal", sel, as: "revealed" }];
     // "You may reveal **it**" (9-10, BT10-031/SD18-01): a bare pronoun is not
     // a description `parseTarget` reads, but it is exactly what `refFor`
@@ -4116,7 +4127,12 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // into your own. Left unread (ground rule 5).
     // Prohibition batch 6: "…play the Unison Card under this card **in your
     // opponent's Unison Area**" (BT15-129) is the same gap for a Unison.
-    if (/\b(?:in|into) (?:your|their|an|the) opponent'?s (?:battle|unison) areas?\b/.test(m[1])) return null;
+    // Audit selectors 2: the Battle Area is said now (`toOpponent`) — "play up to 1 red ≪Saiyan≫ card with 500 power from
+    // your deck **to your opponent's Battle Area**" (BT13-028, BT13-029, BT22-006), "…play it in your opponent's Battle
+    // Area" (BT15-118, BT18-087). Read without it, the card was played into your own. The Unison Area stays unread.
+    const toOpponent = /\b(?:to|in|into) (?:your|their|an|the) opponent'?s battle area\b/.test(m[1]);
+    if (toOpponent) m[1] = m[1].replace(/\s*\b(?:to|in|into) (?:your|their|an|the) opponent'?s battle area\b/, "");
+    if (/\b(?:in|into|to) (?:your|their|an|the) opponent'?s (?:battle|unison) areas?\b/.test(m[1])) return null;
     const mode = m[2] as "rest" | "active" | undefined;
     // 9-1-5: "played … with its skills negated", which the sets print with and
     // without the article before "game". Phrasing batch 4: "…with its **non-keyword** skills negated" is the
@@ -4162,7 +4178,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // {Name}" and the permissions ("you may activate {Name} from your hand
     // without paying its energy cost") are other things.
     const activating = /^activate\b/.test(tp) && /^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from (?!.*\bwithout paying\b).+)?$/.test(m[1]);
-    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...arrivesWith } as const;
+    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...(toOpponent ? { toOpponent: true as const } : {}), ...arrivesWith } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;

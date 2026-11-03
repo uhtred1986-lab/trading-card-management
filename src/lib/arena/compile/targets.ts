@@ -479,6 +479,11 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // Audit selectors 2: the offer is not an owner — "**you may** choose 1 ≪Villainous≫ card and place it in its owner's
   // Drop" (P-435) names no one's cards, as the same words without the offer do (R-205).
   if (/^\s*(?:you may|you can) choose\b/i.test(phrase)) return parseTarget(phrase.replace(/^\s*(?:you may|you can) /i, ""), looked, pool);
+  // Audit selectors 2: "…Battle Cards with an energy cost **less than or equal to the number of cards in their hand**"
+  // (P-300, BT15-145, BT22-127, BT20-064, BT14-140, BT17-147, BT17-149): a cost bound counted off the board, which no
+  // filter field holds (the energy-count bounds, `costAtMostEnergy`…, count only energy). The count's area was read as
+  // where the card is — a Battle Card in the opponent's hand, in your Z-Deck, in your Drop. Unread until it is taught.
+  if (/\b(?:energy|combo) costs? (?:that is |which is )?(?:less|greater|lower|higher|more|fewer|equal)[a-z ]* (?:than|to)(?: or equal to)? the (?:number|total|amount) of\b/i.test(phrase)) return null;
   // "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
   // deck flags 26 Oct 2026): the words were read as nothing, so the player
   // picked the cards. The official Q&A: chosen "without player involvement".
@@ -1179,9 +1184,12 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   if (end) {
     take = end[2] ? Number(end[2]) : 1;
     if (end[1] === "bottom") fromEnd = true;
-  } else if (!upTo && area === "deck" && !fromVar) {
+  } else if (area === "deck" && !fromVar) {
     // "Add 1 card from the top of your deck to your energy" (FS03-16): the same position, said with the number first.
-    const from = /\b(\d+) cards? from the top of (?:your|their|your opponent's) deck\b/.exec(t);
+    // Audit selectors 2: "add **up to** 1 card from the top of your deck to your energy" (BT30-020, EX08-04, P-537…) is
+    // the same position too — how many is the master's, which cards is not (the VM asks how many, `take` with `upTo`).
+    // ("top fo your deck", BT27-032, is the catalog's typo of it.)
+    const from = /\b(\d+) cards? from the top (?:of|fo) (?:your|their|your opponent's) deck\b/.exec(t);
     if (from) take = Number(from[1]);
   }
 

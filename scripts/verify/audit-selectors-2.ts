@@ -13,6 +13,11 @@
  * C.  The opponent's hand unseen (R-253): a choice of it with no look before is blind (BT13-146, BT10-086, BT3-063).
  * D.  No owner (R-254): a bare name or trait is either player's (P-435, BT16-017); the card switched into your seat in a
  *     battle is yours (BT31-085); a list whose first card lost its place is refused.
+ * E.  "Up to N cards from the top of your deck" (R-255) is the top that many, the master choosing only how many
+ *     (EX08-04, BT30-020, BT27-032, EX23-32, P-537) — it was a search of the whole deck.
+ * F.  "…to your opponent's Battle Area" (`toOpponent`, BT13-028, BT13-029, BT20-123); "would leave the Battle Area by a
+ *     skill" keeps its cause (BT25-014).
+ * G.  Honest gaps: a cost bound counted off the board (P-300, BT15-145, BT22-127), "not a copy of this card" (BT20-124).
  *
  * Proved here: the records (nothing unread where the line is whole, the stored-row JSON round trip, the rules
  * language's print and reparse), and in the VM where an engine path moved (A, B, C).
@@ -226,6 +231,59 @@ for (const [text, what, side] of [
   records++;
 }
 
+// ── E. "up to N cards from the top of your deck" (R-255) ─────────────────────
+for (const [text, what, n] of [
+  ["[auto] At the end of your turn, place up to 2 cards from the top of your deck in your energy, then negate this skill for the duration of the game.", "EX08-04", 2],
+  ["[auto] When this card is removed from a Battle Area by an opponent's skill or KO'd, add up to 1 card from the top of your deck to your energy.", "BT30-020", 1],
+  ["[Auto] If your Leader's back side is {Gamma 1 & Gamma 2, Justice}: When this card in your energy is placed into its owner's Drop by the skill of a blue ≪Red Ribbon Army≫ card in any area, add up to 1 card from the top fo your deck to your energy in Rest Mode.", "BT27-032", 1],
+  ["[activate: main][once per turn] Reveal up to 3 cards from the top of your deck and place them in your Drop.", "EX23-32", 3],
+  ["[Auto] When this card is played from your hand, choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], place it at the bottom of their deck, then choose up to 1 of your blue <Kale> Leaders and place up to 2 cards from the top of your deck under it.", "P-537", 2],
+] as const) {
+  const rec = record(text, what);
+  const top = chooses(rec).find((p) => p.sel.area === "deck");
+  assert.ok(top && top.sel.take === n && top.sel.upTo && !top.sel.filter, `E: ${what} — up to the top ${n}, not a search (${rec.reads})`);
+  assert.match(rec.reads, new RegExp(`up to the top ${n}`), `E: ${what} — said so`);
+  records++;
+}
+
+// ── F. "to your opponent's Battle Area" ──────────────────────────────────────
+for (const [text, what] of [
+  ["[auto]{r}, if your Leader Card is a <King Vegeta: Br> card: At the start of your opponent's turn, play up to 1 red ≪Saiyan≫ card with 500 power from your deck to your opponent's Battle Area, then shuffle your deck.", "BT13-028"],
+  ["[Activate: Main] If your Leader Card is a red ≪Saiyan≫-only card: Play up to 1 red ≪Saiyan≫ card with an energy cost of 1 and 500 power from your deck to your opponent's Battle Area, shuffle your deck, and draw 1 card.", "BT13-029"],
+  ["[Counter: Attack][Limit 1] Negate the attack and play this card in your opponent's Battle Area.", "BT20-123"],
+] as const) {
+  const rec = record(text, what);
+  const play = opOf(rec.ops, "play")[0];
+  assert.ok(play?.toOpponent, `F: ${what} — into the opponent's Battle Area (${rec.reads})`);
+  assert.match(rec.reads, /in your opponent's Battle Area/, `F: ${what} — said so`);
+  records++;
+}
+{
+  // The Unison Area stays unread (BT15-129's gap).
+  const [rec] = skillRecords(card("AS2-UNI", { skill: "[Activate: Main] Play the Unison Card under this card in your opponent's Unison Area." }));
+  assert.ok(rec.unread.length, "F: a play into the opponent's Unison Area stays unread");
+  // "Would leave the Battle Area by a skill" keeps its cause (BT25-014).
+  const swap = record("[Permanent] If this card would leave the Battle Area by a skill, you may play 1 Battle Card from under this card into your opponent's Battle Area with its skills negated for the turn instead.", "BT25-014");
+  const rep = opOf(swap.ops, "replace")[0];
+  assert.ok(rep && rep.event === "leave" && rep.by === "skillOrKoBySkill" && opOf(rep.with, "play")[0]?.toOpponent, `F: BT25-014 — a skill's removal only, the card under played to the opponent (${swap.reads})`);
+  records += 2;
+}
+
+// ── G. honest gaps ───────────────────────────────────────────────────────────
+for (const [text, what] of [
+  // A cost bound counted off the board: no filter field holds it (was read as a Battle Card in the opponent's hand).
+  ["[activate: main]{g}{g}, discard this card from your hand: Choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in their hand, ignoring [barrier], and KO it.", "P-300"],
+  ["[auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with an energy cost greater than the number of cards in their hand and KO it.", "BT15-145"],
+  ["[auto] When this card is played, choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in your Z-Deck, ignoring [barrier], and send it to its owner's Warp.", "BT22-127"],
+  // "Not a copy of this card" excludes this card; it is not this card (was "move this card to hand").
+  ["[Activate: Main][Limit 1] If your Leader is a <Evil Saiyan> or <Cumber> card—both black: Play this card from your hand in your opponent's Battle Area, look at up to 5 cards from the top of your deck, add up to 1 <Mai: Future> card or ≪Saiyan≫ card—both black, not a copy of this card, and with an energy cost of 6 or less—among them to your hand, and shuffle your deck.", "BT20-124"],
+] as const) {
+  const [rec] = skillRecords(card(what, { skill: text }));
+  assert.ok(rec.unread.length, `G: ${what} — unread (${rec.reads})`);
+  assert.ok(!opsDeep(rec.ops).some((o) => o.op === "moveTo" && "sel" in o.target && o.target.sel.special === "self" && o.to === "hand"), `G: ${what} — never this card to the hand`);
+  records++;
+}
+
 // ── VM ───────────────────────────────────────────────────────────────────────
 const vmDefs: Record<string, CardDef> = {
   ...DEFS,
@@ -234,6 +292,9 @@ const vmDefs: Record<string, CardDef> = {
   "AS2-CAUL": card("AS2-CAUL", { characters: ["AS2 Caulifla"], energyCost: 1 }),
   "AS2-LIST": card("AS2-LIST", { skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and up to 1 of their energy and switch them to Rest Mode." }),
   "AS2-PEEK": card("AS2-PEEK", { skill: "[Activate: Main] Choose up to 1 card in your opponent's hand and discard it." }),
+  "AS2-TOP": card("AS2-TOP", { skill: "[Activate: Main] Place up to 2 cards from the top of your deck in your energy." }),
+  "AS2-GIFT": card("AS2-GIFT", { skill: "[Activate: Main] Play up to 1 <AS2 Gift> card from your hand to your opponent's Battle Area." }),
+  "AS2-GIFTEE": card("AS2-GIFTEE", { characters: ["AS2 Gift"] }),
 };
 const vmRows = Object.values(vmDefs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
 const ctx: EngineContext = { ...CTX, defs: vmDefs, scripts: rulesFromRows(roundtrip(vmRows), vmDefs) };
@@ -267,13 +328,13 @@ function stage(s: VmState, p: PlayerId, def: string, area: string): string {
   return id;
 }
 type Prompt = VmState["prompt"];
-function settle(s0: VmState, pick: (q: Extract<Prompt, { kind: "chooseCards" }>) => string[]): VmState {
+function settle(s0: VmState, pick: (q: Extract<Prompt, { kind: "chooseCards" }>) => string[], answer = 0): VmState {
   let s = s0;
   for (let i = 0; i < 60 && s.prompt.kind !== "main"; i++) {
     const q = s.prompt;
     const who = (q as { player: PlayerId }).player;
     if (q.kind === "chooseCards") s = take(s, { type: "choose", player: who, cards: pick(q) });
-    else if (q.kind === "chooseMode") s = take(s, { type: "chooseMode", player: who, index: 0 } as Action);
+    else if (q.kind === "chooseMode") s = take(s, { type: "chooseMode", player: who, index: answer } as Action);
     else if (q.kind === "payCost") s = take(s, { type: "payCost", player: who, option: 0 } as Action);
     else if (q.kind === "counter") s = take(s, { type: "counter", player: who, card: null } as Action);
     else s = take(s, { type: "pass", player: who } as Action);
@@ -281,10 +342,10 @@ function settle(s0: VmState, pick: (q: Extract<Prompt, { kind: "chooseCards" }>)
   assert.equal(s.prompt.kind, "main", "settled");
   return s;
 }
-function activate(s: VmState, c: string, pick: (q: Extract<Prompt, { kind: "chooseCards" }>) => string[]): VmState {
+function activate(s: VmState, c: string, pick: (q: Extract<Prompt, { kind: "chooseCards" }>) => string[], answer = 0): VmState {
   const offer = RULES.legalActions(ctx, s).find((l) => (l.action as { card?: string }).card === c && l.action.type === "activate");
   assert.ok(offer, `${s.cards[c].cardId}: offered`);
-  return settle(take(s, offer.action), pick);
+  return settle(take(s, offer.action), pick, answer);
 }
 let cases = 0;
 for (const seat of ["p1", "p2"] as const) {
@@ -310,6 +371,26 @@ for (const seat of ["p1", "p2"] as const) {
     const energy = stage(s, foe, "V-BLUE", "energy");
     s = activate(s, me, (q) => q.choice.candidates.filter((c) => c === theirs || c === energy).slice(0, 1));
     assert.deepEqual([s.cards[theirs].mode, s.cards[energy].mode], ["rest", "rest"], `${seat}: B — the Battle Card and the energy both rested`);
+    cases++;
+  }
+  // E: "up to 2 from the top" asks how many, unseen, and takes the top that many in order.
+  {
+    let s = fresh(seat, 53030 + (seat === "p1" ? 0 : 1));
+    const me = stage(s, seat, "AS2-TOP", "battle");
+    const [first, second] = s.sides[seat].zones.deck.slice(0, 2);
+    let seen: string[] = [];
+    s = activate(s, me, (q) => ((seen = q.choice.candidates), []), 1);
+    assert.deepEqual(seen, [], `${seat}: E — no card offered to pick`);
+    assert.ok(s.sides[seat].zones.energy.includes(first) && !s.sides[seat].zones.energy.includes(second), `${seat}: E — "1 from the top" took the top card only`);
+    cases++;
+  }
+  // F: the card is played into the opponent's Battle Area, its owner unchanged.
+  {
+    let s = fresh(seat, 53040 + (seat === "p1" ? 0 : 1));
+    const me = stage(s, seat, "AS2-GIFT", "battle");
+    const gift = stage(s, seat, "AS2-GIFTEE", "hand");
+    s = activate(s, me, (q) => q.choice.candidates.filter((c) => c === gift));
+    assert.ok(s.sides[foe].zones.battle.includes(gift) && !s.sides[seat].zones.battle.includes(gift), `${seat}: F — in the opponent's Battle Area`);
     cases++;
   }
   // C: the opponent's hand is offered unseen.
