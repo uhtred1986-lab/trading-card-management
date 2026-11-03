@@ -209,6 +209,11 @@ export interface ScriptHost {
   shuffleDecks(players: PlayerId[]): void;
   /** 5-11-2: shuffle life after it was searched, using the same persisted RNG. */
   shuffleLives(players: PlayerId[]): void;
+  /**
+   * Audit effects 2 ("put them back in any order", 20-12-2): these cards of this player's deck, in this order, become
+   * that end of it — `ids[0]` the card nearest the end. No card changes area; the rest of the deck keeps its order.
+   */
+  arrangeDeck(p: PlayerId, ids: string[], position: "top" | "bottom"): void;
   /** "Choose … at random" (BT1-073): `n` of these cards picked with the game's own RNG, no player involved (official Q&A). */
   pickAtRandom(ids: string[], n: number): string[];
   /** 12-2-4: currently eligible, cost-waived lines on one selected hand card. */

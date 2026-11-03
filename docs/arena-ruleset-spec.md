@@ -91,7 +91,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 
 ### 2.2 The primitive vocabulary
 
-Twenty-eight primitives carry every row below — twenty-one operations and seven conditions.
+Twenty-nine primitives carry every row below — twenty-two operations and seven conditions.
 
 | Primitive | Today | What it says |
 |---|---|---|
@@ -103,6 +103,7 @@ Twenty-eight primitives carry every row below — twenty-one operations and seve
 | `choose` | `choose` | A player picks cards from a selector; the cards are bound to a name the rest of the program reads. |
 | `reveal` | `reveal` | Who has seen a card changes, without the card moving. |
 | `shuffle` | `shuffle` | A closed area is randomised with the game's seeded RNG; an inspected-only shuffle names only areas an earlier search actually looked through. |
+| `arrange` | `arrange` | Cards of a deck are put back at one end of it in an order the master picks (20-12-2: they never leave the deck). |
 | `token` | `token` | A card that was in no deck comes into being. |
 | `control` | `control` | Who masters a card changes (20-9): it moves into that player's Battle Area and they become its master, keeping everything about it (20-9-2). |
 | `skip` | `skip` | A phase or a step of the turn is not performed (20-13): no moments inside it, no actions, no checkpoints. |
@@ -146,6 +147,7 @@ disagree or if a row is missing from either.
 | `addLife` | macro over `move` | Top of deck to the Life Area. |
 | `lifeDownTo` | macro over `move` | "Until you have *n* life" is `life(you) - n` cards from life to hand: `moveTo(target: TOP (life($side) - $n) IN $side.life, to: hand)`, declared in `ops.rules` since #137 once an amount could subtract (`- n` is `+ -n`). `moveAs` reads the move back as `lifeDownTo`, whose case takes "both players" one pile at a time. |
 | `shuffle` | primitive | An order nobody chose. No sequence of moves reproduces it, and the RNG is the interpreter's (§7). |
+| `arrange` | primitive | An order the master chooses: "…and put them back in any order" (DB2-058, BT14-093, audit effects 2). The cards stay in the deck (20-12-2) — no `move` happens, so nothing a move fires does — and the master picks them one at a time, the first nearest that end. A sequence of chooses and moves would say it only with every card leaving the deck and coming back. |
 | `win` | primitive | "You win the game" (BT16-017, BT16-068, BT8-045b, BT30-017b): a skill ends the game with its master the winner. No move of cards says it; `checkWins` only ends a game from a `DEFINE WIN` condition that someone has *lost*, and the skill states the win itself. The program stops where it stands. |
 | `declare` | primitive | "Declare 1 number" (BT22-090 and the Fortuneteller Baba cards): the master names a whole number, which the program reads back as X ("the declared number"). A prompt of its own, answered as a "choose one" among the numbers; nothing else in the language invents a number. Printed as a price, read as the effect's first step (labelled best guess, #907). |
 | `energyMarker` | macro over `modifyAttr` | A counter on the **player**, not on a card — the first of the three widenings §2.5 asks for. |

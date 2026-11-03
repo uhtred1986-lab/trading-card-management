@@ -742,6 +742,14 @@ export type Op =
   | { op: "lifeDownTo"; n: number; side?: Side }
   | { op: "shuffle"; side?: Side; areas?: ("deck" | "life")[]; inspectedOnly?: true }
   /**
+   * Audit effects 2: "look at up to 3 cards from the top of your opponent's deck **and put them back in any order**"
+   * (DB2-058 and the ≪Universe 10≫ family), "…and place them on top of your deck in any order" (BT14-093, BT22-082,
+   * BT22-114, P-319): the cards go back to that end of their owner's deck in the order the skill's master picks, one card
+   * at a time — the first pick the card nearest that end. No card changes area (20-12-2); a card no longer in a deck is
+   * left out, and one card alone is nothing to arrange.
+   */
+  | { op: "arrange"; target: Ref; position?: "top" | "bottom" }
+  /**
    * "Declare 1 number" (BT22-090 and the Fortuneteller Baba cards): the master
    * names a whole number from `min` to `max`, and the program reads it back as
    * X ("the declared number", `{x:true}`; `varAttrIsX` compares a revealed
@@ -752,7 +760,7 @@ export type Op =
   | { op: "win"; side?: Side }
   /** 12-2-4: choose a qualifying hand Extra's named skill and invoke it without its original costs. */
   | { op: "invokeSkill"; trait: string; skillKind: "activate:main"; from: "hand"; maxCost: "currentEnergy" }
-  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:main/battle"; from: "hand" }
+  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:battle" | "activate:main/battle"; from: "hand" }
   | { op: "energyMarker"; n: Amount; side?: Side }
   /**
    * `chooser` is who answers, when that is not the player whose skill this is:
@@ -2509,6 +2517,55 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         }
         break;
 
+      // Audit effects 2 ("put them back in any order", 20-12-2): the master orders the cards one at a time, the first
+      // pick nearest the deck's end; the last card left is forced. Each deck is arranged on its own.
+      case "arrange": {
+        const position = op.position ?? "top";
+        const key = `arrange@${frame.ip}`;
+        const inDeck = (id: string) => h.areaOf(id) === "deck";
+        const all = h.resolveRef(frame, op.target).filter(inDeck);
+        const owners = [...new Set(all.map((id) => h.ownerOf(id)))];
+        const order = frame.vars[key] ?? [];
+        if (frame.awaiting === key) {
+          const answer = h.lastChoice();
+          h.clearLastChoice();
+          frame.awaiting = undefined;
+          const pick = answer?.length === 1 ? answer[0] : undefined;
+          const owner = owners.find((p) => !all.filter((id) => h.ownerOf(id) === p).every((id) => order.includes(id)));
+          const open = all.filter((id) => h.ownerOf(id) === owner && !order.includes(id));
+          if (!pick || !open.includes(pick)) throw new IllegalAction("that card is not one of the cards to put back");
+          order.push(pick);
+        }
+        let asked = false;
+        for (const p of owners) {
+          const mine = all.filter((id) => h.ownerOf(id) === p);
+          let open = mine.filter((id) => !order.includes(id));
+          if (!open.length) continue;
+          if (open.length === 1) {
+            order.push(open[0]);
+            open = [];
+          }
+          if (open.length) {
+            frame.vars[key] = order;
+            frame.awaiting = key;
+            h.resume(frame);
+            const placed = mine.length - open.length;
+            const where = position === "top" ? "on top of" : "at the bottom of";
+            h.ask({
+              kind: "chooseCards",
+              player: master,
+              choice: { reason: `${h.nameOf(frame.card)}: put the cards back ${where} ${p === master ? "your" : "your opponent's"} deck in any order — choose the card to go ${placed === 0 ? (position === "top" ? "on top" : "at the very bottom") : "next"}`, candidates: open, min: 1, max: 1, continuation: key },
+            });
+            asked = true;
+            break;
+          }
+          h.arrangeDeck(p, order.filter((id) => h.ownerOf(id) === p), position);
+        }
+        if (asked) return "wait";
+        delete frame.vars[key];
+        break;
+      }
+
       case "invokeSkill": {
         const eligible = (id: string) => h.invokableSkills(master, id, op);
         const optional = "sel" in op && op.sel.upTo === true;
@@ -4070,6 +4127,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.resume(frame);
             h.activateField(master, candidates[0]);
             return "done";
+          }
+          // Audit effects 2 (12-1-3, 12-2-4): "choose 1 {Tora's Red Armband} … in your hand, activate it" (EB1-59) — an
+          // Extra with no [Field] in its master's hand is activated through its [Activate: Main] line, its costs waived,
+          // and never played into the Battle Area; with no such line it can use, nothing happens.
+          if (field === "none" && h.areaOf(candidates[0]) === "hand" && h.defOf(candidates[0]).type === "EXTRA") {
+            const sel: Selector = "var" in op.target ? { fromVar: op.target.var, count: 1, upTo: true } : { ...op.target.sel, count: 1, upTo: true };
+            frame.ops = [...frame.ops.slice(0, frame.ip), { op: "invokeSkill", sel, skillKind: "activate:main", from: "hand" }, ...frame.ops.slice(frame.ip + 1)];
+            continue;
           }
         }
         // #930: which [Union] variant the play is, again the play's own `using`

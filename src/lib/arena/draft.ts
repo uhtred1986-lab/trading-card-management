@@ -99,11 +99,28 @@ export function skillRecords(def: CardDef): SkillRecord[] {
         ops,
         unread,
         pattern: patternKey(sk, unread, script.ops),
-        reads: granted ? `granted by skill #${granted.by}, not this card's own: ${describeScript(script.ops, { permanent })}` : describeScript(script.ops, { permanent }),
+        reads: readingFor(script.ops, permanent, granted?.by),
       });
     }
   }
   return out;
+}
+
+/**
+ * The stored reading text of a record: its program in words, and for a line another line grants (#1166) whose line
+ * grants it. The one place the text is made — the full compile (`skillRecords`) and `arena:refresh-ids --describe-only`
+ * (scripts/lib/refresh-ids.ts) both call it, so a describe-only refresh writes exactly what the compile would (audit
+ * effects 2: it dropped the "granted by skill #N" prefix from 17 production rows).
+ */
+export function readingFor(ops: Op[], permanent: boolean, grantedBy?: number): string {
+  const said = describeScript(ops, { permanent });
+  return grantedBy === undefined ? said : `granted by skill #${grantedBy}, not this card's own: ${said}`;
+}
+
+/** The line that grants line `skillIndex` of this side's text (#1166's quoted grants), or undefined — as `skillRecords` reads it. */
+export function grantedByOf(text: string | null | undefined, skillIndex: number): number | undefined {
+  if (!text) return undefined;
+  return parseSkills(text).find((p) => p.granted && (p.index === skillIndex || p.granted.skill.index === skillIndex))?.granted?.by;
 }
 
 /**

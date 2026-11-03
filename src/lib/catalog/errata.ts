@@ -251,6 +251,16 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
   "P-685": [[/Active\s+Mode\s+until\s+te\s+end\s+of/g, "Active Mode until the end of"]],
   // Audit lane E review: "When this card is placed in a Batte Area" left the [Auto]'s moment unread.
   "BT27-124": [[/placed\s+in\s+a\s+Batte\s+Area/g, "placed in a Battle Area"]],
+  // Audit effects 2 (3 Nov 2026): "…black Z-Battle Cards **ad** switch it to Active Mode" lost the switch; "…red <Son Goku:
+  // Childhood **cards**" (no closing bracket) lost the name and the +5000 after it.
+  "P-657": [[/black\s+Z-Battle\s+Cards\s+ad\s+switch\s+it/g, "black Z-Battle Cards and switch it"]],
+  "BT25-008": [[/red\s+<Son\s+Goku:\s+Childhood\s+cards\s+and/g, "red <Son Goku: Childhood> cards and"]],
+  // "…Battle Cards and/or Unisons**-**both in Rest Mode**-**and they can't switch to Active Mode …": hyphens for the dashes,
+  // so the lock was read into the choice's description and lost.
+  "BT29-146": [[/Unisons-both\s+in\s+Rest\s+Mode-and\s+they/g, "Unisons—both in Rest Mode—and they"]],
+  // "…<Trunks: GT> card **--** all white and with an energy cost of 1 **--** shuffle your deck": double hyphens for the
+  // dashes and no comma before the shuffle, so the shuffle was read into the card's description and lost.
+  "BT30-135": [[/card\s+--\s+all\s+white\s+and\s+with\s+an\s+energy\s+cost\s+of\s+1\s+--\s+shuffle\s+your\s+deck/g, "card—all white and with an energy cost of 1—, shuffle your deck"]],
 
   // ── Official errata, all of them (errata-official-1, 2 Nov 2026) ──────────
   // Bandai's errata page (https://www.dbs-cardgame.com/us-en/rule/errata-cards.php), snapshot in
@@ -526,6 +536,19 @@ export const CORRECTIONS: Record<string, [RegExp, string][]> = {
     [/\[energy-exhaust\]\s+\[arrival/g, "[energy-exhaust]<br>[arrival"],
     [/(\{Super\s+Baby\s+2,\s+Awakened\s+Malevolence\}):\s+\[permanent\]/g, "$1:<br>[permanent]"],
   ],
+  // Audit effects 2 review: the same run-on lines on EX25-36, EX25-38 and P-693 (the keywords, the [Arrival] and the
+  // skill after it in one line), and BT4-069's [activate: main] run on into its [Field] reminder: each keyword line
+  // swallowed the skill after it, and the card read as nothing at all. Their own lines, as the card prints them.
+  "EX25-36": [
+    [/\[offering\]\s+\[arrival/g, "[offering]<br>[arrival"],
+    [/(\{Super\s+Baby\s+2,\s+Awakened\s+Malevolence\}):\s+\[activate:\s+battle\]/g, "$1:<br>[activate: battle]"],
+  ],
+  "EX25-38": [
+    [/\[blocker\]\s+\[arrival/g, "[blocker]<br>[arrival"],
+    [/(\{Super\s+Baby\s+2,\s+Awakened\s+Malevolence\}):\s+\[permanent\]/g, "$1:<br>[permanent]"],
+  ],
+  "P-693": [[/\[offering\]\s+\[permanent\]\s+For\s+every\s+2\s+markers/g, "[offering]<br>[permanent] For every 2 markers"]],
+  "BT4-069": [[/Drop\s+Area\)\s*\[activate:\s+main\]/g, "Drop Area)<br>[activate: main]"]],
 
   // Audit lane C (2 Nov 2026). NOT official errata: catalog misprints the compiler read literally, each a condition or
   // a measure lost. A name no card has ("<Suepr 17>", "{Zen-Oh, Once Who Wipes Away}" — the Leader is {Zen-Oh, One

@@ -276,7 +276,7 @@ export interface ReplacementResult {
 /**
  * What 20-13 can be told to skip here. The three phases the turn is made of
  * and the two steps of a battle that have a step of their own to refuse;
- * `turn` (BT31-097), which is a whole later turn refused wholesale, checked
+ * `turn` (#278; not BT31-097, whose turn in progress ends), a whole later turn refused wholesale, checked
  * once at that turn's own `turn.start` rather than at any one phase; and
  * `span` (BT21-104), a standing entry that reaches further still — the rest
  * of this turn, the whole of the opponent's next turn, and this player's own
