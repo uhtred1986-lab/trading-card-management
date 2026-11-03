@@ -116,9 +116,10 @@ const roundTrips = (r: Row, label: string) => {
   const rested = skillRecords(card("R", { skill: BT17_077.replace("from your deck,", "from your deck in Rest Mode,") }))[0];
   assert.deepEqual(rested.unread, []);
   assert.equal((rested.ops[1] as Extract<Op, { op: "play" }>).mode, "rest", "“… on top of this card from your deck in Rest Mode”: the mode is kept");
-  // Not widened: a destination the reader does not take stays unread.
+  // Audit selectors 2: a play into the opponent's Battle Area is read now (`toOpponent`), and the deck stays the source.
   const elsewhere = skillRecords(card("E", { skill: "[Activate: Main] Play up to 1 green <Piccolo> card with an energy cost of 4 in your opponent's Battle Area from your deck." }))[0];
-  assert.ok(elsewhere.unread.length > 0, "a play into the opponent's Battle Area stays unread");
+  assert.deepEqual(elsewhere.unread, [], "a play into the opponent's Battle Area is read");
+  assert.ok(elsewhere.ops.some((o) => o.op === "play" && (o as { toOpponent?: boolean }).toOpponent) && elsewhere.ops.some((o) => o.op === "choose" && (o as Extract<Op, { op: "choose" }>).sel.area === "deck"), "…into their Battle Area, from your deck");
 }
 {
   const r = rowOf("BT31-052", 10);

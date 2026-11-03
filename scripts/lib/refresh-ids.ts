@@ -9,9 +9,9 @@ import type { Db } from "../../src/db/index";
 import { cardRules, cards } from "../../src/db/schema";
 import { rows } from "../../src/db/rows";
 import { cardDefFrom } from "../../src/lib/arena/load";
-import { skillRecords, type SkillRecord } from "../../src/lib/arena/draft";
-import { OFFICIAL_ERRATA } from "../../src/lib/catalog/errata";
-import { describeScript, type Op } from "../../src/lib/arena/vm/script";
+import { grantedByOf, readingFor, skillRecords, type SkillRecord } from "../../src/lib/arena/draft";
+import { OFFICIAL_ERRATA, correctSkillText } from "../../src/lib/catalog/errata";
+import { type Op } from "../../src/lib/arena/vm/script";
 import { applyReviewedRefresh, applyReviewedUnreadRefresh } from "./reviewed-rule-refresh";
 
 export type Side = "front" | "back";
@@ -222,7 +222,8 @@ export async function applyPending(db: Db, verdicts: Verdict[]): Promise<{ clean
 // ── --describe-only: regenerate the stored reading TEXT from the stored program ─────────────────────────
 // Never recompiles and never touches ops/cond/cost/trigger/unread/pattern/printed/status/source/version or any
 // confirmation field: the only column written is `reads`, from `describeScript` over the program the row already
-// holds (the same call the rule store makes on every write). So it is safe for ANY row, owner-corrected and
+// holds — through `readingFor`, the call the full compile makes, so a line another line grants keeps its "granted by
+// skill #N" opening (`describeOnlyReading`, audit effects 2). So it is safe for ANY row, owner-corrected and
 // confirmed rows included: their program is the record, the text is only how it is said.
 
 export interface DescribeVerdict {
@@ -243,6 +244,16 @@ const programFrom = (ops: unknown, cond: unknown): Op[] => {
   return cond ? [{ op: "if", cond, then: o } as unknown as Op] : o;
 };
 
+/**
+ * Audit effects 2: the reading `skillRecords` would write for this stored row — its program in words and, for a line
+ * another line of the card grants (#1166), the "granted by skill #N, not this card's own: " it opens with. `sideText` is
+ * the card's catalog text for the row's side; the grant is read off it, corrected as a sync stores it, as the compile
+ * reads it. Without it a describe-only refresh dropped the prefix (17 production rows).
+ */
+export function describeOnlyReading(row: { ops?: unknown; cond?: unknown; kind?: unknown; skill_index?: unknown }, cardId: string, sideText: string | null | undefined): string {
+  return readingFor(programFrom(row.ops, row.cond), String(row.kind).toLowerCase() === "permanent", grantedByOf(correctSkillText(cardId, sideText ?? null), Number(row.skill_index)));
+}
+
 export async function classifyDescribeOnly(db: Db, input: IdSpec[]): Promise<DescribeVerdict[]> {
   const ids = [...new Set(input.flatMap((s) => (s.skill == null && /b$/i.test(s.cardId) ? [s.cardId, s.cardId.slice(0, -1)] : [s.cardId])))];
   const raw = ids.length
@@ -250,6 +261,7 @@ export async function classifyDescribeOnly(db: Db, input: IdSpec[]): Promise<Des
         sql`select to_jsonb(r) as record from card_rules r where r.card_id in (${sql.join(ids.map((i) => sql`${i}`), sql`, `)})`,
       )).map((r) => r.record)
     : [];
+  const texts = new Map((ids.length ? await db.select({ id: cards.id, skill: cards.skill, backSkill: cards.backSkill }).from(cards).where(inArray(cards.id, ids)) : []).map((c) => [c.id, c]));
   const out: DescribeVerdict[] = [];
   const seen = new Set<string>();
   for (const spec of input) {
@@ -275,7 +287,8 @@ export async function classifyDescribeOnly(db: Db, input: IdSpec[]): Promise<Des
       const row = raw.find((r) => r.card_id === cardId && r.side === t.side && Number(r.skill_index) === t.skill);
       if (!row) { out.push({ spec, key, status: "excluded", reason: "no stored card_rules row", note: t.note }); continue; }
       const old = String(row.reads ?? "");
-      const fresh = describeScript(programFrom(row.ops, row.cond), { permanent: String(row.kind).toLowerCase() === "permanent" });
+      const card = texts.get(cardId);
+      const fresh = describeOnlyReading(row, cardId, t.side === "back" ? card?.backSkill : card?.skill);
       const base = { spec, key, note: t.note, old: old || "(nothing)", new: fresh || "(nothing)" };
       if (fresh === old) { out.push({ ...base, status: "up-to-date" }); continue; }
       out.push({ ...base, status: "pending", target: { id: Number(row.id), reads: old, fresh, ops: row.ops, cond: row.cond ?? null } });

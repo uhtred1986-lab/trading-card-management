@@ -306,6 +306,8 @@ const FILTER_SAMPLES: Record<keyof CardFilter, Partial<CardFilter>> = {
   keywordsExact: { keywordsExact: ["Blocker"] },
   notKeywordsExact: { notKeywordsExact: ["Blocker"] },
   noKeywords: { noKeywords: true },
+  someKeyword: { someKeyword: true },
+  charactersMin: { charactersMin: 2 },
   skillKind: { skillKind: "activate" },
   type: { type: "BATTLE" },
   notType: { notType: "LEADER" },

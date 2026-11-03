@@ -295,8 +295,9 @@ const leaderFilters = (rec: Rec) => conds(rec).flatMap((c) => (c.kind === "leade
   const leader = record("[Auto] When this card attacks your opponent's Leader, if you have less cards in hand than your opponent, your opponent chooses 1 card in their hand and places it in the Drop Area.", "P-027");
   assert.deepEqual(leader.cond, { kind: "inBattle", sel: { area: "leader", side: "opponent" }, role: "guard" }, "M: P-027 — only an attack on the opponent's Leader");
   assert.ok(conds(leader).some((c) => c.kind === "outnumbers"), "M: P-027 — the hands compared");
-  // "a Leader or Unison" names a second guard: not this reading (BT18-059 keeps its own).
-  assert.equal(only("[Auto] When this card attacks a Leader or Unison, draw 1 card.", "BT18-059").cond, null, "M: BT18-059 — not read as the Leader alone");
+  // "a Leader or Unison" names a second guard: not this reading — audit conditions 2 reads it as either guard (BT18-059).
+  const b18 = only("[Auto] When this card attacks a Leader or Unison, draw 1 card.", "BT18-059").cond;
+  assert.ok(b18 && b18.kind === "any" && b18.conds.length === 2, "M: BT18-059 — not read as the Leader alone");
   const both = conds(record("[Permanent] If you have 1 or more copies of both <Tapion> and <Minotia> cards in your Drop Area and a ≪Phantom Demon≫ card isn't in play in your Battle Area, you can play this card from your hand without paying its energy cost. This card gets -10000 power during your turn.", "P-113"));
   const inDrop = (name: string) => both.some((c) => c.kind === "count" && c.sel.area === "drop" && c.atLeast === 1 && c.sel.filter?.characters.join() === name && !c.sel.filter.charactersAll?.length);
   assert.ok(inDrop("tapion") && inDrop("minotia"), "M: P-113 — a <Tapion> card and a <Minotia> card, not one card with both");

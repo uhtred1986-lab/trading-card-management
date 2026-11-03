@@ -168,9 +168,10 @@ import type { CardDef } from "./harness";
   assert.equal(matches({ ...baby, name: "Bardock, Prismatic Radiance" }, inName), false);
   assert.deepEqual(parseFilter("card whose card name includes {Baby}").namesIncluding, ["Baby"]);
   assert.deepEqual(parseFilter("Battle Card with a card name that includes {Supreme Kai}").namesIncluding, ["Supreme Kai"]);
-  // "2 or more character names including <SH>" counts names rather than
-  // looking inside one, and stays out of the substring reading.
-  assert.deepEqual(parseFilter("Battle Cards with 2 or more character names including <SH>").charactersIncluding, []);
+  // "2 or more character names including <SH>" (EX24-25): two or more names, one of them an <SH> name — R-231 (owner,
+  // 3 Nov 2026), audit conditions 2. The count is `charactersMin`; the <SH> name is the substring reading.
+  const shNames = parseFilter("Battle Cards with 2 or more character names including <SH>");
+  assert.deepEqual([shNames.charactersIncluding, (shNames as { charactersMin?: number }).charactersMin], [["SH"], 2]);
 
   // A filter written before these fields existed — from `card_rules`, or a
   // referee ruling in a saved game's action log — still reads.

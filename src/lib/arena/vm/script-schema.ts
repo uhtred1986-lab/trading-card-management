@@ -1,7 +1,7 @@
 import { potaraMaterialsProblem } from "./potara-materials";
 import { fusionMaterialsProblem } from "./fusion-materials";
 import { skillPriceProblem } from "./skill-payment";
-import { FILTER_FIELDS, emptyFilter, type CardFilter, type FilterFieldType } from "../text/filters";
+import { FILTER_FIELDS, FILTER_SKILL_KINDS, emptyFilter, type CardFilter, type FilterFieldType } from "../text/filters";
 import { keywordName } from "../text/cards";
 // `AmountAttr` and `CardAttr` are deliberately two lists, not one: `CardAttr`
 // is what `modifyAttr` may *write* (colours, characters, traits and names among
@@ -442,11 +442,25 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       return side === "opponent" ? "your opponent shuffles their deck" : side === "both" ? "each player shuffles their deck" : "shuffle";
     },
   },
+  // Audit effects 2: "…and put them back in any order" (DB2-058 and the ≪Universe 10≫ family; BT14-093, BT22-082, P-319).
+  arrange: {
+    fields: [TARGET, { name: "position", type: POSITION, default: "top" }],
+    sentence: (raw) => {
+      const op = raw as OpOf<"arrange">;
+      return `put ${"var" in op.target && op.target.minus === undefined ? "the cards looked at" : describeRef(op.target)} back ${op.position === "bottom" ? "at the bottom" : "on top"} of the deck in any order`;
+    },
+    doc: "the cards go back to that end of their owner's deck in the order the master picks, one card at a time, the first pick nearest the end; no card changes area (20-12-2), a card no longer in a deck is left out",
+  },
   invokeSkill: {
-    fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
+    fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:battle", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
     sentence: (raw) => {
       const op = raw as OpOf<"invokeSkill">;
-      return "trait" in op ? `activate the chosen ${op.trait} card's ${op.skillKind} skill` : `activate up to 1 ${op.skillKind} skill of ${describeSelector(op.sel)} for free`;
+      // Audit conditions 2: the trait form says which card is chosen — from the hand, within the current energy (SD7-01,
+      // TB3-064) — where it read "the chosen card" of a choice no reading showed.
+      // Audit effects 2 (describe only): the line's kind as the card prints it ("[Activate: Main/Battle]"), not the record's key.
+      const kind = ({ "activate:main": "[Activate: Main]", "activate:battle": "[Activate: Battle]", "activate:main/battle": "[Activate: Main/Battle]" } as Record<string, string>)[op.skillKind] ?? op.skillKind;
+      if ("trait" in op) return `choose 1 ≪${op.trait}≫ card in your ${op.from}${op.maxCost === "currentEnergy" ? " with an energy cost less than or equal to your current energy" : ""} and activate its ${kind} skill`;
+      return `activate up to 1 ${kind} skill of ${describeSelector(op.sel)} for free`;
     },
     doc: "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.",
   },
@@ -474,7 +488,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const cards = describeSelector({ ...op.sel, count: 99, upTo: false }).replace(/^all /, "");
         return `${choose} exactly ${describeAmount(op.exactly)} of ${cards}`;
       }
-      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {});
+      // Audit selectors 2: a blind choice (the opponent's hand or face-down Life) is made without seeing the cards, and
+      // the reading says so.
+      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {}) + (op.blind ? ", without seeing them" : "");
     },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
@@ -545,7 +561,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "alsoUnder", type: "ref", offCard: "more cards that go under the played card as part of the same play (22-13-5-4: [Union-Potara]'s second material) — none moves when the play fails" }, { name: "negated", type: { enum: ["turn", "game"] } }, {
         name: "activating",
         type: "boolean",
-        offCard: "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; any other card is played as before",
+        offCard: "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; an Extra with none in its master's hand is activated through its [Activate: Main] line, its costs waived (12-2-4, \"choose 1 {Tora's Red Armband} … in your hand, activate it\", EB1-59); any other card is played as before",
       }, {
         name: "counterWindow",
         type: "boolean",
@@ -558,12 +574,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       },
       {
         name: "using",
-        type: { enum: ["Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve", "Union-Fusion", "Union-Potara", "Union-Absorb"] },
+        type: { enum: ["Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve", "Union-Fusion", "Union-Potara", "Union-Absorb", "Swap", "Arrival", "Successor"] },
       },
       {
         name: "toOwners",
         type: "boolean",
         offCard: "mechanism batch 3: \"play them to their owners' Battle Areas\" (BT13-096, EX21-15) - each card lands in its own owner's Battle Area rather than its master's",
+      },
+      {
+        name: "toOpponent",
+        type: "boolean",
+        offCard: "audit selectors 2: \"play up to 1 red ≪Saiyan≫ card with 500 power from your deck **to your opponent's Battle Area**\" (BT13-028, BT13-029, BT22-006) - the card lands in the other player's Battle Area, under their control, its owner unchanged",
       },
       {
         name: "ignoreOwnPermanent",
@@ -580,10 +601,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const warp = op.using === "Xeno-Evolve" ? " (sending the base to the Warp)" : "";
         return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}`;
       }
-      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
+      // Audit effects 2 (describe only): an Extra with no [Field] in the hand is activated through its [Activate: Main]
+      // (EB1-59, the VM's `activating`), never played.
+      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, or in the hand its [Activate: Main]; else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
         // "…on top of this card with its skills negated for the game" (BT31-088/089, BT10-073): where it lands and what it arrives with.
         + (op.onto ? ` on top of ${describeRef(op.onto)}` : "")
         + (op.toOwners ? " in their owners' Battle Areas" : "")
+        + (op.toOpponent ? " in your opponent's Battle Area" : "")
         + (op.ignoreOwnPermanent ? ", ignoring its own [Permanent] skill" : "")
         + (op.negated ? ` with its skills negated${op.negated === "game" ? " for the game" : " for the turn"}` : "");
       // "…with a marker on it" (13-2-3, #980): what the card arrives with.
@@ -622,7 +646,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const what = op.what === "offense" || op.what === "defense" ? `${op.what === "offense" ? "Offense" : "Defense"} Step` : `${{ charge: "Charge", main: "Main", end: "End" }[op.what]} Phase`;
       return `${whose} ${verb} ${which} ${what}`;
     },
-    doc: 'the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. "when":"this" is the occurrence in the turn the skill resolved on, "next" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). "what":"turn" refuses the player\'s whole next turn, checked once at that turn\'s own start rather than at any one phase (BT31-097). "what":"span" reaches further: the rest of the turn this resolves in, the opponent\'s whole next turn, and this player\'s own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own.',
+    doc: 'the phase or step is not performed (20-13): no [Auto] answers to its start or end, no action can be declared in it, and no checkpoint happens inside it. "when":"this" is the occurrence in the turn the skill resolved on, "next" the first one in a later turn. Effects that were to end in it end as it is skipped (20-13-5). "what":"turn" refuses the player\'s whole next turn, checked once at that turn\'s own start rather than at any one phase (no printed card says it: BT31-097\'s "skip your turn" ends the turn in progress, by its Q&As, and is unread). "what":"span" reaches further: the rest of the turn this resolves in, the opponent\'s whole next turn, and this player\'s own next Charge Phase, landing at that Main Phase (BT21-104) — three ordinary entries under one name rather than a mechanism of its own.',
   },
   control: {
     fields: [TARGET, { name: "to", type: "side", default: "you" }, { name: "until", type: "duration" }],
@@ -722,8 +746,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'a Leader turned over (22-2-4): "to":"back" awakens it ("flip this card to its back side"), "to":"front" turns an awakened one back ("flip this card to its front", BT15-091); absent, it is turned over whichever side it shows ("flip this card over")',
   },
   faceUp: { fields: [TARGET, { name: "faceUp", type: "boolean", default: true }], sentence: "turn {target} face {faceUp:up|down}", doc: "turn a card in a life area face up (3-9-2-1); false turns it back down" },
-  addMarker: { fields: [TARGET, n()], sentence: "add {n} marker" },
-  removeMarker: { fields: [TARGET, n()], sentence: "remove {n} marker" },
+  // Audit effects 2: a counted number of markers (BT17-003, BT18-076, P-633) reads "add markers: 1 for each …", never
+  // "add 1 for each … marker".
+  addMarker: { fields: [TARGET, n()], sentence: (raw, r) => (typeof (raw as OpOf<"addMarker">).n === "number" ? renderTemplate("add {n} marker", raw as unknown as Record<string, unknown>, OP_SCHEMA.addMarker.fields, r) : `add markers: ${describeAmount((raw as OpOf<"addMarker">).n)}`) },
+  removeMarker: { fields: [TARGET, n()], sentence: (raw, r) => (typeof (raw as OpOf<"removeMarker">).n === "number" ? renderTemplate("remove {n} marker", raw as unknown as Record<string, unknown>, OP_SCHEMA.removeMarker.fields, r) : `remove markers: ${describeAmount((raw as OpOf<"removeMarker">).n)}`) },
   token: {
     fields: [
       { name: "name", type: "string", required: true },
@@ -995,14 +1021,15 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         // Audit lane E: one kind of line is named ("{King Piccolo, Limitless Power}'s [Activate: Main] skill", P-153);
         // several are the non-keyword ones.
         const oneKind = op.skillKinds?.length === 1 ? ({ "activate:main": "[Activate: Main] ", "activate:battle": "[Activate: Battle] ", auto: "[Auto] " } as Record<string, string>)[op.skillKinds[0]] : undefined;
-        const which = op.extraCardActivation ? "Extra Cards" : `the ${oneKind ?? (op.skillKinds?.length ? "non-keyword " : "")}skills of ${describeFilter(op.filter!, { plural: true })}`;
+        // Audit effects 2: "…[Field] cards" (XD3-01) says which Extras; "…cards other than this card" (BT26-140) leaves it out.
+        const which = op.extraCardActivation ? (op.filter?.keywords.length ? describeFilter(op.filter, { plural: true }) : "Extra Cards") : `the ${oneKind ?? (op.skillKinds?.length ? "non-keyword " : "")}skills of ${describeFilter(op.filter!, { plural: true })}${op.otherCards ? " other than this card" : ""}`;
         return `${who} can't activate ${which}${escape}${forThe(op.until, r)}`;
       }
       // Owner ruling 26 Oct 2026 (A2): the [Blocker] of the cards a "can't
       // activate skills" rule describes (BT18-019, BT14-097, P-093).
       if (op.what === "block" && !op.target && op.filter) {
         const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
-        return `${who} can't activate [Blocker] on ${describeFilter(op.filter, { plural: true })}${escape}${forThe(op.until, r)}`;
+        return `${who} can't activate [Blocker] on ${describeFilter(op.filter, { plural: true })}${op.otherCards ? " other than this card" : ""}${escape}${forThe(op.until, r)}`;
       }
       // Prohibition batch 5's sentences, each said the way the card says it.
       {
@@ -1068,6 +1095,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // `uses` is how many attacks are still allowed before the ban bites (BT3-104: "can only attack one more time"): said as the allowance, not as a ban.
       if (op.what === "attack" && op.filter && !op.target && op.uses != null) return `${who} can attack with ${describeFilter(op.filter)} only ${op.uses === 1 ? "one more time" : `${describeAmount(op.uses)} more times`}${escape}${forThe(op.until, r)}`;
       if (op.what === "attack" && op.filter && !op.target) return `${who} can't attack with ${describeFilter(op.filter)}${measure}${op.uses != null ? (op.uses === 1 ? " once more" : ` ${describeAmount(op.uses)} more times`) : ""}${escape}${forThe(op.until, r)}`;
+      // Audit effects 2: the allowance with no cards named — "your opponent can only attack 2 more times for the turn"
+      // (BT19-092, BT19-099) read "can't attack 2 more times", the opposite.
+      if (op.what === "attack" && !op.filter && !op.target && !op.attackTarget && op.uses != null && !op.unless && !op.unlessPay?.length) return `${who} can attack only ${op.uses === 1 ? "one more time" : `${describeAmount(op.uses)} more times`}${forThe(op.until, r)}`;
       // #930: "you can only play Battle Cards by using [Union-Fusion]" (P-069, P-226).
       if (op.what === "play" && op.exceptUnion?.length) return `${who} can only ${op.target ? "be played" : `play ${op.filter ? describeFilter(op.filter, { plural: true }) : "cards"}`} by using ${op.exceptUnion.map((v) => `[Union-${v}]`).join(" or ")}${escape}${forThe(op.until, r)}`;
       const what = op.target && op.what === "play" ? `be played${op.bySkill === true ? (op.exceptEvolve ? " by a skill other than an [Evolve]" : " by a skill") : op.bySkill === false ? " except by a skill" : ""}` : FORBIDDEN_IN_WORDS[op.what];
@@ -1099,7 +1129,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // "…in battle against Battle Cards with energy costs of 3 or less" (P-481).
       const against = op.byFilter ? ` by ${describeFilter(op.byFilter, { plural: true })}` : "";
       const kinds = op.what === "activateSkill" && op.skillKinds?.length ? ` (${op.skillKinds.map((k) => KIND_WORDS[k] ?? k).join(" or ")} skills only)` : "";
-      return `${who} can't ${verb}${which ? ` ${which}` : ""}${kinds}${from}${whose}${to}${by}${against}${measure}${except}${budget}${escape}${forThe(op.until, r)}`;
+      // Audit conditions 2: "during your turn, you can't play Battle Cards **by skills**" (BT20-024) — a player's ban
+      // carries `bySkill` too, and without it the reading banned every play from the hand.
+      const bySkill = !op.target && op.what === "play" ? (op.bySkill === true ? " by skills" : op.bySkill === false ? " except by skills" : "") : "";
+      return `${who} can't ${verb}${which ? ` ${which}` : ""}${kinds}${from}${bySkill}${whose}${to}${by}${against}${measure}${except}${budget}${escape}${forThe(op.until, r)}`;
     },
     doc: `forbid an action (20-14): a "target" for a rule about particular cards, or a "side" for one about a player, narrowed by a "filter"; "attackTarget" narrows an attack prohibition to a prospective defender and is checked only when declaring an attack, never for Blocker redirection; "attackOnly" (a ref, \`what\`:"attack" only, never beside "attackTarget") is the opposite — the only cards an attack by the rule\'s attackers may be declared against ("can only attack this card", #1005), resolved when the rule is read; "against" (a ref, \`what\`:"attack" only) narrows the rule to attacks on those cards ("…can't attack this card", BT15-122), also resolved when the rule is read; "fromArea" ("hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "any") narrows a rule to cards used or moved from that area — a combo "from the Battle Area" (EB1-21), a play "from their owner's hands" (EX23-05), a move out of a Drop (BT6-028), a search of a deck (DB3-092), a card's own rule while it is in the Energy Area (BT18-052), a move from any area at all (BT17-032) — and "fromOwnArea":true to the acting player's own such area ("from your Drop Area", BT16-001); "sameNameAsSelf":true narrows a play rule to copies of this card; "uses" is how many times that action may still happen before the prohibition starts applying, and "unless" is the escape condition. "unlessPay" is 20-14-1's other escape, a price: a program the acting player runs, in their own frame ("you" is whoever acts), before the action and every time they take it — refused when they cannot pay it; "what":"attack" (BT30-100), "play" (a play the player declares — the price is paid as the play is declared, ahead of the [Counter: Play] window, BT31-093) and "switchEnergyToActive" (asked mid-resolution of the skill doing the switch: pay, or that energy stays where it is, BT8-051) take one. "byTypes" narrows a rule to an action a skill of those card types takes ("the skill of a Battle Card or Extra Card"), and "turnPlayer":true to whoever's turn it is ("if the turn player would …"). With "what":"activateCounter", "counterKind" narrows it to one [Counter] kind ("[Counter: Play] skills") and "otherCards":true leaves the card that made the rule out of it ("…of other cards", BT10-008). "what":"activateSkill" and "activateCounter" take an "unlessPay" too (#677): the price of every skill activation the rule governs — [Activate], [Auto] and [Counter] alike — paid at the activation as its additional cost; "extraCardActivation":true narrows an "activateSkill" rule to 12-1-3's "activating an Extra Card" ([Activate] or [Counter] skills of Extra Cards used from the hand, BT10-097). "skillKinds" (a list of line kinds such as "activate:main" or "auto") narrows an "activateSkill" rule to those lines ("you can't activate the [Activate: Main] skill on copies of this card", BT12-031). "exceptOwnSkills":true and "exceptSourceName" (a card name) let one skill through: the rule's own card's ("…by skills other than its own", EB1-27) or a card of that name's ("…other than {Jaguar's Island}'s skills", BT22-072). "toArea" ("hand" | "deck" | "drop" | "warp" | "energy" | "life", with "toBottom":true for the bottom of a deck) narrows a "beMovedBySkill" rule to a move there ("…can't be returned to your hand by your skills", DB2-040); a "beMovedBySkill" rule with no "fromArea" is about the Battle Area, and "fromArea":"hand" about cards in a hand. "byFilter" describes the card whose action it is — for "beKOdInBattle", the attacking card ("…can't be KO'd in battle against Battle Cards with energy costs of 3 or less", P-481). "cardsOf" ("you" | "opponent") narrows a rule about no card in particular to cards in that player's areas, wherever they come from — "cards in your hand can't be returned to your deck by your opponent's skills for the turn" (DB2-156) is the hand as a zone, a card drawn later included. "exceptKeyword" (a keyword name, "what":"play" with "bySkill":true) lets that keyword's own play through ("…with skills other than [Revive Blue/Green]"). "costVsEnergy" ("above" | "atLeast") narrows the rule to cards whose energy cost is greater than (or at least) the number of cards in their controller's Energy Area ("Battle Cards with energy costs greater than their current energy", P-219, P-299). "exceptUnion" (a list of "Fusion" | "Potara" | "Absorb", "what":"play" only) lets through only a [Union] play of those variants — "you can only play Battle Cards by using [Union-Fusion]" (P-069, P-226, #930) forbids every other play of those cards: declared, by any other skill, an evolution. "keywordSkill" (a keyword name, "what":"activateSkill" only) narrows the rule to lines of that keyword skill ("you may not activate [EX-Evolve]", BT4-003; "Evolve" is every [Evolve] skill, 22-5-2-2). "exceptCards" (a ref, resolved when the rule is read) lets those cards through ("…other than the card they attacked with", BT8-089). "exceptByFilter" (a filter) lets through the skills of the cards it describes ("cards in your life can only be flipped face up by skills on mono-yellow cards", BT12-086, "what":"flipLifeFaceUp"). "exceptFilter" (a filter) lets through the cards it describes ("you can't play any cards other than red <Trunks: Future> cards", BT23-005; "…can only play mono-blue <Zamasu> or mono-blue <Goku Black> cards", P-485). "sameCharacterUnder":true ("what":"placeUnder") keeps out only a card sharing a character name with one already under the host ("you can't place more than 1 card with the same character name under this card", BT22-113). "fromArea":"unison" is the Unison Area (BT30-146's Unisons), and "under" a card's place under another (BT21-012's "can't be removed from under your Leader"). "what":"removeMarkers" is a skill taking markers off the card, with "side" as whose skill (P-676). "what" is one of ${FORBIDDEN_ACTIONS.map((w) => `"${w}"`).join(" | ")}`,
   },
@@ -1253,6 +1286,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   addLife:            "macro over `move`",
   lifeDownTo:         "macro over `move`",
   shuffle:            "primitive",
+  arrange:            "primitive",
   win:                "primitive",
   declare:            "primitive",
   invokeSkill:        "primitive",
@@ -1531,21 +1565,32 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
   },
   battled: { fields: [SEL], sentence: (raw) => `${describeSelector((raw as CondOf<"battled">).sel, "any of the")} has been in a battle this turn` },
   playedUsing: {
-    fields: [SEL, { name: "what", type: { enum: ["Over Realm", "Union", "Union-Fusion", "Union-Potara", "Union-Absorb", "Evolve"] }, required: true }],
+    fields: [
+      SEL,
+      { name: "what", type: { enum: ["Over Realm", "Union", "Union-Fusion", "Union-Potara", "Union-Absorb", "Evolve", "EX-Evolve", "Swap", "Arrival", "Successor", "skill"] }, required: true },
+      { name: "by", type: { enum: ["other", "self"] } },
+      { name: "source", type: "filter" },
+    ],
     sentence: (raw) => {
       const c = raw as CondOf<"playedUsing">;
       if (c.what === "Evolve") return `${describeSelector(c.sel, "any of the")} was played with an [Evolve] skill`;
+      // Audit conditions 2: a skill's play, and whose skill it was.
+      if (c.what === "skill") {
+        const whose = c.source ? `the skill of a ${describeFilter(c.source, { plural: false })}` : c.by === "other" ? "another card's skill" : c.by === "self" ? "its own skill" : "a skill";
+        return `${describeSelector(c.sel, "any of the")} was played by ${whose}`;
+      }
+      if (c.what === "EX-Evolve" || c.what === "Swap" || c.what === "Arrival" || c.what === "Successor") return `${describeSelector(c.sel, "any of the")} was played using [${c.what}]`;
       return c.what === "Union"
         ? `${describeSelector(c.sel, "any of the")} was played using a [Union] skill`
         : c.what.startsWith("Union-")
           ? `${describeSelector(c.sel, "any of the")} was played using [${c.what}]`
           : `${describeSelector(c.sel, "any of the")} was played with [${c.what}] this turn`;
     },
-    doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026). `what: Union-Fusion` / `Union-Potara` / `Union-Absorb` is that [Union] keyword only. As the lone IF of an [Auto] on `played` — \"when this card is played using [Union]\" (BT14-114, BT28-097 …) — it is the trigger's own condition: `resolvePlay` withdraws the Auto from any play that was not such an entry, so it is never triggered by an ordinary, failed or other-variant play. With `sel: subject`, beside the description of the played card in an `all`, on an [Auto] on `youPlayed` — \"when your <X> card is played by a [Union] skill\" (BT22-033, BT25-036 back, P-682), \"when you play a Battle Card using a [Union-Fusion] skill\" (BT12-122) — it is the same trigger condition about that card, and the [Auto] carries the subject's entry as it was when triggered. `what: Evolve` (prohibition batch 6, EX04-04's \"if you played this card with [evolve]\") is the same lasting memory of a successful entry by an [Evolve], [EX-Evolve] or [Xeno-Evolve] play (22-5-2-2: \"[Evolve]\" is every one of them), kept while the copy stays in the area",
+    doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026). `what: Union-Fusion` / `Union-Potara` / `Union-Absorb` is that [Union] keyword only. As the lone IF of an [Auto] on `played` — \"when this card is played using [Union]\" (BT14-114, BT28-097 …) — it is the trigger's own condition: `resolvePlay` withdraws the Auto from any play that was not such an entry, so it is never triggered by an ordinary, failed or other-variant play. With `sel: subject`, beside the description of the played card in an `all`, on an [Auto] on `youPlayed` — \"when your <X> card is played by a [Union] skill\" (BT22-033, BT25-036 back, P-682), \"when you play a Battle Card using a [Union-Fusion] skill\" (BT12-122) — it is the same trigger condition about that card, and the [Auto] carries the subject's entry as it was when triggered. `what: Evolve` (prohibition batch 6, EX04-04's \"if you played this card with [evolve]\") is the same lasting memory of a successful entry by an [Evolve], [EX-Evolve] or [Xeno-Evolve] play (22-5-2-2: \"[Evolve]\" is every one of them), kept while the copy stays in the area. Audit conditions 2 (3 Nov 2026): `what: EX-Evolve` / `Swap` / `Arrival` / `Successor` is that keyword's own play alone (\"when you play this card with [Swap]\", BT4-083; \"…using [Arrival]\", BT25-129), the same lasting memory; `what: skill` is a play a skill made (\"…played using a skill\", BT16-051), `by: other` another card's skill (BT20-104), `by: self` the card's own (P-628), and `source` the card whose skill it was, as it stands (\"…with the skill of {Majin Buu's Sealed Ball}\", BT2-028; \"…with <Trunks: Future> skill\", BT2-041) — a play its player declared is no skill's. Under `not` it is \"…played without using skills\" (BT15-042). Every one of them, as a lone IF of an [Auto] on `played`, is the trigger's own condition (`playGates`)",
   },
   placedThisTurn: {
-    fields: [SEL],
-    sentence: (raw) => `${describeSelector((raw as CondOf<"placedThisTurn">).sel, "any of the")} was placed in a Battle Area this turn`,
+    fields: [SEL, { name: "played", type: "boolean" }],
+    sentence: (raw) => `${describeSelector((raw as CondOf<"placedThisTurn">).sel, "any of the")} was ${(raw as CondOf<"placedThisTurn">).played ? "played" : "placed in a Battle Area"} this turn`,
     doc: "did one of these cards arrive in a Battle Area this turn, played or placed by a skill (5-5-1, 5-5-4)? \"At the end of a turn in which this card was placed in a Battle Area\" (BT15-118). The card remembers the arrival until the turn ends or it changes area (3-1-4)",
   },
   every: {
@@ -2143,10 +2188,11 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       // selector with the energy bound, for the Main line alone.
       const selected = o.trait === undefined && o.maxCost === undefined && isRecord(o.sel)
         && o.sel.side === "you" && o.sel.area === "hand" && o.sel.count === 1
-        && (o.skillKind === "activate:main/battle"
+        && (o.skillKind === "activate:main/battle" || o.skillKind === "activate:battle"
           ? o.sel.upTo === true
-          : o.skillKind === "activate:main" && isRecord(o.sel.filter) && o.sel.filter.costAtMostEnergy === true);
-      if (!desire && !selected) return `${step}: use either Desire's trait/current-energy Main line, a one-card hand selector bounded by current energy for a Main line, or an optional one-card hand selector for a Main/Battle line`;
+          // Audit effects 2 (P-313): an optional one-card hand Extra's Main line, as its Main/Battle line above.
+          : o.skillKind === "activate:main" && (o.sel.upTo === true || (isRecord(o.sel.filter) && o.sel.filter.costAtMostEnergy === true)));
+      if (!desire && !selected) return `${step}: use either Desire's trait/current-energy Main line, a one-card hand selector bounded by current energy for a Main line, or an optional one-card hand selector for a Main, Battle or Main/Battle line`;
     }
     // A marker loss is read at one moment only — 13-5-2's, an attack on a
     // Unison — so `event: marker` names it and `by: attack` belongs to it
@@ -2180,7 +2226,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
  * The steps that stop and ask somebody something. `discard` is one of them: it
  * is rewritten by `stepScript` into a `choose` the owner answers and a move.
  */
-const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", "discard", "negateChosenKeyword"]);
+const PROMPTING_OPS = new Set<Op["op"]>(["choose", "chooseMode", "may", "look", "discard", "negateChosenKeyword", "arrange"]);
 
 /**
  * Does this program stop to ask a question, anywhere inside it? Read by
@@ -2273,6 +2319,7 @@ const SELECTOR_KEYS = {
   take: 1,
   fromEnd: 1,
   ignoreBarrier: 1,
+  choice: 1,
   notInBattle: 1,
   battleRole: 1,
   copyOfSelf: 1,
@@ -2281,6 +2328,8 @@ const SELECTOR_KEYS = {
   alsoFrom: 1,
   atRandom: 1,
   ownedByOpponent: 1,
+  ownedByYou: 1,
+  charactersNotInPlay: 1,
   notSelf: 1,
   differentNames: 1,
   differentCharacters: 1,
@@ -2329,6 +2378,8 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.orSelf !== undefined && v.orSelf !== true) return wrong("orSelf", "true");
   if (v.atRandom !== undefined && v.atRandom !== true) return wrong("atRandom", "true");
   if (v.ownedByOpponent !== undefined && v.ownedByOpponent !== true) return wrong("ownedByOpponent", "true");
+  if (v.ownedByYou !== undefined && v.ownedByYou !== true) return wrong("ownedByYou", "true");
+  if (v.charactersNotInPlay !== undefined && v.charactersNotInPlay !== true) return wrong("charactersNotInPlay", "true");
   if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
   // A printed count is a whole number; a lowered one — `draw(n: X)` becomes
   // `TOP X IN you.deck` (`rulesets/*.rules`) — is the amount it was handed,
@@ -2337,7 +2388,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
     if (v[k] === undefined || isCount(v[k])) continue;
     if (!isRecord(v[k]) || amountProblem(v[k], true, `${at}.${k}`)) return wrong(k, "a whole number or an amount");
   }
-  for (const k of ["upTo", "fromEnd", "ignoreBarrier", "hidden"]) if (v[k] !== undefined && typeof v[k] !== "boolean") return wrong(k, "true or false");
+  for (const k of ["upTo", "fromEnd", "ignoreBarrier", "choice", "hidden"]) if (v[k] !== undefined && typeof v[k] !== "boolean") return wrong(k, "true or false");
   if (v.minCount !== undefined) {
     if (!isCount(v.minCount)) return wrong("minCount", "a non-negative whole number");
     if (!isCount(v.count) || (v.minCount as number) > (v.count as number) || v.upTo || v.take !== undefined || v.special !== undefined) return `${at}.minCount requires count >= minCount and no upTo, take or special`;
@@ -2393,7 +2444,7 @@ function filterValueHolds(kind: FilterFieldType, x: unknown): boolean {
     case "cardType":
       return x === null || (typeof x === "string" && (CARD_TYPES as readonly string[]).includes(x));
     case "skillKind":
-      return x === null || (typeof x === "string" && (SKILL_KIND_PREFIXES as readonly string[]).includes(x));
+      return x === null || (typeof x === "string" && (FILTER_SKILL_KINDS as readonly string[]).includes(x));
     case "boolean":
       return typeof x === "boolean";
     case "tri":
@@ -2752,9 +2803,11 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
   // The noun has to be settled before the trailing measures are hung off it,
   // and a name asked for **in part** is one of those — printed after the word
   // it qualifies, the way the card prints it.
+  // (Audit selectors 2: several parts are any one of them, as the matcher's one `some` takes them — "with <Son Gohan> or
+  // <Piccolo> in its character name", BT19-110.)
   const partial = [
-    ...f.charactersIncluding.map((x) => `with <${x}> in its character name`),
-    ...f.namesIncluding.map((x) => `with {${x}} in its card name`),
+    ...(f.charactersIncluding.length ? [`with ${f.charactersIncluding.map((x) => `<${x}>`).join(" or ")} in its character name`] : []),
+    ...(f.namesIncluding.length ? [`with ${f.namesIncluding.map((x) => `{${x}}`).join(" or ")} in its card name`] : []),
     // Audit lane C: either word, in a trait (`traitsIncluding`).
     ...(f.traitsIncluding?.length ? [`with ${f.traitsIncluding.map((x) => `≪${x}≫`).join(" or ")} in its special traits`] : []),
     // "with both <A> and <B>" (#768): the parser reads exactly two tokens, so
@@ -2775,7 +2828,10 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
     ...f.notKeywords.map((k) => `non-[${k}]`),
     ...(f.notKeywordsExact ?? []).map((k) => `non-[${k}]`),
   ];
-  if (f.skillKind) partial.push(`with [${f.skillKind === "activate" ? "Activate" : f.skillKind === "counter" ? "Counter" : f.skillKind === "auto" ? "Auto" : "Permanent"}] skills`);
+  if (f.skillKind) partial.push(`with [${({ activate: "Activate", "activate:main": "Activate: Main", "activate:battle": "Activate: Battle", counter: "Counter", auto: "Auto", permanent: "Permanent" } as const)[f.skillKind]}] skills`);
+  // Audit conditions 2: "with a keyword skill" (EX24-42), "with 2 or more character names" (EX24-25).
+  if (f.someKeyword) partial.push("with a keyword skill");
+  if (f.charactersMin != null) partial.push(`with ${f.charactersMin} or more character names`);
   if (noun) {
     if (f.type) bits.push(`${f.z ? "Z-" : ""}${typeNoun(f.type, noun.plural)}`);
     else if (f.notType) bits.push(`non-${typeNoun(f.notType, noun.plural)}`);
@@ -2935,6 +2991,8 @@ function describeWhere(sel: Selector): string {
  * the sentence claim a quantifier the engine does not use.
  */
 export function describeSelector(sel: Selector, all = "all"): string {
+  // R-204: a printed "choose" of the card a moment names says so, since [Barrier] then applies to it.
+  if (sel.special && sel.choice) return `${describeSelector({ ...sel, choice: undefined }, all)} (a choice: [Barrier] applies)`;
   // The one special a filter can narrow and the reading has to keep: "the
   // <Majin Buu> on top of this card" and "the Leader on top of this card" are
   // different cards, and dropping the words would print them the same.
@@ -2967,7 +3025,8 @@ export function describeSelector(sel: Selector, all = "all"): string {
   // of them to pick.
   const count =
     sel.take != null
-      ? `the ${sel.fromEnd ? "bottom" : "top"} ${sel.take}`
+      ? // (Audit selectors 2: "up to the top 2" — how many is the master's, which cards is not.)
+        `${sel.upTo ? "up to " : ""}the ${sel.fromEnd ? "bottom" : "top"} ${sel.take}`
       : sel.count == null
         ? all
         : sel.count === 99 && sel.minCount !== undefined && sel.minCount < 99
@@ -3010,6 +3069,8 @@ function describeUnderHost(sel: Selector): string {
       resolving: "the card being played",
       onTop: "the card on top of this card",
     }[sel.special];
+  // Audit effects 2 (BT25-004, BT29-085's back): a pile under a card chosen before.
+  if (sel.fromVar && !sel.filter && !sel.area) return "the chosen card";
   const who = sel.side === "opponent" ? "your opponent's " : sel.side === "both" ? "each player's " : "your ";
   const words = selectorWords(sel);
   const kind =
@@ -3023,6 +3084,9 @@ function describeUnderHost(sel: Selector): string {
   // "Your <Son Goku> Battle Card": the type word, now kept in the Battle Area
   // (`selectorWords`), already is the noun.
   if (kind === "card" && /\bbattle card$/.test(words)) return `${who}${words}`;
+  // Audit selectors 2: "your {Spaceship, Vessel of Hope} unison card" — the type word the words already end on is the
+  // noun (it read "unison card unison card", BT17-010).
+  if (words.endsWith(kind)) return `${who}${words}`;
   return `${who}${words ? `${words} ` : ""}${kind}`;
 }
 
@@ -3063,6 +3127,8 @@ const describeNotSelf = (sel: Selector): string =>
   (sel.alsoFrom?.length ? sel.alsoFrom.map((alt) => (sel.count === 99 && !sel.upTo ? `, and ${describeSelector(alt, "all")}` : `, or among ${describeSelector(alt, "the")}`)).join("") : "") +
   (sel.atRandom ? " at random" : "") +
   (sel.ownedByOpponent ? " whose owner is your opponent" : "") +
+  (sel.ownedByYou ? " that you own" : "") +
+  (sel.charactersNotInPlay ? " with a character name different from any Battle Cards you have in play" : "") +
   // "…1 <Shu> card" after "1 <Pilaf> card" (#970): a card of its own, not one an earlier slot took.
   (sel.notIn?.length ? " other than the cards already chosen" : "") +
   // "…for which the total cost adds up to 5 or less" (BT3-036): about the set too.

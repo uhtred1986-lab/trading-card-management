@@ -1084,7 +1084,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   // of an area — the only question is whether to take it (5-2-4).
   const may = one("[Auto] When your opponent plays a Battle Card or Unison Card, you may choose that card and switch it to Rest Mode.");
   assert.deepEqual(may.unsupported, []);
-  assert.deepEqual(may.ops[0], { op: "choose", sel: { special: "subject", count: 1, upTo: true }, as: "c0", reason: "you may choose that card" });
+  assert.deepEqual(may.ops[0], { op: "choose", sel: { special: "subject", count: 1, upTo: true, choice: true }, as: "c0", reason: "you may choose that card" });
   assert.deepEqual(may.ops[1], { op: "switchMode", target: { var: "c0" }, mode: "rest" });
 
   // The same sentence without "you may" is not declinable.

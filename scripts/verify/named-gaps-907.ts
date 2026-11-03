@@ -112,7 +112,8 @@ const flat = (ops: Op[]): Op[] => ops.flatMap((o) => [o, ...("then" in o && o.th
   assert.deepEqual(c.unsupported, []);
   const play = c.ops.find((o) => o.op === "play") as Extract<Op, { op: "play" }>;
   assert.equal(play.activating, true);
-  assert.match(describeScript(c.ops), /activate \(its \[Field\] skill, else play\)/);
+  // Audit effects 2: the reading also names a hand Extra's [Activate: Main] (12-2-4).
+  assert.match(describeScript(c.ops), /activate \(its \[Field\] skill, (?:or in the hand its \[Activate: Main\]; )?else play\)/);
   // Other things the word "activate" starts are not this.
   for (const other of [
     "[Activate: Main] Activate the [Activate: Main] skill of up to 1 {Big Bang Kamehameha} in your hand.",

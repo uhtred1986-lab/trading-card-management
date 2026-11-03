@@ -193,9 +193,11 @@ export interface CardFilter {
   /**
    * "Mono-blue cards **with [Counter] skills**", "an Extra Card with the
    * [Activate: Main] skill" — a kind of skill rather than a keyword, and the
-   * one shape `keywordOf` cannot answer.
+   * one shape `keywordOf` cannot answer. Audit conditions 2 (3 Nov 2026): "a red Extra Card **with an [Activate:
+   * Battle] skill**" (BT15-004) names one timing, `"activate:battle"` (an [Activate: Main/Battle] line is either); a
+   * bare "[Activate]" is both (`skillKindHas`).
    */
-  skillKind: SkillKindPrefix | null;
+  skillKind: FilterSkillKind | null;
   /**
    * A bracketed word in the description that is neither of those. Nothing may
    * be selected on a guess, so `filterFor` refuses the whole phrase rather
@@ -205,9 +207,20 @@ export interface CardFilter {
   /**
    * "1 red Extra Card with an energy cost of 1 and **no keyword skills**"
    * (BT29-001, P-247, XD1-08 and eight more). A measure that narrows, so
-   * leaving it unread offered every card in the area instead.
+   * leaving it unread offered every card in the area instead. Audit conditions 2: "…Battle Cards **without keyword
+   * skills**" (BT7-126) is the same.
    */
   noKeywords: boolean;
+  /**
+   * Audit conditions 2 (3 Nov 2026): "choose up to 1 of your opponent's Battle Cards **with a keyword skill**" (EX24-42)
+   * — the card prints at least one keyword skill, the opposite of `noKeywords`. Optional, written only when read.
+   */
+  someKeyword?: boolean;
+  /**
+   * Audit conditions 2: "your Battle Cards **with 2 or more character names** including <SH>" (EX24-25) — how many
+   * character names the card has (2-10-1), at least. Optional, written only when read.
+   */
+  charactersMin?: number | null;
   /**
    * "Face-up ≪Boujack Brigade≫ cards" (3-9-2-1). Unlike every other measure
    * here this one is about the *instance*, not the card, so `matches` cannot
@@ -406,6 +419,15 @@ export function expandSharedCardDescription(text: string): string {
  */
 export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "skillKind" | "boolean" | "tri" | "number" | "powerRel" | "variable" | "filters";
 
+/** What a description's skill kind may name: a kind, or one timing of [Activate] (audit conditions 2, BT15-004). */
+export type FilterSkillKind = SkillKindPrefix | "activate:main" | "activate:battle";
+export const FILTER_SKILL_KINDS: readonly FilterSkillKind[] = ["auto", "activate", "counter", "permanent", "activate:main", "activate:battle"];
+/** Is a line of this kind one the description names? An [Activate: Main/Battle] line is both an [Activate: Main] and an [Activate: Battle] one. */
+export function skillKindHas(kind: string, want: FilterSkillKind): boolean {
+  if (want === "activate:main" || want === "activate:battle") return kind === want || kind === "activate:main/battle";
+  return kind.startsWith(want);
+}
+
 export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   colors: "colors",
   originalColors: "colors",
@@ -439,6 +461,8 @@ export const FILTER_FIELDS: Record<keyof CardFilter, FilterFieldType> = {
   skillKind: "skillKind",
   unreadable: "boolean",
   noKeywords: "boolean",
+  someKeyword: "boolean",
+  charactersMin: "number",
   faceUp: "boolean",
   token: "boolean",
   notToken: "boolean",
@@ -509,8 +533,10 @@ export function sparkingTags(skills: readonly { sparking: number | null }[]): st
  * no number is every [Dark Over Realm X] (audit lane C).
  */
 export function keywordMatchesExact(have: ReadonlySet<string>, name: string): boolean {
-  const k = name.toLowerCase();
-  return have.has(k) || (!/\d/.test(k) && [...have].some((h) => h.startsWith(`${k} `)));
+  // Audit conditions 2: a colour pair is the same pair whichever colour is printed first ("[Arrival Red/Green]").
+  const canon = (s: string) => s.replace(/\b([a-z]+(?:\/[a-z]+)+)$/, (pair) => pair.split("/").sort().join("/"));
+  const k = canon(name.toLowerCase());
+  return have.has(k) || [...have].some((h) => canon(h) === k) || (!/\d/.test(k) && [...have].some((h) => h.startsWith(`${k} `)));
 }
 
 function addKeyword(f: CardFilter, kw: KeywordSkill | { name: KeywordSkill["name"] }, printed: string, negated = false): void {
@@ -521,7 +547,10 @@ function addKeyword(f: CardFilter, kw: KeywordSkill | { name: KeywordSkill["name
   // [Evolve] (Q&A BT19-005), not the other way round — and "with a **[Dark Over Realm]** skill" (BT27-094, BT27-104,
   // BT27-108, BT27-111) the dark one, whatever its number (`keywordMatchesExact`). The family alone took plain ones.
   const variantSaid = (kw.name === "Evolve" && "variant" in kw && kw.variant !== "Evolve") || (kw.name === "Over Realm" && "dark" in kw && kw.dark);
-  const exact = /\d/.test(printed) || (kw.name === "Union" && "variant" in kw && !!kw.variant) || variantSaid;
+  // Audit conditions 2: "≪Saiyan≫ cards **with [Arrival Red/Green]**" (BT25-082) names the colours too; the family
+  // alone took an [Arrival] of any colours.
+  const coloursSaid = "colors" in kw && Array.isArray(kw.colors) && kw.colors.length > 0;
+  const exact = /\d/.test(printed) || (kw.name === "Union" && "variant" in kw && !!kw.variant) || variantSaid || coloursSaid;
   if (exact) {
     const key = negated ? "notKeywordsExact" : "keywordsExact";
     const name = kw.name === "Over Realm" && !/\d/.test(printed) ? "Dark Over Realm" : keywordName(kw as KeywordSkill);
@@ -606,18 +635,18 @@ export function emptyFilter(): CardFilter {
  * (`subjectFilterOf`) takes it out first, as it always left such a description's
  * other words alone. Group 1 is the comparator, group 2 whose energy.
  */
-const ENERGY_CMP = "(less than or equal to|equal to or less than|equal or less than|no (?:more|greater) than|greater than or equal to|more than or equal to|equal to or greater than|equal or greater than|equal to or more than|less than|fewer than|lower than|greater than|more than|higher than)";
-export const ENERGY_COST_VS_ENERGY = new RegExp(`\\benergy costs? (?:of |is )?(?:(?:that is|which is) )?${ENERGY_CMP} (?:the (?:amount|number) of )?(their|your opponent'?s|the opponent'?s|your) (?:current |total )?energy\\b`, "i");
+const ENERGY_CMP = "(less than or equal to|equal to or less than|equal or less than|no (?:more|greater) than|greater than or equal to|more than or equal to|larger than or equal to|equal to or greater than|equal or greater than|equal to or more than|less than|fewer than|lower than|greater than|more than|higher than|larger than)";
+export const ENERGY_COST_VS_ENERGY = new RegExp(`\\benergy costs? (?:of |is )?(?:(?:that is|which is) )?${ENERGY_CMP} (?:the (?:amount|number) of )?(their|your opponent'?s|the opponent'?s|your) (?:(?:amount|number) of )?(?:current |total )?energy\\b`, "i");
 
 export type EnergyBoundKey = "costAtMostEnergy" | "costBelowEnergy" | "costAtLeastEnergy" | "costAboveEnergy";
 /** Which comparator and whose energy a match of `ENERGY_COST_VS_ENERGY` / `ENERGY_BOUND` said. */
 export function energyBoundOf(m: RegExpExecArray): { key: EnergyBoundKey; opponent: boolean } {
   const cmp = m[1].toLowerCase();
-  const key: EnergyBoundKey = /greater than or equal|more than or equal|equal (?:to )?or (?:greater|more)/.test(cmp)
+  const key: EnergyBoundKey = /greater than or equal|more than or equal|larger than or equal|equal (?:to )?or (?:greater|more)/.test(cmp)
     ? "costAtLeastEnergy"
     : /less than or equal|equal (?:to )?or less|^no /.test(cmp)
       ? "costAtMostEnergy"
-      : /greater|more|higher/.test(cmp)
+      : /greater|more|higher|larger/.test(cmp)
         ? "costAboveEnergy"
         : "costBelowEnergy";
   return { key, opponent: m[2].toLowerCase() !== "your" };
@@ -995,6 +1024,14 @@ function parseOneFilter(text: string): CardFilter {
   // sentence rules out. Until 9 Sep 2026 nothing noticed, because the measure
   // was thrown away before it reached a selector (see `narrows` in
   // `compile.ts`) — the filter was wrong and the selector had none at all.
+  // Audit selectors 2: "…and **<Son Gohan> or <Piccolo> in its character name**" (BT19-110) looks inside the name for
+  // either; only the second name was read so, and <Son Gohan> had to be the whole name (a <Son Gohan: SH> missed).
+  t = t.replace(/(?<!without\s|non-)(<[^>]+>|\{[^}]+\}) or (<[^>]+>|\{[^}]+\})\s+in (?:its|their) (?:(character|card) )?names?/gi, (_whole, a: string, b: string, which: string | undefined) => {
+    const into = which?.toLowerCase() === "character" ? f.charactersIncluding : f.namesIncluding;
+    if (a[0] !== b[0]) return _whole;
+    into.push(a.slice(1, -1).trim(), b.slice(1, -1).trim());
+    return " ";
+  });
   t = t.replace(/(without\s+|non-|(?:that |which )?does\s?n'?o?t include\s+)?(<[^>]+>|\{[^}]+\})\s+in (?:its|their) (?:(character|card) )?names?/gi, (_whole, neg: string | undefined, token: string, which: string | undefined) => {
     const value = token.slice(1, -1).trim();
     // A bare "in its name" (SD15-01: "Unison Cards with {Cabba} in its name",
@@ -1011,11 +1048,17 @@ function parseOneFilter(text: string): CardFilter {
     (token.startsWith("<") ? f.notCharacters : f.notNames).push(token.slice(1, -1).trim());
     return " ";
   });
+  // Audit conditions 2: "your Battle Cards **with 2 or more character names including <SH>**" (EX24-25) — a card of
+  // two or more character names (`charactersMin`), <SH> inside them (the same card's [Permanent] says "<SH> in their
+  // character names": SH is no character name of its own, 2-10-1). Read as the name <SH> whole it matched no card.
+  t = t.replace(/\bwith (\d+) or more character names (?:including|that include)\s+(<[^>]+>)/gi, (_whole, n: string, token: string) => {
+    f.charactersMin = Number(n);
+    f.charactersIncluding.push(token.slice(1, -1).trim());
+    return " ";
+  });
   // The same measure with the phrase in front of the name: "card whose card
   // name includes {Baby}" (BT3-017), "a card name that includes {Supreme Kai}"
-  // (BT3-037). Not "character names **including** <SH>" (EX24-25), which
-  // counts names rather than looking inside one — hence `includes?` and not
-  // the participle.
+  // (BT3-037). Not "character names **including** <SH>" (EX24-25), read just above.
   // Phrasing batch 3: the negation said this way round too — "your opponent's Battle Cards … **that does not have a
   // character name that includes** <Son Goku: GT>" (BT21-063). Read as the positive below it named the one card the
   // sentence rules out.
@@ -1122,7 +1165,16 @@ function parseOneFilter(text: string): CardFilter {
   // the sets also write "skill-less" for a card with no text whatsoever. This
   // one is only about the keywords, so a card with an [Auto] and no keyword
   // still qualifies.
-  if (/\bno keyword skills?\b|\bno keywords\b/.test(lower)) f.noKeywords = true;
+  // Audit conditions 2: "Battle Cards **without keyword skills**" (BT7-126) says the same; "…**with a keyword skill**"
+  // (EX24-42) the opposite — at least one keyword skill printed.
+  if (/\bno keyword skills?\b|\bno keywords\b|\bwithout (?:any )?keyword skills?\b/.test(lower)) f.noKeywords = true;
+  if (/\bwith (?:an? |any )?keyword skills?\b/.test(lower)) f.someKeyword = true;
+  // Audit conditions 2: "your red <Son Goku> card **with {Power Pole} under it**" (BT24-009) asks about the card's pile
+  // (23-2), which no measure here holds; read as a name it matched no card at all. Unread, not narrowed on a guess.
+  if (/\bwith (?:an? |\d+ or more )?(?:<[^>]+>|\{[^}]+\}|≪[^≫]+≫|cards?) under (?:it|them)\b/.test(lower)) f.unreadable = true;
+  // Audit conditions 2: "your Battle Cards **with 2 or more character names** including <SH>" (EX24-25).
+  const manyNames = /\bwith (\d+) or more character names\b/.exec(lower);
+  if (manyNames) f.charactersMin = Number(manyNames[1]);
   // "With a specified cost of 2", "with specified costs of 2 or less", "with a
   // specified cost of 3 or more" (SD15-01, SD15-03, #728): a bound on the
   // orbs of the card's specified cost — see `specifiedCostMin`. Any other
@@ -1202,7 +1254,9 @@ function parseOneFilter(text: string): CardFilter {
   // keyword joined to the measure before it is required just the same.
   for (const m of lower.matchAll(/\b(?:with|and) (?:an?|the )?\s*\[([a-z0-9:\- /]+)\](?: skills?)?/g)) {
     const word = m[1].trim();
-    const kind: SkillKindPrefix | null = /^counter\b/.test(word) ? "counter" : /^activate\b/.test(word) ? "activate" : word === "auto" ? "auto" : word === "permanent" ? "permanent" : null;
+    // Audit conditions 2: "[Activate: Battle]" or "[Activate: Main]" alone is that timing (BT15-004); "[Activate: Main/Battle]" and "[Activate]" both.
+    const timing = /^activate\s*:\s*(main|battle)$/.exec(word);
+    const kind: FilterSkillKind | null = timing ? (`activate:${timing[1]}` as FilterSkillKind) : /^counter\b/.test(word) ? "counter" : /^activate\b/.test(word) ? "activate" : word === "auto" ? "auto" : word === "permanent" ? "permanent" : null;
     if (kind) {
       f.skillKind = kind;
       continue;
@@ -1439,7 +1493,7 @@ function parseOneFilter(text: string): CardFilter {
   // than this card's power" — measured against the card the skill is on.
   if (
     (m =
-      /power (less than or equal to|equal to or less than|no more than|at or below|less than|lower than|greater than or equal to|equal to or greater than|no less than|at or above|greater than|higher than|more than) (?:this card'?s|its|the chosen card'?s) power/.exec(
+      /power (less than or equal to|equal to or less than|no more than|at or below|less than|lower than|greater than or equal to|equal to or greater than|no less than|at or above|greater than|higher than|more than) (?:this card'?s|its|the chosen card'?s|that card'?s) power/.exec(
         lower,
       ))
   ) {
@@ -1451,7 +1505,8 @@ function parseOneFilter(text: string): CardFilter {
         : /^(?:greater than or equal|equal to or greater|no less|at or above)/.test(w)
           ? ">="
           : ">";
-    f.powerRel = { of: /the chosen card/.test(m[0]) ? "chosen" : "self", cmp };
+    // Audit conditions 2: "…with power less than or equal to **that card's** power" (BT25-035) is the card chosen just before.
+    f.powerRel = { of: /the chosen card|that card/.test(m[0]) ? "chosen" : "self", cmp };
   }
   return f;
 }
@@ -1519,7 +1574,9 @@ export function matches(d: CardDef, given: CardFilter): boolean {
     if (f.keywordsExact?.some((k) => !keywordMatchesExact(have, k))) return false;
     if (f.notKeywordsExact?.some((k) => keywordMatchesExact(have, k))) return false;
   }
-  if (f.skillKind && !skillsOf(d).some((sk) => sk.kind.startsWith(f.skillKind!))) return false;
+  if (f.skillKind && !skillsOf(d).some((sk) => skillKindHas(sk.kind, f.skillKind!))) return false;
+  if (f.someKeyword && !keywordsOf(d).length) return false;
+  if (f.charactersMin != null && (d.characters ?? []).length < f.charactersMin) return false;
   if (f.noKeywords && keywordsOf(d).length) return false;
   if (f.monoColor && d.colors.length !== 1) return false;
   if (f.multiColor && d.colors.length < 2) return false;

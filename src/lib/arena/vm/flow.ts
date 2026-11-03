@@ -361,6 +361,7 @@ const STEP_WORK: Record<string, Work> = {
         delete inst.playedUsing;
         // 5-5-4: so is "a turn in which this card was placed in a Battle Area".
         delete inst.placedThisTurn;
+        delete inst.playedThisTurn;
       }
       // 22-44-3 (#741): "during the same turn" — the count a master keeps of
       // each [Limit X] line across copies is over with the turn too.
@@ -699,7 +700,7 @@ export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmSt
  * 20-13: why this phase is skipped, or null when it is performed.
  *
  * A whole turn first: its entry is spent as the turn's first phase is entered,
- * and every phase of that turn is then skipped by it (BT31-097, #278 — the
+ * and every phase of that turn is then skipped by it (#278, not BT31-097's turn in progress — the
  * turn still counts, `endTurn` advancing it as for any other). Then the
  * phase's own declared `skip:` word: carried over from the phase just skipped
  * when it is the same word (DBS's Main Phase End Step goes with the Main
@@ -911,6 +912,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // #930: how the card was played, as it was when this Auto was triggered.
     ...(next.selfEnteredUsing ? { selfEnteredUsing: next.selfEnteredUsing } : {}),
     ...(next.subjectEnteredUsing ? { subjectEnteredUsing: next.subjectEnteredUsing } : {}),
+    ...(next.selfEnteredBy !== undefined ? { selfEnteredBy: next.selfEnteredBy } : {}),
     skillIndex: next.skillIndex,
     usage: skill?.usage as import("./usage").UsageRecord,
     validity: skill?.validity as import("./validity").ValidityRecord,

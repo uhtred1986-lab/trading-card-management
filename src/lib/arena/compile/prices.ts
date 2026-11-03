@@ -211,6 +211,7 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // copies of this card for the turn" — and those are read as they stand.
   const bare = dropTheSubject(said);
   if ((sc.unsupported.length || !sc.ops.length) && bare !== said) sc = read(bare);
+  sc = paidWithYourOwn(sc);
   // #970: disjoint choices are charged on an [Activate] line's own price only —
   // an [Auto], a [Counter] and a keyword's move have their own payment
   // planners, and none of them matches cards across slots.
@@ -221,6 +222,36 @@ export function compileAction(said: string, skill: Skill): Script | null {
   const out = sc.unsupported.length || !sc.ops.length || upToSend || (disjoint && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
   costPrograms.set(key, out);
   return out;
+}
+
+/**
+ * Review of audit selectors 2 (R-254): a card a price acts on that names no owner, no place and no card type —
+ * "switch 1 yellow <Son Goku> card to Rest Mode" (BT23-099), "you return 1 ≪Hero≫ card with an energy cost of 1 to its
+ * owner's hand" (P-576), "you place 1 red ≪Red Ribbon Army≫ card in your Drop" (P-521), "you add 1 ≪Agent of
+ * Destruction≫ card other than this card to your hand" (P-474) — is the payer's own. R-254 reads the same words in an
+ * effect's choice as 20-1-6's card on the table, either player's; a price is something the player gives up, and read
+ * that way it could be paid with an opponent's card. Prices that name the opponent ("1 of your or your opponent's
+ * tokens", BT21-088) or a card type (R-205: "place 1 blue Battle Card … into its owner's Drop", P-628) keep their side.
+ */
+function paidWithYourOwn(sc: Script): Script {
+  let changed = false;
+  const walk = (ops: readonly Op[]): Op[] =>
+    ops.map((o): Op => {
+      if (o.op === "choose") {
+        const s = o.sel;
+        const said = o.reason ?? "";
+        if (s.side === "both" && s.area === "play" && !s.areas && !s.areaSides && !s.special && !s.fromVar && !/\bopponent|\bplayers?\b|\beither\b|\bin play\b|\bbattle cards?\b|\bunisons?\b|\bleaders?\b/i.test(said)) {
+          changed = true;
+          return { ...o, sel: { ...s, side: "you" } };
+        }
+        return o;
+      }
+      if (o.op === "if") return { ...o, then: walk(o.then), ...(o.else ? { else: walk(o.else) } : {}) };
+      if (o.op === "may") return { ...o, ops: walk(o.ops) };
+      return o;
+    });
+  const ops = walk(sc.ops);
+  return changed ? { ...sc, ops } : sc;
 }
 
 /**

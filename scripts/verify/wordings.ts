@@ -1558,7 +1558,7 @@ import type { EngineState, Trigger } from "./harness";
   // A *kind* of skill is not a keyword, and is the one shape keywordOf cannot
   // answer: "mono-blue Battle Cards with a [Counter] skill".
   assert.equal(f("mono-blue Battle Cards with a [Counter] skill").skillKind, "counter");
-  assert.equal(f("an Extra Card with the [Activate: Main] skill").skillKind, "activate");
+  assert.equal(f("an Extra Card with the [Activate: Main] skill").skillKind, "activate:main"); // audit conditions 2: the timing is kept
   assert.deepEqual(f("mono-blue Battle Cards with a [Counter] skill").keywords, []);
   // [Sparking 7] is a numeric validity condition, not a keyword: mechanism batch 3 reads it as the exact tag a line
   // prints (`keywordsExact`), never as the family. Anything else in brackets makes the description unreadable.
@@ -2070,6 +2070,8 @@ import type { EngineState, Trigger } from "./harness";
   const tb = one("[Auto] When you play this card, choose 1 card in your life and add it to your hand. If you do so, choose any number of your opponent's Battle Cards for which the total cost adds up to 3 or less and KO them.");
   const ko = JSON.stringify(tb.ops).match(/"op":"ko","target":\{"var":"(c\d+)"\}/);
   assert.ok(ko && ko[1] !== "c0", "the KO lands on the opponent's chosen cards, not on the life card");
-  // "Play it in your opponent's Battle Area" (BT15-118) is not a play into your own.
-  assert.ok(one("[Activate: Main] Play up to 1 blue Battle Card from your Drop in your opponent's Battle Area in Rest Mode.").unsupported.length > 0);
+  // "Play it in your opponent's Battle Area" (BT15-118) is not a play into your own: since audit selectors 2 it is one
+  // into theirs (`toOpponent`).
+  const theirs = one("[Activate: Main] Play up to 1 blue Battle Card from your Drop in your opponent's Battle Area in Rest Mode.");
+  assert.ok(!theirs.unsupported.length && JSON.stringify(theirs.ops).includes('"toOpponent":true'), "BT15-118: played into the opponent's Battle Area");
 }

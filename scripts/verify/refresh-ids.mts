@@ -62,7 +62,7 @@ const rec = (id: string, side: "front" | "back" = "front") => skillRecords(defs.
 async function put(id: string, over: Record<string, unknown> = {}, side: "front" | "back" = "front") {
   const r = rec(id, side);
   const row = { cardId: id, side, skillIndex: r.skillIndex, printed: r.printed, kind: r.kind, trigger: r.trigger, cost: r.cost, cond: r.cond, ops: r.ops,
-    unread: r.unread, pattern: r.pattern, reads: r.reads, status: "draft", source: "compiler", explanation: "keep", ...over };
+    unread: r.unread, pattern: r.pattern, reads: r.reads, usage: r.usage, validity: r.validity, status: "draft", source: "compiler", explanation: "keep", ...over };
   await db.insert(schema.cardRules).values(row as never);
 }
 const STALE = { reads: "an older reading", ops: [] };

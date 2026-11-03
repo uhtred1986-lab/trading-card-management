@@ -380,6 +380,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     shuffleLives: (players) => {
       for (const p of players) shuffle(state, p, SETUP_ZONES.life);
     },
+    arrangeDeck: (p, ids, position) => {
+      const deck = state.sides[p].zones[SETUP_ZONES.deck];
+      const placed = ids.filter((id) => deck.includes(id));
+      const rest = deck.filter((id) => !placed.includes(id));
+      deck.splice(0, deck.length, ...(position === "bottom" ? [...rest, ...[...placed].reverse()] : [...placed, ...rest]));
+    },
     pickAtRandom: (ids, n) => {
       const mixed = shuffleItems(ids, state.rngState);
       state.rngState = mixed.state;
@@ -729,7 +735,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         // BT20-125 (#927): its own [Permanent] has a [Union] card played from the hand
         // in the opponent's Battle Area.
         // Mechanism batch 3: "play them to their owners' Battle Areas" (BT13-096, EX21-15) - each into its owner's.
-        const side = opts.toOwners && !union && !opts.onto ? state.cards[id].owner : union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
+        // Audit selectors 2: "…from your deck to your opponent's Battle Area" (BT13-028, BT22-006) - the other player's side.
+        const side = opts.toOpponent && !union && !opts.onto ? otherPlayer(opts.player) : opts.toOwners && !union && !opts.onto ? state.cards[id].owner : union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
         const played = resolvePlay(ctx, game, state, ev, id, opts.player, {
           mode: r?.rest ? "rest" : energyBase ? "active" : opts.mode,
           onto: opts.onto,
@@ -1095,6 +1102,9 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   // opponent's life added to their Z-Energy by a skill, watched by the skill's master's cards (BT23-103). Both are
   // pended on each watcher with the moved card as the subject, which is the card the moment is about.
   yourCardRemovedByOpponent: { event: "moved", args: { from: "battle", asPlay: false, by: "skill", byOpponent: true } },
+  // Audit triggers 2: the same move by any skill, watched by the removed card's master's cards and by the other side's.
+  yourCardRemovedBySkill: { event: "moved", args: { from: "battle", asPlay: false, by: "skill" } },
+  opponentCardRemovedBySkill: { event: "moved", args: { from: "battle", asPlay: false, by: "skill" } },
   opponentLifeToZBySkill: { event: "moved", args: { from: "life", to: "zEnergy", asPlay: false, by: "skill", byOpponent: true } },
   // 3-10: pended by `moveTo` when your skill sends your card from your deck to
   // the Warp (BT30-106); the plain `moved` moment carries no cause, so the
@@ -1136,6 +1146,7 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   underLeaderToDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", fromPile: "leader" } },
   energyToDropBySkill: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill" } },
   yourEnergyToDropByYourLeader: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill", byOpponent: false, byLeader: true } },
+  yourEnergyToDropByYou: { event: "moved", args: { from: "energy", to: "drop", asPlay: false, by: "skill", byOpponent: false, yourSkill: true } },
   droppedFromBattleByYou: { event: "moved", args: { from: "battle", to: "drop", asPlay: false, by: "skill", byOpponent: false } },
   toDropBySkill: { event: "moved", args: { to: "drop", asPlay: false, by: "skill" } },
   toDropByYou: { event: "moved", args: { to: "drop", asPlay: false, by: "skill", byOpponent: false } },
@@ -1182,7 +1193,7 @@ const FIRED_BY_MOVE = new Set(["placed", "addedToZEnergy", "leftBattleToDrop", "
 /** Phrasing batch 5: the watched moves pended by name, once, about the moved card (`id` and the subject both), and answered by every watcher the declaration names. */
 // Phrasing batch 7: and a skill's damage, about the skill's card, answered by its master's watchers (BT9-104).
 // Moments batch 1: and a skill's power change, about the card changed; and your energy your Leader's skill dropped.
-const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader",
+const WATCHED_MOVE = new Set(["yourCardRemovedByOpponent", "yourCardRemovedBySkill", "opponentCardRemovedBySkill", "opponentLifeToZBySkill", "yourCardDealtDamage", "yourEnergyToDropByYourLeader", "yourEnergyToDropByYou",
   "yourCardPowerRaisedByYou", "yourCardPowerLowered", "opponentCardPowerLowered", "opponentCardPowerLoweredByBattleCard", "eitherCardPowerLowered"]);
 
 /** So a caller can say which side a `Side` word means without importing the readings module. */

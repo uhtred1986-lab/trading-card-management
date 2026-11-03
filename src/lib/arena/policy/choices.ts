@@ -186,6 +186,8 @@ function clauseAfter(text: string, reason: string): string {
 
 /** What happens to a chosen card that hurts its owner. */
 const HARM = /\bko\b|k\.o\.|drop area|\bwarp\b|bottom of|rest mode|can'?t|cannot|\bloses?\b|-\d+\s*power|negate|discard|under (this|a|your|it)|shuffle|return/i;
+/** The engine's `arrange` question (vm/script.ts): which card goes on top next. */
+const ARRANGE_TOP = /\bput the cards back on top of (?:your|your opponent's) deck in any order — choose the card to go (?:on top|next)$/i;
 /** What helps it. */
 const HELP = /\+\d+\s*power|\bgains?\b|active mode|to (your|their) hand|\bplay\b|\bdraws?\b|marker|to your life/i;
 
@@ -387,6 +389,9 @@ function pickChoice(input: PolicyInput, pick: PickDecision, work: Work): ChoiceR
   let generous: boolean;
   let why: string;
   if (typedTarget) { generous = true; why = "applies typed power to the current battler"; }
+  // Audit effects 2 (`arrange`): "put them back on top of the deck in any order", a card at a time, the first pick on top —
+  // the seat's own best card where it draws it next, the opponent's worst where they do.
+  else if (ARRANGE_TOP.test(reason)) { generous = !/your opponent's deck/i.test(reason); why = generous ? "puts its most valuable card on top of its deck" : "puts the opponent's least valuable card on top of their deck"; }
   else if (theirs) { generous = !(HELP.test(clause) && !HARM.test(clause)); why = generous ? "targets the opponent's most valuable" : "gives the opponent its least valuable"; }
   // 21-11 (#730): the copy chosen is the one that stays in play; the rest go to the Drop.
   else if (/^\[unique\] \(21-11\)/i.test(reason)) { generous = true; why = "[Unique] (21-11): keeps its most valuable copy"; }
