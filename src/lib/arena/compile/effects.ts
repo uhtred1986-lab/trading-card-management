@@ -1869,9 +1869,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // rule said in words and is dropped by `connective`, just above.
   // Audit effects 2 review: not so — BT31-097's own Q&As end the turn in progress at once ("the 'end of your opponent's
   // turn' timing is skipped"; [Over Realm] cards stay in the Battle Area, never sent to the Warp at this turn's end).
-  // `skip` "turn" refuses the player's NEXT turn and let this one finish: a misread, so unread until the engine can
-  // end the turn in progress.
-  if (t === "skip your turn") return null;
+  // Audit effects 3: `skip` "rest" is exactly that — this Main Phase ends now, the Main Phase End and the End Phase are
+  // skipped, and the opponent's turn begins with its Charge Phase ("and begin your opponent's Charge Phase" says so).
+  if (t === "skip your turn and begin your opponent's charge phase" || t === "skip your turn") return [{ op: "skip", what: "rest" }];
   // "Skip all phases until the Charge Phase in your next turn" (BT21-104):
   // the rest of this turn, the opponent's whole next turn, and this card's
   // controller's own next Charge Phase, landing at that Main Phase — three
@@ -2053,6 +2053,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // the sentence is about, dealing it as the skill's), "deal 1 **additional** damage to your opponent" (BT9-104: one
   // more damage of its own, after the damage the moment was about).
   if ((m = /^(?:(?:it|this card) deals|deal|inflict) (\d+) (?:additional )?damage to (?:your opponent|your opponent's life|them|their life|the opponent'?s life|the opponent)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "opponent" }];
+  // Audit effects 3: "{r}{r}{r}{r}{X}, …: Deal X damage to your opponent" (DB3-135) — X as the price was paid, as "draw X
+  // cards" is read below.
+  if (c.xBound && /^deal x damage to (?:your opponent|the opponent)$/.test(t)) return [{ op: "damage", n: { x: true }, side: "opponent" }];
   // "you may inflict 2 damage to your life" (EX03-11, P-015): damage to yourself is
   // the same 5-10 damage, taken from your own Life Area into your own hand.
   if ((m = /^(?:deal|inflict) (\d+) damage to (?:your life|you)$/.exec(t))) return [{ op: "damage", n: Number(m[1]), side: "you" }];
@@ -3343,7 +3346,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // Phase"); it forbids the action just the same.
   // #930: "you can only play Battle Cards by using [Union-Fusion]" arrives
   // here as "only play …" — the leading "you can" is stripped above.
-  if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b|^only play battle cards\b|^only play (?:<|mono|[a-z]+ cards)|^only use [a-z ,/]+ card skills to place cards under this card\b/.test(t)) {
+  // Audit effects 3: "your Leader Card doesn't take damage …" / "you don't take damage …" (`takeDamage`).
+  if (/\b(?:don'?t|doesn'?t|do not|does not|won'?t|will not) take (?:any )?damage\b/.test(t)) return compileNoDamage(t, c);
+  if (/\bcan only\b|\bcan'?t\b|\bcannot\b|\bwill not\b|\bwon'?t\b|^only play\b|^only use [a-z ,/]+ card skills to place cards under this card\b/.test(t)) {
     const forbid = compileProhibition(t, c);
     if (forbid) return forbid;
   }
@@ -4798,6 +4803,40 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
  * ("non-<Gogeta: GT>", "the skills of red ≪Saiyan≫ cards with 20000 power or
  * less in any of your opponent's areas").
  */
+/**
+ * Audit effects 3: damage that is not taken (20-14, `forbid` of `takeDamage`). "Your Leader Card doesn't take damage
+ * for the battle" (P-263), "your Leader doesn't take damage" (BT25-103) is the Leader; "you don't take damage for the
+ * turn" (BT21-002's back), "…you don't take damage" (BT22-139) is the player — a battle's damage and a skill's alike.
+ * "…from attacks" (SD12-02, P-234) is a battle's damage only (`bySkill: false`), and "…from attacks by their Unison
+ * Cards with [Strike] skills" (BT13-150) only the attacks of those cards (`byFilter`, asked of the attacking card).
+ * Anything else after "from" is refused: "…from your opponent's non-keyword skills" (BT16-070) asks which kind of line
+ * dealt it, which the damage op cannot tell; "…until the end of a battle or the end of the turn whichever comes first"
+ * (BT15-141) is a span the language has no word for; "your Leader Cards and Unison Cards don't take damage …"
+ * (BT11-105) is a Unison's marker loss too (13-5-2).
+ */
+function compileNoDamage(t: string, c: Ctx): Op[] | null {
+  const m = /^(you|your leader(?: cards?)?) (?:don'?t|doesn'?t|do not|does not|won'?t|will not) take (?:any )?damage(?: from (.+?))?(\s+(?:for|during|until)\b.*)?$/.exec(t.trim().replace(/[.]$/, ""));
+  if (!m) return null;
+  const SPAN = /^\s*(?:for the (?:duration of the )?(?:battle|turn)|during (?:this|the) (?:battle|turn)|until the end of (?:the|this|your opponent'?s(?: next)?|your) turn)$/;
+  const span = m[3] ?? "";
+  if (span && !SPAN.test(span)) return null;
+  // 1-7-2-2: a span printed later in the sentence is this clause's too — "your Leader doesn't take damage and your
+  // <Gogeta: GT> card can't be KO'd for the battle" (BT25-103) is for the battle.
+  const sentence = (c.raw.split(/(?<=\.)\s+/).find((s) => /\btake (?:any )?damage\b/i.test(s)) ?? "").trim().replace(/[.]$/, "");
+  const later = span ? null : /\s((?:for the (?:duration of the )?(?:battle|turn)|until the end of (?:the|this|your opponent'?s(?: next)?|your) turn))$/i.exec(sentence);
+  const until = later ? durationOf(later[1].toLowerCase()) : durationOf(t);
+  const who: { side: Side } | { target: Ref } = m[1] === "you" ? { side: "you" } : { target: { sel: { side: "you", area: "leader" } } };
+  if (!m[2]) return [{ op: "forbid", what: "takeDamage", ...who, until }];
+  const from = m[2].trim();
+  if (/^(?:your opponent'?s )?attacks?$/.test(from)) return [{ op: "forbid", what: "takeDamage", ...who, bySkill: false, until }];
+  const by = /^(?:your opponent'?s )?attacks? (?:by|of) (?:their |your opponent'?s )?(.+)$/.exec(from);
+  if (!by) return null;
+  const said = by[1].replace(/\s+skills?$/, "");
+  const filter = filterFor(said, null);
+  if (!filter || unreadFilterWords(said, filter).length) return null;
+  return [{ op: "forbid", what: "takeDamage", ...who, bySkill: false, byFilter: filter, until }];
+}
+
 function compileImmunity(t: string, c: Ctx): Op[] | null {
   const m = /^(.*?)\s*(?:is not|isn'?t)\s+affected by\s+(.+)$/.exec(t);
   if (!m) return null;
@@ -5007,6 +5046,10 @@ function keywordException(said: string): string | null {
 }
 
 function compileProhibition(t: string, c: Ctx): Op[] | null {
+  // Audit effects 3: "…and during this turn you can only play yellow ≪Universe 7≫ cards" (BT23-109): the span said first,
+  // with no comma to cut it off as a clause of its own — the same rule as with the span after it.
+  const spanFirst = /^during (?:this|the) turn,? ((?:you )?can only play .+)$/.exec(t.trim());
+  if (spanFirst) return compileProhibition(`${spanFirst[1].replace(/[.]$/, "")} for the turn`, c);
   // BT8-044's back (prohibition batch 6, said this way by `taxWordings`):
   // "…can't attack Leader Cards until the start of your next Main Phase **as
   // long as the chosen card is in Rest Mode**" — the ban holds only while the
@@ -6392,6 +6435,14 @@ export function taxWordings(text: string): string {
     // erratum's own measure: a card of any colour other than red, a red multicolour card included
     // (`parseFilter`'s "with a colour other than").
     .replace(/(^|\]\s*|[.:]\s+)(you can(?:'|no)t play this card from any area) if you have cards in areas other than your deck, hand,? or life that are any colou?r other than (red|blue|green|yellow|black|white)(?=\.|$)/gi, (_m, lead: string, ban: string, colour: string) => `${lead}if you have any cards with a color other than ${colour} in areas other than your deck, hand, or life, ${ban}`)
+    // Audit effects 3: the passive of the same ban — "This card can't be played from any area if you have 2 or less
+    // energy" (BT9-078, BT9-079) — is the condition of the ban, said the way EX06-19's "You can't play this card from
+    // any area if there is an <Android 13> card in play …" is read.
+    .replace(/(^|\]\s*|[.:]\s+)this card can(?:'|no)t be played from any area if ([^,.]+)(?=\.|$)/gi, (_m, lead: string, cond: string) => `${lead}if ${cond}, you can't play this card from any area`)
+    // Audit effects 3: "…and does not leave the Battle Area due to your opponent's skills" (BT2-047, BT2-055) is the ban
+    // on a removal by those skills — BT2-047's Q&A: chosen by the opponent's Broly, "cannot be removed from the Battle
+    // Area due to its permanent skill, so it remains in the Battle Area".
+    .replace(/\b(?:does not|doesn'?t) leave the battle area due to (your opponent'?s skills|skills)\b/gi, (_m, by: string) => `can't be removed from the battle area by ${by}`)
     // Prohibition batch 6: "…your opponent's [counter] skills and non-keyword
     // [auto]/[activate] skills cannot be activated unless they place 1 card
     // from their life in their Drop Area" (TB1-077): two activation prices,
@@ -6667,6 +6718,47 @@ export function splitModal(text: string): { head: string; options: string[] } | 
   // Phrasing batch 9: "Draw 1 card **and** choose one— ・…" (SD7-04, BT24-097): the head's own effect, then the menu —
   // the "and" (or "then") that joins them is neither's, and left on the head it was a clause nothing read.
   return { head: text.slice(0, m.index).trim().replace(/,?\s+(?:and|then)$/i, ""), options };
+}
+
+/**
+ * Audit effects 3 (R-340): "Choose up to 2 skill-less Battle Cards with an energy cost of 1 **in** your Drop Area **or**
+ * Warp and play them" (DB2-019) is one area — Bandai's answer on the card: you can't play 1 from the Drop Area and 1 from
+ * the Warp. "…**from** your Drop Area or Warp and play them" (BT6-126) is the pooled choice — Bandai's answer on that card:
+ * 3 from the Warp and 2 from the Drop Area, yes — and so is "…**from** your deck or life …" (BT6-106, BT6-027, TB3-049,
+ * TB3-064, SD7-01: 1 from each, answered yes). The two official answers on the same construction part on the one printed
+ * word that differs, "in" against "from", and that is the line drawn here (the same wording, official answers first): a
+ * choice of two or more cards **in** two areas joined by a bare "or" becomes the player's pick of the area first
+ * (`chooseMode`, one mode per area, each the same choice in that area alone, binding the same variable), then the cards.
+ * "…in your Drop Area **and/or** Warp" (DB2-031, answered yes), "up to **a total of** 3 … in your opponent's Battle Area or
+ * Drop" (BT21-051, answered yes), "each" and "shuffle any areas you looked through" pool them whatever the preposition.
+ * One card is the same choice either way and is left as it was. Review of audit effects 3: the fix read "from" the same
+ * way, which turned BT6-126 against its own answer and the "from your deck or Drop Area" searches (EX13-30 …) with it.
+ */
+const ONE_AREA_WORD = String.raw`(?:z-energy|energy(?: area)?|drop(?: area)?|warp|hand|deck|life(?: area)?|battle area)`;
+const BARE_OR_AREAS = new RegExp(String.raw`\bin (?:your |their |your opponent'?s )?${ONE_AREA_WORD} or (?:in )?(?:your |their )?${ONE_AREA_WORD}\b`, "i");
+const AREA_LABEL: Partial<Record<ScriptArea, string>> = { drop: "Drop Area", warp: "Warp", hand: "hand", deck: "deck", life: "life", energy: "Energy Area", zEnergy: "Z-Energy", battle: "Battle Area" };
+export function oneAreaOfTwo(effect: string, ops: Op[]): Op[] {
+  // The printed words decide, never a rewrite of them: "look at your deck and life, add up to 2 …" is said "from your deck
+  // or life" by the time a choice reads it, and is the pooled search it always was.
+  if (/\btotal\b|\bany areas\b|\beach\b|\band\/or\b/i.test(effect) || !BARE_OR_AREAS.test(effect)) return ops;
+  const walk = (list: Op[]): Op[] =>
+    list.map((o): Op => {
+      if (o.op === "if") return { ...o, then: walk(o.then), ...(o.else ? { else: walk(o.else) } : {}) };
+      if (o.op === "may" || o.op === "delay") return { ...o, ops: walk(o.ops) };
+      if (o.op === "chooseMode") return { ...o, modes: o.modes.map((m) => ({ ...m, ops: walk(m.ops) })) };
+      if (o.op !== "choose" || "special" in o.sel) return o;
+      const pooled = (o.sel as { areas?: ScriptArea[] }).areas;
+      if (!pooled || pooled.length !== 2 || !pooled.every((a) => AREA_LABEL[a])) return o;
+      if ((typeof o.sel.count === "number" ? o.sel.count : 1) < 2 || !BARE_OR_AREAS.test(o.reason ?? "")) return o;
+      const one: Selector & { areas?: ScriptArea[] } = { ...o.sel };
+      delete one.areas;
+      return {
+        op: "chooseMode",
+        reason: `${o.reason ?? "choose"}: choose the area first`,
+        modes: pooled.map((area) => ({ label: `from your ${AREA_LABEL[area]}`, ops: [{ ...o, sel: { ...one, area } } as Op] })),
+      };
+    });
+  return walk(ops);
 }
 
 export function holdForGame(ops: Op[]): Op[] {
@@ -7109,8 +7201,12 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
     .replace(/ from your (hand|z-deck|drop(?: area)?|warp)\b/i, " in your $1");
   // "...place a Z-Extra in your Battle Area" (BT23-081): a Z-card is placed from the Z-Deck.
   if ((verb === "place" || verb === "play") && /\bin your battle area$/i.test(scope)) {
-    if (!/\bz-/i.test(scope)) return null;
-    scope = scope.replace(/ in your battle area$/i, " in your z-deck");
+    // Audit effects 3: "…the next {Piercing Special Beam Cannon} you **place** in your Battle Area this turn" (BT23-041,
+    // itself that Z-Extra): a card named that is placed, not played, is a Z-Extra placed from the Z-Deck (17-2-1) or a
+    // [Field] Extra placed from the hand (22-3) — the price is paid from one of the two, so both are looked at.
+    if (verb === "place" && /^\{[^}]+\}$/.test(scope.replace(/ in your battle area$/i, "").trim())) scope = scope.replace(/ in your battle area$/i, " in your z-deck or hand");
+    else if (!/\bz-/i.test(scope)) return null;
+    else scope = scope.replace(/ in your battle area$/i, " in your z-deck");
   }
   const word = (noun ?? "").toLowerCase();
   if (/\band\/or\b|\bunder\b/i.test(scope)) return null;
@@ -8339,6 +8435,14 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         countSubject = { said: subjectBefore.said, clause: subjectBefore.clause, area: true };
         continue;
       }
+    }
+    // Audit effects 3: "When your opponent's Battle Card or Unison attacks **during that turn**, choose up to 1 of your
+    // cards, and that card gets +10000 power for the battle" (BT21-142) is a delayed trigger — the effect waits for the
+    // next such attack, and Bandai's answer on the card says it never reaches the battle in progress. Read as a condition
+    // it boosted a card in the battle at hand. The engine has no effect that waits for a moment, so it is refused.
+    if (/^when\b.*\bduring (?:that|this) turn[,.]?$/i.test(clause.trim())) {
+      refuse(clause);
+      continue;
     }
     const cond: ReturnType<typeof parseConditionClause> = parseConditionClause(clause, chaining) ?? (sharedSubject ? parseConditionClause(`${sharedSubject} ${clause.trim()}`, true) : null);
     const subjectHere = /^(?:(?:if|while|as long as) )?(you have|your opponent has)\b/i.exec(clause.trim())?.[1];

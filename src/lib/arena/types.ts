@@ -285,7 +285,8 @@ export interface ReplacementResult {
  * carried as one. Not the Damage Step, which is where a battle's result is
  * worked out rather than a moment anything acts in.
  */
-export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense" | "turn" | "span";
+/** "rest" (audit effects 3, BT31-097): the rest of the turn in progress — its Main Phase ends at once, and the Main Phase End and the End Phase are skipped. */
+export type SkipWhat = "charge" | "main" | "end" | "offense" | "defense" | "turn" | "span" | "rest";
 
 export type Phase = "setup" | "charge" | "main" | "mainEnd" | "end" | "over";
 export type BattleStep = "declared" | "offense" | "defense" | "damage" | "battleEnd";
@@ -433,7 +434,17 @@ export type ForbiddenAction =
    * or by a [Permanent] — is not gained (the official Q&A: the card may still
    * be chosen, and gains nothing). The cards are read as printed.
    */
-  | "gainSkills";
+  | "gainSkills"
+  /**
+   * Audit effects 3: "your Leader Card doesn't take damage for the battle" (P-263), "you don't take damage for the
+   * turn" (BT21-002's back), "…from attacks" (SD12-02, P-234: a battle's damage, `bySkill: false`), "…from your
+   * opponent's non-keyword skills" (BT16-070: a skill's, `bySkill: true`), "…from attacks by their Unison Cards with
+   * [Strike] skills" (BT13-150: `byFilter`, asked of the attacking card). Asked where damage is dealt — the Damage
+   * Step's to a Leader (8-4-6-1, `vm/battle.ts`) and a skill's `damage` op (5-10) — with the player taking it as
+   * `player`, their Leader as `card`, and the attacking card or the skill's card as `source`. A damage refused is
+   * not dealt at all: no life card moves.
+   */
+  | "takeDamage";
 
 export interface Prohibition {
   what: ForbiddenAction;

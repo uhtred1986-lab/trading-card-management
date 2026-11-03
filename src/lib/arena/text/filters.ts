@@ -420,10 +420,15 @@ export function expandSharedCardDescription(text: string): string {
 export type FilterFieldType = "strings" | "colors" | "keywords" | "cardType" | "skillKind" | "boolean" | "tri" | "number" | "powerRel" | "variable" | "filters";
 
 /** What a description's skill kind may name: a kind, or one timing of [Activate] (audit conditions 2, BT15-004). */
-export type FilterSkillKind = SkillKindPrefix | "activate:main" | "activate:battle";
-export const FILTER_SKILL_KINDS: readonly FilterSkillKind[] = ["auto", "activate", "counter", "permanent", "activate:main", "activate:battle"];
-/** Is a line of this kind one the description names? An [Activate: Main/Battle] line is both an [Activate: Main] and an [Activate: Battle] one. */
+export type FilterSkillKind = SkillKindPrefix | "activate:main" | "activate:battle" | "activate:main/battle";
+export const FILTER_SKILL_KINDS: readonly FilterSkillKind[] = ["auto", "activate", "counter", "permanent", "activate:main", "activate:battle", "activate:main/battle"];
+/**
+ * Is a line of this kind one the description names? An [Activate: Main/Battle] line is both an [Activate: Main] and an
+ * [Activate: Battle] one. Audit effects 3: "an [Activate: Main/Battle] skill" (BT31-132, BT31-116) names that one timing,
+ * a line printed [Activate: Main/Battle] — a card with a separate [Activate: Main] and [Activate: Battle] line has none.
+ */
 export function skillKindHas(kind: string, want: FilterSkillKind): boolean {
+  if (want === "activate:main/battle") return kind === want;
   if (want === "activate:main" || want === "activate:battle") return kind === want || kind === "activate:main/battle";
   return kind.startsWith(want);
 }
@@ -1059,8 +1064,10 @@ function parseOneFilter(text: string): CardFilter {
   // Phrasing batch 7: a bare "**without <Son Goku: GT>**" — "a <Pan> card or a card with <GT> in its character
   // name—both green and without <Son Goku: GT>—" (BT20-054b) — rules that name out (2-10-1-1: the whole character
   // name). It used to fall to the exact loop below and became a name the card had to *have*.
-  t = t.replace(/\bwithout\s+(<[^>]+>|\{[^}]+\})(?!\s+in (?:its|their)\b)/gi, (_whole, token: string) => {
-    (token.startsWith("<") ? f.notCharacters : f.notNames).push(token.slice(1, -1).trim());
+  // Audit effects 3: "…green <Vegeta> cards with [Blocker] and **without ≪Great Ape≫**" (P-487) — a special trait named
+  // out the same way (`notTraits`). It fell to the trait loop below and became a trait the card had to have.
+  t = t.replace(/\bwithout\s+(<[^>]+>|\{[^}]+\}|≪[^≫]+≫)(?!\s+in (?:its|their)\b)/gi, (_whole, token: string) => {
+    (token.startsWith("≪") ? f.notTraits : token.startsWith("<") ? f.notCharacters : f.notNames).push(token.slice(1, -1).trim());
     return " ";
   });
   // Audit conditions 2: "your Battle Cards **with 2 or more character names including <SH>**" (EX24-25) — a card of
@@ -1269,9 +1276,10 @@ function parseOneFilter(text: string): CardFilter {
   // keyword joined to the measure before it is required just the same.
   for (const m of lower.matchAll(/\b(?:with|and) (?:an?|the )?\s*\[([a-z0-9:\- /]+)\](?: skills?)?/g)) {
     const word = m[1].trim();
-    // Audit conditions 2: "[Activate: Battle]" or "[Activate: Main]" alone is that timing (BT15-004); "[Activate: Main/Battle]" and "[Activate]" both.
-    const timing = /^activate\s*:\s*(main|battle)$/.exec(word);
-    const kind: FilterSkillKind | null = timing ? (`activate:${timing[1]}` as FilterSkillKind) : /^counter\b/.test(word) ? "counter" : /^activate\b/.test(word) ? "activate" : word === "auto" ? "auto" : word === "permanent" ? "permanent" : null;
+    // Audit conditions 2: "[Activate: Battle]" or "[Activate: Main]" alone is that timing (BT15-004); "[Activate]" both.
+    // Audit effects 3: "[Activate: Main/Battle]" is the line of that timing (BT31-132), never any [Activate] line.
+    const timing = /^activate\s*:\s*(main|battle|main\s*\/\s*battle)$/.exec(word);
+    const kind: FilterSkillKind | null = timing ? (`activate:${timing[1].replace(/\s+/g, "")}` as FilterSkillKind) : /^counter\b/.test(word) ? "counter" : /^activate\b/.test(word) ? "activate" : word === "auto" ? "auto" : word === "permanent" ? "permanent" : null;
     if (kind) {
       f.skillKind = kind;
       continue;
