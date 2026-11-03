@@ -29,9 +29,16 @@
  *
  * Only cards that have [Unique] in force count (22-39-4 "cards with [Unique]
  * and the same card name"); a Hidden Mode card shows no name or skills (23-5)
- * and is not counted. The keyword-less wording 21-11-2 also names ("only 1
- * copy of this card can be placed in your Battle Area"), the [Z-Extra] limit
- * and the Unison limit are not processed here.
+ * and is not counted. Audit effects 3: the keyword-less wording 21-11-2 also
+ * names — "only 1 copy of this card can be played in your Battle Area"
+ * (DB2-039 …), "only 1 {Babidi, Overseer of Destruction} can be played in your
+ * Battle Area" / "you can only have up to 1 {X} in play in your Battle Area"
+ * (BT6-047 …), a [Permanent] of the card's own — is processed the same way:
+ * read as a standing ban on its master playing a card of its own name, it
+ * limits that name to one in its Battle Area, and while one card of the name
+ * there has it in force every card of the name counts (Bandai's answers: the
+ * Mafuba case on BT6-047, and EX13-009's copy played beside one whose skills
+ * are negated). The [Z-Extra] limit and the Unison limit are not processed here.
  *
  * The legacy engine (`engine/engine.ts`'s `ruleProcessing`) still keeps the
  * newest copy without asking; that is its stated boundary.
@@ -43,7 +50,9 @@ import type { GameDefinition } from "../rulesets";
 import { IllegalAction } from "./common";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
-import { hasKeyword } from "./program";
+import { hasKeyword, staticsNow } from "./program";
+import type { CardFilter } from "../text/filters";
+import type { Prohibition } from "../types";
 import { replacementChoices, replacementIdentity } from "./replace";
 import { asksAQuestion } from "./script-schema";
 import { replacementPrompt, type ScriptFrame } from "./script";
@@ -78,14 +87,38 @@ function faceName(ctx: EngineContext, state: VmState, id: string): string | unde
   return inst.flipped && def.back ? def.back.name : def.name;
 }
 
-/** The cards in `side`'s Battle Area that have [Unique] in force and the name `name`. */
+/**
+ * Audit effects 3 (21-11-2): does the card's own [Permanent] limit its name to one in its master's Battle Area right
+ * now — a standing play prohibition the card itself puts on its own name ("only 1 copy of this card …",
+ * `sameNameAsSelf`; "only 1 {X} …", a filter naming that one card)? Read off the [Permanent]s in force, so a card whose
+ * skills are negated, or that is in Hidden Mode, has none.
+ */
+function limitsItsName(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: string): boolean {
+  const own = name.toLowerCase();
+  return staticsNow(ctx, game, state).some((e) => {
+    if (e.kind !== "forbid" || e.source !== id) return false;
+    const p = e.value as Prohibition & { name?: string; filter?: CardFilter };
+    if (p.what !== "play" || p.unless || p.pay?.length) return false;
+    return p.name?.toLowerCase() === own || (p.filter?.names?.length === 1 && p.filter.names[0].toLowerCase() === own);
+  });
+}
+
+/**
+ * The cards in `side`'s Battle Area named `name` that the limit is about: those with [Unique] in force — or every card
+ * of the name, while one of them limits its name by its own [Permanent] (21-11-2; EX13-009's Q&A: a copy played beside
+ * one whose skills are negated is the copy that is limited, and the master still keeps one).
+ */
 function group(ctx: EngineContext, game: GameDefinition, state: VmState, side: PlayerId, name: string): string[] {
-  return (state.sides[side]?.zones[BATTLE] ?? []).filter((id) => !state.cards[id]?.hidden && faceName(ctx, state, id) === name && hasKeyword(ctx, game, state, id, "Unique"));
+  const named = (state.sides[side]?.zones[BATTLE] ?? []).filter((id) => !state.cards[id]?.hidden && faceName(ctx, state, id) === name);
+  if (named.length >= 2 && named.some((id) => limitsItsName(ctx, game, state, id, name))) return named;
+  return named.filter((id) => hasKeyword(ctx, game, state, id, "Unique"));
 }
 
 const UNIQUE_WORD = /\[unique\]/gi;
 /** A line whose leading run of bracketed tags carries [Unique]: the card's own keyword. */
 const OWN_KEYWORD = /^\s*(?:\[[^\]]*\]\s*)*\[unique\]/i;
+/** Audit effects 3: a line that may limit the card's own name (21-11-2's wording, `limitsItsName`) — only a pre-filter. */
+const OWN_LIMIT = /\bonly (?:have up to )?1\b[^.]*?\b(?:can be played in|in play in) your battle area\b/i;
 
 /** The printed text of both faces, split into lines. */
 const linesOf = (text: string | null | undefined): string[] => (text ?? "").split(/<br\s*\/?>/i);
@@ -96,6 +129,7 @@ function printed(ctx: EngineContext, state: VmState, id: string): { own: boolean
   let own = false;
   let elsewhere = false;
   for (const line of [...linesOf(def?.skill), ...linesOf(def?.back?.skill)]) {
+    if (OWN_LIMIT.test(line)) own = true;
     const n = (line.match(UNIQUE_WORD) ?? []).length;
     if (!n) continue;
     const mine = OWN_KEYWORD.test(line);

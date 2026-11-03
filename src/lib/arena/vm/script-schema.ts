@@ -2828,7 +2828,7 @@ export function describeFilter(given: Partial<CardFilter>, noun?: FilterNoun): s
     ...f.notKeywords.map((k) => `non-[${k}]`),
     ...(f.notKeywordsExact ?? []).map((k) => `non-[${k}]`),
   ];
-  if (f.skillKind) partial.push(`with [${({ activate: "Activate", "activate:main": "Activate: Main", "activate:battle": "Activate: Battle", counter: "Counter", auto: "Auto", permanent: "Permanent" } as const)[f.skillKind]}] skills`);
+  if (f.skillKind) partial.push(`with [${({ activate: "Activate", "activate:main": "Activate: Main", "activate:battle": "Activate: Battle", "activate:main/battle": "Activate: Main/Battle", counter: "Counter", auto: "Auto", permanent: "Permanent" } as const)[f.skillKind]}] skills`);
   // Audit conditions 2: "with a keyword skill" (EX24-42), "with 2 or more character names" (EX24-25).
   if (f.someKeyword) partial.push("with a keyword skill");
   if (f.charactersMin != null) partial.push(`with ${f.charactersMin} or more character names`);

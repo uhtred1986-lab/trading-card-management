@@ -49,9 +49,11 @@ const MARKERS_ON_IT_AFTER_AND = /^(?:an?|\d+) markers? on (?:it|them)\b/i;
 // ("power of 35000 or less", BT7-017's "an energy cost of 3 or more **and power of 35000 or
 // less** in your Drop Area") are the same second measure. Mechanism batch 2: so is "…with an energy cost of 2 or less **and
 // without [Super Combo]** from your deck" (P-569), only right before the place searched.
-const MEASURE_AFTER_AND = /^(?:(?:an? )?(?:original )?(?:energy |combo )costs? of \d+|(?:an? )?(?:original )?powers? of [\d,]+|an? specified cost(?: of \d+)?|[\d,]+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill|without \[[a-z0-9:\- /]+\] from|without <[^>]+> in (?:its|their) character names?)(?: or (?:less|more))?\b/i;
+const MEASURE_AFTER_AND = /^(?:(?:an? )?(?:original )?(?:energy |combo )costs? of \d+|(?:an? )?(?:original )?powers? of [\d,]+|an? specified cost(?: of \d+)?|[\d,]+ power|\d+ combo power|\d+ markers? or (?:less|fewer|more)|\d+ or (?:less|fewer|more) markers?|different card names|no keyword skills?|no keywords|(?:an?|the) \[[a-z0-9:\- /]+\] skill|without \[[a-z0-9:\- /]+\] from|without <[^>]+> in (?:its|their) character names?|without ≪[^≫]+≫)(?: or (?:less|more))?(?:\b|(?<=≫))/i;
 // (Phrasing batch 9: "…cards with energy costs of 1 **and without <Turles> in their character names**" (BT24-097,
 // BT24-099) is a measure of the same cards too; split off, the choice took any ≪Turles Crusher Corps≫ card.)
+// (Audit effects 3: "…green <Vegeta> cards with [blocker] **and without ≪Great Ape≫** is removed …" (P-487) likewise;
+// split off, the rest of the moment read as a replacement for the ≪Great Ape≫ cards.)
 
 /** A comma (and its "and") in front of a measure of the same description: see `commaJoinsMeasure`. */
 /**

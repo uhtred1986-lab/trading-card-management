@@ -6522,6 +6522,41 @@ export function splitModal(text: string): { head: string; options: string[] } | 
   return { head: text.slice(0, m.index).trim().replace(/,?\s+(?:and|then)$/i, ""), options };
 }
 
+/**
+ * Audit effects 3 (R-340): "Choose up to 2 skill-less Battle Cards with an energy cost of 1 in your Drop Area **or** Warp
+ * and play them" (DB2-019) is one area — Bandai's answer on the card: you can't play 1 from the Drop Area and 1 from the
+ * Warp. "…in your Drop Area **and/or** Warp" (DB2-031) is the pooled choice (the same question, answered yes), and so is
+ * "up to **a total of** 3 … in your opponent's Battle Area or Drop" (BT21-051), and "…from your deck or life …, then
+ * **shuffle any areas you looked through**" (BT6-106, BT6-027, TB3-049, TB3-064: 1 from each, answered yes). A choice of
+ * two or more cards whose printed words join two areas with a bare "or", on a line that says none of those, becomes the
+ * player's pick of the area first (`chooseMode`, one mode per area, each the same choice in that area alone, binding the
+ * same variable), then the cards. One card is the same choice either way and is left as it was.
+ */
+const ONE_AREA_WORD = String.raw`(?:z-energy|energy(?: area)?|drop(?: area)?|warp|hand|deck|life(?: area)?|battle area)`;
+const BARE_OR_AREAS = new RegExp(String.raw`\b(?:in|from) (?:your |their |your opponent'?s )?${ONE_AREA_WORD} or (?:(?:in|from) )?(?:your |their )?${ONE_AREA_WORD}\b`, "i");
+const AREA_LABEL: Partial<Record<ScriptArea, string>> = { drop: "Drop Area", warp: "Warp", hand: "hand", deck: "deck", life: "life", energy: "Energy Area", zEnergy: "Z-Energy", battle: "Battle Area" };
+export function oneAreaOfTwo(effect: string, ops: Op[]): Op[] {
+  if (/\btotal\b|\bany areas\b|\beach\b|\band\/or\b/i.test(effect)) return ops;
+  const walk = (list: Op[]): Op[] =>
+    list.map((o): Op => {
+      if (o.op === "if") return { ...o, then: walk(o.then), ...(o.else ? { else: walk(o.else) } : {}) };
+      if (o.op === "may" || o.op === "delay") return { ...o, ops: walk(o.ops) };
+      if (o.op === "chooseMode") return { ...o, modes: o.modes.map((m) => ({ ...m, ops: walk(m.ops) })) };
+      if (o.op !== "choose" || "special" in o.sel) return o;
+      const pooled = (o.sel as { areas?: ScriptArea[] }).areas;
+      if (!pooled || pooled.length !== 2 || !pooled.every((a) => AREA_LABEL[a])) return o;
+      if ((typeof o.sel.count === "number" ? o.sel.count : 1) < 2 || !BARE_OR_AREAS.test(o.reason ?? "")) return o;
+      const one: Selector & { areas?: ScriptArea[] } = { ...o.sel };
+      delete one.areas;
+      return {
+        op: "chooseMode",
+        reason: `${o.reason ?? "choose"}: choose the area first`,
+        modes: pooled.map((area) => ({ label: `from your ${AREA_LABEL[area]}`, ops: [{ ...o, sel: { ...one, area } } as Op] })),
+      };
+    });
+  return walk(ops);
+}
+
 export function holdForGame(ops: Op[]): Op[] {
   return ops.map((o) => {
     if (o.op === "if") return { ...o, then: holdForGame(o.then), ...(o.else ? { else: holdForGame(o.else) } : {}) };
@@ -8045,6 +8080,14 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         countSubject = { said: subjectBefore.said, clause: subjectBefore.clause, area: true };
         continue;
       }
+    }
+    // Audit effects 3: "When your opponent's Battle Card or Unison attacks **during that turn**, choose up to 1 of your
+    // cards, and that card gets +10000 power for the battle" (BT21-142) is a delayed trigger — the effect waits for the
+    // next such attack, and Bandai's answer on the card says it never reaches the battle in progress. Read as a condition
+    // it boosted a card in the battle at hand. The engine has no effect that waits for a moment, so it is refused.
+    if (/^when\b.*\bduring (?:that|this) turn[,.]?$/i.test(clause.trim())) {
+      refuse(clause);
+      continue;
     }
     const cond: ReturnType<typeof parseConditionClause> = parseConditionClause(clause, chaining) ?? (sharedSubject ? parseConditionClause(`${sharedSubject} ${clause.trim()}`, true) : null);
     const subjectHere = /^(?:(?:if|while|as long as) )?(you have|your opponent has)\b/i.exec(clause.trim())?.[1];
