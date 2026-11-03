@@ -196,6 +196,33 @@ let records = 0;
   records += 9;
 }
 
+// D. The extra items of the round.
+{
+  // "{r}{r}{r}: If …: Choose …" (EX15-01): a condition closed by a colon inside the effect.
+  const ex15 = record("[activate: main]{r}{r}{r}: If your Leader Card is a red <Gogeta: Br> card and you have 4 or more energy: Choose up to 1 mono-red <Gogeta: Br> card with an energy cost of 8 or less from your deck or hand, play it on top of this card, then shuffle your deck if you looked through it. You can't activate the [activate: main] skill on copies of this card for the turn.", "EX15-01");
+  assert.ok(conds(ex15).some((c) => c.kind === "leaderMatches") && conds(ex15).some((c) => c.kind === "count" && c.sel.area === "energy" && c.atLeast === 4), "D: EX15-01 — both halves of the condition");
+  assert.ok(ops(ex15).some((o) => o.op === "play"), "D: EX15-01 — …and the play under them");
+  // "If you have 4 or more energy, for each marker on your Z-Unison, reduce …" (BT24-139).
+  const b24 = record("[Permanent] If you have 4 or more energy, for each marker on your Z-Unison, reduce the energy cost on this card in your hand by 3.", "BT24-139");
+  const red = ops(b24).find((o) => o.op === "costReduction");
+  assert.ok(conds(b24).some((c) => c.kind === "count" && c.sel.area === "energy" && c.atLeast === 4), "D: BT24-139 — the energy condition");
+  assert.ok(red && red.op === "costReduction" && typeof red.amount === "object" && "markers" in red.amount && red.amount.times === 3, "D: BT24-139 — 3 for each marker on the Z-Unison");
+  // "…place the card you placed in your energy with this skill in its owner's Drop Area" (BT10-035): that card alone.
+  const b10 = record("[+2][Activate: Main] If your Leader Card is mono-blue: Place the top card of your deck in your energy; you can't place cards in your Energy Area for the turn, then, at the end of the turn, place the card you placed in your energy with this skill in its owner's Drop Area.", "BT10-035");
+  const later = ops(b10).find((o) => o.op === "delay");
+  assert.ok(later && later.op === "delay" && later.ops.some((o) => o.op === "moveTo" && "sel" in o.target && o.target.sel.fromVar === "placedInEnergy"), "D: BT10-035 — the card it placed, not every energy");
+  // "When this card is discarded by your Leader's skill" (P-491): your own Leader's, and no discard without a card.
+  const p491 = conds(record("[Auto] If your Leader is a yellow <Evil Wizard Babidi> card: When this card is discarded by your Leader's skill, play it from your Drop.", "P-491"));
+  assert.ok(p491.some((c) => c.kind === "count" && c.sel.special === "subject" && c.sel.side === "you" && c.sel.filter?.type === "LEADER"), "D: P-491 — your Leader");
+  assert.ok(!p491.some((c) => c.kind === "any"), "D: P-491 — no \"no card\" alternative");
+  // "When this card attacks a Leader or Unison" (BT18-059).
+  const b18 = conds(record("[Auto] When this card attacks a Leader or Unison, draw 1 card, then add up to 1 card from your life to your hand.", "BT18-059"));
+  assert.ok(b18.some((c) => c.kind === "any" && c.conds.every((x) => x.kind === "inBattle" && x.role === "guard")), "D: BT18-059 — the guard is a Leader or a Unison");
+  // "…and the total ≪X≫ cards with different card names among … is 5 or more" (EX23-22): unread, not one count.
+  assert.ok(only("[activate: main][limit 1]{g}, if you have 3 or more energy and the total ≪Turles Crusher Corps≫ cards with different card names among all cards in your Z-Energy, Battle Area, and Drop is 5 or more: Draw 1 card and play this card from your hand.", "EX23-22").unread.length > 0, "D: EX23-22 — unread");
+  records += 6;
+}
+
 // ── 2. the VM ────────────────────────────────────────────────────────────────
 const DRAW = "draw 1 card.";
 const defs: Record<string, CardDef> = {

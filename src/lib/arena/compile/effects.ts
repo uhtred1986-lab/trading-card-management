@@ -6969,7 +6969,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // of this card in your hand by 1" (BT20-068): the count leads the reducer, which
     // reads it trailing ("by 1 for each ..."); the condition in front is its own clause.
     const leadFor = /^(if .+?), (for (?:each|every) .+)$/i.exec(clause.trim());
-    if (leadFor && i + 1 < clauses.length && COST_REDUCER.test(clauses[i + 1].trim()) && simpleCount(leadFor[2].replace(/^for (?:each|every) /i, ""))) {
+    if (leadFor && i + 1 < clauses.length && COST_REDUCER.test(clauses[i + 1].trim()) && (simpleCount(leadFor[2].replace(/^for (?:each|every) /i, "")) || /^for (?:each|every) markers? on /i.test(leadFor[2]))) {
       clauses.splice(i, 1, leadFor[1], leadFor[2]);
       i--;
       continue;
@@ -7002,10 +7002,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     // Phrasing batch 8: a printed ceiling — "…by 1. **(Up to 2)**" (P-464) — is read now, as the amount capped there
     // (`capped`); two of them in one line are still refused.
     const ceiling = /\(up to (\d+)\)/i.exec(c.raw);
-    const permanentReduction = c.skillKind === "permanent" && i === 0 && i + 1 < clauses.length && /^reduce the (?:z-energy |energy |combo )?cost of this card\b/i.test(clauses[i + 1].trim()) && (!ceiling || (c.raw.match(/\(up to \d+\)/gi) ?? []).length === 1);
+    // Audit conditions 2: after the condition it hangs on ("If you have 4 or more energy, for each marker on your Z-Unison,
+    // reduce the energy cost on this card …", BT24-139), and with "cost **on** this card" as the card prints it.
+    const permanentReduction = c.skillKind === "permanent" && (i === 0 || /^if\b/i.test(clauses[i - 1]?.trim() ?? "")) && i + 1 < clauses.length && /^reduce the (?:z-energy |energy |combo )?cost (?:of|on) this card\b/i.test(clauses[i + 1].trim()) && (!ceiling || (c.raw.match(/\(up to \d+\)/gi) ?? []).length === 1);
     // Phrasing batch 8: and a count that opens a later clause of the effect (BT21-149's "[Counter: Play] Play this card,
     // **for every card in your opponent's Z-Deck**, place up to 1 …", cut from the play by `COUNT_LEADS_CLAUSE`).
-    const leadCount = ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || permanentReduction) && i === 0) || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || c.skillKind?.startsWith("counter")) && i > 0) ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
+    const leadCount = permanentReduction || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate")) && i === 0) || ((c.skillKind === "auto" || c.skillKind?.startsWith("activate") || c.skillKind?.startsWith("counter")) && i > 0) ? /^for (each|every) ([^;:]+?)[,]?$/i.exec(clause.trim()) : null;
     const countOnly = !!leadCount && !/,\s*(?:then\s+)?(?:add|draw|choose|play|place|send|switch|ko|look|reveal|discard|return|remove|negate|reduce|this card|it|they|your opponent)\b/i.test(leadCount[2]) && !/\bdifferent card names?\b/i.test(leadCount[2]);
     // Mechanism batch 4: "For each ≪Turtle School≫ card with **a different character name** in your Z-Energy, this card
     // gets +5000 power …" (BT18-059b, BT18-091) is read now — the trailing reader keeps the count's

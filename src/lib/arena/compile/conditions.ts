@@ -1474,6 +1474,11 @@ function parseCountCondition(t: string): Cond | null {
   // Damage Step**" (BT21-034): a count asked at a later moment, which no condition can wait for. Read now, the Combo
   // Area was always empty when the attack was declared. Refused until a delayed check exists.
   if (/\bat the (?:beginning|start|end) of\b/.test(said)) return refuseCount();
+  // Audit conditions 2: "you have 3 or more energy **and the total** ≪Turles Crusher Corps≫ cards with different card
+  // names among all cards in your Z-Energy, Battle Area, and Drop **is 5 or more**" (EX23-22): a second count, of names
+  // across three areas, said after "and the total … is N or more" — read into the first, it became one count of
+  // Turles in the energy. Refused until a total of names across areas has a reading.
+  if (/\band the total\b|\bis \d+ or (?:more|less)$/.test(said)) return refuseCount();
   // …and "you have **placed** a card in your Energy Area during your Charge Phase this turn" (EX03-27) is something
   // the player did, not cards they have: a past participle after "have" is history, read as a count of the place
   // named it held whenever the player had any energy at all.

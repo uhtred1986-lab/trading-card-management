@@ -2,7 +2,7 @@ import { ENERGY_BOUND, ENERGY_COST_VS_ENERGY, emptyFilter, energyBoundOf, expand
 import { maskNames } from "../text/cards";
 import type { ScriptArea, Selector, Side } from "../vm/script";
 import { BOTH_SIDES, TWO_NAMED_CARDS } from "./clauses";
-import { PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER } from "./shared";
+import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER } from "./shared";
 
 // ── target phrases ─────────────────────────────────────────────────────────
 
@@ -476,6 +476,10 @@ function alternativePlaces(phrase: string, looked?: string, pool?: string): Sele
 }
 
 export function parseTarget(phrase: string, looked?: string, pool?: string): Selector | null {
+  // Audit conditions 2: "…then, at the end of the turn, place **the card you placed in your energy with this skill** in its
+  // owner's Drop Area" (BT10-035): the card the skill's one move to the Energy Area took (`PLACED_IN_ENERGY`, bound by the
+  // compiler as for BT10-054's condition) — read as a description it was every card in the Energy Area.
+  if (/^the card you placed in your energy(?: area)? (?:with|by|using) this skill$/i.test(phrase.trim())) return { fromVar: PLACED_IN_ENERGY, area: "energy" };
   // "Choose up to 2 cards from your opponent's hand **at random**" (BT1-073,
   // deck flags 26 Oct 2026): the words were read as nothing, so the player
   // picked the cards. The official Q&A: chosen "without player involvement".
