@@ -18,6 +18,7 @@
  *     there does not answer "when this card is sent to its owner's Warp" and kin), and R-280 — "…placed in your Drop Area
  *     from your Combo Area, you may play it from your Drop Area" (BT12-085) is heard as the card moves at 8-5-8, so it is
  *     in the Drop when its Auto resolves (8-5-6's advance notice, `comboToDrop`, resolves while it is in the Combo Area).
+ *     And "If you do" after a play asks whether a card was played, not whether one was chosen (Q&A BT24-025).
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -105,7 +106,9 @@ const A: [string, string, string[], ((rec: Rec) => void)?][] = [
   // R-280 (review): the move as it happens (8-5-8), not 8-5-6's advance notice — the card is in the Drop when it resolves.
   ["BT12-085", "[Auto][Once per turn] If it's your opponent's turn: When a yellow skill-less Battle Card with 15000 power is placed in your Drop Area from your Combo Area, you may play it from your Drop Area.", ["yourCardComboToDrop"],
     (r) => assert.equal(subjectOf(r)?.sel.filter?.powerMin, 15000)],
-  ["BT24-025", "[Auto] When a card in your Combo Area is placed in its owner's Drop, you may play up to 2 blue ≪Hero≫ cards with energy costs of 1 from your Combo Area in Rest Mode. If you do, negate this skill for the turn.", ["comboToDrop"]],
+  // Q&A BT24-025: "the skill is only negated if 1 or more cards are played" — the play, not the choice before it.
+  ["BT24-025", "[Auto] When a card in your Combo Area is placed in its owner's Drop, you may play up to 2 blue ≪Hero≫ cards with energy costs of 1 from your Combo Area in Rest Mode. If you do, negate this skill for the turn.", ["comboToDrop"],
+    (r) => assert.ok(JSON.stringify(r.ops).includes('"cond":{"kind":"did","what":"play"}'), "BT24-025: if a card was played")],
   ["SD9-02", "[Auto] When {King Vegeta's Dynasty} in your Battle Area is placed in its owner's Drop Area, activate this skill. If {Raditz, Earth Invader} isn't in play in your Battle Area, you may play this card from your hand.", ["yourCardBattleToDrop"]],
   ["SD22-07", "[auto][limit 1]{y}, if your Leader is a yellow <Vegeta> card: When you add one of your yellow cards to your Z-Energy, play this card from your hand.", ["yourCardToZEnergy"],
     (r) => assert.deepEqual(subjectOf(r)?.sel.filter?.colors, ["Yellow"])],
@@ -199,9 +202,11 @@ const defs: Record<string, CardDef> = {
   AT3R_BTH: card("AT3R_BTH", { skill: `[Auto] When this card is returned to its owner's hand from the Battle Area, ${DRAW}` }),
   AT3R_WHIS: card("AT3R_WHIS", { colors: ["Yellow"], skill: "[Auto][Once per turn] If it's your opponent's turn: When a yellow skill-less Battle Card with 15000 power is placed in your Drop Area from your Combo Area, you may play it from your Drop Area." }),
   AT3R_Y15: card("AT3R_Y15", { colors: ["Yellow"], power: 15000 }),
+  AT3R_PLAYER: card("AT3R_PLAYER", { skill: "[Activate: Main] Choose up to 1 card in your hand and play it. If you do, draw 2 cards." }),
+  AT3R_NOPLAY: card("AT3R_NOPLAY", { skill: "[Permanent] This card can't be played by skills." }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
-for (const k of ["AT3_W_OR", "AT3_WARP_HAND", "AT3_W_WARP", "AT3_HOST", "AT3_UNDER", "AT3R_NEG", "AT3R_SEND", "AT3R_BOUNCE", "AT3R_BTW", "AT3R_TW", "AT3R_TWS", "AT3R_BTH", "AT3R_WHIS"]) assert.deepEqual(skillRecords(defs[k]).flatMap((r) => r.unread), [], `${k}: read`);
+for (const k of ["AT3_W_OR", "AT3_WARP_HAND", "AT3_W_WARP", "AT3_HOST", "AT3_UNDER", "AT3R_NEG", "AT3R_SEND", "AT3R_BOUNCE", "AT3R_BTW", "AT3R_TW", "AT3R_TWS", "AT3R_BTH", "AT3R_WHIS", "AT3R_PLAYER", "AT3R_NOPLAY"]) assert.deepEqual(skillRecords(defs[k]).flatMap((r) => r.unread), [], `${k}: read`);
 const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(roundtrip(rows), defs) };
 const other = (p: PlayerId): PlayerId => (p === "p1" ? "p2" : "p1");
 const take = (s: VmState, action: Action): VmState => roundtrip(RULES.apply(ctx, roundtrip(s), action).state as VmState);
@@ -315,6 +320,16 @@ for (const seat of ["p1", "p2"] as const) {
       assert.equal(drew, negated ? 0 : 1, `${seat}: F1: ${watcher} ${negated ? "negated there does not answer (9-6-9-2)" : "answers"}`);
       cases++;
     }
+  }
+  // F3. "If you do" after a play (Q&A BT24-025): a chosen card the play cannot land is no play, and nothing follows.
+  for (const [i, [pick, played]] of ([["AT3R_NOPLAY", false], ["AT3_PLAIN", true]] as const).entries()) {
+    let s = fresh(seat, seed(20 + i));
+    const me = stage(s, seat, "AT3R_PLAYER", "battle");
+    const t = stage(s, seat, pick, "hand");
+    s = activate(s, me, [t]);
+    assert.equal(s.sides[seat].zones.battle.includes(t), played, `${seat}: F3: ${pick} ${played ? "played" : "can't be played by a skill"}`);
+    assert.equal(hand(s, seat), played ? 2 : 1, `${seat}: F3: ${played ? "played, so 2 cards drawn" : "chosen but not played, so nothing drawn"}`);
+    cases++;
   }
 }
 // F2. R-280: BT12-085's Auto is heard as the combo card lands in the Drop (8-5-8), so the play is from the Drop. Staged at

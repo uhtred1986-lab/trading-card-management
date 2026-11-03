@@ -7683,6 +7683,12 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         // BT15-033): the flip happened — a Leader already on its front is not flipped, and what hangs on it does not happen.
         : c.lastOp === "flip"
           ? { kind: "did", what: "flip" }
+        // Review of audit triggers 3 (Q&A BT24-025): "…you may play up to 2 blue ≪Hero≫ cards … from your Combo Area in
+        // Rest Mode. If you do, negate this skill for the turn" is negated "only if 1 or more cards are played" — after a
+        // play, what was done is the play, not the choice before it: a chosen card the play could not land (a [Counter:
+        // Play] negated it) is no play. The offer's own form (`did may`, its witness) already asked the same.
+        : c.lastOp === "play"
+          ? { kind: "did", what: "play" }
         : c.last
           ? { kind: "chose", var: c.last, ...exactCount(c, c.last) }
           : mayBefore
