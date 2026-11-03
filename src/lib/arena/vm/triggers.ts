@@ -148,6 +148,14 @@ export type VmPendingRecord = VmPending | VmPendingHook;
 
 /** The self-moments of a card leaving a Battle Area by a skill (3-1-5), which 9-6-9-2 holds to the negation it had there. */
 const LEFT_BATTLE_BY_SKILL = new Set(["removedFromBattle", "removedByOpponent", "droppedFromBattle", "droppedByOpponent", "leftBattleToDrop"]);
+/**
+ * 9-6-9-2 again, for the self-moments of a move that may start in a Battle Area whatever its cause: the moment carries
+ * the [Auto]s negated there (`sourceNegated`, set only for a move out of a Battle Area), and none of them answers.
+ * Review of audit triggers 3: "When this card is sent from a Battle Area to a Warp" (BT5-048), "…sent to its owner's
+ * Warp" (BT31-108), "…by a skill" (BT31-018), "…returned to its owner's hand from the Battle Area" (DB1-097) answered
+ * a move out of the Battle Area where the card's skills had been negated.
+ */
+const SELF_MOVE_FROM_BATTLE = new Set(["battleOrDeckToWarp", "battleToWarp", "toWarp", "toWarpBySkill", "battleToHand"]);
 
 /** A card asked whether it answers to a moment, and the name it would answer to. */
 export interface TriggerMatch {
@@ -426,7 +434,19 @@ const BATCH1_GATED = new Set<string>(["droppedFromHandByOpponent", "activeBySkil
   // of 2 is played" (BT21-115) was spent by the first card of any kind you played, and "{1}: When an opponent's Battle
   // Card with an energy cost of 4 or less attacks" (DB2-148) asked its price for a Leader's attack.
   "youPlayed", "eitherCardPlayed", "yourCardPlayedFromHand", "yourCardPlayedFromDrop", "yourCardAttacks", "opponentAttacks",
-  "evolveActivated"]);
+  "evolveActivated",
+  // Audit triggers 3: a keyword's move, watched — the card whose move it is, described ("When your yellow <Garlic Jr.>
+  // activates an [Overlord] skill", P-568; "When you activate the [Blocker] skill on one of your yellow Battle Cards",
+  // EX18-01).
+  "awakenActivated", "wishActivated", "overRealmPlayed", "darkOverRealmActivated", "overlordActivated", "rejuvenateActivated",
+  "yourCardBlockerUsed", "opponentBlockerUsed", "youCounter", "yourCardExEvolveFromZEnergy",
+  // …and the watched moves and combos the grammar now reads with a description ("When a yellow skill-less Battle Card with
+  // 15000 power is placed in your Drop Area from your Combo Area", BT12-085; "When you use a black ≪Evil Wizard≫, … card
+  // in a combo", BT12-142; "When a Battle Card in your opponent's Drop Area is sent to their Warp by one of your skills",
+  // BT13-148).
+  "comboToDrop", "youCombo", "opponentCombos", "yourCardBattleToDrop", "opponentCardToZEnergy", "opponentDropToWarpByYou",
+  // Review of audit triggers 3 (R-280): BT12-085's move from the Combo Area to the Drop, heard as it happens.
+  "yourCardComboToDrop"]);
 
 /** A condition about the moment's subject alone: `count(subject …)`, or an any/all/not of such. */
 function aboutTheSubject(cond: Cond): boolean {
@@ -527,7 +547,8 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
   for (const match of matchTriggers(game, state, moment, true)) {
     if (only && !only(match)) continue;
     if (match.trigger === "comboToDrop" && moment.args.cleanupDeparture === true) continue;
-    if (match.trigger === "comboToDrop" && moment.args.fromHolder !== moment.controller) continue;
+    // "…from **your** Combo Area" (R-280's `yourCardComboToDrop` too): a card that left another player's Combo Area is not.
+    if ((match.trigger === "comboToDrop" || match.trigger === "yourCardComboToDrop") && moment.args.fromHolder !== moment.controller) continue;
     // 5-7: a declared combo is not the entry moment if a replacement or a
     // failed move left the card outside the Combo Area.
     if (match.trigger === "comboUsed" && findCard(state, match.card)?.zone !== "combo") continue;
@@ -556,7 +577,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // 9-1-5: one skill of a card switched off — by index, or a whole kind at
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
-      if (match.trigger === "battleOrDeckToWarp" && moment.sourceNegated?.includes(sk.index)) continue;
+      if (SELF_MOVE_FROM_BATTLE.has(match.trigger) && moment.sourceNegated?.includes(sk.index)) continue;
       // 9-6-9-2: an area-movement [Auto] negated in its original Battle Area
       // does not trigger although the card has moved on (and the move ended
       // the negation).

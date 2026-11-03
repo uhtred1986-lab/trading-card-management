@@ -115,7 +115,8 @@ assert.deepEqual(record(`[auto] When your red Z-Card is played or attacks, ${DRA
 records += 2;
 // Unread rather than half read.
 for (const [text, what, why] of [
-  [`[Auto] When this card attacks or one of your energy is added to your Z-Energy, ${DRAW}`, "EX22-05x", "a moment no reader places"],
+  // (Audit triggers 3 taught "one of your energy is added to your Z-Energy", `yourEnergyToZEnergy`.)
+  [`[Auto] When this card attacks or one of your energy is switched to Rest Mode, ${DRAW}`, "EX22-05x", "a moment no reader places"],
   ["[auto][once per turn] If your Leader Card is a red ≪Saiyan≫ card: When this card KOs one of your opponent's Battle Cards with an original energy cost of 2 or more or is removed from your Battle Area by an opponent's skill, deal 1 damage to your opponent.", "BT13-017", "a described KO'd card on one moment"],
   ["[Auto] If it's your opponent's turn: At the end of the battle for this card or at the end of the turn, play 1 Majin Token in Rest Mode (Majin Tokens have 15000 power, 0 combo cost, and 5000 combo power), then remove this card from the game.", "BT25-039", "this card's battle on one moment"],
 ] as const) {

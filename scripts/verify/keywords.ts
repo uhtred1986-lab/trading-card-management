@@ -1322,7 +1322,9 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   assert.ok(trig("[auto][once per turn] When you activate a red Extra from your hand, draw 1 card."), "BT29-001b");
   assert.ok(trig("[Auto] When you activate a Red/Blue multicolor Extra, draw 1 card."), "12-1-3: from the hand unless it says otherwise");
   assert.ok(!trig("[Auto] When you activate this card, draw 1 card."), "this card's own activation is `played`");
-  assert.ok(!trig("[Auto][Once per turn] When you activate a green Extra Card with an original energy cost of 2 and the [Field] skill, draw 1 card."), "a description the filter reads short does not fire at all");
+  // Audit triggers 3: the filter reads "…and the [Field] skill" (a keyword) and the original cost whole, so BT13-061 answers.
+  assert.ok(trig("[Auto][Once per turn] When you activate a green Extra Card with an original energy cost of 2 and the [Field] skill, draw 1 card."), "BT13-061: a [Field] Extra the filter reads whole");
+  assert.ok(!trig("[Auto] When you activate a green Extra Card with the [Union] skill, draw 1 card."), "a bracket the filter does not read here does not fire at all");
   assert.ok(!trig("[Auto][Limit 1] If your Leader is red: When you activate a mono-red Extra from your hand by paying the cost, draw 1 card."), "nor one that names how it was paid");
   assert.ok(!trig("[auto] When you activate the [activate: battle] skill on a red Extra Card in your hand or Drop Area, draw 1 card."), "nor one that names another area");
   // The program: the price's condition, the Extra's colour, then the effect.

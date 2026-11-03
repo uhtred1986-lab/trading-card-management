@@ -1389,7 +1389,8 @@ export function subjectFilterOf(trigger: string): CardFilter | undefined {
     // from, so it says nothing about which card. Not with a bracketed skill
     // (an "original" cost is read since #907 round 6), nor "by
     // paying the cost" — the trigger refuses those too (`text/triggers.ts`).
-    /^you activate (?:an?|1) ((?![^[]*\[)(?!.*\bby\b).+?\bextra\b.*?)(?: from your hand)?$/.exec(t)?.[1] ??
+    // Audit triggers 3: "…and the [Field] skill" (BT13-061) is a keyword of the Extra's the filter reads.
+    /^you activate (?:an?|1) ((?![^[]*\[(?!field\]))(?!.*\bby\b).+?\bextra\b.*?)(?: from your hand)?$/.exec(t)?.[1] ??
     // "When a {Scouter} is placed in your Battle Area", "when one of your blue
     // Z-Extras is placed in a Battle Area" — the card arriving (5-5-4,
     // `yourCardPlaced`). The trigger refuses a description with a place or a

@@ -2207,7 +2207,7 @@ export const epochVar = (name: string): string => `${name}@epoch`;
  * skill's. Read with where the card was (`fromArea`; a pile is in no area, 23-2, so its `pileHost`) and whose it was,
  * both taken before the move.
  */
-function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { fromArea: Area | null; pileHost: string | null | undefined; movedMaster: PlayerId; revealed: boolean }): void {
+function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { fromArea: Area | null; pileHost: string | null | undefined; movedMaster: PlayerId; revealed: boolean; negated?: number[] }): void {
   const to = h.areaOf(id);
   const yours = was.movedMaster === frame.master;
   if (to === "drop") {
@@ -2236,6 +2236,14 @@ function pendMovedBySkill(h: ScriptHost, frame: ScriptFrame, id: string, was: { 
     }
   }
   if (to === "hand" && was.pileHost && h.exists(was.pileHost)) h.pend("underReturnedToHand", was.pileHost, id);
+  // Audit triggers 3 (3-10): "When this card is sent to its owner's Warp by a skill" (BT31-018), and an opponent's card
+  // your skill sent from their hand or Drop to the Warp, watched by your cards ("…by one of your skills", P-346, BT13-148).
+  if (to === "warp") {
+    // 9-6-9-2 (review of audit triggers 3): with the [Auto]s negated in the Battle Area it left, which do not answer.
+    h.pend("toWarpBySkill", id, frame.card, was.negated);
+    if (!yours && was.fromArea === "hand") h.pend("opponentHandToWarpByYou", id, id);
+    if (!yours && was.fromArea === "drop") h.pend("opponentDropToWarpByYou", id, id);
+  }
 }
 
 /**
@@ -3280,7 +3288,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // a condition the rule asks of it — the same way `restedBySkill`
           // hands on the card that rested it.
           if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
-          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal });
+          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal, ...(negatedThere?.length ? { negated: negatedThere } : {}) });
           if (op.mode) h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only
@@ -3492,9 +3500,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // for the skill that did). After the negation: a card used "with its skills negated" answers to nothing (9-1-5).
           h.pend("comboUsed", id);
           // 5-7-2: a combo a skill makes is a combo. Both sides watch it, the
-          // same as one the player declared.
-          for (const w of h.cardsInPlay(master)) h.pend("youCombo", w, id);
-          for (const w of h.cardsInPlay(master === "p1" ? "p2" : "p1")) h.pend("opponentCombos", w, id);
+          // same as one the player declared — pended once about the card used,
+          // and every watcher the declaration names answers (audit triggers 3:
+          // pended per watcher, the names had no moment, so nothing answered).
+          h.pend("youCombo", id, id);
+          h.pend("opponentCombos", id, id);
         }
         break;
       }
@@ -3508,7 +3518,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const id = h.resolveRef(frame, op.target).find((x) => x !== b.attacker && x !== b.guard && h.masterOf(x) === defender && (h.areaOf(x) === "battle" || h.areaOf(x) === "leader"));
         if (!id) break;
         h.setGuard(id, frame.card);
-        h.pend("attacked", id);
+        // 8-1-7-2: a guard card changed by an effect makes no "when this card is attacked" pending — only [Blocker]
+        // says otherwise (22-4-3-1). (Audit triggers 3: the name pended here had no moment and logged a note.)
         break;
       }
 

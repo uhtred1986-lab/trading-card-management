@@ -1298,6 +1298,227 @@ DEFINE TRIGGER aegisActivated
   BIND "self"
   text: "when this card activates [Aegis]"
 
+-- ── audit triggers 3 (3 Nov 2026): a keyword's move, watched ───────────────
+-- The move's own `keywordActivated` (fired as the line is used, `vm/actions.ts`)
+-- or a [Counter]'s `skillActivated`, its card the subject; what the sentence
+-- says about that card is a condition on it, asked before pending.
+
+-- §22-2 — "When your Leader Card activates [Awaken]" (BT9-094), "When your
+-- Leader's [awaken] skill activates" (P-533). [Awaken: Surge] is the same move.
+DEFINE TRIGGER awakenActivated
+  ON keywordActivated(keyword: Awaken, watcher: controller)
+  BIND "subject"
+  text: "when your Leader uses [Awaken]"
+
+-- §22-25 — "When your Leader Card activates [Awaken] or [Wish]" (BT8-131): the
+-- [Wish] half; one skill, a moment each (9-6-2).
+DEFINE TRIGGER wishActivated
+  ON keywordActivated(keyword: Wish, watcher: controller)
+  BIND "subject"
+  text: "when your Leader uses [Wish]"
+
+-- §22-23 — [Dark Over Realm] is a keyword of its own: its move is announced
+-- under its own name (`keywordMomentNames`), so "when you activate [Over
+-- Realm]" (`overRealmPlayed`) is never a [Dark Over Realm].
+DEFINE TRIGGER darkOverRealmActivated
+  ON keywordActivated(keyword: "Dark Over Realm", watcher: controller)
+  BIND "subject"
+  text: "when you use [Dark Over Realm]"
+
+-- §22-42 — "When you activate a [Rejuvenate] skill" (BT12-055).
+DEFINE TRIGGER rejuvenateActivated
+  ON keywordActivated(keyword: Rejuvenate, watcher: controller)
+  BIND "subject"
+  text: "when you use [Rejuvenate]"
+
+-- §22-4 — "When your opponent activates a [blocker] or [counter] skill"
+-- (BT26-140): their [Blocker] half, the blocker the subject.
+DEFINE TRIGGER opponentBlockerUsed
+  ON keywordActivated(keyword: Blocker, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent uses [Blocker]"
+
+-- §4-3 — "When you activate a [counter] skill" (P-449): your own [Counter],
+-- the other side of `opponentCounter`.
+DEFINE TRIGGER youCounter
+  ON skillActivated(kind: counter, watcher: controller)
+  BIND "subject"
+  text: "when you use a [Counter]"
+
+-- §22-5-2, #917 — "When one of your Z-Energy cards activates [EX-Evolve]"
+-- (BT19-067): the [EX-Evolve] used from the Z-Energy, the other origin of
+-- `yourCardExEvolveFromHand`.
+DEFINE TRIGGER yourCardExEvolveFromZEnergy
+  ON keywordActivated(from: zEnergy, keyword: "EX-Evolve", watcher: controller)
+  BIND "subject"
+  text: "when you use [EX-Evolve] from your Z-Energy"
+
+-- ── audit triggers 3 (3 Nov 2026): a card's move between areas ───────────────
+-- The plain `moved` moment with the areas the sentence names; going into a pile
+-- is `placedUnder`, which says where the card came from (`from`). A move a
+-- sentence says a skill made is pended by name by the skill's own move
+-- (`vm/script.ts`'s `pendMovedBySkill`), since the plain moment says no cause.
+
+-- §23-2 — "When this card in your hand is placed under a {Destroyed West City}
+-- in your Battle Area" (BT23-025), "…placed from your hand or Drop under …"
+-- (BT20-014), "…in your hand or Battle Area is placed under …" (P-635): a
+-- moment for each area; the card it goes under is a condition on it.
+DEFINE TRIGGER placedUnderFromHand
+  ON placedUnder(from: hand, to: under)
+  BIND "self"
+  text: "when this card goes under a card from your hand"
+
+DEFINE TRIGGER placedUnderFromDrop
+  ON placedUnder(from: drop, to: under)
+  BIND "self"
+  text: "when this card goes under a card from your Drop"
+
+DEFINE TRIGGER placedUnderFromBattle
+  ON placedUnder(from: battle, to: under)
+  BIND "self"
+  text: "when this card goes under a card from a Battle Area"
+
+DEFINE TRIGGER placedUnderFromZEnergy
+  ON placedUnder(from: zEnergy, to: under)
+  BIND "self"
+  text: "when this card goes under a card from your Z-Energy"
+
+DEFINE TRIGGER placedUnderFromCombo
+  ON placedUnder(from: combo, to: under)
+  BIND "self"
+  text: "when this card goes under a card from your Combo Area"
+
+-- §3-10 — "When this card is sent to its owner's Warp" (BT31-108), from any area.
+DEFINE TRIGGER toWarp
+  ON moved(to: warp)
+  BIND "self"
+  text: "when this card goes to the Warp"
+
+-- §3-10 — "When this card is sent from a Battle Area to a Warp" (BT5-048).
+DEFINE TRIGGER battleToWarp
+  ON moved(from: battle, to: warp)
+  BIND "self"
+  text: "when this card goes from a Battle Area to the Warp"
+
+-- §3-10 — "When this card is sent to its owner's Warp by a skill" (BT31-018):
+-- pended by the skill's move, which says a skill made it.
+DEFINE TRIGGER toWarpBySkill
+  ON moved(by: skill, to: warp)
+  BIND "self"
+  text: "when a skill sends this card to the Warp"
+
+-- §17-3 — "When this card in your Z-Deck is added to your Z-Energy" (P-760).
+DEFINE TRIGGER zDeckToZEnergy
+  ON moved(from: zDeck, to: zEnergy)
+  BIND "self"
+  text: "when this card goes from your Z-Deck to your Z-Energy"
+
+-- §3-1 — "When this card is returned to its owner's hand from the Battle Area".
+DEFINE TRIGGER battleToHand
+  ON moved(from: battle, to: hand)
+  BIND "self"
+  text: "when this card returns from a Battle Area to the hand"
+
+-- §3-9-2-1 — "When this face-up card in your life is placed in your Drop Area"
+-- (BT12-088): any cause — an attack with [Critical] too (BT12-088's Q&A). The
+-- move says the card was face up (`faceUp`), read before 3-1-4 turns it down.
+DEFINE TRIGGER faceUpLifeToDrop
+  ON moved(faceUp: true, from: life, to: drop)
+  BIND "self"
+  text: "when this face-up life card goes to the Drop"
+
+-- §3-9 — "When you add a card from your life to your hand" (BT20-023): taking
+-- damage moves Life cards to the hand (21-3-2), which the Q&A calls adding
+-- them (BT6-053, BT6-054: "you can't add cards from your life to your hand"
+-- stops damage's). Each card is a moment.
+DEFINE TRIGGER yourLifeToHand
+  ON moved(from: life, to: hand, watcher: controller)
+  BIND "subject"
+  text: "when a life card goes to your hand"
+
+-- §3-9 — "When you add cards from your life to your hand or place cards from
+-- your life in your Drop Area" (BT11-088).
+DEFINE TRIGGER yourLifeToHandOrDrop
+  ON moved(from: life, to: [hand, drop], watcher: controller)
+  BIND "subject"
+  text: "when a life card goes to your hand or Drop"
+
+-- §3-9 — "When your opponent adds a card from their life to their hand or
+-- places a card from their life in their Drop Area" (BT13-004, DB3-133).
+DEFINE TRIGGER opponentLifeToHandOrDrop
+  ON moved(from: life, to: [hand, drop], watcher: opponent)
+  BIND "subject"
+  text: "when an opponent's life card goes to their hand or Drop"
+
+-- §3-9 — "When a card in your opponent's life is placed in their Drop Area" (BT7-019).
+DEFINE TRIGGER opponentLifeToDrop
+  ON moved(from: life, to: drop, watcher: opponent)
+  BIND "subject"
+  text: "when an opponent's life card goes to their Drop"
+
+-- §17-3 — "When one of your energy is added to your Z-Energy" (BT18-031).
+DEFINE TRIGGER yourEnergyToZEnergy
+  ON moved(from: energy, to: zEnergy, watcher: controller)
+  BIND "subject"
+  text: "when your energy goes to your Z-Energy"
+
+-- §3-10 — "When an opponent's card is sent to the Warp" (P-326): any of
+-- theirs, from any area, by any cause. Each card is a moment.
+DEFINE TRIGGER opponentCardToWarp
+  ON moved(to: warp, watcher: opponent)
+  BIND "subject"
+  text: "when an opponent's card goes to the Warp"
+
+-- §3-10 — "When a card in your opponent's hand is sent to their Warp by one of
+-- your skills" (P-346, P-661): pended by your skill's move.
+DEFINE TRIGGER opponentHandToWarpByYou
+  ON moved(by: skill, byOpponent: true, from: hand, to: warp, watcher: opponent)
+  BIND "subject"
+  text: "when your skill sends a card from their hand to the Warp"
+
+-- §3-10 — "When a Battle Card in your opponent's Drop Area is sent to their
+-- Warp by one of your skills" (BT13-148): pended by your skill's move.
+DEFINE TRIGGER opponentDropToWarpByYou
+  ON moved(by: skill, byOpponent: true, from: drop, to: warp, watcher: opponent)
+  BIND "subject"
+  text: "when your skill sends a card from their Drop to the Warp"
+
+-- §3-1 — "When a card is placed in your Drop Area from your deck".
+DEFINE TRIGGER yourDeckToDrop
+  ON moved(from: deck, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when a card goes from your deck to your Drop"
+
+-- §12-1-3 — "When your opponent activates an Extra Card" (BT10-092, BT10-095):
+-- their side of `extraActivated`, an Extra's skill used from the hand.
+-- Their Q&A: activating {The Final Guardian} (BT7-024) from the Drop through
+-- its own [Permanent] counts too; an Extra's [Activate: Main] used in the Drop
+-- (BT9-109) does not. Those Drop activations are unread today; the one that
+-- teaches them adds that origin here and to `extraActivated`.
+DEFINE TRIGGER opponentExtraActivated
+  ON skillActivated(extra: true, from: hand, watcher: opponent)
+  BIND "subject"
+  text: "when your opponent activates an Extra"
+
+-- §3-1 — "When a Battle Area card is placed in a Drop": either player's.
+DEFINE TRIGGER eitherBattleToDrop
+  ON moved(from: battle, to: drop, watcher: both)
+  BIND "subject"
+  text: "when a card goes from a Battle Area to a Drop"
+
+-- §8-5-8, R-280 (review of audit triggers 3) — "When a yellow skill-less
+-- Battle Card with 15000 power is placed in your Drop Area from your Combo
+-- Area, you may play it from your Drop Area" (BT12-085): the move itself,
+-- heard as it happens (the battle's 8-5-8, or a skill's move), so the card is
+-- in the Drop when the Auto resolves. Not `comboToDrop`, 8-5-6's advance
+-- notice of "a card in your Combo Area", which resolves at 8-5-7 while the
+-- card still stands in the Combo Area. The card is the subject; one that left
+-- another player's Combo Area is not "from your Combo Area".
+DEFINE TRIGGER yourCardComboToDrop
+  ON moved(from: combo, to: drop, watcher: controller)
+  BIND "subject"
+  text: "when one of your cards goes from your Combo Area to your Drop"
+
 -- ── the counter windows (4-3, 9-7) ─────────────────────────────────────────
 -- A [Counter] answers to a window rather than to a card's moment, so these
 -- five carry a name a card's WHEN never says. The shape is the same: the

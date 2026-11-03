@@ -46,6 +46,8 @@ export interface Ctx {
    * 1". Only a look or a reveal makes such a pool.
    */
   lastSeen: string | null;
+  /** Audit triggers 3: that pool is a look at your own deck ("look at the bottom card of your deck", BT5-048). */
+  lastSeenOwnDeck?: boolean;
   /**
    * The last name bound to cards the sentence can point back at with "that
    * card": a look, a reveal, or a mill, whose cards go to the Drop face up.

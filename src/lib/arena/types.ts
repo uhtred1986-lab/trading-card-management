@@ -1237,6 +1237,70 @@ export type Trigger =
   | "swapActivated"
   /** "When this card activates [Aegis]" (EX05-03), "…its [Aegis Blue/Yellow] skill" (BT16-130). */
   | "aegisActivated"
+  /** Audit triggers 3: "When your Leader Card activates [Awaken]" (BT9-094), "When your Leader's [awaken] skill activates" (P-533): the Leader is the subject. */
+  | "awakenActivated"
+  /** Audit triggers 3: "When your Leader Card activates [Awaken] or [Wish]" (BT8-131): the [Wish] half. */
+  | "wishActivated"
+  /** Audit triggers 3: "When you activate [Dark Over Realm]" — its own keyword (22-23), never an [Over Realm]. */
+  | "darkOverRealmActivated"
+  /** Audit triggers 3: "When you activate a [Rejuvenate] skill" (BT12-055): the Unison whose skill it is is the subject. */
+  | "rejuvenateActivated"
+  /** Audit triggers 3: "When your opponent activates a [blocker] … skill" (BT26-140): their blocker is the subject. */
+  | "opponentBlockerUsed"
+  /** Audit triggers 3: "When you activate a [counter] skill" (P-449): your [Counter] card is the subject. */
+  | "youCounter"
+  /** Audit triggers 3: "When one of your Z-Energy cards activates [EX-Evolve]" (BT19-067): the evolving card is the subject. */
+  | "yourCardExEvolveFromZEnergy"
+  /** Audit triggers 3: "When this card in your hand is placed under a {Destroyed West City} …" (BT23-025): into a pile, from the hand. */
+  | "placedUnderFromHand"
+  /** Audit triggers 3: "…placed from your hand or Drop under …" (BT20-014): the Drop half. */
+  | "placedUnderFromDrop"
+  /** Audit triggers 3: "When this card in your hand or Battle Area is placed under …" (P-635): the Battle Area half. */
+  | "placedUnderFromBattle"
+  /** Audit triggers 3: into a pile from the Z-Energy. */
+  | "placedUnderFromZEnergy"
+  /** Audit triggers 3: into a pile from the Combo Area. */
+  | "placedUnderFromCombo"
+  /** Audit triggers 3: "When this card is sent to its owner's Warp" (BT31-108), from any area. */
+  | "toWarp"
+  /** Audit triggers 3: "When this card is sent from a Battle Area to a Warp" (BT5-048). */
+  | "battleToWarp"
+  /** Audit triggers 3: "When this card is sent to its owner's Warp by a skill" (BT31-018). */
+  | "toWarpBySkill"
+  /** Audit triggers 3: "When this card in your Z-Deck is added to your Z-Energy" (P-760). */
+  | "zDeckToZEnergy"
+  /** Audit triggers 3: "When this card is returned to its owner's hand from the Battle Area". */
+  | "battleToHand"
+  /** Audit triggers 3: "When this face-up card in your life is placed in your Drop Area" (BT12-088). */
+  | "faceUpLifeToDrop"
+  /** Audit triggers 3: "When you add a card from your life to your hand" (BT20-023): the Life card is the subject. */
+  | "yourLifeToHand"
+  /** Audit triggers 3: "When you add cards from your life to your hand or place cards from your life in your Drop Area" (BT11-088). */
+  | "yourLifeToHandOrDrop"
+  /** Audit triggers 3: "When your opponent adds a card from their life to their hand or … Drop Area" (BT13-004). */
+  | "opponentLifeToHandOrDrop"
+  /** Audit triggers 3: "When a card in your opponent's life is placed in their Drop Area" (BT7-019). */
+  | "opponentLifeToDrop"
+  /** Audit triggers 3: "When one of your energy is added to your Z-Energy" (BT18-031). */
+  | "yourEnergyToZEnergy"
+  /** Audit triggers 3: "When an opponent's card is sent to the Warp" (P-326). */
+  | "opponentCardToWarp"
+  /** Audit triggers 3: "When a card in your opponent's hand is sent to their Warp by one of your skills" (P-346). */
+  | "opponentHandToWarpByYou"
+  /** Audit triggers 3: "When a Battle Card in your opponent's Drop Area is sent to their Warp by one of your skills" (BT13-148). */
+  | "opponentDropToWarpByYou"
+  /** Audit triggers 3: "When a card is placed in your Drop Area from your deck". */
+  | "yourDeckToDrop"
+  /** Audit triggers 3: "When a Battle Area card is placed in a Drop": either player's. */
+  | "eitherBattleToDrop"
+  /** Audit triggers 3: "When your opponent activates an Extra Card" (BT10-092): the Extra is the subject. */
+  | "opponentExtraActivated"
+  /**
+   * Review of audit triggers 3 (R-280): "When a yellow skill-less Battle Card with 15000 power is placed in your Drop
+   * Area from your Combo Area, you may play it from your Drop Area" (BT12-085): a card of yours gone from your Combo
+   * Area to your Drop, heard as it moves (8-5-8) — not 8-5-6's advance notice (`comboToDrop`). The card is the subject.
+   */
+  | "yourCardComboToDrop"
   | "yourCardReturnedToHand"
   /**
    * "When your ≪Shenron≫ Z-Unison leaves the Unison Area" (EX24-01b): another

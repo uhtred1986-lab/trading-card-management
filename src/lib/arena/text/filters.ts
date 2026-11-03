@@ -1508,6 +1508,9 @@ function parseOneFilter(text: string): CardFilter {
     // Audit conditions 2: "…with power less than or equal to **that card's** power" (BT25-035) is the card chosen just before.
     f.powerRel = { of: /the chosen card|that card/.test(m[0]) ? "chosen" : "self", cmp };
   }
+  // Audit triggers 3: "…with power greater than or equal to **that card**" (BT28-005, the attacking card its moment names):
+  // a measure against a card this reader does not take, so the description is not read, rather than read with no bound.
+  else if (/\bpower (?:less|lower|greater|higher|more|equal|no less|no more|at or)\b[^,.]{0,30}? (?:to |than )(?:this|that|the chosen|the attacking|the played) card\b(?!'?s power)/.test(lower)) f.unreadable = true;
   return f;
 }
 

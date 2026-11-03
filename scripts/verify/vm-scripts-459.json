@@ -3758,14 +3758,6 @@
         "to": "combo",
         "owner": "p1",
         "reveal": true
-      },
-      {
-        "type": "note",
-        "text": "youCombo is a moment no declaration names, so nothing answers to it"
-      },
-      {
-        "type": "note",
-        "text": "opponentCombos is a moment no declaration names, so nothing answers to it"
       }
     ],
     "beats": [
@@ -3976,14 +3968,6 @@
           "createdTurn": 1,
           "ownerTurn": "p1"
         }
-      },
-      {
-        "type": "note",
-        "text": "youCombo is a moment no declaration names, so nothing answers to it"
-      },
-      {
-        "type": "note",
-        "text": "opponentCombos is a moment no declaration names, so nothing answers to it"
       }
     ],
     "beats": [

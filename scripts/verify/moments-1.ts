@@ -65,9 +65,11 @@ let records = 0;
 
 // A. The silent case is loud.
 {
-  const rec = only("[Auto] When your opponent activates an Extra Card, add a marker to this card.", "BT10-095");
-  assert.deepEqual(rec.trigger, [], "A: BT10-095 — no moment read");
-  assert.deepEqual(rec.unread, ["When your opponent activates an Extra Card"], "A: …and its moment clause is unread");
+  // (Audit triggers 3 taught BT10-095's "When your opponent activates an Extra Card" — `opponentExtraActivated`; a moment
+  // still no reader places stands in for it.)
+  const rec = only("[Auto] When your opponent switches 1 of their cards in Rest Mode to Active Mode, add a marker to this card.", "BT6-093");
+  assert.deepEqual(rec.trigger, [], "A: BT6-093 — no moment read");
+  assert.deepEqual(rec.unread, ["When your opponent switches 1 of their cards in Rest Mode to Active Mode"], "A: …and its moment clause is unread");
   const none = only("[Auto] If your Leader is a yellow ≪Demon Clan≫ card: Look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Demon Clan≫ card among them to your hand, then shuffle your deck.", "P-417");
   assert.ok(/^an \[Auto\] that names no moment never fires/.test(none.unread[0]), `A: P-417 prints no moment and says so (${none.unread[0]})`);
   const iff = only("[Auto] If this card is removed from a Battle Area by a skill, choose up to 1 {SSB Son Goku, Hope for Victory} in your hand and place it in your energy.", "BT10-038");

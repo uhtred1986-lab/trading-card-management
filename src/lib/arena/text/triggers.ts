@@ -292,7 +292,7 @@ export function comboEntrySelf(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text);
   if (COMBO_BATTLE_END.test(head)) return false;
   const text = maskNames(sk.cost + " " + sk.effect).text.toLowerCase();
-  return /when you use this card in a combo|when this card(?: in your (?:hand|deck or hand|hand or deck)| in (?:a|your) battle area)? is used in a combo|when you combo with this card|or if you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo/.test(text);
+  return /when you use this card in a combo|when this card(?: in your (?:hand|deck or hand|hand or deck)| in (?:a|your) battle area)? is used in a combo|when you combo with this card|or if you combo with this card|when you (?:play|attack) or combo with this card|when this card in your hand is played or used in a combo|when you attack with this card or combo with it\b/.test(text);
 }
 /**
  * A self-combo entry Auto whose printed timing explicitly requires hand — "when
@@ -548,6 +548,17 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   if (sk.kind === "auto") {
     const watched = watchedMomentOf(effect.unmask(printed));
     if (watched?.triggers.includes(trigger) && readableSubject({ unmask: (s) => s }, watched.said)) return true;
+    // Audit triggers 3: a keyword's move said with no card described ("When you activate [Over Realm]").
+    const move = watchedKeywordMove(momentClause(printed));
+    if (move && move.said === null && move.triggers.includes(trigger)) return true;
+    // …a card's move between areas said whole ("When this card is sent to its owner's Warp"), and a card going into a
+    // pile from the areas named ("When this card in your hand is placed under …").
+    const zone = zoneMoveOf(momentClause(printed));
+    if (zone && zone.said === null && zone.trigger === trigger) return true;
+    if (placedUnderFrom(printed).includes(trigger)) return true;
+    // "At the end of a turn where this card was played" (BT16-142): either player's turn end (7-1), the play a condition
+    // the compiler reads (`placedThisTurn`, played). "…played from your hand" asks where from, which nothing remembers.
+    if (TURN_END_WHERE_PLAYED.test(momentClause(printed)) && (trigger === "turnEnd" || trigger === "opponentTurnEnd")) return true;
   }
   switch (trigger) {
     case "played":
@@ -577,7 +588,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // from your hand or attacks") say the attack as the second moment of one
       // skill. `played` (or `playedFromHand`) reads the first half; this reads
       // the second, so the skill answers to both and a play is not an attack.
-      return /when this card attacks(?! and kos?\b)|when you attack or combo with this card/.test(t) || PLAYED_OR_ATTACKS.test(head);
+      // Audit triggers 3: "When you attack with this card" (BT5-112, P-163), "…or combo with it" (BT4-040): the same attack.
+      return /when this card attacks(?! and kos?\b)|when you attack or combo with this card|when you attack with this card(?! and\b)/.test(t) || PLAYED_OR_ATTACKS.test(head);
     case "attacked":
       return /when this card is attacked/.test(t);
     // 8-1: a Battle Card watching the *Leader* be attacked. The Leader's own
@@ -655,7 +667,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "leftBattleToDrop":
       return /when this card is placed in (?:a|your|its owner'?s|the) drop area from (?:a|your|the) battle area(?!\s+by)/.test(head) || DROP_FROM_BATTLE.test(head);
     case "zEnergyToDrop":
-      return DROP_FROM_Z_ENERGY.test(head);
+      // Audit triggers 3: "When this card in your Z-Energy is placed in your Drop" (P-522), the area said first.
+      return DROP_FROM_Z_ENERGY.test(head) || /^when this card in your z-energy(?: area)? is placed (?:in|into) (?:your|its owner'?s|a) drop(?: area)?(?:,|$)/.test(head);
     case "yourCardAttacks": {
       const m = YOUR_CARD_ATTACKS.exec(head) ?? YOUR_CARD_ATTACKS_OR_BLOCKS.exec(head);
       return !!m && readableSubject(effect, m[1]);
@@ -828,9 +841,15 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // "An energy cost of 1 **or** more" is one bound, not two kinds.
       const kinds = said.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, "");
       // "Original" (20-3-1) is the printed cost: `originalCostMin`/`originalCostMax` read it (#907 round 6).
-      if (/ or |\[|\bby\b|\busing\b|\bwithout\b|\bfrom\b|\bin your\b/.test(kinds)) return false;
+      // Audit triggers 3: "…with an original energy cost of 2 **and the [Field] skill**" (BT13-061) is a keyword the filter
+      // reads (`keywords`); any other bracket is still not read.
+      if (/ or |\bby\b|\busing\b|\bwithout\b|\bfrom\b|\bin your\b/.test(kinds) || /\[/.test(kinds.replace(/\b(?:with|and) (?:the )?\[field\](?: skill)?/g, ""))) return false;
       return !parseFilter(effect.unmask(said)).unreadable;
     }
+    // Audit triggers 3: "When your opponent activates an Extra Card" (BT10-092, BT10-095): their side of `extraActivated`
+    // (12-1-3: activating an Extra Card is using its skill from the hand).
+    case "opponentExtraActivated":
+      return /^when your opponent activates an? extra(?: card)?(?:,|$)/.test(head);
     // 1-10: the narrower [Alliance] wording just below is read first, so a card
     // that names the keyword is not also caught by this.
     case "restedBySkill":
@@ -911,7 +930,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       // in it (a condition the compiler keeps) or nothing a reader keeps (`battleEndPart`).
       return /^at the end of (?:the|a|this) battle\b/.test(head) && !COMBO_BATTLE_END.test(head) && battleEndPart(head) !== null;
     case "comboToDrop":
-      return /^when (?:a|1) card in your combo area is (?:placed|put) (?:in|into) your drop(?: area)?\b/.test(head);
+      // Audit triggers 3: "…placed in its owner's Drop" (BT24-025's back) is the same Drop.
+      return /^when (?:a|1) card in your combo area is (?:placed|put) (?:in|into) (?:your|its owner'?s) drop(?: area)?\b/.test(head);
     case "comboUsed":
       return comboEntrySelf(sk);
     case "comboed":
@@ -1083,7 +1103,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "energyToDrop":
       // Audit conditions 2 review: a cause said after it ("…by one of your skills", XD2-04) is another moment's
       // (`yourEnergyToDropByYou`); read as this one, the opponent's energy burn answered it too.
-      return /when a card in your energy is placed in (?:your|its owner's) drop(?! area by\b| by\b)/.test(t);
+      // Audit triggers 3: "…a card in your Energy **Area**" (EX19-06) is the same energy.
+      return /when a card in your energy(?: area)? is placed in (?:your|its owner's) drop(?! area by\b| by\b)/.test(t);
     case "unisonToDrop":
       return /when this card is placed in (?:a|your|its owner'?s) drop area from (?:a|your) unison area|when this card in a unison area is placed into its owner's drop/.test(t);
     // #930: "When this card is removed from a Unison Area" (BT31-043): this card
@@ -1264,8 +1285,19 @@ const nextMoment = (rest: string) => MOMENT_VERB.test(rest) || MOMENT_START.test
  * activates its [blocker] skill" BT13-018).
  */
 function momentClause(head: string): string {
-  const cut = topLevel(head, (i) => (head[i] === "," || head[i] === ":" || (head[i] === "." && /^\.\s/.test(head.slice(i)))) && !(head[i] === "," && /^,\s*or\s/.test(head.slice(i)) && nextMoment(head.slice(i).replace(/^,\s*or\s+/, ""))));
+  const cut = topLevel(head, (i) => (head[i] === "," || head[i] === ":" || (head[i] === "." && /^\.\s/.test(head.slice(i)))) && !(head[i] === "," && /^,\s*or\s/.test(head.slice(i)) && nextMoment(head.slice(i).replace(/^,\s*or\s+/, ""))) && !listComma(head, i));
   return (cut.length ? head.slice(0, cut[0]) : head).trim().replace(/[.]$/, "");
+}
+
+/**
+ * Audit triggers 3: a comma inside a list of names — "When your mono-blue <Raditz>**,** <Vegeta>**,** or <Nappa> card is
+ * played" (BT23-042), "When you use a black ≪Evil Wizard≫**,** ≪Demon Realm Race≫**,** or ≪Demon God≫ card in a combo"
+ * (BT12-142) — is the description's, not the end of the moment: a name before it and a name (or "or"/"and" and a
+ * name) after it. The clause splitter already keeps such lists whole; cut there, the moment was "when your mono-blue
+ * <raditz>", which names nothing.
+ */
+function listComma(head: string, i: number): boolean {
+  return head[i] === "," && /[>≫}]$/.test(head.slice(0, i)) && /^,\s+(?:(?:or|and)\s+)?[<≪{]/.test(head.slice(i));
 }
 
 /**
@@ -1389,6 +1421,8 @@ export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (/^placed in your energy\b/.test(rest)) return !autoTriggerMatches(sk, "placedInEnergyFromHand");
   if (/^switched to (?:revealed|hidden) mode\b/.test(rest)) return !(["switchedRevealed", "switchedHidden"] as const).some((t) => autoTriggerMatches(sk, t));
   if (/^(?:this card|it) is placed in (?:a|the|your|their|an opponent's) battle area\b/.test(rest)) return !autoTriggerMatches(sk, "placed");
+  // Audit triggers 3: "…or sent to its owner's Warp by a skill" (BT31-021) is a moment of its own (`toWarpBySkill`, `toWarp`).
+  if (/^sent to (?:its owner'?s|your|the|a) warp(?: by (?:a|any) skill)?\s*(?:,|:|\.|$)/.test(rest)) return false;
   if (/^(?:removed from|placed in (?:a|your|its owner'?s|the) (?:drop|warp)|sent |returned |ko'?d|put )/.test(rest))
     return !(["removedFromBattle", "removedByOpponent", "koed"] as const).some((t) => autoTriggerMatches(sk, t));
   return true;
@@ -1446,13 +1480,19 @@ const WATCHED_WHOSE: readonly [RegExp, WatchedWhose][] = [
  * attacks", "when you or your opponent play X" is either player's X played, "when a player attacks" is either
  * player's card attacking.
  */
-const WATCHED_ACTIVE: readonly [RegExp, string, "played" | "attacks" | ""][] = [
+const WATCHED_ACTIVE: readonly [RegExp, string, "played" | "attacks" | "combo" | "zEnergy" | ""][] = [
   [/^when you play (?:an?|1|one) (?!card\b)/, "when your ", "played"],
   [/^when you play (?=\{\d+\}|<[^>]+>)/, "when your ", "played"],
   [/^when your opponent plays (?:an?|1|one) /, "when your opponent's ", "played"],
   [/^when you or your opponent plays? (?:an?|1|one) /, "when you or your opponent's ", "played"],
   [/^when you attack with (?:an?|1|one) (?!card\b)/, "when your ", "attacks"],
   [/^when a player attacks$/, "when a player's card attacks", ""],
+  // Audit triggers 3: "When you use a black ≪Evil Wizard≫, … card in a combo" (BT12-142) is "…is used in a combo"; "When
+  // you or your opponent uses a card with <Son Goku> in its character name in a combo" (BT26-111) is either player's;
+  // "When you add one of your yellow cards to your Z-Energy" (SD22-07) is "…is added to your Z-Energy".
+  [/^when you use (?:an?|1|one of your) (?!opponent)(?!card in a combo$)(?=.+ in a combo$)/, "when your ", "combo"],
+  [/^when you or your opponent uses? (?:an?|1|one) (?=.+ in a combo$)/, "when you or your opponent's ", "combo"],
+  [/^when you add (?:one of your|an?|1) (?=.+ to your z-energy$)/, "when your ", "zEnergy"],
 ];
 /**
  * What happened to the card: the event, with its cause or origin where the sentence names one, and the Battle Area it
@@ -1460,7 +1500,8 @@ const WATCHED_ACTIVE: readonly [RegExp, string, "played" | "attacks" | ""][] = [
  */
 type WatchedEvent = "removedBySkill" | "removedByOpponent" | "leftBattle" | "koed" | "koedByOpponentSkill" | "koedByYourSkill" | "koedByOpponent"
   | "kosByAttack" | "attacked" | "attacks" | "unisonToDrop" | "played" | "playedFromHand" | "playedFromDrop" | "playedFromWarp" | "playedFromEnergy" | "playedFromLife"
-  | "restedByYou" | "restedBySkill" | "evolveFromHand" | "exEvolveFromHand" | "swap";
+  | "restedByYou" | "restedBySkill" | "evolveFromHand" | "exEvolveFromHand" | "swap"
+  | "usedInCombo" | "toZEnergy" | "comboToDrop" | "battleToDrop";
 const BATTLE_AREA = String.raw`(?:a|the|(your|their)) battle area`;
 const WATCHED_EVENTS: readonly { re: RegExp; event: WatchedEvent }[] = [
   { re: new RegExp(String.raw` (?:is|are) removed from ${BATTLE_AREA} by (?:a|any) skills?$`), event: "removedBySkill" },
@@ -1487,6 +1528,10 @@ const WATCHED_EVENTS: readonly { re: RegExp; event: WatchedEvent }[] = [
   { re: / activates? (?:an? |the )?\[evolve\](?: skill)?(?: from your hand)?$/, event: "evolveFromHand" },
   { re: / activates? (?:an? |the )?\[ex-evolve\](?: skill)? from (your) hand$/, event: "exEvolveFromHand" },
   { re: / activates? (?:an? |the )?\[swap\](?: skills?)?$/, event: "swap" },
+  // Audit triggers 3: used in a combo (5-7), added to the Z-Energy (17-3), and placed in the Drop from the Combo Area.
+  { re: / (?:is|are) used in a combo$/, event: "usedInCombo" },
+  { re: / (?:is|are) added to (?:your|its owner'?s) z-energy$/, event: "toZEnergy" },
+  { re: / (?:is|are) placed (?:in|into) (your) drop(?: area)? from your combo area$/, event: "comboToDrop" },
 ];
 /** The declared moments for each (side, event): one table, so a new wording of a known moment costs a row, not a reader. */
 const WATCHED_MOMENT: Record<WatchedEvent, Partial<Record<"you" | "opponent" | "both", Trigger[]>>> = {
@@ -1513,6 +1558,14 @@ const WATCHED_MOMENT: Record<WatchedEvent, Partial<Record<"you" | "opponent" | "
   evolveFromHand: { you: ["evolveActivated"] },
   exEvolveFromHand: { you: ["yourCardExEvolveFromHand"] },
   swap: { you: ["swapActivated"] },
+  usedInCombo: { you: ["youCombo"], opponent: ["opponentCombos"], both: ["youCombo", "opponentCombos"] },
+  toZEnergy: { you: ["yourCardToZEnergy"], opponent: ["opponentCardToZEnergy"] },
+  // Review of audit triggers 3 (R-280): "…is placed in your Drop Area from your Combo Area, you may play it from your
+  // Drop Area" (BT12-085) is the move as it happens (8-5-8), so the card is in the Drop when its Auto resolves — not
+  // 8-5-6's advance notice of "a card in your Combo Area" (`comboToDrop`, BT24-025), which resolves before the move.
+  comboToDrop: { you: ["yourCardComboToDrop"] },
+  // Audit triggers 3: "When {King Vegeta's Dynasty} in your Battle Area is placed in its owner's Drop Area" — any card's.
+  battleToDrop: { you: ["yourCardBattleToDrop"] },
 };
 
 /**
@@ -1531,20 +1584,31 @@ const WATCHED_MOMENT: Record<WatchedEvent, Partial<Record<"you" | "opponent" | "
 export function watchedMomentOf(text: string): { triggers: Trigger[]; said: string } | null {
   const masked = maskNames(text.trim());
   let clause = momentClause(masked.text.toLowerCase().replace(TURN_THEN_WHEN, ""));
+  // Audit triggers 3: a keyword's move, watched (`watchedKeywordMove`) — a watched card's moment where it describes the card.
+  const move = watchedKeywordMove(clause);
+  if (move) return move.said ? { triggers: move.triggers, said: masked.unmask(move.said) } : null;
+  // …and a card's move between areas (`zoneMoveOf`), likewise.
+  const zone = zoneMoveOf(clause);
+  if (zone) return zone.said ? { triggers: [zone.trigger], said: masked.unmask(zone.said) } : null;
   for (const [re, voice, verb] of WATCHED_ACTIVE) {
     if (!re.test(clause)) continue;
     clause = clause.replace(re, voice);
-    // "…X from your Drop Area" / "…X in your Battle Area" after "you play": the place is the play's.
-    const place = verb === "played" ? / (?:from your (?:hand|drop|warp|energy|life)(?: area)?|in your battle area)$/.exec(clause)?.[0] ?? "" : "";
-    if (verb) clause = `${clause.slice(0, clause.length - place.length)} ${verb === "played" ? "is played" : "attacks"}${place}`;
+    if (verb === "combo") clause = clause.replace(/ in a combo$/, " is used in a combo");
+    else if (verb === "zEnergy") clause = clause.replace(/ to your z-energy$/, " is added to your z-energy");
+    else if (verb) {
+      // "…X from your Drop Area" / "…X in your Battle Area" after "you play": the place is the play's.
+      const place = verb === "played" ? / (?:from your (?:hand|drop|warp|energy|life)(?: area)?|in your battle area)$/.exec(clause)?.[0] ?? "" : "";
+      clause = `${clause.slice(0, clause.length - place.length)} ${verb === "played" ? "is played" : "attacks"}${place}`;
+    }
     break;
   }
   const whose = WATCHED_WHOSE.find(([re]) => re.test(clause));
   if (!whose) return null;
   const rest = clause.replace(whose[0], "");
-  for (const { re, event } of WATCHED_EVENTS) {
+  for (const { re, event: read } of WATCHED_EVENTS) {
     const m = re.exec(rest);
     if (!m) continue;
+    let event = read;
     let said = rest.slice(0, m.index).trim();
     // "a <Bulma> card in your Battle Area is removed from your Battle Area": the place says whose card it was.
     const inYours = / in your battle area\b/.test(said);
@@ -1552,8 +1616,12 @@ export function watchedMomentOf(text: string): { triggers: Trigger[]; said: stri
     const area = m[1];
     let side: "you" | "opponent" | "both" | null = whose[1] === "a" ? (inYours || area === "your" ? "you" : null) : whose[1];
     if ((area === "their" && side !== "opponent") || (area === "your" && side !== "you")) side = null;
-    // A Unison leaves for the Drop from its Unison Area (Q&A BT17-059, BT17-069): only a Unison's.
-    if (event === "unisonToDrop" && !/\bunison(?: cards?)?$|\bunison cards? with\b/.test(said)) return null;
+    // A Unison leaves for the Drop from its Unison Area (Q&A BT17-059, BT17-069): only a Unison's. Audit triggers 3: a
+    // card "in your Battle Area" placed in the Drop leaves from there (`yourCardBattleToDrop`), whatever it is.
+    if (event === "unisonToDrop" && !/\bunison(?: cards?)?$|\bunison cards? with\b/.test(said)) {
+      if (!inYours) return null;
+      event = "battleToDrop";
+    }
     // A switch by your skill of "an opponent's card" is any of theirs on the table, their Leader too
     // (`opponentCardRestedByYourSkill`, R-208); one by any
     // skill is read only of a Battle Card (20-1-2: one in a Battle Area), which is all its moment asks about.
@@ -1577,6 +1645,144 @@ export function watchedMomentOf(text: string): { triggers: Trigger[]; said: stri
     // A Leader attacked has its own moment and readers (`yourLeaderAttacked`, `attackedLeaderDescription`; 8-1-3).
     const triggers = event === "attacked" && /(?<!non-)\bleader(?: cards?)?$/.test(said) ? undefined : WATCHED_MOMENT[event][side];
     return triggers?.length ? { triggers, said: masked.unmask(said) } : null;
+  }
+  return null;
+}
+
+// ── audit triggers 3 (3 Nov 2026): a keyword's move, watched ────────────────
+
+/**
+ * The keyword moves a moment can name (22: a keyword skill being activated), and the declared moment for each side of
+ * the table. [Dark Over Realm] is a keyword of its own (22-23), never an [Over Realm] (22-15); "[counter]" is any
+ * [Counter] skill (4-3), a skill's activation rather than a keyword's move. A keyword not here names no moment, so its
+ * skill stays unread.
+ */
+const KEYWORD_MOVE: Readonly<Record<string, { you?: Trigger; opponent?: Trigger }>> = {
+  awaken: { you: "awakenActivated" },
+  "awaken: surge": { you: "awakenActivated" },
+  wish: { you: "wishActivated" },
+  "over realm": { you: "overRealmPlayed" },
+  "dark over realm": { you: "darkOverRealmActivated" },
+  overlord: { you: "overlordActivated" },
+  rejuvenate: { you: "rejuvenateActivated" },
+  blocker: { you: "yourCardBlockerUsed", opponent: "opponentBlockerUsed" },
+  counter: { you: "youCounter", opponent: "opponentCounter" },
+  swap: { you: "swapActivated" },
+};
+/** One keyword said as a skill ("[Awaken]", "an [Over Realm] skill", "the [Blocker] skill"), or several joined by "or". */
+const KW_ONE = String.raw`(?:an? |the |its )?\[[^\]]+\](?: skills?)?`;
+const KW_LIST = String.raw`${KW_ONE}(?:,? or ${KW_ONE})*`;
+/** Whose move, and where the card is described: [pattern, side, description group, keyword-list group]. */
+const KEYWORD_WATCHED: readonly [RegExp, "you" | "opponent", number | null, number][] = [
+  // "When you activate [swap] on one of your yellow <Frieza> cards" (BT21-101), "When you activate the [Blocker] skill on
+  // one of your yellow Battle Cards" (EX18-01).
+  [new RegExp(String.raw`^when you activate (${KW_LIST}) on (?:one of |1 of )?your (?!opponent\b)(.+)$`), "you", 2, 1],
+  // "When you activate [Over Realm]" (BT16-111), "…an [Over Realm] skill" (BT11-123), "…[Overlord]" (BT17-121),
+  // "…a [Rejuvenate] skill" (BT12-055), "…a [counter] skill" (P-449).
+  [new RegExp(String.raw`^when you activate (${KW_LIST})$`), "you", null, 1],
+  // "When your opponent activates a [blocker] or [counter] skill" (BT26-140).
+  [new RegExp(String.raw`^when your opponent activates (${KW_LIST})$`), "opponent", null, 1],
+  // "When your Leader's [awaken] skill activates" (P-533).
+  [new RegExp(String.raw`^when (?:one of |1 of )?your (?!opponent\b)(.+?)['’]s? (${KW_LIST}) activates$`), "you", 1, 2],
+  // "When your Leader Card activates [Awaken]" (BT9-094), "…[Awaken] or [Wish]" (BT8-131), "When your yellow
+  // <Garlic Jr.> activates an [Overlord] skill" (P-568), "When your Leader Card activates a [Blocker] skill" (BT14-123),
+  // "When one of your Z-Energy cards activates [EX-Evolve]" (BT19-067).
+  [new RegExp(String.raw`^when (?:one of |1 of )?your (?!opponent\b)(.+?) activates (${KW_LIST})$`), "you", 1, 2],
+];
+
+/**
+ * Audit triggers 3: a keyword's move another card of yours (or of your opponent's) makes, read as subject × move —
+ * "When your Leader Card activates [Awaken]" (BT9-094), "When you activate [Over Realm]" (BT16-111), "When your yellow
+ * <Garlic Jr.> activates an [Overlord] skill" (P-568), "When your opponent activates a [blocker] or [counter] skill"
+ * (BT26-140). The move is `keywordActivated` (the [Counter] `skillActivated`), fired as the line is used
+ * (`vm/actions.ts`), its card the subject; what the sentence says about that card (`said`, lower case, names masked) is
+ * a condition on it, asked before pending (`vm/triggers.ts`). Several keywords joined by "or" are a moment each
+ * (9-6-2: only one happens at a time). "One of your Z-Energy cards activates [EX-Evolve]" (BT19-067) says where the
+ * card was, not what it is: the [EX-Evolve] from the Z-Energy (22-5-2, #917). Null for any other clause, and for a
+ * keyword or side no moment is declared for.
+ */
+export function watchedKeywordMove(clause: string): { triggers: Trigger[]; said: string | null } | null {
+  for (const [re, side, saidAt, listAt] of KEYWORD_WATCHED) {
+    const m = re.exec(clause);
+    if (!m) continue;
+    const names = [...m[listAt].matchAll(/\[([^\]]+)\]/g)].map((k) => k[1].trim().replace(/ \d+$/, ""));
+    const said = saidAt === null ? null : m[saidAt].trim().replace(/^leader$/, "leader card");
+    // 22-5-2, #917: the Z-Energy says where the [EX-Evolve] was used from, which is its own moment.
+    if (names.length === 1 && names[0] === "ex-evolve") {
+      if (side !== "you" || !said || !/^z-energy cards?$/.test(said)) return null;
+      return { triggers: ["yourCardExEvolveFromZEnergy"], said: null };
+    }
+    const triggers = names.map((k) => KEYWORD_MOVE[k]?.[side]);
+    if (!names.length || triggers.some((t) => t === undefined)) return null;
+    // A description says no verb, no means and no time ("…black Z-Unison attacks or activates the [Blocker] skill" is two
+    // moments, `YOUR_CARD_ATTACKS_OR_BLOCKS`'); one that does is not read as a card.
+    if (said !== null && (!said || /\b(?:this card|it|is|are|was|were|attacks?|or (?:your|a|an|when)|and|using|by|on your|during|until|from)\b|\bother than (?!\{)|\bexcept\b/.test(said))) return null;
+    return { triggers: [...new Set(triggers as Trigger[])], said };
+  }
+  return null;
+}
+
+// ── audit triggers 3 (3 Nov 2026): a card's move between areas ──────────────
+
+/** Audit triggers 3: "At the end of a turn where this card was played" (BT16-142). */
+export const TURN_END_WHERE_PLAYED = /^at the end of a turn (?:where|in which) this card was played$/;
+
+/** The areas a moment's "in your …" / "from your …" names, as the zones a move carries (`moved`'s `from`). */
+const AREA_ZONE: Readonly<Record<string, string>> = { hand: "hand", drop: "drop", "drop area": "drop", "battle area": "battle", "z-energy": "zEnergy", "combo area": "combo" };
+const UNDER_FROM: Readonly<Record<string, Trigger>> = { hand: "placedUnderFromHand", drop: "placedUnderFromDrop", battle: "placedUnderFromBattle", zEnergy: "placedUnderFromZEnergy", combo: "placedUnderFromCombo" };
+const AREA_LIST = String.raw`(?:hand|drop(?: area)?|battle area|z-energy|combo area)(?: or (?:hand|drop(?: area)?|battle area|z-energy|combo area))*`;
+const PLACED_UNDER_FROM = new RegExp(String.raw`^when this card (?:in your (${AREA_LIST}) is placed|is placed from your (${AREA_LIST})) under\b`);
+
+/**
+ * Audit triggers 3: "When this card **in your hand** is placed under a {Destroyed West City} in your Battle Area"
+ * (BT23-025), "When this card is placed **from your hand or Drop** under an <Anilaza> or <Koichiarator> card" (BT20-014),
+ * "When this card **in your hand or Battle Area** is placed under your green <Mai: Future>-only Leader" (P-635): going
+ * into a pile (23-2) from the area named — a moment for each area (9-6-2: only one happens at a time). The card it goes
+ * under is a condition the compiler reads (`special: "onTop"`). Empty for any other head.
+ */
+export function placedUnderFrom(head: string): Trigger[] {
+  const m = PLACED_UNDER_FROM.exec(head);
+  if (!m) return [];
+  return [...new Set((m[1] ?? m[2]).split(" or ").map((a) => UNDER_FROM[AREA_ZONE[a.trim()]]))];
+}
+
+/**
+ * Audit triggers 3: a card's move between areas, said whole, with no cause or with "by a skill" — this card's own
+ * ("When this card is sent to its owner's Warp", BT31-108; "…sent from a Battle Area to a Warp", BT5-048; "When this
+ * face-up card in your life is placed in your Drop Area", BT12-088), and another card's, watched ("When you add a card
+ * from your life to your hand", BT20-023; "When your opponent adds a card from their life to their hand or places a
+ * card from their life in their Drop Area", BT13-004; "When an opponent's card is sent to the Warp", P-326; "When a
+ * card in your opponent's hand is sent to their Warp by one of your skills", P-346). Each is the plain `moved` moment
+ * with its areas (`triggers.rules`), or — where it names a skill — the one a skill's move pends by name
+ * (`vm/script.ts`'s `pendMovedBySkill`). `said` is a description of the card watched, lower case, names masked: a
+ * condition on it ("When a **Battle Card** in your opponent's Drop Area is sent to their Warp by one of your skills",
+ * BT13-148). Null for any other clause.
+ */
+const ZONE_MOVES: readonly [RegExp, Trigger][] = [
+  [/^when this card is sent to (?:its owner'?s|your|the|a) warp$/, "toWarp"],
+  [/^when this card is sent from (?:a|your|the) battle area to (?:its owner'?s|your|the|a) warp$/, "battleToWarp"],
+  [/^when this card is sent to (?:its owner'?s|your|the|a) warp by (?:a|any) skill$/, "toWarpBySkill"],
+  [/^when this card in your z-deck is added to your z-energy$/, "zDeckToZEnergy"],
+  [/^when this card is returned to (?:its owner'?s|your) hand from (?:a|the|your) battle area$/, "battleToHand"],
+  [/^when this face-up card in your life is placed (?:in|into) (?:your|its owner'?s) drop(?: area)?$/, "faceUpLifeToDrop"],
+  [/^when you add (?:a card|cards) from your life to your hand$/, "yourLifeToHand"],
+  [/^when you add (?:a card|cards) from your life to your hand or place (?:a card|cards) from your life (?:in|into) your drop(?: area)?$/, "yourLifeToHandOrDrop"],
+  [/^when your opponent adds (?:a card|cards) from their life to their hand or (?:places (?:a card|cards) from their life (?:in|into) )?(?:their )?drop(?: area)?$/, "opponentLifeToHandOrDrop"],
+  [/^when a card in your opponent'?s life is placed (?:in|into) their drop(?: area)?$/, "opponentLifeToDrop"],
+  [/^when one of your energy is added to your z-energy$/, "yourEnergyToZEnergy"],
+  [/^when an opponent'?s card is sent to (?:the|their|its owner'?s) warp$/, "opponentCardToWarp"],
+  [/^when (?:a card in your opponent'?s hand is sent to their warp|a card is sent from your opponent'?s hand to its owner'?s warp) by one of your skills$/, "opponentHandToWarpByYou"],
+  [/^when a card is placed (?:in|into) your drop(?: area)? from your deck$/, "yourDeckToDrop"],
+  [/^when a battle area card is placed (?:in|into) a drop(?: area)?$/, "eitherBattleToDrop"],
+];
+const ZONE_MOVES_SAID: readonly [RegExp, Trigger][] = [
+  [/^when an? ((?!card\b)[^,]{1,80}?) in your opponent'?s drop(?: area)? is sent to their warp by one of your skills$/, "opponentDropToWarpByYou"],
+];
+export function zoneMoveOf(clause: string): { trigger: Trigger; said: string | null } | null {
+  for (const [re, trigger] of ZONE_MOVES) if (re.test(clause)) return { trigger, said: null };
+  for (const [re, trigger] of ZONE_MOVES_SAID) {
+    const m = re.exec(clause);
+    if (m) return { trigger, said: m[1] };
   }
   return null;
 }

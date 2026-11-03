@@ -7,7 +7,7 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { readsMomentsOneByOne, triggersOf, unreadMoments } from "../gaps";
 import { effectHead, keywordOf, maskNames, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, type MomentCause } from "../text/triggers";
+import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, TURN_END_WHERE_PLAYED, type MomentCause } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, Selector } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
@@ -242,6 +242,10 @@ function momentIsRead(skill: Skill, script: Script): Script {
     // Leader Area): "…if your Leader Card is green, you may play it by paying its energy cost" (BT5-071) points "it"
     // at the condition's Leader, which no card means.
     if (momentsBatch1(effectHead(maskNames(skill.effect).text)).length && playsTheLeader(script.ops)) return { ...script, unsupported: ["\"it\" in this effect names the Leader, which is never played (3-1-2)"] };
+    // Audit triggers 3: the card a play moment hands on has just been played and stands in play (5-5), so an effect that
+    // plays it again is a misread — "play up to 1 <Raditz>, <Vegeta>, or <Nappa> card―…a different character name than
+    // the played card―from your hand" (BT23-042) was read as playing "that card".
+    if ((script.trigger ?? triggersOf(skill)).some((t) => PLAY_MOMENTS.has(t)) && playsTheSubject(script.ops)) return { ...script, unsupported: ["this effect would play the card the moment played, which is already in play: the card it plays is not read"] };
     return script;
   }
   if (standsInTheComboArea(script.ops)) return script;
@@ -268,6 +272,28 @@ export function momentClauseOf(skill: Pick<Skill, "effect">): string | null {
     return null;
   }
   return null;
+}
+
+/** Audit triggers 3: the moments whose subject is a card just played into a Battle or Unison Area (5-5). */
+const PLAY_MOMENTS = new Set<string>(["youPlayed", "eitherCardPlayed", "opponentPlayed", "opponentPlayedBySkill", "opponentCardPlayedBySkill", "yourCardPlayedFromHand",
+  "yourCardPlayedFromDrop", "yourCardPlayedFromWarp", "yourCardPlayedFromEnergy", "yourCardPlayedFromLife", "youPlayedByThisCard"]);
+
+/** Audit triggers 3: a `play` of the cards a choice of the moment's subject bound (`special: "subject"`). */
+function playsTheSubject(ops: readonly Op[]): boolean {
+  const subject = new Set<string>();
+  let found = false;
+  const walk = (v: unknown): void => {
+    if (found) return;
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    const o = v as Record<string, unknown>;
+    if (o.op === "choose" && typeof o.as === "string" && (o.sel as { special?: string } | undefined)?.special === "subject") subject.add(o.as);
+    if (o.op === "play" && o.target && typeof o.target === "object" && "var" in o.target && subject.has(String((o.target as { var: unknown }).var))) found = true;
+    if (o.op === "play" && o.target && typeof o.target === "object" && "sel" in o.target && (o.target as { sel: { special?: string } }).sel.special === "subject") found = true;
+    for (const k of Object.keys(o)) if (k !== "sel" && k !== "target") walk(o[k]);
+  };
+  walk(ops);
+  return found;
 }
 
 /** A `play` of the cards a choice of the Leader bound. */
@@ -1095,11 +1121,21 @@ function compileSkillText(skill: Skill): Script {
   // skill, not part of the trigger, so it is lifted off the front here and
   // folded back into the trigger's condition below; the moment is then the head.
   let turnCond: Cond | null = null;
+  let leadCond: Cond | null = null;
   if (skill.kind === "auto" && clauses.length > 2 && /^when\b/i.test(clauses[1] ?? "")) {
     const turn = /^during (your|your opponent'?s) turn[,.]?$/i.exec(clauses[0].trim());
     if (turn) {
       turnCond = turn[1].toLowerCase() === "your" ? { kind: "isTurnPlayer" } : { kind: "isTurnPlayer", who: "opponent" };
       clauses.shift();
+    } else if (/^if\b/i.test(clauses[0].trim())) {
+      // Audit triggers 3: "If you have 6 or more red energy, **when you play this card**, look at …" (BT2-022): the older
+      // cards' condition before the moment with a comma rather than a colon — a condition on the skill as "During your
+      // turn," is, lifted off the front and folded back into the trigger's condition, so the moment is the head.
+      const lead = parseConditionClause(clauses[0].trim().replace(/[,.]$/, ""));
+      if (lead && !lead.subject) {
+        leadCond = lead.cond;
+        clauses.shift();
+      }
     }
   }
   if ((skill.kind === "auto" || triggeredPermanent(skill)) && (clauses.length > 1 || modal) && (/^(?:when|at the (?:end|beginning|start))\b/i.test(clauses[0] ?? "") || IF_DROPPED_FROM_HAND.test(clauses[0] ?? "")) && !isComboDropReplacement(clauses[0] ?? "")) {
@@ -1145,11 +1181,19 @@ function compileSkillText(skill: Skill): Script {
     // "When this card is placed under a <Vegito> card with a [Union] skill"
     // (BT29-140, 23-2): the host is the card on top of this one, and what the
     // trigger says about it is a condition on that card.
-    const under = /^when this card is placed under (?:an? |your )?(.+?)[,.]?$/i.exec(trigger.trim());
+    // Audit triggers 3: and where this card came from (`placedUnderFrom…`, a moment each) — "When this card **in your
+    // hand** is placed under a {Destroyed West City} **in your Battle Area**" (BT23-025), "…placed **from your hand or
+    // Drop** under an <Anilaza> or <Koichiarator> card―both red and in your Battle Area―" (BT20-014): the host's area is
+    // a condition on it too.
+    const under = /^when this card(?: in your [a-z -]+?| in a battle area)? is placed(?: from your [a-z -]+?)? under (?:an? |your |one of your )?(.+?)[,.]?$/i.exec(trigger.trim());
     if (under) {
-      const host = filterFor(under[1], null);
-      if (host === null) return { ops: [], unsupported: [trigger, ...clauses] };
-      if (host) triggerCond = { kind: "count", sel: { special: "onTop", filter: host }, atLeast: 1 };
+      const shared = /[-—–―]\s*both (.+?) and in your battle area\s*[-—–―]?$/i.exec(under[1]);
+      const inBattle = !!shared || / in your battle area$/i.test(under[1]);
+      // "An <Anilaza> or <Koichiarator> card―both red―" is a red <Anilaza> or <Koichiarator> card: the shared words go in front.
+      const said = shared ? `${shared[1]} ${under[1].slice(0, shared.index).trim()}` : under[1].replace(/ in your battle area$/i, "");
+      const host = filterFor(said, null);
+      if (host === null || (host && unreadFilterWords(said, host).length)) return { ops: [], unsupported: [trigger, ...clauses] };
+      if (host || inBattle) triggerCond = { kind: "count", sel: { special: "onTop", ...(inBattle ? { area: "battle" as const } : {}), ...(host ? { filter: host } : {}) }, atLeast: 1 };
     }
     // "When this card attacks during the turn you played it with [Over Realm]"
     // (P-048, 22-15): the moment is the attack, and the rest of the sentence is
@@ -1158,6 +1202,9 @@ function compileSkillText(skill: Skill): Script {
     if (/\bduring the turn (?:you played (?:it|this card)|(?:it|this card) was played) (?:with|using) \[(?:dark )?over realm[^\]]*\]/i.test(trigger)) {
       triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: "Over Realm" };
     }
+    // Audit triggers 3: "At the end of a turn where this card was played" (BT16-142): the turn's end, either player's, and
+    // the card's memory of being played this turn (5-5, `VmCard.playedThisTurn`) the condition on it.
+    if (TURN_END_WHERE_PLAYED.test(maskNames(trigger.trim()).text.toLowerCase().replace(/[,.]$/, ""))) triggerCond = { kind: "placedThisTurn", sel: { special: "self" }, played: true };
     // #930: "When this card is played using [Union]" (BT14-114), "when you play
     // this card with [union]" (BT5-039, BT2-085 …), "when this card is played
     // by a [union] skill" (BT28-097, BT28-099): the moment is `played`, and
@@ -1404,6 +1451,7 @@ function compileSkillText(skill: Skill): Script {
   }
 
   if (turnCond && !compileComboQualification(skill)) triggerCond = triggerCond ? { kind: "all", conds: [turnCond, triggerCond] } : turnCond;
+  if (leadCond) triggerCond = triggerCond ? { kind: "all", conds: [leadCond, triggerCond] } : leadCond;
 
   const unsupportedBeforeHead = unsupported.length;
   // The head's surgery above only ever removes clauses, so what is left is a
