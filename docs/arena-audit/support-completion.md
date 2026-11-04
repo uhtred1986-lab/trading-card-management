@@ -40,3 +40,9 @@ The checker also reports 2,556 context-dependent play targets as unknown. This i
 ## Source correction while investigating payment gaps
 
 BT26-031’s public-feed Awaken text says “you have or more Z-Energy.” Bandai’s [printed front](https://www.dbs-cardgame.com/images/cardlist/cardimg/BT26-031.png), inspected on 4 Nov 2026, says “you have **3 or more** Z-Energy.” The catalog correction now restores that number without changing the life-to-hand effect or any other text; exact-delta and idempotence checks pass. The corrected printed payment condition is still unread at this checkpoint, so this source correction alone is not counted as newly supported gameplay. No database update was made.
+
+- **First combined grammar/trigger checkpoint**, head `1aa146ce`: [receipt and full-record evidence](round-4/support-first-batch.md). Eleven more readable skills, 12,967 read / 997 unread; 122 focused scenarios in one process, typecheck and 40/40 fuzz passed. Twenty full records differ from the prior condition-port checkpoint, including six changed programs whose narration is unchanged. Payment and invocation work continues.
+
+## Open owner decision
+
+An asynchronous owner question is pending: whether Cell Games effects waive a Battle Card’s printed skill cost when invoking its Activate: Main from Drop. The manual explicitly waives Extra-card invocation costs; no corresponding Battle-card answer was found in the manual, local official FAQs or ledger. BT26-115 and BT26-116 are concrete partners whose self-to-Drop/rest costs cannot be paid from Drop. Recommended intent reading: waive the printed cost while retaining conditions, usage limits and activation taxes. Do not treat elapsed time as an owner ruling; continue independent Extra invocation and payment work.
