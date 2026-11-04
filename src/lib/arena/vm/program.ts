@@ -1910,7 +1910,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
   const leaderOf = (side: Side | undefined) => state.sides[side === "opponent" ? other(frame.master) : frame.master].zones[SETUP_ZONES.leader]?.[0] ?? null;
   switch (c.kind) {
     case "count":
-      return between(countSelected(ctx, game, state, frame, c.sel), c.atLeast, c.atMost);
+      // R-385: checking how many cards exist is observation, not choosing targets.
+      return between(countSelected(ctx, game, state, frame, c.sel, true), c.atLeast, c.atMost);
     case "life":
       return between(lifeCount(game, state, frame.master, c.side), c.atLeast, c.atMost);
     case "leaderColor": {

@@ -1679,6 +1679,10 @@ export const READING_RULES: ReadingRule[] = [
     title: "Audit conditions 4: separate requirements, both names, and the additional Z-Energy draw (4 Nov 2026)",
     body: "**Separate conditions retain their own counts and places** (R-381, R-382). `BT19-063/064` require three ordinary energy plus a named card in either player's Leader or Battle Area (RM 20-1-6), not three named energy. `BT19-112` requires four energy plus cost-three and cost-five <Lord Slug> cards in Z-Energy, each with combo cost one; `BT19-113` requires three energy plus the cost-three, combo-cost-one Slug. An energy-cost and combo-cost conjunction describes one card. `BT19-145` accepts five Z-Energy **or two** Z-Battle Cards; the second bound never inherits five. **Both names on one Leader** (R-380): “both a yellow <Vegeta> and <Trunks: Future> card” (`P-468`) checks both names and yellow, retaining its discard-self price. **The additional draw** (R-383): `BT19-080` checks for both named cards in Z-Energy without choosing either; its official Q&A confirms drawing even when no opposing card can be KO'd. The KO and +5000 power remain independent of the additional draw.",
   },
+  {
+    title: "Conditions count protected cards (4 Nov 2026)",
+    body: "**Checking existence does not choose a target** (R-385; RM 3-1-2, 20-4-1, 22-16). BT7-110 counts opposing Battle Cards with cost two or more even if they have Barrier, immunity, or cannot be chosen. Conditions on an event subject likewise see protected cards. Area, controller, descriptions and current counts still apply; actual choices retain every protection. This extends the numerical observation mode from R-404 to Boolean count conditions without changing the selector-count API default.",
+  },
 ];
 
 // ── Fusion World spellings (#1187) ─────────────────────────────────────────

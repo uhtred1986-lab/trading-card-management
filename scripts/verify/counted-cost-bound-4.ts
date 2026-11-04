@@ -155,7 +155,7 @@ for (const owner of ["p1", "p2"] as const) {
     assert.equal(amount(ctx, game, s, f, { count: { ...sel, fromVar: "pile" } }), 1);
     assert.deepEqual(resolveSelector(ctx, game, s, f, sel), []); cases++;
   }
-  // Numerical amounts count protected cards, including alternative selectors, but real choices and old conditions keep protections.
+  // Numerical amounts count protected cards, including alternative selectors, but real choices keep protections.
   {
     const s = fresh(owner), source = stage(s, owner, "CB4_FILLER", "battle"), guarded = stage(s, foe, "CB4_BARRIER", "battle");
     const immune = stage(s, foe, "CB4_EQUAL", "battle"), blocked = stage(s, foe, "CB4_EQUAL", "battle");
@@ -165,7 +165,7 @@ for (const owner of ["p1", "p2"] as const) {
     const sel = { side: "opponent" as const, area: "battle" as const };
     assert.equal(amount(ctx, game, s, f, { count: sel, times: 5000 }), 15000, "pre-existing numeric amount counts all protected cards");
     assert.deepEqual(resolveSelector(ctx, game, s, f, sel), [], "real choices keep all three protections");
-    assert.equal(countSelected(ctx, game, s, f, sel), 0, "existing count-condition path unchanged");
+    assert.equal(countSelected(ctx, game, s, f, sel), 0, "default selector-count API still applies choice protections");
     assert.equal(amount(ctx, game, s, f, { count: { side: "you", area: "drop", alsoFrom: [sel] } }), 3, "observation reaches alternatives");
     assert.ok([guarded, immune, blocked].every(x => s.sides[foe].zones.battle.includes(x))); cases++;
   }
