@@ -909,6 +909,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     master: next.master,
     trigger: next.trigger as Trigger,
     subject: next.subject,
+    ...(next.faceUpLifeEpoch === undefined ? {} : { faceUpLifeEpoch: next.faceUpLifeEpoch }),
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     // #930: how the card was played, as it was when this Auto was triggered.
     ...(next.selfEnteredUsing ? { selfEnteredUsing: next.selfEnteredUsing } : {}),

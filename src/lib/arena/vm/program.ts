@@ -1601,6 +1601,12 @@ function narrowsBy(f: CardFilter): string[] {
  * `observing` skips only selection/immunity protections, preserving area, ownership and every description.
  */
 export function resolveSelector(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, observing = false): string[] {
+  // R-362 / 3-1-4: the Auto's other effects still resolve, but this face-up Life card cannot be a later occurrence.
+  // Restrict the guard to its original Life reference; a move performed by the skill may legitimately use it elsewhere.
+  if (sel.special === "self" && sel.area === "life" && frame.faceUpLifeEpoch !== undefined) {
+    const source = state.cards[frame.card];
+    if (!source?.faceUp || (source.zoneEpoch ?? 0) !== frame.faceUpLifeEpoch) return [];
+  }
   let out: string[] = [];
   if (sel.special) {
     const pick = specialCard(state, frame, sel.special);

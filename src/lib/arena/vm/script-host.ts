@@ -257,10 +257,10 @@ export interface ScriptHost {
   /**
    * "Flipped face up **by one of your red card skills**": the trigger text is
    * read without state, so the colour is checked where the source is known and
-   * the entries pended since `before` that name a colour it has not got are
-   * dropped again.
+   * the entries pended since `before` with the wrong colour or skill master are
+   * dropped again. The actor is captured by the resolving frame even if its source moved.
    */
-  dropPendsOfOtherColours(before: number, source: string | undefined): void;
+  dropPendsOfOtherColours(before: number, source: string | undefined, sourceMaster: PlayerId): void;
 
   // ── replacements and the play being resolved (9-10, 9-6) ─────────────────
 

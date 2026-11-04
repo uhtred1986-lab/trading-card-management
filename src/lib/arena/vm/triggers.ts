@@ -117,6 +117,8 @@ export interface VmPending {
    * pended; never copied onto a later play's Autos. Older entries carry none.
    */
   selfEnteredUsing?: string;
+  /** R-362: the own-Life Auto keeps the occurrence which was turned face up. */
+  faceUpLifeEpoch?: number;
   /**
    * #930: the same memory of the moment's `subject` — "when your <X> card is
    * played by a [Union] skill" (BT22-033, BT25-036 back) asks how that card
@@ -593,6 +595,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
         if (gap) throw new NotYet(gap, "#907");
       }
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      // R-362: only the explicitly own-Life wording answers from Life, and only for its own transition.
+      const ownFaceUpLife = match.trigger === "flippedFaceUp" && /when this card in your life is flipped face up/i.test(sk.cost + " " + sk.effect);
+      if (match.trigger === "flippedFaceUp" && (ownFaceUpLife ? match.card !== moment.card : findCard(state, match.card)?.zone === "life")) continue;
       // #1163, #1166: "…played by this card's skill" — "this card" is the one
       // with the skill, or, for a skill granted in quotation marks, the card
       // whose skill granted it.
@@ -724,6 +729,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // move it again at the checkpoint.
       const movementInfo = subjectInfo ?? (match.trigger === "comboToDrop" && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
+        ...(ownFaceUpLife ? { faceUpLifeEpoch: state.cards[match.card]?.zoneEpoch ?? 0 } : {}),
         ...(movementInfo && match.subject ? { subjectInfo: movementInfo } : {}),
         ...(cleanupOccurrence && match.trigger === "comboToDrop" ? { cleanupOccurrence } : {}),
         ...(state.cards[match.card]?.enteredUsing ? { selfEnteredUsing: state.cards[match.card].enteredUsing } : {}),

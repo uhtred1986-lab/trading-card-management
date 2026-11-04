@@ -190,10 +190,6 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0)) {
     unsupported.push("the Auto rule has no readable WHEN trigger");
   }
-  const triggers = Array.isArray(row.trigger) ? row.trigger : [];
-  if (triggers.includes("flippedFaceUp")) {
-    unsupported.push("the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)");
-  }
   // Counter: Counter uses the native counter-motion chain (#552). Its
   // affordability is checked on the live board, like the other Counters.
 

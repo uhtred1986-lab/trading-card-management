@@ -464,7 +464,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // — see its note.
     pend: (trigger, cardId, subject, sourceNegated) => pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated),
     autosNegatedNow: (cardId) => skillsShowing(ctx, state, cardId).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, cardId, sk.index, sk.kind)).map((sk) => sk.index),
-    dropPendsOfOtherColours: (before, source) => {
+    dropPendsOfOtherColours: (before, source, sourceMaster) => {
       const colors = source && state.cards[source] ? (attrsNow(ctx, game, state, source).colors ?? []) : [];
       state.pending = state.pending.filter((e, i) => {
         if (i < before) return true;
@@ -472,7 +472,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         const m = /flipped face up by (?:one of )?your (red|blue|green|yellow|black|white) card skills?/i.exec(sk ? sk.cost + " " + sk.effect : "");
         if (!m) return true;
         const want = m[1][0].toUpperCase() + m[1].slice(1);
-        return (colors as readonly string[]).includes(want);
+        return sourceMaster === e.master && (colors as readonly string[]).includes(want);
       });
     },
 
@@ -990,13 +990,9 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // card switched and saying what switched it (#157); the name the program
   // also says is that same happening, already answered.
   if (FIRED_BY_SET_MODE.has(trigger) || FIRED_BY_MOVE.has(trigger)) return;
-  // For a watched face-up Life Auto, `id` is the card answering and `subject`
-  // is the Life card whose transition happened. Match the declaration against
-  // that event card while retaining `only`'s narrow answer-card filter. The
-  // Life card's own call has `id` in Life and keeps that same event card.
-  const eventCard = (trigger === "flippedFaceUp" && subject && zoneOf(state, subject) === "life" && zoneOf(state, id) !== "life") || (WATCHED_MOVE.has(trigger) && subject)
-    ? subject!
-    : id;
+  // R-362: one face-up transition is broadcast about the actual Life card. Its source is separate;
+  // explicit hand watchers and the Life card itself join the controller's ordinary watchers.
+  const eventCard = trigger === "flippedFaceUp" ? id : (WATCHED_MOVE.has(trigger) && subject) ? subject : id;
   const master = state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer;
   // Phrasing batch 8: "when your opponent takes damage from a skill" is pended on each of the dealer's cards, and the
   // moment is about the damaged player (`watcher: opponent` asks the other side of it), so its side is the other one.
@@ -1020,7 +1016,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // over `by` it turned `by: skill` into a card id, which no declaration asks.
   // A watched move (phrasing batch 5) is pended once, about the moved card: every watcher the declaration names
   // answers — in play, and in a hand when its skill plays itself from there (DB2-174, `matchTriggers`' hand watchers).
-  const watched = WATCHED_MOVE.has(trigger);
+  const watched = WATCHED_MOVE.has(trigger) || trigger === "flippedFaceUp";
   const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
   if (subject) for (const p of pended) p.subject ??= subject;
 }
@@ -1140,7 +1136,7 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   deckToWarpBySkill: { event: "moved", args: { from: "deck", to: "warp", asPlay: false, by: "skill", byOpponent: false } },
   // §3-9-2-1: the program's `faceUp` op pends this declared moment only when
   // the card actually changes from face down to face up. Its caller then
-  // filters by the source skill's colours and asks the controller's watchers.
+  // filters by the source skill's colours/controller after the single broadcast.
   flippedFaceUp: { event: "faceUpTurned", args: { in: "life" } },
   // 5-13: `removeMarker` says it (#155: [Rejuvenate]'s printed price is the
   // first keyword to run one), and `triggers.rules` declares the moment.

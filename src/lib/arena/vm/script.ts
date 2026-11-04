@@ -1776,6 +1776,8 @@ export interface ScriptFrame {
   subjectInfo?: import("./cards").Attrs;
   /** #930: the source's [Union] entry memory (`VmCard.enteredUsing`) as the skill was activated (`vm/activate.ts`) — "this card" after it left as the cost — or, for an [Auto], as it was triggered (`VmPending.selfEnteredUsing`, `vm/flow.ts`): a copy that left before resolving keeps it. Additive: older frames carry none. */
   selfEnteredUsing?: string;
+  /** R-362: the original face-up Life occurrence; only self selections explicitly in Life use this guard. */
+  faceUpLifeEpoch?: number;
   /** #930: the subject's [Union] entry memory as the [Auto] was triggered (`VmPending.subjectEnteredUsing`, `vm/flow.ts`) — "when your <X> card is played by a [Union] skill" — kept if it left before resolving. Additive: older frames carry none. */
   subjectEnteredUsing?: string;
   /** Audit conditions 2: the card whose skill played the source (`VmCard.enteredBy`) as the [Auto] was triggered (`VmPending.selfEnteredBy`) — "when you play this card with the skill of {X}" — kept if it left before resolving. Additive: older frames carry none. */
@@ -3502,8 +3504,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // by everything that player has in play. One moment, two wordings.
           const before = h.pendingCount();
           h.pend("flippedFaceUp", id, frame.card);
-          for (const w of h.cardsInPlay(h.masterOf(id))) if (w !== id) h.pend("flippedFaceUp", w, id);
-          h.dropPendsOfOtherColours(before, frame.card);
+          h.dropPendsOfOtherColours(before, frame.card, master);
         }
         break;
       }
