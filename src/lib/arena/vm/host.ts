@@ -73,7 +73,9 @@ import { emit, fire, log } from "./events";
 import { fireHook } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, staticsNow, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
+import { wordsFromRuleset } from "../board-words";
+import { untilWords } from "../effects";
+import { attrsNow, amount, condHolds, staticsNow, forbiddenForCard, forbids, hasKeyword, keywordInstancesInForce, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayPriceProgram, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { comboPriceOf } from "./costs";
@@ -124,6 +126,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     enteredTurnOf: () => state.turn,
     nameOf: (id) => nameOfCard(ctx, state, id),
     defOf: (id) => faceOf(ctx, state, id),
+    keywordInstances: (id, viewer) => keywordInstancesInForce(ctx, game, state, id).map(instance => {
+      const grant = instance.grantEffectId !== undefined ? state.effects.find(e => e.id === instance.grantEffectId)
+        : instance.standingGrantId !== undefined ? staticsNow(ctx, game, state).find(e => e.standingGrantId === instance.standingGrantId) : undefined;
+      if (!grant) return instance;
+      const sourceName = grant.source && state.cards[grant.source] ? nameOfCard(ctx, state, grant.source) : "a skill";
+      const duration = untilWords("until" in grant ? grant.until : "permanent", { master: grant.master, viewer, them: state.sides[viewer === "p1" ? "p2" : "p1"].name, sourceName }, wordsFromRuleset(game));
+      return { ...instance, grantDescription: `from ${sourceName}, ${duration}` };
+    }),
+    lastModeOptions: () => state.prompt.kind === "chooseMode" ? state.prompt.options : undefined,
     hasKeyword: (id, name) => hasKeyword(ctx, game, state, id, name as KeywordSkill["name"]),
     // 9-1-5: negation is a continuous effect here rather than a mark on the
     // instance, and `./effects.ts` is where that is read — once, for every

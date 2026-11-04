@@ -861,8 +861,8 @@ export interface ContinuousEffect {
    * `value`. `negateSkillKind`: every skill of one kind,
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn"). `negateKeyword`: one keyword skill of the card, named in
-   * `value` — the one the master picked ("choose up to 1 keyword skill on … and
-   * negate that skill for the turn").
+   * `value`, suppressing every instance of that name. Chosen keyword negation
+   * uses negateSkill/negateGrantedSkill instead.
    */
   kind: "power" | "comboPower" | "keyword" | "gains" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateGrantedSkill" | "negateSkillKind" | "negateKeyword" | "replaceLeave" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
   /**
@@ -871,7 +871,9 @@ export interface ContinuousEffect {
    * and `playCost` (state.ts), which keep it apart from an ordinary cost change
    * because it never touches the total, only which colours are required.
    */
-  value: number | KeywordSkill | KeywordSkill["name"] | NegatedSkillKind | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1; all?: true } | { standingGrantId: string };
+  value: number | KeywordSkill | KeywordSkill["name"] | NegatedSkillKind | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1; all?: true } | { standingGrantId: string; source?: string; sourceHiddenCount?: number };
+  /** Chosen printed keyword's face; absent keeps legacy index-only negation semantics. */
+  skillSide?: "front" | "back";
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */

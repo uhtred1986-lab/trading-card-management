@@ -120,6 +120,10 @@ export interface ScriptHost {
   defOf(id: string): CardDef;
   /** 22: does it have this keyword skill, printed or granted? */
   hasKeyword(id: string, name: KeywordSkill["name"]): boolean;
+  /** Individual in-force keyword copies, retaining their printed/grant identity. */
+  keywordInstances(id: string, viewer: PlayerId): import("./program").KeywordInstance[];
+  /** Original option texts for migrating a pre-instance saved keyword menu. */
+  lastModeOptions(): readonly string[] | undefined;
   /** Which of its skills are switched off: `"all"`, or the indexes (9-1-5). */
   negatedSkills(id: string): "all" | number[];
   /** Every card this player has in play (9-1-3-1) — who watches a moment. */

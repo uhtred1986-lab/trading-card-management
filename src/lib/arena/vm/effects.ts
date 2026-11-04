@@ -545,7 +545,7 @@ export function skillsNegated(state: VmState, id: string): boolean {
  */
 export function skillNegated(state: VmState, id: string, index: number, kind?: string): boolean {
   if (skillsNegated(state, id)) return true;
-  if (state.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index)) return true;
+  if (state.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index && (!e.skillSide || e.skillSide === (state.cards[id]?.flipped ? "back" : "front")))) return true;
   return !!kind && state.effects.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as string));
 }
 
@@ -561,13 +561,13 @@ export function keywordSkillsNegated(state: VmState, id: string): boolean {
 
 /** Negation of one effect-granted keyword, keyed by its persisted effect ID. */
 export function grantedSkillNegated(state: VmState, id: string, grantId: number | string): boolean {
-  return skillsNegated(state, id) || state.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === id && (typeof grantId === "number" ? e.value === grantId : typeof e.value === "object" && e.value !== null && "standingGrantId" in e.value && e.value.standingGrantId === grantId));
+  return skillsNegated(state, id) || state.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === id && (typeof grantId === "number" ? e.value === grantId : typeof e.value === "object" && e.value !== null && "standingGrantId" in e.value && e.value.standingGrantId === grantId && (e.value.sourceHiddenCount === undefined || (state.cards[e.value.source ?? ""]?.hiddenCount ?? 0) === e.value.sourceHiddenCount)));
 }
 
 /** The skills of this card that are off, as `stepScript` reads them: `"all"`, or the indexes. */
 export function negatedSkillsOf(state: VmState, id: string): "all" | number[] {
   if (skillsNegated(state, id)) return "all";
-  return state.effects.filter((e) => e.kind === "negateSkill" && e.target === id).map((e) => e.value as number);
+  return state.effects.filter((e) => e.kind === "negateSkill" && e.target === id && (!e.skillSide || e.skillSide === (state.cards[id]?.flipped ? "back" : "front"))).map((e) => e.value as number);
 }
 
 // ── [Permanent] statics (9-5, 9-9) ──────────────────────────────────────────

@@ -57,7 +57,7 @@ import { costEnergyOk, emptyFilter, hasEnergyBound, nameInSkillText, parseFilter
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
-import { IllegalAction, grantedLineIndex, isGrantedLine, mirrorSides, programsOf } from "./common";
+import { IllegalAction, grantedLineIndex, isGrantedLine, isCopiedSkill, mirrorSides, programsOf } from "./common";
 import { HOOK_CONTRACT } from "./hook-contract";
 import { grantedSkillNegated, KEYWORD_WILDCARD, keywordSkillsNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
@@ -455,7 +455,7 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // through this attribute) must find [Blocker] and friends in, and a Hidden
   // Mode card grants none at all (23-5-2), which `base.skill` being absent
   // there already gives for free.
-  if (game.attributes.keywords) base.keywords = keywordSkillsNegated(state, id) ? [] : printedKeywordNames(typeof base.skill === "string" ? base.skill : null, programsOf(ctx, def, card.flipped && def.back ? "back" : "front"));
+  if (game.attributes.keywords) base.keywords = keywordSkillsNegated(state, id) ? [] : printedKeywordNames(typeof base.skill === "string" ? base.skill : null, programsOf(ctx, def, card.flipped && def.back ? "back" : "front"), state, id);
   // 1-5-9, 9-1-4: a filter's bare "skill-less" — the legacy `skillLessNow`.
   if (game.attributes.skillLess) base.skillLess = skillLessNow(ctx, game, state, id, standing);
   // The value every layer is applied *to*, so an attribute the base left out —
@@ -588,8 +588,10 @@ function attrPlanOf(game: GameDefinition): { face: string[]; layered: string[] }
  */
 const KEYWORD_NAMES = new Map<string, readonly string[]>();
 const NO_KEYWORDS: readonly string[] = Object.freeze([]);
-function printedKeywordNames(text: string | null, scripts?: import("./script").CardScripts): readonly string[] {
+function printedKeywordNames(text: string | null, scripts?: import("./script").CardScripts, state?: VmState, id?: string): readonly string[] {
   if (!text) return NO_KEYWORDS;
+  if (state && id && state.effects.some(e => e.target === id && e.kind === "negateSkill"))
+    return keywordsInSkills(parseSkills(text).map(sk => recordedSkillIdentity(sk, scripts?.bySkill[sk.index])).filter(sk => !skillNegated(state, id, sk.index, sk.kind))).map(k => k.name);
   if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined || s.price?.evolution !== undefined || s.price?.absorb !== undefined || s.price?.potara !== undefined))
     return keywordsInSkills(parseSkills(text).map((sk) => recordedSkillIdentity(sk, scripts.bySkill[sk.index]))).map((k) => k.name);
   let names = KEYWORD_NAMES.get(text);
@@ -804,7 +806,7 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (!card || card.hidden || keywordSkillsNegated(state, id)) return false;
   const standing = statics(ctx, game, state);
   if (keywordNegatedFor(ctx, game, state, id, name, standing)) return false;
-  for (const k of printedKeywords(ctx, game, state, id)) if (k.name === name) return true;
+  for (const k of printedKeywords(ctx, game, state, id)) if (k.keyword.name === name) return true;
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name && !grantedSkillNegated(state, id, e.id)) return true;
   for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) return true;
   return false;
@@ -818,13 +820,13 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
  * (#439). Grants are collected separately, then named keyword negation is
  * applied to printed and granted skills alike.
  */
-function printedKeywords(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordSkill[] {
+function printedKeywords(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordInstance[] {
   if (state.cards[id].hidden || keywordSkillsNegated(state, id)) return [];
   return skillsShowing(ctx, state, id)
     .skills.filter((sk) => sk.keyword && !skillNegated(state, id, sk.index, sk.kind)
       // 22-21-3: "[Blocker][Bond 3] …" is a [Blocker] only while the Bond holds.
       && (sk.bond == null || keywordBondHolds(ctx, game, state, masterOf(game, state, id), sk)))
-    .map((sk) => sk.keyword!);
+    .map((sk) => ({ keyword: sk.keyword!, skillIndex: sk.index, ...(isCopiedSkill(sk.index) ? {} : { skillSide: state.cards[id].flipped ? "back" as const : "front" as const }) }));
 }
 
 /**
@@ -838,23 +840,37 @@ export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state:
   return keywordInstancesInForce(ctx, game, state, id).map((instance) => instance.keyword);
 }
 
-/** Keep each timed grant's persisted effect ID beside its keyword for hooks. */
-function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { keyword: KeywordSkill; grantEffectId?: number; standingGrantId?: string }[] {
+/** Identity shared by menus and hooks; copied pure keywords use grantEffectId. */
+export interface KeywordInstance {
+  keyword: KeywordSkill;
+  /** Hidden/Revealed also changes skill incarnation without an area change. */
+  hiddenCount?: number;
+  skillSide?: "front" | "back";
+  /** Human source/duration description supplied by the host for a menu. */
+  grantDescription?: string;
+  /** Chosen standing grants also track their source Hidden/Revealed incarnation. */
+  grantSource?: string;
+  sourceHiddenCount?: number;
+  skillIndex?: number;
+  grantEffectId?: number;
+  standingGrantId?: string;
+}
+
+/** Every in-force keyword instance retains its original source identity. */
+export function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordInstance[] {
   const card = state.cards[id];
   // 23-5-2-1, as in `hasKeyword`.
   if (!card || card.hidden || keywordSkillsNegated(state, id)) return [];
   const standing = statics(ctx, game, state);
-  const out: { keyword: KeywordSkill; grantEffectId?: number; standingGrantId?: string }[] = printedKeywords(ctx, game, state, id).map((keyword) => ({ keyword }));
+  const out: KeywordInstance[] = printedKeywords(ctx, game, state, id);
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && !grantedSkillNegated(state, id, e.id)) out.push({ keyword: e.value as KeywordSkill, grantEffectId: e.id });
-  for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) out.push({ keyword: e.value as KeywordSkill, ...(e.standingGrantId === undefined ? {} : { standingGrantId: e.standingGrantId }) });
-  return out.filter(({ keyword }) => !keywordNegatedFor(ctx, game, state, id, keyword.name, standing));
+  for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) out.push({ keyword: e.value as KeywordSkill, ...(e.standingGrantId === undefined ? {} : { standingGrantId: e.standingGrantId, grantSource: e.source, sourceHiddenCount: state.cards[e.source]?.hiddenCount ?? 0 }) });
+  return out.filter(({ keyword }) => !keywordNegatedFor(ctx, game, state, id, keyword.name, standing)).map(instance => ({ ...instance, hiddenCount: card.hiddenCount ?? 0 }));
 }
 
 /**
- * 9-1-5: one keyword skill of this card negated for a span — the one a
- * `negateChosenKeyword` step had its master pick. Read last by both
- * `hasKeyword` and `keywordsInForce`, so it beats a grant of the same keyword,
- * the way the legacy `keywordsInForce` applies it.
+ * Generic named-keyword negation remains name-wide, including old resolved
+ * saved effects. Chosen negation uses individual skill/grant identity instead.
  */
 function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"] | undefined, standing: readonly VmStatic[] = []): boolean {
   if (!name) return false;
@@ -926,24 +942,11 @@ export interface HookBody {
  */
 export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint): HookBody[] {
   const out: HookBody[] = [];
-  // `keywordsInForce` starts with printed skills, then appends effect/static
-  // grants. Consume printed identities in that same order so a grant of a
-  // keyword already printed on the card cannot borrow its skillIndex.
-  const printed = new Map<string, number[]>();
-  if (!state.cards[subject]?.hidden && !keywordSkillsNegated(state, subject)) {
-    for (const skill of skillsShowing(ctx, state, subject).skills) {
-      if (skill.keyword && !skillNegated(state, subject, skill.index, skill.kind)) {
-        const indexes = printed.get(skill.keyword.name) ?? [];
-        indexes.push(skill.index);
-        printed.set(skill.keyword.name, indexes);
-      }
-    }
-  }
   for (const instance of keywordInstancesInForce(ctx, game, state, subject)) {
     const kw = instance.keyword;
     const def = game.keywords[kw.name];
     const hooks = def?.hooks?.filter((hook) => hook.at === point) ?? [];
-    const skillIndex = hooks.length && instance.grantEffectId === undefined && instance.standingGrantId === undefined ? printed.get(kw.name)?.shift() : undefined;
+    const skillIndex = instance.skillIndex;
     // #156: a body names its keyword's parameters the way a `DO` does —
     // [Strike]'s `$x` is 2 on a [Double Strike] — bound from the instance in
     // force, granted or printed.

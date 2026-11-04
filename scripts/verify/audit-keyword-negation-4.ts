@@ -133,7 +133,7 @@ for (const gameId of ["dbs", "fusion"] as const) {
         s.programs.push({ ops: copy(ops), ip: 0, vars: {}, card: source, master: "p1" });
         run(ctx, game, s, []);
         assert.equal(s.prompt.kind, "main", `${def}: no candidate, no question`);
-        assert.equal(s.effects.some(e => e.kind === "negateKeyword" && e.target === victim), false, "no keyword negated");
+        assert.equal(s.effects.some(e => ["negateKeyword", "negateSkill", "negateGrantedSkill"].includes(e.kind) && e.target === victim), false, "no keyword negated");
         scenarios++;
       }
     }

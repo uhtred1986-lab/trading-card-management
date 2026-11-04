@@ -2608,14 +2608,14 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     s = run(s, next);
   }
   assert.equal(hasG(s, guard, "Barrier"), true, "[Barrier] is back once the turn is over");
-  assert.equal(s.effects.some((e) => e.kind === "negateKeyword"), false, "…and the negation is no longer in force");
+  assert.equal(s.effects.some((e) => ["negateKeyword", "negateSkill", "negateGrantedSkill"].includes(e.kind)), false, "…and the negation is no longer in force");
 
   // A target with no keyword skills is nothing to choose from: no question, no effect.
   let bare = arenaG({ battle: ["PICKNEG"], oppBattle: ["V1"] });
   const mine = findG(bare, "p1", "battle", "PICKNEG");
   bare = run(bare, legal(bare).find((a) => a.type === "activate" && a.card === mine)!);
   assert.notEqual(bare.prompt.kind, "chooseMode", "a card with no keyword skills is not asked about");
-  assert.equal(bare.effects.some((e) => e.kind === "negateKeyword"), false, "…and nothing is negated");
+  assert.equal(bare.effects.some((e) => ["negateKeyword", "negateSkill", "negateGrantedSkill"].includes(e.kind)), false, "…and nothing is negated");
   assertConsistentG(bare);
 }
 // ── 9-10: a replacement whose substitute is a program (#125) ───────────────

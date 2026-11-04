@@ -33,7 +33,7 @@ import type { BattleView, BoardView, CardArt, CardView, PermanentView, PromptVie
 import { abilityViews } from "../view-core";
 import { describeEffect, describeStatic, type EffectView, type StaticEffect } from "../effects";
 import { attrsOf, type Attrs } from "./cards";
-import { skillsOf } from "../text/cards";
+import { keywordName, skillsOf } from "../text/cards";
 import { attrsNow, forbids, hasKeyword, keywordsInForce, permanentStaticsOf, readingBoard, staticsNow } from "./program";
 import { battleIntact, damageRule } from "./battle-damage";
 import { cardColors } from "./costs";
@@ -281,7 +281,20 @@ function effectView(ctx: EngineContext, state: VmState) {
  */
 function effectsOn(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): EffectView[] {
   const view = effectView(ctx, state);
-  const out = state.effects.filter((e) => e.target === id).map((e) => view(describeEffect(e), e.until, e.source, e.master ?? null));
+  const out = state.effects.filter((e) => e.target === id).map((e) => {
+    // Reuse the affected skill/grant identity for a useful board label; no
+    // duplicated display metadata is persisted on the effect.
+    const keyword = e.kind === "negateSkill" && (!e.skillSide || e.skillSide === (state.cards[id]?.flipped ? "back" : "front"))
+      ? skillsShowing(ctx, state, id).skills.find(sk => sk.index === e.value)?.keyword
+      : e.kind === "negateGrantedSkill"
+        ? typeof e.value === "number" ? state.effects.find(grant => grant.id === e.value && grant.kind === "keyword")?.value
+          : typeof e.value === "object" && "standingGrantId" in e.value
+            ? staticsNow(ctx, game, state).find(grant => grant.kind === "keyword" && grant.standingGrantId === (e.value as { standingGrantId: string }).standingGrantId)?.value
+            : undefined
+        : undefined;
+    const label = keyword && typeof keyword === "object" && "name" in keyword ? { kind: "negate" as const, label: `[${keywordName(keyword as import("../types").KeywordSkill)}] negated` } : describeEffect(e);
+    return view(label, e.until, e.source, e.master ?? null);
+  });
   for (const e of staticsNow(ctx, game, state)) {
     if (e.target !== id || !DESCRIBED_STATICS.has(e.kind)) continue;
     // 20-9: whose rule it is follows the card, so the chair a label's side

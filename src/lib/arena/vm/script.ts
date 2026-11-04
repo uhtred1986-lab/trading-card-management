@@ -9,7 +9,7 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
-import { canCombo, identityKey, skillsOf, sumReachable } from "../text/cards";
+import { canCombo, identityKey, keywordName, skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
@@ -1796,6 +1796,8 @@ export interface ScriptFrame {
   pendingHookIdentityMissing?: true;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
+  /** Exact menu positions, persisted across JSON reload; absent on legacy name-only menus. */
+  keywordChoices?: (import("./program").KeywordInstance & { card: string; zoneEpoch: number })[];
   /** Closed areas this running skill actually inspected, persisted across a choice/reload. */
   lookedAreas?: Partial<Record<PlayerId, ("deck" | "life")[]>>;
   /**
@@ -3698,33 +3700,52 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // 9-1-5: one keyword skill, picked by the master among those the
         // target cards have in force *now* — a granted one included, a
         // negated one not — and negated on that card alone for the duration.
-        const offered: { card: string; keyword: KeywordSkill["name"] }[] = [];
-        // Official Q&A BT2-048, DB1-093 and BT6-057: the skill, not its card,
-        // is chosen. Keep this local so stored selectors and other ops retain
-        // their own Barrier semantics; other protections remain in force.
+        const offered: NonNullable<ScriptFrame["keywordChoices"]> = [];
+        // Official Q&A: choose the skill, so bypass Barrier only for this operation.
         const target: Ref = "sel" in op.target ? { sel: { ...op.target.sel, ignoreBarrier: true } } : op.target;
         for (const id of h.resolveRef(frame, target)) {
           if (!h.exists(id) || h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
-          for (const name of KEYWORD_NAMES) if (h.hasKeyword(id, name)) offered.push({ card: id, keyword: name });
+          const instances = h.keywordInstances(id, master);
+          for (const name of KEYWORD_NAMES) for (const instance of instances.filter(k => k.keyword.name === name))
+            offered.push({ ...instance, card: id, zoneEpoch: h.zoneEpoch(id) });
         }
-        if (!offered.length) break;
         if (h.lastMode() == null || frame.awaiting !== "negateChosenKeyword") {
-          const several = new Set(offered.map((o) => o.card)).size > 1;
+          if (!offered.length) break;
+          const several = new Set(offered.map(o => o.card)).size > 1;
+          frame.keywordChoices = offered;
           frame.awaiting = "negateChosenKeyword";
           h.resume(frame);
           h.ask({
             kind: "chooseMode",
             player: master,
             reason: `${h.nameOf(frame.card)}: choose a keyword skill to negate`,
-            options: [...offered.map((o) => (several ? `${h.nameOf(o.card)}: [${o.keyword}]` : `[${o.keyword}]`)), ...(op.mandatory ? [] : ["None"])],
+            options: [...offered.map(o => {
+              const duplicates = offered.filter(k => k.card === o.card && k.keyword.name === o.keyword.name).length > 1;
+              const sameSource = offered.filter(k => k.card === o.card && k.keyword.name === o.keyword.name && (k.skillIndex !== undefined) === (o.skillIndex !== undefined) && (k.standingGrantId !== undefined) === (o.standingGrantId !== undefined));
+              const origin = o.grantDescription ? `${o.grantDescription}; copy ${sameSource.indexOf(o) + 1}` : `${o.skillSide ? "printed" : "copied"} copy ${sameSource.indexOf(o) + 1}`;
+              return `${several ? `${h.nameOf(o.card)}: ` : ""}[${keywordName(o.keyword)}]${duplicates ? ` (${origin})` : ""}`;
+            }), ...(op.mandatory ? [] : ["None"])],
           });
           return "wait";
         }
         const at = h.lastMode()!;
+        // Old saves retained only name-based option text, not identities. Use the
+        // original label so removed options never shift a later answer's index.
+        const legacy = offered.filter((o, i) => offered.findIndex(k => k.card === o.card && k.keyword.name === o.keyword.name) === i);
+        const several = new Set(legacy.map(o => o.card)).size > 1;
+        const legacyOptions = [...legacy.map(o => `${several ? `${h.nameOf(o.card)}: ` : ""}[${o.keyword.name}]`), ...(op.mandatory ? [] : ["None"])];
+        const legacyMatches = JSON.stringify(h.lastModeOptions()) === JSON.stringify(legacyOptions);
+        const picked = frame.keywordChoices ? frame.keywordChoices[at] : legacyMatches ? legacy[at] : undefined;
         h.clearLastMode();
         frame.awaiting = undefined;
-        const picked = offered[at];
-        if (picked) h.addEffect({ master: frame.master, source: frame.card, target: picked.card, kind: "negateKeyword", value: picked.keyword, until: op.until });
+        delete frame.keywordChoices;
+        const live = picked && offered.some(o => o.card === picked.card && o.zoneEpoch === picked.zoneEpoch && (o.hiddenCount ?? 0) === (picked.hiddenCount ?? 0) && o.skillSide === picked.skillSide && o.skillIndex === picked.skillIndex && o.grantEffectId === picked.grantEffectId && o.standingGrantId === picked.standingGrantId && o.grantSource === picked.grantSource && o.sourceHiddenCount === picked.sourceHiddenCount);
+        if (picked && live) {
+          const base = { master: frame.master, source: frame.card, target: picked.card, until: op.until };
+          if (picked.skillIndex !== undefined) h.addEffect({ ...base, kind: "negateSkill", value: picked.skillIndex, skillSide: picked.skillSide });
+          else if (picked.grantEffectId !== undefined || picked.standingGrantId !== undefined)
+            h.addEffect({ ...base, kind: "negateGrantedSkill", value: picked.grantEffectId ?? { standingGrantId: picked.standingGrantId!, source: picked.grantSource, sourceHiddenCount: picked.sourceHiddenCount } });
+        }
         break;
       }
 

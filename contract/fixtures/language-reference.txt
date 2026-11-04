@@ -1277,7 +1277,7 @@
         }
       ],
       "sentence": "choose up to 1 keyword skill of this card and negate it for the turn",
-      "doc": "9-1-5: the master picks one keyword skill among those the target cards have in force. \"mandatory\":true means printed \"choose 1\"; absent/false preserves the optional \"up to 1\" choice of existing records. No available keyword means no question or effect (5-2-6). Choosing a skill bypasses Barrier (Q&A BT2-048, DB1-093, BT6-057), but a prohibition against negation still applies. Negation currently suppresses the selected keyword name, not one particular copy; duplicate copies and later grants of that name are still incorrectly suppressed, rather than refused; chosen negation needs per-instance identity"
+      "doc": "9-1-5: the master picks one keyword skill among those the target cards have in force. \"mandatory\":true means printed \"choose 1\"; absent/false preserves the optional \"up to 1\" choice of existing records. No available keyword means no question or effect (5-2-6). Choosing a skill bypasses Barrier (Q&A BT2-048, DB1-093, BT6-057), but a prohibition against negation still applies. Only the selected printed, timed-granted or standing-granted instance is negated; other copies and later grants remain in force. Saved menus retain instance identity. Legacy pending name-only menus keep their option indexes when unchanged; old resolved name-wide effects retain their saved semantics"
     },
     {
       "name": "negateSkillsOfKind",
