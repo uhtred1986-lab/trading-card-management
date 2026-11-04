@@ -70,6 +70,9 @@ export function skillLinesUncached(text: string | null | undefined): string[] {
     // `orbsIn`, `costText`, `costIsOnlyOrbs`, `splitCost` — sees the one form.
     .replace(/[①-⑳]/g, (ch) => `{${ch.charCodeAt(0) - 0x245f}}`)
     .replace(/⓪/g, "{0}")
+    // R-390: official P-006 / BT2-084 images show a circled generic orb
+    // after the colored Evolve orbs; these feeds omit only its braces.
+    .replace(/(\[evolve\]\s*(?:\{[rugybkw]\}\s*)+)(\d+)(?=\s*:)/gi, "$1{$2}")
     // A count spelled out instead of printed as a digit. Every counted target
     // is read by a pattern that wants a digit, and a phrase that has none is
     // taken as *all* of them — "your opponent chooses two cards from their
