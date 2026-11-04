@@ -154,3 +154,5 @@ script).
    - `npx tsx scripts/arena-fuzz.mts 40`.
 
 Round 4 bounded follow-up: [chosen keyword negation](round-4/keyword-negation-followup.md) covers mandatory choice and official-Q&A Barrier handling, plus instance-specific negation for printed copies and grants, including saved prompts and legacy compatibility (R-400/R-401, PR #1249).
+
+The same PR continues with [explicit Leader/Battle area scope](round-4/on-board-area-followup.md) (R-402), including full-program corpus comparison and correction of the BT12 optional-scope audit inference.
