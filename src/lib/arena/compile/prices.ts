@@ -175,8 +175,8 @@ export function compileCostProgram(skill: Skill): Script | null {
 
 const costPrograms = new Map<string, Script | null>();
 
-/** The keyword moves whose printed action price (before the colon) is compiled as a price program: [Swap] (#729), [Union] (Fusion, Potara) and the [Evolve] family (#926). */
-const PRICED_KEYWORD_MOVES = new Set<string>(["Swap", "Union", "Evolve"]);
+/** The keyword moves whose printed action price (before the colon) is compiled as a price program: [Swap] (#729), [Union] (Fusion, Potara) and the [Evolve] family (#926), and Awaken (R-387). */
+const PRICED_KEYWORD_MOVES = new Set<string>(["Swap", "Union", "Evolve", "Awaken"]);
 
 /**
  * Compile one piece of price text as a program. Memoised on the text and the
@@ -199,7 +199,8 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // "[Union-Fusion]{r}{r}{r}, draw 2 cards: Red <Son Goku: Br> and …"
   // (BT11-013), "[EX-Evolve]{r}{r}{r}, draw 1 card: Red <Broly: Br> …"
   // (BT13-024). Only those tags come off: the other keywords that own their
-  // line keep their prices unread until their own moves can charge one.
+  // line keep their prices unread until their own moves can charge one. R-387 adds
+  // Awaken, whose native activation pays its printed action before effects and flipping.
   const owner = skill.keyword && PRICED_KEYWORD_MOVES.has(skill.keyword.name) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
   const tags = owner ? skill.tags.filter((t) => keywordOf(t)?.name !== owner) : skill.tags;
   const read = (text: string) => compileSkill({ ...skill, kind: "activate:main", keyword: null, tags, cost: "", effect: text });
@@ -214,12 +215,13 @@ export function compileAction(said: string, skill: Skill): Script | null {
   sc = paidWithYourOwn(sc);
   // #970: disjoint choices are charged on an [Activate] line's own price only —
   // an [Auto], a [Counter] and a keyword's move have their own payment
-  // planners, and none of them matches cards across slots.
+  // planners, and none of them matches cards across slots. R-387 admits Awaken
+  // through the ordinary activation price planner with a saved occurrence guard.
   const disjoint = sc.ops.some((op) => op.op === "choose" && op.sel.notIn);
   // Phrasing batch 3: the effect's "send up to 1 <A> and 1 <B> from your deck to your Warp" (BT20-054, `named-set.ts`)
   // is not a price: an "up to" send slot is one a price could pay with nothing (#970 keeps it unread there).
   const upToSend = sc.ops.some((op) => op.op === "choose" && op.sel.notIn && op.sel.upTo && sc.ops.some((m) => m.op === "moveTo" && m.to === "warp" && "var" in m.target && m.target.var === op.as));
-  const out = sc.unsupported.length || !sc.ops.length || upToSend || (disjoint && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
+  const out = sc.unsupported.length || !sc.ops.length || upToSend || (disjoint && skill.keyword?.name !== "Awaken" && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
   costPrograms.set(key, out);
   return out;
 }

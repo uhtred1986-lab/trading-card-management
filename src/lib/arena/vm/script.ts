@@ -1837,6 +1837,8 @@ export interface ScriptFrame {
    * what the price chose (4-3-3).
    */
   saveVarsAs?: string;
+  /** R-387: an Awaken action payment keeps the Leader and its chosen material occurrences across reloads. */
+  awakenPayment?: { sourceEpoch: number; chosenEpochs: Record<string, number> };
   /**
    * #1117 (4-3-3, 5-8-2-2): set on a price's frame when a step of the price did
    * not really happen — a KO the card was spared, a card that did not join the
@@ -2325,6 +2327,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
   const master = frame.master;
 
   for (let guard = 0; guard < 200; guard++) {
+    if (frame.awakenPayment && frame.saveVarsAs) {
+      const payment = frame.awakenPayment;
+      if (h.areaOf(frame.card) !== "leader" || h.zoneEpoch(frame.card) !== payment.sourceEpoch
+        || Object.entries(payment.chosenEpochs).some(([id, epoch]) => h.zoneEpoch(id) !== epoch)) {
+        frame.priceUnpaid ??= "the Awaken Leader or a chosen payment card changed area";
+      }
+      if (frame.priceUnpaid) frame.ip = frame.ops.length;
+    }
     if (frame.ip >= frame.ops.length) {
       // A skill's price is its own program, run before the effect (4-3-3), but
       // the effect may point back at what the price chose: "Choose 1 {Tree of
@@ -2797,6 +2807,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             return;
           }
           frame.vars[op.as] = picked;
+          if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] = h.zoneEpoch(id);
           // Mechanism batch 2 (3-1-7): a card picked out of a secret area by a description is shown if it goes on to
           // another secret area; remembered here, while it is still where it was chosen from.
           // Phrasing batch 10 (owner's ruling of 27 Oct 2026): a pick out of the hand too — the hand is a secret area.
@@ -3192,7 +3203,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               frame.moveLoop.index++;
               continue;
             }
-            if (host) { h.placeUnder(id, host); frame.acted = (frame.acted ?? 0) + 1; }
+            if (host) {
+              const placed = h.placeUnder(id, host);
+              if (placed || !frame.awakenPayment) frame.acted = (frame.acted ?? 0) + 1;
+              if (frame.awakenPayment) {
+                if (placed) frame.awakenPayment.chosenEpochs[id] = h.zoneEpoch(id);
+                else frame.priceUnpaid ??= "an Awaken payment card could not be placed under its Leader";
+              }
+            } else if (frame.awakenPayment) frame.priceUnpaid ??= "the Awaken payment's Leader is missing";
             frame.moveLoop.index++;
             continue;
           }

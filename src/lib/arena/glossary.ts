@@ -1708,6 +1708,10 @@ export const READING_RULES: ReadingRule[] = [
     title: "Awaken alternatives preserve complete payment conditions (4 Nov 2026)",
     body: "**Life or the complete alternate requirement** (R-386; RM 22-2-3). A low-life branch of Awaken stands on its own; energy plus named-card requirements belong together in the other branch. Repeated or-when, energy while another condition holds, count-first descriptions and either player's life now produce stored conditions used by the native Awaken action. BT29-029's at5 means five, while missing numbers stay unread. BT26-031's three Z-Energy comes from the official card image correction. Both-seat tests check real activation offers and resolution, including wrong area, side, description and insufficient energy controls.",
   },
+  {
+    title: "Awaken:Surge pays distinct cards before its effects (4 Nov 2026)",
+    body: "**Two colors still require two cards** (R-387; RM 22-2-3, 5-8-2-2). Surge's color slots use the same matching as other distinct-card payments, so a multicolor card can fill either slot but never both. Both selected hand cards go under the Leader before its draw, energy switch and flip. Saved mid-payment choices retain the same Leader and material occurrences; changed or failed payments do not release the effects. Regular Awaken conditions and other activation prices keep their established behavior.",
+  },
 ];
 
 // ── Fusion World spellings (#1187) ─────────────────────────────────────────

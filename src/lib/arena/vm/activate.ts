@@ -494,8 +494,9 @@ function chargeablePrice(line: ActivationLine): boolean {
   // before the swap (`vm/swap-costs.ts`), on the strict action-price host.
   // [Union-Fusion], [Union-Potara] and the [Evolve] family are the third
   // (#926): their `DO` pays it where it says `payActionPrice`
-  // (`vm/keyword-costs.ts`), on the same strict host.
-  if (price.ops?.length) return !line.keyword || aegis || !!swapActionPrice(line) || !!keywordActionPrice(line);
+  // (`vm/keyword-costs.ts`), on the same strict host. R-387 admits Awaken's
+  // action price before its native effect, with source/material occurrences guarded.
+  if (price.ops?.length) return !line.keyword || line.keyword.name === "Awaken" || aegis || !!swapActionPrice(line) || !!keywordActionPrice(line);
   return true;
 }
 
@@ -1106,7 +1107,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     // frame is queued even when it does nothing, because it is what is
     // announced when the price is paid.
     const key = costVarsKey(card, sk.index);
-    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
+    state.programs.unshift({ ...(line.keyword?.name === "Awaken" ? { awakenPayment: { sourceEpoch: state.cards[card].zoneEpoch ?? 0, chosenEpochs: {} } } : {}), ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
     return;
   }
   if (program.length || afterSkillKeywords.length) state.programs.unshift(effect);
@@ -1147,7 +1148,8 @@ const costVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${sk
  * A keyword's own move pays its action at the point declared in its DO.
  */
 function actionPriceOf(line: ActivationLine): Script["ops"] | null {
-  if (line.keyword) return null;
+  // R-387: Awaken pays its printed action before the native effect and flip.
+  if (line.keyword && line.keyword.name !== "Awaken") return null;
   requireSkillPayment(line.script?.price);
   const ops = line.script?.price?.ops;
   return ops?.length ? ops : null;

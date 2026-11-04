@@ -12,6 +12,8 @@ const SRC = "((?:your|the|their|its owner'?s?) [^,;:.]+?)";
 
 /** "send LIST from SRC to WARP", "place LIST from SRC in DROP", "place LIST in DROP from SRC". */
 const SHAPES = [
+  // R-387: Surge pays distinct hand cards into the activating Leader's pile.
+  /^(place) (.+?) from (your hand) under this card$/i,
   new RegExp(`^(send) (.+?) from ${SRC} to ${WARP}$`, "i"),
   // Audit selectors 2: "you may choose 1 red card and 1 green card in your energy and switch them to Rest Mode" (BT7-057).
   new RegExp(`^(switch) (.+?) from ${SRC} to rest mode$`, "i"),
@@ -55,6 +57,7 @@ function items(list: string): string[] {
 export interface DisjointWords {
   verb: "send" | "place" | "switch";
   source: string;
+  underSelf?: true;
   /** Each slot as "N <description> card", the noun restored where the list said it once. */
   slots: string[];
 }
@@ -68,6 +71,7 @@ export function disjointWords(clause: string): DisjointWords | null {
   const said = clause
     .trim()
     .replace(/[.]$/, "")
+    .replace(/^choose (.+?) (?:in|from) your hand and place them under this card$/i, "place $1 from your hand under this card")
     .replace(/^choose (.+?) (?:in|from) ((?:your|the|their|its owner'?s?) [^,;:.]+?) and (send|place|switch) them (to|in|into) (.+)$/i, (_all, list: string, src: string, verb: string, prep: string, dest: string) => `${verb} ${list} from ${src} ${prep} ${dest}`);
   for (const shape of SHAPES) {
     const m = shape.exec(said);
@@ -87,7 +91,7 @@ export function disjointWords(clause: string): DisjointWords | null {
       else if (i < raw.length - 1 && /^\d+\s+(?:[a-z-]+\s+)*(?:<[^>]+>|≪[^≫]+≫|\{[^}]+\})$/i.test(item)) slots.push(`${item} card`);
       else return null;
     }
-    return { verb, source, slots };
+    return { verb, source, slots, ...(/ under this card$/i.test(said) ? { underSelf: true as const } : {}) };
   }
   return null;
 }
