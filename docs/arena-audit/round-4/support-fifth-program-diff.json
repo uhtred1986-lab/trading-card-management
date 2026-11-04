@@ -1,0 +1,1324 @@
+[
+  {
+    "key": "BT12-039#20",
+    "fields": [
+      "cond",
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "cond": null,
+      "ops": [],
+      "pattern": "if the card placed in your drop area with this skill was a blue \u2026 card with an energy cost of N",
+      "reads": "",
+      "unread": [
+        "If the card placed in your Drop Area with this skill was a blue <Gogeta> card with an energy cost of 8",
+        "play it on top of this card"
+      ]
+    },
+    "after": {
+      "cond": {
+        "kind": "all",
+        "conds": [
+          {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "paikuhan"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy"
+            },
+            "atLeast": 4
+          }
+        ]
+      },
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_burst",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "gogeta"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 8,
+              "costMax": 8,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "play",
+              "target": {
+                "sel": {
+                  "fromVar": "paid_burst",
+                  "area": "drop",
+                  "side": "you"
+                }
+              },
+              "onto": {
+                "sel": {
+                  "special": "self"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "pattern": "if:all[if:varMatches[play]]",
+      "reads": "if your leader is Blue <paikuhan> and there are 4 or more cards in your Energy Area: if a card paid for this skill was blue <gogeta> with an energy cost of 8: play all of the cards looked at on top of this card",
+      "unread": []
+    }
+  },
+  {
+    "key": "BT12-043#10",
+    "fields": [
+      "cond",
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "cond": null,
+      "ops": [],
+      "pattern": "if the card you placed in the drop area with this skill was a blue \u2026 or \u2026 card with an energy cost of N",
+      "reads": "",
+      "unread": [
+        "if the card you placed in the Drop Area with this skill was a blue <Son Goku> or <Vegeta> card with an energy cost of 1",
+        "you may play it with its skills negated for the turn"
+      ]
+    },
+    "after": {
+      "cond": {
+        "kind": "leaderMatches",
+        "filter": {
+          "colors": [
+            "Blue"
+          ],
+          "notColors": [],
+          "monoColor": false,
+          "multiColor": false,
+          "characters": [
+            "paikuhan"
+          ],
+          "notCharacters": [],
+          "charactersIncluding": [],
+          "notCharactersIncluding": [],
+          "charactersAll": [],
+          "namesAll": [],
+          "traits": [],
+          "notTraits": [],
+          "characterOrTrait": false,
+          "onlyCharacters": false,
+          "names": [],
+          "notNames": [],
+          "namesIncluding": [],
+          "notNamesIncluding": [],
+          "notKeywords": [],
+          "keywords": [],
+          "skillKind": null,
+          "unreadable": false,
+          "noKeywords": false,
+          "type": null,
+          "notType": null,
+          "faceUp": false,
+          "token": false,
+          "notToken": false,
+          "costMin": null,
+          "costMax": null,
+          "powerMin": null,
+          "powerMax": null,
+          "originalPowerMin": null,
+          "originalPowerMax": null,
+          "comboPowerMin": null,
+          "comboPowerMax": null,
+          "markersMin": null,
+          "markersMax": null,
+          "specifiedCostMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostNone": false,
+          "costAtMostEnergy": false,
+          "costBelowEnergy": false,
+          "costAtLeastEnergy": false,
+          "costAboveEnergy": false,
+          "energyOfOpponent": false,
+          "originallySkillLess": false,
+          "skillLess": false,
+          "powerRel": null,
+          "nameInSkillTextOf": null,
+          "z": null
+        }
+      },
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_burst",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "son goku",
+                "vegeta"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 1,
+              "costMax": 1,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "may",
+              "ops": [
+                {
+                  "op": "play",
+                  "target": {
+                    "sel": {
+                      "fromVar": "paid_burst",
+                      "area": "drop",
+                      "side": "you"
+                    }
+                  },
+                  "negated": "turn"
+                }
+              ],
+              "reason": "play it with its skills negated for the turn"
+            }
+          ]
+        }
+      ],
+      "pattern": "if:leaderMatches[if:varMatches[may[play]]]",
+      "reads": "if your leader is Blue <paikuhan>: if a card paid for this skill was blue <son goku> or <vegeta> with an energy cost of 1: you may: play all of the cards looked at with its skills negated for the turn",
+      "unread": []
+    }
+  },
+  {
+    "key": "BT12-044#10",
+    "fields": [
+      "cond",
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "cond": null,
+      "ops": [],
+      "pattern": "if the card you placed in the drop area with this skill was a blue \u2026 or \u2026 card with an energy cost of N",
+      "reads": "",
+      "unread": [
+        "if the card you placed in the Drop Area with this skill was a blue <Son Goku> or <Vegeta> card with an energy cost of 1",
+        "you may play it with its skills negated for the turn"
+      ]
+    },
+    "after": {
+      "cond": {
+        "kind": "leaderMatches",
+        "filter": {
+          "colors": [
+            "Blue"
+          ],
+          "notColors": [],
+          "monoColor": false,
+          "multiColor": false,
+          "characters": [
+            "paikuhan"
+          ],
+          "notCharacters": [],
+          "charactersIncluding": [],
+          "notCharactersIncluding": [],
+          "charactersAll": [],
+          "namesAll": [],
+          "traits": [],
+          "notTraits": [],
+          "characterOrTrait": false,
+          "onlyCharacters": false,
+          "names": [],
+          "notNames": [],
+          "namesIncluding": [],
+          "notNamesIncluding": [],
+          "notKeywords": [],
+          "keywords": [],
+          "skillKind": null,
+          "unreadable": false,
+          "noKeywords": false,
+          "type": null,
+          "notType": null,
+          "faceUp": false,
+          "token": false,
+          "notToken": false,
+          "costMin": null,
+          "costMax": null,
+          "powerMin": null,
+          "powerMax": null,
+          "originalPowerMin": null,
+          "originalPowerMax": null,
+          "comboPowerMin": null,
+          "comboPowerMax": null,
+          "markersMin": null,
+          "markersMax": null,
+          "specifiedCostMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostNone": false,
+          "costAtMostEnergy": false,
+          "costBelowEnergy": false,
+          "costAtLeastEnergy": false,
+          "costAboveEnergy": false,
+          "energyOfOpponent": false,
+          "originallySkillLess": false,
+          "skillLess": false,
+          "powerRel": null,
+          "nameInSkillTextOf": null,
+          "z": null
+        }
+      },
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_burst",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "son goku",
+                "vegeta"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 1,
+              "costMax": 1,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "may",
+              "ops": [
+                {
+                  "op": "play",
+                  "target": {
+                    "sel": {
+                      "fromVar": "paid_burst",
+                      "area": "drop",
+                      "side": "you"
+                    }
+                  },
+                  "negated": "turn"
+                }
+              ],
+              "reason": "play it with its skills negated for the turn"
+            }
+          ]
+        }
+      ],
+      "pattern": "if:leaderMatches[if:varMatches[may[play]]]",
+      "reads": "if your leader is Blue <paikuhan>: if a card paid for this skill was blue <son goku> or <vegeta> with an energy cost of 1: you may: play all of the cards looked at with its skills negated for the turn",
+      "unread": []
+    }
+  },
+  {
+    "key": "BT16-145#20",
+    "fields": [
+      "cond",
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "cond": null,
+      "ops": [],
+      "pattern": "if the card placed in your drop area using this skill is a black \u2026 card",
+      "reads": "",
+      "unread": [
+        "if the card placed in your Drop Area using this skill is a black \u226aSaiyan\u226b card",
+        "draw 1 card"
+      ]
+    },
+    "after": {
+      "cond": {
+        "kind": "varMatches",
+        "var": "paid_burst",
+        "filter": {
+          "colors": [
+            "Black"
+          ],
+          "notColors": [],
+          "monoColor": false,
+          "multiColor": false,
+          "characters": [],
+          "notCharacters": [],
+          "charactersIncluding": [],
+          "notCharactersIncluding": [],
+          "charactersAll": [],
+          "namesAll": [],
+          "traits": [
+            "saiyan"
+          ],
+          "notTraits": [],
+          "characterOrTrait": false,
+          "onlyCharacters": false,
+          "names": [],
+          "notNames": [],
+          "namesIncluding": [],
+          "notNamesIncluding": [],
+          "notKeywords": [],
+          "keywords": [],
+          "skillKind": null,
+          "unreadable": false,
+          "noKeywords": false,
+          "type": null,
+          "notType": null,
+          "faceUp": false,
+          "token": false,
+          "notToken": false,
+          "costMin": null,
+          "costMax": null,
+          "powerMin": null,
+          "powerMax": null,
+          "originalPowerMin": null,
+          "originalPowerMax": null,
+          "comboPowerMin": null,
+          "comboPowerMax": null,
+          "markersMin": null,
+          "markersMax": null,
+          "specifiedCostMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostNone": false,
+          "costAtMostEnergy": false,
+          "costBelowEnergy": false,
+          "costAtLeastEnergy": false,
+          "costAboveEnergy": false,
+          "energyOfOpponent": false,
+          "originallySkillLess": false,
+          "skillLess": false,
+          "powerRel": null,
+          "nameInSkillTextOf": null,
+          "z": null
+        },
+        "paid": true
+      },
+      "ops": [
+        {
+          "op": "draw",
+          "n": 1
+        }
+      ],
+      "pattern": "if:varMatches[draw]",
+      "reads": "if a card paid for this skill was black \u226asaiyan\u226b: draw 1",
+      "unread": []
+    }
+  },
+  {
+    "key": "BT16-146#20",
+    "fields": [
+      "cond",
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "cond": null,
+      "ops": [],
+      "pattern": "if the card placed in your drop area using this skill is a black \u2026 card",
+      "reads": "",
+      "unread": [
+        "if the card placed in your Drop Area using this skill is a black \u226aSaiyan\u226b card",
+        "your opponent chooses 1 card in their hand and sends it to their Warp"
+      ]
+    },
+    "after": {
+      "cond": {
+        "kind": "varMatches",
+        "var": "paid_burst",
+        "filter": {
+          "colors": [
+            "Black"
+          ],
+          "notColors": [],
+          "monoColor": false,
+          "multiColor": false,
+          "characters": [],
+          "notCharacters": [],
+          "charactersIncluding": [],
+          "notCharactersIncluding": [],
+          "charactersAll": [],
+          "namesAll": [],
+          "traits": [
+            "saiyan"
+          ],
+          "notTraits": [],
+          "characterOrTrait": false,
+          "onlyCharacters": false,
+          "names": [],
+          "notNames": [],
+          "namesIncluding": [],
+          "notNamesIncluding": [],
+          "notKeywords": [],
+          "keywords": [],
+          "skillKind": null,
+          "unreadable": false,
+          "noKeywords": false,
+          "type": null,
+          "notType": null,
+          "faceUp": false,
+          "token": false,
+          "notToken": false,
+          "costMin": null,
+          "costMax": null,
+          "powerMin": null,
+          "powerMax": null,
+          "originalPowerMin": null,
+          "originalPowerMax": null,
+          "comboPowerMin": null,
+          "comboPowerMax": null,
+          "markersMin": null,
+          "markersMax": null,
+          "specifiedCostMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostNone": false,
+          "costAtMostEnergy": false,
+          "costBelowEnergy": false,
+          "costAtLeastEnergy": false,
+          "costAboveEnergy": false,
+          "energyOfOpponent": false,
+          "originallySkillLess": false,
+          "skillLess": false,
+          "powerRel": null,
+          "nameInSkillTextOf": null,
+          "z": null
+        },
+        "paid": true
+      },
+      "ops": [
+        {
+          "op": "discard",
+          "n": 1,
+          "side": "opponent",
+          "to": "warp"
+        }
+      ],
+      "pattern": "if:varMatches[discard]",
+      "reads": "if a card paid for this skill was black \u226asaiyan\u226b: opponent discards 1 to the Warp",
+      "unread": []
+    }
+  },
+  {
+    "key": "BT2-084#0",
+    "fields": [
+      "cost",
+      "printed"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "4",
+        "orbs": {
+          "Green": 2
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "printed": "[evolve] {g}{g}4: <Cell>"
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {
+          "Green": 2,
+          "any": 4
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "printed": "[evolve] {g}{g}{4}: <Cell>"
+    }
+  },
+  {
+    "key": "P-006#0",
+    "fields": [
+      "cost",
+      "printed"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "1",
+        "orbs": {
+          "Green": 2
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "printed": "[evolve] {g}{g}1: <Broly> (Play this card on top of the specified card)"
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {
+          "Green": 2,
+          "any": 1
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "printed": "[evolve] {g}{g}{1}: <Broly> (Play this card on top of the specified card)"
+    }
+  },
+  {
+    "key": "SD16-01#0",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "Add up to 1 card from your life to your hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "hand"
+        }
+      ],
+      "pattern": "if a black card is placed in your drop area by this skill",
+      "reads": "choose up to 1 card in your Life Area, move the chosen cards to hand",
+      "unread": [
+        "if a black card is placed in your Drop Area by this skill",
+        "this card gains [Critical] for the turn",
+        "If a non-black card is placed in your Drop Area by this skill",
+        "this card gets +5000 power for the turn"
+      ]
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "Add up to 1 card from your life to your hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "hand"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_burst",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "grant",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "keyword": {
+                "name": "Critical"
+              },
+              "until": "turn"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_burst",
+            "filter": {
+              "colors": [
+                "Red",
+                "Blue",
+                "Green",
+                "Yellow",
+                "White"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "power",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "amount": 5000,
+              "until": "turn"
+            }
+          ]
+        }
+      ],
+      "pattern": "choose\u2192moveTo\u2192if:varMatches[grant:Critical]\u2192if:varMatches[power]",
+      "reads": "choose up to 1 card in your Life Area, move the chosen cards to hand, if a card paid for this skill was black: this card gains [Critical] for the turn (end if), if a card paid for this skill was red, blue, green, yellow or white: this card +5000 power for the turn",
+      "unread": []
+    }
+  },
+  {
+    "key": "SD16-01#20b",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "ops": [],
+      "pattern": "if a black card is placed in your drop area by this skill",
+      "reads": "",
+      "unread": [
+        "If a black card is placed in your Drop Area by this skill",
+        "this card gains [Critical] for the turn",
+        "If a non-black card is placed in your Drop Area by this skill",
+        "this card gets +5000 power for the turn"
+      ]
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_burst",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "grant",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "keyword": {
+                "name": "Critical"
+              },
+              "until": "turn"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_burst",
+            "filter": {
+              "colors": [
+                "Red",
+                "Blue",
+                "Green",
+                "Yellow",
+                "White"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "power",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "amount": 5000,
+              "until": "turn"
+            }
+          ]
+        }
+      ],
+      "pattern": "if:varMatches[grant:Critical]\u2192if:varMatches[power]",
+      "reads": "if a card paid for this skill was black: this card gains [Critical] for the turn (end if), if a card paid for this skill was red, blue, green, yellow or white: this card +5000 power for the turn",
+      "unread": []
+    }
+  },
+  {
+    "key": "SD22-01#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at 4 or less, or\u2015you have 2 or more energy and a yellow <Son Goku> card with an energy cost of 2 or more in play",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less, or\u2015you have 2 or more energy and a yellow <Son Goku> card with an energy cost of 2 or more in play",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "play",
+                    "filter": {
+                      "colors": [
+                        "Yellow"
+                      ],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "son goku"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": 2,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  },
+                  "atLeast": 1
+                }
+              ]
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  }
+]
