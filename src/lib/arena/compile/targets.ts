@@ -515,10 +515,24 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // Audit selectors 2: the offer is not an owner — "**you may** choose 1 ≪Villainous≫ card and place it in its owner's
   // Drop" (P-435) names no one's cards, as the same words without the offer do (R-205).
   if (/^\s*(?:you may|you can) choose\b/i.test(phrase)) return parseTarget(phrase.replace(/^\s*(?:you may|you can) /i, ""), looked, pool);
+  // R-404: for a one-card choice, bounding its total energy cost is exactly the printed per-card bound.
+  // Reuse the existing live amount/choice machinery; do not mistake the counted area for the target's area.
+  // Multiple targets need a per-card predicate instead of a set sum and remain unread below.
+  const countedCost = /\bwith an energy cost less than or equal to the number of ((?:(mono-(?:red|blue|green|yellow|black|white)) (≪[^≫]+≫) )?cards) in (your opponent's|your|their) (z-deck|hand|drop(?: area)?)(?=\s*(?:,?\s*ignoring \[barrier\])?\s*$)/i.exec(phrase);
+  if (countedCost) {
+    const rest = phrase.replace(countedCost[0], " ").replace(/\s+/g, " ").trim();
+    const sel = parseTarget(rest, looked, pool);
+    const area = SELF_FROM[countedCost[5].toLowerCase().replace(/ area$/, "")];
+    // A filtered count in a hidden area would read information the skill never reveals. Only unfiltered hand/Z-Deck
+    // counts and filtered public-area counts are taught. The explicit owner also prevents any antecedent inference.
+    if (!sel || !/^(?:choose )?(?:up to )?1\b/i.test(rest) || sel.count !== 1 || sel.area !== "battle" || sel.filter?.type !== "BATTLE" || sel.special || sel.fromVar || sel.alsoFrom || sel.orSelf || sel.take != null || sel.minCount != null || sel.sumAtMost || sel.filter?.anyOf?.length || !area || (area === "drop" && countedCost[4].toLowerCase() !== "your") || (area === "zDeck" && countedCost[4].toLowerCase() !== "your") || (countedCost[2] && ["hand", "zDeck"].includes(area))) return null;
+    const count: Selector = { side: countedCost[4].toLowerCase() === "your" ? "you" : "opponent", area, ...(countedCost[2] ? { filter: parseFilter(countedCost[1]) } : {}) };
+    return { ...sel, sumAtMost: { attr: "energyCost", total: { count } } };
+  }
   // Audit selectors 2: "…Battle Cards with an energy cost **less than or equal to the number of cards in their hand**"
   // (P-300, BT15-145, BT22-127, BT20-064, BT14-140, BT17-147, BT17-149): a cost bound counted off the board, which no
   // filter field holds (the energy-count bounds, `costAtMostEnergy`…, count only energy). The count's area was read as
-  // where the card is — a Battle Card in the opponent's hand, in your Z-Deck, in your Drop. Unread until it is taught.
+  // where the card is — a Battle Card in the opponent's hand, in your Z-Deck, in your Drop. Forms not covered above stay unread.
   if (/\b(?:energy|combo) costs? (?:that is |which is )?(?:less|greater|lower|higher|more|fewer|equal)[a-z ]* (?:than|to)(?: or equal to)? the (?:number|total|amount) of\b/i.test(phrase)) return null;
   // Audit selectors 2: "Choose **up to X** cards in your opponent's hand" after a "{g}{g}{g}(X)" price (DB3-141, DB3-142,
   // BT27-140): a count no selector holds — X is what the price paid, a notation this compiler does not read (DB3-138).

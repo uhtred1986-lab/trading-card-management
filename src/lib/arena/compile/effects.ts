@@ -1102,6 +1102,8 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
   const lead = /^for (?:each|every) (?:(\d+) )?(markers?\s+on\s+.+?|of your [a-z0-9'’. -]+ tokens?|(?:card )?colou?rs?(?: types?)?\s+(?:among|on|in)\s+.+?)\s*,\s*(.+)$/.exec(t);
   const m = lead ? null : /^(.+?)\s+(for each|for every|equal to the number of)\s+(.+)$/.exec(t);
   if (!lead && !m) return null;
+  // R-404: this compares the selected card's cost; it never multiplies the number chosen, even for an exact choice.
+  if (/\bwith an energy cost less than or equal to the number of\b/.test(t)) return null;
   // Mechanism batch 4: "For each marker on this card, **it** gets +5000 power during your turn" (EX19-21): the pronoun
   // is the card the count just named, and nothing else in a [Permanent] that names no other card.
   const headSrc = lead ? (/^markers?\s+on\s+this card$/.test(lead[2].trim()) && !c.lastTarget ? lead[3].replace(/^it\b/, "this card") : lead[3]) : m![1];

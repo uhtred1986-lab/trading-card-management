@@ -659,7 +659,8 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
     case "comboCost":
       return num(now.comboCostOf);
     case "energyCost":
-      return num(now.costOf);
+      // R-404 / 1-2-5: the numerical cost is never below the specified orbs, including an undefined X (zero).
+      return Math.max(num(now.costOf), Array.isArray(now.specifiedCost) ? now.specifiedCost.length : 0);
     // 1-2-3: the number of orbs the specified cost asks for, as it stands (or
     // as it stood, for a card read from a movement's captured information);
     // a card with no specified cost to read has none.
@@ -1596,9 +1597,10 @@ function narrowsBy(f: CardFilter): string[] {
  * the comments that explain *why* an order matters are carried with them: a
  * `take` before the filter because the top card of a deck is not searched for,
  * `hidden` before `filter` because a face-down card has no front-side
- * information to filter on (23-5-2).
+ * information to filter on (23-5-2). Numerical counts observe cards rather than choose or affect them (R-404):
+ * `observing` skips only selection/immunity protections, preserving area, ownership and every description.
  */
-export function resolveSelector(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector): string[] {
+export function resolveSelector(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, observing = false): string[] {
   let out: string[] = [];
   if (sel.special) {
     const pick = specialCard(state, frame, sel.special);
@@ -1613,7 +1615,7 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     const areas = sel.areas?.length ? sel.areas : [sel.area ?? "battle"];
     for (const [i, area] of areas.entries()) {
       if (area === "under" && sel.underHost) {
-        for (const host of resolveSelector(ctx, game, state, frame, sel.underHost)) out.push(...(state.cards[host]?.under ?? []));
+        for (const host of resolveSelector(ctx, game, state, frame, sel.underHost, observing)) out.push(...(state.cards[host]?.under ?? []));
         continue;
       }
       // #930: "your Drop or your opponent's Battle Area" — an owner per area.
@@ -1710,7 +1712,7 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       // no zone (23-2); it is where the selector says while the card holding
       // the pile is one `underHost` names.
       const host = wanted.includes("under") ? hostOf(state, id) : null;
-      const inPile = !!host && (!sel.underHost || resolveSelector(ctx, game, state, frame, sel.underHost).includes(host));
+      const inPile = !!host && (!sel.underHost || resolveSelector(ctx, game, state, frame, sel.underHost, observing).includes(host));
       if (!inPile && !wanted.includes(zoneOf(state, id) ?? "")) return false;
     }
     // Moments batch 1: and the card a moment hands on — "by **your** Leader's skill" asks whose the skill's card is.
@@ -1787,13 +1789,13 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // rule is `ownProhibitions`' own doc claim, "wherever it sits" (9-1-3-3),
     // and has nothing to do with [Barrier].
     // R-204: a printed "choose" of the card a moment names (`choice`) is a choice like any other.
-    if ((!sel.special || sel.choice) && !sel.ignoreBarrier && sel.side !== "you" && zoneOf(state, id) !== "hand" && masterOf(game, state, id) !== frame.master && queryHookStatics(ctx, game, state, id, "chooseable").some((f) => f.op === "forbid"))
+    if (!observing && (!sel.special || sel.choice) && !sel.ignoreBarrier && sel.side !== "you" && zoneOf(state, id) !== "hand" && masterOf(game, state, id) !== frame.master && queryHookStatics(ctx, game, state, id, "chooseable").some((f) => f.op === "forbid"))
       return false;
     // 20-4: every other "can't be chosen" prohibition — `state.effects`, a
     // [Permanent], or the card's own rule about itself — wherever the card
     // sits. `hooks: false` leaves the fact just checked above out, so it is
     // not re-applied here without its own exemptions.
-    if ((!sel.special || sel.choice) && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id, hooks: false }))
+    if (!observing && (!sel.special || sel.choice) && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id, hooks: false }))
       return false;
     // 9-1-4: a card no skill may touch (#154). The one place immunity is
     // enforced, as on the legacy engine — every op reaches a card through a
@@ -1801,12 +1803,12 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // inherits the check. Which skills it refuses is the stored rule's
     // business (`immunityRefusing`), and `self` is kept out: a card's own
     // skill naming itself is the skill working, not a skill touching it.
-    if (sel.special !== "self" && immunityRefusing(ctx, game, state, id, frame.card, frame.master)) return false;
+    if (!observing && sel.special !== "self" && immunityRefusing(ctx, game, state, id, frame.card, frame.master)) return false;
     return true;
   });
   // Audit-selectors-1 (`alsoFrom`): the cards each alternative describes, in its own place, are on offer too — one choice
   // among them all. Bound by what the choice already excludes (`notIn`, this card), never by this selector's measures.
-  const alternatives = (sel.alsoFrom ?? []).flatMap((alt) => resolveSelector(ctx, game, state, frame, { ...alt, ...(sel.notIn ? { notIn: sel.notIn } : {}), ...(sel.notSelf ? { notSelf: sel.notSelf } : {}), ...(sel.ignoreBarrier ? { ignoreBarrier: true } : {}) }));
+  const alternatives = (sel.alsoFrom ?? []).flatMap((alt) => resolveSelector(ctx, game, state, frame, { ...alt, ...(sel.notIn ? { notIn: sel.notIn } : {}), ...(sel.notSelf ? { notSelf: sel.notSelf } : {}), ...(sel.ignoreBarrier ? { ignoreBarrier: true } : {}) }, observing));
   const union = alternatives.length ? [...kept, ...alternatives.filter((id, i) => !kept.includes(id) && alternatives.indexOf(id) === i)] : kept;
   return self && !union.includes(self) ? [self, ...union] : union;
 }
@@ -1860,12 +1862,12 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
     return ids.length ? measureOf(ctx, game, state, ids[0], a.name, "sel" in a.attr && a.attr.sel.special === "subject" && ids[0] === frame.subject ? frame.subjectInfo : undefined) * (a.times ?? 1) : 0;
   }
   if ("markers" in a) return perStep(markersOn(ctx, game, state, frame, a.markers), a.per) * (a.times ?? 1);
-  return perStep(countSelected(ctx, game, state, frame, a.count), a.per) * (a.times ?? 1);
+  return perStep(countSelected(ctx, game, state, frame, a.count, true), a.per) * (a.times ?? 1);
 }
 
 /** The cards a selector finds, counted as it says — by name under `differentNames` (BT18-104). */
-export function countSelected(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector): number {
-  return selectedCount(sel, resolveSelector(ctx, game, state, frame, sel), (id) => String(attrsNow(ctx, game, state, id).name ?? id), (id) => list(attrsNow(ctx, game, state, id).colors).map(String), (id) => list(attrsNow(ctx, game, state, id).characters).map(String));
+export function countSelected(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, observing = false): number {
+  return selectedCount(sel, resolveSelector(ctx, game, state, frame, sel, observing), (id) => String(attrsNow(ctx, game, state, id).name ?? id), (id) => list(attrsNow(ctx, game, state, id).colors).map(String), (id) => list(attrsNow(ctx, game, state, id).characters).map(String));
 }
 
 // ── conditions (9-4) ────────────────────────────────────────────────────────
