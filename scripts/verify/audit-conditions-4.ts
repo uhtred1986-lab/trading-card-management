@@ -1,7 +1,7 @@
 /** Round 4 known misreads: RM 9-1-3, 20-1-3, 20-1-6, 2-10-4; R-380–R-383. */
 import assert from "node:assert/strict";
 import { skillRecords } from "../../src/lib/arena/draft";
-import { CTX, DEFS, card, fifty } from "./harness";
+import { card, fifty } from "./harness";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
@@ -66,7 +66,10 @@ assert.ok(control.some(c => c.kind === "leaderMatches" && c.back));
 assert.deepEqual(control.filter(c => c.kind === "count").map(c => [c.sel.area, c.atLeast]), [["energy", 2], ["combo", 1], ["combo", 1]]);
 
 const defs: Record<string, CardDef> = {
-  ...DEFS,
+  // Keep this suite independent of cards registered by earlier suites.
+  "L-BLUE": card("L-BLUE", { type: "LEADER", colors: ["Blue"], energyCost: null, comboCost: null, comboPower: null }),
+  V1: card("V1", {}),
+  "V-BLUE": card("V-BLUE", { colors: ["Blue"] }),
   ...Object.fromEntries(cases.map(([id, skill]) => [id, card(id, { skill })])),
   AC4_BOTH: card("AC4_BOTH", { type: "LEADER", colors: ["Yellow"], characters: ["Vegeta", "Trunks: Future"] }),
   AC4_VEGETA: card("AC4_VEGETA", { type: "LEADER", colors: ["Yellow"], characters: ["Vegeta"] }),
@@ -82,7 +85,7 @@ const defs: Record<string, CardDef> = {
   AC4_Z: card("AC4_Z", { type: "Z-BATTLE" as CardDef["type"] }),
 };
 const rows = Object.values(defs).flatMap(d => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow));
-const ctx: EngineContext = { ...CTX, defs, scripts: rulesFromRows(copy(rows), defs) };
+const ctx: EngineContext = { defs, scripts: rulesFromRows(copy(rows), defs) };
 const loaded = rulesetFor("dbs");
 assert.ok(loaded.ok);
 const game = loaded.definition;
