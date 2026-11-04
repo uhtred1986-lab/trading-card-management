@@ -1,0 +1,17 @@
+# Stored Turles combo replacements — 4 Nov 2026
+
+Intermediate checkpoint in PR #1249, source head `d88255bc`. Complete support remains in progress.
+
+**R-393:** BT12-071, BT12-072, BT12-074 and BT12-075 replace their own Combo Area → Drop departure with an optional play, provided the Leader and recorded combo-origin conditions hold. These are standing replacements, not ordinary triggered Autos. Their own FAQs confirm that the replacement also applies to a skill-driven departure, including BT10-062; RM 9-10-1/2/3 governs substitution and optionality.
+
+The existing runtime path was blocked for confirmed/corrected rows by the generic missing-Auto-trigger check. Admission now requires a complete, validated tree of own-card Combo → Drop replacements with no activation price, unsupported usage or uncollected price condition. Unrelated operations are not discarded to make a row appear supported.
+
+Review also exposed a lost destination: the parser retained only “from Combo,” and substitute collection dropped the original destination. The stored `replace.to` now retains Drop as the original destination, while its replacement body still plays the card. Returning it to hand does not offer this replacement. The existing field continues to describe Life destinations; no new schema field was added. Old destination-less rows are explicitly marked for rebuild and blocked across all statuses, including drafts. Legitimate any-departure replacements remain distinct.
+
+Combined checks pass **326 focused scenarios**: combo replacement 84, explicit mill 46, Burst 92, invocation 82 and lifecycle 22, together with the older discard/combo-origin suite, language, lang, Teach and rulings (197, zero pending). Typecheck, changed-file lint and whitespace checks pass. Worker compatibility covers delayed replacements, battle cleanup, face-up Life, Life payment, phrasing 9 and typed payments. Both language fixtures were regenerated directly and their two documentation changes reviewed. Fusion fixture fuzz completes **40/40**, zero crashes, interruptions or action limits; it is not exhaustive Masters or Fusion support.
+
+The full-record comparison changes exactly the four named `#10` records, only operations and narration. Adding `to:drop` is the sole AST change; removing it reproduces the previous operations exactly. Each record equals the independently reviewed worker output. [Full changed-field evidence](support-seventh-program-diff.json).
+
+Totals remain **12,981 readable / 983 unread**, with no readability regression. Additional readable-record runtime gaps fall from 44 to **40**; broader additional reasons fall to 356, with 2,559 contextual unknowns. Snapshot `/tmp/arena-support5/combined/seventh-combo-full.json`, SHA-256 `da72e7a044fb23a3060b9c327e4234032207833ca95a95bfe0afcfcfe76ef6a2`. Fuzz: `/tmp/arena-support5/combined/fuzz-seventh-combo.json`.
+
+**Remaining dependency:** Counter response timing for replacement-driven plays is still under investigation. Replacement frames are currently separate from activated/delayed/hook skill scopes. This checkpoint proves the destination and stored replacement path, not exhaustive interaction support for these four cards. Shared Counter timing, remaining Awaken gates and other runtime/unread families continue. The Battle invocation owner question remains pending. No production refresh, database change, deployment or merge occurred; the full integration gate remains deferred until the complete combined deliverable.
