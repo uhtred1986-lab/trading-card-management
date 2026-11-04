@@ -245,7 +245,7 @@
     {
       "name": "invokeSkill",
       "class": "primitive",
-      "signature": "{\"op\":\"invokeSkill\",\"trait\"?:\"…\",\"sel\"?:SELECTOR,\"skillKind\":\"activate:main\"|\"activate:battle\"|\"activate:main/battle\",\"from\":\"hand\",\"maxCost\"?:\"currentEnergy\"}",
+      "signature": "{\"op\":\"invokeSkill\",\"trait\"?:\"…\",\"sel\"?:SELECTOR,\"skillKind\":\"activate:main\"|\"activate:battle\"|\"activate:main/battle\"|\"activate:any\",\"from\":\"hand\"|\"deck\"|\"drop\",\"maxCost\"?:\"currentEnergy\"}",
       "fields": [
         {
           "name": "trait",
@@ -267,7 +267,8 @@
           "enumValues": [
             "activate:main",
             "activate:battle",
-            "activate:main/battle"
+            "activate:main/battle",
+            "activate:any"
           ]
         },
         {
@@ -276,7 +277,9 @@
           "nullable": false,
           "type": "enum",
           "enumValues": [
-            "hand"
+            "hand",
+            "deck",
+            "drop"
           ]
         },
         {
@@ -290,7 +293,7 @@
         }
       ],
       "sentence": "choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill",
-      "doc": "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs."
+      "doc": "R-420 / 12-2-4: invoke one Extra Activate line from hand, deck or Drop. Bare activate-card instructions allow Main, Battle or Main/Battle; a named line restricts the kind. The original energy and skill costs are waived, while conditions, usage limits, negation and external taxes remain. Hand/deck Extras enter Drop before resolving; Drop Extras stay there. A saved card/line choice is bound to the same zone occurrence. The legacy trait/currentEnergy form remains hand-only."
     },
     {
       "name": "energyMarker",
