@@ -454,17 +454,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: "the cards go back to that end of their owner's deck in the order the master picks, one card at a time, the first pick nearest the end; no card changes area (20-12-2), a card no longer in a deck is left out",
   },
   invokeSkill: {
-    fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:battle", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
+    fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:battle", "activate:main/battle", "activate:any"] }, required: true }, { name: "from", type: { enum: ["hand", "deck", "drop"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
     sentence: (raw) => {
       const op = raw as OpOf<"invokeSkill">;
       // Audit conditions 2: the trait form says which card is chosen — from the hand, within the current energy (SD7-01,
       // TB3-064) — where it read "the chosen card" of a choice no reading showed.
       // Audit effects 2 (describe only): the line's kind as the card prints it ("[Activate: Main/Battle]"), not the record's key.
-      const kind = ({ "activate:main": "[Activate: Main]", "activate:battle": "[Activate: Battle]", "activate:main/battle": "[Activate: Main/Battle]" } as Record<string, string>)[op.skillKind] ?? op.skillKind;
+      const kind = ({ "activate:main": "[Activate: Main]", "activate:battle": "[Activate: Battle]", "activate:main/battle": "[Activate: Main/Battle]", "activate:any": "[Activate]" } as Record<string, string>)[op.skillKind] ?? op.skillKind;
       if ("trait" in op) return `choose 1 ≪${op.trait}≫ card in your ${op.from}${op.maxCost === "currentEnergy" ? " with an energy cost less than or equal to your current energy" : ""} and activate its ${kind} skill`;
       return `activate up to 1 ${kind} skill of ${describeSelector(op.sel)} for free`;
     },
-    doc: "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.",
+    doc: "R-420 / 12-2-4: invoke one Extra Activate line from hand, deck or Drop. Bare activate-card instructions allow Main, Battle or Main/Battle; a named line restricts the kind. The original energy and skill costs are waived, while conditions, usage limits, negation and external taxes remain. Hand/deck Extras enter Drop before resolving; Drop Extras stay there. A saved card/line choice is bound to the same zone occurrence. The legacy trait/currentEnergy form remains hand-only.",
   },
   energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
   choose: {
@@ -2212,19 +2212,19 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
         if (problem) return `${step}: ${problem}`;
       }
     }
-    // 12-2-4: Desire and the optional hand-Extra choice are two bounded
-    // readings. Mixing their fields would silently change the old cost gate.
+    // R-420 / 12-2-4: keep legacy Desire bounds separate from one-card effect invocations.
+    // Only an explicit origin (or a variable already bound by the parent) can supply the selected card.
     if (o.op === "invokeSkill") {
       const desire = typeof o.trait === "string" && o.maxCost === "currentEnergy" && o.sel === undefined && o.skillKind === "activate:main";
       // #979: the Desire cards that name colours say it as a one-card hand
       // selector with the energy bound, for the Main line alone.
       const selected = o.trait === undefined && o.maxCost === undefined && isRecord(o.sel)
-        && o.sel.side === "you" && o.sel.area === "hand" && o.sel.count === 1
-        && (o.skillKind === "activate:main/battle" || o.skillKind === "activate:battle"
+        && (o.sel.side === "you" || (o.sel.side === undefined && typeof o.sel.fromVar === "string")) && (o.sel.area === o.from || (o.sel.area === undefined && typeof o.sel.fromVar === "string")) && o.sel.count === 1
+        && (o.skillKind === "activate:main/battle" || o.skillKind === "activate:battle" || o.skillKind === "activate:any"
           ? o.sel.upTo === true
           // Audit effects 2 (P-313): an optional one-card hand Extra's Main line, as its Main/Battle line above.
           : o.skillKind === "activate:main" && (o.sel.upTo === true || (isRecord(o.sel.filter) && o.sel.filter.costAtMostEnergy === true)));
-      if (!desire && !selected) return `${step}: use either Desire's trait/current-energy Main line, a one-card hand selector bounded by current energy for a Main line, or an optional one-card hand selector for a Main, Battle or Main/Battle line`;
+      if ((desire && o.from !== "hand") || (!desire && !selected)) return `${step}: use either Desire's hand trait/current-energy Main line, a one-card current-energy Main selector, or an optional one-card selector in the explicit hand/deck/drop origin for an Activate line`;
     }
     // A marker loss is read at one moment only — 13-5-2's, an attack on a
     // Unison — so `event: marker` names it and `by: attack` belongs to it

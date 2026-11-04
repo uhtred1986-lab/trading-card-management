@@ -765,7 +765,7 @@ export type Op =
   | { op: "win"; side?: Side }
   /** 12-2-4: choose a qualifying hand Extra's named skill and invoke it without its original costs. */
   | { op: "invokeSkill"; trait: string; skillKind: "activate:main"; from: "hand"; maxCost: "currentEnergy" }
-  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:battle" | "activate:main/battle"; from: "hand" }
+  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:battle" | "activate:main/battle" | "activate:any"; from: "hand" | "deck" | "drop" }
   | { op: "energyMarker"; n: Amount; side?: Side }
   /**
    * `chooser` is who answers, when that is not the player whose skill this is:
@@ -1815,6 +1815,9 @@ export interface ScriptFrame {
   searchedDecks?: PlayerId[];
   /** Card selected for a nested skill activation while its line is being chosen. */
   invokingCard?: string;
+  /** R-420: nested activation choices identify the same occurrence after reload. */
+  invokingEpoch?: number;
+  invokingCandidates?: { card: string; epoch: number }[];
   /** Offered skill indices stay bound to their prompt positions across reload. */
   invokingLines?: number[];
   /** A mode prompt's positions cannot be silently reinterpreted after a board change. */
@@ -2602,28 +2605,35 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           h.clearLastChoice();
           if (optional && answer?.length === 0) {
             frame.invokingCard = undefined;
+            frame.invokingEpoch = undefined;
+            frame.invokingCandidates = undefined;
             frame.awaiting = undefined;
             break;
           }
           card = answer?.length === 1 ? answer[0] : undefined;
-          if (!card || !candidates.includes(card)) throw new IllegalAction("that hand card cannot have its skill activated now");
+          if (!card || !candidates.includes(card) || (frame.invokingCandidates && !frame.invokingCandidates.some(p => p.card === card && p.epoch === h.zoneEpoch(card!)))) throw new IllegalAction("that card cannot have its skill activated now");
           frame.invokingCard = card;
+          frame.invokingEpoch = h.zoneEpoch(card);
+          frame.invokingCandidates = undefined;
           frame.awaiting = undefined;
         }
         if (!card) {
           if (!candidates.length) {
             if (optional) break;
-            throw new IllegalAction("there is no qualifying skill to activate from hand");
+            throw new IllegalAction(`there is no qualifying skill to activate from ${op.from}`);
           }
           if (optional || candidates.length > 1) {
             frame.awaiting = "invokeCard";
+            frame.invokingCandidates = candidates.map(id => ({ card: id, epoch: h.zoneEpoch(id) }));
             h.resume(frame);
             h.ask({ kind: "chooseCards", player: master, choice: { reason: `${h.nameOf(frame.card)}: choose ${"trait" in op ? `a ${op.trait} card` : "a qualifying Extra"} whose ${op.skillKind} skill to activate`, candidates, min: optional ? 0 : 1, max: 1, continuation: "invokeCard" } });
             return "wait";
           }
           card = candidates[0];
           frame.invokingCard = card;
+          frame.invokingEpoch = h.zoneEpoch(card);
         }
+        if (!candidates.includes(card) || (frame.invokingEpoch !== undefined && frame.invokingEpoch !== h.zoneEpoch(card))) throw new IllegalAction("the selected card is no longer the same occurrence");
         const skills = eligible(card);
         if (!skills.length) throw new IllegalAction("the selected skill is no longer eligible");
         let skill = skills[0];
@@ -2644,6 +2654,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           return "wait";
         }
         frame.invokingCard = undefined;
+        frame.invokingEpoch = undefined;
         frame.ip++;
         h.resume(frame);
         h.invokeSkill(master, card, skill.index, op);
@@ -4167,7 +4178,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // skill. A card that has one is activated, not played: its [Field]
         // resolves with the activation's own prohibitions and moments, the
         // printed price waived. Any other card it names is played as before.
-        if (op.activating && candidates.length === 1) {
+        if (op.activating) {
+          if (candidates.length !== 1) break;
           const field = h.fieldSkill(master, candidates[0]);
           // Has the skill but may not activate it (negated, forbidden, a tax
           // unpaid): nothing happens, and above all it is not played instead.
@@ -4181,13 +4193,16 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             return "done";
           }
           // Audit effects 2 (12-1-3, 12-2-4): "choose 1 {Tora's Red Armband} … in your hand, activate it" (EB1-59) — an
-          // Extra with no [Field] in its master's hand is activated through its [Activate: Main] line, its costs waived,
+          // R-420: a non-Field Extra from hand, deck or Drop activates one of its Activate lines, its costs waived,
           // and never played into the Battle Area; with no such line it can use, nothing happens.
-          if (field === "none" && h.areaOf(candidates[0]) === "hand" && h.defOf(candidates[0]).type === "EXTRA") {
+          const from = h.areaOf(candidates[0]);
+          if (field === "none" && (from === "hand" || from === "deck" || from === "drop") && h.defOf(candidates[0]).type === "EXTRA") {
             const sel: Selector = "var" in op.target ? { fromVar: op.target.var, count: 1, upTo: true } : { ...op.target.sel, count: 1, upTo: true };
-            frame.ops = [...frame.ops.slice(0, frame.ip), { op: "invokeSkill", sel, skillKind: "activate:main", from: "hand" }, ...frame.ops.slice(frame.ip + 1)];
+            frame.ops = [...frame.ops.slice(0, frame.ip), { op: "invokeSkill", sel, skillKind: "activate:any", from }, ...frame.ops.slice(frame.ip + 1)];
             continue;
           }
+          // A bare activation never becomes a Battle Card play or an unsupported-area Extra play.
+          break;
         }
         // #930: which [Union] variant the play is, again the play's own `using`
         // ("you can only play Battle Cards by using [Union-Fusion]", P-069).

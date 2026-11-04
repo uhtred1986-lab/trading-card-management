@@ -199,7 +199,7 @@ export function windowOf(game: GameDefinition, def: ActionDef): string {
  * included, so it offers none and is asked about none — the same reading
  * `pendAutos` makes of the same rule.
  */
-export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef, card: string, game?: GameDefinition): ActivationLine[] {
+export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef, card: string, game?: GameDefinition, invokedFrom?: "hand" | "deck" | "drop"): ActivationLine[] {
   const families = new Set((def.skills ?? []).map(familyOf));
   const inst = state.cards[card];
   if (!inst || inst.hidden) return [];
@@ -228,8 +228,8 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     if (!keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.zDeck) continue;
     // #920 / 9-1-3-2: the Drop is a candidate area only when this
     // non-keyword line's persisted program explicitly takes this card from
-    // there. Unrelated lines and keyword moves gain no Drop permission.
-    if (findCard(state, card)?.zone === ACTIVATION_ZONES.drop &&
+    // there. R-420: a separate effect can expressly invoke a line from Drop; this never widens the ordinary menu.
+    if (invokedFrom !== "drop" && findCard(state, card)?.zone === ACTIVATION_ZONES.drop &&
       (keyword || !usableFrom(showing.scripts.bySkill[skill.index]).includes("drop"))) continue;
     // 22-15 widened: the Warp is where nothing is used from, except an [Over
     // Realm] line whose own card's [Permanent] says it "can be activated from
@@ -792,9 +792,9 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
   return null;
 }
 
-/** SD7-01: choose an Extra's real Main line, retaining every non-price activation gate. */
+/** R-420 / SD7-01: choose an Extra's real Activate line, retaining every non-price activation gate. */
 export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): ActivationLine[] {
-  if (op.from !== "hand" || findCard(state, card)?.zone !== "hand" || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
+  if (findCard(state, card)?.zone !== op.from || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
   if ("sel" in op) {
     // Audit effects 2: a selector over a name the program bound (the `activating` play of a hand Extra, EB1-59) was
     // resolved by the step, in its own frame; there is no frame here to read the name in.
@@ -809,9 +809,9 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
   }
   const def = game.actions.activate;
   if (!def) return [];
-  return activationsOf(ctx, state, def, card, game).filter((line) => {
+  return activationsOf(ctx, state, def, card, game, op.from).filter((line) => {
     const sk = line.skill;
-    if (line.kind !== op.skillKind || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
+    if ((op.skillKind === "activate:any" ? !["activate:main", "activate:battle", "activate:main/battle"].includes(line.kind) : line.kind !== op.skillKind) || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
     if (!requireSkillPayment(line.script.price).readable) return false;
     if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: sk.kind })) return false;
     // #677: the printed price is waived (12-2-4); an external 20-14 tax is
@@ -1043,7 +1043,7 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
  * counter window around it is not opened: the legacy engine opens it with no
  * candidates at all, so there is nothing to answer it with.
  */
-export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Pick<ScriptFrame, "ops" | "vars">, waived = false): void {
+export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Pick<ScriptFrame, "ops" | "vars">, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
   const { card, skill: sk } = line;
   const payment = requireSkillPayment(line.script?.price);
   const inst = state.cards[card];
@@ -1066,10 +1066,11 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   }
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
+  // R-420 / P-119 Q&A: an effect invoking a deck Extra also places it in Drop before activation.
   // Not for a keyword's own move: its `DO` says where the card goes, and
   // [Field]'s puts it in the Battle Area instead (22-3-2), as the legacy
   // engine's `Field` case moves it straight there.
-  if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) {
+  if (!line.keyword && (findCard(state, card)?.zone === ACTIVATION_ZONES.hand || (invokedFrom === "deck" && findCard(state, card)?.zone === "deck")) && isExtra(ctx, game, state, card)) {
     moved(ctx, game, state, ev, card, ACTIVATION_ZONES.drop, { owner: player, reveal: true });
   }
   // `inBattle` is the legacy `!!s.battle`: an [Activate: Battle] taken at the

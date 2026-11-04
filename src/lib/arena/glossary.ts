@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Effect-invoked Extra skills from hand, deck and Drop (R-420)",
+    body: "A bare activate-card instruction selects an eligible Activate: Main, Battle or Main/Battle line of a non-Field Extra. Hand and deck Extras go to Drop before their skill resolves; an Extra already in Drop stays there. Its original card and skill costs are waived, but price conditions, usage limits, negated skills and external activation taxes still apply. Field activation keeps priority. The saved card and line choice is tied to its current zone occurrence, so leaving and returning cannot substitute a new copy. P-119 follows its own official Q&A; P-389 invokes BT8-137’s Battle line and keeps its delayed end-of-turn effect. This does not give normal action menus permission to activate from new areas.",
+  },
+  {
     title: "Successful play memories (round 5)",
     body: "R-360: At the end of a turn where this card was played from your hand (BT12-014, BT16-014/015) uses either turn end and the existing successful-play origin memory. A placement, Drop play, departed copy, or later turn does not qualify; BT16-014/015's Q&As explicitly reject a copy that moved to the Drop. R-361: When you use [Arrival] to play a described card (BT20-001/032/137) watches the successful play, preserving the played card's multicolour description and keyword entry before the Auto is offered. It never fires for a normal play, another keyword, a failed play or the opponent's play. BT20-032 is heard in the Combo Area only because its recorded price takes this card from there; ordinary Combo copies remain inactive. Both families reuse existing events and stored conditions; no card-id special case or new snapshot field.",
   },

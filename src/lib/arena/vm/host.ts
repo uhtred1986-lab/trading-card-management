@@ -77,7 +77,7 @@ import { wordsFromRuleset } from "../board-words";
 import { untilWords } from "../effects";
 import { attrsNow, amount, condHolds, staticsNow, forbiddenForCard, forbids, hasKeyword, keywordInstancesInForce, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
-import { activationMoment, activationTaxGate, canPayPriceProgram, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
+import { activationMoment, activationTaxGate, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { comboPriceOf } from "./costs";
 import { queueKeywordCost } from "./keyword-costs";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
@@ -174,7 +174,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const gate = activationTaxGate(ctx, game, state, player, id, line.kind);
       spendProhibitionUse(ctx, game, state, "activateSkill", { player, card: id });
       const queued = state.programs.length;
-      resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true);
+      resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true, op.from);
       if (gate) queueTaxGate(state, gate, state.programs.length - queued);
       fire(ctx, game, state, moment);
     },
