@@ -5,6 +5,11 @@ run the next round of the readings audit is in this folder; it assumes no memory
 Read `CLAUDE.md`, `docs/arena-batch-process.md` (research order, rulings ledger, checks, integration) and the skill
 `arena-work` first.
 
+**4 November bounded follow-up:** [Seven condition misreads are repaired](round-4/conditions-followup.md)
+in draft PR #1248, with no read/unread count change or production record writes. R-380–R-383 are now
+allocated; the remaining condition lane starts at R-384. BT2-048's mandatory keyword-negation choice
+and the four lanes' unread work remain. The production baseline below is still the 3 November snapshot.
+
 ## Where things stand
 
 - `main` at #1246. The **dbs** game: **12,953 of 13,964 skills read (92.8%)**, 1,011 unread, on the production
@@ -29,7 +34,7 @@ Read `CLAUDE.md`, `docs/arena-batch-process.md` (research order, rulings ledger,
 |---|---|---|---|
 | **T** triggers | `text/triggers.ts`, `rulesets/dbs/triggers.rules` (regenerate `files.ts` with `npm run arena:rulesets`), `gaps.ts`, `vm/triggers.ts`, `probe.ts`, the moment code in `compile/index.ts` | `unread/moments.md`, `notes-T.md` | 206 [Auto] skills whose moment is unread, 187 clusters |
 | **C** conditions | `compile/conditions.ts`, the condition vocabulary (lang flags, the Cond describer, VM evaluation) | `unread/conditions.md`, `notes-C.md` | 107 skills, 94 clusters |
-| **S** selectors | `text/filters.ts`, selector parsing in `compile/targets.ts` and `compile/*`, `vm/filters.ts`, `describeFilter`/`describeSelector` | **`notes-S.md` first: 10 audit findings still misread (they play wrongly)**, then `unread/selectors.md` | 282 skills, 260 clusters |
+| **S** selectors | `text/filters.ts`, selector parsing in `compile/targets.ts` and `compile/*`, `vm/filters.ts`, `describeFilter`/`describeSelector` | **`notes-S.md` first, with the [condition follow-up](round-4/conditions-followup.md)**, then `unread/selectors.md` | 282 skills, 260 clusters |
 | **E** effects | `compile/effects.ts` and the op compilers, `compile/clauses.ts`, `describeScript`, the ops' VM code, `src/lib/catalog/errata.ts` | `unread/effects.md`, `notes-E.md` | 414 skills, 379 clusters |
 
 - The `unread/*.md` files cluster every unread skill by the wording of its first unread clause (names → X,

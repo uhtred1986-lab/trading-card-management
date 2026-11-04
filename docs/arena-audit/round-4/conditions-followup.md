@@ -21,12 +21,14 @@ keyword-negation choice and the remaining round-4 unread families remain future 
 
 The frozen input is the public Deckplanet feed shaped with the repository's errata,
 not a production database or stored-rule snapshot. It has 6,597 cards and 13,964 skills.
-The baseline reproduces the handoff's 12,953 read / 1,011 unread skills. The initial
+The baseline reproduces the handoff's 12,953 read / 1,011 unread skills. The final
 corpus diff changes exactly the seven skills above, with no read/unread transitions.
-Final source includes reviewer-requested conjunction-precedence guards; the coordinator
-will record its final diff and gate below.
+Every changed reading was reviewed, including partially unread skills. The final
+source includes reviewer-requested conjunction-precedence guards and reproduces the
+initial diff exactly. See [the reviewed readings](conditions-readings.md).
 
 - Catalog SHA256: `dcfba11b09fe10746a5f86176511bc9edd85c6156f239508a301326440339fb4`.
+- Final readings SHA256: `aeae9cc6ee384394341f05eff1f10f3856a0e63098e9ce0248458ade58aea945`.
 - Baseline SHA256: `c0733390cd26937aa63fd9019b76d99a791016b26ee7a80a6cbcec13ecb4e511`.
 - RM 9-1-3: printed conditions gate the skill; RM 20-1-3: energy means cards in an
   Energy Area; RM 20-1-6: named characters without another area mean Leader/Battle;
@@ -47,6 +49,35 @@ and actual BT19-080 program execution with both, neither, or only one Z-Energy c
 and no KO candidate. Conjunction-precedence controls cover a whole-condition outer
 OR and a trailing shared Leader condition.
 
-Worker checks: typecheck, changed-file eslint, the new suite, rulings, prior condition
-audit suites, and older suites naming the affected cards/wordings. Coordinator corpus
-review and final gate evidence are added after review.
+Worker checks passed: typecheck, changed-file eslint, the new suite, rulings (173,
+none pending), condition audit suites 1–3, phrasing batches 1/3,
+`price-condition-clauses`, `census-round6-907`, and `names-both-768`.
+
+Final `npm run checks -- quick` passed both typecheck and changed-file lint. The
+full gate completed 95 passing steps; its Teach-it failure is repaired below. Its
+earlier arena process was intentionally stopped after review changes, superseded
+by the direct arena run on the final source. No build-sensitive paths changed,
+so the checks runner skipped the build.
+
+Fixture fuzz (`scripts/arena-fuzz.mts 40 --game fusion`) completed all 40 games:
+zero crashes, interruptions, or action limits. This is fixture coverage, not a
+production Masters deck qualification. The new suite uses its own card definitions
+and does not recompile or mutate cards registered by earlier suites.
+
+Final direct run (`npx tsx scripts/verify-arena.ts --emit`): **243/243 suites passed,
+zero failures**, including `audit-conditions-4` in the combined process. Emission
+produced no contract fixture changes. Together with the 95 completed full-gate
+steps and the repaired Teach-it suite, every planned check is accounted for.
+The final typecheck/lint rerun also passed after the review and fixture-isolation
+changes.
+
+## Existing gate failure repaired
+
+The full gate's `scripts/verify/teach.ts:101` assertion fails because the existing
+Teach-it system prompt contains 40,104 characters against a strict 40,000-character
+limit. The same failure was reproduced on untouched `origin/main` at `1d3962e4`;
+its generated reference contains 39,132 characters before the prompt wrapper.
+A separate repair reserves space for the introduction, separator and strict-bound
+margin when selecting the reference detail level. The existing test passes with all
+statement, condition and trigger rows retained; its size assertion is unchanged.
+The draft PR remains unmerged for the documented batch integration workflow.
