@@ -688,7 +688,7 @@ export interface ReadingRule {
 export const READING_RULES: ReadingRule[] = [
   {
     title: "Possessive passive cost modifiers (R-441)",
-    body: "Cards that have their energy costs increased by 2 receive a two-point increase. BT13-001’s standing rule keeps the entire group: your red Bardock’s Crew cards in your Battle Area whose original energy cost is one. Current-cost changes do not alter that printed-cost test. The increase stops when the card leaves the Battle Area or the Leader’s skills are negated.",
+    body: "Cards that have their energy costs increased by 2 receive a two-point increase. BT13-001’s standing rule keeps the entire group: your red Bardock’s Crew cards in your Battle Area whose original energy cost is one. Current-cost changes do not alter that printed-cost test. The increase stops when the card leaves the Battle Area or the Leader’s skills are negated. The same passive wording restores BT20-135’s combo-cost reduction, retaining mono-black, Saiyan, combo cost one, combo power 5000 and your hand/Battle Area.",
   },
   {
     title: "Combo the chosen card with this card (R-440)",

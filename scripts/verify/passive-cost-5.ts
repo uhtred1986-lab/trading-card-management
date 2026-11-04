@@ -15,6 +15,8 @@ const print="[Permanent] All of your red ≪Bardock's Crew≫ cards in your Batt
 const copy=<T,>(v:T):T=>JSON.parse(JSON.stringify(v));
 const defs:Record<string,CardDef>={
  PC5_LEADER:card("PC5_LEADER",{type:"LEADER",skill:print,back:{name:"Back",power:15000,skill:print}}),
+ PC5_PRISON:card("PC5_PRISON",{skill:"[Permanent] Mono-black ≪Saiyan≫ cards with a combo cost of 1 and 5000 combo power in your hand and Battle Area have their combo costs reduced by 1."}),
+ PC5_COMBO:card("PC5_COMBO",{colors:["Black"],traits:["Saiyan"],comboCost:1,comboPower:5000}),
  PC5_FILLER:card("PC5_FILLER",{}),
  PC5_GOOD:card("PC5_GOOD",{colors:["Red"],traits:["Bardock's Crew"],energyCost:1,skill:"[Barrier]"}),
  PC5_TWO:card("PC5_TWO",{colors:["Red"],traits:["Bardock's Crew"],energyCost:2}),
@@ -46,5 +48,20 @@ for(const seat of ["p1","p2"] as const)for(const back of [false,true]){
  moved(ctx,game,s,[],moving,"drop",{owner:seat,reason:"effect"});assert.equal(cost(moving),1,"the Battle Area scope stops at departure");
  moved(ctx,game,s,[],moving,"battle",{owner:seat,reason:"effect"});assert.equal(cost(moving),3,"a new matching arrival gets the standing increase");cases++;
  addEffect(s,[],{target:leader,kind:"negateSkills",value:0,until:"turn"});assert.equal(cost(moving),1,"negating the source removes the standing modifier");cases++;
+}
+// The full catalog also restores BT20-135: cover every qualifier of that sibling wording.
+for(const seat of ["p1","p2"] as const){
+ let s=RULES.createGame(ctx,{seed:441,p1:{name:"A",leader:"PC5_LEADER",main:fifty("PC5_FILLER")},p2:{name:"B",leader:"PC5_LEADER",main:fifty("PC5_FILLER")}}).state as VmState;
+ for(const a of [{type:"chooseFirst",player:s.chooser,first:seat},{type:"mulligan",player:seat,redraw:false},{type:"mulligan",player:other(seat),redraw:false},{type:"charge",player:seat,card:null}] as Action[])s=take(s,a);
+ const stage=(p:PlayerId,def:string,area:string)=>{const id=s.sides[p].zones.deck.at(-1)!;s.cards[id].cardId=def;assert.ok(moveCard(s,game,id,area,{owner:p}).ok);return id;};
+ const prison=stage(seat,"PC5_PRISON","battle"),hand=stage(seat,"PC5_COMBO","hand"),battle=stage(seat,"PC5_COMBO","battle"),foe=stage(other(seat),"PC5_COMBO","battle"),drop=stage(seat,"PC5_COMBO","drop");
+ const cost=(id:string)=>attrsNow(ctx,game,copy(s),id).comboCostOf;
+ assert.deepEqual([cost(hand),cost(battle),cost(foe),cost(drop)],[0,0,1,1]);cases++;
+ for(const [name,patch] of Object.entries({multi:{colors:["Black","Red"]},color:{colors:["Red"]},trait:{traits:["Earthling"]},power:{comboPower:10000},price:{comboCost:2}})){
+  const def="PC5_NEGATIVE_"+name;defs[def]={...defs.PC5_COMBO,id:def,...patch} as CardDef;
+  const id=stage(seat,def,"hand");assert.equal(cost(id),("comboCost" in patch ? patch.comboCost : 1),name+" does not qualify");cases++;
+ }
+ moved(ctx,game,s,[],hand,"drop",{owner:seat,reason:"effect"});assert.equal(cost(hand),1);cases++;
+ addEffect(s,[],{target:prison,kind:"negateSkills",value:0,until:"turn"});assert.equal(cost(battle),1);cases++;
 }
 console.log(`passive cost 5: ${cases} stored static scenarios passed across both seats and faces`);
