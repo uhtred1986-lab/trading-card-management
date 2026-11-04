@@ -90,7 +90,7 @@ import { disjointGroups, disjointPayable } from "./disjoint";
 import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, paidPoolVar, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { activationPriceProblem, isFixedUnderHost, taxPowerOnSelf } from "./activation-price-support";
 import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
@@ -1047,6 +1047,12 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
 export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Partial<Pick<ScriptFrame, "ops" | "vars" | "paidCardInfo">>, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
   const { card, skill: sk } = line;
   const payment = requireSkillPayment(line.script?.price);
+  // R-389/R-420: a waived Burst paid no cards. Its known-empty history must
+  // not look like an obsolete saved frame, nor match unrelated Drop cards.
+  if (waived && payment.burst) {
+    const name = paidPoolVar("burst");
+    resolved = { ...resolved, vars: { ...resolved?.vars, [name]: [], [`${name}@epoch`]: [] }, paidCardInfo: { ...resolved?.paidCardInfo, [name]: {} } };
+  }
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   // Capture the rule's trigger at the successful activation boundary, before

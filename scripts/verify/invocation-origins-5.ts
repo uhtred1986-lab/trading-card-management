@@ -35,6 +35,8 @@ defs.IO5_TWO=card("IO5_TWO",{name:"Invoke Target",type:"EXTRA",energyCost:9,powe
 defs.IO5_LIMIT=card("IO5_LIMIT",{name:"Invoke Target",type:"EXTRA",energyCost:9,power:null,comboCost:null,comboPower:null,skill:"[Activate: Main][Limit 1] Draw 2 cards."});
 defs.IO5_FIELD=card("IO5_FIELD",{name:"Invoke Target",type:"EXTRA",energyCost:9,power:null,comboCost:null,comboPower:null,skill:"[Field]"});
 defs.IO5_BATTLE=card("IO5_BATTLE",{name:"Invoke Target",skill:"[Activate: Main] Draw 2 cards."});
+defs.IO5_BURST=card("IO5_BURST",{name:"Invoke Target",type:"EXTRA",energyCost:5,power:null,comboCost:null,comboPower:null,skill:"[Activate: Main][Burst 3] If a black card is placed in your Drop Area by this skill, draw 2 cards."});
+defs.IO5_BLACK=card("IO5_BLACK",{colors:["Black"]});
 const records=Object.values(defs).flatMap(skillRecords);assert.deepEqual(records.flatMap(r=>r.unread),[]);
 const ctx:EngineContext={defs,scripts:rulesFromRows(copy(records.map((r,id)=>({...r,id,source:"compiler",status:"draft"}) as unknown as RuleRow)),defs)};
 const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
@@ -53,7 +55,7 @@ function settle(s:VmState,decline=false):VmState{
   if(s.prompt.kind==="main"||s.prompt.kind==="charge")return s;
   const a=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="choose"?(decline?a.cards.length===0:a.cards.length>0):a.type==="chooseMode"?a.index===0:a.type==="counter"?a.card===null:a.type==="payCost"||a.type==="pass");
   const answer=a??RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="choose"&&a.cards.length===0);
-  assert.ok(answer,`no answer ${s.prompt.kind}`);s=take(s,answer);
+  assert.ok(answer,`no answer ${s.prompt.kind}: ${JSON.stringify(s.outcome)}`);s=take(s,answer);
  }throw Error("did not settle");
 }
 let cases=0;
@@ -124,5 +126,15 @@ for(const seat of ["p1","p2"] as const)for(const origin of ["hand","deck","drop"
    assert.equal(s.sides[seat].zones.hand.length,hand+1,"Limit survives hand/deck-to-Drop invocation");
   }cases++;
  }
+}
+// R-389/R-420: a waived payment has known-empty history, not an obsolete save.
+for(const seat of ["p1","p2"] as const)for(const origin of ["hand","deck","drop"]){
+ let s=fresh(seat);const src=stage(s,seat,`IO5_${origin}`,"battle"),target=stage(s,seat,"IO5_BURST",origin);
+ stage(s,seat,"IO5_BLACK","drop");for(const id of s.sides[seat].zones.deck.slice(0,3))s.cards[id].cardId="IO5_BLACK";
+ const deck=s.sides[seat].zones.deck.length,hand=s.sides[seat].zones.hand.length;
+ s=settle(take(s,{type:"activate",player:seat,card:src,skill:0}));
+ assert.ok(s.sides[seat].zones.drop.includes(target));
+ assert.equal(s.sides[seat].zones.deck.length,deck-1-(origin==="deck"?1:0),"Burst is waived; only parent draws");
+ assert.equal(s.sides[seat].zones.hand.length,hand+1-(origin==="hand"?1:0),"unpaid cards do not satisfy historical condition");cases++;
 }
 console.log(`invocation origins 5: ${cases} scenarios passed`);
