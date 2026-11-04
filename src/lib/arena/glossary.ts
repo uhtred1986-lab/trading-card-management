@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Combo the chosen card with this card (R-440)",
+    body: "Combo it with this card (XD3-08, BT10-133) uses the chosen card in your Combo Area while the attacker stays in battle. The printed chooser, origin, optionality and Battle Card condition remain. An opponent-owned card can join your combo through the skill without changing owner; the skill-made combo pays no combo cost (RM 5-7-3-1).",
+  },
+  {
     title: "Effect-invoked Extra skills from hand, deck and Drop (R-420)",
     body: "A bare activate-card instruction selects an eligible Activate: Main, Battle or Main/Battle line of a non-Field Extra. Hand and deck Extras go to Drop before their skill resolves; an Extra already in Drop stays there. Its original card and skill costs are waived, but price conditions, usage limits, negated skills and external activation taxes still apply. Field activation keeps priority. The saved card and line choice is tied to its current zone occurrence, so leaving and returning cannot substitute a new copy. P-119 follows its own official Q&A; P-389 invokes BT8-137’s Battle line and keeps its delayed end-of-turn effect. This does not give normal action menus permission to activate from new areas.",
   },

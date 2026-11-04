@@ -3693,7 +3693,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // with — read whole, "this card" was the card used.
   if (
     (m = /^(?:use|combo with) (.+?)(?: from (?:your|their) (drop|warp|hand)(?: area)?)?(?:(?: |(?<=[—―–]))in a combo)?(?: from (?:your|their) (drop|warp|hand)(?: area)?)?( with (?:its|their) skills? negated)?$/.exec(
-      q.replace(/^(use .+?) (with (?:its|their) skills? negated)(?: for the (?:turn|battle))? in a combo$/, "$1 in a combo $2").replace(/^(use .+? in a combo) in your combo area$/, "$1").replace(/^(use (?:it|that card|the chosen card) in a combo) with this card$/, "$1"),
+      q.replace(/^combo (it|that card|the chosen card) with this card$/, "use $1 in a combo").replace(/^(use .+?) (with (?:its|their) skills? negated)(?: for the (?:turn|battle))? in a combo$/, "$1 in a combo $2").replace(/^(use .+? in a combo) in your combo area$/, "$1").replace(/^(use (?:it|that card|the chosen card) in a combo) with this card$/, "$1"),
     )) &&
     /\bcombo\b/.test(t)
   ) {
