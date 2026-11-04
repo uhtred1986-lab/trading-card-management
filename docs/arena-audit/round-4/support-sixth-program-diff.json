@@ -1,0 +1,368 @@
+[
+  {
+    "key": "SD3-01#0",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "ops": [],
+      "pattern": "if you place a black card in the drop area with this skill",
+      "reads": "",
+      "unread": [
+        "If you place a black card in the Drop Area with this skill",
+        "this card gains [Critical] for the duration of the turn",
+        "If a card of any other color is placed in the Drop Area",
+        "this card also gains +5000 power for the duration of the turn"
+      ]
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_mill_m0",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "grant",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "keyword": {
+                "name": "Critical"
+              },
+              "until": "turn"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_mill_m0",
+            "filter": {
+              "colors": [
+                "Red",
+                "Blue",
+                "Green",
+                "Yellow",
+                "White"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "power",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "amount": 5000,
+              "until": "turn"
+            }
+          ]
+        }
+      ],
+      "pattern": "if:varMatches[grant:Critical]\u2192if:varMatches[power]",
+      "reads": "if a card paid for this skill was black: this card gains [Critical] for the turn (end if), if a card paid for this skill was red, blue, green, yellow or white: this card +5000 power for the turn",
+      "unread": []
+    }
+  },
+  {
+    "key": "SD3-01#0b",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "ops": [],
+      "pattern": "if you place a black card in the drop area with this skill",
+      "reads": "",
+      "unread": [
+        "If you place a black card in the Drop Area with this skill",
+        "this card gains [Critical] for the duration of the turn",
+        "If a card of any other color is placed in the Drop Area",
+        "this card also gains +5000 power for the duration of the turn"
+      ]
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_mill_m0",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "grant",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "keyword": {
+                "name": "Critical"
+              },
+              "until": "turn"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "paid_mill_m0",
+            "filter": {
+              "colors": [
+                "Red",
+                "Blue",
+                "Green",
+                "Yellow",
+                "White"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "paid": true
+          },
+          "then": [
+            {
+              "op": "power",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "amount": 5000,
+              "until": "turn"
+            }
+          ]
+        }
+      ],
+      "pattern": "if:varMatches[grant:Critical]\u2192if:varMatches[power]",
+      "reads": "if a card paid for this skill was black: this card gains [Critical] for the turn (end if), if a card paid for this skill was red, blue, green, yellow or white: this card +5000 power for the turn",
+      "unread": []
+    }
+  }
+]
