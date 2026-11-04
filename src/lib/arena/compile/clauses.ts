@@ -201,6 +201,12 @@ export function splitClauses(text: string): string[] {
  * readings of 40-odd [Awaken] lines already treat as outside the offer.
  */
 export function splitClausesJoined(text: string): { clauses: string[]; joined: boolean[] } {
+  // R-384: restore the punctuation between a complete condition and its following instruction.
+  text = text.replace(/\b(if you have a multicolor card in your energy) (reduce the combo cost)\b/gi, "$1, $2");
+  // The paired dash surrounds shared host properties; its closing edge also ends the condition.
+  text = text.replace(/\b(while this card is under) (an? <[^>]+> or <[^>]+> card)[―—–]both (red|blue|green|yellow|black|white) and in your battle area[―—–]the card above it\b/gi,
+    (_all, lead: string, hosts: string, colour: string) => `${lead} ${colour} ${hosts.replace(/^an? /i, "")} in your Battle Area, the card above it`);
+  text = text.replace(/\b(your leader(?: card)?) and (?:your )?energy are all (mono-(?:red|blue|green|yellow|black|white))\b/gi, "$1 is $2 and all of your energy is $2");
   // (BT30-150's "…Battle Cards—all ignoring [barrier]—and place them…": the closing dash opens the next clause below, and
   // the aside's "all" is every choice of the list — `effects.ts`, audit selectors 2; integration 3 kept that reading over
   // a rewrite that gave "ignoring [Barrier]" to the last choice only.)

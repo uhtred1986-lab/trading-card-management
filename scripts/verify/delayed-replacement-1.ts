@@ -157,7 +157,7 @@ for (const [text, what, instead] of [
   assert.ok(p && p.instead === instead, `R4: ${what} — not played, to the ${instead}`);
   records++;
 }
-assert.ok(unreadOf("[Counter: Play] Play this card. Additionally, if the Battle Card to be played has an energy cost of 7 or less, send it to your Warp instead.").length > 0, "R4: BT21-149's 'to be played' stays unread");
+assert.equal(opOf(record("[Counter: Play] Play this card. Additionally, if the Battle Card to be played has an energy cost of 7 or less, send it to your Warp instead.", "BT21-149", 0), "resolvingPlay")[0]?.instead, "warp", "BT21-149 to-be-played condition replaces the pending play");
 
 // D. Timed and delayed effects.
 {

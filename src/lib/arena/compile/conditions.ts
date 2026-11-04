@@ -326,6 +326,8 @@ const BOTH_QUALIFIER = new RegExp(
  */
 export function foldBothQualifier(text: string): string {
   return text
+    // R-384: one colour predicate shared by the Leader and every energy, followed by any other condition.
+    .replace(/\b(your leader(?: card)?) and (?:your )?energy are all (mono-(?:red|blue|green|yellow|black|white))\b/gi, "$1 is $2 and all of your energy is $2")
     .replace(BOTH_QUALIFIER, (_whole, verb: string, article: string | undefined, names: string, noun: string, colour: string, token: string | undefined, end: string | undefined) => {
       // The colour goes in front of *each* name: the alternatives are cut apart
       // at their "or" later, and a colour written once would qualify only the
@@ -973,7 +975,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // [Counter: Play] asking about the card it is answering (9-6). The card is
   // not in play yet, so it can only be named, never chosen.
   // What happens to that card ("…is placed in its owner's Drop Area instead") is the effect, not a description.
-  if ((m = /^the (battle |extra |unison )?card (?:being played|(?:that )?your opponent is playing) (?:has|is) (?!(?:placed|put|returned|sent|played|removed)\b)(.+)$/.exec(t))) {
+  if ((m = /^(?:the|your opponent's) (battle |extra |unison )?card (?:being played|to be played|(?:that )?your opponent is playing) (?:has|is) (?!(?:placed|put|returned|sent|played|removed)\b)(.+)$/.exec(t))) {
     // The type word is a measure too: "the **Battle** Card being played"
     // (BT29-112) is not an Extra being played, whatever its cost.
     const filter = filterFor(`${m[1] ?? ""}card ${m[2]}`, null);
@@ -989,10 +991,11 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // gains [Double Strike] whatever it is, which is a wider skill than the one
   // printed. The area a stack stands in is the area of the card on top
   // (23-2-2-2), so "in a Battle Area" narrows nothing and comes off.
-  if ((m = /^this card is under (.+?)(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?$/.exec(t))) {
+  if ((m = /^this card is under (.+?)(?: in (a|an|the|your|your opponent's) (battle|leader|unison) area)?$/.exec(t))) {
     const above = filterFor(m[1], null);
     if (above === null) return null;
-    return { cond: { kind: "count", sel: { special: "onTop", filter: above }, atLeast: 1 }, subject: { sel: { special: "onTop", filter: above } } };
+    const host: Selector = { special: "onTop", filter: above, ...(m[3] ? { area: m[3] as "battle" | "leader" | "unison" } : {}), ...(m[2] === "your" ? { side: "you" as const } : m[2] === "your opponent's" ? { side: "opponent" as const } : {}) };
+    return { cond: { kind: "count", sel: host, atLeast: 1 }, subject: { sel: host } };
   }
   // "This card was used in a combo from your deck or hand" (BT12-071, -072,
   // -074, -075): the area the card left to enter the Combo Area, which the

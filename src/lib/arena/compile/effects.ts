@@ -1418,6 +1418,8 @@ function awakenLifePermit(t: string, c: Ctx): Op[] | null | undefined {
 }
 
 function compileClause(clause: string, c: Ctx): Op[] | null {
+  // R-384: an explicit subject on this imperative still plays the skill's own card.
+  if (/^you play this card[.]?$/i.test(clause.trim())) return compileClause("play this card", c);
   // Phrasing batch 10: "look at up to 5 cards from the top of your deck, choose up to 2 ≪Universe 2≫ cards, **add up to 1
   // card to your hand, send up to 1 card to your Warp**" (BT30-101, BT30-104): the bare cards are the ones just chosen
   // out of the look, each pick taken out of that pool (`fromVar`); "look at up to 2 cards …, **place up to 1 card in your
@@ -3147,6 +3149,12 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   {
     // Phrasing batch 4: "…it's **sent to** its owner's Warp instead of being played" (BT8-104, BT10-143, BT11-146) is
     // the same move to the Warp as "placed in" it (3-10).
+    // R-384: active-voice "send it to its owner's Warp instead" still replaces the unresolved play.
+    // Only the established resolving-card antecedent allows this shorter form.
+    if (c.skillKind === "counter:play" && /^send (?:it|that card) to (?:its owner'?s|your) warp instead[.]?$/i.test(clause.trim())) {
+      const ref = refFor("it", c);
+      if (ref && "sel" in ref && ref.sel.special === "resolving") return [{ op: "resolvingPlay", instead: "warp" }];
+    }
     const tSent = t.replace(/^(it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) sent to (its owner'?s?|their owners?'?s?|your|their) (warps?) instead of being played$/, "$1 placed in $2 $3 instead of being played");
     const stopped =
       /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card (?:being played|(?:that )?your opponent is playing) is) (?:(?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)|(?:returned) to (?:its owner'?s?|their owners?'?s?|your|their) (hand)s?)(?: instead)?(?: of being played)?$/.exec(
