@@ -465,6 +465,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-skill-play-scope", file: "src/lib/arena/vm/skill-play-scope.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-421; persisted immediate-effect lifetimes", detail: "An invalid version, missing scope, non-top continuation, malformed sequence or cyclic ancestry in a saved immediate-effect scope requires rebuilding the match. This guard does not claim shared Counter-window support." },
   { id: "arena-vm-notyet-fusion-identity", file: "src/lib/arena/vm/flow.ts", ordinal: 2, kind: "not-yet", classification: "validated-guard", citation: "persisted typed records (#907)", detail: "A saved Fusion skill whose typed material identity is missing or inconsistent interrupts before effect or payment; rebuild the rule record (#907)." },
   { id: "arena-vm-notyet-fusion-drop-bottom-epoch", file: "src/lib/arena/vm/flow.ts", ordinal: 3, kind: "not-yet", classification: "validated-guard", citation: "persisted typed records (#907)", detail: "A saved Drop-to-bottom Fusion frame without its source occurrence interrupts rather than guessing which copy is the source (#930)." },
   { id: "arena-vm-notyet-evolve-identity", file: "src/lib/arena/vm/flow.ts", ordinal: 4, kind: "not-yet", classification: "validated-guard", citation: "persisted typed records (#907)", detail: "A saved EX-Evolve skill whose typed identity is missing or inconsistent interrupts; rebuild the rule record (#907)." },
@@ -543,6 +544,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-skill-play-scope": "rebuildScope|-|-",
   "arena-vm-notyet-fusion-identity": "stepProgram|-|frame.fusionIdentity || sourceScript?.price?.fusion !== undefined > gap",
   "arena-vm-notyet-fusion-drop-bottom-epoch": "stepProgram|-|frame.fusionDropBottom || hasDropBottomRoute(frame.ops) > !Number.isSafeInteger(frame.fusionSourceEpoch)",
   "arena-vm-notyet-evolve-identity": "stepProgram|-|frame.evolutionIdentity || sourceScript?.price?.evolution !== undefined > gap",

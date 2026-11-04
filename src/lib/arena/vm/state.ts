@@ -386,6 +386,9 @@ export interface VmState {
    */
   /** A VM Auto may carry a private reveal epoch through its exact suspended frame. */
   programs: (ScriptFrame & { autoRevealEpoch?: number })[];
+  /** R-421: immediate effect lifetimes, outermost first; no frame pointers. */
+  skillPlayScopes?: import("./skill-play-scope").SkillPlayScope[];
+  nextSkillPlayScope?: number;
   /** 9-6-3-1-1: current declaration witnesses, bounded by source movement/concealment and the next unrelated action. */
   publicAutoReveals?: { card: string; skillIndex: number; epoch: number; trigger: string; sourceZoneEpoch: number; priced?: true }[];
   /** Monotone within one saved game so a repeated pending occurrence cannot inherit an older reveal. */

@@ -60,6 +60,7 @@ import { keywordMomentOf, keywordProgram } from "./keyword-do";
 import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endOwnTurnEffects, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { pendStandingPower, returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
+import { finishSkillPlayScope, startSkillPlayScope } from "./skill-play-scope";
 import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
@@ -902,6 +903,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     return true;
   }
   const frame: ScriptFrame & { autoRevealEpoch?: number } = {
+    ...(skill?.kind === "auto" ? { skillEffectOrigin: { version: 1 as const, kind: "auto" as const } } : {}),
     ops: program?.ops ?? [],
     ip: 0,
     vars: {},
@@ -1279,6 +1281,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (frame.skillPlayFinish) { finishSkillPlayScope(state, frame); return "done"; }
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
@@ -1387,6 +1390,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     // when the motion first reaches the front — after its activation (and any
     // after-skill moment it raises) and before its effect resolves. A motion
     // answered here waits at the front under the answer's own motion.
+    startSkillPlayScope(state, frame);
     if (frame.counterMotion && !frame.counterMotion.opened && openCounterCounterWindow(ctx, game, state, frame)) {
       state.programs.unshift(frame);
       return "wait";

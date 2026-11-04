@@ -56,6 +56,7 @@ The verifier parses every VM TypeScript file, checks exact coverage of every `ne
 
 | Stable ID | Classification | Source | Rule/source citation | Live owner / history | Exact behavior or guard |
 |---|---|---|---|---|---|
+| `arena-vm-notyet-skill-play-scope` | Untested / guard | `src/lib/arena/vm/skill-play-scope.ts` (not-yet #1) | R-421; persisted immediate-effect lifetimes | — | An invalid version, missing scope, non-top continuation, malformed sequence or cyclic ancestry in a saved immediate-effect scope requires rebuilding the match. This guard does not claim shared Counter-window support. |
 | `arena-vm-notyet-fusion-identity` | Untested / guard | `src/lib/arena/vm/flow.ts` (not-yet #2) | persisted typed records (#907) | — | A saved Fusion skill whose typed material identity is missing or inconsistent interrupts before effect or payment; rebuild the rule record (#907). |
 | `arena-vm-notyet-fusion-drop-bottom-epoch` | Untested / guard | `src/lib/arena/vm/flow.ts` (not-yet #3) | persisted typed records (#907) | — | A saved Drop-to-bottom Fusion frame without its source occurrence interrupts rather than guessing which copy is the source (#930). |
 | `arena-vm-notyet-evolve-identity` | Untested / guard | `src/lib/arena/vm/flow.ts` (not-yet #4) | persisted typed records (#907) | — | A saved EX-Evolve skill whose typed identity is missing or inconsistent interrupts; rebuild the rule record (#907). |

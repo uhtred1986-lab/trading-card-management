@@ -1713,6 +1713,12 @@ export interface ScriptFrame {
   validity?: import("./validity").ValidityRecord;
   /** #933: this frame is a player's declared play (`DEFINE ACTION play`/`playUnison`/`playZ`, 5-5-2), not a skill's (5-5-3): its `play` op is asked of 20-14 as `bySkill: false`. Additive: an older suspended frame was a declared play only by its `ops`, and a skill play is the default. */
   declaredPlay?: true;
+  /** R-421: identity of an activated immediate effect, separate from prices
+   * and quoted/delayed programs. Copied by its own resumable continuations. */
+  skillEffectOrigin?: import("./skill-play-scope").SkillEffectOrigin;
+  /** Internal end-of-effect boundary, after nested invocations and before
+   * the runner permits a checkpoint. Never a card-text operation. */
+  skillPlayFinish?: { version: 1; scope: number };
   /** 22-5-5-1 / 3-1-4: the chosen evolution base is the same area-entry
    * through the Counter: Play window, including a leave-and-return. */
   evolutionBase?: { card: string; zoneEpoch: number };
