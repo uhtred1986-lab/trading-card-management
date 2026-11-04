@@ -17,6 +17,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { RULINGS } from "../src/lib/arena/rulings";
+import { faqKey } from "../src/lib/rules-review/faq";
 
 interface SnapCard { id: string; set: string; type: string; colors: string[] | string | null; cost: string | null; name: string; characters: string[] | string | null; traits: string[] | string | null; skill: string | null; backName: string | null; backSkill: string | null }
 interface SnapRule { cardId: string; side: string; skillIndex: number; kind: string; status: string; source: string; printed: string; reads: string; unread: string[] }
@@ -68,8 +69,8 @@ for (const id of ids) {
   }
 
   console.log(`\n## Official sources`);
-  for (const e of faq[id] ?? []) for (const qa of e.qa) console.log(`- Q: ${clip(qa.q, 500)}\n  A: ${clip(qa.a, 500)}`);
-  if (!faq[id]) console.log(`- no card Q&A`);
+  for (const e of faq[faqKey(id)] ?? []) for (const qa of e.qa) console.log(`- Q: ${clip(qa.q, 500)}\n  A: ${clip(qa.a, 500)}`);
+  if (!faq[faqKey(id)]) console.log(`- no card Q&A`);
   for (const e of errata.filter((e) => e.id === id)) console.log(`- ERRATA after: ${clip(e.after, 600)}${e.notes ? ` (note: ${clip(e.notes, 200)})` : ""}`);
   const kws = [...new Set((c.skill ?? "").match(/\[[A-Za-z][A-Za-z :\-]+?\]/g) ?? [])].filter((k) => !/^\[(Auto|Permanent|Activate|Counter)/i.test(k));
   for (const k of kws) {
@@ -102,6 +103,6 @@ for (const id of ids) {
     if (key.split(" ").length < 4) continue;
     const same = snap.cards.filter((o) => o.id !== id && norm(`${o.skill ?? ""} ${o.backSkill ?? ""}`).includes(key));
     console.log(`\n## Other cards printing "${clip(clause, 120)}" (${same.length})`);
-    for (const o of same.slice(0, 10)) console.log(`- ${o.id}${faq[o.id] ? ` (has official Q&A: ${faq[o.id].reduce((n, e) => n + e.qa.length, 0)})` : ""}`);
+    for (const o of same.slice(0, 10)) console.log(`- ${o.id}${faq[faqKey(o.id)] ? ` (has official Q&A: ${faq[faqKey(o.id)].reduce((n, e) => n + e.qa.length, 0)})` : ""}`);
   }
 }

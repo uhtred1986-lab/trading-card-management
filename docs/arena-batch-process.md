@@ -8,7 +8,9 @@ read correctly, with each decision recorded so it can be revisited.
 
 1. **The rule manual** — `docs/rules/rulemanual.txt` (ver. 4.00). Cite sections as `RM 9-10-3`.
 2. **Bandai's Q&A** — the card's own (`src/lib/rules-review/faq.generated.json`, 2,844 answers)
-   and the general game Q&A (`docs/rules/game-faq.txt`).
+   and the general game Q&A (`docs/rules/game-faq.txt`). Use `faqKey` from
+   `src/lib/rules-review/faq.ts` for card lookups: `SD16-01` is stored as `SD16-001`,
+   so direct catalog-ID indexing can falsely report no official answer.
 3. **Official errata** — `docs/rules/errata-official.json` (before/after text and notes); a
    catalog line that still prints the "before" text gets its fix in `src/lib/catalog/errata.ts`.
 4. **An official answer for a card printing the same wording** (`same-wording`).
