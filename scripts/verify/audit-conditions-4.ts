@@ -156,6 +156,8 @@ for (const [ze, zb, ordinary, expected] of [[0, 2, 0, true], [4, 1, 0, false], [
 }
 const lesser = parseConditionClause("if your opponent has 1 or less energy or 2 or less cards in their hand");
 assert.ok(lesser);
+assert.equal(parseConditionClause("if a player has a {Named Unison} card in play"), null,
+  "RM 20-1-6's character areas must not be imposed on a card name that could name a Unison");
 // Whole-condition OR stays outside a preceding AND; a trailing shared Leader
 // condition still applies to the whole pair of counted alternatives.
 {

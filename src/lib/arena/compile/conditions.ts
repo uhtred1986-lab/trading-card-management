@@ -425,9 +425,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     const second = parseConditionClause(m[2], true);
     return first && second ? { cond: { kind: "all", conds: [first.cond, second.cond] } } : null;
   }
-  // Audit conditions 4: a player's named card may be on either side, but an
-  // unqualified card in play is in the Leader or Battle Area (20-1-6).
-  if ((m = /^a player has (an? (?:<[^>]+>|\{[^}]+\}) card) in play$/.exec(t))) {
+  // Audit conditions 4: a named character may be on either side, but its
+  // unqualified area is Leader/Battle (20-1-6). Card names can name Unisons.
+  if ((m = /^a player has (an? <[^>]+> card) in play$/.exec(t))) {
     const filter = parseFilter(m[1]);
     return { cond: { kind: "count", sel: { side: "both", areas: ["leader", "battle"], filter }, atLeast: 1 } };
   }
