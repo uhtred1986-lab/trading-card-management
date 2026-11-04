@@ -60,7 +60,8 @@ import { keywordMomentOf, keywordProgram } from "./keyword-do";
 import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endOwnTurnEffects, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { pendStandingPower, returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
-import { finishSkillPlayScope, startSkillPlayScope } from "./skill-play-scope";
+import { openSkillPlayWindow } from "./battle";
+import { arrivalAutoWasActive, finishSkillPlayScope, releaseSkillPlayWindow, requireSkillEffectOrigin, scopeForFinish, startSkillPlayScope } from "./skill-play-scope";
 import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
@@ -640,6 +641,7 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
  * cleared so no later program reads it as still being resolved.
  */
 function releaseResolvingPlay(state: VmState): boolean {
+  if (releaseSkillPlayWindow(state)) return true;
   const r = state.resolving;
   if (!r) return false;
   if (!r.frame) {
@@ -648,6 +650,7 @@ function releaseResolvingPlay(state: VmState): boolean {
   }
   const frame = r.frame;
   delete r.frame;
+  if (r.heldEpoch !== undefined && (!r.card || (state.cards[r.card]?.zoneEpoch ?? 0) !== r.heldEpoch)) r.replaced = true;
   if (r.replaced || r.landed) state.resolving = null;
   if (!r.replaced) state.programs.push(frame);
   return true;
@@ -860,7 +863,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // Captured keyword effects use the same owner-choice checkpoint queue as
     // ordinary Autos. Put the already-compiled frame on the runner only after
     // the confirmative rule check above has completed.
-    state.programs.unshift(next.frame);
+    state.programs.unshift({ ...next.frame, skillEffectOrigin: { version: 2, kind: "hook" } });
     return true;
   }
   const named = state.cards[next.card]?.cardId ?? next.card;
@@ -903,7 +906,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     return true;
   }
   const frame: ScriptFrame & { autoRevealEpoch?: number } = {
-    ...(skill?.kind === "auto" ? { skillEffectOrigin: { version: 1 as const, kind: "auto" as const } } : {}),
+    ...(skill?.kind === "auto" ? { skillEffectOrigin: { version: 2 as const, kind: "auto" as const } } : {}),
     ops: program?.ops ?? [],
     ip: 0,
     vars: {},
@@ -943,7 +946,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // 9-1-5: a card whose skills are negated has none, and one skill switched
   // off is off for the moment it answered to as well as for every other. The
   // one reading of that rule lives in `./effects.ts` and every reader uses it.
-  if (skillNegated(state, next.card, next.skillIndex, skill?.kind)) {
+  if (!arrivalAutoWasActive(next) && skillNegated(state, next.card, next.skillIndex, skill?.kind)) {
     log(ev, { type: "note", text: `${noteName} is negated, so it does not resolve` });
     return true;
   }
@@ -1281,7 +1284,11 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
-    if (frame.skillPlayFinish) { finishSkillPlayScope(state, frame); return "done"; }
+    if (frame.skillPlayFinish) {
+      const scope = scopeForFinish(state, frame);
+      if (scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";
+      finishSkillPlayScope(state, frame); return "done";
+    }
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
@@ -1390,7 +1397,10 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     // when the motion first reaches the front — after its activation (and any
     // after-skill moment it raises) and before its effect resolves. A motion
     // answered here waits at the front under the answer's own motion.
-    startSkillPlayScope(state, frame);
+    const nativeDeclared = !!state.resolving && !state.resolving.scopeWindow && !state.resolving.landed && state.resolving.card === frame.card && state.resolving.player === frame.master && frame.skillIndex === undefined && frame.vars.card?.includes(frame.card) && frame.ops.length === 1 && frame.ops[0].op === "play" && "var" in frame.ops[0].target && frame.ops[0].target.var === "card";
+    if (!nativeDeclared) requireSkillEffectOrigin(frame, sourceScript, frame.skillIndex === undefined && state.cards[frame.card] ? Object.values(skillsShowing(ctx, state, frame.card).scripts.bySkill) : []);
+    const skillScope = startSkillPlayScope(state, frame);
+    if (skillScope?.phase === "before" && openSkillPlayWindow(ctx, game, state, frame, skillScope, "before")) return "wait";
     if (frame.counterMotion && !frame.counterMotion.opened && openCounterCounterWindow(ctx, game, state, frame)) {
       state.programs.unshift(frame);
       return "wait";

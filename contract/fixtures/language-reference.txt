@@ -2077,7 +2077,7 @@
     {
       "name": "replace",
       "class": "primitive",
-      "signature": "{\"op\":\"replace\",\"from\"?:[\"battle\"|\"combo\"],\"event\":\"leave\"|\"ko\"|\"play\"|…,\"with\":[…],\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"skillOrKoBySkill\"|\"koInBattle\"|\"attack\",\"bySide\"?:\"opponent\"|\"you\",\"to\"?:\"hand\"|\"drop\",\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replace\",\"from\"?:[\"battle\"|\"combo\"],\"event\":\"leave\"|\"ko\"|\"play\"|…,\"cardType\"?:\"BATTLE\"|\"UNISON\"|\"EXTRA\",\"with\":[…],\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"skillOrKoBySkill\"|\"koInBattle\"|\"attack\",\"bySide\"?:\"opponent\"|\"you\",\"to\"?:\"hand\"|\"drop\",\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
         {
           "name": "from",
@@ -2103,6 +2103,17 @@
             "marker",
             "attack",
             "counter"
+          ]
+        },
+        {
+          "name": "cardType",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "BATTLE",
+            "UNISON",
+            "EXTRA"
           ]
         },
         {
@@ -2304,8 +2315,19 @@
     {
       "name": "resolvingPlay",
       "class": "macro over `replace`",
-      "signature": "{\"op\":\"resolvingPlay\",\"instead\"?:AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"rest\",\"negated\"?:true|false}",
+      "signature": "{\"op\":\"resolvingPlay\",\"cardType\"?:\"BATTLE\"|\"UNISON\"|\"EXTRA\",\"instead\"?:AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"rest\",\"negated\"?:true|false}",
       "fields": [
+        {
+          "name": "cardType",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "BATTLE",
+            "UNISON",
+            "EXTRA"
+          ]
+        },
         {
           "name": "instead",
           "required": false,
@@ -2339,7 +2361,7 @@
         }
       ],
       "sentence": "the card being played is played with its skills negated",
-      "doc": "[Counter: Play] only (9-6). With \"instead\" the play is negated and the card goes there; without it the play happens and only the manner changes (\"mode\":\"rest\" or \"negated\":true)"
+      "doc": "[Counter: Play] only (9-6). \"cardType\" preserves an explicit Battle, Unison or Extra qualifier; Battle includes Battle tokens and Z-Battle Cards. With \"instead\" the play is negated and the card goes there; without it the play happens and only the manner changes (\"mode\":\"rest\" or \"negated\":true)"
     },
     {
       "name": "negateAttack",

@@ -9,7 +9,7 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
-import { canCombo, identityKey, keywordName, skillsOf, sumReachable } from "../text/cards";
+import { baseType, canCombo, identityKey, keywordName, skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
@@ -1199,7 +1199,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "koInBattle" | "attack"; bySide?: "opponent" | "you"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; cardType?: "BATTLE" | "UNISON" | "EXTRA"; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "koInBattle" | "attack"; bySide?: "opponent" | "you"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -1274,7 +1274,7 @@ export type Op =
    * stops the play outright and sends the card there rather than into play;
    * `mode` and `negated` let the play happen but change how the card arrives.
    */
-  | { op: "resolvingPlay"; instead?: ScriptArea; position?: "top" | "bottom"; mode?: "rest"; negated?: boolean }
+  | { op: "resolvingPlay"; cardType?: "BATTLE" | "UNISON" | "EXTRA"; instead?: ScriptArea; position?: "top" | "bottom"; mode?: "rest"; negated?: boolean }
   | { op: "negateAttack" }
   /**
    * 9-7: negate the counter this one is answering. The counter being answered
@@ -1719,6 +1719,12 @@ export interface ScriptFrame {
   /** Internal end-of-effect boundary, after nested invocations and before
    * the runner permits a checkpoint. Never a card-text operation. */
   skillPlayFinish?: { version: 1; scope: number };
+  /** Exact Counter kind and the unknown-target window it answered. */
+  counterPlay?: true;
+  counterAnswerScope?: number;
+  skillPlayInternal?: { version: 1; kind: "arrivalBinding" };
+  /** Successful arrivals named by an after-effect Counter, with occurrences. */
+  resolvedPlayCards?: { card: string; epoch: number }[];
   /** 22-5-5-1 / 3-1-4: the chosen evolution base is the same area-entry
    * through the Counter: Play window, including a leave-and-return. */
   evolutionBase?: { card: string; zoneEpoch: number };
@@ -2384,6 +2390,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
     // None of them ever reads an op another produces, so the order of the
     // composition is immaterial.
     const op = revealAs(moveAs(replaceAs(costModifierAs(negateAs(modifyAttrAs(frame.ops[frame.ip]))))));
+    if (h.deferCounterOperation?.(frame, op)) { frame.ip++; continue; }
 
     switch (op.op) {
       case "note":
@@ -3926,7 +3933,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // an earlier use of the name still held.
         const made: string[] = [];
         for (let i = 0; i < n; i++) {
-          const id = h.createToken(p, op.name, op.power, op.comboCost, op.comboPower, op.colors, op.mode);
+          const id = h.createToken(p, op.name, op.power, op.comboCost, op.comboPower, op.colors, op.mode, frame);
+          if (!id) continue;
           made.push(id);
           h.pend("played", id);
         }
@@ -4143,15 +4151,23 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "resolvingPlay": {
+        const current = h.resolvingCard();
+        if (op.cardType && current && baseType(h.defOf(current)) !== op.cardType) break;
         if (!op.instead) {
           // The play still happens and only its manner changes, which is not a
           // replacement at all (9-6): `resolvePlay` reads these as the card
           // enters. Only the `instead` branch below is the macro over `replace`
           // that `OP_CLASS` calls it.
           const card = h.resolvingCard();
-          if (!card) break;
+          if (!card) {
+            if (op.negated) for (const id of h.resolvedPlayCards?.(frame) ?? []) {
+              if (op.cardType && baseType(h.defOf(id)) !== op.cardType) continue;
+              if (!h.forbids("beNegated", { card: id, ...negatedBy(frame) })) h.addEffect({ master, source: frame.card, target: id, kind: "negateSkills", value: 0, until: "turn" });
+            }
+            break;
+          }
           if (op.mode === "rest") h.setPlayRest(card);
-          if (op.negated && !h.forbids("beNegated", { card, ...negatedBy(frame) })) h.setPlayNegated(card);
+          if (op.negated && !h.forbids("beNegated", { card, ...negatedBy(frame) })) h.setPlayNegated(card, negatedBy(frame));
           break;
         }
         h.replaceResolvingPlay([{ op: "moveTo", target: { sel: { special: "resolving" } }, to: op.instead, ...(op.position ? { position: op.position } : {}) }]);

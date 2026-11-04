@@ -211,7 +211,11 @@ export const VM_STATE_VERSION = 10;
  * back on the queue once the counter's programs have run.
  */
 export interface VmResolving {
-  card: string;
+  card: string | null;
+  /** A skill window can open before any card has been selected. */
+  scopeWindow?: { scope: number; boundary: "before" | "after"; counterMotion?: true };
+  /** Original declared occurrence parked below a shared skill response. */
+  heldEpoch?: number;
   player: PlayerId;
   /** The `DO` frame of the move that declared the play, until the runner releases it. */
   frame?: ScriptFrame;
@@ -219,6 +223,7 @@ export interface VmResolving {
   rest?: boolean;
   /** 9-1-5: "played with its skills negated for the turn" (`setPlayNegated`). */
   negated?: boolean;
+  negatedBy?: { player: PlayerId; source?: string };
   /**
    * Phrasing batch 5 (owner's ruling of 26 Oct 2026 on DB2-126, EX12-07): "[Counter: Play] When the Battle Card is
    * played, you may choose it and switch it to Rest Mode" is a real switch, made once the card has landed — so the

@@ -83,6 +83,8 @@ export interface ReplacementLookup {
  * mutable handle into the state — with the one exception named on `battle`.
  */
 export interface ScriptHost {
+  /** VM-only: retain a pure Counter transformation until its actual arrival. */
+  deferCounterOperation?(frame: ScriptFrame, op: Op): boolean;
   // ── what the program can find out ────────────────────────────────────────
 
   /** Is there a card with this instance id at all? A selector can name one that has since gone. */
@@ -247,7 +249,7 @@ export interface ScriptHost {
   addSkip(p: PlayerId, what: SkipWhat, when: "this" | "next"): void;
   /** 19-1: make a token in this player's Battle Area, and log it. Returns its instance id. */
   /** `mode` (phrasing batch 4): the token arrives in Rest Mode ("play 1 Ghost Token in Rest Mode") — placed so, never switched. */
-  createToken(p: PlayerId, name: string, power: number, comboCost: number | null, comboPower: number | null, colors: Color[], mode?: "rest"): string;
+  createToken(p: PlayerId, name: string, power: number, comboCost: number | null, comboPower: number | null, colors: Color[], mode?: "rest", frame?: ScriptFrame): string | null;
 
   // ── moments ──────────────────────────────────────────────────────────────
 
@@ -271,10 +273,11 @@ export interface ScriptHost {
   replacementsFor(id: string, reason: MoveReason | undefined, opts?: ReplacementLookup): ReplacementChoice[];
   /** The card whose play is being resolved, for a [Counter: Play] (9-6). */
   resolvingCard(): string | null;
+  resolvedPlayCards?(frame: ScriptFrame): string[];
   /** 5-5: the card being played arrives in Rest Mode. */
   setPlayRest(card: string): void;
   /** 5-5: the card being played arrives with its skills negated. */
-  setPlayNegated(card: string): void;
+  setPlayNegated(card: string, by?: { player: PlayerId; source?: string }): void;
   /**
    * Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126): a switch of the card being played, made by `source`'s
    * skill, happens once the card has landed — a real switch, with its moments. False when the card is not one being

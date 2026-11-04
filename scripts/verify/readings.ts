@@ -295,7 +295,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 
   const keep = one("[Permanent] This card's skills can't be negated in any area.");
   assert.deepEqual(keep.unsupported, []);
-  assert.deepEqual(keep.ops, [{ op: "forbid", what: "beNegated", until: "game", target: { sel: { special: "self" } } }]);
+  assert.deepEqual(keep.ops, [{ op: "forbid", what: "beNegated", until: "game", target: { sel: { special: "self" } }, fromArea: "any" }]);
 
   const noCharge = one("[Auto] When you play this card, you can't place cards in your energy for the turn.");
   assert.deepEqual(noCharge.unsupported, []);
@@ -918,8 +918,8 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 
   const stop = one("[Counter: Play] Choose 1 Battle Card with an energy cost of 2 or less being played by your opponent. It is placed in its owner's Drop Area instead of being played.");
   assert.deepEqual(stop.unsupported, []);
-  // "Being played" names the card the counter is answering — there is only
-  // ever one — so it is not a choice among the cards already in play.
+  // "Being played" names the play being answered; it does not select
+  // unrelated cards already in the Battle Area.
   assert.equal((stop.ops[0] as { sel: { special?: string } }).sel.special, "resolving");
   assert.deepEqual(stop.ops[1], { op: "resolvingPlay", instead: "drop" });
 
@@ -928,7 +928,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   assert.deepEqual((deck.ops[0] as { then: unknown[] }).then, [{ op: "resolvingPlay", instead: "deck", position: "bottom" }]);
 
   // Without "instead of being played" the play happens; only the manner changes.
-  assert.deepEqual(one("[Counter: Play] The Battle Card being played is played in Rest Mode.").ops, [{ op: "resolvingPlay", mode: "rest" }]);
+  assert.deepEqual(one("[Counter: Play] The Battle Card being played is played in Rest Mode.").ops, [{ op: "resolvingPlay", cardType: "BATTLE", mode: "rest" }]);
   assert.deepEqual(one("[Counter: Play] It's played with its skills negated for the turn.").ops, [{ op: "resolvingPlay", negated: true }]);
 }
 

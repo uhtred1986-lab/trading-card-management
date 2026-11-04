@@ -66,6 +66,8 @@
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
+import type { SkillPlayScope } from "./skill-play-scope";
+import { counterBindingProblem } from "./skill-play-binding";
 import { battleIntact, damageRule } from "./battle-damage";
 import { IllegalAction } from "./common";
 import { type AbilityAvailability, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
@@ -661,7 +663,7 @@ function wantsLine(ctx: EngineContext, state: VmState, window: OpenWindow, sk: S
   if (window === "play") return sk.kind === "counter:play";
   // 22-10-3-4: a [Counter: Counter] is made pending when the opponent
   // activates a [Counter] (9-7-3-3), and nothing else answers that timing.
-  if (window === "counter") return sk.kind === "counter:counter";
+  if (window === "counter") return sk.kind === "counter:counter" || !!state.resolving?.scopeWindow?.counterMotion && sk.kind === "counter:play";
   const b = state.battle;
   if (!b) return false;
   return sk.kind === "counter:attack" || (sk.kind === "counter:battle card attack" && baseTypeOf(ctx, state, b.attacker) === "BATTLE");
@@ -684,6 +686,7 @@ export function selectedCounterSkill(
   if (skillIndex !== undefined) {
     const explicit = skills.find((skill) => skill.index === skillIndex && wantsLine(ctx, state, window, skill));
     if (explicit) return explicit;
+    if (state.resolving?.scopeWindow) return undefined;
   }
   return skills.find((skill) => wantsLine(ctx, state, window, skill));
 }
@@ -767,7 +770,7 @@ export function counterAbilityAvailability(
  * legacy `counterCandidates`' first line, `has(playing, "Deflect")`.
  */
 function windowClosedBy(ctx: EngineContext, game: GameDefinition, state: VmState, window: OpenWindow): boolean {
-  if (window !== "play") return false;
+  if (window !== "play" || state.resolving?.scopeWindow) return false;
   const playing = state.resolving?.card;
   if (!playing) return true;
   return queryHookStatics(ctx, game, state, playing, "counterWindow").some((f) => f.op === "forbid" && f.forbid.what === "activateCounter");
@@ -789,7 +792,7 @@ function windowClosedBy(ctx: EngineContext, game: GameDefinition, state: VmState
  * would double an Extra counter's price, since its own Extra-in-hand
  * addition and this module's card price would both count the same cost.
  */
-function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, responder: PlayerId, window: OpenWindow = "attack"): CounterCandidate[] {
+function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, responder: PlayerId, window: OpenWindow = "attack", includeBindingGaps = false): CounterCandidate[] {
   if (window === "attack" && !state.battle) return [];
   if (windowClosedBy(ctx, game, state, window)) return [];
   const out: CounterCandidate[] = [];
@@ -798,6 +801,7 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
     for (const sk of showing.skills) {
       if (!wantsLine(ctx, state, window, sk)) continue;
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
+      if (!includeBindingGaps && futureCounterProblem(state, sk, showing.scripts.bySkill[sk.index]?.ops ?? [])) continue;
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card, skillKind: sk.kind })) continue;
       // #677, 20-14-1: a [Counter] whose activation prices cannot be paid whole
       // can't be activated, so it is not offered.
@@ -978,6 +982,14 @@ function failCounter(ctx: EngineContext, game: GameDefinition, state: VmState, e
   return "done";
 }
 
+function counterBindingIdentity(state: VmState, sk: Skill): Pick<ScriptFrame, "counterPlay" | "counterAnswerScope" | "resolvedPlayCards"> {
+  const window = state.resolving?.scopeWindow;
+  return sk.kind === "counter:play" ? { counterPlay: true, ...(window?.boundary === "before" ? { counterAnswerScope: window.scope } : {}), ...(window?.boundary === "after" ? { resolvedPlayCards: structuredClone(state.skillPlayScopes?.find(s => s.id === window.scope)?.played ?? []) } : {}) } : {};
+}
+function futureCounterProblem(state: VmState, sk: Skill, ops: Op[]): string | null {
+  return sk.kind === "counter:play" && state.resolving?.scopeWindow?.boundary === "before" ? counterBindingProblem(ops, state.skillPlayScopes?.find(s => s.id === state.resolving!.scopeWindow!.scope)?.profile.tokens) : null;
+}
+
 /**
  * 22-10-7 then 9-7-3-2: the [Counter] is activated — written down by the
  * battle, the card placed in the Drop, the `skillActivated` moment, the line
@@ -1003,7 +1015,7 @@ function activateCounterSkill(
   // 9-7-2, 22-10-4 (#552): the activation is a counter motion, queued even
   // with no effect to run, so the opponent's [Counter: Counter] window
   // (9-7-3-3) opens over it once it reaches the front (`vm/flow.ts`).
-  state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterMotion: { by: player }, skillEffectOrigin: { version: 1, kind: "counter" }, ...afterSkill, ...(x === undefined ? {} : { x }) });
+  state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterMotion: { by: player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill, ...(x === undefined ? {} : { x }) });
 }
 
 /**
@@ -1046,7 +1058,11 @@ export function openCounterCounterWindow(ctx: EngineContext, game: GameDefinitio
 }
 
 /** #552: the counter motion whose [Counter: Counter] window is the prompt on the table, if any — at the front of the queue while asked. */
-const askingMotion = (state: VmState): ScriptFrame | undefined => (state.programs[0]?.counterMotion?.asking ? state.programs[0] : undefined);
+const askingMotion = (state: VmState): ScriptFrame | undefined => {
+  const window = state.resolving?.scopeWindow;
+  const held = window?.counterMotion && state.skillPlayScopes?.find(s => s.id === window.scope)?.window?.programs[0];
+  return held && held.counterMotion?.asking ? held : state.programs[0]?.counterMotion?.asking ? state.programs[0] : undefined;
+};
 
 /**
  * 5-3: the other price a [Counter] in the hand may be activated at — one its
@@ -1078,9 +1094,11 @@ export function counterLegalActions(ctx: EngineContext, game: GameDefinition, st
   if (pr.kind !== "counter") return [];
   const window = openWindowOf(pr.window);
   const out: LegalAction[] = [];
-  for (const card of pr.candidates) {
-    const sk = selectedCounterSkill(ctx, state, card, window);
-    if (!sk) continue;
+  const mixed = window === "counter" && !!state.resolving?.scopeWindow?.counterMotion;
+  const matching = mixed ? counterCandidates(ctx, game, state, pr.player, window) : [];
+  for (const card of new Set(pr.candidates)) {
+    const choices = mixed ? matching.filter(c => c.card === card).map(c => c.skill) : [selectedCounterSkill(ctx, state, card, window)].filter((s): s is Skill => !!s);
+    for (const sk of choices) {
     // #716: both rows are offered only while the whole price — the energy or
     // its alternative, then any printed condition and action — can be paid.
     let routes: CounterRoutes;
@@ -1090,7 +1108,7 @@ export function counterLegalActions(ctx: EngineContext, game: GameDefinition, st
       if (err instanceof NotYet) continue;
       throw err;
     }
-    if (routes.paid) out.push({ action: { type: "counter", player: pr.player, card }, label: `Counter with ${nameOf(ctx, state, card)}` });
+    if (routes.paid) out.push({ action: { type: "counter", player: pr.player, card, ...(mixed ? { skill: sk.index } : {}) }, label: `Counter with ${nameOf(ctx, state, card)}${mixed ? ` (${sk.kind})` : ""}` });
     const alt = routes.alt;
     if (!alt) continue;
     const resting = restingFor(alt);
@@ -1099,6 +1117,7 @@ export function counterLegalActions(ctx: EngineContext, game: GameDefinition, st
     const energy = alt.pay === "energy" ? (alt.orbs ?? []).length || 1 : 0;
     const cost = alt.pay === "none" ? { energy: 0, describe: "free" } : alt.pay === "energy" ? { energy, describe: orbs || "free" } : { energy: 0, describe: "alternative cost" };
     out.push({ action: { type: "counter", player: pr.player, card, ...(sk ? { skill: sk.index } : {}), alt: true }, label: `Counter with ${nameOf(ctx, state, card)} (${how})`, cost });
+    }
   }
   return out;
 }
@@ -1217,8 +1236,30 @@ export function openLandedPlayWindow(ctx: EngineContext, game: GameDefinition, s
   return true;
 }
 
+/** RM 4-3-2-3/4: one timing around the whole immediate skill effect.
+ * Counter motions share their before timing with Counter:Counter (9-7-3-3). */
+export function openSkillPlayWindow(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, scope: SkillPlayScope, boundary: "before" | "after"): boolean {
+  const previous = state.resolving ?? null;
+  if (previous?.card && previous.frame && !previous.scopeWindow) previous.heldEpoch ??= state.cards[previous.card]?.zoneEpoch ?? 0;
+  const counterMotion = boundary === "before" && !!frame.counterMotion;
+  state.resolving = { card: null, player: scope.master, scopeWindow: { scope: scope.id, boundary, ...(counterMotion ? { counterMotion: true } : {}) }, ...(boundary === "after" ? { landed: true } : {}) };
+  if (counterMotion) frame.counterMotion!.opened = true;
+  const available = counterCandidates(ctx, game, state, other(scope.master), counterMotion ? "counter" : "play", true);
+  const candidates = available.filter(c => !futureCounterProblem(state, c.skill, skillsShowing(ctx, state, c.card).scripts.bySkill[c.skill.index]?.ops ?? []));
+  if (!available.length) {
+    state.resolving = previous;
+    scope.phase = boundary === "before" ? "effect" : "after";
+    return false;
+  }
+  if (counterMotion) frame.counterMotion!.asking = true;
+  scope.window = { programs: [frame, ...state.programs], resolving: previous };
+  state.programs = [];
+  state.prompt = { kind: "counter", player: other(scope.master), window: counterMotion ? "counter" : "play", candidates: [...new Set(candidates.map(c => c.card))] };
+  return true;
+}
+
 /** Which window the counter prompt on the table (or the one a `payCost` interrupted) belongs to: a play being resolved, or the battle's. */
-const windowNow = (state: VmState): OpenWindow => (askingMotion(state) ? "counter" : state.resolving?.frame ? "play" : "attack");
+const windowNow = (state: VmState): OpenWindow => (askingMotion(state) ? "counter" : state.resolving?.frame || state.resolving?.scopeWindow ? "play" : "attack");
 
 const canResolveLine = (sk: Skill, script: { unsupported: unknown[] } | undefined): boolean => (!sk.effect.trim() ? true : !!script && script.unsupported.length === 0);
 
@@ -1264,7 +1305,6 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     delete askingMotion(state)?.counterMotion?.asking;
     return "done";
   }
-  if (!pr.candidates.includes(action.card)) throw new IllegalAction("that card can't counter now");
   // 22-10-5: a [Counter] is activated only from the hand — a frozen candidate
   // that has since left it (a reload of a stale window) is refused.
   if (!state.sides[action.player].zones.hand?.includes(action.card)) throw new IllegalAction("that card is no longer in your hand");
@@ -1273,6 +1313,10 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const showing = skillsShowing(ctx, state, card);
   const sk = selectedCounterSkill(ctx, state, card, window, action.skill);
   if (!sk) throw new IllegalAction("no counter skill on that card");
+  if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) throw new IllegalAction("unsupported Counter skill: rebuild its stored rule before payment");
+  const bindingGap = futureCounterProblem(state, sk, showing.scripts.bySkill[sk.index]?.ops ?? []);
+  if (bindingGap) throw new IllegalAction(`unsupported before payment: ${bindingGap}`);
+  if (!pr.candidates.includes(card)) throw new IllegalAction("that card can't counter now");
   // A saved or forged candidate list cannot override a live Counter restriction.
   if (forbids(ctx, game, state, "activateCounter", { player: action.player, card, skillKind: sk.kind }))
     throw new IllegalAction("that counter is prohibited now");
@@ -1352,7 +1396,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
     fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
     const key = counterVarsKey(card, sk.index);
-    state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", pricedBy: { key, text: sk.raw }, counterMotion: { by: action.player }, skillEffectOrigin: { version: 1, kind: "counter" }, ...afterSkill });
+    state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", pricedBy: { key, text: sk.raw }, counterMotion: { by: action.player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill });
     return "done";
   }
   activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords);
@@ -2032,10 +2076,7 @@ function counterWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   // On the list but not on the menu: only the price stops it.
   if (candidates.includes(card)) return priceOf(counters[0]);
   const fits = counters.filter(
-    (sk) =>
-      (window === "play" && sk.kind === "counter:play") ||
-      (window === "attack" && (sk.kind === "counter:attack" || sk.kind === "counter:battle card attack")) ||
-      (window === "counter" && sk.kind === "counter:counter"),
+    (sk) => wantsLine(ctx, state, window === "play" || window === "counter" ? window : "attack", sk),
   );
   if (!fits.length) return [{ kind: "timing", window: counters[0].kind.replace("counter:", "") }];
   const sk = fits[0];
@@ -2045,6 +2086,8 @@ function counterWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   const b = state.battle;
   if (sk.kind === "counter:battle card attack" && b && baseTypeOf(ctx, state, b.attacker) !== "BATTLE") why.push({ kind: "target", reason: "only an attacking Battle Card" });
   if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) why.push({ kind: "unread", card });
+  const bindingGap = futureCounterProblem(state, sk, showing.scripts.bySkill[sk.index]?.ops ?? []);
+  if (bindingGap) why.push({ kind: "other", detail: `Unsupported: ${bindingGap}` });
   const left = usesLeft(state, player, card, sk);
   if (left === 0) why.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   const banned = forbiddenBy(ctx, game, state, "activateCounter", { player, card, skillKind: sk.kind });

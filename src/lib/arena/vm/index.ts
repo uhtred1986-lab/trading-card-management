@@ -400,7 +400,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
   // the exact suspended frame may carry it through a further answer/reload.
   if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((marker) =>
     action.type !== "concede" && (state.cards[marker.card]?.zoneEpoch ?? 0) === marker.sourceZoneEpoch
-      && state.programs.some((frame) => frame.autoRevealEpoch === marker.epoch && frame.card === marker.card
+      && [...state.programs, ...(state.skillPlayScopes ?? []).flatMap(scope => scope.window?.programs ?? [])].some((frame) => (frame as { autoRevealEpoch?: number }).autoRevealEpoch === marker.epoch && frame.card === marker.card
         && frame.skillIndex === marker.skillIndex && frame.trigger === marker.trigger));
 
   // 0-1-3-4: conceding is a player's act and no card may cause or replace it,

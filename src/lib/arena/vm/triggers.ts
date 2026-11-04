@@ -92,6 +92,9 @@ import { predicateOf } from "./filters";
  * which is the whole point, since a second game declares its own.
  */
 export interface VmPending {
+  /** R-422: this exact Auto was active during a successful scoped arrival,
+   * before its after-effect Counter timing (RM 9-6-11). */
+  arrivalWitness?: { version: 1; scope: number; skillIndex: number; arrival: { card: string; epoch: number }; source: { card: string; epoch: number } };
   /** Older serialized Auto entries omit the kind field. */
   kind?: "auto";
   /** The card whose skill answers. */

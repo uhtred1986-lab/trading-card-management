@@ -257,10 +257,16 @@ export function resolvePlay(
   // Audit conditions 3: where the card was as it was played ("if this card was played from a Drop", BT31-050).
   const origin = findCard(state, card)?.zone;
   const cause: { by?: string; byOpponent?: boolean; byCard?: string } = opts.by && findCard(state, card)?.zone !== "battle" ? { by: opts.by, byOpponent: opts.byOpponent ?? false, ...(opts.byCard !== undefined ? { byCard: opts.byCard } : {}) } : {};
+  const negating = opts.negatedBy ?? { player, source: opts.byCard };
+  const fullNegation = opts.negatedForTurn ? "turn" : opts.negated && !forbids(ctx, game, state, "beNegated", { card, ...negating }) ? opts.negated : undefined;
+  const partialAllowed = !!opts.negatedKinds?.length && !!opts.negatedUntil && !forbids(ctx, game, state, "beNegated", { card, ...negating });
   const beforeTriggers = (): void => {
-    if (!opts.negatedKinds?.length || !opts.negatedUntil || (findCard(state, card)?.zone !== to || findCard(state, card)?.owner !== player)) return;
-    const by = opts.negatedBy ?? { player, source: opts.byCard };
-    if (forbids(ctx, game, state, "beNegated", { card, ...by })) return;
+    if (findCard(state, card)?.zone !== to || findCard(state, card)?.owner !== player) return;
+    // Full preentry negation has already passed its protection check in the
+    // original area. Install it before movement/played Autos, not afterward.
+    if (fullNegation) addEffect(state, ev, { target: card, kind: "negateSkills", value: 0, until: fullNegation, master: negating.player, source: negating.source });
+    if (!partialAllowed || !opts.negatedKinds || !opts.negatedUntil) return;
+    const by = negating;
     for (const kind of opts.negatedKinds) addEffect(state, ev, { target: card, kind: "negateSkillKind", value: kind, until: opts.negatedUntil, master: by.player, source: by.source });
   };
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], { ...cause, beforeTriggers });
@@ -296,9 +302,7 @@ export function resolvePlay(
   // durations rather than a mark on the instance, which is how this engine
   // keeps negation everywhere (`vm/effects.ts`, `host.negateAll`) — one reading
   // of the rule, for every reader of it.
-  if (opts.negatedForTurn) addEffect(state, ev, { target: card, kind: "negateSkills", value: 0, until: "turn", source: card });
   if (opts.negated) {
-    addEffect(state, ev, { target: card, kind: "negateSkills", value: 0, until: opts.negated, source: card });
     log(ev, { type: "note", text: `${def.name} was played with its skills negated` });
   }
   const arrived = findCard(state, card);

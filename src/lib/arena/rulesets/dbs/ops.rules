@@ -509,17 +509,17 @@ DEFINE OP negateCounter
 -- §9-6 — "negate the play of that card and place it at the bottom of its
 -- owner's deck", "it's played in Rest Mode", "…with its skills negated"
 DEFINE OP resolvingPlay
-  TAKES (instead: area, position: word, mode: word, negated: boolean)
+  TAKES (instead: area, position: word, mode: word, negated: boolean, cardType: word)
   DO {
     GIVEN $instead {
-      replace(event: play, with: { moveTo(target: [resolving], to: $instead, position: $position) })
+      replace(event: play, cardType: $cardType, with: { moveTo(target: [resolving], to: $instead, position: $position) })
     }
     UNLESS $instead {
       GIVEN $negated {
-        replace(event: play, with: { play(target: [resolving], mode: $mode, negated: turn) })
+        replace(event: play, cardType: $cardType, with: { play(target: [resolving], mode: $mode, negated: turn) })
       }
       UNLESS $negated {
-        replace(event: play, with: { play(target: [resolving], mode: $mode) })
+        replace(event: play, cardType: $cardType, with: { play(target: [resolving], mode: $mode) })
       }
     }
   }

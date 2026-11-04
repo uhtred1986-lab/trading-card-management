@@ -1613,7 +1613,9 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (!source?.faceUp || (source.zoneEpoch ?? 0) !== frame.faceUpLifeEpoch) return [];
   }
   let out: string[] = [];
-  if (sel.special) {
+  if (sel.special === "resolving" && frame.resolvedPlayCards && !observing) {
+    out = frame.resolvedPlayCards.filter(item => state.cards[item.card] && (state.cards[item.card].zoneEpoch ?? 0) === item.epoch).map(item => item.card);
+  } else if (sel.special) {
     const pick = specialCard(state, frame, sel.special);
     out = pick && state.cards[pick] ? [pick] : [];
   } else if (sel.fromVar) {

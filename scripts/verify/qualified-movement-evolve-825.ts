@@ -225,8 +225,8 @@ for (const kind of ["forbidden", "countered"] as const) {
   const counter = kind === "countered" ? stage(s, "C825", "hand", "p2") : null;
   if (kind === "forbidden") addEffect(s, [], { source: target, target, kind: "forbid", value: 0, forbid: { what: "play", bySkill: true }, until: "turn" });
   moved(ctx, game, s, events, returned, "hand"); run(ctx, game, s, events);
+  if (counter) { assert.equal(s.prompt.kind, "counter", "whole-skill window precedes the optional play decision"); s = take(s, { type: "counter", player: "p2", card: counter }); }
   s = take(s, { type: "chooseMode", player: "p1", index: 0 });
-  if (counter) { assert.equal(s.prompt.kind, "counter"); s = take(s, { type: "counter", player: "p2", card: counter }); }
   s = finish(s);
   assert.ok(!zone(s, "p1", "battle").includes(target));
   assert.ok(zone(s, "p1", "hand").includes(returned), "no conditional hand card charged when the optional play failed");
@@ -244,7 +244,7 @@ for (const kind of ["absent", "forbidden"] as const) {
   const s = fresh(); const first = stage(s, "V1", "hand"); const second = stage(s, "V1", "hand");
   addEffect(s, [], { source: second, target: second, kind: "forbid", value: 0, forbid: { what: "play", bySkill: true }, until: "turn" });
   const before = zone(s, "p1", "hand").length;
-  s.programs.unshift({ card: first, master: "p1", ip: 0, vars: { next: kind === "absent" ? [] : [second] }, ops: [
+  s.programs.unshift({ card: first, master: "p1", skillEffectOrigin: { version: 2, kind: "activate" }, ip: 0, vars: { next: kind === "absent" ? [] : [second] }, ops: [
     { op: "play", target: { sel: { special: "self" } } }, { op: "play", target: { var: "next" } },
     { op: "if", cond: { kind: "did", what: "play" }, then: [{ op: "draw", n: 1 }] },
   ] }); run(ctx, game, s, events);
@@ -370,11 +370,12 @@ for (const kind of ["missing", "changed", "countered", "ordinary"] as const) {
     // Stage only the entry to this real compiled Auto; all its choice/play
     // instructions, price and #20 payoff still come from printed card text.
     s.pending.push({ card: combo, skillIndex: 10, master: "p1", trigger: "comboed" });
-    run(ctx, game, s, events); s = choose(s, [base]);
-    assert.equal(s.prompt.kind, "counter"); privacy(s);
+    run(ctx, game, s, events);
+    assert.equal(s.prompt.kind, "counter", "whole Auto's first timing precedes its base choice"); privacy(s);
+    s = take(s, { type: "counter", player: "p2", card: kind === "countered" ? counter : null });
     if (kind === "missing") assert.ok(moveCard(s, game, base, "drop").ok);
     if (kind === "changed") s.cards[base].cardId = "BT3-097";
-    s = take(s, { type: "counter", player: "p2", card: kind === "countered" ? counter : null }); s = finish(s);
+    s = choose(s, [base]); s = finish(s);
     assert.ok(zone(s, "p1", kind === "countered" ? "hand" : "drop").includes(combo));
     assert.equal(s.cards[target].mode, "active", "failed evolution gives no resting payoff");
   }

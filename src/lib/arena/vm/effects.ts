@@ -117,6 +117,16 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
     }
     for (const op of program.ops) {
       if (op.op === "forbid" && op.fromArea === "under") continue;
+      // R423: only the typed self protection explicitly valid in every area.
+      // Preserve the negating player's/source filter; no other Permanent is widened.
+      if (op.op === "forbid" && op.what === "beNegated" && op.fromArea === "any" && op.until === "game" && op.target && "sel" in op.target && op.target.sel.special === "self" && Object.keys(op.target.sel).length === 1 && Object.keys(op).every(key => ["op", "what", "fromArea", "until", "target", "side", "byFilter", "unless"].includes(key))) {
+        out.push({ what: "beNegated", fromArea: "any", master,
+          ...(op.side && op.side !== "both" ? { player: op.side === "opponent" ? otherPlayer(master) : master } : {}),
+          ...(op.byFilter ? { byFilter: op.byFilter } : {}),
+          ...(op.unless ? { unless: op.unless } : {}),
+        });
+        continue;
+      }
       // P-474 (prohibition batch 6): "this card can't be added to a player's
       // hand" — the card's own rule wherever it is.
       if (op.op === "forbid" && op.what === "beMovedBySkill" && op.fromArea === "any" && op.toArea === "hand" && op.until === "game" && op.target && "sel" in op.target && op.target.sel.special === "self") {
@@ -504,7 +514,7 @@ export function dueDelays(state: VmState, at: DelayTiming): ScriptFrame[] {
   if (!ready.length) return [];
   const ids = new Set(ready.map((d) => d.id));
   state.delayed = state.delayed.filter((d) => !ids.has(d.id));
-  return ready.map((d) => ({ ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject }));
+  return ready.map((d) => ({ ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject, skillEffectOrigin: { version: 2, kind: "delayed" } }));
 }
 
 /** An effect scheduled for "this turn" whose moment has gone never happens. Keeps the list from growing over a long game. */

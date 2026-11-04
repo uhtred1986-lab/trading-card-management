@@ -3157,6 +3157,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       const ref = refFor("it", c);
       if (ref && "sel" in ref && ref.sel.special === "resolving") return [{ op: "resolvingPlay", instead: "warp" }];
     }
+    const playedType = /\bbattle card\b/.test(t) ? "BATTLE" as const : /\bunison card\b/.test(t) ? "UNISON" as const : /\bextra card\b/.test(t) ? "EXTRA" as const : undefined;
+    const qualification = playedType ? { cardType: playedType } : {};
     const tSent = t.replace(/^(it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) sent to (its owner'?s?|their owners?'?s?|your|their) (warps?) instead of being played$/, "$1 placed in $2 $3 instead of being played");
     const stopped =
       /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card (?:being played|(?:that )?your opponent is playing) is) (?:(?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)|(?:returned) to (?:its owner'?s?|their owners?'?s?|your|their) (hand)s?)(?: instead)?(?: of being played)?$/.exec(
@@ -3168,7 +3170,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const placedInstead = /^place (?:it|that card|the (?:battle |extra |unison )?card being played) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?) instead of playing it$/.exec(t);
     if (placedInstead) {
       const to: ScriptArea = placedInstead[1] ? "drop" : placedInstead[2] ? "warp" : "deck";
-      return [{ op: "resolvingPlay", instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
+      return [{ op: "resolvingPlay", ...qualification, instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
     }
     // `t` has already lost a trailing "instead" (above), so the bare "…is placed in its owner's Drop Area **instead**"
     // (BT7-110) never reached here. Delayed/replacement batch 1: the printed clause says it, and only a [Counter: Play]
@@ -3177,27 +3179,27 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       // 22-13-4-5-1-1 names the hand form specially: a card "returned to its
       // owner's hand instead of being played" does *not* then go to the Drop.
       const to: ScriptArea = stopped[1] ? "drop" : stopped[2] ? "warp" : stopped[3] ? "hand" : "deck";
-      return [{ op: "resolvingPlay", instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
+      return [{ op: "resolvingPlay", ...qualification, instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
     }
     // "The Battle Card being played is played in Rest Mode" (BT10-105).
     // "The Battle Card **played** is played in Rest Mode" (BT1-110) says the same
     // as "being played"; both name the card whose play is resolving (9-6).
     const THE_PLAY = String.raw`(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card (?:being played|played|(?:that )?your opponent is playing) is)`;
     const SKILLS_OFF = String.raw`(?:its|their) skills? negated(?: for the (?:duration of the )?turn)?`;
-    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode$`).test(t)) return [{ op: "resolvingPlay", mode: "rest" }];
+    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode$`).test(t)) return [{ op: "resolvingPlay", ...qualification, mode: "rest" }];
     // "It's played with its skills negated for the turn" (BT11-099).
-    if (new RegExp(String.raw`^${THE_PLAY} played with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", negated: true }];
+    if (new RegExp(String.raw`^${THE_PLAY} played with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", ...qualification, negated: true }];
     // Both said at once: "played in Rest Mode with its skills negated for the
     // turn" (EB1-46, DB2-128).
-    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", mode: "rest", negated: true }];
+    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", ...qualification, mode: "rest", negated: true }];
     // "The Battle Card played **has its skill negated** for the duration of the
     // turn" (BT1-107): the play goes ahead and the card arrives negated.
-    if (/^(?:it|that card|the (?:battle |extra |unison )?card (?:being )?played) (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", negated: true }];
+    if (/^(?:it|that card|the (?:battle |extra |unison )?card (?:being )?played) (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", ...qualification, negated: true }];
     // Phrasing batch 3 (owner's ruling of 26 Oct 2026 on BT14-154): "[Counter: Play] Play this card, then … **The played
     // Battle Card has its skills negated for the turn**" — the played card is the opponent's card whose play the counter
     // answers (9-6), not this card, which the skill played itself. Only in a [Counter: Play]: anywhere else "the played
     // card" is a play the skill made.
-    if (c.skillKind === "counter:play" && /^the played (?:battle |extra |unison )?card (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", negated: true }];
+    if (c.skillKind === "counter:play" && /^the played (?:battle |extra |unison )?card (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", ...qualification, negated: true }];
   }
 
   // Negation (9-1).
@@ -4518,7 +4520,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // Audit effects 2: "…and if the Battle Card being played has an energy cost of 7 or less, **play it in Rest Mode**"
     // (BT23-118): the card being played lands rested — its own play, changed (`resolvingPlay`), as "it is played in Rest
     // Mode" reads (BT23-123). Read as a play, it was a second play of a card not yet in play.
-    if ("sel" in ref && ref.sel.special === "resolving" && mode === "rest" && !/skills negated/.test(t) && !/^activate\b/.test(tp)) return [{ op: "resolvingPlay", mode: "rest" }];
+    if ("sel" in ref && ref.sel.special === "resolving" && mode === "rest" && !/skills negated/.test(t) && !/^activate\b/.test(tp)) return [{ op: "resolvingPlay", mode: "rest", ...(ref.sel.filter?.type === "BATTLE" || ref.sel.filter?.type === "UNISON" || ref.sel.filter?.type === "EXTRA" ? { cardType: ref.sel.filter.type } : {}) }];
     // "Look at up to 1 card from the top of your deck, **play up to 1 black
     // ≪Maiden Squadron≫ card**, then send the rest to their owner's Warp"
     // (BT30-106): the play's twin of the `add … to your hand` rule above.
@@ -6354,7 +6356,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // "This card's skills can't be negated in any area" (9-1-5). `durationOf`
   // already reads "in any area" as the game.
   if (/^be negated\b/.test(rest) && /\bskills?\b/.test(subject)) {
+    if (/\boriginal skills?\b/.test(subject)) return null;
+    const allAreas = /\bin (?:any|all) areas?\b/.test(t);
     const owner = refFor(subject.replace(/'?s skills?\b.*$/, ""), c);
+    if (allAreas && (!c.permanent || !owner || !("sel" in owner) || owner.sel.special !== "self" || Object.keys(owner.sel).length !== 1)) return null;
     // Audit lane C (2 Nov 2026): whose negation it stops. "…by your opponent's skills" (DB1-021, P-680) leaves the
     // player's own negation working; "…by the skills of your red <Garlic Jr.> cards" (P-641, P-642) stops only the
     // skills of those cards (`byFilter`, asked of the negating skill's card). Read without the words, both were immune
@@ -6371,7 +6376,7 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       } else if (bySide) scope = { side: bySide };
       else return null;
     }
-    return owner ? [{ op: "forbid", what: "beNegated", until, target: owner, ...scope, ...withUnless }] : null;
+    return owner ? [{ op: "forbid", what: "beNegated", until, target: owner, ...(allAreas ? { fromArea: "any" as const } : {}), ...scope, ...withUnless }] : null;
   }
   return null;
 }

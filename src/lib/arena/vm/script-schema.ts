@@ -855,6 +855,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [
       { name: "from", type: { list: { enum: ["battle", "combo"] } } },
       { name: "event", type: { enum: REPLACE_EVENTS }, required: true },
+      { name: "cardType", type: { enum: ["BATTLE", "UNISON", "EXTRA"] } },
       { name: "with", type: "ops", required: true },
       { name: "by", type: { enum: ["skill", "ko", "skillOrKo", "skillOrKoBySkill", "koInBattle", "attack"] } },
       { name: "bySide", type: { enum: ["opponent", "you"] } },
@@ -951,16 +952,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — "[Permanent] You can use this card to pay energy costs even when it\'s in your Battle Area" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours ("as":"energy") or of the colour named. Printed on the card itself this is [Permanent]-only and omits "target"/"until", the way "altCost" does; both are for a card granting the permission to others for a span. With "forSkillsOf" it is scoped (BT28-106): only the **skill costs** of skills on cards that filter describes, wherever those cards are, at most "max" of the cards on one payment, and — with "oncePerTurn" — spent for the turn once it has paid. Any other scope (one play, the energy cost of cards in the hand) is left unread rather than offered wider than it prints',
   },
   resolvingPlay: {
-    fields: [{ name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],
+    fields: [{ name: "cardType", type: { enum: ["BATTLE", "UNISON", "EXTRA"] } }, { name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],
     sentence: (raw) => {
       const op = raw as OpOf<"resolvingPlay">;
+      const subject = op.cardType ? `the ${op.cardType === "BATTLE" ? "Battle" : op.cardType === "UNISON" ? "Unison" : "Extra"} Card being played` : "the card being played";
       return op.instead
-        ? `the card being played is not played and goes to the ${op.instead} instead`
+        ? `${subject} is not played and goes to the ${op.instead} instead`
         : op.mode === "rest"
-          ? `the card being played is played in Rest Mode${op.negated ? " with its skills negated" : ""}`
-          : "the card being played is played with its skills negated";
+          ? `${subject} is played in Rest Mode${op.negated ? " with its skills negated" : ""}`
+          : `${subject} is played with its skills negated`;
     },
-    doc: '[Counter: Play] only (9-6). With "instead" the play is negated and the card goes there; without it the play happens and only the manner changes ("mode":"rest" or "negated":true)',
+    doc: '[Counter: Play] only (9-6). "cardType" preserves an explicit Battle, Unison or Extra qualifier; Battle includes Battle tokens and Z-Battle Cards. With "instead" the play is negated and the card goes there; without it the play happens and only the manner changes ("mode":"rest" or "negated":true)',
   },
   negateAttack: { fields: [], sentence: "negate the attack" },
   negateCounter: { fields: [], sentence: "negate the counter being answered", doc: "negate the [Counter] this one is answering (9-7)" },
@@ -2044,12 +2046,12 @@ const isResolving = (ref: unknown): boolean => {
  * Anything else in a play's place is the primitive's own business (`null`).
  */
 function resolvingPlayOf(op: OpOf<"replace">): Op | null {
-  if (!only(op, ["op", "event", "with"]) || op.with.length !== 1) return null;
+  if (!only(op, ["op", "event", "with", "cardType"]) || op.with.length !== 1) return null;
   const step = op.with[0];
   if (step.op === "moveTo" && only(step, ["op", "target", "to", "position"]) && isResolving(step.target))
-    return { op: "resolvingPlay", instead: step.to, ...(step.position ? { position: step.position } : {}) };
+    return { op: "resolvingPlay", ...(op.cardType ? { cardType: op.cardType } : {}), instead: step.to, ...(step.position ? { position: step.position } : {}) };
   if (step.op === "play" && only(step, ["op", "target", "mode", "negated"]) && isResolving(step.target) && step.mode !== "active" && step.negated !== "game" && (step.mode || step.negated))
-    return { op: "resolvingPlay", ...(step.mode ? { mode: step.mode } : {}), ...(step.negated ? { negated: true } : {}) };
+    return { op: "resolvingPlay", ...(op.cardType ? { cardType: op.cardType } : {}), ...(step.mode ? { mode: step.mode } : {}), ...(step.negated ? { negated: true } : {}) };
   return null;
 }
 
@@ -2236,6 +2238,11 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     // Unison — so `event: marker` names it and `by: attack` belongs to it
     // alone: either without the other is a moment nothing reads.
     if (o.op === "replace" && o.to !== undefined && o.event !== "leave" && o.event !== "life") return `${step}: "to" is only supported for leave or life replacements`;
+    if (o.op === "forbid" && o.what === "beNegated" && o.fromArea === "any") {
+      const target = o.target;
+      if (o.until !== "game" || !isRecord(target) || !only(target, ["sel"]) || !isRecord(target.sel) || target.sel.special !== "self" || !only(target.sel, ["special"]) || !only(o, ["op", "what", "fromArea", "until", "target", "side", "byFilter", "unless"])) return `${step}: all-area negation protection requires a self Permanent with only actor, source and escape qualifications`;
+    }
+    if (o.op === "replace" && o.cardType !== undefined && o.event !== "play") return `${step}: cardType qualifies only a play replacement`;
     if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return `${step}: "event": "marker" and "by": "attack" are only ever written together`;
     // 20-14-1: a tax is charged where the action is taken, and only the
     // attack, a declared play, a skill's switch of energy to Active Mode and
@@ -3338,8 +3345,8 @@ const PILE_NAMES: Record<string, string> = { hand: "hand", deck: "deck", drop: "
 function passiveSentence(op: OpOf<"forbid">, escape: string, r: RenderOptions): string | null {
   // Audit lane C: "…can't be negated by your opponent's skills" (DB1-021), "…by the skills of your red <Garlic Jr.>
   // cards" (P-641): whose negation the rule stops.
-  if (op.what === "beNegated" && (op.side || op.byFilter)) {
-    return `${op.target ? describeRef(op.target) : op.filter ? describeFilter(op.filter, { plural: true }) : "cards"} can't have their skills negated by ${whoseSkillsSaid(op)}${escape}${forThe(op.until, r)}`;
+  if (op.what === "beNegated" && (op.side || op.byFilter || op.fromArea === "any")) {
+    return `${op.target ? describeRef(op.target) : op.filter ? describeFilter(op.filter, { plural: true }) : "cards"} can't have their skills negated${op.fromArea === "any" ? " in any area" : ""}${op.side || op.byFilter ? ` by ${whoseSkillsSaid(op)}` : ""}${escape}${forThe(op.until, r)}`;
   }
   if (op.what !== "beMovedBySkill" && op.what !== "beKOdBySkill" && op.what !== "beRestedBySkill" && op.what !== "beChosen") return null;
   const by = ` by ${whoseSkillsSaid(op)}`;

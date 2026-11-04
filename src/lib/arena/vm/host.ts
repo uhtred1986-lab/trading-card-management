@@ -57,6 +57,8 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
+import { applyArrivalBindings, deferArrivalOperation } from "./skill-play-binding";
+import { rebuildScope, witnessArrivalAutos } from "./skill-play-scope";
 import type { EngineContext, GameEvent } from "../types";
 import { other as otherPlayer } from "../types";
 import type { ScriptHost } from "./script-host";
@@ -70,7 +72,7 @@ import { RulesetBroken, NotYet } from "./errors";
 import { savedXKey, type ScriptFrame } from "./script";
 import { answered, endGame, gameEndForbidden } from "./flow";
 import { emit, fire, log } from "./events";
-import { fireHook } from "./hooks";
+import { fireHook, queryHookStatics } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
 import { wordsFromRuleset } from "../board-words";
@@ -98,8 +100,15 @@ import { shuffle as shuffleItems } from "./rng";
 export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): ScriptHost {
   const card = (id: string) => state.cards[id];
   const zoneList = (p: PlayerId, area: Area): string[] => (state.sides[p].zones[area] ?? []).slice();
+  const counterProtected = (frame: ScriptFrame, id: string): boolean => !!frame.counterPlay && frame.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter");
 
   return {
+    deferCounterOperation: (frame, op) => {
+      if (!frame.counterPlay || frame.counterAnswerScope === undefined) return false;
+      const scope = state.skillPlayScopes?.find(s => s.id === frame.counterAnswerScope);
+      if (!scope || scope.phase !== "before") rebuildScope("rebuild this saved Counter arrival binding");
+      return deferArrivalOperation(vmHost(ctx, game, state, ev), scope, frame, op);
+    },
     // ── what the program can find out ────────────────────────────────────
     exists: (id) => !!card(id),
     ownerOf: (id) => card(id).owner,
@@ -194,7 +203,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
 
     // ── the language's own readings ──────────────────────────────────────
     resolveSelector: (frame, sel) => resolveSelector(ctx, game, state, frame, sel),
-    resolveRef: (frame, ref) => resolveRef(ctx, game, state, frame, ref),
+    resolveRef: (frame, ref) => resolveRef(ctx, game, state, frame, ref).filter(id => !counterProtected(frame, id)),
+    resolvedPlayCards: (frame) => frame.resolvedPlayCards ? resolveRef(ctx, game, state, frame, { sel: { special: "resolving" } }).filter(id => !counterProtected(frame, id)) : [],
     amount: (frame, a) => amount(ctx, game, state, frame, a),
     condHolds: (frame, c) => condHolds(ctx, game, state, frame, c),
     namedCandidates: (frame, sel, picked, samePower) => namedCandidates(ctx, game, state, frame, sel, picked, samePower),
@@ -447,13 +457,30 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `moved` moment fires here, because the interpreter pends the token's
     // own `played` next (`stepScript`'s `token` case), exactly as it does
     // for the legacy host.
-    createToken: (p, name, power, comboCost, comboPower, colors, mode) => {
+    createToken: (p, name, power, comboCost, comboPower, colors, mode, frame) => {
       const id = `${p}#token${Object.keys(state.cards).length}`;
       state.cards[id] = newCard(id, tokenCardId(name, power, comboCost, comboPower, colors), p);
+      const scope = frame?.skillEffectOrigin?.scope === undefined ? undefined : state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin!.scope);
+      const previous = state.resolving;
+      let rest = mode === "rest", negated = false;
+      let negatedBy: { player: PlayerId; source?: string } | undefined;
+      if (scope) {
+        state.resolving = { card: id, player: p };
+        const host = vmHost(ctx, game, state, ev);
+        applyArrivalBindings({ ...host, replaceResolvingPlay: () => { state.resolving!.replaced = true; } }, scope, () => false);
+        const arrival = state.resolving;
+        state.resolving = previous;
+        if (arrival.replaced) { delete state.cards[id]; return null; }
+        rest ||= !!arrival.rest;
+        negated = !!arrival.negated;
+        negatedBy = arrival.negatedBy;
+      }
       const placed = moveCard(state, game, id, TOKEN_ZONE, { owner: p });
       if (!placed.ok) throw new RulesetBroken(state.game, `a token cannot be made in the ${TOKEN_ZONE}: ${placed.refused}`);
       // Phrasing batch 4: "…in Rest Mode" is how the token arrives (5-5-3), not a switch after it.
-      if (mode && game.zones[TOKEN_ZONE]?.modes?.includes(mode)) state.cards[id].mode = mode;
+      if (rest && game.zones[TOKEN_ZONE]?.modes?.includes("rest")) state.cards[id].mode = "rest";
+      if (negated) addEffect(state, ev, { target: id, kind: "negateSkills", value: 0, until: "turn", source: negatedBy?.source ?? frame?.card ?? id, master: negatedBy?.player ?? frame?.master ?? p });
+      if (scope) scope.played.push({ card: id, epoch: state.cards[id].zoneEpoch ?? 0 });
       log(ev, { type: "token", card: id, owner: p });
       return id;
     },
@@ -463,7 +490,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // The moment, in the words `triggers.rules` is written in. A program that
     // pends is naming a legacy trigger, and `pendByName` is the one translation
     // — see its note.
-    pend: (trigger, cardId, subject, sourceNegated) => pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated),
+    pend: (trigger, cardId, subject, sourceNegated) => {
+      const before = new Set(state.pending);
+      pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated);
+      const scope = state.skillPlayScopes?.at(-1);
+      if (trigger === "played" && scope?.played.some(item => item.card === cardId && item.epoch === (state.cards[cardId]?.zoneEpoch ?? 0))) witnessArrivalAutos(state, scope, cardId, before);
+    },
     autosNegatedNow: (cardId) => skillsShowing(ctx, state, cardId).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, cardId, sk.index, sk.kind)).map((sk) => sk.index),
     dropPendsOfOtherColours: (before, source, sourceMaster) => {
       const colors = source && state.cards[source] ? (attrsNow(ctx, game, state, source).colors ?? []) : [];
@@ -494,8 +526,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     setPlayRest: (id) => {
       if (state.resolving?.card === id && !state.resolving.landed) state.resolving.rest = true;
     },
-    setPlayNegated: (id) => {
-      if (state.resolving?.card === id && !state.resolving.landed) state.resolving.negated = true;
+    setPlayNegated: (id, by) => {
+      if (state.resolving?.card === id && !state.resolving.landed) { state.resolving.negated = true; state.resolving.negatedBy = by; }
     },
     // Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126/EX12-07): held on the play's own record and made by
     // `playThen` once the card has landed, as a frame of the counter's own (`switchMode`), so its moments are pended.
@@ -513,7 +545,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // is the legacy engine filtering its `play.resolve` step out of the flow.
     replaceResolvingPlay: (ops) => {
       const r = state.resolving;
-      if (!r || r.replaced || r.landed) return;
+      if (!r?.card || r.replaced || r.landed) return;
       const only = ops.length === 1 ? ops[0] : null;
       if (!only || only.op !== "moveTo") return;
       const id = r.card;
@@ -573,6 +605,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // queued is the one directly under this — the opponent's, 22-10-3-4. Its
     // card stays in the Drop (22-10-7-1); its costs stay paid.
     negateCounterInFlight: () => {
+      const window = state.resolving?.scopeWindow;
+      const scope = window?.counterMotion ? state.skillPlayScopes?.find(s => s.id === window.scope) : undefined;
+      const held = scope?.window?.programs[0];
+      if (held?.counterMotion) {
+        scope!.window!.programs.shift();
+        scope!.canceled = true;
+        return held.card;
+      }
       const at = state.programs.findIndex((f) => f.counterMotion);
       if (at < 0) return null;
       const [countered] = state.programs.splice(at, 1);
@@ -659,7 +699,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (cards.some(id => findCard(state, id)?.zone !== "hand" || (state.cards[id]?.zoneEpoch ?? 0) !== frame.evolutionSourceEpoch)) {
           // A card paid from hand is a new card after moving (3-1-4). The
           // activated hand-only EX-Evolve cannot play it from its new area.
-          if (state.resolving && cards.includes(state.resolving.card)) state.resolving = null;
+          if (state.resolving?.card && cards.includes(state.resolving.card)) state.resolving = null;
           state.programs.unshift(frame);
           return;
         }
@@ -672,7 +712,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           // to an otherwise permitted area during the counter response.
           for (const id of cards) if (findCard(state, id)?.zone === "hand") moveTo(ctx, game, state, ev, id, "drop", state.cards[id].owner, { reason: "rule" });
           frame.evolutionBase = undefined;
-          if (state.resolving && cards.includes(state.resolving.card)) state.resolving = null;
+          if (state.resolving?.card && cards.includes(state.resolving.card)) state.resolving = null;
           state.programs.unshift(frame);
           return;
         }
@@ -733,7 +773,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // declared, and the opponent may answer it with a [Counter: Play] before
       // it lands — the window `vm/battle.ts` opens over a declared play. With
       // no counter they could use, nothing is asked and the play lands now.
-      if (opts.counterWindow && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
+      if (opts.counterWindow && frame.skillEffectOrigin?.scope === undefined && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
       const landedSwitches: ScriptFrame[] = [];
       for (const id of cards) {
         // 22-45-3 (#157): a `markerCarry` keyword ([Empower]) on a card
@@ -749,6 +789,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           return "wait";
         }
         if (answered !== undefined) state.carried = null;
+        const scope = frame.skillEffectOrigin?.scope === undefined ? undefined : state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin!.scope);
+        const previousResolving = state.resolving;
+        if (scope) {
+          state.resolving = { card: id, player: opts.player };
+          applyArrivalBindings(vmHost(ctx, game, state, ev), scope, binding => binding.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter"));
+          if (state.resolving.replaced) { state.resolving = previousResolving; continue; }
+        }
         // 9-6: the play a [Counter: Play] window was open over lands here, in
         // the manner the counter left it (5-5) — and is no longer being
         // resolved once it has, the legacy `s.resolving = null`.
@@ -765,6 +812,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         // Mechanism batch 3: "play them to their owners' Battle Areas" (BT13-096, EX21-15) - each into its owner's.
         // Audit selectors 2: "…from your deck to your opponent's Battle Area" (BT13-028, BT22-006) - the other player's side.
         const side = opts.toOpponent && !union && !opts.onto ? otherPlayer(opts.player) : opts.toOwners && !union && !opts.onto ? state.cards[id].owner : union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
+        const beforeArrival = new Set(state.pending);
         const played = resolvePlay(ctx, game, state, ev, id, opts.player, {
           mode: r?.rest ? "rest" : energyBase ? "active" : opts.mode,
           onto: opts.onto,
@@ -773,7 +821,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           negated: opts.negated,
           negatedKinds: opts.negatedKinds,
           negatedUntil: opts.negatedUntil,
-          negatedBy: { player: frame.master, source: frame.card },
+          negatedBy: r?.negatedBy ?? { player: frame.master, source: frame.card },
           ...(r?.negated ? { negatedForTurn: true } : {}),
           ...(opts.markers !== undefined ? { markers: opts.markers } : {}),
           ...(carry && answered ? { carry: { from: carry.from, n: Math.min(Math.max(0, answered), carry.max) } } : {}),
@@ -782,6 +830,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(frame.declaredPlay ? {} : { by: "skill" as const, byOpponent: frame.master !== opts.player, byCard: frame.card }),
         }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
         if (played) { (frame.did ??= {}).play = true; frame.acted = (frame.acted ?? 0) + 1; }
+        if (played && scope) { scope.played.push({ card: id, epoch: state.cards[id].zoneEpoch ?? 0 }); witnessArrivalAutos(state, scope, id, beforeArrival); }
         // Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126/EX12-07): the [Counter: Play]'s switch of this card,
         // held while it was being played, is made now that it has landed — a frame of the counter's, run before the
         // rest of the play's, so "switched to Rest Mode" moments are pended as for any skill's switch.
@@ -794,9 +843,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (played && union === "Union-Potara") for (const m of [opts.onto, ...(opts.under ?? [])]) if (m) clearAutoReveal(state, m);
         frame.evolutionBase = undefined;
         frame.unionBound = undefined;
-        if (r) state.resolving = null;
+        if (scope) state.resolving = previousResolving;
+        else if (r) state.resolving = null;
         // FAQ BT1-107/BT1-110: the second counter timing, once the card is on the table.
-        if (played && union && cards.length === 1 && !state.resolving && openLandedPlayWindow(ctx, game, state, id, opts.player, frame)) {
+        if (played && union && !scope && cards.length === 1 && !state.resolving && openLandedPlayWindow(ctx, game, state, id, opts.player, frame)) {
           state.programs.unshift(...landedSwitches);
           return "wait";
         }

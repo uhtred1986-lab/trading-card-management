@@ -161,6 +161,48 @@ function comboDepartureContractGap(row: { printed: string; ops: unknown }): stri
   return unbounded(row.ops) ? "rebuild this Combo-to-Drop replacement with its original destination" : null;
 }
 
+/** All-area self protection is a stored qualification, never inferred in play. */
+function negationAreaContractGap(row: { printed: string; ops: unknown }): string | null {
+  const text = row.printed.toLowerCase();
+  const allArea = /skills?[^.;]*(?:can't|cannot|can not) be negated[^.;]*in (?:any|all) areas?\b|skills?[^;]*in (?:any|all) areas?[^;]*(?:can't|cannot|can not) be negated/.test(text);
+  const originalOnly = /original skills?[^.;]*(?:can't|cannot|can not) be negated/.test(text);
+  if (!allArea && !originalOnly) return null;
+  let stale = false;
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (!value || typeof value !== "object") return;
+    const op = value as Record<string, unknown>;
+    if (op.op === "forbid" && op.what === "beNegated" && (originalOnly || op.fromArea !== "any")) stale = true;
+    Object.values(op).forEach(visit);
+  };
+  visit(row.ops);
+  return stale ? "rebuild the stored negation-protection area or original-skill qualification" : null;
+}
+
+/** Printed nouns only detect a stale contract; executable target types remain stored data. */
+function resolvingPlayContractGap(row: { printed: string; ops: unknown }): string | null {
+  const expected = new Set<string>();
+  const text = row.printed.toLowerCase();
+  for (const m of text.matchAll(/the (?:(battle|unison|extra) card (?:being played|played|(?:that )?your opponent is playing)|played (battle|unison|extra) card) (?:is (?:played|placed|put|sent|returned)|(?:has|have) (?:its|their) skills? negated)/g)) expected.add((m[1] ?? m[2]).toUpperCase());
+  if (!expected.size) return null;
+  const found = new Set<string>();
+  let changesPlay = false;
+  let unqualified = false;
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (!value || typeof value !== "object") return;
+    const op = value as Record<string, unknown>;
+    if (op.op === "resolvingPlay" || (op.op === "replace" && op.event === "play")) {
+      changesPlay = true;
+      if (typeof op.cardType === "string") found.add(op.cardType);
+      else unqualified = true;
+    }
+    Object.values(op).forEach(visit);
+  };
+  visit(row.ops);
+  return changesPlay && (unqualified || [...expected].some(type => !found.has(type))) ? "rebuild the stored played-card type qualification" : null;
+}
+
 /**
  * The typed records a row must carry before the engine will run it — Sparking
  * validity, skill usage, combo qualification, payment (#1066) and Fusion/Union
@@ -170,6 +212,10 @@ function comboDepartureContractGap(row: { printed: string; ops: unknown }): stri
  */
 export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown; cond?: unknown }): string[] {
   const gaps: string[] = [];
+  const negationAreaGap = negationAreaContractGap(row);
+  if (negationAreaGap) gaps.push(negationAreaGap);
+  const playedTypeGap = resolvingPlayContractGap(row);
+  if (playedTypeGap) gaps.push(playedTypeGap);
   const validityGap = validityProblem(row.validity);
   if (validityGap) gaps.push(validityGap);
   const usageGap = usageProblem(row.usage);
@@ -381,7 +427,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!comboContractGap(row) || !!comboDepartureContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
       : { kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
