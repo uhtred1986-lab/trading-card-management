@@ -134,3 +134,7 @@ VERIFIER: The stored condition is any(count zEnergy >= 5, count your Battle Area
 - P-093#20: Skill ban scope (Battle Area only; combo [Auto]s allowed per official Q&A) — not reached.
 - P-645#10: 'in Active Mode or Rest Mode' play choice — not reached.
 - lane4-S-unread.md (278 skills, 256 clusters): Unread selector families not reached this round (context budget spent on the 72 findings).
+
+## Bounded keyword-negation follow-up
+
+The mandatory-choice gap for BT2-048 and DB1-093 and official-Q&A Barrier handling are addressed in [keyword-negation-followup.md](keyword-negation-followup.md). Duplicate keyword instances and later grants remain incorrectly suppressed by name; that document identifies the next implementation seams. BT22-037's copied chosen skill remains unread.

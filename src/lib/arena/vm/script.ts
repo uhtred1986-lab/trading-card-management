@@ -968,17 +968,19 @@ export type Op =
    * keyword skills `target` has in force as the step resolves — that is
    * `negateChosenKeyword`.
    */
-  | { op: "negate"; target?: Ref; what: NegateScope; kind?: NegatedSkillKind; keyword?: KeywordSkill["name"]; chosen?: boolean; until?: Duration }
+  | { op: "negate"; target?: Ref; what: NegateScope; kind?: NegatedSkillKind; keyword?: KeywordSkill["name"]; chosen?: boolean; mandatory?: boolean; until?: Duration }
   /**
    * "Choose up to 1 keyword skill on your opponent's Battle Cards and negate
    * that skill for the turn" (9-1-5, BT31-138): the master picks one keyword
    * skill among those every card `target` finds has in force right now, and
    * only that keyword is negated on that card, for `until`. The choice is of a
    * *skill*, so the menu lists keywords (with the card's name when several
-   * cards carry them) and ends with "None" for the printed "up to 1"; a target
-   * with no keyword skills asks nothing and does nothing.
+   * cards carry them). `mandatory: true` omits "None" for printed "choose 1";
+   * absent/false keeps the legacy "up to 1" choice. A target with no keyword
+   * skills asks nothing and does nothing. Choosing a skill bypasses Barrier,
+   * not a prohibition against negation (official Q&A BT2-048 / BT6-057).
    */
-  | { op: "negateChosenKeyword"; target: Ref; until: Duration }
+  | { op: "negateChosenKeyword"; target: Ref; until: Duration; mandatory?: boolean }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
   | { op: "hidden"; target: Ref; hidden: boolean; sameHiding?: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
@@ -3697,7 +3699,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // target cards have in force *now* — a granted one included, a
         // negated one not — and negated on that card alone for the duration.
         const offered: { card: string; keyword: KeywordSkill["name"] }[] = [];
-        for (const id of h.resolveRef(frame, op.target)) {
+        // Official Q&A BT2-048, DB1-093 and BT6-057: the skill, not its card,
+        // is chosen. Keep this local so stored selectors and other ops retain
+        // their own Barrier semantics; other protections remain in force.
+        const target: Ref = "sel" in op.target ? { sel: { ...op.target.sel, ignoreBarrier: true } } : op.target;
+        for (const id of h.resolveRef(frame, target)) {
           if (!h.exists(id) || h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
           for (const name of KEYWORD_NAMES) if (h.hasKeyword(id, name)) offered.push({ card: id, keyword: name });
         }
@@ -3710,8 +3716,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             kind: "chooseMode",
             player: master,
             reason: `${h.nameOf(frame.card)}: choose a keyword skill to negate`,
-            // "Up to 1" on every card printing this, so the last option declines.
-            options: [...offered.map((o) => (several ? `${h.nameOf(o.card)}: [${o.keyword}]` : `[${o.keyword}]`)), "None"],
+            options: [...offered.map((o) => (several ? `${h.nameOf(o.card)}: [${o.keyword}]` : `[${o.keyword}]`)), ...(op.mandatory ? [] : ["None"])],
           });
           return "wait";
         }

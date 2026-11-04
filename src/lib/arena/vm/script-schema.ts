@@ -331,6 +331,7 @@ const NEGATE_FIELDS: OpField[] = [
   { name: "kind", type: { enum: NEGATED_KINDS } },
   { name: "keyword", type: { enum: KEYWORD_NAMES } },
   { name: "chosen", type: "boolean" },
+  { name: "mandatory", type: "boolean" },
   { name: "until", type: "duration" },
 ];
 const POSITION = { enum: ["top", "bottom"] } as const;
@@ -715,13 +716,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     // The sentence is the spelling's own, so the workbench reads a lowered
     // program in the same words as the record it came from.
     sentence: (raw, r) => describeScript([negateAs(raw as OpOf<"negate">)], r),
-    doc: 'the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. "keyword" with "chosen" and no "keyword" lets the master pick one of the keyword skills the target has in force as the step resolves ("negateChosenKeyword"). Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
+    doc: 'the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. "keyword" with "chosen" and no "keyword" lets the master pick one of the keyword skills the target has in force as the step resolves ("negateChosenKeyword"). For this chosen-keyword form, "mandatory" true requires one available choice; absent or false retains the optional None choice of existing stored rules. Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
   },
   negateSkills: { fields: [TARGET, UNTIL], sentence: "negate the skills of {target}{until}" },
   negateChosenKeyword: {
-    fields: [TARGET, UNTIL],
-    sentence: "choose up to 1 keyword skill of {target} and negate it{until}",
-    doc: '"choose up to 1 keyword skill on your opponent\'s Battle Cards and negate that skill for the turn" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about',
+    fields: [TARGET, UNTIL, { name: "mandatory", type: "boolean" }],
+    sentence: (raw, r) => renderTemplate(`choose ${(raw as OpOf<"negateChosenKeyword">).mandatory ? "" : "up to "}1 keyword skill of {target} and negate it{until}`, raw as unknown as Record<string, unknown>, [TARGET, UNTIL], r),
+    doc: '9-1-5: the master picks one keyword skill among those the target cards have in force. "mandatory":true means printed "choose 1"; absent/false preserves the optional "up to 1" choice of existing records. No available keyword means no question or effect (5-2-6). Choosing a skill bypasses Barrier (Q&A BT2-048, DB1-093, BT6-057), but a prohibition against negation still applies. Negation currently suppresses the selected keyword name, not one particular copy; duplicate copies and later grants of that name are still incorrectly suppressed, rather than refused; chosen negation needs per-instance identity',
   },
   negateSkillsOfKind: {
     fields: [TARGET, { name: "kind", type: { enum: NEGATED_KINDS }, required: true }, UNTIL],
@@ -1947,7 +1948,7 @@ export function negateAs(op: Op): Op {
       // "Choose up to 1 keyword skill on … and negate it": the keyword is the
       // master's pick at resolution, so the call names none. Naming one *and*
       // saying chosen is two answers to one question, and reads as neither.
-      if (op.chosen) return op.keyword ? { op: "note", text: "negate: a chosen keyword names none" } : { op: "negateChosenKeyword", target, until };
+      if (op.chosen) return op.keyword ? { op: "note", text: "negate: a chosen keyword names none" } : { op: "negateChosenKeyword", target, until, ...(op.mandatory === undefined ? {} : { mandatory: op.mandatory }) };
       return op.keyword ? { op: "negateKeyword", keyword: op.keyword, ...(op.target ? { target: op.target } : {}), ...(op.until && op.until !== "game" ? { until: op.until } : {}) } : { op: "note", text: "negate: no keyword named" };
     case "own":
       if (until === "turn" || until === "battle") return { op: "negateOwnSkill", until };

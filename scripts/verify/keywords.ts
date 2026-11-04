@@ -2561,8 +2561,8 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   const compiled = compileSkill(parseSkills(DEFS.PICKNEG.skill)[0]);
   assert.deepEqual(compiled.ops.map((o) => o.op), ["negateChosenKeyword"], "the one-clause-per-half wording reads as the one step");
   // Off a record, as `card_rules` hands it over: the selector ignores [Barrier]
-  // so the [Barrier] card itself is on offer — whether [Barrier] keeps a skill
-  // on it from being chosen is a ruling still open, and not this test's subject.
+  // so the [Barrier] card itself is on offer. Official Q&A BT2-048 / BT6-057
+  // confirms the operation itself bypasses Barrier too (audit-keyword-negation-4).
   const record = { ops: [{ op: "negateChosenKeyword", target: { sel: { side: "opponent", area: "battle", ignoreBarrier: true } }, until: "turn" }], unsupported: [], ...recordsWithPrice() };
   assert.equal(validateProgram(record.ops), true);
   const ctx = {

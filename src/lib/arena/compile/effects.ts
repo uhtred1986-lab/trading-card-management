@@ -3099,16 +3099,19 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // offered, and the count printed on the cards ("1 of …") is the skill's, not
   // a choice of cards — kept, it would have made this a choice of a card and
   // negated all of its skills, which is what it used to read as.
-  if ((m = /^choose (?:up to )?(?:\d+|a|an|one) (?:of (?:the )?)?keyword skills? (?:on|of) (.+?),? (?:and )?(?:negate (?:it|that skill)|that skill is negated)$/.exec(q))) {
-    const ref = refFor(m[1], c);
+  if ((m = /^choose (up to )?(\d+|a|an|one) (?:of (?:the )?)?keyword skills? (?:on|of) (.+?),? (?:and )?(?:negate (?:it|that skill)|that skill is negated)$/.exec(q))) {
+    // The interpreter chooses one skill; a printed larger count is not one.
+    if (!/^(?:1|a|an|one)$/.test(m[2])) return null;
+    const mandatory = m[1] ? {} : { mandatory: true };
+    const ref = refFor(m[3], c);
     if (!ref) return null;
     if ("sel" in ref && !ref.sel.special) {
       const every = { ...ref.sel };
       delete every.count;
       delete every.upTo;
-      return [{ op: "negateChosenKeyword", target: { sel: every }, until: durationOf(t) }];
+      return [{ op: "negateChosenKeyword", target: { sel: every }, until: durationOf(t), ...mandatory }];
     }
-    return [{ op: "negateChosenKeyword", target: ref, until: durationOf(t) }];
+    return [{ op: "negateChosenKeyword", target: ref, until: durationOf(t), ...mandatory }];
   }
 
   // Granting keyword skills (20-18); one clause can grant several.
@@ -7811,6 +7814,14 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     }
     if (KEYWORD_SKILL_CHOICE.test(clause.trim()) && i + 1 < clauses.length && NEGATE_THAT_SKILL.test(clauses[i + 1].trim())) {
       clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
+      continue;
+    }
+    // Unsupported counts/pronouns still name skills, never a choice of cards.
+    // Keep the supported all-keywords case above; refuse this pair before generic
+    // card selection can turn it into negation of every skill on a chosen card.
+    if (/^choose (?:up to )?(?:\d+(?: or more)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten) (?:of (?:the )?)?keyword skills? (?:on|of) /i.test(clause.trim()) && i + 1 < clauses.length && /^(?:and )?negate (?:it|them|that skill|those skills)\b/i.test(clauses[i + 1].trim())) {
+      refuse(clause);
+      refuse(clauses[++i]);
       continue;
     }
     // "For each marker on this card, this card gets +5000 power during your

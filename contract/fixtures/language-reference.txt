@@ -1129,7 +1129,7 @@
     {
       "name": "negate",
       "class": "primitive",
-      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\"|\"keyword\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\"|\"keyword\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"mandatory\"?:true|false,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "target",
@@ -1217,6 +1217,12 @@
           "type": "boolean"
         },
         {
+          "name": "mandatory",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
           "name": "until",
           "required": false,
           "nullable": false,
@@ -1224,7 +1230,7 @@
         }
       ],
       "sentence": "negate the skills of this card for the rest of the game",
-      "doc": "the primitive under \"negateSkills\", \"negateSkillsOfKind\", \"negateKeyword\" and \"negateOwnSkill\" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). \"what\" says which — \"skills\" is every skill of the target, \"kind\" one printed kind of them (say which in \"kind\"), \"keyword\" one named keyword in every area (say which in \"keyword\"), \"own\" the skill resolving now. \"until\" left out is for the game. \"keyword\" with \"chosen\" and no \"keyword\" lets the master pick one of the keyword skills the target has in force as the step resolves (\"negateChosenKeyword\"). Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
+      "doc": "the primitive under \"negateSkills\", \"negateSkillsOfKind\", \"negateKeyword\" and \"negateOwnSkill\" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). \"what\" says which — \"skills\" is every skill of the target, \"kind\" one printed kind of them (say which in \"kind\"), \"keyword\" one named keyword in every area (say which in \"keyword\"), \"own\" the skill resolving now. \"until\" left out is for the game. \"keyword\" with \"chosen\" and no \"keyword\" lets the master pick one of the keyword skills the target has in force as the step resolves (\"negateChosenKeyword\"). For this chosen-keyword form, \"mandatory\" true requires one available choice; absent or false retains the optional None choice of existing stored rules. Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
     },
     {
       "name": "negateSkills",
@@ -1249,7 +1255,7 @@
     {
       "name": "negateChosenKeyword",
       "class": "macro over `negate`",
-      "signature": "{\"op\":\"negateChosenKeyword\",\"target\":TARGET,\"until\":DURATION}",
+      "signature": "{\"op\":\"negateChosenKeyword\",\"target\":TARGET,\"until\":DURATION,\"mandatory\"?:true|false}",
       "fields": [
         {
           "name": "target",
@@ -1262,10 +1268,16 @@
           "required": true,
           "nullable": false,
           "type": "duration"
+        },
+        {
+          "name": "mandatory",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
       "sentence": "choose up to 1 keyword skill of this card and negate it for the turn",
-      "doc": "\"choose up to 1 keyword skill on your opponent's Battle Cards and negate that skill for the turn\" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about"
+      "doc": "9-1-5: the master picks one keyword skill among those the target cards have in force. \"mandatory\":true means printed \"choose 1\"; absent/false preserves the optional \"up to 1\" choice of existing records. No available keyword means no question or effect (5-2-6). Choosing a skill bypasses Barrier (Q&A BT2-048, DB1-093, BT6-057), but a prohibition against negation still applies. Negation currently suppresses the selected keyword name, not one particular copy; duplicate copies and later grants of that name are still incorrectly suppressed, rather than refused; chosen negation needs per-instance identity"
     },
     {
       "name": "negateSkillsOfKind",

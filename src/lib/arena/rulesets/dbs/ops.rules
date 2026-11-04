@@ -293,12 +293,12 @@ DEFINE OP negateKeyword
 -- Unison and negate that skill for the turn" (BT31-138): the keyword is the
 -- master's pick as the step resolves, among those the target has in force.
 DEFINE OP negateChosenKeyword
-  TAKES (target: ref, until: duration)
+  TAKES (target: ref, until: duration, mandatory: boolean)
   DO {
-    negate(target: $target, what: keyword, chosen: true, until: $until)
+    negate(target: $target, what: keyword, chosen: true, until: $until, mandatory: $mandatory)
   }
   text: "the master picks one keyword skill the target has, and it stops applying, for the duration"
-  doc: "what `negateChosenKeyword` means: one keyword skill, picked as the step resolves among those the target cards have in force, negated on its card for the duration (9-1-5)"
+  doc: "what `negateChosenKeyword` means: one keyword skill, picked as the step resolves among those the target cards have in force, negated on its card for the duration (9-1-5); mandatory true requires a choice when available, absent or false permits None"
 
 -- §9-1-5 — "negate this skill for the turn / battle / game"
 DEFINE OP negateOwnSkill
