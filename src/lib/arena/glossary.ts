@@ -687,6 +687,11 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Successful play memories (round 5)",
+    body: "R-360: At the end of a turn where this card was played from your hand (BT12-014, BT16-014/015) uses either turn end and the existing successful-play origin memory. A placement, Drop play, departed copy, or later turn does not qualify; BT16-014/015's Q&As explicitly reject a copy that moved to the Drop. R-361: When you use [Arrival] to play a described card (BT20-001/032/137) watches the successful play, preserving the played card's multicolour description and keyword entry before the Auto is offered. It never fires for a normal play, another keyword, a failed play or the opponent's play. BT20-032 is heard in the Combo Area only because its recorded price takes this card from there; ordinary Combo copies remain inactive. Both families reuse existing events and stored conditions; no card-id special case or new snapshot field.",
+  },
+
+  {
     title: "Native indexed keyword hook continuations (#907)",
     body: "A ruleset-owned native keyword hook captures the actual projected skill's usage and validity records when its indexed frame is created. JSON continuation replay keeps those snapshots; old frames missing them still require rebuilding. This preserves native Dual Attack battle-end activation without treating an obsolete frame as unlimited."
   },

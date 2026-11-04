@@ -116,6 +116,11 @@ export function yourCardPlayedByUnion(head: string): { said: string; what: "Unio
   return { said: m[1] !== undefined ? `your ${m[1]}` : m[2], what: m[3] ? UNION_VARIANT_NAME[m[3].toLowerCase() as keyof typeof UNION_VARIANT_NAME] : "Union" };
 }
 
+/** R-361: a successful [Arrival] play, not merely activating the keyword. */
+export function yourCardPlayedUsingArrival(head: string): string | null {
+  return /^when you use \[arrival\] to play ((?:an?|1) [^,]{1,120}?)\s*[,.]?$/i.exec(head.trim())?.[1] ?? null;
+}
+
 /**
  * Phrasing batch 5: "When this card **in your hand** is discarded by **one of your skills**" (BT26-015), "When this
  * card is discarded by one of your skills": the discard by a skill of the card's own master (`droppedFromHandByYou`),
@@ -559,7 +564,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     if (zone && zone.said === null && zone.trigger === trigger) return true;
     if (placedUnderFrom(printed).includes(trigger)) return true;
     // "At the end of a turn where this card was played" (BT16-142): either player's turn end (7-1), the play a condition
-    // the compiler reads (`placedThisTurn`, played). "…played from your hand" asks where from, which nothing remembers.
+    // the compiler reads (`placedThisTurn`, played/from), using the successful entry remembered this turn.
     if (TURN_END_WHERE_PLAYED.test(momentClause(printed)) && (trigger === "turnEnd" || trigger === "opponentTurnEnd")) return true;
   }
   switch (trigger) {
@@ -974,6 +979,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // ordinary play would be worse than not firing. "By a [Union] skill" is
     // the one it checks (#930, below).
     case "youPlayed": {
+      const arrival = yourCardPlayedUsingArrival(effect.unmask(momentClause(head)));
+      if (arrival) return readableSubject({ unmask: (s) => s }, arrival);
       // #930: "When your <X> card is played by a [Union] skill" (BT22-033,
       // BT25-036 back, P-682), "when you play a Battle Card using a
       // [Union-Fusion] skill" (BT12-122): the means is one the engine checks
@@ -1727,7 +1734,7 @@ export function watchedKeywordMove(clause: string): { triggers: Trigger[]; said:
 // ── audit triggers 3 (3 Nov 2026): a card's move between areas ──────────────
 
 /** Audit triggers 3: "At the end of a turn where this card was played" (BT16-142). */
-export const TURN_END_WHERE_PLAYED = /^at the end of a turn (?:where|in which) this card was played$/;
+export const TURN_END_WHERE_PLAYED = /^at the end of a turn (?:where|in which) this card was played(?: from your hand)?$/;
 
 /** The areas a moment's "in your …" / "from your …" names, as the zones a move carries (`moved`'s `from`). */
 const AREA_ZONE: Readonly<Record<string, string>> = { hand: "hand", drop: "drop", "drop area": "drop", "battle area": "battle", "z-energy": "zEnergy", "combo area": "combo" };

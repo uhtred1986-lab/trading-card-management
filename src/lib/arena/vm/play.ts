@@ -41,11 +41,10 @@ import { NotYet, RulesetBroken } from "./errors";
 import { fire, log } from "./events";
 import { moved } from "./flow";
 import type { VmState } from "./state";
-import { attrsNow, condHolds, entryAnswers, queryHookStatics, unionEntryMatches } from "./program";
-import { playGates, skillsShowing, unionPlayedGate, type VmPending } from "./triggers";
+import { attrsNow, condHolds, entryAnswers, queryHookStatics } from "./program";
+import { playGates, skillsShowing, type VmPending } from "./triggers";
 import type { Cond } from "./script";
 import { SETUP_ZONES, findCard, moveCard } from "./zones";
-import { predicateOf } from "./filters";
 
 /**
  * The in-play area a card of each base type is played into (3-6-1, 3-11-4).
@@ -333,10 +332,13 @@ export function resolvePlay(
   // includes the card itself, as for every `youPlayed` moment.
   const watching = state.pending.filter((p): p is VmPending => !pendedBefore.has(p) && p.kind !== "hook" && p.subject === card && p.trigger === "youPlayed");
   for (const p of watching) {
-    const gate = unionPlayedGate(skillsShowing(ctx, state, p.card).scripts.bySkill[p.skillIndex]?.ops, "subject");
-    if (gate === null) continue;
-    const meets = !gate.filter || predicateOf(gate.filter, game)(p.subjectInfo ?? attrsNow(ctx, game, state, card));
-    if (!(success && unionEntryMatches(gate.what, opts.using) && meets)) state.pending.splice(state.pending.indexOf(p), 1);
+    // R-361: the same successful-entry gate for every explicitly described keyword play, including [Arrival].
+    const gates = playGates(skillsShowing(ctx, state, p.card).scripts.bySkill[p.skillIndex]?.ops, "subject");
+    const holds = (g: Cond): boolean =>
+      g.kind === "not" ? !holds(g.cond)
+        : g.kind === "playedUsing" ? entryAnswers(ctx, game, state, g, card, opts.using, playedBy)
+          : condHolds(ctx, game, state, { ops: [], ip: 0, vars: {}, card: p.card, master: p.master, subject: card, subjectInfo: p.subjectInfo }, g);
+    if (gates.length && !(success && gates.every(holds))) state.pending.splice(state.pending.indexOf(p), 1);
   }
   // EX04-04 (prohibition batch 6): an evolution's successful entry is kept
   // the same way, for "if you played this card with [evolve]". Audit

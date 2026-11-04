@@ -7,7 +7,7 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { readsMomentsOneByOne, triggersOf, unreadMoments } from "../gaps";
 import { effectHead, keywordOf, maskNames, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, TURN_END_WHERE_PLAYED, type MomentCause } from "../text/triggers";
+import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, yourCardPlayedUsingArrival, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, TURN_END_WHERE_PLAYED, type MomentCause } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, Selector } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
@@ -1224,7 +1224,7 @@ function compileSkillText(skill: Skill): Script {
     }
     // Audit triggers 3: "At the end of a turn where this card was played" (BT16-142): the turn's end, either player's, and
     // the card's memory of being played this turn (5-5, `VmCard.playedThisTurn`) the condition on it.
-    if (TURN_END_WHERE_PLAYED.test(maskNames(trigger.trim()).text.toLowerCase().replace(/[,.]$/, ""))) triggerCond = { kind: "placedThisTurn", sel: { special: "self" }, played: true };
+    if (TURN_END_WHERE_PLAYED.test(maskNames(trigger.trim()).text.toLowerCase().replace(/[,.]$/, ""))) triggerCond = { kind: "placedThisTurn", sel: { special: "self" }, played: true, ...(/ from your hand[,.]?$/i.test(trigger.trim()) ? { from: ["hand" as const] } : {}) };
     // #930: "When this card is played using [Union]" (BT14-114), "when you play
     // this card with [union]" (BT5-039, BT2-085 …), "when this card is played
     // by a [union] skill" (BT28-097, BT28-099): the moment is `played`, and
@@ -1396,6 +1396,7 @@ function compileSkillText(skill: Skill): Script {
       triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, has] } : has;
       if (clauses.some((cl) => /\bthat card\b/i.test(cl))) partnerTarget = { sel: yours };
     }
+    const arrivalPlay = yourCardPlayedUsingArrival(trigger);
     if (skill.kind === "auto" && triggersOf(skill).some((t) => t === "youPlayed" || t === "opponentPlayed")) c.playedSubject = true;
     if (/\bthis card\b/i.test(trigger.replace(BY_THIS_CARDS_SKILL, ""))) c.lastTarget = partnerTarget ?? { sel: { special: "self" } };
     // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
@@ -1418,7 +1419,7 @@ function compileSkillText(skill: Skill): Script {
     // BT15-091: "when a player places a [Field] Extra Card in a Battle Area",
     // "when a player's [Field] Extra Card leaves a Battle Area" — either
     // player's card, its description the condition on it.
-    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim()) || /^when a player(?:'?s)? /i.test(trigger.trim()) || !!watchedMomentOf(trigger)) {
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim()) || /^when a player(?:'?s)? /i.test(trigger.trim()) || !!watchedMomentOf(trigger) || !!arrivalPlay) {
       // "When you play a red ≪Alien≫, **it** gains +5000 power" (BT1-006, phrasing batch 1): the card played is the
       // one thing the sentence has named, so "it" is that card too.
       // "When you combo with a skill-less card, **that card** gets +5000 combo power" (BT6-105b, phrasing batch 2): the
@@ -1458,6 +1459,12 @@ function compileSkillText(skill: Skill): Script {
       // "When you play a Battle Card **on your turn**" (BT13-026, phrasing batch 1): a card can be played on the
       // opponent's turn too (a [Counter: Play], a skill's play), and the words say this one only counts on yours.
       if (/^when you play [^,]+ on your turn$/i.test(trigger.trim())) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, { kind: "isTurnPlayer" }] } : { kind: "isTurnPlayer" };
+      if (arrivalPlay) {
+        const filter = filterFor(arrivalPlay, null);
+        if (!filter || unreadFilterWords(arrivalPlay.replace(/\b(red|blue|green|yellow|black|white)\/(?=red|blue|green|yellow|black|white)/gi, "$1 "), filter).length) return { ops: [], unsupported: [trigger, ...clauses] };
+        triggerCond = { kind: "all", conds: [{ kind: "count", sel: { special: "subject", filter }, atLeast: 1 }, { kind: "playedUsing", sel: { special: "subject" }, what: "Arrival" }] };
+        c.lastTarget = { sel: { special: "subject" } };
+      }
       const byUnion = yourCardPlayedByUnion(trigger);
       if (byUnion) {
         const how: Cond = { kind: "playedUsing", sel: { special: "subject" }, what: byUnion.what };

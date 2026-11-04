@@ -255,6 +255,9 @@ function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment
     // 9-1-3-2 / 9-6-3-1-1: a watcher whose own skill plays this card from the
     // hand is heard there too; `pendAutos` keeps only the skills that say so.
     if (handOut) for (const p of sides) for (const id of state.sides[p].zones.hand) { askedCards.push(id); handOut.add(id); }
+    // R-361 / 9-1-3-2: BT20-032 pays itself from the Combo Area when another card arrives. Only records whose
+    // price/effect explicitly names that origin survive the same usableFrom check as hand watchers below.
+    if (handOut && trigger.name === "youPlayed") for (const p of sides) for (const id of state.sides[p].zones.combo) { askedCards.push(id); handOut.add(id); }
     // 9-1-3-2 / 3-9-4 (#1098): "When your life moves to another area, you may
     // play this card from your Drop" works from the Drop, so the Drop copies
     // hear this moment too. They are only *asked* here; `pendAutos` keeps a
@@ -509,14 +512,15 @@ export function unionPlayedGate(ops: readonly Op[] | undefined, who: "self" | "s
  * `all`. The [Union] gate above is one of these; `resolvePlay` asks them all of the play that pended the [Auto], so a
  * play that does not answer them is no trigger (9-6-2). For the card's own play, whose turn it is is asked too — "when
  * you play this card during your opponent's turn" (BT9-058): played on your own turn the [Auto] is never pended and
- * its price is never asked. Empty for any other shape.
+ * its price is never asked. R-361 also extracts subject-count descriptions for watched plays; those are checked
+ * against the captured played card alongside its successful keyword entry. Empty for any other shape.
  */
 export function playGates(ops: readonly Op[] | undefined, who: "self" | "subject"): Cond[] {
   const out: Cond[] = [];
   const about = (c: Cond) => c.kind === "playedUsing" && c.sel.special === who && !c.sel.filter;
   const visit = (cond: Cond): void => {
     if (cond.kind === "all") { for (const c of cond.conds) visit(c); return; }
-    if (about(cond) || (cond.kind === "not" && about(cond.cond)) || (who === "self" && cond.kind === "isTurnPlayer")) out.push(cond);
+    if (about(cond) || (cond.kind === "not" && about(cond.cond)) || (who === "self" && cond.kind === "isTurnPlayer") || (who === "subject" && cond.kind === "count" && cond.sel.special === "subject")) out.push(cond);
   };
   for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) visit(at[0].cond);
   return out;

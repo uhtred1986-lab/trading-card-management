@@ -157,7 +157,6 @@ const unread: [string, string][] = [
   // [Over Realm] or [Dark Over Realm] or a play from the Warp: three moments, a description on one.
   ["BT18-124", "[Auto][Once per turn] If it's your turn: When you activate [Over Realm] or [Dark Over Realm] or play a black Battle Card from your Warp, draw 1 card, and choose up to 1 of your opponent's Battle Cards with an energy cost of 6 or less and send it to its owner's Warp."],
   // "…played from your hand": where from is not remembered.
-  ["BT16-015", "[Auto] Choose 1 Red/Blue multicolor card in your energy: At the end of a turn where this card was played from your hand, draw 1 card and switch the chosen card to Active Mode."],
 ];
 for (const [id, text] of unread) assert.ok(only(text, id).unread.length, `${id}: stays unread`);
 // "When you use one of your opponent's Battle Cards in a combo" (BT21-068's back) is your combo with their card, never theirs.
