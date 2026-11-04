@@ -1,0 +1,449 @@
+{
+  "format": "arena-program-diff-v1",
+  "baseline": "e0c68445",
+  "catalogSha256": "dcfba11b09fe10746a5f86176511bc9edd85c6156f239508a301326440339fb4",
+  "beforeSha256": "eba20918c78a6183316c13ab6e4d0c4c98f3d98cb36fc1e719eaa2d89f47bcb8",
+  "afterSha256": "2284c8aa822b4cf781fc0338e377bd777eef35abfca28a5d5c5d7eff512fcac7",
+  "skills": 13964,
+  "read": 12956,
+  "unread": 1008,
+  "changes": [
+    {
+      "key": "BT20-064#10",
+      "printed": "[auto] If your Leader is a green <Son Goku: GT> card: When this card is played, choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of mono-green ≪Saiyan≫ cards in your Drop and KO it.",
+      "changedFields": [
+        "cond",
+        "ops",
+        "pattern",
+        "reads",
+        "unread"
+      ],
+      "before": {
+        "cond": null,
+        "ops": [],
+        "pattern": "choose up to N of your opponent's battle cards with an energy cost less than or equal to the number of mono-green … cards in your drop",
+        "reads": "",
+        "unread": [
+          "choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of mono-green ≪Saiyan≫ cards in your Drop",
+          "KO it"
+        ]
+      },
+      "after": {
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "son goku: gt"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "sumAtMost": {
+                "attr": "energyCost",
+                "total": {
+                  "count": {
+                    "side": "you",
+                    "area": "drop",
+                    "filter": {
+                      "colors": [
+                        "Green"
+                      ],
+                      "notColors": [],
+                      "monoColor": true,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [
+                        "Saiyan"
+                      ],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  }
+                }
+              }
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of mono-green ≪Saiyan≫ cards in your Drop"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "pattern": "if:leaderMatches[choose→ko]",
+        "reads": "if your leader is Green <son goku: gt>: choose up to 1 Battle Card in your opponent's Battle Area whose total energy cost is 1 for each of mono-colour green ≪Saiyan≫ cards in your Drop Area or less, KO the chosen cards",
+        "unread": []
+      }
+    },
+    {
+      "key": "BT22-127#0",
+      "printed": "[auto] When this card is played, choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in your Z-Deck, ignoring [barrier], and send it to its owner's Warp.",
+      "changedFields": [
+        "ops",
+        "pattern",
+        "reads",
+        "unread"
+      ],
+      "before": {
+        "ops": [],
+        "pattern": "choose up to N of your opponent's battle cards with an energy cost less than or equal to the number of cards in your z-deck",
+        "reads": "",
+        "unread": [
+          "choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in your Z-Deck",
+          "send it to its owner's Warp"
+        ]
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "sumAtMost": {
+                "attr": "energyCost",
+                "total": {
+                  "count": {
+                    "side": "you",
+                    "area": "zDeck"
+                  }
+                }
+              },
+              "ignoreBarrier": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in your Z-Deck"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "warp"
+          }
+        ],
+        "pattern": "choose→moveTo",
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area whose total energy cost is 1 for each of your Z-Deck cards or less ignoring [Barrier], move the chosen cards to warp",
+        "unread": []
+      }
+    },
+    {
+      "key": "P-300#20",
+      "printed": "[activate: main]{g}{g}, discard this card from your hand: Choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in their hand, ignoring [barrier], and KO it.",
+      "changedFields": [
+        "ops",
+        "pattern",
+        "reads",
+        "unread"
+      ],
+      "before": {
+        "ops": [],
+        "pattern": "choose up to N of your opponent's battle cards with an energy cost less than or equal to the number of cards in their hand",
+        "reads": "",
+        "unread": [
+          "Choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in their hand",
+          "KO it"
+        ]
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "sumAtMost": {
+                "attr": "energyCost",
+                "total": {
+                  "count": {
+                    "side": "opponent",
+                    "area": "hand"
+                  }
+                }
+              },
+              "ignoreBarrier": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in their hand"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "pattern": "choose→ko",
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area whose total energy cost is 1 for each of their cards in hand or less ignoring [Barrier], KO the chosen cards",
+        "unread": []
+      }
+    }
+  ]
+}

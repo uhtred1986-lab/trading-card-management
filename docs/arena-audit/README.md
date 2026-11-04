@@ -158,3 +158,5 @@ Round 4 bounded follow-up: [chosen keyword negation](round-4/keyword-negation-fo
 The same PR continues with [explicit Leader/Battle area scope](round-4/on-board-area-followup.md) (R-402), including full-program corpus comparison and correction of the BT12 optional-scope audit inference.
 
 PR #1249 also [repairs the Teach prompt budget and P-093 Counter-ban scope](round-4/battle-skill-ban-followup.md) (R-403). Teach now passes directly on this branch.
+
+The next PR #1249 follow-up adds [cost bounds from area counts](round-4/counted-cost-followup.md) (R-404): three formerly unread skills, numerical counts that include protected cards, and the specified-cost minimum for numerical energy-cost reads.
