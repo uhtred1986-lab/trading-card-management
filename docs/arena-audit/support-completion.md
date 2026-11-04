@@ -30,3 +30,9 @@ Record completed batches and their exact receipts below as they are integrated. 
 ## Integrated progress
 
 - **Seven known condition misreads**, combined head `29326703`: the previously reviewed condition work is now in PR #1249. The new combined-head `audit-conditions-4` suite passes. A full-record comparison against `93ebd6b9` changes exactly the seven expected records, with no read/unread transitions; every changed cost field is its condition, with payment components preserved. Totals remain 12,956 readable / 1,008 unread. The full-record artifact SHA-256 is `72478eb41970effb1a7c27bb97721fc96c5cdd1c7c7298ec6b4a930d2a33ff73`; [structural evidence](round-4/conditions-port-program-diff.json) and [original source/review receipt](round-4/conditions-followup.md). New families continue below this checkpoint.
+
+## Runtime baseline beyond unread text
+
+`runtimeSupportOfRow` over the combined condition-port snapshot reports 396 records with additional explicit runtime reasons; 73 of those have no unread text. These 73 are included alongside the 1,008 unread records, giving 1,081 records requiring investigation at this checkpoint. The [additional readable-record gaps](support-baseline-runtime-gaps.json) retain the exact reason per skill. They include 47 unread payment contracts, eight missing face-up-life events, six unsupported Permanent optional programs, five unsupported Permanent skill negations, four missing Auto triggers, and one each of combo permission, typed Absorb and an Auto play price. Verify the runtime and metadata together before fixing or clearing a reason.
+
+The checker also reports 2,556 context-dependent play targets as unknown. This is not a finding that all those cards are unsupported, and none is added to the explicit-gap count on that basis. Conversely, a clean static checker result is not exhaustive runtime proof.
