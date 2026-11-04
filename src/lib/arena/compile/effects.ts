@@ -2502,6 +2502,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const subject = possessive[2] === "its" ? "it" : possessive[2] === "their" ? "them" : possessive[2];
     qq = `${possessive[1]} the ${possessive[3] ?? ""}cost of ${subject} by ${possessive[4]}`;
   }
+  // R-441: the possessive passive retains the entire described group, including original-cost bounds.
+  qq = qq.replace(/^(.+?) (?:has|have) (?:its|their) ((?:energy|skill|evolve|combo|z-energy) )?costs? (reduced|increased|decreased) by (.+)$/, "the $2cost of $1 is $3 by $4");
   let passive: RegExpExecArray | null;
   if ((passive = /^the ((?:energy|skill|evolve|combo|z-energy) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
     const verb = passive[3].slice(0, -1); // "reduced"/"increased"/"decreased" -> the bare verb.
