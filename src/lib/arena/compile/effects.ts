@@ -6914,6 +6914,14 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
   // R-389: Burst's paid cards, remembered when they reached the Drop. Historical
   // predicates do not retarget an unrelated Drop card or reread a later occurrence.
   if (c.paidPile) {
+    const placedColor = /^if you place an? (red|blue|green|yellow|black|white) card (?:in|into) (?:the|your) drop(?: area)? (?:with|using|by) this skill$/.exec(t);
+    if (placedColor) {
+      c.paidPile.otherThanColor = placedColor[1];
+      return { kind: "varMatches", var: c.paidPile.name, filter: filterFor(`${placedColor[1]} card`, null)!, paid: true };
+    }
+    if (/^if a card of any other colou?r is placed (?:in|into) (?:the|your) drop(?: area)?$/.test(t) && c.paidPile.otherThanColor) {
+      return { kind: "varMatches", var: c.paidPile.name, filter: { ...emptyFilter(), colors: (["Red", "Blue", "Green", "Yellow", "Black", "White"] as Color[]).filter(color => color.toLowerCase() !== c.paidPile!.otherThanColor) }, paid: true };
+    }
     const single = /^if the card (?:you placed|placed) (?:in|into) (?:the|your|its owner'?s) drop(?: area)? (?:with|using|by) this skill (?:is|was) (?:an? )?(.+)$/.exec(t);
     const any = /^if (?:an? )(.+?) card (?:is|was) placed (?:in|into) (?:your|the) drop(?: area)? (?:by|with|using) this skill$/.exec(t);
     if ((single && c.paidPile.count === 1) || any) {

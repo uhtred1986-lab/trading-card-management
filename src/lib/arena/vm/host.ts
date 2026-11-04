@@ -126,6 +126,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     enteredTurnOf: () => state.turn,
     nameOf: (id) => nameOfCard(ctx, state, id),
     defOf: (id) => faceOf(ctx, state, id),
+    cardInfo: (id) => structuredClone(attrsNow(ctx, game, state, id)),
     keywordInstances: (id, viewer) => keywordInstancesInForce(ctx, game, state, id).map(instance => {
       const grant = instance.grantEffectId !== undefined ? state.effects.find(e => e.id === instance.grantEffectId)
         : instance.standingGrantId !== undefined ? staticsNow(ctx, game, state).find(e => e.standingGrantId === instance.standingGrantId) : undefined;
@@ -596,10 +597,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `saveVarsAs` and the effect behind it with `pricedBy` under the same key
     // (#458). The price being paid is also the moment the line is announced —
     // the legacy `skill.resolve`, which runs after the price for that reason.
-    saveVars: (key, vars) => {
+    saveVars: (key, vars, paidCardInfo) => {
       const effect = state.programs.find((f) => f.pricedBy?.key === key);
       if (!effect) throw new RulesetBroken(state.game, `a price finished with no effect waiting for what it chose (${key})`);
       effect.vars = { ...vars, ...effect.vars };
+      if (paidCardInfo) effect.paidCardInfo = { ...paidCardInfo, ...effect.paidCardInfo };
       log(ev, { type: "skill", card: effect.card, skill: effect.skillIndex ?? 0, master: effect.master, text: effect.pricedBy!.text, inBattle: !!state.battle });
     },
     // #1117: the price did not happen whole, so the effect it was paying for is dropped, unannounced.

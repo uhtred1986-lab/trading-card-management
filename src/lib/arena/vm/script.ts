@@ -2357,7 +2357,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         return "done";
       }
       if (frame.saveVarsAs) {
-        h.saveVars(frame.saveVarsAs, { ...frame.vars });
+        h.saveVars(frame.saveVarsAs, { ...frame.vars }, frame.paidCardInfo);
         // 20-5: and the X a `bindX` choose bound, for the prices that are a
         // choice rather than an energy payment ("discard any number of cards:
         // … X cards"). Under a key of its own rather than folded into the
@@ -2487,9 +2487,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // The name is bound either way: a clause asking about a card that was
         // never there has to come out false, not match whatever was bound
         // before it.
+        const paid = !!op.as && (!!frame.saveVarsAs || frame.autoCost?.stage === "action");
+        const paidInfo: Record<string, import("./cards").Attrs> = {};
+        const paidEpochs: string[] = [];
+        let unpaid = false;
         const milled: string[] = [];
         for (const p of sideOf(master, op.side)) {
           const n = h.amount(frame, op.n);
+          if (paid && h.zone(p, "deck").length < n) unpaid = true;
           for (let i = 0; i < n && h.zone(p, "deck").length; i++) {
             const id = h.zone(p, "deck")[0];
             const movedMaster = h.masterOf(id);
@@ -2497,9 +2502,22 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             // Moments batch 1: a skill's move out of the deck — "placed in your Drop from your deck by a skill" (BT16-009).
             // Placed face up, but not a reveal (20-11-1): "revealed from the top of your deck" is a skill that says so.
             if (h.areaOf(id) === "drop") pendMovedBySkill(h, frame, id, { fromArea: "deck", pileHost: undefined, movedMaster, revealed: false });
+            if (paid) {
+              if (h.areaOf(id) !== "drop" || h.masterOf(id) !== p) unpaid = true;
+              else { paidInfo[id] = h.cardInfo(id); paidEpochs.push(`${id}@${h.zoneEpoch(id)}`); }
+            }
             milled.push(id);
             frame.acted = (frame.acted ?? 0) + 1;
           }
+        }
+        if (unpaid) {
+          if (frame.saveVarsAs) frame.priceUnpaid ??= "the complete mill price did not reach its Drop Area";
+          else throw new IllegalAction("the complete mill price did not reach its Drop Area");
+        } else if (paid && op.as) {
+          const name = `paid_mill_${op.as}`;
+          (frame.paidCardInfo ??= {})[name] = paidInfo;
+          frame.vars[name] = [...milled];
+          frame.vars[`${name}@epoch`] = paidEpochs;
         }
         if (op.as) frame.vars[op.as] = milled;
         break;

@@ -119,6 +119,8 @@ export interface ScriptHost {
   nameOf(id: string): string;
   /** The card as it is right now, effects and all: what a program reads a printed value off. */
   defOf(id: string): CardDef;
+  /** Current characteristics captured when a payment actually reaches its destination. */
+  cardInfo(id: string): import("./cards").Attrs;
   /** 22: does it have this keyword skill, printed or granted? */
   hasKeyword(id: string, name: KeywordSkill["name"]): boolean;
   /** Individual in-force keyword copies, retaining their printed/grant identity. */
@@ -316,7 +318,7 @@ export interface ScriptHost {
   /** Take that answer off the state. */
   clearLastChoice(): void;
   /** 4-3-3: leave this program's names where the next one can start from them. */
-  saveVars(key: string, vars: Record<string, string[]>): void;
+  saveVars(key: string, vars: Record<string, string[]>, paidCardInfo?: ScriptFrame["paidCardInfo"]): void;
   /**
    * #1117: the price behind `key` was not paid — a step of it did not really happen. The effect queued behind it
    * is dropped and the line is not announced: nothing is resolved for a price that was not paid.

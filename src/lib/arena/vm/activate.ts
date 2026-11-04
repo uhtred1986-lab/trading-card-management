@@ -1058,6 +1058,11 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     const name = paidPoolVar("burst");
     resolved = { ...resolved, vars: { ...resolved?.vars, [name]: [], [`${name}@epoch`]: [] }, paidCardInfo: { ...resolved?.paidCardInfo, [name]: {} } };
   }
+  const waivedMill = waived && line.script?.price?.ops?.length === 1 ? line.script.price.ops[0] : undefined;
+  if (waivedMill?.op === "mill" && waivedMill.as && typeof waivedMill.n === "number" && waivedMill.n > 0 && (!waivedMill.side || waivedMill.side === "you")) {
+    const name = `paid_mill_${waivedMill.as}`;
+    if (!resolved?.paidCardInfo?.[name]) resolved = { ...resolved, vars: { ...resolved?.vars, [name]: [], [`${name}@epoch`]: [] }, paidCardInfo: { ...resolved?.paidCardInfo, [name]: {} } };
+  }
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   // Capture the rule's trigger at the successful activation boundary, before

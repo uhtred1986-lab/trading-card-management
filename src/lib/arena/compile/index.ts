@@ -1047,6 +1047,8 @@ function compileSkillText(skill: Skill): Script {
   // variables on (4-3-3), so the compiler only has to know the name.
   const priceOps = compileCostProgram(skill)?.ops ?? [];
   if (skill.burst && !priceOps.length && (skill.kind === "auto" || skill.kind.startsWith("activate:"))) c.paidPile = { name: `paid_burst`, count: skill.burst };
+  const millPrice = priceOps.length === 1 ? priceOps[0] : undefined;
+  if (!skill.burst && millPrice?.op === "mill" && millPrice.as && typeof millPrice.n === "number" && millPrice.n > 0 && (!millPrice.side || millPrice.side === "you") && (skill.kind === "auto" || skill.kind.startsWith("activate:"))) c.paidPile = { name: `paid_mill_${millPrice.as}`, count: millPrice.n };
   for (const o of priceOps) {
     if (o.op !== "choose") continue;
     // Audit effects 2 review: a price's pick from the pile under its chosen card ("…and place 2 of the cards from under
