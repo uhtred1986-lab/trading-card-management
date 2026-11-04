@@ -1354,11 +1354,11 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   // never reached the referee, and the player paid the energy anyway.
   const one = compileSkill(parseSkills("[Permanent] If you have <V1> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost.")[0]);
   assert.deepEqual(one.unsupported, []);
-  const gate = one.ops[0] as { op: string; cond: { kind: string; sel: { area: string; filter?: { type: string | null } } }; then: { op: string; for?: string }[] };
+  const gate = one.ops[0] as { op: string; cond: { kind: string; sel: { area: string; areas?: string[]; filter?: { type: string | null } } }; then: { op: string; for?: string }[] };
   assert.equal(gate.op, "if");
   // "Battle Area or Leader Area" is both areas, not a Battle Area holding a
   // Leader — which is nothing, so the waiver could never have switched on.
-  assert.equal(gate.cond.sel.area, "play");
+  assert.deepEqual(gate.cond.sel.areas, ["leader", "battle"], "R-402: explicit area pair excludes Unison");
   assert.equal(gate.cond.sel.filter?.type, null);
   assert.deepEqual(gate.then, [{ op: "altCost", pay: "none", for: "play" }]);
 }

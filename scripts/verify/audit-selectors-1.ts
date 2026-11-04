@@ -150,7 +150,8 @@ for (const [text, what, side, op] of [
   assert.deepEqual(sel.areas, ["leader", "battle"], `B1: EB1-38 — the Leader, or an ≪Android≫ card in the Battle Area too (${JSON.stringify(sel)})`);
   const baby = record("[Auto] When you play this card from your hand, if your Leader Card is a <Baby> card, choose all <Baby> and ≪Brainwashed≫ cards in your Battle Area and Leader Area, and they get +5000 power for the duration of the turn; choose up to 1 of your opponent's Leader Cards and negate its non-keyword skills for the duration of the turn.", "EX08-03");
   const all = opOf(baby, "choose")[0].sel;
-  assert.ok(all.area === "play" && all.filter?.characterOrTrait, `B1: EX08-03 — every <Baby> and every ≪Brainwashed≫ card on the table (${JSON.stringify(all)})`);
+  assert.deepEqual(all.areas, ["battle", "leader"], "B1: EX08-03 — only the two named areas, not Unison (R-402)");
+  assert.ok(all.filter?.characterOrTrait, `B1: EX08-03 — every <Baby> and every ≪Brainwashed≫ card in those areas (${JSON.stringify(all)})`);
   records += 2;
 }
 // B2. "Attacking" is the attack's own card.
