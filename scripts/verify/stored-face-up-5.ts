@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
+import { hiddenAliases, resolveAliased } from "../../src/lib/arena/conceal";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
@@ -28,6 +29,9 @@ defs["BT12-009"]=card("BT12-009",{"type": "BATTLE", "name": "Tien Shinhan, Ready
 defs["BT12-010"]=card("BT12-010",{"type": "BATTLE", "name": "Master Roshi, Ready for Anything", "colors": ["Red"], "traits": ["Earthling"], "characters": ["Master Roshi"], "skill": "[unique][blocker][revenge]<br>[auto]{r}, if your Leader Card is a red \u226aEarthling\u226b-only card: When this card in your life is flipped face up by one of your red card skills, you may place the top card of your deck in your life, then play this face-up card from your life. If you didn't play a card, place this face-up card in your Drop Area from your life.", "energyCost": 0, "back": null});
 defs["BT12-121"]=card("BT12-121",{"type": "EXTRA", "name": "Cutting-Edge Recovery Device", "colors": ["Yellow"], "traits": [], "characters": [], "skill": "[Barrier][Field]<br>[Auto][Once per turn] When a card in your life is flipped face up, choose up to 1 of your opponent's cards and switch it to Rest Mode.<br>[Activate: Main][Once per turn] If all of your energy is mono-yellow and you choose 1 card in your life and 1 yellow \u226aFrieza's Army\u226b card in your Battle Area and place them in their owners' Drop Areas: Draw 2 cards, then choose up to 1 mono-yellow \u226aFrieza's Army\u226b card or mono-yellow Unison Card in your hand and place it in your life face up.<br>[Activate: Main/Battle] If you have 3 or more face-up cards in your life and you place this card in its owner's Drop Area: You may flip your Leader Card to its back side. If you do, place the top card of your deck in your life face up.", "energyCost": 0, "back": null});
 defs["EX19-01"]=card("EX19-01",{"type": "BATTLE", "name": "Bulma, to Incite a Sneeze", "colors": ["Red"], "traits": ["Earthling", "Heroine"], "characters": ["Bulma"], "skill": "[Unique][Barrier]<br>[Auto][Limit 1] If your Leader Card is a red \u226aEarthling\u226b-only card with 10000 power or less: When a card in your life is flipped face up by one of your red card skills, you may play this card from your hand. If you do, choose up to 1 of your red Unison Cards with 1000 power and 2 markers or less, add a marker to it, and you can't play multicolor Battle Cards for the game.<br>[Auto] If your Leader Card is a red \u226aEarthling\u226b-only card with 10000 power or less: When a face-up red Battle Card in your life is played, it gets +5000 power for the turn.", "energyCost": 0, "back": null});
+defs.LF5_PLAIN_DOWN=card("LF5_PLAIN_DOWN",{skill:"[Activate: Main] Flip up to 1 card in your life face down."});
+defs.LF5_DOWN=card("LF5_DOWN",{skill:"[Activate: Main] Flip 1 face-up card in your life face down."});
+defs.LF5_SEEN=card("LF5_SEEN",{skill:"[Activate: Main] Look at up to 3 cards from the top of your deck, then flip up to 1 card among them face up."});
 const records=Object.values(defs).flatMap(skillRecords);
 const ctx:EngineContext={defs,scripts:rulesFromRows(copy(records.map((r,id)=>({...r,id,source:"compiler",status:"draft"}) as unknown as RuleRow)),defs)};
 const flipped=records.filter(r=>r.trigger?.includes("flippedFaceUp"));assert.equal(flipped.filter(r=>!r.cardId.startsWith("LF5_")).length,8);
@@ -62,8 +66,8 @@ for(const owner of ["p1","p2"] as const){
   if(mode==="already")s.cards[life].faceUp=true;
   const before=s.sides[owner].zones.hand.length,foeBefore=s.sides[other(owner)].zones.hand.length;
   s=take(s,{type:"activate",player:actor,card:source,skill:0});assert.equal(s.prompt.kind,"chooseCards");
-  // Non-chooser privacy here; the separate plain-Life-choice fix covers the chooser.
-  if(mode!=="already"&&mode!=="foe")assert.ok(!view(s,other(owner)).includes(JSON.stringify(life)),"non-chooser cannot see face-down Life identity");
+  // R-363: both chooser and non-chooser see positions only until the selected Life card turns face up.
+  if(mode!=="already")for(const viewer of ["p1","p2"] as const)assert.ok(!view(s,viewer).includes(JSON.stringify(life)),"neither viewer can see face-down Life identity");
   const chosen=take(s,{type:"choose",player:actor,cards:[life]});assert.deepEqual(chosen,take(copy(s),{type:"choose",player:actor,cards:[life]}));
   for(const pending of chosen.pending.filter(p=>p.trigger==="flippedFaceUp"))assert.equal(pending.subject,life,"self and external watchers bind the flipped Life card, never the distinct source");
   assert.ok(view(chosen,other(owner)).includes(JSON.stringify(life)),"actual face-up card becomes public");s=settle(chosen);
@@ -115,5 +119,31 @@ for(const owner of ["p1","p2"] as const){
  let s=fresh(owner);const source=stage(s,owner,"LF5_RED","battle"),life=stage(s,owner,"LF5_WATCH","life");const before=s.sides[owner].zones.hand.length;
  s=take(s,{type:"activate",player:owner,card:source,skill:0});s=settle(take(s,{type:"choose",player:owner,cards:[life]}));
  assert.equal(s.sides[owner].zones.hand.length,before,"a generic in-play watcher has no Life activation permission");cases++;
+}
+// R-363: choose using the client's positional alias, revealing only the chosen Life card.
+for(const owner of ["p1","p2"] as const)for(const opponent of [false,true]){
+ const actor=opponent?other(owner):owner;let s=fresh(actor);const source=stage(s,actor,opponent?"LF5_FOE":"LF5_RED","battle"),life=stage(s,owner,"LF5_FILLER","life"),untouched=s.sides[owner].zones.life[0];
+ s=take(s,{type:"activate",player:actor,card:source,skill:0});assert.equal(s.prompt.kind,"chooseCards");if(s.prompt.kind!=="chooseCards")throw Error("choose");assert.equal(s.prompt.choice.blind,true);
+ const alias=hiddenAliases(s,actor,game)[life];assert.ok(alias?.startsWith("?"));assert.ok(view(s,actor).includes(alias));
+ assert.equal(resolveAliased({type:"choose",player:actor,cards:[life]} as Action,s,actor,game).ok,false,"raw hidden identity is rejected");
+ const answer=resolveAliased({type:"choose",player:actor,cards:[alias]} as Action,s,actor,game);assert.ok(answer.ok);
+ s=settle(take(s,answer.value));for(const viewer of ["p1","p2"] as const){assert.ok(view(s,viewer).includes(JSON.stringify(life)));assert.ok(!view(s,viewer).includes(JSON.stringify(untouched)));}cases++;
+}
+for(const owner of ["p1","p2"] as const){
+ {
+  let s=fresh(owner);const source=stage(s,owner,"LF5_DOWN","battle"),life=stage(s,owner,"LF5_FILLER","life");s.cards[life].faceUp=true;
+  const record=records.find(r=>r.cardId==="LF5_DOWN")!;assert.deepEqual(record.unread,[]);const choose=record.ops.find(o=>o.op==="choose");assert.ok(choose&&choose.op==="choose"&&!choose.blind,"explicit face-up selection remains public");
+  s=settle(take(s,{type:"activate",player:owner,card:source,skill:0}));assert.equal(s.cards[life].faceUp,false);cases++;
+ }
+ {
+  let s=fresh(owner);const source=stage(s,owner,"LF5_SEEN","battle");const record=records.find(r=>r.cardId==="LF5_SEEN")!;assert.deepEqual(record.unread,[]);const choose=record.ops.find(o=>o.op==="choose");assert.ok(choose&&choose.op==="choose"&&choose.sel.fromVar&&!choose.blind,"already-looked-at pool remains visible");
+  s=take(s,{type:"activate",player:owner,card:source,skill:0});assert.equal(s.prompt.kind,"chooseCards");if(s.prompt.kind!=="chooseCards")throw Error("choose");const first=s.prompt.choice.candidates[0];assert.ok(view(s,owner).includes(JSON.stringify(first)));assert.ok(!view(s,other(owner)).includes(JSON.stringify(first)));s=settle(take(s,{type:"choose",player:owner,cards:[first]}));cases++;
+ }
+}
+for(const owner of ["p1","p2"] as const){
+ let s=fresh(owner);const source=stage(s,owner,"LF5_PLAIN_DOWN","battle"),life=stage(s,owner,"LF5_FILLER","life"),hidden=s.sides[owner].zones.life[0];s.cards[life].faceUp=true;
+ s=take(s,{type:"activate",player:owner,card:source,skill:0});assert.equal(s.prompt.kind,"chooseCards");if(s.prompt.kind!=="chooseCards")throw Error("choose");assert.equal(s.prompt.choice.blind,true);
+ for(const viewer of ["p1","p2"] as const){assert.ok(view(s,viewer).includes(JSON.stringify(life)),"blind choice does not hide an already-public face-up Life card");assert.ok(!view(s,viewer).includes(JSON.stringify(hidden)));}
+ s=settle(take(s,{type:"choose",player:owner,cards:[life]}));assert.equal(s.cards[life].faceUp,false);cases++;
 }
 console.log(`stored face up 5: ${cases} scenarios passed; eight actual stored Auto records usable`);

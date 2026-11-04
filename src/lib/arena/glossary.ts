@@ -691,6 +691,10 @@ export const READING_RULES: ReadingRule[] = [
     body: "Combo it with this card (XD3-08, BT10-133) uses the chosen card in your Combo Area while the attacker stays in battle. The printed chooser, origin, optionality and Battle Card condition remain. An opponent-owned card can join your combo through the skill without changing owner; the skill-made combo pays no combo cost (RM 5-7-3-1).",
   },
   {
+    title: "Plain Life flip choices are blind (R-363)",
+    body: "Flip a counted number of plain cards in either player’s Life chooses positions without exposing face-down card identities to either viewer. The client answers using the current positional alias; only a selected card becomes public when it actually turns face up. A description selecting already-face-up Life cards and a reference to a pool previously looked at keep their existing visibility. The compiler marks the existing choice blind; stored rules must be refreshed to receive this correction.",
+  },
+  {
     title: "Stored Life face-up Autos and their cause (R-362)",
     body: "A real face-down-to-face-up transition in Life emits one existing faceUpTurned event. The flipped card’s own Auto and its controller’s watchers answer; an explicit play-this-card-from-hand Auto also answers from hand. A this-card-in-Life Auto cannot answer another Life card’s transition. By one of your red card skills requires both red and the skill’s captured master, even if its source changed control or left play. Already face-up cards and face changes outside Life emit no Life transition. An own-Life Auto stamps its original area occurrence: a self selection in Life requires that same occurrence still face up, while its independent effects and legitimate later references outside Life remain valid. The obsolete stored-record rejection is removed after testing all eight printed Auto records through stored programs, including paid Life-to-Battle actions and EX19-01’s hand watcher.",
   },

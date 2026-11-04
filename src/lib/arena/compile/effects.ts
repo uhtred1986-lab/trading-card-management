@@ -13,7 +13,7 @@ import { opponentChoiceWords } from "./opponent-choice-shape";
 import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
-import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
+import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { boardCount, namesAPlace, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
@@ -3603,7 +3603,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   if ((m = /^(?:you may )?flip (.+?) face[- ](up|down)$/.exec(t))) {
     const up = m[2] === "up";
     const ref = refFor(m[1], c);
-    return ref ? withChoice(ref, clause, c, (target) => ({ op: "faceUp", target, ...(up ? {} : { faceUp: false }) })) : null;
+    if (!ref) return null;
+    // R-363 / 3-9-2: a plain Life choice grants neither player a look at face-down cards before choosing.
+    // A face-up description or a pool already revealed/looked at retains its existing visibility.
+    return withChoice(ref, clause, c, (target) => ({ op: "faceUp", target, ...(up ? {} : { faceUp: false }) }))
+      .map(op => op.op === "choose" && op.sel.area === "life" && !op.sel.areas && !op.sel.fromVar && !op.sel.special && !op.sel.filter ? { ...op, blind: true as const } : op);
   }
   // "Your opponent adds 2 cards from their hand to their energy in Hidden
   // Mode" (BT28-136): their choice, out of their own hand (5-2), and the
