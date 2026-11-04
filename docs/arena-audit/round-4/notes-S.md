@@ -1,5 +1,9 @@
 # Lane S (selectors), round 4 — what round 3 left
 
+**4 November follow-up:** [Seven condition misreads repaired](conditions-followup.md).
+The original findings below remain the historical round-3 handoff.
+
+
 From round 3's fix agent and adversarial reviewer (integration 4, #1246). Check each item against the printed text and the current reading (`npm run arena:compile-snapshot` on a fresh snapshot) before working it: some may have been fixed in passing.
 
 ## Audit findings still misread (10)
