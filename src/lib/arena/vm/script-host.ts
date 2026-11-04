@@ -32,7 +32,7 @@
  *
  * Pure: no database, no network, no `fs`.
  */
-import type { Amount, Cond, Op, Ref, ScriptFrame, Selector } from "./script";
+import type { Amount, Cond, Duration, Op, Ref, ScriptFrame, Selector } from "./script";
 import type {
   Area,
   CardDef,
@@ -43,6 +43,7 @@ import type {
   GameEvent,
   KeywordSkill,
   Mode,
+  NegatedSkillKind,
   MoveActor,
   MoveOptions,
   MoveReason,
@@ -342,5 +343,5 @@ export interface ScriptHost {
    * keyword whose own move this play is ([Over Realm], 22-15), carried onto
    * the arrival so `playedUsingOverRealm` can tell it from an ordinary play.
    */
-  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; under?: string[]; negated?: "turn" | "game"; counterWindow?: true; markers?: number; using?: string; toOwners?: true; toOpponent?: true }, frame: ScriptFrame): "wait" | void;
+  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; under?: string[]; negated?: "turn" | "game"; negatedKinds?: NegatedSkillKind[]; negatedUntil?: Duration; counterWindow?: true; markers?: number; using?: string; toOwners?: true; toOpponent?: true }, frame: ScriptFrame): "wait" | void;
 }

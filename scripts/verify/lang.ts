@@ -536,7 +536,7 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     const def: Definition = { define: "OP", name: "holes", takes: takes as never, do: body };
     tripDefs([def], "a DEFINE OP with a hole in every field type");
     const text = printDefinition(def);
-    assert.match(text, /until: \$p_duration/, "a duration hole does not print as $name");
+    assert.match(text, /(?:until|negatedUntil): \$p_duration/, "a duration hole does not print as $name");
     assert.match(text, /UNDER \(TOP \$h IN battle\) \$n TOP \$k IN \$side\.\$area/, `a selector's slots do not print as holes:\n${text}`);
     assert.match(text, /"yes" \$yes/, "a mode's whole program does not print as a hole");
     assert.match(text, /power\(target: \$t, amount: \$n, until: turn\)/, "an amount or ref var prints differently from before");

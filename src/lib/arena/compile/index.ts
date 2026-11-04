@@ -556,23 +556,24 @@ function hasBattleEndDelay(value: unknown): boolean {
   return Object.values(o).some(hasBattleEndDelay);
 }
 
-/** Mark every `play … onto` an [Union-Absorb] effect makes as the keyword's own (22-13-6-3, #929). */
+/** R-388: Absorb plays its specified arrival on the activating card (22-13-6-3).
+ * Future delayed/granted skills are separate execution trees, never Absorb arrivals. */
 function markAbsorbPlays(script: Script): Script {
-  const mark = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(mark);
-    if (!value || typeof value !== "object") return value;
-    const object = value as Record<string, unknown>;
-    if (object.op === "play" && object.onto && !object.using) return { ...object, using: "Union-Absorb", counterWindow: true };
-    let changed = false;
-    const next: Record<string, unknown> = {};
-    for (const [key, part] of Object.entries(object)) {
-      const mapped = mark(part);
-      next[key] = mapped;
-      changed ||= mapped !== part;
+  const count = (ops: Op[]): number => ops.reduce((n, op) => n + (op.op === "play" ? 1
+    : op.op === "if" ? count(op.then) + count(op.else ?? [])
+    : op.op === "may" ? count(op.ops)
+    : op.op === "chooseMode" ? op.modes.reduce((sum, mode) => sum + count(mode.ops), 0) : 0), 0);
+  const soleArrival = count(script.ops) === 1;
+  const mark = (ops: Op[]): Op[] => ops.map((op): Op => {
+    if (op.op === "play" && !op.using && (op.onto || soleArrival)) {
+      return { ...op, onto: op.onto ?? { sel: { special: "self" } }, using: "Union-Absorb", counterWindow: true };
     }
-    return changed ? next : value;
-  };
-  return { ...script, ops: mark(script.ops) as Op[] };
+    if (op.op === "if") return { ...op, then: mark(op.then), ...(op.else ? { else: mark(op.else) } : {}) };
+    if (op.op === "may") return { ...op, ops: mark(op.ops) };
+    if (op.op === "chooseMode") return { ...op, modes: op.modes.map(mode => ({ ...mode, ops: mark(mode.ops) })) };
+    return op;
+  });
+  return { ...script, ops: mark(script.ops) };
 }
 
 /**

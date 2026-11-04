@@ -564,7 +564,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
   play: {
-    fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "alsoUnder", type: "ref", offCard: "more cards that go under the played card as part of the same play (22-13-5-4: [Union-Potara]'s second material) — none moves when the play fails" }, { name: "negated", type: { enum: ["turn", "game"] } }, {
+    fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "alsoUnder", type: "ref", offCard: "more cards that go under the played card as part of the same play (22-13-5-4: [Union-Potara]'s second material) — none moves when the play fails" }, { name: "negated", type: { enum: ["turn", "game"] } }, { name: "negatedKinds", type: { list: { enum: NEGATED_KINDS } } }, { name: "negatedUntil", type: "duration" }, {
         name: "activating",
         type: "boolean",
         offCard: "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; an Extra with none in its master's hand is activated through its [Activate: Main] line, its costs waived (12-2-4, \"choose 1 {Tora's Red Armband} … in your hand, activate it\", EB1-59); any other card is played as before",
@@ -600,12 +600,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"play">;
+      const kinds = op.negatedKinds ? ` with its ${op.negatedKinds.map((kind) => `[${kind}]`).join(" and ")} skills negated${forThe(op.negatedUntil!, r)}` : "";
       if (op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve") {
         const base = op.onto && "sel" in op.onto && op.onto.sel.filter
           ? describeSelector({ side: "you", area: "battle", filter: op.onto.sel.filter, count: 1 }).replace(/^1 /, "") : "base";
         const source = "sel" in op.target && op.target.sel.area === "drop" ? " from its Drop Area" : "";
         const warp = op.using === "Xeno-Evolve" ? " (sending the base to the Warp)" : "";
-        return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}`;
+        return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}${kinds}`;
       }
       // Audit effects 2 (describe only): an Extra with no [Field] in the hand is activated through its [Activate: Main]
       // (EB1-59, the VM's `activating`), never played.
@@ -618,9 +619,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         + (op.negated ? ` with its skills negated${op.negated === "game" ? " for the game" : " for the turn"}` : "");
       // "…with a marker on it" (13-2-3, #980): what the card arrives with.
       const on = op.markers === undefined ? "" : ` with ${describeAmount(op.markers)} marker${op.markers === 1 ? "" : "s"} on it`;
-      return played + on;
+      return played + on + kinds;
     },
-    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15). "using: Union-Fusion/Union-Potara/Union-Absorb" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; "alsoUnder" puts [Union-Potara]\'s second material under the card as part of the play.',
+    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "negatedKinds" and "negatedUntil" are a nonempty exact kind list and its duration: those skills are negated on successful entry before played triggers and the landed counter window (R-388), respecting negation protection and the acting skill master/source. Use neither field for a later separate negation. "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15). "using: Union-Fusion/Union-Potara/Union-Absorb" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; "alsoUnder" puts [Union-Potara]\'s second material under the card as part of the play.',
   },
   switchMode: {
     fields: [
@@ -2199,6 +2200,9 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     for (const f of spec.fields) {
       const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
       if (bad) return bad;
+    }
+    if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
+      if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
     }
     if (o.op === "permit" && o.what === "unionLine" && (typeof o.line !== "string" || !o.line || !isRecord(o.price))) return `${step}: a granted Union line needs its typed skill price; regenerate the grant`;
     if (o.op === "permit" && o.what === "unionLine") {

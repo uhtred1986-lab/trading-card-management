@@ -1558,6 +1558,8 @@ export interface MoveCause {
   replacementEvent?: string;
   /** 8-5-8: its generic Combo-to-Drop Auto was pended at 8-5-6. */
   cleanupDeparture?: true;
+  /** Synchronous arrival setup after zone reset, before any movement/entry watchers. Never persisted. */
+  beforeTriggers?: () => void;
 }
 
 /**
@@ -1620,6 +1622,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
+  if (to === asked) opts.beforeTriggers?.();
   const moment = movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder);
   if (wasFaceUpLife) moment.args.faceUp = true;
   if (returnInfo && (to === "hand" || from === "unison")) moment.subjectInfo = returnInfo;

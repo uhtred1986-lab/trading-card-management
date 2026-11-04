@@ -33,15 +33,16 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
 import type { EngineContext, GameEvent } from "../types";
-import type { Mode, PlayerId } from "../types";
+import type { Mode, NegatedSkillKind, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
 import { addEffect } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { fire, log } from "./events";
+import type { Duration } from "./script";
 import { moved } from "./flow";
 import type { VmState } from "./state";
-import { attrsNow, condHolds, entryAnswers, queryHookStatics } from "./program";
+import { attrsNow, condHolds, forbids, entryAnswers, queryHookStatics } from "./program";
 import { playGates, skillsShowing, type VmPending } from "./triggers";
 import type { Cond } from "./script";
 import { SETUP_ZONES, findCard, moveCard } from "./zones";
@@ -105,6 +106,10 @@ export interface PlayOptions {
   onto?: string;
   /** 9-1-5: "played with its skills negated". */
   negated?: "turn" | "game";
+  /** Exact kinds negated on arrival, before played triggers (R388). */
+  negatedKinds?: NegatedSkillKind[];
+  negatedUntil?: Duration;
+  negatedBy?: { player: PlayerId; source?: string };
   /**
    * 9-1-5 again, the shape a [Counter: Play] leaves on the play it answers
    * ("it's played with its skills negated for the turn", #150): the same
@@ -252,8 +257,14 @@ export function resolvePlay(
   // Audit conditions 3: where the card was as it was played ("if this card was played from a Drop", BT31-050).
   const origin = findCard(state, card)?.zone;
   const cause: { by?: string; byOpponent?: boolean; byCard?: string } = opts.by && findCard(state, card)?.zone !== "battle" ? { by: opts.by, byOpponent: opts.byOpponent ?? false, ...(opts.byCard !== undefined ? { byCard: opts.byCard } : {}) } : {};
-  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], cause);
-  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause });
+  const beforeTriggers = (): void => {
+    if (!opts.negatedKinds?.length || !opts.negatedUntil || (findCard(state, card)?.zone !== to || findCard(state, card)?.owner !== player)) return;
+    const by = opts.negatedBy ?? { player, source: opts.byCard };
+    if (forbids(ctx, game, state, "beNegated", { card, ...by })) return;
+    for (const kind of opts.negatedKinds) addEffect(state, ev, { target: card, kind: "negateSkillKind", value: kind, until: opts.negatedUntil, master: by.player, source: by.source });
+  };
+  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], { ...cause, beforeTriggers });
+  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause, beforeTriggers });
   // 22-15: the card remembers which keyword played it, for the rest of the
   // turn — P-048's "during the turn you played it with [Over Realm]"
   // (`playedUsing`). Set after the arrival, which resets the copy (3-1-4).
@@ -373,7 +384,7 @@ export function resolvePlay(
  * (8-1-7-1). The card underneath answers no moment: it has not left the area
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
-function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string } = {}): void {
+function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; beforeTriggers?: () => void } = {}): void {
   const slot = state.sides[player].zones[to].indexOf(host);
   const mode = state.cards[host].mode;
   // 22-13-5-4 (#927): [Union-Potara] stacks two cards, "in any order" - the

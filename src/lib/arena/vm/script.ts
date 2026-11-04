@@ -828,7 +828,7 @@ export type Op =
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
   /** Mechanism batch 3: `toOwners` — "play them to their owners' Battle Areas" (BT13-096): each card into its own owner's Battle Area. */
   /** Audit selectors 2: `toOpponent` — "play … from your deck **to your opponent's Battle Area**" (BT13-028, BT22-006): into the other player's Battle Area, under their control. */
-  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string; toOwners?: true; toOpponent?: true; ignoreOwnPermanent?: true }
+  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; negatedKinds?: NegatedSkillKind[]; negatedUntil?: Duration; counterWindow?: true; markers?: Amount; using?: string; toOwners?: true; toOpponent?: true; ignoreOwnPermanent?: true }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
@@ -4305,7 +4305,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.toOpponent ? { toOpponent: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negatedKinds: op.negatedKinds, negatedUntil: op.negatedUntil, negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.toOpponent ? { toOpponent: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":

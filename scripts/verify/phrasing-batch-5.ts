@@ -88,7 +88,8 @@ for (const [text, what] of [
 {
   const P_327 = "[union absorb][limit 1]{g}/{y}, if your Leader Card is an ≪Android≫ card and you have 4 or more energy: You may place up to 1 <Cell> card from your deck or Drop Area under this card. If you do, choose up to 1 {Super 17, Cell Absorbed} or {Super 17, Hell's Storm Unleashed} in your deck or hand, play it with its keyword skills negated for the turn, then shuffle your deck if you looked through it.";
   const rec = record(P_327, "P-327");
-  const negs = opOf(rec, "negateSkillsOfKind");
+  const play = opOf(rec, "play")[0];
+  const negs = (play.negatedKinds ?? []).map((kind) => ({ kind, until: play.negatedUntil }));
   assert.deepEqual(negs.map((n) => n.kind), ["keyword", "counter"], "A2: the keyword skills and the [Counter]s");
   assert.ok(negs.every((n) => n.until === "turn"), "A2: …for the turn");
   assert.ok(!opsDeep(rec.ops).some((o) => o.op === "negateSkills" || (o.op === "play" && o.negated)), "A2: …and never every skill (it read as that before)");

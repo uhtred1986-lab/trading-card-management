@@ -1720,6 +1720,10 @@ export const READING_RULES: ReadingRule[] = [
     title: "Awaken:Surge pays distinct cards before its effects (4 Nov 2026)",
     body: "**Two colors still require two cards** (R-387; RM 22-2-3, 5-8-2-2). Surge's color slots use the same matching as other distinct-card payments, so a multicolor card can fill either slot but never both. Both selected hand cards go under the Leader before its draw, energy switch and flip. Saved mid-payment choices retain the same Leader and material occurrences; changed or failed payments do not release the effects. Regular Awaken conditions and other activation prices keep their established behavior.",
   },
+  {
+    title: "Absorb hosts and partial skill negation on entry (4 Nov 2026)",
+    body: "**Arrival characteristics apply before arrival triggers** (R-388; RM 9-1-5-1, 22-13-6-3; Q&A BT10-153, DB1-066). P-327's Union-Absorb places its single specified arrival on the activating card, carrying its stack, mode and power effects. Plays with keyword skills negated remove keyword and Counter skills at entry while keeping Autos and Permanents; plays with non-keyword skills negated do the inverse, and named Auto negation removes only Autos. The typed play fields negatedKinds and negatedUntil preserve exact duration, source, master and negation protection. They take effect after the area change but before played Autos and the landed counter window, leaving preentry Deflect intact. Ordinary later negations retain their separate timing. This does not resolve unrelated unread clauses on migrated records.",
+  },
 ];
 
 // ── Fusion World spellings (#1187) ─────────────────────────────────────────

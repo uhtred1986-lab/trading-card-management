@@ -602,9 +602,9 @@ function negateNonKeyword(target: Ref, until: Duration): Op[] {
 function negateKeywordSkills(target: Ref, until: Duration): Op[] {
   return (["keyword", "counter"] as const).map((kind) => ({ op: "negateSkillsOfKind", target, kind, until }));
 }
-/** Which half of a card's skills a "…(non-)keyword skills negated" names, as the ops that negate it. */
-function negateHalf(half: string, target: Ref, until: Duration): Op[] {
-  return /^non-/.test(half) ? negateNonKeyword(target, until) : negateKeywordSkills(target, until);
+/** R-388: entry negation is part of the play, before any played Auto or landed counter. */
+function negateHalf(half: string, until: Duration): Pick<Extract<Op, { op: "play" }>, "negatedKinds" | "negatedUntil"> {
+  return { negatedKinds: /^non-/.test(half) ? [...NON_KEYWORD_KINDS] : ["keyword", "counter"], negatedUntil: until };
 }
 
 function durationOf(clause: string): Duration {
@@ -4372,9 +4372,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const half = m[5] && /skills negated/.test(t) ? m[5].trim() : undefined;
     if (!half && / until the end of your opponent's next turn$/.test(tOnTop)) return null;
     const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !half ? (m[6] === "game" ? "game" : "turn") : undefined;
-    const thenNegate = (target: Ref): Op[] => (half ? negateHalf(half, target, durationOf(tOnTop.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : []);
+    const entryNegation = half ? negateHalf(half, durationOf(tOnTop.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : {};
     if (!onto || !ref) return null;
-    const extra = { onto, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
+    const extra = { ...entryNegation, onto, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
     if ("sel" in ref) {
       const v = `p${c.n++}`;
       c.lastPlayed = v;
@@ -4382,10 +4382,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
         ...hostOps,
         { op: "choose", sel: ref.sel, as: v, reason: clause },
         { op: "play", target: { var: v }, ...extra },
-        ...thenNegate({ var: v }),
       ];
     }
-    return [...hostOps, { op: "play", target: ref, ...extra }, ...thenNegate(ref)];
+    return [...hostOps, { op: "play", target: ref, ...extra }];
   }
 
   // Audit effects 2: "…play up to 1 red ≪Bardock's Crew≫ card … among them **with its [auto] skills negated for the turn**"
@@ -4396,8 +4395,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     if (kindNegated) {
       const played = compileClause(kindNegated[1], c);
       const play = played?.filter((o): o is Extract<Op, { op: "play" }> => o.op === "play").pop();
-      if (!played || !play || play.negated) return null;
-      return [...played, { op: "negateSkillsOfKind", target: play.target, kind: kindNegated[2] as "auto" | "activate" | "permanent", until: kindNegated[3] === "game" ? "game" : "turn" }];
+      if (!played || !play || play.negated || play.negatedKinds) return null;
+      return played.map((op) => op === play ? { ...play, negatedKinds: [kindNegated[2] as "auto" | "activate" | "permanent"], negatedUntil: kindNegated[3] === "game" ? "game" : "turn" } : op);
     }
   }
   // Playing a card by a skill (5-5-3).
@@ -4502,8 +4501,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const mode = m[2] as "rest" | "active" | undefined;
     // 9-1-5: "played … with its skills negated", which the sets print with and
     // without the article before "game". Phrasing batch 4: "…with its **non-keyword** skills negated" is the
-    // negation of the card's [Auto], [Activate] and [Permanent] skills once it is played (`negateNonKeyword`), and
-    // may last "until the end of your opponent's next turn" (EX21-20); the play itself is plain.
+    // negation of the card's [Auto], [Activate] and [Permanent] skills as it enters, and
+    // may last "until the end of your opponent's next turn" (EX21-20); preserve that exact duration on the play.
     // Phrasing batch 5 (owner's ruling of 26 Oct 2026 on P-327): "…with its **keyword** skills negated" is the inverse
     // half, its keyword skills and [Counter]s (`negateHalf`); it used to read as every skill negated.
     const half = m[3] && /skills negated/.test(t) ? m[3].trim() : undefined;
@@ -4512,7 +4511,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // was played (9-9-2 ends it when the card leaves the area); the sets that mean the turn print "for the turn" (DB2-068,
     // DB2-071, DB2-073). It used to last the turn.
     const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !half ? (m[4] === "game" || /skills negated$/.test(tp) ? "game" : "turn") : undefined;
-    const thenNegate = (target: Ref): Op[] => (half ? negateHalf(half, target, durationOf(t.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : []);
+    const entryNegation = half ? negateHalf(half, durationOf(t.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : {};
     let ref = refFor(m[1], c);
     if (!ref) return null;
     // Audit effects 2: "…and if the Battle Card being played has an energy cost of 7 or less, **play it in Rest Mode**"
@@ -4557,7 +4556,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const chosenSel = "var" in ref ? c.choices.find((ch) => ch.var === (ref as { var: string }).var)?.sel : ref.sel;
     const activating = /^activate\b/.test(tp) && !/\bwithout paying\b|^(?:(?:up to )?\d+ |an? |the |its |their |this card's |that card's )?\[[^\]]*\] skills?\b|\bskills? (?:of|on)\b/.test(m[1])
       && (/^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from .+)?$/.test(m[1]) || (/^(?:it|them|that card|those cards|the chosen cards?)$/.test(m[1]) ? extraLike(chosenSel) : "sel" in ref && extraLike(ref.sel)));
-    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...(toOpponent ? { toOpponent: true as const } : {}), ...arrivesWith } as const;
+    const extra = { ...entryNegation, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...(toOpponent ? { toOpponent: true as const } : {}), ...arrivesWith } as const;
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;
@@ -4565,12 +4564,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       return [
         { op: "choose", sel: ref.sel, as: v, reason: clause },
         { op: "play", target: { var: v }, ...extra },
-        ...thenNegate({ var: v }),
       ];
     }
     // Audit effects 2: "the card you played with this skill" (BT6-126) is the card a play of a bound name played too.
     if ("var" in ref) c.lastPlayed = ref.var;
-    return [{ op: "play", target: ref, ...extra }, ...thenNegate(ref)];
+    return [{ op: "play", target: ref, ...extra }];
   }
 
   // 5-2: the skill is yours, but the choice is *theirs* — "your opponent
