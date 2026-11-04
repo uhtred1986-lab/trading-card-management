@@ -927,6 +927,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (def.again !== true) answered(state);
     return "done";
   }
+  let paidResources: ReturnType<typeof chargeCost> | undefined;
   const early = line && announcesBeforePrice(line) ? line : null;
   if (chosen.alt) {
     // 5-3: the alternative is paid *instead of* the declared price — nothing,
@@ -941,7 +942,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       const plan = planCost(ctx, game, state, player, chosen.price, card);
       if (!plan.ok) throw new IllegalAction(`${def.label ?? def.name} cannot be paid for: ${plan.why[0].kind}`);
       const spent = scopedPayersSpent(ctx, game, state, player, line);
-      chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
+      paidResources = chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
       spent(plan.payment.rest);
     }
   } else if (def.cost?.length && !declining(def, card)) {
@@ -973,7 +974,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (early) announce(state, ev, player, early);
     // BT28-106: a once-per-turn grant whose card paid this line is spent.
     const spent = line ? scopedPayersSpent(ctx, game, state, player, line) : null;
-    chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
+    paidResources = chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
     spent?.(plan.payment.rest);
   } else if (early) announce(state, ev, player, early);
   // The one move whose program is not the declaration's: an activation runs the
@@ -997,7 +998,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     const queued = state.programs.length;
     const strictDrop = hasDropActionPrice(state, line);
     if (strictDrop) queueDropCost(ctx, game, state, player, line, chosen.x);
-    else resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto);
+    else resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto, paidResources);
     // #677: the prices are charged in front of everything the activation
     // queued, re-read live after each one (`vm/activate.ts`'s `TaxGate`).
     if (gate) queueTaxGate(state, gate, state.programs.length - queued);

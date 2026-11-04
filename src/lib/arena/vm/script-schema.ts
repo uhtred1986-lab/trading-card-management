@@ -1702,8 +1702,10 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     fields: [
       { name: "var", type: "string", required: true },
       { name: "filter", type: "filter", required: true },
+      { name: "paid", type: "boolean" },
     ],
-    sentence: (raw) => `that card is ${describeFilter((raw as CondOf<"varMatches">).filter)}`,
+    sentence: (raw) => `${(raw as CondOf<"varMatches">).paid ? "a card paid for this skill was" : "that card is"} ${describeFilter((raw as CondOf<"varMatches">).filter)}`,
+    doc: 'R-389: paid:true tests historical characteristics captured when a declared pooled payment succeeded; it does not reread the current card or the whole Drop. Missing paid history interrupts with a saved-match rebuild message. Omitted paid retains live variable matching; selecting/playing paid cards uses a separate live fromVar selector and its epoch stamp.',
   },
   isTurnPlayer: {
     fields: [{ name: "who", type: { enum: ["you", "opponent"] } }],
@@ -1867,7 +1869,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   not:            "primitive",
   chose:          "macro over `count`",
   choseFrom:      "primitive",
-  varMatches:     "macro over `count`",
+  varMatches:     "primitive",
   varAttrIsX:     "primitive",
   xAtLeast:       "primitive",
   isTurnPlayer:   "primitive",

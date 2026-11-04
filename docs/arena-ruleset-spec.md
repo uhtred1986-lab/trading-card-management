@@ -234,7 +234,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `not` | primitive | Negation. |
 | `chose` | macro over `count` | How many cards were bound to the named variable: a count over `FROM $var`. |
 | `choseFrom` | primitive | Phrasing batch 6: did a choice over more than one area take a card from one of `areas` — "If you placed a card from your hand at the bottom of your deck" (EX16-02)? Where each card was as it was chosen, kept on the frame (`chosenFrom`): the move after the choice has taken it elsewhere, so nothing counted on the board now says it. |
-| `varMatches` | macro over `count` | `count(FROM $var matching the filter) >= 1`. |
+| `varMatches` | primitive | Live variable matching is `count(FROM $var matching the filter) >= 1`; `paid: true` matches saved characteristics of successful payment cards (R-389), independent of their current area or characteristics. |
 | `varAttrIsX` | primitive | "If the revealed card's energy cost is the same as the declared number" (BT22-090): the card a reveal bound, measured against the X a `declare` bound. A comparison between a card's measure and a number the program holds, which `count` (a bound written into the program) cannot say. |
 | `xAtLeast` | primitive | Phrasing batch 10 (22-43): "If you removed a marker from one of your red Unison Cards using this skill" on a [Spirit Boost X] line (BT14-029): the X its price was paid at is at least n. A number the program holds, which `count` cannot say. |
 | `isTurnPlayer` | primitive | A fact about the game rather than about any card or pile (7-1). Stage 3 declares the turn player as a game attribute, which will make this a comparison like the rest. |

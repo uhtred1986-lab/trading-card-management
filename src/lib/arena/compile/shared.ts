@@ -166,6 +166,8 @@ export interface Ctx {
    * of 1 per card, so "them" is all of them.
    */
   milledPile?: string[];
+  /** R-389: native Burst paid cards have historical facts and separate live epoch-bound references. */
+  paidPile?: { name: string; count: number };
   lastTarget: Ref | null;
   /**
    * The antecedent that was standing when a clause in this skill went unread.

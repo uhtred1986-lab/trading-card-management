@@ -2025,6 +2025,10 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     case "choseFrom":
       return (frame.chosenFrom?.[c.var] ?? []).some((area) => (c.areas as string[]).includes(area));
     case "varMatches":
+      if (c.paid) {
+        if (!frame.paidCardInfo?.[c.var]) throw new NotYet("read paid-card history missing from a saved frame; rebuild the saved match", "R-389");
+        return Object.values(frame.paidCardInfo[c.var]).some(info => predicateOf(c.filter, game)(info));
+      }
       return (frame.vars[c.var] ?? []).some((id) => state.cards[id] && predicateOf(c.filter, game)(attrsNow(ctx, game, state, id)));
     // "If the revealed card's energy cost is the same as the declared number" (BT22-090).
     // Phrasing batch 10 (22-43): the X a [Spirit Boost X] price was paid at.

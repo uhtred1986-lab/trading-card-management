@@ -770,11 +770,11 @@ export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, st
 
 /** Verify declared resource instructions completed too: Burst/life movement
  * replacements cannot turn a known price into a partial payment (5-8-2-2). */
-function chargeAutomaticPayment(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, payment: VmPayment, costs: string[]): void {
+function chargeAutomaticPayment(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, payment: VmPayment, costs: string[]): ReturnType<typeof chargeCost> {
   for (const id of payment.rest) {
     if (state.cards[id]?.mode !== "active") throw new IllegalAction("this Auto payment is no longer payable");
   }
-  chargeCost(ctx, game, state, ev, frame.master, payment, frame.card, costs);
+  const paid = chargeCost(ctx, game, state, ev, frame.master, payment, frame.card, costs);
   for (const pooled of payment.pooled) {
     const op = game.costs[pooled.cost]?.do[0];
     if (op?.op !== "moveTo") throw new NotYet("verify this Auto's pooled payment", "#549");
@@ -783,6 +783,7 @@ function chargeAutomaticPayment(ctx: EngineContext, game: GameDefinition, state:
       if (!where) throw new IllegalAction("the Auto's pooled skill cost was replaced and cannot be paid");
     }
   }
+  return paid;
 }
 
 /** JSONB reload may reorder object keys; compare payment values, not encoding. */
@@ -809,6 +810,8 @@ export function beginAutomaticCost(ctx: EngineContext, game: GameDefinition, sta
   const spent = scopedPayersSpent(ctx, game, state, frame.master, { card: frame.card, skillIndex: cost.skill.index, skill: cost.skill, kind: cost.skill.kind, script: undefined });
   cost.stage = "action";
   if (choice.x !== undefined) frame.x = choice.x;
-  chargeAutomaticPayment(ctx, game, state, ev, frame, choice.payment, cost.costs);
+  const paid = chargeAutomaticPayment(ctx, game, state, ev, frame, choice.payment, cost.costs);
+  frame.vars = { ...frame.vars, ...paid.vars };
+  frame.paidCardInfo = { ...frame.paidCardInfo, ...paid.paidCardInfo };
   spent(choice.payment.rest);
 }

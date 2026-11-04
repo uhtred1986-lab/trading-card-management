@@ -4375,6 +4375,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const entryNegation = half ? negateHalf(half, durationOf(tOnTop.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : {};
     if (!onto || !ref) return null;
     const extra = { ...entryNegation, onto, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
+    if ("sel" in ref && ref.sel.fromVar === c.paidPile?.name && c.paidPile?.count === 1) return [...hostOps, { op: "play", target: ref, ...extra }];
     if ("sel" in ref) {
       const v = `p${c.n++}`;
       c.lastPlayed = v;
@@ -4557,6 +4558,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const activating = /^activate\b/.test(tp) && !/\bwithout paying\b|^(?:(?:up to )?\d+ |an? |the |its |their |this card's |that card's )?\[[^\]]*\] skills?\b|\bskills? (?:of|on)\b/.test(m[1])
       && (/^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from .+)?$/.test(m[1]) || (/^(?:it|them|that card|those cards|the chosen cards?)$/.test(m[1]) ? extraLike(chosenSel) : "sel" in ref && extraLike(ref.sel)));
     const extra = { ...entryNegation, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...(toOpponent ? { toOpponent: true as const } : {}), ...arrivesWith } as const;
+    if ("sel" in ref && ref.sel.fromVar === c.paidPile?.name && c.paidPile?.count === 1) return [{ op: "play", target: ref, ...extra }];
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;
@@ -6908,6 +6910,20 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
   if ((m = /^if the card you switched to (rest|active) mode (has|is|was) (?:an? )?(.+)$/.exec(t)) && lastVar && c.lastOp === "switchMode") {
     const filter = described(m[2] === "has" ? `card with ${m[3]}` : m[3]);
     return filter ? { kind: "varMatches", var: lastVar, filter } : null;
+  }
+  // R-389: Burst's paid cards, remembered when they reached the Drop. Historical
+  // predicates do not retarget an unrelated Drop card or reread a later occurrence.
+  if (c.paidPile) {
+    const single = /^if the card (?:you placed|placed) (?:in|into) (?:the|your|its owner'?s) drop(?: area)? (?:with|using|by) this skill (?:is|was) (?:an? )?(.+)$/.exec(t);
+    const any = /^if (?:an? )(.+?) card (?:is|was) placed (?:in|into) (?:your|the) drop(?: area)? (?:by|with|using) this skill$/.exec(t);
+    if ((single && c.paidPile.count === 1) || any) {
+      const said = single ? single[1] : `${any![1]} card`;
+      const nonColor = /^non-(?:red|blue|green|yellow|black|white) card$/.test(said);
+      const filter = nonColor ? filterFor(said, null) : described(said);
+      if (!filter || filter.unreadable || (nonColor && filter.notColors.length !== 1)) return null;
+      if (single) { c.last = null; c.lastTarget = { sel: { fromVar: c.paidPile.name, area: "drop", side: "you" } }; }
+      return { kind: "varMatches", var: c.paidPile.name, filter, paid: true };
+    }
   }
   // Audit conditions 3: "…place 1 blue Battle Card … into its owner's Drop: Play this card from your hand. Additionally, if
   // **the card placed into its owner's Drop by this skill** is a ≪Phantom Demon≫ card" (P-628): the same price's card.

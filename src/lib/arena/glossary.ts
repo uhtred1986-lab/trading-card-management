@@ -1728,6 +1728,10 @@ export const READING_RULES: ReadingRule[] = [
     title: "Absorb hosts and partial skill negation on entry (4 Nov 2026)",
     body: "**Arrival characteristics apply before arrival triggers** (R-388; RM 9-1-5-1, 22-13-6-3; Q&A BT10-153, DB1-066). P-327's Union-Absorb places its single specified arrival on the activating card, carrying its stack, mode and power effects. Plays with keyword skills negated remove keyword and Counter skills at entry while keeping Autos and Permanents; plays with non-keyword skills negated do the inverse, and named Auto negation removes only Autos. The typed play fields negatedKinds and negatedUntil preserve exact duration, source, master and negation protection. They take effect after the area change but before played Autos and the landed counter window, leaving preentry Deflect intact. Ordinary later negations retain their separate timing. This does not resolve unrelated unread clauses on migrated records.",
   },
+  {
+    title: "Burst remembers the cards paid for this skill (4 Nov 2026)",
+    body: "**Paid history and live card references are separate** (R-389; RM 22-27-3/4, 5-8-2-2, 3-1-4). Burst binds exactly the cards successfully placed from the top of the deck into the Drop. Conditions about a card placed by this skill use historical characteristics through varMatches with paid:true, so later color changes or movement cannot rewrite what was paid. A play of that card uses its live Drop location and paid occurrence stamp; leaving and returning does not restore the old reference. Declined, insufficient and replaced payments do not release paid-card effects or successful history. Saved frames without required history interrupt with a rebuild message. SD16-01 can gain both Critical and power from a mixed paid pool; an unrelated old Drop card cannot qualify it.",
+  },
 ];
 
 // ── Fusion World spellings (#1187) ─────────────────────────────────────────

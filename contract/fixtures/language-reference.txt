@@ -3641,8 +3641,8 @@
     },
     {
       "kind": "varMatches",
-      "class": "macro over `count`",
-      "signature": "{\"kind\":\"varMatches\",\"var\":\"…\",\"filter\":FILTER}",
+      "class": "primitive",
+      "signature": "{\"kind\":\"varMatches\",\"var\":\"…\",\"filter\":FILTER,\"paid\"?:true|false}",
       "fields": [
         {
           "name": "var",
@@ -3655,9 +3655,16 @@
           "required": true,
           "nullable": false,
           "type": "filter"
+        },
+        {
+          "name": "paid",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
-      "sentence": "that card is red"
+      "sentence": "that card is red",
+      "doc": "R-389: paid:true tests historical characteristics captured when a declared pooled payment succeeded; it does not reread the current card or the whole Drop. Missing paid history interrupts with a saved-match rebuild message. Omitted paid retains live variable matching; selecting/playing paid cards uses a separate live fromVar selector and its epoch stamp."
     },
     {
       "kind": "isTurnPlayer",

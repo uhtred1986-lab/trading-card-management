@@ -84,6 +84,7 @@ import type { PayerGrant, VmAltCost } from "./effects";
 import { attrsNow, resolveSelector, staticsNow } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { NotYet, RulesetBroken } from "./errors";
+import { IllegalAction } from "./common";
 import { SETUP_ZONES, moved, type MoveCause } from "./flow";
 import { fire, log } from "./events";
 import type { VmState } from "./state";
@@ -920,6 +921,10 @@ export function describePayment(ctx: EngineContext, game: GameDefinition, state:
  * `arena:diff` compares: a `mode` per card rested, one `energyMarker` for the
  * markers spent, a `markers` for the card's own, and a `move` per life card.
  */
+export type PaidResources = Pick<ScriptFrame, "vars" | "paidCardInfo">;
+/** Reserved effect variable for a declared pooled cost; not a card-specific binding. */
+export const paidPoolVar = (cost: string): string => `paid_${cost}`;
+
 export function chargeCost(
   ctx: EngineContext,
   game: GameDefinition,
@@ -931,7 +936,8 @@ export function chargeCost(
   costs: string[],
   move?: (id: string, to: string, opts: MoveCause) => void,
   onRest?: (id: string) => void,
-): void {
+): PaidResources {
+  const paid: PaidResources = { vars: {}, paidCardInfo: {} };
   const charges = chargesOf(game);
   const payMove = move ?? ((id: string, to: string, opts: MoveCause) => moved(ctx, game, state, ev, id, to, opts));
   const payMode = (id: string, mode: string) => {
@@ -970,7 +976,19 @@ export function chargeCost(
         // out of an open pool (5-4's Z-Energy) was never hidden. Read off the
         // zone's declared visibility, never off the price's name.
         const reveal = game.zones[charge.from.area]?.visibility === "all" ? {} : { reveal: true };
-        for (const id of payment.pooled.find((x) => x.cost === name)?.cards ?? []) payMove(id, to, { owner: player, asPlay: false, ...reveal });
+        const cards = payment.pooled.find((x) => x.cost === name)?.cards ?? [];
+        if (!cards.length) break;
+        const binding = paidPoolVar(name);
+        paid.vars[binding] = [];
+        paid.vars[`${binding}@epoch`] = [];
+        paid.paidCardInfo![binding] = {};
+        for (const id of cards) {
+          payMove(id, to, { owner: player, asPlay: false, ...reveal });
+          if (!state.sides[player].zones[to]?.includes(id)) throw new IllegalAction("the pooled skill cost was replaced and cannot be paid");
+          paid.vars[binding].push(id);
+          paid.vars[`${binding}@epoch`].push(`${id}@${state.cards[id].zoneEpoch ?? 0}`);
+          paid.paidCardInfo![binding][id] = structuredClone(attrsNow(ctx, game, state, id));
+        }
         break;
       }
       case "markers": {
@@ -1013,6 +1031,7 @@ export function chargeCost(
         break;
     }
   }
+  return paid;
 }
 
 /** The card in the place a marker price names (22-43's Unison Area holds one), or null with none there. */
