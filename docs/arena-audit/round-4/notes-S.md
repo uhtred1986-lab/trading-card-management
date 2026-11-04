@@ -137,4 +137,4 @@ VERIFIER: The stored condition is any(count zEnergy >= 5, count your Battle Area
 
 ## Bounded keyword-negation follow-up
 
-The mandatory-choice gap for BT2-048 and DB1-093 and official-Q&A Barrier handling are addressed in [keyword-negation-followup.md](keyword-negation-followup.md). Duplicate keyword instances and later grants remain incorrectly suppressed by name; that document identifies the next implementation seams. BT22-037's copied chosen skill remains unread.
+The mandatory-choice gap for BT2-048 and DB1-093 and official-Q&A Barrier handling are addressed in [keyword-negation-followup.md](keyword-negation-followup.md). The same PR now preserves individual printed/timed/standing keyword instances, so other copies and later grants remain active. The receipt records saved-prompt compatibility and the remaining selector work. BT22-037's copied chosen skill remains unread.

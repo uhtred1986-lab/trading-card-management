@@ -153,4 +153,4 @@ script).
    - `--describe-only` over every card id: a dry run first, check no "granted by skill" opening is lost, then apply.
    - `npx tsx scripts/arena-fuzz.mts 40`.
 
-Round 4 bounded follow-up: [chosen keyword negation](round-4/keyword-negation-followup.md) covers mandatory choice and official-Q&A Barrier handling, with the remaining per-instance negation defect explicitly documented (R-400/R-401).
+Round 4 bounded follow-up: [chosen keyword negation](round-4/keyword-negation-followup.md) covers mandatory choice and official-Q&A Barrier handling, plus instance-specific negation for printed copies and grants, including saved prompts and legacy compatibility (R-400/R-401, PR #1249).
