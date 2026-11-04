@@ -1,6 +1,8 @@
 # Round 4 bounded condition follow-up — 4 November 2026
 
 This batch repairs the seven still-misread condition skills listed in `notes-S.md`.
+
+The implementation and review fixes were brought into PR #1249 on 4 Nov 2026 at `29326703`. The validation below records the original condition-lane head; combined-head validation is tracked in [complete card support](../support-completion.md). BT2-048’s keyword choice has since been repaired in the same PR.
 It does not complete the four-lane round, and it changes no persisted production rules.
 
 | Card / skill | Corrected requirement |
@@ -15,7 +17,7 @@ It does not complete the four-lane round, and it changes no persisted production
 
 BT26-023/024's Leader-back-side, energy and two Combo Area requirements were already
 fixed in round 3; they remain controls, not claimed new repairs. BT2-048's mandatory
-keyword-negation choice and the remaining round-4 unread families remain future work.
+keyword-negation choice was separate work when this receipt was written; it is now repaired in PR #1249. The remaining unread families continue under the complete-support workstream.
 
 ## Sources and measurement
 

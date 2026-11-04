@@ -6,9 +6,7 @@ Read `CLAUDE.md`, `docs/arena-batch-process.md` (research order, rulings ledger,
 `arena-work` first.
 
 **4 November bounded follow-up:** [Seven condition misreads are repaired](round-4/conditions-followup.md)
-in draft PR #1248, with no read/unread count change or production record writes. R-380–R-383 are now
-allocated; the remaining condition lane starts at R-384. BT2-048's mandatory keyword-negation choice
-and the four lanes' unread work remain. The production baseline below is still the 3 November snapshot.
+originally in draft PR #1248 and now carried into PR #1249, with no read/unread count change or production record writes. R-380–R-383 are allocated; the remaining condition lane starts at R-384. BT2-048’s mandatory keyword-negation choice is also repaired in PR #1249; the four lanes’ unread work continues. The production baseline below is still the 3 November snapshot.
 
 ## Where things stand
 
@@ -165,3 +163,5 @@ The same PR continues with [explicit Leader/Battle area scope](round-4/on-board-
 PR #1249 also [repairs the Teach prompt budget and P-093 Counter-ban scope](round-4/battle-skill-ban-followup.md) (R-403). Teach now passes directly on this branch.
 
 The next PR #1249 follow-up adds [cost bounds from area counts](round-4/counted-cost-followup.md) (R-404): three formerly unread skills, numerical counts that include protected cards, and the specified-cost minimum for numerical energy-cost reads.
+
+The owner has expanded the goal to [complete card support](support-completion.md). Continue across families in PR #1249; that tracker defines the baseline, runtime proof requirements and active workstreams.
