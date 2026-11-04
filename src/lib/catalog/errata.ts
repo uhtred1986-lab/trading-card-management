@@ -47,6 +47,9 @@ function spaceBeforeKeyword(text: string): string {
  * be caught by `npm test`, which has no catalog to read.
  */
 export const CORRECTIONS: Record<string, [RegExp, string][]> = {
+  // Deckplanet omits the Awaken threshold; verified against Bandai's printed front, 4 Nov 2026:
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT26-031.png
+  "BT26-031": [[/you\s+have\s+or\s+more\s+Z-Energy/g, "you have 3 or more Z-Energy"]],
   // ── Dragon Ball Super (the game the arena plays) ──────────────────────────
   // Official 2020-03-06 errata (#920), verified 2026-10-15:
   // https://www.dbs-cardgame.com/us-en/rule/errata-cards.php
