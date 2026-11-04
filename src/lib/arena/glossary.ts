@@ -1696,6 +1696,10 @@ export const READING_RULES: ReadingRule[] = [
     title: "Conditions count protected cards (4 Nov 2026)",
     body: "**Checking existence does not choose a target** (R-385; RM 3-1-2, 20-4-1, 22-16). BT7-110 counts opposing Battle Cards with cost two or more even if they have Barrier, immunity, or cannot be chosen. Conditions on an event subject likewise see protected cards. Area, controller, descriptions and current counts still apply; actual choices retain every protection. This extends the numerical observation mode from R-404 to Boolean count conditions without changing the selector-count API default.",
   },
+  {
+    title: "Awaken alternatives preserve complete payment conditions (4 Nov 2026)",
+    body: "**Life or the complete alternate requirement** (R-386; RM 22-2-3). A low-life branch of Awaken stands on its own; energy plus named-card requirements belong together in the other branch. Repeated or-when, energy while another condition holds, count-first descriptions and either player's life now produce stored conditions used by the native Awaken action. BT29-029's at5 means five, while missing numbers stay unread. BT26-031's three Z-Energy comes from the official card image correction. Both-seat tests check real activation offers and resolution, including wrong area, side, description and insufficient energy controls.",
+  },
 ];
 
 // ── Fusion World spellings (#1187) ─────────────────────────────────────────

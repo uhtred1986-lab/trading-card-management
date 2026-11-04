@@ -16,6 +16,16 @@ import { unreadFilterWords } from "../lang/filter-words";
  */
 export function allConditions(printed: string): { cond: Cond; subject?: Ref }[] | null {
   const head = foldBothQualifier(printed);
+  // Awaken's life alternative stands alone: a conjunction in the other alternative
+  // must not turn (life OR energy) AND named-cards into its activation condition.
+  const lifeAlternative = /^(?:(?:if|when) )?(your life is at \d+ or (?:less|fewer|more)),? or (.+)$/i.exec(head);
+  if (lifeAlternative) {
+    const life = parseConditionClause(lifeAlternative[1], true);
+    const rest = allConditions(lifeAlternative[2]);
+    if (!life || !rest) return null;
+    return [{ cond: { kind: "any", conds: [life.cond, rest.length === 1 ? rest[0].cond : { kind: "all", conds: rest.map(x => x.cond) }] } }];
+  }
+
   // #966: "… and―A, or B, or C" is the first half AND one of A, B or C.
   if (hasDashConjunction(head)) {
     const dashed = dashConjunction(head);
@@ -340,7 +350,9 @@ export function foldBothQualifier(text: string): string {
       return `${verb} ${article ?? "a "}${each} ${noun}${after}`;
     })
     .replace(/,?\s+and if\s+/gi, " and ")
-    .replace(/\s+or if\s+/gi, " or ");
+    .replace(/\s+or (?:if|when)\s+/gi, " or ")
+    .replace(/\blife is at(?=\d)/gi, "life is at ")
+    .replace(/\b(you have \d+ or more energy) while (?=you have |there are |\d+ or more )/gi, "$1 and ");
 }
 
 /**
@@ -400,6 +412,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     return dashed ? { cond: dashed.length === 1 ? dashed[0] : { kind: "all", conds: dashed } } : null;
   }
   clause = folded;
+  // A missing numerical bound must never degrade to an implicit one-card condition.
+  if (/\b(?:have|has|are|is) or (?:more|less|fewer)\b/i.test(clause)) return null;
   let m: RegExpExecArray | null;
   // "blue **and/or** yellow cards" (BT19-145) is the cards of either colour
   // counted together, which "blue or yellow cards" already says. Only between
@@ -420,11 +434,20 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
   if (t === trimmed && !allowBare) return null;
+  // R-386: shared life subject and count-first existence wording preserve the stated bounds.
+  if ((m = /^your life or your opponent's life is at (\d+) or (less|fewer|more)$/.exec(t))) {
+    return parseConditionClause(`you or your opponent's life is at ${m[1]} or ${m[2]}`, true);
+  }
+  if ((m = /^(\d+ or (?:more|less|fewer) .+? cards?) (?:is|are) in your (.+)$/.exec(t))) {
+    return parseConditionClause(`you have ${m[1]} in your ${m[2]}`, true);
+  }
+
   // A complete energy requirement followed by another stated subject must
   // never become an energy filter if that second requirement cannot read.
-  if (!/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t) && (m = /^(you have \d+ or (?:more|less|fewer) (?:z-energy|energy)) and ((?:a player has|there (?:are|is)) .+)$/.exec(t))) {
+  if (!/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t) && (m = /^(you have \d+ or (?:more|less|fewer) (?:z-energy|energy)) and ((?:a player has|there (?:are|is)|\d+ or (?:more|less|fewer)) .+)$/.exec(t))) {
     const first = parseConditionClause(m[1], true);
-    const second = parseConditionClause(m[2], true);
+    const tail = /^\d/.test(m[2]) && !/\b(?:is|are) in your\b/.test(m[2]) ? `you have ${m[2]}` : m[2];
+    const second = parseConditionClause(tail, true);
     return first && second ? { cond: { kind: "all", conds: [first.cond, second.cond] } } : null;
   }
   // Audit conditions 4: a named character may be on either side, but its
