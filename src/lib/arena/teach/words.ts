@@ -215,7 +215,8 @@ Use only statements, conditions, fields and words that appear in the reference. 
 
 /** The stable half of the prompt: the same bytes on every call, so it is cached. */
 export function teachSystem(): string {
-  return `${SYSTEM_INTRO}\n\n${languageForPrompt()}`;
+  // Reserve the introduction and separator inside the complete prompt's budget.
+  return `${SYSTEM_INTRO}\n\n${languageForPrompt(REFERENCE_BUDGET - SYSTEM_INTRO.length - 3)}`;
 }
 
 /** This turn: the card, the clause, the record as it stands, the owner's words, the answers so far, and — on the retry — what was wrong. */
