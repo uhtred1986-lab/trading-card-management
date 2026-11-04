@@ -31,6 +31,11 @@ defs.GOGETA_COST=card("GOGETA_COST",{colors:["Blue"],characters:["Gogeta"],energ
 defs.GOGETA_RED=card("GOGETA_RED",{colors:["Red"],characters:["Gogeta"],energyCost:8});
 for(const [id,p] of Object.entries(PRINTS))defs[id]=card(id,{type:id==="SD16-01"?"LEADER":"BATTLE",energyCost:0,skill:p.skill,colors:["Blue"],power:10000,...(p.backSkill?{back:{name:"Burst Leader",power:15000,skill:p.backSkill}}:{})});
 defs.RESPONSE=card("RESPONSE",{type:"EXTRA",energyCost:0,skill:"[Counter: Play] Choose up to 1 card in your opponent's Drop Area and send it to its owner's Warp."});
+defs["SD16-03"]=card("SD16-03",{colors:["Red"],energyCost:6,power:30000,skill:"[unique]<br>[permanent] This card is also treated as black in all areas.<br>[auto] When this card is played, choose up to 1 of your opponent's Battle Cards and it gets -15000 power for the turn.<br>[activate: main][limit 1] (You can only activate this skill once per turn across all copies of this card.) [spirit boost 1] (You must remove a marker from your Unison Card to activate this skill.) {1}, if you have 3 or more energy and you send 1 red card, 1 blue card, 1 green card, and 1 yellow card from your Drop Area to your Warp: Play this card from your Drop Area or Warp, and it gains [critical] for the turn."});
+defs.BOOST=card("BOOST",{skill:"[Activate: Main][Spirit Boost 1] Draw 1 card."});
+defs.UNISON=card("UNISON",{type:"UNISON",colors:["Black"]});
+defs.STANDING=card("STANDING",{type:"LEADER",skill:"[Permanent] Negate the keyword skills of all your Battle Cards."});
+defs.PROTECTED_BURST={...defs["BT16-145"],id:"PROTECTED_BURST",skill:defs["BT16-145"].skill+"<br>[Permanent] This card’s skills can’t be negated."};
 const records=Object.values(defs).flatMap(skillRecords);
 for(const r of records.filter(r=>/\[burst/i.test(r.printed)))assert.deepEqual(r.unread,[],r.cardId+"#"+r.skillIndex);
 const ctx:EngineContext={defs,scripts:rulesFromRows(copy(records.map((r,id)=>({...r,id,source:"compiler",status:"draft"}) as unknown as RuleRow)),defs)};
@@ -61,13 +66,33 @@ function settle(s:VmState,picks:string[]=[],decline=false):VmState{
  return s;
 }
 let cases=0;
-for(const owner of ["p1","p2"] as const)for(const back of [false,true])for(const pool of [["BLACK","BLACK","BLACK"],["FILLER","FILLER","FILLER"],["BLACK","FILLER","FILLER"],["MULTI","MULTI","MULTI"]]){
+for(const owner of ["p1","p2"] as const)for(const back of [false,true])for(const pool of [["BLACK","BLACK","BLACK"],["FILLER","FILLER","FILLER"],["BLACK","FILLER","FILLER"],["MULTI","MULTI","MULTI"],["SD16-03","SD16-03","SD16-03"]]){
  let s=fresh(owner);const source=s.sides[owner].zones.leader[0];s.cards[source].cardId="SD16-01";s.cards[source].flipped=back;
  stage(s,owner,"BLACK","drop");stage(s,owner,"FILLER","drop");const paid=top(s,owner,pool);
  const a=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="activate"&&a.card===source&&a.skill===(back?20:0));assert.ok(a);
  s=settle(take(s,a));assert.ok(paid.every(id=>s.sides[owner].zones.drop.includes(id)));
  assert.equal(hasKeyword(ctx,game,s,source,"Critical"),pool.some(x=>x!=="FILLER"));
- assert.equal(attrsNow(ctx,game,s,source).power,(back?15000:10000)+(pool.includes("FILLER")?5000:0));cases++;
+ assert.equal(attrsNow(ctx,game,s,source).power,(back?15000:10000)+(pool.some(x=>x!=="BLACK")?5000:0));cases++;
+}
+// SD16-001 FAQ: its actual second Auto negates Burst but leaves Activate usable.
+for(const owner of ["p1","p2"] as const)for(const shortDeck of [false,true]){
+ let s=fresh(owner);const leader=s.sides[owner].zones.leader[0];s.cards[leader].cardId="SD16-01";s.cards[leader].flipped=true;s.cards[leader].mode="rest";
+ const unison=stage(s,owner,"UNISON","unison");s.cards[unison].markers=2;
+ const booster=stage(s,owner,"BOOST","battle");
+ const boost=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="activate"&&a.card===booster);assert.ok(boost);
+ s=settle(take(s,boost));assert.equal(s.cards[leader].mode,"active");
+ top(s,owner,["BLACK","FILLER","MULTI"]);
+ if(shortDeck)s.sides[owner].zones.deck.splice(1);
+ const before=s.sides[owner].zones.deck.length;
+ const action=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="activate"&&a.card===leader&&a.skill===20);assert.ok(action);
+ s=settle(take(s,action));assert.equal(s.sides[owner].zones.deck.length,before);assert.equal(attrsNow(ctx,game,s,leader).power,15000);cases++;
+}
+// BT31-002b's standing Permanent suppresses Burst; protection preserves it.
+for(const owner of ["p1","p2"] as const)for(const protectedSkill of [false,true]){
+ let s=fresh(owner);s.cards[s.sides[owner].zones.leader[0]].cardId="STANDING";
+ const source=stage(s,owner,protectedSkill?"PROTECTED_BURST":"BT16-145","hand");const paid=top(s,owner,["BLACK"])[0];
+ const play=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="play"&&a.card===source);assert.ok(play);
+ s=settle(take(s,play));assert.equal(s.sides[owner].zones.drop.includes(paid),protectedSkill);cases++;
 }
 for(const owner of ["p1","p2"] as const)for(const sourceDef of ["BT16-145","BT16-146"] as const)for(const paidDef of ["BLACK","MULTI","FILLER","WRONG_TRAIT"]){
  let s=fresh(owner);const source=stage(s,owner,sourceDef,"hand");stage(s,owner,"BLACK","drop");const paid=top(s,owner,[paidDef])[0];

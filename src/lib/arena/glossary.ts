@@ -1740,6 +1740,7 @@ export const READING_RULES: ReadingRule[] = [
     title: "Bare generic numbers after Evolve color orbs (4 Nov 2026)",
     body: "**The generic orb is still part of the cost** (R-390; official P-006 and BT2-084 images; RM 22-5-3). The feed's Evolve green-green-1 and green-green-4 spellings mean three and six total energy, including two green. The reader adds the missing braces only at that exact Evolve cost boundary; ordinary numerical conditions and other tags are unchanged. Existing Evolve rules still require the correct base in your Battle Area and the incoming card in your hand, then carry the base's mode and power effects onto the stack.",
   },
+  { title: "Negated Burst and paid colors", body: "**A negated Burst pays no cards** (R-391; own FAQ SD16-001, catalog SD16-01). Negating keyword skills leaves the Activate or Auto line usable but removes its Burst payment; the saved paid history is explicitly empty. The same FAQ grants both bonuses for red SD16-03, whose Permanent also makes it black. Within this paid-history condition, non-black observes any other color, including a gained color or printed multicolor; ordinary non-black selections are unchanged. The bonuses apply once per clause, not per matching card. Historical characteristics and live paid occurrences remain separate as in R-389." },
 ];
 
 // ── Fusion World spellings (#1187) ─────────────────────────────────────────
@@ -1777,4 +1778,5 @@ export const FUSION_WORLD_SPELLINGS: FusionSpellingDoc[] = [
   { tag: "Add N cards from the top of your deck to your energy", reads: "move the top N cards of your deck to your Energy Area", note: "“N cards from the top of your deck” with a number and no “up to” is a position, not a choice (#1220, FS03-16 and seven original-game cards: BT14-104, BT30-032, BT31-115b, BT6-040, EX21-26, P-109, TB2-017): the top N, taken without asking, as “the top card of your deck” already was. “Up to N cards from the top” stays a choice among the cards looked at." },
   { tag: "[Auto][Opponent's Turn] When you use this card in a combo from your hand, …", reads: "…, entered from the hand", note: "The Fusion World [Super Combo] wording (#1220, FS01-05, FS02-10, FS03-12, FS04-09) is read like “when this card is used in a combo from your hand”: the stored combo record has `origins: [hand]`, so the +10000 combo power is not given to a card that joined the combo from the Battle Area." },
   { tag: "<clause> : <effect>", reads: "<clause>: <effect>", note: "An activation price closed by a spaced colon (“Place 1 of your energy in your Drop : …”, “Discard 1 card from your hand : …”) is the price, read by the same price readers as a dbs cost. Energy-icon prices are not read yet." },
+
 ];

@@ -5,7 +5,7 @@ import type { GameDefinition } from "../rulesets";
 import { selectedCount, stepScript, type Op, type Ref, type Script, type ScriptFrame } from "./script";
 import type { ScriptHost } from "./script-host";
 import { vmHost } from "./host";
-import { boundFor, queueTaxGate, scopedPayersSpent, type TaxGate } from "./activate";
+import { burstNegated, boundFor, queueTaxGate, scopedPayersSpent, type TaxGate } from "./activate";
 import { IllegalAction, sideOf } from "./common";
 import { NotYet, RulesetBroken } from "./errors";
 import { describeScript } from "./script-schema";
@@ -811,6 +811,10 @@ export function beginAutomaticCost(ctx: EngineContext, game: GameDefinition, sta
   cost.stage = "action";
   if (choice.x !== undefined) frame.x = choice.x;
   const paid = chargeAutomaticPayment(ctx, game, state, ev, frame, choice.payment, cost.costs);
+  if (cost.skill.burst && burstNegated(ctx, game, state, frame.card) && !paid.paidCardInfo?.paid_burst) {
+    paid.vars = { ...paid.vars, paid_burst: [], "paid_burst@epoch": [] };
+    paid.paidCardInfo = { ...paid.paidCardInfo, paid_burst: {} };
+  }
   frame.vars = { ...frame.vars, ...paid.vars };
   frame.paidCardInfo = { ...frame.paidCardInfo, ...paid.paidCardInfo };
   spent(choice.payment.rest);

@@ -879,6 +879,11 @@ function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmSt
   return standing.some((e) => e.kind === "negateKeyword" && e.target === id && (e.value === name || e.value === (KEYWORD_WILDCARD as unknown)) && !negationRefused(ctx, game, state, id, e));
 }
 
+/** Keyword metadata such as Burst observes the same standing wildcard and protection as named keywords. */
+export function standingKeywordsNegated(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): boolean {
+  return statics(ctx, game, state).some(e => e.kind === "negateKeyword" && e.target === id && e.value === (KEYWORD_WILDCARD as unknown) && !negationRefused(ctx, game, state, id, e));
+}
+
 /**
  * Mechanism batch 4: is this kind of skill of this card negated by a [Permanent] in force — the [Counter] and
  * [Activate] halves of "negate the keyword skills of all your Battle Cards" (BT31-002b)? The timed kinds are

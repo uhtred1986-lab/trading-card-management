@@ -92,11 +92,11 @@ import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, paidPoolVar, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { activationPriceProblem, isFixedUnderHost, taxPowerOnSelf } from "./activation-price-support";
-import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
+import { keywordSkillsNegated, skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, namedCandidates, permissions, resolveRef, resolveSelector, standingKindNegated, staticsNow, taxesOn, type TaxInForce } from "./program";
+import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, namedCandidates, permissions, resolveRef, resolveSelector, standingKeywordsNegated, standingKindNegated, staticsNow, taxesOn, type TaxInForce } from "./program";
 import { describeScript, taxHandNeed } from "./script-schema";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
@@ -300,6 +300,11 @@ function widenedOffer(ctx: EngineContext, game: GameDefinition, state: VmState, 
 
 // ── what a line costs ───────────────────────────────────────────────────────
 
+/** SD16-001 FAQ: negating keyword skills removes Burst's payment, not its Activate line. */
+export function burstNegated(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): boolean {
+  return keywordSkillsNegated(state, card) || standingKeywordsNegated(ctx, game, state, card);
+}
+
 /**
  * The amounts this line binds to the prices the action names (#147).
  *
@@ -339,7 +344,7 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     // 22-46-3: a line used from the Z-Deck pays its card's Z-Energy cost, read
     // off the card as a Z-card played from there pays it (16-2) — [Z-Awaken]
     // (#155); bound to 0 everywhere else, so no line in play pays it again.
-    pooled: { [ACTIVATION_ZONES.burst]: payment.burst ?? 0, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
+    pooled: { [ACTIVATION_ZONES.burst]: payment.burst && !burstNegated(ctx, game, state, line.card) ? payment.burst : 0, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
     // 22-43: [Spirit Boost X]'s markers come off the Unison Card, the place
     // `DEFINE COST spiritBoost` names; bound to 0 on a line with no tag.
     markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(payment.spiritBoost ?? 0), by: "Spirit Boost" } },
@@ -582,7 +587,7 @@ export function activationRefusals(
   // — and in its words, so the first requirement is the same one on both
   // engines. 22-43's [Spirit Boost], whose payment is a moment sixteen cards
   // answer, is still refused rather than charged (#149).
-  if (payment.burst != null && zone(state, player, ACTIVATION_ZONES.burst).length < payment.burst) {
+  if (payment.burst != null && !burstNegated(ctx, game, state, card) && zone(state, player, ACTIVATION_ZONES.burst).length < payment.burst) {
     before.push({ kind: "other", detail: `[Burst ${payment.burst}] needs that many cards in the deck` });
   }
   // 22-43-2: the same for [Spirit Boost X] — a Unison Card with X markers on it
@@ -1047,9 +1052,9 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
 export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Partial<Pick<ScriptFrame, "ops" | "vars" | "paidCardInfo">>, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
   const { card, skill: sk } = line;
   const payment = requireSkillPayment(line.script?.price);
-  // R-389/R-420: a waived Burst paid no cards. Its known-empty history must
+  // R-391/R-420: a waived or negated Burst paid no cards. Empty history must
   // not look like an obsolete saved frame, nor match unrelated Drop cards.
-  if (waived && payment.burst) {
+  if (payment.burst && (waived || burstNegated(ctx, game, state, card)) && !resolved?.paidCardInfo?.paid_burst) {
     const name = paidPoolVar("burst");
     resolved = { ...resolved, vars: { ...resolved?.vars, [name]: [], [`${name}@epoch`]: [] }, paidCardInfo: { ...resolved?.paidCardInfo, [name]: {} } };
   }

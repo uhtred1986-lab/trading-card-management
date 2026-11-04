@@ -6918,9 +6918,12 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     const any = /^if (?:an? )(.+?) card (?:is|was) placed (?:in|into) (?:your|the) drop(?: area)? (?:by|with|using) this skill$/.exec(t);
     if ((single && c.paidPile.count === 1) || any) {
       const said = single ? single[1] : `${any![1]} card`;
-      const nonColor = /^non-(?:red|blue|green|yellow|black|white) card$/.test(said);
-      const filter = nonColor ? filterFor(said, null) : described(said);
-      if (!filter || filter.unreadable || (nonColor && filter.notColors.length !== 1)) return null;
+      const nonColor = /^non-(red|blue|green|yellow|black|white) card$/.exec(said);
+      // SD16-001's own FAQ grants both bonuses for red SD16-03, whose
+      // Permanent also makes it black. This paid-history wording observes
+      // another colour; ordinary non-colour selectors retain their reading.
+      const filter = nonColor ? { ...emptyFilter(), colors: (["Red", "Blue", "Green", "Yellow", "Black", "White"] as Color[]).filter(color => color.toLowerCase() !== nonColor[1]) } : described(said);
+      if (!filter || filter.unreadable) return null;
       if (single) { c.last = null; c.lastTarget = { sel: { fromVar: c.paidPile.name, area: "drop", side: "you" } }; }
       return { kind: "varMatches", var: c.paidPile.name, filter, paid: true };
     }
