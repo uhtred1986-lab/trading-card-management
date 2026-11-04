@@ -131,7 +131,7 @@ VERIFIER: The stored condition is any(count zEnergy >= 5, count your Battle Area
 - BT21-118#10: 'all of the chosen cards' must include the price's two rested energy (official Q&A) — not reached.
 - DB3-023#0: [Blocker] ban must be scoped to the chosen card's attack (forbid block + attacker scope) — not reached.
 - DB3-129#10: Negate the opponent's [Counter: Attack] being answered, not one of your Battle Cards — not reached.
-- P-093#20: Skill ban scope (Battle Area only; combo [Auto]s allowed per official Q&A) — not reached.
+- P-093#20: The earlier Battle Area fix scoped ordinary activation but left its Counter prohibition global. PR #1249 now [scopes all three projections consistently](battle-skill-ban-followup.md), preserving hand Counters and Combo/Drop Autos.
 - P-645#10: 'in Active Mode or Rest Mode' play choice — not reached.
 - lane4-S-unread.md (278 skills, 256 clusters): Unread selector families not reached this round (context budget spent on the 72 findings).
 
