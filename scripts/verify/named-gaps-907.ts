@@ -113,7 +113,7 @@ const flat = (ops: Op[]): Op[] => ops.flatMap((o) => [o, ...("then" in o && o.th
   const play = c.ops.find((o) => o.op === "play") as Extract<Op, { op: "play" }>;
   assert.equal(play.activating, true);
   // Audit effects 2: the reading also names a hand Extra's [Activate: Main] (12-2-4).
-  assert.match(describeScript(c.ops), /activate \(its \[Field\] skill, (?:or in the hand its \[Activate: Main\]; )?else play\)/);
+  assert.match(describeScript(c.ops), /activate \(its \[Field\] skill, otherwise an eligible Extra \[Activate\] line\)/);
   // Other things the word "activate" starts are not this.
   for (const other of [
     "[Activate: Main] Activate the [Activate: Main] skill of up to 1 {Big Bang Kamehameha} in your hand.",
@@ -325,12 +325,15 @@ function fresh(): VmState { return main("L-COUNT"); }
   assert.ok(!b.sides.p1.zones.battle.includes(blocked.field), "negated: not placed");
   assert.ok(b.sides.p1.zones.deck.includes(blocked.field), "and still in the deck");
 
-  // A named Extra with no [Field] is played as it always was.
+  // R-420: a named non-Field Extra invokes its eligible Activate line and enters Drop.
   const ring = main("L-RING");
   const r = stage(ring, "RING-X", "deck");
   let q = activate(ring).state;
   q = take(q, { type: "choose", player: "p1", cards: [r] });
-  assert.ok(q.sides.p1.zones.battle.includes(r), "the fallback is unchanged: the non-[Field] Extra is played");
+  if (q.prompt.kind === "chooseCards") q = take(q, { type: "choose", player: "p1", cards: [r] });
+  assert.ok(q.sides.p1.zones.drop.includes(r), "the non-Field Extra enters Drop before its Main line resolves");
+  assert.equal(q.sides.p1.zones.hand.length, ring.sides.p1.zones.hand.length + 1, "the actual Extra line drew one card");
+  assert.ok(!q.sides.p1.zones.battle.includes(r), "there is no ordinary-play fallback");
 }
 
 // 5. The promos: both notes, in the log, in order.

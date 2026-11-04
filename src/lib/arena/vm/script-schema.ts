@@ -609,7 +609,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       }
       // Audit effects 2 (describe only): an Extra with no [Field] in the hand is activated through its [Activate: Main]
       // (EB1-59, the VM's `activating`), never played.
-      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, or in the hand its [Activate: Main]; else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
+      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, otherwise an eligible Extra [Activate] line)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
         // "…on top of this card with its skills negated for the game" (BT31-088/089, BT10-073): where it lands and what it arrives with.
         + (op.onto ? ` on top of ${describeRef(op.onto)}` : "")
         + (op.toOwners ? " in their owners' Battle Areas" : "")

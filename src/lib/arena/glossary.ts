@@ -700,7 +700,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Effect-invoked Extra skills from hand, deck and Drop (R-420)",
-    body: "A bare activate-card instruction selects an eligible Activate: Main, Battle or Main/Battle line of a non-Field Extra. Hand and deck Extras go to Drop before their skill resolves; an Extra already in Drop stays there. Its original card and skill costs are waived, but price conditions, usage limits, negated skills and external activation taxes still apply. Field activation keeps priority. The saved card and line choice is tied to its current zone occurrence, so leaving and returning cannot substitute a new copy. P-119 follows its own official Q&A; P-389 invokes BT8-137’s Battle line and keeps its delayed end-of-turn effect. This does not give normal action menus permission to activate from new areas.",
+    body: "A bare activate-card instruction selects an eligible Activate: Main, Battle or Main/Battle line of a non-Field Extra. Hand and deck Extras go to Drop before their skill resolves; an Extra already in Drop stays there. Its original card and skill costs are waived, but price conditions, usage limits, negated skills and external activation taxes still apply. The reading names Field or an eligible Extra Activate line, with Field activation taking priority and no ordinary-play fallback. The saved card and line choice is tied to its current zone occurrence, so leaving and returning cannot substitute a new copy. P-119 follows its own official Q&A; P-389 invokes BT8-137’s Battle line and keeps its delayed end-of-turn effect. This does not give normal action menus permission to activate from new areas.",
   },
   {
     title: "Successful play memories (round 5)",
