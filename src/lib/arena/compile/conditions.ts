@@ -418,6 +418,36 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
   if (t === trimmed && !allowBare) return null;
+  // A complete energy requirement followed by another stated subject must
+  // never become an energy filter if that second requirement cannot read.
+  if (!/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t) && (m = /^(you have \d+ or (?:more|less|fewer) (?:z-energy|energy)) and ((?:a player has|there (?:are|is)) .+)$/.exec(t))) {
+    const first = parseConditionClause(m[1], true);
+    const second = parseConditionClause(m[2], true);
+    return first && second ? { cond: { kind: "all", conds: [first.cond, second.cond] } } : null;
+  }
+  // Audit conditions 4: a player's named card may be on either side, but an
+  // unqualified card in play is in the Leader or Battle Area (20-1-6).
+  if ((m = /^a player has (an? (?:<[^>]+>|\{[^}]+\}) card) in play$/.exec(t))) {
+    const filter = parseFilter(m[1]);
+    return { cond: { kind: "count", sel: { side: "both", areas: ["leader", "battle"], filter }, atLeast: 1 } };
+  }
+  // The number on the second alternative belongs to that alternative, not
+  // to the first count (BT19-145). A complete first area prevents a filter's
+  // "energy cost of 5 or more or 2 or more ..." from being treated as a list.
+  if (!/\band (?:you |your |there |it'?s |it is |this card |all )/.test(t) && (m = /^(you have|your opponent has) (\d+ or (?:more|less|fewer) (?:z-energy|energy|cards in (?:your|their) hand)) or (\d+ or (?:more|less|fewer) .+)$/.exec(t))) {
+    const first = parseConditionClause(`${m[1]} ${m[2]}`, true);
+    const second = parseConditionClause(`${m[1]} ${m[3]}`, true);
+    return first && second ? { cond: { kind: "any", conds: [first.cond, second.cond] } } : null;
+  }
+  // A pair described after a dash retains both exact costs and their shared
+  // name, combo cost and area. Distinct costs necessarily identify two cards.
+  if ((m = /^(?:there are|you have) 2 (<[^>]+>|\{[^}]+\}) cards with combo costs of (\d+) in your (z-energy|energy|drop area|battle area)[—―–]\s*1 with an energy cost of (\d+) and 1 with an energy cost of (\d+)$/.exec(t))) {
+    const [, name, comboCost, place, firstCost, secondCost] = m;
+    if (firstCost === secondCost) return null;
+    const areas: Record<string, ScriptArea> = { "z-energy": "zEnergy", energy: "energy", "drop area": "drop", "battle area": "battle" };
+    const conds: Cond[] = [firstCost, secondCost].map((cost) => ({ kind: "count", sel: { side: "you", area: areas[place], filter: parseFilter(`${name} card with an energy cost of ${cost} and combo cost of ${comboCost}`) }, atLeast: 1 }));
+    return { cond: { kind: "all", conds } };
+  }
   // #930: "if you played this card using [union]" (BT5-037), "if this card was
   // played using [union]" (BT6-036): the copy's memory of entering by a
   // [Union-(type)] skill's own play — only a successful one (owner's ruling,
@@ -682,6 +712,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // more" (EX23-22), "…in your Battle Area **and** Drop Area" (EB1-58): one count over the list (`areaListCondition`).
   const holdNames = (s: string) =>
     s
+      // "a <Lord Slug> card with an energy cost of 3 and combo cost of 1"
+      // is one description, not another requirement without a subject.
+      .replace(/(\bwith an? energy cost of \d+) and ((?:an? )?combo cost of \d+)/gi, "$1\u0001$2")
       // Audit conditions 3: "…, and **this card and all of your energy** are in Rest Mode" (BT29-071): one subject of two.
       .replace(/\bthis card and (all (?:of )?your energy (?:is|are) in (?:rest|active) mode)\b/gi, "this card\u0001$1")
       // …and "you only have **this card and** 1 red skill-less Battle Card in your Combo Area" (BT14-013).
@@ -839,6 +872,10 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   if ((m = /^your leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
+    // "both a yellow <Vegeta> and <Trunks: Future> card" (P-468):
+    // the article/colour between "both" and the first name is shared.
+    const both = /^(both) (an? (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?)(<[^>]+>) and (<[^>]+>) card$/.exec(m[1]);
+    if (both) return { cond: { kind: "leaderMatches", filter: parseFilter(`${both[2]}both ${both[3]} and ${both[4]} card`) }, subject: { sel: { special: "leader" } } };
     const every = everyColourLeader(m[1]);
     if (every) return { cond: { kind: "leaderMatches", filter: every }, subject: { sel: { special: "leader" } } };
     const parts = leaderAlternatives(m[1]);

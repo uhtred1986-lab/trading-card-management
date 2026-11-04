@@ -226,6 +226,10 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // Mechanism batch 4: "If you have **at least 1 <Lavender> and 1 <Basil> card** in play" (P-268b): one of each, the
   // wording "a <Lavender> card and a <Basil> card" already reads as (each its own count).
   text = text.replace(/\byou have at least 1 (<[^>]+>) and 1 (<[^>]+>) cards? in play\b/gi, "you have a $1 card and a $2 card in play");
+  // BT19-080: each named card is a presence condition in the shared area,
+  // never a choice after a condition about a card somewhere else.
+  text = text.replace(/\b(if you have) at least (\d+) (<[^>]+>)(?: cards?)? and (\d+) (<[^>]+>) cards? in your (z-energy|combo area|drop area|battle area)\b/gi,
+    (_whole, head: string, first: string, a: string, second: string, b: string, area: string) => `${head} ${first} or more ${a} cards in your ${area} and you have ${second} or more ${b} cards in your ${area}`);
   text = text.replace(/\b(your leader(?: card)?) and all of your energy are (mono-(?:red|blue|green|yellow|black|white))\b/gi, "$1 is $2 and all of your energy is $2");
   // Phrasing batch 9: "for each of your <Pan> cards **and** cards with <GT> in their character names" (EX23-52) is one
   // count of every card of either kind — the "and" joins two kinds of card, not two clauses. Said with "or", the
