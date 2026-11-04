@@ -337,6 +337,8 @@ const BOTH_QUALIFIER = new RegExp(
  */
 export function foldBothQualifier(text: string): string {
   return text
+    // R-395: EX23-28 names the same aggregate areas with an explicit article.
+    .replace(/\bamong all the cards in\b/gi, "among all cards in")
     // R-384: one colour predicate shared by the Leader and every energy, followed by any other condition.
     .replace(/\b(your leader(?: card)?) and (?:your )?energy are all (mono-(?:red|blue|green|yellow|black|white))\b/gi, "$1 is $2 and all of your energy is $2")
     .replace(BOTH_QUALIFIER, (_whole, verb: string, article: string | undefined, names: string, noun: string, colour: string, token: string | undefined, end: string | undefined) => {

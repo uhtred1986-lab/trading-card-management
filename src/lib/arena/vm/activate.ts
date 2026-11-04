@@ -93,7 +93,7 @@ import { attrsOf } from "./cards";
 import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, paidPoolVar, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { activationPriceProblem, isFixedUnderHost, taxPowerOnSelf } from "./activation-price-support";
 import { keywordSkillsNegated, skillNegated, skillsNegated, type VmAltCost } from "./effects";
-import { RulesetBroken } from "./errors";
+import { NotYet, RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
 import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, namedCandidates, permissions, resolveRef, resolveSelector, standingKeywordsNegated, standingKindNegated, staticsNow, taxesOn, type TaxInForce } from "./program";
@@ -1115,7 +1115,16 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
   if (keywordPrice && !saysWhereItPays(program)) throw new RulesetBroken(state.game, `DEFINE KEYWORD ${line.keyword?.name} has an action price to pay and no payActionPrice to pay it at`);
-  const effect: ScriptFrame = { ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  // R-395 / 22-46-3, -6: retain the chosen Leader and Z-Deck occurrences
+  // across saved continuations. `asPrinted` still checks their current traits.
+  const zAwakenVars: Record<string, string[]> = {};
+  if (line.keyword?.name === "Z-Awaken") {
+    for (const [name, id] of [["zAwakenSource", card], ["zAwakenBase", state.sides[player].zones.leader[0]]] as const) {
+      zAwakenVars[name] = id ? [id] : [];
+      zAwakenVars[`${name}@epoch`] = id ? [`${id}@${state.cards[id].zoneEpoch ?? 0}`] : [];
+    }
+  }
+  const effect: ScriptFrame = { ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...zAwakenVars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -1127,6 +1136,18 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     return;
   }
   if (program.length || afterSkillKeywords.length) state.programs.unshift(effect);
+}
+
+/** R-395: old saves contain an ordinary play DO and no selected occurrences. */
+export function requireZAwakenBindings(frame: ScriptFrame): void {
+  if (frame.viaKeyword !== "Z-Awaken") return;
+  const valid = ["zAwakenSource", "zAwakenBase"].every(name => {
+    const ids = frame.vars[name], stamps = frame.vars[`${name}@epoch`];
+    if (ids?.length !== 1 || stamps?.length !== 1 || typeof ids[0] !== "string" || typeof stamps[0] !== "string" || (name === "zAwakenSource" && ids[0] !== frame.card)) return false;
+    const prefix = `${ids[0]}@`;
+    return stamps[0].startsWith(prefix) && /^\d+$/.test(stamps[0].slice(prefix.length)) && Number.isSafeInteger(Number(stamps[0].slice(prefix.length)));
+  });
+  if (!valid) throw new NotYet("rebuild this saved Z-Awaken source and Leader occurrence binding", "R-395");
 }
 
 /**

@@ -82,7 +82,7 @@ import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { emptyUnisons } from "./unison-zero";
 import { queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
-import { activationTaxGate, activationTaxes, stepTaxGate, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
+import { requireZAwakenBindings, activationTaxGate, activationTaxes, stepTaxGate, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
 import { describeScript } from "./script-schema";
 import { IllegalAction } from "./common";
 import { spendUse, usesLeft } from "./limits";
@@ -1289,6 +1289,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       if (scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";
       finishSkillPlayScope(state, frame); return "done";
     }
+    requireZAwakenBindings(frame);
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");

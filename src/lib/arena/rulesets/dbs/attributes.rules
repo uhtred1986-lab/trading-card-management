@@ -299,6 +299,14 @@ DEFINE ATTRIBUTE overRealms                                               -- §2
   reset: turnStart
   text: "how many times this player has activated [Over Realm] or [Dark Over Realm] this turn (22-15-3); one more each time"
 
+-- R-395 / 22-46-4: shared across every Z-Awaken card, including after reversion.
+DEFINE ATTRIBUTE zAwakens
+  of: player
+  value: number
+  printed: false
+  reset: turnStart
+  text: "how many times this player has activated [Z-Awaken] this turn; spent after payment, even if placement fails"
+
 -- ── the battle in progress (§8-1, §22-4-2, #328) ────────────────────────────
 --
 -- `modifyAttr` reached a second widened subject alongside the player

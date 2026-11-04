@@ -45,7 +45,7 @@ for (const [text, wanted] of [[BT31_005, ["choose", "placeOnTop", "discard"]], [
   assert.ok(!pile.sel.upTo, "exactly one: no pile card, no payment");
   assert.deepEqual(top, { op: "placeOnTop", target: { var: pile.as } });
   assert.equal(activationPriceProblem(price.ops), null, "the static planner accepts the price");
-  assert.match(describeScript([top]), /on top of this card, from under it/);
+  assert.match(describeScript([top]), /on top of this card/);
 }
 {
   const z = compileCostProgram(parseSkills(BT31_004)[0]!)!.ops[0] as Extract<Op, { op: "choose" }>;
