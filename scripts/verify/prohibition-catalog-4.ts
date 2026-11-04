@@ -65,7 +65,7 @@ const SELF = { sel: { special: "self" } };
     ["activateCounter", "opponent", { type: "BATTLE" }],
     ["block", "opponent", { type: "BATTLE" }],
   ], "P-093: [Activate]/[Auto], [Counter] and [Blocker] of Battle Cards");
-  assert.match(reads(p093), /your opponent can't activate \[Blocker\] on Battle Cards for the turn/, "P-093's reading names the [Blocker]");
+  assert.match(reads(p093), /your opponent can't activate \[Blocker\] on Battle Cards in a Battle Area for the turn/, "P-093's reading names the [Blocker]");
   assert.deepEqual(forbids(ops("[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards and it can't attack or activate skills for the duration of the turn.")).map((f) => f.what), ["attack", "activateSkill", "block"], "BT9-071: the card's own [Blocker] too");
   assert.deepEqual(forbids(ops("[Activate: Main] Draw 1 card, then choose up to 1 of your opponent's Battle Cards, ignoring [barrier], and until the end of your opponent's turn, that card can't attack and your opponent can't activate its skills.")).map((f) => [f.what, f.until]), [["attack", "nextTurn"], ["activateSkill", "nextTurn"], ["block", "nextTurn"]], "BT31-111: for the same span");
   assert.match(reads("[Activate: Main] This card gains [Dual Attack] for the turn, and your opponent can't activate skills on Battle Cards with original energy costs of 7 or less from any area when this card is in a battle."), /only while this card is in a battle/, "BT14-097: the escape said the way the card says it");
@@ -224,7 +224,7 @@ for (const me of SEATS) {
     assert.ok(canBlock(roundtrip(s), atk, guard), `${me}: [Blocker] offered without the rule (control)`);
     s = roundtrip(activate(s, stage(s, me, "P093", "battle")));
     assert.ok(!canBlock(s, atk, guard), `${me}: A2 — P-093: no [Blocker] of a Battle Card`);
-    assert.ok(forbiddenBy(ctx, game, s, "activateCounter", { player: you, card: stage(s, you, "V-BLUE", "hand"), skillKind: "counter:attack" }), `${me}: P-093 — a Battle Card's [Counter] too`);
+    assert.ok(!forbiddenBy(ctx, game, s, "activateCounter", { player: you, card: stage(s, you, "V-BLUE", "hand"), skillKind: "counter:attack" }), `${me}: R-403 — P-093 leaves a hand Counter available`);
     assert.ok(!forbiddenBy(ctx, game, s, "block", { player: me, card: atk }), `${me}: its controller is not bound`);
     s = roundtrip(endTurn(s));
     assert.ok(!forbiddenBy(ctx, game, s, "block", { player: you, card: guard }), `${me}: gone with the turn`);

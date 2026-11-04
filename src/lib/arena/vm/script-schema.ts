@@ -1023,7 +1023,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         const kind = op.counterKind ? `[Counter: ${op.counterKind === "battleCardAttack" ? "Battle Card Attack" : op.counterKind[0].toUpperCase() + op.counterKind.slice(1)}]` : "[Counter]";
         // Audit lane E: "…the [Counter: Attack] skill on copies of this card" (BT13-035) says whose.
-        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.sameNameAsSelf ? " on copies of this card" : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
+        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.sameNameAsSelf ? " on copies of this card" : ""}${op.otherCards ? " of other cards" : ""}${op.fromArea === "battle" ? " in a Battle Area" : ""}${escape}${forThe(op.until, r)}`;
       }
       // #677: 12-1-3's "activating an Extra Card" (BT10-097), and the skills
       // of particular cards (BT23-140's "the skills of Battle Cards").
@@ -1042,7 +1042,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // activate skills" rule describes (BT18-019, BT14-097, P-093).
       if (op.what === "block" && !op.target && op.filter) {
         const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
-        return `${who} can't activate [Blocker] on ${describeFilter(op.filter, { plural: true })}${op.otherCards ? " other than this card" : ""}${escape}${forThe(op.until, r)}`;
+        return `${who} can't activate [Blocker] on ${describeFilter(op.filter, { plural: true })}${op.otherCards ? " other than this card" : ""}${op.fromArea === "battle" ? " in a Battle Area" : ""}${escape}${forThe(op.until, r)}`;
       }
       // Prohibition batch 5's sentences, each said the way the card says it.
       {

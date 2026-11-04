@@ -5755,21 +5755,17 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       const span = lead ? (/\buntil the end of their(?: next)? turn\b/i.test(lead[1]) ? "nextTurn" : durationOf(lead[1])) : until;
       return lead && it ? [{ op: "forbid", what: "activateSkill", side, until: span, target: it, ...withUnless }, { op: "forbid", what: "block", until: span, target: it, ...withUnless }] : null;
     }
-    // "Your opponent can't activate skills on Battle Cards for the duration of
-    // the turn" (P-093): every skill of a Battle Card, in any area.
-    // Owner ruling 26 Oct 2026 (A2): "can't activate skills on Battle Cards"
-    // covers their [Counter] lines (`activateCounter`, asked on its own) and
-    // their [Blocker] (22-4: a [Blocker] is activated) as well.
-    // Review of audit selectors 3: but a Battle Card is one in a Battle Area (20-1-2) — the Q&A of P-093: the opponent
-    // "can activate skills on Battle Cards in their Drop Area" and "auto skills when they combo". The other skills are
-    // asked where the card is (`fromArea: battle`); the [Counter] lines stay A2's. "In any area" keeps every area.
+    // R-403 / RM 20-1-2 / Q&A P-093: Battle Cards here are in a Battle
+    // Area. The same scope applies to ordinary activations, Counter and
+    // Blocker (R-020); naming those skill kinds does not widen the area.
+    // Explicit "in any area" keeps every area.
     if (/^activate (?:the )?skills (?:of|on) battle cards(?: in any areas?)?(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) {
       const battle = { ...parseFilter(""), type: "BATTLE" as const };
       const anyArea = /\bin any areas?\b/.test(rest);
       return [
         { op: "forbid", what: "activateSkill", side, until, filter: battle, ...(anyArea ? {} : { fromArea: "battle" as const }), ...withUnless },
-        { op: "forbid", what: "activateCounter", side, until, filter: battle, ...withUnless },
-        { op: "forbid", what: "block", side, until, filter: battle, ...withUnless },
+        { op: "forbid", what: "activateCounter", side, until, filter: battle, ...(anyArea ? {} : { fromArea: "battle" as const }), ...withUnless },
+        { op: "forbid", what: "block", side, until, filter: battle, ...(anyArea ? {} : { fromArea: "battle" as const }), ...withUnless },
       ];
     }
     // "When this card is in a battle, your opponent can't activate
