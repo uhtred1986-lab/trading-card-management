@@ -506,7 +506,14 @@ function readPrice(printed: string, skill: Skill): PriceSplit {
   // compiler reads — a named list, one slot per name (`named-set.ts`) — so the
   // words of such a clause are not asked.
   const withoutNamedSets = namedSetSpans(said).reduceRight((rest, [from, to]) => rest.slice(0, from) + rest.slice(to), said);
-  if (SUMMED_COUNT.test(said) || EACH_COUNT.test(withoutNamedSets)) return NO_PRICE;
+  if (SUMMED_COUNT.test(said)) return NO_PRICE;
+  if (EACH_COUNT.test(withoutNamedSets)) {
+    // R-394: an exact existential named pair, optionally after Awaken's life
+    // alternative, is a condition rather than a choice of payment slots.
+    const existential = /^(?:(?:if|when) )?(?:your life is at \d+ or (?:less|fewer|more),? or )?you have \d+ or more each of (?:red|blue|green|yellow|black|white) <[^>]+> and <[^>]+> cards in (?:play|your battle area|your drop(?: area)?)$/i.test(said);
+    const only = existential ? allConditions(said) : null;
+    return only ? { conds: only, program: null } : NO_PRICE;
+  }
   // #970: a multi-slot send/place beside an aside the readers above did not fold
   // ("a <Gogeta> or <Veku> card―both with the [aegis] skill―in play", BT22-033)
   // would keep the condition half-read: left unread whole.

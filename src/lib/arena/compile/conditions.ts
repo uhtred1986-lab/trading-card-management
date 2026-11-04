@@ -19,7 +19,7 @@ export function allConditions(printed: string): { cond: Cond; subject?: Ref }[] 
   // Awaken's life alternative stands alone: a conjunction in the other alternative
   // must not turn (life OR energy) AND named-cards into its activation condition.
   // R-442: a dash following the alternative conjunction is a separator (SD22-01).
-  const lifeAlternative = /^(?:(?:if|when) )?(your life is at \d+ or (?:less|fewer|more)),? or(?: |[—―–]\s*)(.+)$/i.exec(head);
+  const lifeAlternative = /^(?:(?:if|when) )?((?:your|a player's) life is at \d+ or (?:less|fewer|more)),? or(?: |[—―–]\s*)(.+)$/i.exec(head);
   if (lifeAlternative) {
     const life = parseConditionClause(lifeAlternative[1], true);
     const rest = allConditions(lifeAlternative[2]);
@@ -435,6 +435,20 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
   if (t === trimmed && !allowBare) return null;
+  // R-394: an existential player is either player's own count, not their sum.
+  if ((m = /^a player'?s life is at (\d+) or (less|fewer|more)$/.exec(t))) return parseConditionClause(`you or your opponent's life is at ${m[1]} or ${m[2]}`, true);
+  if ((m = /^a player has (\d+) or (more|less|fewer) z-energy$/.exec(t))) return parseConditionClause(`you or your opponent has ${m[1]} or ${m[2]} z-energy`, true);
+  // Exact named pairs share their printed area, while each keeps its own colour.
+  if ((m = /^you have 1 (red|blue|green|yellow|black|white) (<[^>]+>) card and 1 (red|blue|green|yellow|black|white) (<[^>]+>) card in (your drop(?: area)?|your battle area|play)$/.exec(t))) {
+    const parts = [parseConditionClause(`you have 1 or more ${m[1]} ${m[2]} card in ${m[5]}`, true), parseConditionClause(`you have 1 or more ${m[3]} ${m[4]} card in ${m[5]}`, true)];
+    return parts.every(x => x) ? { cond: { kind: "all", conds: parts.map(x => x!.cond) } } : null;
+  }
+  if ((m = /^you have (\d+) or more each of (red|blue|green|yellow|black|white) (<[^>]+>) and (<[^>]+>) cards in (play|your battle area|your drop(?: area)?)$/.exec(t))) {
+    const [, n, color, first, second, area] = m;
+    const parts = [first, second].map(name => parseConditionClause(`you have ${n} or more ${color} ${name} card in ${area}`, true));
+    return parts.every(x => x) ? { cond: { kind: "all", conds: parts.map(x => x!.cond) } } : null;
+  }
+
   // R-386: shared life subject and count-first existence wording preserve the stated bounds.
   if ((m = /^your life or your opponent's life is at (\d+) or (less|fewer|more)$/.exec(t))) {
     return parseConditionClause(`you or your opponent's life is at ${m[1]} or ${m[2]}`, true);
@@ -1754,6 +1768,12 @@ function areaListCondition(t: string): { cond: Cond; subject?: Ref } | null | un
     const areas = areaList(m[4]);
     if (!areas) return null;
     const got = counted(m[3], areas, "you", m[1], m[2]);
+    return got ? { cond: got } : null;
+  }
+  // The same aggregate count before its verb, including a closing shared-colour dash.
+  if ((m = new RegExp(`^(\\d+) or (more|less|fewer) (.+?)(?:\\s+|(?<=[—―–?]))(?:is|are) in ${LIST}$`).exec(t)) && !clausey(m[3])) {
+    const areas = areaList(m[4]);
+    const got = areas && counted(m[3], areas, "you", m[1], m[2]);
     return got ? { cond: got } : null;
   }
   // "the total (number of) … in/among all cards in your A, B, and C is N or more".
