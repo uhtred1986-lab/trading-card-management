@@ -18,7 +18,8 @@ export function allConditions(printed: string): { cond: Cond; subject?: Ref }[] 
   const head = foldBothQualifier(printed);
   // Awaken's life alternative stands alone: a conjunction in the other alternative
   // must not turn (life OR energy) AND named-cards into its activation condition.
-  const lifeAlternative = /^(?:(?:if|when) )?(your life is at \d+ or (?:less|fewer|more)),? or (.+)$/i.exec(head);
+  // R-442: a dash following the alternative conjunction is a separator (SD22-01).
+  const lifeAlternative = /^(?:(?:if|when) )?(your life is at \d+ or (?:less|fewer|more)),? or(?: |[—―–]\s*)(.+)$/i.exec(head);
   if (lifeAlternative) {
     const life = parseConditionClause(lifeAlternative[1], true);
     const rest = allConditions(lifeAlternative[2]);

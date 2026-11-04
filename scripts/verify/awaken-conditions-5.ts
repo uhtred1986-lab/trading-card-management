@@ -14,6 +14,7 @@ import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/are
 import type { VmState } from "../../src/lib/arena/vm/state";
 const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const PRINTS = {
+  "SD22-01": "[Awaken] When your life is at 4 or less, or―you have 2 or more energy and a yellow <Son Goku> card with an energy cost of 2 or more in play: Draw 1 card, switch up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 5 life left.",
   "BT19-002": "[Awaken] When your life is at 4 or less, or you have 2 or more energy and 1 or more <Android 14> and <Android 15> cards—both red and with an energy cost of 1—in your Battle Area and/or Drop: You may switch this card and up to 1 of your energy to Active Mode, and add cards from your life to your hand until you have 6 life left.",
   "BT19-068": "[Awaken] When your life is at 4 or less or you have 2 or more energy and there are 5 or more Extras under this card: You may draw 1 card and switch up to 1 of your energy to Active Mode.",
   "BT22-054": "[Awaken] When your life is at 4 or less or you have 2 or more energy and you have a {Family Kamehameha, Emotions Delivered} in your Battle Area: Draw 2 cards and add cards from your life to your hand until you have 6 life left.",
@@ -35,6 +36,10 @@ const defs:Record<string,CardDef>={
  ...Object.fromEntries(Object.entries(PRINTS).map(([id,skill])=>[id,card(id,{type:"LEADER",skill,back:{name:id+" awakened",power:15000,skill:null}})])),
  A14:card("A14",{characters:["Android 14"],colors:["Red"],energyCost:1}), A15:card("A15",{characters:["Android 15"],colors:["Red"],energyCost:1}),
  A15_BLUE:card("A15_BLUE",{characters:["Android 15"],colors:["Blue"],energyCost:1}), A14_HIGH:card("A14_HIGH",{characters:["Android 14"],colors:["Red"],energyCost:2}),
+ SD22_GOOD:card("SD22_GOOD",{characters:["Son Goku"],colors:["Yellow"],energyCost:2}),
+ SD22_RED:card("SD22_RED",{characters:["Son Goku"],colors:["Red"],energyCost:2}),
+ SD22_OTHER:card("SD22_OTHER",{characters:["Vegeta"],colors:["Yellow"],energyCost:2}),
+ SD22_CHEAP:card("SD22_CHEAP",{characters:["Son Goku"],colors:["Yellow"],energyCost:1}),
  FU:card("FU",{type:"Z-BATTLE",zEnergyCost:1,characters:["Fu"]}),
  NONZ:card("NONZ",{characters:["Fu"]}),
  GOKU:card("GOKU",{characters:["Son Goku: GT"]}),
@@ -62,9 +67,9 @@ function stage(s: VmState, owner: PlayerId, def: string, area: string): string {
 function setLife(s:VmState,p:PlayerId,n:number){while(s.sides[p].zones.life.length>n)assert.ok(moveCard(s,game,s.sides[p].zones.life.at(-1)!,"drop",{owner:p}).ok);}
 let cases=0;
 for(const owner of ["p1","p2"] as const)for(const id of Object.keys(PRINTS))for(const variant of ["life","alternate","missing","area","side","energy","color","cost"]){
- if(["color","cost"].includes(variant)&&id!=="BT19-002")continue;
+ if(["color","cost"].includes(variant)&&!["BT19-002","SD22-01"].includes(id))continue;
  if(["BT19-068","BT22-054","P-434","SD23-01"].includes(id)&&!["life","missing"].includes(variant))continue;
- if(variant==="energy"&&!["BT19-100","BT20-114","BT20-054","BT20-055","BT19-002"].includes(id))continue;
+ if(variant==="energy"&&!["BT19-100","BT20-114","BT20-054","BT20-055","BT19-002","SD22-01"].includes(id))continue;
  let s=fresh(owner);const foe=other(owner),leader=s.sides[owner].zones.leader[0];s.cards[leader].cardId=id;
  const threshold=id==="BT19-100"?2:id==="BT29-029"?5:4;
  if(variant==="life")setLife(s,owner,threshold);
@@ -73,6 +78,10 @@ for(const owner of ["p1","p2"] as const)for(const id of Object.keys(PRINTS))for(
   const area=(a:string)=>variant==="area"?"hand":a;
   const n=variant==="missing"?1:2;
   if(["BT20-114","BT20-054","BT20-055","BT19-002"].includes(id))for(let i=0;i<(variant==="energy"?1:2);i++)stage(s,p,"CB4_FILLER","energy");
+  if(id==="SD22-01"){
+   for(let i=0;i<(variant==="energy"?1:2);i++)stage(s,owner,"CB4_FILLER","energy");
+   stage(s,p,variant==="missing"?"SD22_OTHER":variant==="color"?"SD22_RED":variant==="cost"?"SD22_CHEAP":"SD22_GOOD",area("battle"));
+  }
   if(id==="BT20-114")stage(s,p,variant==="missing"?"NONZ":"FU",area("battle"));
   if(id==="BT20-054")for(let i=0;i<n;i++)stage(s,p,"GOKU",area("warp"));
   if(id==="BT19-002"){stage(s,p,variant==="cost"?"A14_HIGH":"A14",area("battle"));if(variant!=="missing")stage(s,p,variant==="color"?"A15_BLUE":"A15",area("drop"));}
@@ -97,8 +106,9 @@ for(const owner of ["p1","p2"] as const)for(const id of Object.keys(PRINTS))for(
   assert.equal(s.cards[leader].flipped,true,`${id} ${variant} resolves native Awaken`);
   const draws=id==="BT19-002"?0:["BT19-100","BT20-055","BT29-029","BT17-001","BT26-031","BT22-054","P-434"].includes(id)?2:1;
   const toSix=["BT20-055","BT20-114","BT17-001","BT20-054","BT26-031","BT22-054","P-434","SD23-01","BT19-002"].includes(id);
-  assert.equal(s.sides[owner].zones.hand.length,handBefore+draws+(toSix?Math.max(0,lifeBefore-6):0),`${id} resolves printed draw and life adjustment`);
-  assert.equal(s.sides[owner].zones.life.length,id==="BT19-100"?lifeBefore+1:toSix?Math.min(6,lifeBefore):lifeBefore);
+  const lifeLimit=id==="SD22-01"?5:toSix?6:null;
+  assert.equal(s.sides[owner].zones.hand.length,handBefore+draws+(lifeLimit!==null?Math.max(0,lifeBefore-lifeLimit):0),`${id} resolves printed draw and life adjustment`);
+  assert.equal(s.sides[owner].zones.life.length,id==="BT19-100"?lifeBefore+1:lifeLimit!==null?Math.min(lifeLimit,lifeBefore):lifeBefore);
 
  }
  cases++;
