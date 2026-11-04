@@ -644,6 +644,22 @@ function dropSelfOps(ops: readonly Op[]): Op[] {
   return out;
 }
 
+/** A complete, destination-bound self replacement the Combo Area collector retains.
+ * Unrelated roots must not be silently dropped when admitting triggerless Autos. */
+export function isComboDepartureProgram(ops: readonly Op[]): boolean {
+  let leaves = 0;
+  const whole = (body: readonly Op[]): boolean => body.every(op => {
+    if (op.op === "if") return whole(op.then) && (!op.else || whole(op.else));
+    if (op.op !== "replace" && op.op !== "replaceLeave") return false;
+    const self = !op.target || ("sel" in op.target && op.target.sel.special === "self" && Object.keys(op.target.sel).length === 1);
+    const departure = self && op.from?.length === 1 && op.from[0] === "combo"
+      && ((op.op === "replaceLeave" && op.requestedTo === "drop") || (op.op === "replace" && op.event === "leave" && op.to === "drop"));
+    if (departure) leaves++;
+    return !!departure;
+  });
+  return whole(ops) && leaves > 0;
+}
+
 /**
  * What a card in a Combo Area can answer: its replacements of a departure from the Combo Area, kept
  * inside the conditions they are printed under ("If your Leader Card is …"), and nothing else of the program.
@@ -1116,7 +1132,7 @@ function collect(
       const redirect = isMarker ? null : redirectOf(op.with);
       // "…would be KO'd **in battle**" (BT17-139) keeps its narrower cause on the `ko` moment.
       const by = op.event === "ko" ? (op.by === "koInBattle" ? ("koInBattle" as const) : ("ko" as const)) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
-      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}), ...(lifeSelf ? { lifeSelf: true as const } : {}) } : isMarker ? { kind: "marker" as const } : {};
+      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}), ...(lifeSelf ? { lifeSelf: true as const } : {}) } : isMarker ? { kind: "marker" as const } : op.event === "leave" && op.to ? { requestedTo: op.to } : {};
       const value: Replacement = redirect
         ? { to: redirect.to, from: op.from, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
         : { from: op.from, by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };

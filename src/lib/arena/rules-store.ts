@@ -17,9 +17,10 @@ import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { completeFilters, describeScript, type CardScripts, type Op } from "./vm/script";
 import { costModifierAs, modifyAttrAs, negateAs, replaceAs } from "./vm/script-schema";
-import { DEFERRED_STATICS, STATIC_OPS } from "./vm/effects";
+import { DEFERRED_STATICS, STATIC_OPS, isComboDepartureProgram } from "./vm/effects";
 import { readableAutomaticPrice } from "./vm/auto-costs";
 import { NotYet } from "./vm/errors";
+import { deepEqual } from "./lang/print";
 import { validateRule } from "./lang/validate";
 import { type CardDef } from "./types";
 import type { Cond, CostRecord, SkillPrice, XCost } from "./vm/script";
@@ -146,6 +147,20 @@ function comboContractGap(row: { printed: string; trigger?: unknown; combo?: unk
   return comboScriptProblem(row);
 }
 
+/** Old Combo-to-Drop substitutes omitted their original destination. Do not run them as broader departures. */
+function comboDepartureContractGap(row: { printed: string; ops: unknown }): string | null {
+  if (!/when this card would be placed in (?:its owner['’]?s|your) drop(?: area)? from (?:a|your|the) combo area/i.test(row.printed)) return null;
+  const unbounded = (body: unknown): boolean => Array.isArray(body) && body.some(value => {
+    if (!value || typeof value !== "object") return false;
+    const op = value as Op;
+    if (op.op === "if") return unbounded(op.then) || unbounded(op.else);
+    if (op.op !== "replace" && op.op !== "replaceLeave") return false;
+    if (!op.from?.includes("combo")) return false;
+    return op.op === "replace" ? op.event === "leave" && op.to !== "drop" : op.requestedTo !== "drop";
+  });
+  return unbounded(row.ops) ? "rebuild this Combo-to-Drop replacement with its original destination" : null;
+}
+
 /**
  * The typed records a row must carry before the engine will run it — Sparking
  * validity, skill usage, combo qualification, payment (#1066) and Fusion/Union
@@ -161,11 +176,26 @@ export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | 
   if (usageGap) gaps.push(usageGap);
   const comboGap = comboContractGap(row);
   if (comboGap) gaps.push(comboGap);
+  const departureGap = comboDepartureContractGap(row);
+  if (departureGap) gaps.push(departureGap);
   const paymentGap = costRecordProblem(row.cost);
   if (paymentGap) gaps.push(paymentGap);
   else if ((row.cost as CostRecord).readable === false) gaps.push("the stored skill payment is unreadable");
   gaps.push(...materialContractGaps(row));
   return gaps;
+}
+
+/** A standing Combo replacement has no activation payment or uncollected condition. */
+function supportedComboReplacement(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  if (costRecordProblem(row.cost) || usageProblem(row.usage) || !Array.isArray(row.ops) || programProblem(row.ops)) return false;
+  const cost = row.cost as CostRecord | null;
+  const usage = row.usage as UsageRecord | undefined;
+  return !!cost?.readable && !Object.values(cost.orbs).some(n => n !== 0) && !cost.either.length
+    && !cost.marker && !cost.burst && !cost.spiritBoost && !cost.program?.length && !cost.x && !cost.payWith?.length
+    && !cost.fusion && !cost.evolution && !cost.absorb && !cost.potara
+    && (!cost.condition || deepEqual(cost.condition, row.cond))
+    && !!usage && !usage.oncePerTurn && !usage.limit
+    && isComboDepartureProgram(row.ops as Op[]);
 }
 
 /**
@@ -187,7 +217,7 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
     const gap = autoPriceGap(cost);
     if (gap) unsupported.push(gap);
   }
-  if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0)) {
+  if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0) && !supportedComboReplacement(row)) {
     unsupported.push("the Auto rule has no readable WHEN trigger");
   }
   // Counter: Counter uses the native counter-motion chain (#552). Its
@@ -351,7 +381,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!comboContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!comboContractGap(row) || !!comboDepartureContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
       : { kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };

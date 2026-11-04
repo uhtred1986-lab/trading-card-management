@@ -802,7 +802,7 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
   // as the DB2 errata above does, so it is not offered to a departure from the
   // Battle Area; what the card does instead is the next clause.
   if (/^when this card would be placed in (?:its owner'?s?|your) drop(?: area)? from (?:a|your|the) combo area$/.test(t))
-    return { from: ["combo"] };
+    return { from: ["combo"], requestedTo: "drop" };
   // Delayed/replacement batch 1: the same departure in the words the rest of
   // the catalog prints it in. "If this card would leave your Combo Area"
   // (EX19-05, EX19-07) names every departure from the Combo Area, so no
@@ -8769,6 +8769,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
             ...(replaceEvent === "life" ? (lifeTo ? { to: lifeTo } : {}) : by && by !== "ko" ? { by } : {}),
             ...(replaceEvent !== "life" && bySide ? { bySide } : {}),
             ...(replaceEvent !== "life" && from ? { from } : {}),
+            ...(replaceEvent !== "life" && requestedTo ? { to: requestedTo } : {}),
             with: withOps,
             ...(offered || heldOffer ? { optional: true } : {}),
             ...(target ? { target } : {}),
