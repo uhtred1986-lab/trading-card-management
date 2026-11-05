@@ -475,6 +475,9 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  {"id":"arena-vm-notyet-r476-energy-entry-continuation-3","file":"src/lib/arena/vm/energy-entry-continuation.ts","ordinal":3,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"RM 22-31; R476 bounded native prerequisite","detail":"Optional Energy entry remains bounded: unreviewed origins, prices, multi-card ordering, protection changes or native procedures refuse; the six product records remain unadmitted.","ownerIssue":1247},
+  {"id":"arena-vm-notyet-r476-energy-entry-continuation-4","file":"src/lib/arena/vm/energy-entry-continuation.ts","ordinal":4,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"RM 22-31; R476 bounded native prerequisite","detail":"Optional Energy entry remains bounded: unreviewed origins, prices, multi-card ordering, protection changes or native procedures refuse; the six product records remain unadmitted.","ownerIssue":1247},
+  {"id":"arena-vm-notyet-r476-energy-entry-continuation-5","file":"src/lib/arena/vm/energy-entry-continuation.ts","ordinal":5,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"RM 22-31; R476 bounded native prerequisite","detail":"Optional Energy entry remains bounded: unreviewed origins, prices, multi-card ordering, protection changes or native procedures refuse; the six product records remain unadmitted.","ownerIssue":1247},
   {"id":"arena-vm-notyet-r476-energy-entry-continuation-1","file":"src/lib/arena/vm/energy-entry-continuation.ts","ordinal":1,"kind":"not-yet","classification":"validated-guard","citation":"RM 22-31; R476 bounded native prerequisite","detail":"Original source, payer, parent, movement and new-occurrence contracts must remain valid; stale or malformed data is refused without repair."},
   {"id":"arena-vm-notyet-r476-energy-entry-continuation-2","file":"src/lib/arena/vm/energy-entry-continuation.ts","ordinal":2,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"RM 22-31; R476 bounded native prerequisite","detail":"Optional Energy entry remains bounded: unreviewed origins, prices, multi-card ordering, protection changes or native procedures refuse; the six product records remain unadmitted.","ownerIssue":1247},
   {"id":"arena-vm-notyet-r476-energy-entry-effect-1","file":"src/lib/arena/vm/energy-entry-effect.ts","ordinal":1,"kind":"not-yet","classification":"validated-guard","citation":"RM 22-31; R476 bounded native prerequisite","detail":"Original source, payer, parent, movement and new-occurrence contracts must remain valid; stale or malformed data is refused without repair."},
@@ -658,6 +661,9 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-r476-energy-entry-continuation-3": "requireNoPayerReplacement|-|child.awaiting === \"replaceMove\" || child.replacementMove || child.replacementAuto || child.replacing || child.moveLoop?.choices?.length",
+  "arena-vm-notyet-r476-energy-entry-continuation-4": "runEnergyEntryContinuation|-|childHost.areaOf(id) === \"drop\" && childHost.replacementsFor(id,\"effect\",{actor:pending.child.master,requestedTo:\"warp\"}).length",
+  "arena-vm-notyet-r476-energy-entry-continuation-5": "runEnergyEntryContinuation|-|-",
   "arena-vm-notyet-r476-energy-entry-continuation-1": "<top-level>|-|-",
   "arena-vm-notyet-r476-energy-entry-continuation-2": "createEnergyEntryContinuation|-|h.areaOf(incoming) === \"drop\"",
   "arena-vm-notyet-r476-energy-entry-effect-1": "energyEntryEffect|-|energyEntryPolicyProblem(policy)",
