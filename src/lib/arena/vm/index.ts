@@ -404,7 +404,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
   const game = definitionFor(prev.game, ctx);
   const state = structuredClone(prev);
   validateStandingNegationRead(ctx, state);
-  if (["play", "playZ", "playUnison", "activate", "counter"].includes(action.type) && "card" in action && typeof action.card === "string") requireStandingNegationBounds(ctx, state, action.card);
+  if (["play", "playZ", "playUnison", "activate", "counter"].includes(action.type) && "card" in action && typeof action.card === "string") requireStandingNegationBounds(ctx, state, ["play", "playZ"].includes(action.type) && ctx.defs[state.cards[action.card]?.cardId]?.type === "BATTLE" ? action.card : undefined);
   const events: GameEvent[] = [{ type: "action", action }];
   // A completed declaration remains visible for its response snapshot. Only
   // the exact suspended frame may carry it through a further answer/reload.

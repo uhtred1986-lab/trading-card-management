@@ -9,6 +9,7 @@ import type { Action, EngineContext, GameEvent, PlayerId } from "../../src/lib/a
 import type { CardScripts, Script, ScriptFrame } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { newCard } from "../../src/lib/arena/vm/zones";
+import { draw, moved } from "../../src/lib/arena/vm/flow";
 import { resolvePlay } from "../../src/lib/arena/vm/play";
 import { vmHost } from "../../src/lib/arena/vm/host";
 import { hasKeyword } from "../../src/lib/arena/vm/program";
@@ -100,6 +101,27 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
   const before=JSON.stringify(state);
   assert.throws(()=>resolvePlay(grantCtx,game,state,ev,"king",master),/standing skill-grant regeneration/);
   assert.equal(JSON.stringify(state),before,"first negator refuses before any movement");count++;
+  for (const grantArea of ["leader", "battle"] as const) {
+    const ordinary=fresh();delete ordinary.standingNegationHistory;
+    const ordinaryCtx:EngineContext={...grantCtx,defs:{...grantCtx.defs,REGRANT:{...grantDef,type:grantArea==="leader"?"LEADER":"BATTLE"}}};
+    if(grantArea==="leader") ordinary.cards[ordinary.sides[master].zones.leader[0]].cardId="REGRANT";
+    else {add(ordinary,"grant","REGRANT");resolvePlay(ordinaryCtx,game,ordinary,[],"grant",master);}
+    const host=vmHost(ordinaryCtx,game,ordinary,[]);
+    for (const [id,route] of [["drawn","draw"],["milled","mill"],["charged","charge"],["under","under"],["hidden","hidden"],["flipped","flip"]] as const) {
+      ordinary.cards[id]=newCard(id,"DB1-066",master);
+      if(route==="draw" || route==="mill") ordinary.sides[master].zones.deck.unshift(id);else ordinary.sides[master].zones.hand.push(id);
+      if(route==="draw") {draw(ordinaryCtx,game,ordinary,[],master,1);assert.ok(ordinary.sides[master].zones.hand.includes(id));}
+      if(route==="mill") {host.move(id,"drop",master);assert.ok(ordinary.sides[master].zones.drop.includes(id));}
+      if(route==="charge") {moved(ordinaryCtx,game,ordinary,[],id,"energy",{owner:master});assert.ok(ordinary.sides[master].zones.energy.includes(id));}
+      if(route==="under") {const top=grantArea==="leader"?ordinary.sides[master].zones.leader[0]:"grant";assert.equal(host.placeUnder(id,top),true);assert.ok(ordinary.cards[top].under.includes(id));}
+      if(route==="hidden") {host.setHidden(id,true);assert.equal(ordinary.cards[id].hidden,true);}
+      if(route==="flip") {host.flip(id);assert.equal(ordinary.cards[id].flipped,true);}
+    }
+    // The same source intent still refuses when its actual destination is Battle.
+    add(ordinary,"arrivingKing","DB1-066");const snapshot=JSON.stringify(ordinary);
+    assert.throws(()=>resolvePlay(ordinaryCtx,game,ordinary,[],"arrivingKing",master),/standing skill-grant regeneration/);
+    assert.equal(JSON.stringify(ordinary),snapshot);assert.equal(ordinary.standingNegationHistory,undefined);count++;
+  }
  }
 
  {

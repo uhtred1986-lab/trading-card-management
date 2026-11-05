@@ -277,7 +277,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `placeUnder` fires none either — only the client-visible picture),
     // which is why this is `log`, not `emit`.
     placeUnder: (id, host, frame, onResult) => {
-      refuseStandingNegationMutation(state, "under placement", ctx, id);
+      refuseStandingNegationMutation(state, "under placement", ctx);
       // Audit triggers 3: where it came from, read before it joins the pile (which is in no area, 23-2).
       const from = zoneOf(state, id), fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
       const destination = { card: host, epoch: state.cards[host]?.zoneEpoch ?? 0 };
@@ -318,7 +318,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // pile under it in its order (23-2-2-1, 23-2-6). Not in a Leader Area: a
     // Leader is the only card that stands there (3-1-2, 17-1-1).
     placeOnTop: (id, host) => {
-      refuseStandingNegationMutation(state, "stack placement", ctx, id);
+      refuseStandingNegationMutation(state, "stack placement", ctx, zoneOf(state, host) === "battle" ? id : undefined);
       const top = state.cards[host];
       const at = findCard(state, host);
       // Mechanism batch 3 (3-1-2, 22-46-6 by analogy): a Leader Area takes a card on top only when it is a Leader
@@ -407,7 +407,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       card(id).faceUp = faceUp;
     },
     setHidden: (id, hidden, by) => {
-      refuseStandingNegationMutation(state, "Hidden switch", ctx, id);
+      refuseStandingNegationMutation(state, "Hidden switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
       clearAutoReveal(state, id);
       card(id).hidden = hidden;
       if (hidden) card(id).hiddenCount = (card(id).hiddenCount ?? 0) + 1;
@@ -427,7 +427,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       emit(ctx, game, state, ev, { event: "hiddenSwitched", card: id, controller, args: { hidden, in: zoneOf(state, id) ?? "", ...cause } }, null);
     },
     flip: (id, toBack = true) => {
-      refuseStandingNegationMutation(state, "face switch", ctx, id);
+      refuseStandingNegationMutation(state, "face switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
       card(id).flipped = toBack;
       log(ev, { type: "flip", card: id, flipped: toBack });
     },
@@ -1073,8 +1073,8 @@ function moveTo(
   const carry = !!opts.carry || (held(from) && held(to));
   // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
   const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode).mode : route.mode;
-  if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, id);
-  const transaction = beginStandingNegationMutation(ctx, state, id);
+  if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
+  const transaction = beginStandingNegationMutation(ctx, state, to === "battle" ? id : undefined);
   const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });

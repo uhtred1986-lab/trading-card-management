@@ -57,3 +57,6 @@ Validation: history32, observer46, adapter24, native20, R475native50, R480native
 
 
 Root review correction: expiry batching is now conditional on opted-in standing history. Without history, turn and battle cleanup retain the prior sequence of duration removal followed by each loan-return callback; Charge and skipped-Charge cleanup retain their prior absence of loan callbacks. Native proof increases to 24 groups, including both-seat no-history callback-order and Charge-placement regressions. Existing duration/shuffle and standalone VM suites pass.
+
+
+Destination review correction: only a resolved Battle destination supplies incoming-source intent to movement guards. Under placement supplies no incoming source; outside-Battle Hidden/face switches and non-Battle stacks do not imply activation. Direct action preflight supplies an incoming card only for ordinary Battle play/playZ; existing-board validation still applies to activate/counter/Unison actions, with precise incoming effects checked by their actual movement writer. The current native suite passes 28 grouped cases, adding both-seat unaffected Leader/Battle standing-grant boards where King may be drawn, milled, charged, placed under a card or switched outside Battle, while an actual Battle arrival still refuses before placement. No product admission is added.

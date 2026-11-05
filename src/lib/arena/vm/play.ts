@@ -390,7 +390,7 @@ export function resolvePlay(
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
 function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; beforeTriggers?: () => void } = {}): void {
-  refuseStandingNegationMutation(state, "stack play", ctx, card);
+  refuseStandingNegationMutation(state, "stack play", ctx, to === "battle" ? card : undefined);
   const slot = state.sides[player].zones[to].indexOf(host);
   const mode = state.cards[host].mode;
   // 22-13-5-4 (#927): [Union-Potara] stacks two cards, "in any order" - the
