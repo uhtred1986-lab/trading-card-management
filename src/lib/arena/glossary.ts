@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Launch permits ordinary combos from Drop (R-473)",
+    body: "BT31-055's back Permanent permits its player to declare combos with mono-yellow Earthling Battle Cards with exactly 5000 combo power from their own Drop. It does not automatically combo those cards or waive combo cost. Normal combo prohibitions apply, and negating the granting skill removes the permission. Saved energy choices preserve the source and payer occurrences plus the original qualifying grants; old in-flight combo payments without that contract rebuild. R055's separate removal replacement remains active unless Launch's skills are negated, including at end-of-battle cleanup.",
+  },
+  {
     title: "Ultrasonic Exchange resolves each incoming card (R-435)",
     body: "The owner-approved FAQ interpretation preserves the corrected printed text while allowing an unknown skill-play declaration. Each actual Battle Card with power 20000 or less gets its own optional decision before entry. Complete original placement in Drop replaces that play; declining or failing that original movement instead chooses an existing Battle Card for Drop. Deflect protects incoming movement and existing-card effects, while Barrier prevents choosing an existing opposing card. One Counter activation pays once, and no new response window opens between arrivals. After-window, high-power, Unison and zero-arrival cases perform no fallback. Explicit selected order is preserved; automatic multi-card ordering, tokens and special play procedures remain completion work.",
   },
