@@ -13,7 +13,7 @@ function regenerates(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   if (Array.isArray(value)) return value.some(regenerates);
   const object = value as Record<string, unknown>;
-  return object.op === "gains" || object.op === "copySkills" || Object.values(object).some(regenerates);
+  return object.op === "grant" || object.op === "copySkills" || Object.values(object).some(regenerates);
 }
 /** Incoming cards are checked before placement, including the first negator. */
 export function requireStandingNegationBounds(ctx: EngineContext, state: VmState, incoming?: string, affected = false): void {

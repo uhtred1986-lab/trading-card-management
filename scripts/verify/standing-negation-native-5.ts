@@ -73,9 +73,9 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
   add(state,"king","DB1-066");
   for(let i=0;i<10;i++){const id=`energy${i}`;state.cards[id]=newCard(id,"V1",master);state.cards[id].mode="active";state.sides[master].zones.energy.push(id);}
   const start=performance.now();
-  const menu=RULES.legalActions(ctx,state);
+  const menu=RULES.legalActions(ctx,state);const afterMenu=performance.now();
   const play=menu.find(entry=>entry.action.type==="play" && entry.action.card==="king");assert.ok(play,"native ordinary play menu");
-  state=RULES.apply(ctx,JSON.parse(JSON.stringify(state)),play.action).state as VmState;
+  state=RULES.apply(ctx,JSON.parse(JSON.stringify(state)),play.action).state as VmState;const afterPlay=performance.now();
   for(let i=0;i<8 && !state.sides[master].zones.battle.includes("king");i++) {
     assert.ok("player" in state.prompt);state=RULES.apply(ctx,JSON.parse(JSON.stringify(state)),{type:"pass",player:(state.prompt as {player:PlayerId}).player}).state as VmState;
   }
@@ -88,14 +88,15 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
   assert.equal(state.standingNegationHistory!.active[0].source.card,"gotenks");
   validateStandingNegationRead(ctx,state);assert.equal(skillsNegated(state,"king"),true);
   assert.ok(!state.effects.some(effect=>effect.target==="king" && effect.kind==="negateSkills"));
-  console.log(`R477 native menu/play/reload/view (${Object.keys(state.cards).length} cards): ${Math.round(performance.now()-start)}ms`);count++;
+  console.log(`R477 native menu/play/reload/view (${Object.keys(state.cards).length} cards): ${Math.round(performance.now()-start)}ms total, menu ${Math.round(afterMenu-start)}ms, play ${Math.round(afterPlay-afterMenu)}ms`);count++;
  }
 
  {
   const state=fresh(),ev:GameEvent[]=[];add(state,"king","DB1-066");
   const grantDef={...defs.V1,id:"REGRANT",skill:"[Permanent] This card gains [Double Strike]."};
-  const grantCtx:EngineContext={...ctx,defs:{...defs,REGRANT:grantDef},scripts:{...scripts,REGRANT:{bySkill:{0:{kind:"permanent",validity:{version:1,sparking:null},usage:{version:1,oncePerTurn:false,limit:null},ops:[{op:"gains",target:{sel:{special:"self"}},keyword:"Double Strike",until:"permanent"}],unsupported:[]}},complete:true,unsupported:[]}}} as EngineContext;
+  const grantCtx:EngineContext={...ctx,defs:{...defs,REGRANT:grantDef},scripts:{...scripts,REGRANT:{bySkill:{0:{kind:"permanent",validity:{version:1,sparking:null},usage:{version:1,oncePerTurn:false,limit:null},ops:[{op:"grant",target:{sel:{special:"self"}},keyword:{name:"Strike",x:2},until:"game"}],unsupported:[]}},complete:true,unsupported:[]}}};
   add(state,"grant","REGRANT");resolvePlay(grantCtx,game,state,ev,"grant",master);
+  assert.equal(hasKeyword(grantCtx,game,state,"grant","Strike"),true,"unaffected standing grant still applies");
   const before=JSON.stringify(state);
   assert.throws(()=>resolvePlay(grantCtx,game,state,ev,"king",master),/standing skill-grant regeneration/);
   assert.equal(JSON.stringify(state),before,"first negator refuses before any movement");count++;
@@ -112,7 +113,7 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
  {
   const state=fresh(),ev:GameEvent[]=[];add(state,"king","DB1-066");resolvePlay(ctx,game,state,ev,"king",master);
   const local:EngineContext={...ctx,scripts:structuredClone(ctx.scripts)};validateStandingNegationRead(local,state);
-  local.scripts["DB1-066"].bySkill[0].unsupported.push("changed stored source");
+  local.scripts!["DB1-066"].bySkill[0].unsupported.push("changed stored source");
   assert.throws(()=>skillsNegated(state,"king"),/validate standing-negation history/);
   assert.throws(()=>validateStandingNegationRead(local,state),/complete unconditional/);count++;
  }
