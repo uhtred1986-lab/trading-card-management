@@ -1731,6 +1731,8 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** R475: exact copied source retained after deletion/expiry of its grant. */
+  copiedSkillCapture?: import("./triggers").CopiedSkillCapture;
   arrivalDecision?: import("./counter-arrival-runtime").CounterArrivalDecision;
   arrivalResume?: import("./counter-arrival-runtime").CounterArrivalResume;
   arrivalBatch?: import("./counter-arrival-batch").CounterArrivalBatch;
@@ -3271,6 +3273,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const before = frame.moveLoop.beforeDrop ?? h.zone(h.ownerOf(id), "drop").length;
             frame.moveLoop.beforeDrop = undefined;
             const deferred = defers(replaced);
+            const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
+            if (substitute) h.prepareReplacement?.(substitute, id, "drop", { owner: h.ownerOf(id), reason: "ko", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
             h.ko(id, frame.card, replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced });
             // "If you KO'd a card" (20-16): only a KO that happened counts.
             if (h.zone(h.ownerOf(id), "drop").length > before) { (frame.did ??= {}).ko = true; frame.acted = (frame.acted ?? 0) + 1; }
@@ -3280,7 +3284,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             if (frame.saveVarsAs && !h.zone(h.ownerOf(id), "drop").includes(id)) frame.priceUnpaid ??= `${h.nameOf(id)} was not KO'd`;
             if (deferred) {
               frame.moveLoop.index++;
-              h.interrupt(substituteFrame(h, id, replaced!), frame);
+              h.interrupt(substitute!, frame);
               return "done";
             }
           }

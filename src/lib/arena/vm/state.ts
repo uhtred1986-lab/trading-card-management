@@ -313,6 +313,8 @@ export interface VmFrame {
 }
 
 export interface VmState {
+  /** Resolved skill grants deleted by negation; standing grants are separate. */
+  resolvedGrantDeletions?: import("./resolved-grant-deletion").ResolvedGrantDeletion[];
   /** Which interpreter wrote this. The one field `legacyState` reads. */
   engine: "rules";
   /** The game definition this state was dealt from (`rulesets/<game>/`). */

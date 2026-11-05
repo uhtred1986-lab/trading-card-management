@@ -1,0 +1,15 @@
+# R475: resolved grant deletion prerequisite
+
+RM 9-1-2-2/2-1 deletes resolved granted skill text when whole-skill negation applies. Expiring that negation restores printed text, but does not restore the same resolved keyword or copied-skill grant. A fresh effect ID is independent. This change implements that bounded prerequisite without admitting additional printed cards.
+
+Mutation-time receipts identify the original card, area epoch, Hidden Mode incarnation and effect ID. Copied receipts retain source definition, face and original skill indices. Read-only discovery never repairs missing history and omits deleted copied lines. Live grants without complete observation history require rebuilding, while no-grant saves remain usable. Control loans and native returns preserve valid grant identities; this does not bless Battle-to-Combo grant carry or otherwise repair R454 movement lifetimes.
+
+Copied activated and pending continuations capture the original already-compiled source record. Exact historical lookup can continue after grant expiry or source departure, but refuses altered source definitions/programs and missing or malformed captures. R422 witnessed arrival Autos survive subsequent negation/departure; ordinary pending keyword hooks keep existing cancellation gates. New card or Hidden Mode incarnations cannot lend negation to old captured hooks. Copied hook and replacement substitute builders capture identity before continuation; a Permanent substitute remains an application, not a new Auto activation.
+
+Validation: 30 typed receipt cases and 50 native/protocol cases across both seats. The native set includes exact same-name printed/granted Blocker restoration, new grant independence, control loan/return, active copied chooser continuation, ordinary pending cancellation, R422 witnessed arrival, copied replacement continuation, current keyword-kind cancellation, and original hook isolation after reentry or Hidden/Revealed transition. Explicitly staged hook boundaries are protocol controls, not claims of legal intervening player actions. Snapshot checks cover both viewers and exclude receipt/capture internals.
+
+Compatibility evidence includes standalone `vm.ts`, granted/printed Heroic, quoted grants, keyword-negation identity (64), replacement Auto (53), battle cleanup and Counter-after-scope (14). Full corpus comparison against checkpoint42 is unchanged: 6,597 cards, 13,964 records, 12,999 readable / 965 unread, zero complete-record differences. Compiler/parser source is unchanged. Targeted typecheck and lint pass; no full gate, build, database operation or card admission is claimed.
+
+Remaining work: standing whole-negation admission and generation history, standing regrant semantics, permanent deletion by partial keyword-kind/specific-grant negation, and general movement lifetime. Existing transient partial-negation gates remain effective. R475 does not claim all cards supported.
+
+Local evidence: `/workspace/shared/arena-support5/triggers-r475-{mechanism-final,native-final,type-final2,lint-final2,replacement-final}.log`, `triggers-r475-vm.log`, and `triggers-r475-full-diff.json`.

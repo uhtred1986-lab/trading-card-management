@@ -1,3 +1,4 @@
+import { captureCopiedSkill } from "./triggers";
 import { counterActivationFrom } from "./counter-activation-origin";
 import { taxReceiptIdentity } from "./tax-receipt";
 import { requirePaidMarkers } from "./paid-markers";
@@ -1013,7 +1014,8 @@ export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: V
 /** A minimal frame for a hook body: the language's own shape, `self` bound the way every program already reads its own card, plus whatever this hook's `vars` name. Exported for `vm/hooks.ts`'s `fireHook`. */
 export function hookFrame(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>, skillIndex?: number, grantEffectId?: number, standingGrantId?: string): ScriptFrame {
   const skill = skillIndex === undefined ? undefined : skillsShowing(ctx, state, subject).skills.find(s => s.index === skillIndex);
-  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { usage: requireUsage(skill?.usage), validity: requireValidity(skill?.validity) }), ...(skillIndex === undefined ? {} : { skillIndex }), ...(grantEffectId === undefined ? {} : { grantEffectId }), ...(standingGrantId === undefined ? {} : { standingGrantId }) };
+  const copiedSkillCapture = skill ? captureCopiedSkill(state, subject, skill, skillsShowing(ctx, state, subject).scripts.bySkill[skill.index]) : undefined;
+  return { ...(copiedSkillCapture ? { copiedSkillCapture } : {}), ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { usage: requireUsage(skill?.usage), validity: requireValidity(skill?.validity) }), ...(skillIndex === undefined ? {} : { skillIndex }), ...(grantEffectId === undefined ? {} : { grantEffectId }), ...(standingGrantId === undefined ? {} : { standingGrantId }) };
 }
 
 export type QueryFact =

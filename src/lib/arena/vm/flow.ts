@@ -1,3 +1,5 @@
+import { capturedGrantedSkillNegated } from "./effects";
+import { capturedSkillShowing } from "./triggers";
 import { requireAwakenAlternativeFrame, stepAwakenAlternative } from "./awaken-alternative-costs";
 import { queueFieldCleanup, stepFieldCleanup } from "./field-rules";
 import { requireFieldFrame, stepFieldCost } from "./field-costs";
@@ -857,7 +859,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // An old pending queue cannot bypass the executable-record migration.
   for (const item of state.pending) {
     if (item.kind === "hook") continue;
-    const sk = skillsShowing(ctx, state, item.card).skills.find((line) => line.index === item.skillIndex);
+    const sk = capturedSkillShowing(ctx, state, item.card, item.skillIndex, item.copiedSkillCapture).skill;
     const gap = usageProblem(sk?.usage) ?? validityProblem(sk?.validity);
     if (gap) {
       interruptGame(ctx, game, state, ev, { sourceCard: item.card, skillIndex: item.skillIndex,
@@ -888,8 +890,8 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     return true;
   }
   const named = state.cards[next.card]?.cardId ?? next.card;
-  const showing = skillsShowing(ctx, state, next.card);
-  const skill = showing.skills.find((sk) => sk.index === next.skillIndex);
+  const captured = capturedSkillShowing(ctx, state, next.card, next.skillIndex, next.copiedSkillCapture);
+  const skill = captured.skill;
   // Bare Attack/Revenge lines deliberately have no card_rules row: their
   // entire behavior is the declared keyword DO/battleEnd hook (22-8/22-9).
   // Do not confuse that with a missing printed effect. A priced/qualified
@@ -897,7 +899,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const nativeBattleKeyword = skill?.kind === "keyword"
     && (skill.keyword?.name === "Attack" || skill.keyword?.name === "Revenge")
     && !skill.effect.trim() && !skill.cost.trim() && !automaticHasPrice(skill, undefined);
-  const program = showing.scripts.bySkill[next.skillIndex]
+  const program = captured.script
     ?? (nativeBattleKeyword ? { ops: [], unsupported: [] } : undefined);
   // Validate saved pending data without rechecking an occurrence that already
   // happened (9-6-11: Angila still resolves after a Jaco return to hand).
@@ -927,6 +929,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     return true;
   }
   const frame: ScriptFrame & { autoRevealEpoch?: number } = {
+    ...(next.copiedSkillCapture ? { copiedSkillCapture: structuredClone(next.copiedSkillCapture) } : {}),
     ...(skill?.kind === "auto" ? { skillEffectOrigin: { version: 2 as const, kind: "auto" as const } } : {}),
     markerHistoryContract: markerHistoryContract(program?.ops ?? [], program?.price),
     energyCouponContract: energyCouponContract(program?.ops ?? []),
@@ -973,7 +976,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // 9-1-5: a card whose skills are negated has none, and one skill switched
   // off is off for the moment it answered to as well as for every other. The
   // one reading of that rule lives in `./effects.ts` and every reader uses it.
-  if (!arrivalAutoWasActive(next) && skillNegated(state, next.card, next.skillIndex, skill?.kind)) {
+  if (!arrivalAutoWasActive(next) && (captured.deleted || skillNegated(state, next.card, next.skillIndex, skill?.kind))) {
     log(ev, { type: "note", text: `${noteName} is negated, so it does not resolve` });
     return true;
   }
@@ -1070,7 +1073,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
 /** 22-11-5 / 22-44-5 (#741): the line of a pending [Auto] when it has no use left this turn for its master, else null. */
 function spentLine(ctx: EngineContext, state: VmState, item: VmPendingRecord): Skill | null {
   if (item.kind === "hook") return null;
-  const sk = skillsShowing(ctx, state, item.card).skills.find((line) => line.index === item.skillIndex);
+  const sk = capturedSkillShowing(ctx, state, item.card, item.skillIndex, item.copiedSkillCapture).skill;
   return sk && usesLeft(state, item.master, item.card, sk) === 0 ? sk : null;
 }
 
@@ -1367,7 +1370,18 @@ function programSourceScript(ctx: EngineContext, state: VmState, frame: ScriptFr
     rebuildScope("rebuild this Counter continuation against its current stored rule: mismatched declared skill identity");
   }
   if (frame.counterCost?.extra && frame.counterCost.extra.skillIndex !== frame.skillIndex) rebuildScope("rebuild this saved Extra Counter selected skill");
-  return frame.counterCost?.extra?.declaredScript ?? declaration?.script ?? (frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined);
+  return frame.counterCost?.extra?.declaredScript ?? declaration?.script ?? (frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? capturedSkillShowing(ctx, state, frame.card, frame.skillIndex, frame.copiedSkillCapture).script : undefined);
+}
+
+/** The same pending-stage policy, bound to the original observed source. */
+function capturedHookNegated(ctx: EngineContext, state: VmState, frame: ScriptFrame): boolean {
+  if (frame.grantEffectId !== undefined) return capturedGrantedSkillNegated(state, frame.card, frame.grantEffectId, frame.skillIndex);
+  if (frame.copiedSkillCapture) {
+    const captured = capturedSkillShowing(ctx, state, frame.card, frame.skillIndex!, frame.copiedSkillCapture);
+    if (captured.deleted) return true;
+    if ((state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.copiedSkillCapture.epoch || (state.cards[frame.card]?.hiddenCount ?? 0) !== frame.copiedSkillCapture.hiddenCount) return false;
+  }
+  return skillsNegated(state, frame.card) || (frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")) || (frame.standingGrantId !== undefined && grantedSkillNegated(state, frame.card, frame.standingGrantId));
 }
 
 function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "done" | "wait" {
@@ -1533,7 +1547,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       }
       return result;
     }
-    if (frame.pendingHookSkill && (skillsNegated(state, frame.card) || (frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")) || (frame.grantEffectId !== undefined && grantedSkillNegated(state, frame.card, frame.grantEffectId)) || (frame.standingGrantId !== undefined && grantedSkillNegated(state, frame.card, frame.standingGrantId)))) {
+    if (frame.pendingHookSkill && capturedHookNegated(ctx, state, frame)) {
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}'s skill is negated, so it does not resolve` });
       return "done";
     }
