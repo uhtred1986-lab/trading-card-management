@@ -771,7 +771,7 @@ export interface Permission {
    * EX25-02), "…even if you have 5 or more life" (BT1-051, BT7-069): the target Leader's [Awaken] is offered with its
    * printed life ceiling raised to `n` — 99, no ceiling, for "N or more life". Its other conditions still hold.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "counterFromEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional";
+  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "counterFromEnergy" | "counterFromUnder" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
   /** `startLife`: how many life cards the player starts with. */
@@ -780,6 +780,8 @@ export interface Permission {
   line?: string;
   unionVariant?: "Fusion" | "Potara";
   price?: import("./vm/script").SkillPrice;
+  /** R466: physical under origin with the reviewed hand-equivalent price policy. */
+  counterUnderPolicy?: "asHandV1";
   /** `unionSourceUnder`: which Unison cards' piles may be searched (BT24-112's "your black Z-Unison"). */
   source?: CardFilter;
 }
@@ -1480,7 +1482,7 @@ export type Prompt =
   | { kind: "main"; player: PlayerId }
   | { kind: "combo"; player: PlayerId; side: "offense" | "defense" }
   | { kind: "blocker"; player: PlayerId; candidates: string[] }
-  | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[]; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
+  | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[]; underOccurrences?: import("./vm/counter-under").CounterUnderOccurrences; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
   | { kind: "chooseCards"; player: PlayerId; choice: CardChoice; pooledPayment?: { action: Action; cost: string; n: number; source: CardOccurrence | null; candidates: CardOccurrence[] } }
   /** "Choose one— ・A ・B" (20-2): which printed option is taken. */
@@ -1498,7 +1500,7 @@ export type Prompt =
    * Which energy to rest. Only asked when the choice can matter: when the
    * colours left active afterwards would differ (3-8-2).
    */
-  | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; markerPayers?: import("./vm/costs").PooledMarkers[]; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
+  | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string; underOccurrences?: import("./vm/counter-under").CounterUnderOccurrences; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; markerPayers?: import("./vm/costs").PooledMarkers[]; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
   | { kind: "offering"; player: PlayerId; card: string }
   /**
    * 22-45-3: [Empower]'s "may carry up to Y markers" — a choice, not the

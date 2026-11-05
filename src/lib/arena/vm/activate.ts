@@ -1,3 +1,4 @@
+import { sameCounterUnderDeclaration, sameCounterUnderSource, validCounterUnderOrigin, resetUnderCounterOccurrence } from "./counter-under";
 import { resetEnergyCounterOccurrence } from "./counter-energy";
 import { isOverRealmPayment, overRealmAction, overRealmCost } from "./over-realm-cost";
 import { rebuildScope } from "./skill-play-scope";
@@ -1015,6 +1016,8 @@ export interface TaxGate {
   counterDropPaidEpoch?: number;
   counterExtraSource?: import("./counter-extra-cost").ExtraCounterSource;
   counterEnergyEpoch?: number;
+  counterUnderSource?: import("./counter-under").CounterUnderSource;
+  counterTaxPending?: {version:1;key:string};
 }
 
 /**
@@ -1023,8 +1026,8 @@ export interface TaxGate {
  * on it. The caller has already refused an activation whose prices cannot be
  * paid whole (`unpaidActivationTax`).
  */
-export function activationTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skillKind: string): Omit<TaxGate, "guards"> | null {
-  const from = findCard(state, card)?.zone;
+export function activationTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skillKind: string, declaredFrom?: string): Omit<TaxGate, "guards"> | null {
+  const from = declaredFrom ?? findCard(state, card)?.zone;
   if (!activationTaxes(ctx, game, state, player, card, skillKind, from).length) return null;
   const free = activationTaxes(ctx, game, state, player, card, skillKind, from, true).map((t) => t.key);
   return { player, card, skillKind, ...(from === undefined ? {} : { from }), paid: [], free };
@@ -1057,6 +1060,20 @@ export function guardExtraCounterTaxPayment(ctx: EngineContext, state: VmState, 
 /** One look of the gate at the front of the queue (`vm/flow.ts`'s runner); the frame is already off the queue. */
 export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" {
   const gate = frame.taxGate!;
+  const underParent = state.programs[0];
+  if (gate.from === "under" || gate.counterUnderSource || underParent?.counterCost?.underOrigin) {
+    if (!gate.counter || gate.from !== "under" || gate.guards !== 1 || !underParent?.counterCost ||
+      underParent.card !== gate.card || underParent.master !== gate.player ||
+      !validCounterUnderOrigin(ctx, state, underParent) ||
+      !sameCounterUnderDeclaration(gate.counterUnderSource, underParent.counterCost.underOrigin?.source)) {
+      rebuildScope("rebuild the saved under-card Counter tax activation owner");
+    }
+    if (!sameCounterUnderSource(state, gate.card, gate.counterUnderSource!)) {
+      state.programs.splice(0, gate.guards);
+      log(ev, {type:"note",text:"[Counter] activation failed: the original under-card source or host left before its tax completed"});
+      return "done";
+    }
+  }
   if (gate.counter && (gate.from === "energy" || gate.from === "drop") &&
     (gate.guards !== 1 || !state.programs[0]?.counterCost || state.programs[0].card !== gate.card ||
       state.programs[0].master !== gate.player || !Number.isSafeInteger(state.programs[0].skillIndex))) {
@@ -1093,18 +1110,22 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
   if (!owed.length) return "done";
   if (unpaidActivationTax(ctx, game, state, gate.player, gate.card, owed)) {
     state.programs.splice(0, gate.guards);
+    if (gate.counter && gate.from === "under") moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, {owner:state.cards[gate.card].owner,reveal:true,beforeTriggers:resetUnderCounterOccurrence(state,ev,gate.card)});
     if (gate.counter && gate.from === "energy" && state.sides[gate.player].zones.energy.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true, beforeTriggers: resetEnergyCounterOccurrence(state, ev, gate.card) });
     if (gate.counter && gate.from !== "energy" && state.sides[gate.player].zones[ACTIVATION_ZONES.hand]?.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true });
     log(ev, { type: "note", text: "The skill's activation failed: a price a rule puts on it (20-14-1) can no longer be paid" });
     return "done";
   }
-  const counterNonhandTax = gate.counter && (gate.from === "energy" || gate.from === "drop") ? {
+  const counterNonhandTax = gate.counter && (gate.from === "energy" || gate.from === "drop" || gate.from === "under") ? {
     version: 1 as const, card: gate.card, cardId: state.cards[gate.card].cardId,
-    epoch: (gate.from === "energy" ? gate.counterEnergyEpoch : gate.counterDropPaidEpoch)!,
-    area: gate.from === "energy" ? "energy" as const : "removed" as const,
+    epoch: (gate.from === "under" ? gate.counterUnderSource?.sourceEpoch : gate.from === "energy" ? gate.counterEnergyEpoch : gate.counterDropPaidEpoch)!,
+    area: gate.from === "under" ? "under" as const : gate.from === "energy" ? "energy" as const : "removed" as const,
+    ...(gate.counterUnderSource ? {under:structuredClone(gate.counterUnderSource)} : {}),
     skillIndex: state.programs[0].skillIndex!,
+    paymentVersion: 1 as const, key: owed[0].key, payers: {},
   } : undefined;
-  gate.paid.push(owed[0].key);
+  if (counterNonhandTax) gate.counterTaxPending = {version:1,key:owed[0].key};
+  else gate.paid.push(owed[0].key);
   state.programs.unshift({ ops: owed[0].ops, ip: 0, vars: {}, card: gate.card, master: gate.player, ...(counterNonhandTax ? { counterNonhandTax } : {}), ...(gate.counterExtraSource ? { extraCounterTax: { version: 1 as const, source: structuredClone(gate.counterExtraSource) } } : {}) }, frame);
   return "done";
 }

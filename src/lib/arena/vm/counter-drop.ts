@@ -6,7 +6,7 @@ import type { ScriptFrame, SkillPrice } from "./script";
 import type { VmState } from "./state";
 import { counterDropPermitProblem } from "./counter-drop-contract";
 import { skillsShowing } from "./triggers";
-import { findCard } from "./zones";
+import { findCard, hostOf } from "./zones";
 import { skillNegated, skillsNegated } from "./effects";
 import { sparkingIsValid } from "./validity";
 
@@ -36,10 +36,17 @@ export function validCounterDropOrigin(ctx: EngineContext, state: VmState, frame
 }
 
 export interface CounterDropOccurrences { version: 1; cards: Record<string, number> }
-export function counterDropOccurrences(state: VmState, candidates: readonly string[]): { dropOccurrences?: CounterDropOccurrences; energyOccurrences?: CounterDropOccurrences } {
+export function counterDropOccurrences(state: VmState, candidates: readonly string[]): { dropOccurrences?: CounterDropOccurrences; energyOccurrences?: CounterDropOccurrences; underOccurrences?: import("./counter-under").CounterUnderOccurrences } {
  const cards=Object.fromEntries(candidates.filter(id=>findCard(state,id)?.zone==="drop").map(id=>[id,state.cards[id].zoneEpoch??0]));
+ const under: import("./counter-under").CounterUnderOccurrences["cards"] = {};
+ for (const card of candidates) {
+   const host = hostOf(state, card), at = host ? findCard(state, host) : null;
+   if (host && at?.zone === "battle") under[card] = {version:1,cardId:state.cards[card].cardId,
+     sourceEpoch:state.cards[card].zoneEpoch??0,sourceOwner:state.cards[card].owner,
+     host,hostEpoch:state.cards[host].zoneEpoch??0,master:at.owner};
+ }
  const energy=Object.fromEntries(candidates.filter(id=>findCard(state,id)?.zone==="energy").map(id=>[id,state.cards[id].zoneEpoch??0]));
- return {...(Object.keys(cards).length ? {dropOccurrences:{version:1 as const,cards}} : {}),...(Object.keys(energy).length ? {energyOccurrences:{version:1 as const,cards:energy}} : {})};
+ return {...(Object.keys(under).length ? {underOccurrences:{version:1 as const,cards:under}} : {}),...(Object.keys(cards).length ? {dropOccurrences:{version:1 as const,cards}} : {}),...(Object.keys(energy).length ? {energyOccurrences:{version:1 as const,cards:energy}} : {})};
 }
 export function counterDropOccurrenceProblem(state: VmState, card: string, saved: CounterDropOccurrences | undefined): string | null {
  const epoch=saved?.cards?.[card];
