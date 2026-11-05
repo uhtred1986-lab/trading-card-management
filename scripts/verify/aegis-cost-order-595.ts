@@ -286,8 +286,8 @@ for (const by of ["skill", undefined] as const) {
   }
 }
 // Two competing answers to the same native pool departure are put to the
-// affected owner. A same-destination route pays; a redirect fails after any
-// earlier native payment, and neither route can activate the skill twice.
+// affected owner. Either replacement fails the original action price, even
+// at the same destination (R-427); earlier native payment remains paid.
 for (const index of [0, 1]) {
   const a = defense("A595", ["MULTI595", "MULTI595"], ["RED595"]); const s = activate(a.s, a.card).state;
   const custom = { ...game, costs: { ...game.costs, pool595: { ...game.costs.burst, name: "pool595", amount: "costOf", do: [{ op: "moveTo" as const, target: { sel: { side: "you" as const, area: "battle" as const } }, to: "drop" as const }] } } };
@@ -298,7 +298,7 @@ for (const index of [0, 1]) {
   assert.equal(s.prompt.kind, "replaceMove"); assert.equal(s.prompt.options.length, 2);
   const saved = reload(s); saved.lastMode = index; const ev: GameEvent[] = []; run(ctx, custom, saved, ev);
   assert.ok(saved.sides.p1.zones[index === 0 ? "drop" : "warp"].includes(a.card));
-  assert.equal(skills(ev, a.card).length, index === 0 ? 1 : 0);
+  assert.equal(skills(ev, a.card).length, 0);
   assert.equal(saved.cards[a.energy[0]].mode, "rest");
 }
 // A two-card synthetic native pool suspends on each physical departure. The
