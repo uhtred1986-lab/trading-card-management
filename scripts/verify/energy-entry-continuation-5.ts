@@ -56,6 +56,12 @@ for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck"] as 
  assert.equal(energyEntryNegationEarned(parent.energyEntry!),choice==="accept");
  assert.ok(state.sides[player].zones[origin].includes(incoming));assert.equal(parent.ip,0);assert.equal(parent.moveLoop?.index,0);
  const before=JSON.stringify({state,events,parent});assert.equal(runEnergyEntryContinuation(vmHost(ctx,game,state,events,parent),vmHost(ctx,game,state,events,parent.energyEntry!.child),parent,parent.energyEntry!),"completed");assert.equal(JSON.stringify({state,events,parent}),before,"completed child retry never repeats payment");
+ if(choice==="decline"&&origin==="hand"&&!actingOpponent){
+  const malformed=copy(parent);malformed.energyEntry!.child.replacing=first;const beforeMalformed=JSON.stringify({state,events,malformed});
+  assert.throws(()=>requireEnergyEntryContinuation(vmHost(ctx,game,state,events),malformed,malformed.energyEntry!,10,policy,destination),/payer replacement continuation/);
+  assert.throws(()=>runEnergyEntryContinuation(vmHost(ctx,game,state,events),vmHost(ctx,game,state,events),malformed,malformed.energyEntry!),/payer replacement continuation/);
+  assert.equal(JSON.stringify({state,events,malformed}),beforeMalformed,"completed saved child cannot bypass replacement guard");cases++;
+ }
  const corruptions=[(f:ScriptFrame)=>{f.energyEntrySequence!++;},(f:ScriptFrame)=>{f.energyEntry!.child.master=master===player?(player==="p1"?"p2":"p1"):master;},(f:ScriptFrame)=>{f.energyEntry!.child.ops[0]={op:"draw",n:2};},(f:ScriptFrame)=>{f.moveLoop!.ids=[second];},(f:ScriptFrame)=>{f.ops[0]={op:"moveTo",target:{sel:{special:"self"}},to:"drop"};}];
  for(const corrupt of corruptions){const bad=copy(parent);corrupt(bad);assert.throws(()=>requireEnergyEntryContinuation(vmHost(ctx,game,state,events),bad,bad.energyEntry!,10,policy,destination),/rebuild/);cases++;}
  if(choice!=="decline") {
