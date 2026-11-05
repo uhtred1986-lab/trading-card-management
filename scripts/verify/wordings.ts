@@ -134,19 +134,17 @@ import type { EngineState, Trigger } from "./harness";
   // into the Battle Area in Active Mode, and 22-3-5 drops any other [Field]
   // Extra already there.
   DEFS.FIELD = { ...DEFS["E-DRAW"], id: "FIELD", name: "FIELD", energyCost: 1, skill: "[Field]" };
-  // Both engines since 2 Oct 2026: the rules engine's [Field] is its keyword's
-  // own move (`keywords.rules`), and its onEnter hook asks which [Field] Extra
-  // already out to drop (up to 1) where the legacy engine drops it unasked.
+  // R457/R469: staged Extra activation, followed by mandatory rule cleanup.
   let s = stagedG({ hand: ["FIELD", "FIELD"], energy: ["V1", "V1"] });
   const first = findG(s, "p1", "hand", "FIELD");
   s = playG(s, { type: "activate", player: "p1", card: first, skill: 0 });
   assert.ok(zoneOf(s, "p1", "battle").includes(first), "22-3-2: into the Battle Area");
   assert.equal(s.cards[first].mode, "active", "22-3-2: in Active Mode");
-  assert.ok(!zoneOf(s, "p1", "drop").includes(first), "22-3-2: a [Field] Extra does not go to the Drop as it is used");
+  assert.ok(!zoneOf(s, "p1", "drop").includes(first), "22-3-2: the staged Field is now placed in Battle, no longer in Drop");
   assert.equal(zoneOf(s, "p1", "energy").filter((id) => s.cards[id].mode === "rest").length, 1, "12-2-2: for its own energy cost");
   const second = findG(s, "p1", "hand", "FIELD");
   s = playG(s, { type: "activate", player: "p1", card: second, skill: 0 });
-  if (s.prompt.kind === "chooseCards") s = playG(s, { type: "choose", player: "p1", cards: [first] });
+  assert.equal(s.prompt.kind, "main", "one old Field is removed without an optional target choice");
   assert.ok(zoneOf(s, "p1", "battle").includes(second));
   assert.ok(zoneOf(s, "p1", "drop").includes(first), "22-3-5: the one already there goes to the Drop");
   assertConsistentG(s);

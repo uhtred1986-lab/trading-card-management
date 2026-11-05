@@ -1,3 +1,5 @@
+import { queueFieldCleanup, takeFieldCleanup } from "./field-rules";
+import { queueFieldCost } from "./field-costs";
 import { overRealmSourceProblem } from "./over-realm-cost";
 import { retainCounter, nextRetainedCounter, resumeRetainedCounter } from "./retained-counter";
 /**
@@ -174,13 +176,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     activateField: (player, id) => {
       const line = fieldLineOf(ctx, game, state, player, id);
       if (!line || line === "blocked") throw new IllegalAction("that card's [Field] skill can no longer be activated");
-      const moment = activationMoment(ctx, game, state, player, line);
-      const gate = activationTaxGate(ctx, game, state, player, id, line.kind);
-      spendProhibitionUse(ctx, game, state, "activateSkill", { player, card: id });
-      const queued = state.programs.length;
-      resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true);
-      if (gate) queueTaxGate(state, gate, state.programs.length - queued);
-      fire(ctx, game, state, moment);
+      queueFieldCost(ctx, game, state, player, line, true);
     },
     invokeSkill: (player, id, skillIndex, op) => {
       const line = invokedMainLines(ctx, game, state, player, id, op).find((candidate) => candidate.skillIndex === skillIndex);
@@ -720,8 +716,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         log(ev, { type: "note", text: `${state.cards[id].cardId} has no markers left (21-9): it is placed in its owner's Drop Area` });
         moveTo(ctx, game, state, ev, id, "drop", owner, { reason: "rule" });
       }
+      const fields = takeFieldCleanup(state);
+      if (fields) return fields;
       // 21-9 is interruptive even during costs (EX19-06 own FAQ).
-      if (frame.autoCost || frame.swapCost || frame.keywordCost || frame.aegisCost || frame.counterCost || frame.reviveCost || frame.dropCost) return null;
+      if (frame.fieldCost || frame.autoCost || frame.swapCost || frame.keywordCost || frame.aegisCost || frame.counterCost || frame.reviveCost || frame.dropCost) return null;
       return uniqueFrame(ctx, game, state);
     },
     // 5-5-3: the `play` op, and therefore **every** play on this engine — an
@@ -1061,6 +1059,7 @@ function moveTo(
   if (!opts.evolutionBase && opts.reason !== "areaExtension") emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
     ...(returnInfo && (to === "hand" || from === "unison") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
     args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
+  queueFieldCleanup(ctx, game, state, id, from, fromOwner);
   // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
   // this is the one script-level mover every DO program's own `moveTo` op
   // runs through (the charge action's own `DO { moveTo(..., to: energy) }`

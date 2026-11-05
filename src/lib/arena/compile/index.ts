@@ -941,6 +941,17 @@ function compileSkillText(skill: Skill): Script {
     const leader = parseConditionClause(`if ${dropBottom[1]}`, true);
     if (leader) return { ops: [{ op: "if", cond: leader.cond, then: [{ op: "permit", what: "unionFusionDropBottom", target: { sel: { special: "self" } }, until: "game" }] }], unsupported: [] };
   }
+  // R469 / BT13-084: the whole permission has a narrower no-cleanup clause.
+  // Its first "any number" sentence does not exempt original-cost-1 Fields.
+  const fieldKeep = c.permanent ? /^if (your leader(?: card)? is a (?:red|blue|green|yellow|black|white) <[^>]+> card),? you can place any number of mono-(red|blue|green|yellow|black|white) extra cards with the \[field\] skill in your battle area,? and your mono-\2 extra cards with an original energy cost of ([1-9]\d*) and the \[field\] skill don't cause any of your other extra cards with the \[field\] skill to be placed in their owners' drop areas?\.?$/i.exec(text.trim()) : null;
+  if (fieldKeep) {
+    const leader = parseConditionClause(`if ${fieldKeep[1]}`, true);
+    const filter = filterFor(`mono-${fieldKeep[2]} Extra Card with [Field]`, null);
+    if (leader && filter) return { ops: [{ op: "if", cond: leader.cond, then: [{ op: "permit", what: "fieldKeepOthers", target: { sel: { special: "self" } }, until: "game", filter: { ...filter, originalCostMin: Number(fieldKeep[3]), originalCostMax: Number(fieldKeep[3]) } }] }], unsupported: [] };
+  }
+  if (c.permanent && /^you can't activate extra cards with the \[field\] skill that are copies of extra cards with the \[field\] skill in your battle area\.?$/i.test(text.trim())) {
+    return { ops: [{ op: "forbid", what: "activateSkill", keywordSkill: "Field", side: "you", until: "game", copiesOf: { side: "you", area: "battle", filter: { ...emptyFilter(), type: "EXTRA", keywords: ["Field"] } } }], unsupported: [] };
+  }
   const unionAreas = c.permanent ? unionFusionAreasPermit(text) : null;
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
   const potaraSources = c.permanent ? unionPotaraSourcePermit(text) : null;

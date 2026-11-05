@@ -208,7 +208,8 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // after its whole-Drop cost and printed energy. Other action prices remain gaps.
   const darkDraw = skill.keyword?.name === "Over Realm" && skill.keyword.dark
     && /^(?:you )?draw 1 card\.?$/i.test(said.trim());
-  const owner = skill.keyword && (darkDraw || PRICED_KEYWORD_MOVES.has(skill.keyword.name)) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
+  const fieldDraw = skill.keyword?.name === "Field" && /^(?:you )?draw 1 card\.?$/i.test(said.trim());
+  const owner = skill.keyword && (fieldDraw || darkDraw || PRICED_KEYWORD_MOVES.has(skill.keyword.name)) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
   const tags = owner ? skill.tags.filter((t) => keywordOf(t)?.name !== owner) : skill.tags;
   const read = (text: string) => compileSkill({ ...skill, kind: "activate:main", keyword: null, tags, cost: "", effect: text });
   // R-443: Z-Energy is the named area; the omitted noun means its cards.
