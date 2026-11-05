@@ -857,6 +857,8 @@ export interface CardIdentityGain {
 
 /** A continuous effect (9-9) with a duration. */
 export interface ContinuousEffect {
+  /** Optional entry negation belongs only to this newly arrived occurrence. */
+  energyEntryEpoch?: number;
   id: number;
   /** The card it is about; empty for a rule that is about a player, not a card. */
   target: string;
@@ -1976,6 +1978,8 @@ export interface ActionCost {
 }
 
 export interface MoveOptions {
+  /** Controller whose ordinary skill effect caused this move. */
+  actor?: PlayerId;
   /** Requested move mode; resolved Energy entries settle it before observation. */
   requestedMode?: "active" | "rest";
   /** Internal synchronous result reporting; never stored in a card operation. */
