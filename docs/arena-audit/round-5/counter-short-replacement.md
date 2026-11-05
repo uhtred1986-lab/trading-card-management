@@ -1,0 +1,13 @@
+# R434 — Short active play replacements
+
+BT20-065#0, BT14-025#10, BT18-075#0, EX19-25#10, BT19-065#0 and P-376#10 say to place the incoming card in Drop or at the bottom of its deck instead. RM 9-10 and 5-5-4 make these play replacements, not ordinary moves followed by the original play. P376's own FAQ confirms pre-entry power does not include a Battle-Area-only Permanent. No own FAQ was found for the other five and no erratum changes these instructions.
+
+The reader requires Counter:Play context and an established resolving-card antecedent. It preserves every admission gate, threshold, cost and sequential self-play instruction. A typed loader descriptor protects saved active frames from obsolete matching bare resolving moves. Stored obsolete rows are refused across draft, confirmed and corrected statuses. Primitive replacement bodies normalize to the same meaning; genuine later ordinary bare resolving moves disable the descriptor, and qualified later moves do not match the obsolete bare instruction. The guard uses printed wording only to identify records needing rebuilding, never to execute or compile text at runtime.
+
+The full snapshot against recovery/twentysixth-full.json changes exactly the six records above, only ops/pattern/reads. Replacing each old bare move with its typed play replacement exactly reconstructs the new ops; all other fields are identical. Full before/after evidence is in /workspace/shared/arena-support5/triggers-r434/full-diff.json, source prints in intent.json, and complete output in after-full.json. Existing compiler totals are unchanged. DB2-030's erratum/FAQ conflict is outside this batch.
+
+The 110 native and protocol cases cover both seats, low/high/zero arrivals, Deflect, Unisons, original on-play Auto suppression, bottom placement, self-play order, paid energy once, reload, all-status stale rows and stale active frames. Saved-candidate execution under stale stored rules refuses before payment; no claim is made that an already-open stale menu is refreshed. Malformed descriptor and genuine later-move controls exercise the bounded rebuild guard. Native old-frame tests depend on R436 terminal cleanup so the first refusal remains the terminal outcome.
+
+Validation: short replacement110, scope94, after-window14, retained152, census-round5, language/lang/Teach, TypeScript and capabilities passed. Direct language fixtures are unchanged. No database or paid calls.
+
+The typed loader descriptor census contains 35 Counter records (descriptors.json). This adds rebuild provenance, not new execution behavior, to existing correctly typed replacements. Changed-file lint and rulings220 also pass.

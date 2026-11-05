@@ -1,3 +1,4 @@
+import { requirePlayReplacement } from "./short-play-replacement";
 import { chooseFramePools, primeFramePools } from "./pooled-costs";
 import { requireCounterAdmission } from "./counter-admission";
 import { completeRetainedResume, settleRetainedCounter, requireRetainedCounter } from "./retained-counter";
@@ -1363,6 +1364,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    requirePlayReplacement(frame, sourceScript);
     requireCounterAdmission(frame, sourceScript);
     requireReplacementOrigin(frame, sourceScript);
     requireMovementResults(frame, sourceScript);

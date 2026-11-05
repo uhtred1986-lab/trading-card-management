@@ -3236,6 +3236,17 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       const ref = refFor("it", c);
       if (ref && "sel" in ref && ref.sel.special === "resolving") return [{ op: "resolvingPlay", instead: "warp" }];
     }
+    // R434: a short active replacement still replaces the unresolved play.
+    // Require the established incoming-card antecedent, not an arbitrary "it".
+    const shortDrop = /^place (?:it|that card) (?:in|into) its owner'?s drop(?: area)? instead[.]?$/i.test(clause.trim());
+    const shortBottom = /^place (?:it|that card) at the bottom of its owner'?s deck instead[.]?$/i.test(clause.trim());
+    if (c.skillKind === "counter:play" && (shortDrop || shortBottom)) {
+      const ref = refFor("it", c);
+      if (ref && "sel" in ref && ref.sel.special === "resolving") {
+        const type = ref.sel.filter?.type;
+        return [{ op: "resolvingPlay", instead: shortDrop ? "drop" : "deck", ...(shortBottom ? { position: "bottom" as const } : {}), ...(type === "BATTLE" || type === "UNISON" || type === "EXTRA" ? { cardType: type } : {}) }];
+      }
+    }
     const playedType = /\bbattle card\b/.test(t) ? "BATTLE" as const : /\bunison card\b/.test(t) ? "UNISON" as const : /\bextra card\b/.test(t) ? "EXTRA" as const : undefined;
     const qualification = playedType ? { cardType: playedType } : {};
     const tSent = t.replace(/^(it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) sent to (its owner'?s?|their owners?'?s?|your|their) (warps?) instead of being played$/, "$1 placed in $2 $3 instead of being played");

@@ -1,3 +1,4 @@
+import { playReplacementDescriptor, shortPlayReplacementGap } from "./vm/short-play-replacement";
 import { storedPaidAdmission } from "./vm/paid-admission";
 import { printedSpiritBoostDescriptor } from "./text/spirit-boost";
 import { legacyMovementHinge } from "./vm/movement-result";
@@ -250,6 +251,8 @@ export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | 
   if (movementGap) gaps.push(movementGap);
   const negationAreaGap = negationAreaContractGap(row);
   if (negationAreaGap) gaps.push(negationAreaGap);
+  const shortReplacementGap = shortPlayReplacementGap(row);
+  if (shortReplacementGap) gaps.push(shortReplacementGap);
   const playedTypeGap = resolvingPlayContractGap(row);
   if (playedTypeGap) gaps.push(playedTypeGap);
   const validityGap = validityProblem(row.validity);
@@ -465,10 +468,11 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
-      : { paidAdmission: storedPaidAdmission(row.cond, price?.condition), kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
+      : { playReplacement: row.kind === "counter:play" ? playReplacementDescriptor(programOf(row)) : undefined, paidAdmission: storedPaidAdmission(row.cond, price?.condition), kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
     base.unsupported.push(...support.unsupported);
     base.complete = base.unsupported.length === 0;
     out[key] = base;

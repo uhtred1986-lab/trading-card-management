@@ -1659,6 +1659,8 @@ export function costSentence(cost: CostRecord | null): string | null {
 }
 
 export interface Script {
+  /** Typed single incoming-card replacement; absent when ordinary moves coexist. */
+  playReplacement?: import("./short-play-replacement").PlayReplacementDescriptor;
   /** Loader provenance for a condition reconstructed from row.cond (R433). */
   paidAdmission?: import("./paid-admission").PaidAdmission;
   /** Compilation-only: retain a relocated resolution condition inside DO when drafting. */
