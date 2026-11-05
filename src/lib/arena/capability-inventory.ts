@@ -475,6 +475,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-r477-standing-observation", file: "src/lib/arena/vm/standing-negation-observation.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-477 prototype", detail: "Bounded observer refuses malformed transaction provenance and unreviewed protection, source or occurrence policies. No gameplay writer or card admission exists yet." },
   { id: "arena-vm-notyet-r477-standing-history", file: "src/lib/arena/vm/standing-negation-history.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-477 prototype", detail: "Pure prototype refuses stale or malformed history, ambiguous enabling order and unreviewed protection transitions. No gameplay caller or card admission exists yet." },
   { id: "arena-vm-notyet-r475-copied-capture-1", file: "src/lib/arena/vm/triggers.ts", ordinal: 7, kind: "not-yet", classification: "validated-guard", citation: "R-475; RM9-1-2-2-1", detail: "Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read." },
   { id: "arena-vm-notyet-r475-copied-capture-2", file: "src/lib/arena/vm/triggers.ts", ordinal: 8, kind: "not-yet", classification: "validated-guard", citation: "R-475; RM9-1-2-2-1", detail: "Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read." },
@@ -624,6 +625,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-r477-standing-observation": "<top-level>|-|-",
   "arena-vm-notyet-r477-standing-history": "<top-level>|-|-",
   "arena-vm-notyet-r475-copied-capture-1": "capturedSkillShowing|-|!capture > index >= COPIED_SKILL_BASE && index < GRANTED_LINE_BASE",
   "arena-vm-notyet-r475-copied-capture-2": "capturedSkillShowing|-|-",
