@@ -102,4 +102,5 @@ for(const owner of ["p1","p2"] as const){
  const result=RULES.apply(oldCtx,copy(s),{type:"choose",player:owner,cards:[s.prompt.choice.candidates[0]]}).state as VmState;
  assert.match(JSON.stringify(result.outcome),/rebuild the stored Extra self-activation trigger/);assert.ok(result.sides[owner].zones.energy.every(id=>result.cards[id].mode==="rest"));cases++;
 }
+for(const cardId of ["BT7-024","WATCH"])for(const status of ["draft","confirmed","corrected"] as const)for(const trigger of [[],null]){const row=rows.find(r=>r.cardId===cardId&&r.kind==="auto")!;const stale={...row,status,trigger} as unknown as RuleRow;assert.ok(recordContractGaps(stale).some(g=>g.includes("rebuild the stored")));assert.ok(rulesFromRows(rows.map(r=>r===row?stale:r),defs)[cardId].bySkill[row.skillIndex].unsupported.some(g=>g.includes("rebuild the stored")));cases++;}
 console.log(`extra-self-activated-5: ${cases} native and protocol cases passed`);

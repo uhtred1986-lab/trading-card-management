@@ -7,10 +7,11 @@ export function isExtraCardActivation(extra: boolean, from: string, kind: string
   return extra && from === "hand" && (kind.startsWith("activate:") || kind.startsWith("counter:") || keyword === "Field");
 }
 export function extraActivationContractGap(row: { kind: string; printed: string; trigger?: unknown }): string | null {
-  if (row.kind !== "auto" || !Array.isArray(row.trigger)) return null;
+  if (row.kind !== "auto") return null;
+  const triggers = Array.isArray(row.trigger) ? row.trigger : [];
   const text = row.printed.replace(/[’‘]/g, "'");
-  if (selfExtraActivationWording(text) && row.trigger.includes("played")) return EXTRA_SELF_REBUILD;
-  if (/when you activate[^,:]*\bextra(?: cards?)?[^,:]*from your hand(?=\s*[,.:]|\s*$)/i.test(text) && row.trigger.includes("extraActivated")) return "rebuild the stored hand-only Extra activation trigger";
+  if (selfExtraActivationWording(text) && (triggers.includes("played") || !triggers.includes("selfExtraActivated"))) return EXTRA_SELF_REBUILD;
+  if (/when you activate[^,:]*\bextra(?: cards?)?[^,:]*from your hand(?=\s*[,.:]|\s*$)/i.test(text) && (triggers.includes("extraActivated") || !triggers.includes("extraActivatedFromHand"))) return "rebuild the stored hand-only Extra activation trigger";
   return null;
 }
 
