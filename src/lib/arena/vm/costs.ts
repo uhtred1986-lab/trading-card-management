@@ -421,7 +421,7 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
  * `whyNot` into the `unread` requirement the legacy engine gives for a price it
  * cannot read.
  */
-function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, charge: Charge, card: string, payment?: EnergyPaymentContext): { total: number | null; orbs: Partial<Record<Color, number>> } {
+function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, charge: Charge, card: string, payment?: EnergyPaymentContext, standing?: import("./effects").VmStatic[]): { total: number | null; orbs: Partial<Record<Color, number>> } {
   const inst = state.cards[card];
   const def = inst && ctx.defs[inst.cardId];
   if (!def) return { total: 0, orbs: {} };
@@ -430,7 +430,7 @@ function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, char
   // discounts, so the reading below is the printed total less every reduction
   // in force — standing from a [Permanent] or put there for the turn by a skill
   // that resolved, which are one list to `valueOf` as they are to `playCost`.
-  const now = charge.amount ? attrsNow(ctx, game, state, card, undefined, payment) : {};
+  const now = charge.amount ? attrsNow(ctx, game, state, card, standing, payment) : {};
   const named = charge.amount ? now[charge.amount] : undefined;
   const total = charge.amount === null ? 0 : typeof named === "number" ? named : null;
   const orbs: Partial<Record<Color, number>> = {};
@@ -440,7 +440,7 @@ function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, char
   // specified cost by {u}" relaxes the colour without moving the total at all.
   // Only an energy price has one — cards taken out of a pool have no colour.
   if (charge.consumes === "energy") {
-    const specified = (charge.amount ? now : attrsNow(ctx, game, state, card)).specifiedCost;
+    const specified = (charge.amount ? now : attrsNow(ctx, game, state, card, standing, payment)).specifiedCost;
     if (Array.isArray(specified)) for (const colour of specified as Color[]) orbs[colour] = (orbs[colour] ?? 0) + 1;
   }
   return { total, orbs };
@@ -457,10 +457,10 @@ function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, char
  * the planner refuses it — because "nobody has named X" and "this card is free"
  * are different claims.
  */
-export function cardPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, payment?: EnergyPaymentContext): { total: number; orbs: Partial<Record<Color, number>> } {
+export function cardPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, payment?: EnergyPaymentContext, standing?: import("./effects").VmStatic[]): { total: number; orbs: Partial<Record<Color, number>> } {
   const charge = Object.values(chargesOf(game)).find((c) => c.consumes === "energy");
   if (!charge) return { total: 0, orbs: {} };
-  const read = amountOn(ctx, game, state, charge, card, payment);
+  const read = amountOn(ctx, game, state, charge, card, payment, standing);
   return { total: read.total ?? 0, orbs: read.orbs };
 }
 

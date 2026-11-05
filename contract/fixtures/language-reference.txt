@@ -2780,7 +2780,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\",\"unionVariant\"?:\"Fusion\"|\"Potara\",\"price\"?:PRICE,\"source\"?:FILTER,\"n\"?:N}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\",\"unionVariant\"?:\"Fusion\"|\"Potara\",\"price\"?:PRICE,\"counterUnderPolicy\"?:\"asHandV1\",\"source\"?:FILTER,\"n\"?:N}",
       "fields": [
         {
           "name": "what",
@@ -2801,6 +2801,7 @@
             "evolveFromZEnergy",
             "counterFromDrop",
             "counterFromEnergy",
+            "counterFromUnder",
             "aegisAltDrop",
             "aegisAltOpponentHand",
             "attackUnnegatable",
@@ -2853,6 +2854,15 @@
           "required": false,
           "nullable": false,
           "type": "price"
+        },
+        {
+          "name": "counterUnderPolicy",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "asHandV1"
+          ]
         },
         {
           "name": "source",
