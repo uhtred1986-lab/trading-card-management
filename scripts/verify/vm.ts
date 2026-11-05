@@ -1022,6 +1022,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         (frame) => [frame.card],
         () => true,
         () => 0,
+        () => true, // This fixture has no Bond-qualified Permanent.
       ).length > 0,
       "the [Permanent] walk found no standing change on a board holding one",
     );

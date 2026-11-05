@@ -63,7 +63,7 @@ import { HOOK_CONTRACT } from "./hook-contract";
 import { grantedSkillNegated, KEYWORD_WILDCARD, keywordSkillsNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
-import { keywordBondHolds } from "./bond";
+import { bondIsValid, keywordBondHolds } from "./bond";
 import { SETUP_ZONES, findCard, hostOf, inPlayZones } from "./zones";
 import type { VmState } from "./state";
 
@@ -221,6 +221,36 @@ function grantBarred(ctx: EngineContext, game: GameDefinition, state: VmState, i
 }
 
 
+/** R-444: seed identity and negation/protection facts before evaluating Bond gates.
+ * No global static-cache override: ordinary attributes keep their existing
+ * recursion boundary. Bond-dependent identity/negation/protection is explicitly refused. Identity
+ * producer conditions keep the existing static evaluation boundary; this is
+ * not a general fixpoint solver for mutually dependent Permanent effects.
+ */
+function permanentBondGate(ctx: EngineContext, game: GameDefinition, state: VmState): (source: string, player: PlayerId, skill: Skill) => boolean {
+  const affectsBondPrerequisites = (ops: Op[]): boolean => ops.some(op => op.op === "if"
+    ? affectsBondPrerequisites(op.then) || affectsBondPrerequisites(op.else ?? [])
+    : op.op === "gains" || (op.op === "modifyAttr" && ["colors", "traits", "characters", "alsoNames"].includes(op.attr)) || (op.op === "negateSkillsOfKind" && op.kind === "keyword") || (op.op === "forbid" && op.what === "beNegated"));
+  const count = (source: string, player: PlayerId, skill: Skill): boolean => {
+    const script = skillsShowing(ctx, state, source).scripts.bySkill[skill.index];
+    if (skill.bond != null && script && affectsBondPrerequisites(script.ops)) throw new NotYet("evaluate Bond-dependent standing identity, keyword negation or protection", "#907");
+    const valid = bondIsValid(ctx, game, state, player, skill, source, false);
+    if (valid === null) throw new NotYet("evaluate this specified Bond Permanent selector", "#544");
+    return valid;
+  };
+  const targets = (frame: ScriptFrame, op: Op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref);
+  const holds = (frame: ScriptFrame, op: Op) => op.op === "if" && condHolds(ctx, game, state, frame, op.cond);
+  const facts = permanents(ctx, game, state, targets, holds, (frame, a) => amount(ctx, game, state, frame, a), count, affectsBondPrerequisites);
+  return (source, player, skill) => {
+    // Even a false preliminary count cannot hide an unsupported dependency.
+    const script = skillsShowing(ctx, state, source).scripts.bySkill[skill.index];
+    if (skill.bond != null && script && affectsBondPrerequisites(script.ops)) return count(source, player, skill);
+    const suppressed = facts.some(e => e.kind === "negateKeyword" && e.target === source && e.value === (KEYWORD_WILDCARD as unknown) && !negationRefused(ctx, game, state, source, e, facts));
+    const valid = bondIsValid(ctx, game, state, player, skill, source, suppressed, id => attrsNow(ctx, game, state, id, facts));
+    return valid === null ? count(source, player, skill) : valid;
+  };
+}
+
 function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   readingStatics = true;
   try {
@@ -230,7 +260,7 @@ function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): 
     // change can carry, counted over the board. `readingStatics` is already
     // true here, so the count reads printed values and cannot recur.
     const measure = (frame: ScriptFrame, a: Amount) => amount(ctx, game, state, frame, a);
-    const standing = permanents(ctx, game, state, targets, holds, measure);
+    const standing = permanents(ctx, game, state, targets, holds, measure, permanentBondGate(ctx, game, state));
     // #154: a keyword's `altPayment` body is a standing change of the same
     // kinds, read off the cards in play that carry it ([Warrior of Universe
     // 7]'s ≪Universe 7≫ cards with no specified cost, 22-19). Only looked for
@@ -289,6 +319,7 @@ export function permanentStaticsOf(ctx: EngineContext, game: GameDefinition, sta
       (frame, op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref),
       (frame, op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false),
       (frame, a) => amount(ctx, game, state, frame, a),
+      permanentBondGate(ctx, game, state),
       (ops) => ops === program.ops,
     ).filter((e) => e.source === id);
   } finally {
@@ -317,6 +348,7 @@ function immunityStatics(ctx: EngineContext, game: GameDefinition, state: VmStat
       (frame, op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref),
       (frame, op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false),
       (frame, a) => amount(ctx, game, state, frame, a),
+      permanentBondGate(ctx, game, state),
       grantsImmunity,
     ).filter((e) => e.kind === "immune");
   } finally {
@@ -370,12 +402,12 @@ function namesNow(attrs: Attrs): string[] {
  * see the same number — the property `verify/vm.ts` asserts against the legacy
  * engine's `matches`.
  */
-export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): Attrs {
+export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, suppliedStanding?: VmStatic[]): Attrs {
   const card = state.cards[id];
   const def = card ? ctx.defs[card.cardId] : undefined;
   if (!def) return {};
   const printed = attrsOf(def, game).attrs;
-  const standing = statics(ctx, game, state);
+  const standing = suppliedStanding ?? statics(ctx, game, state);
   // 20-21: a board-filled price has no printed face of its own — its `printed`
   // layer is the number beside it, and `PRINTED_BASE` is that pairing. Seeded
   // before the layers are walked, so a reduction adds to the printed cost
@@ -827,7 +859,7 @@ function printedKeywords(ctx: EngineContext, game: GameDefinition, state: VmStat
   return skillsShowing(ctx, state, id)
     .skills.filter((sk) => sk.keyword && !skillNegated(state, id, sk.index, sk.kind)
       // 22-21-3: "[Blocker][Bond 3] …" is a [Blocker] only while the Bond holds.
-      && (sk.bond == null || keywordBondHolds(ctx, game, state, masterOf(game, state, id), sk)))
+      && (sk.bond == null || keywordBondHolds(ctx, game, state, masterOf(game, state, id), sk, id)))
     .map((sk) => ({ keyword: sk.keyword!, skillIndex: sk.index, ...(isCopiedSkill(sk.index) ? {} : { skillSide: state.cards[id].flipped ? "back" as const : "front" as const }) }));
 }
 
@@ -902,13 +934,15 @@ export function standingKindNegated(ctx: EngineContext, game: GameDefinition, st
  * controller and its card (audit lane C, 2 Nov 2026: "…by your opponent's skills", DB1-021; "…by the skills of your red
  * <Garlic Jr.> cards", P-641).
  */
-function negationRefused(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, e: VmStatic): boolean {
+function negationRefused(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, e: VmStatic, standing?: VmStatic[]): boolean {
   let active = CHECKING_STATIC_NEGATION.get(state);
   if (!active) CHECKING_STATIC_NEGATION.set(state, active = new Set());
   if (active.has(id)) return false;
   active.add(id);
   try {
-    return forbids(ctx, game, state, "beNegated", { card: id, player: e.master, source: e.source });
+    const opts = { card: id, player: e.master, source: e.source };
+    if (standing) return prohibitions(ctx, game, state, id, { hooks: false, standing }).some(rule => ruleApplies(ctx, game, state, "beNegated", rule, opts) && !(rule.forbid.uses ?? 0) && !rule.forbid.pay);
+    return forbids(ctx, game, state, "beNegated", opts);
   } finally {
     active.delete(id);
   }
@@ -1107,11 +1141,11 @@ interface RuleInForce {
  * and must not be re-applied to `ownProhibitions`/`state.effects`/a
  * [Permanent] by this function folding every source into one boolean.
  */
-function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, card?: string, opts: { hooks?: boolean } = {}): RuleInForce[] {
+function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, card?: string, opts: { hooks?: boolean; standing?: VmStatic[] } = {}): RuleInForce[] {
   const out: RuleInForce[] = [];
   for (const e of state.effects) if (e.kind === "forbid" && e.forbid) out.push({ target: e.target, source: e.source ?? null, until: e.until, master: e.master, forbid: e.forbid, key: `effect:${e.id}` });
   const ordinal: Record<string, number> = {};
-  for (const e of statics(ctx, game, state)) {
+  for (const e of opts.standing ?? statics(ctx, game, state)) {
     if (e.kind !== "forbid") continue;
     const n = (ordinal[e.source] = (ordinal[e.source] ?? -1) + 1);
     out.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition, key: `static:${e.source}:${n}` });

@@ -894,7 +894,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A pending trigger can wait behind other Autos; check Bond again when this
   // one is actually activated (22-21-3). In particular, do so before deciding
   // whether a secret-area Auto must be revealed.
-  if (skill?.kind === "auto" && bondIsValid(ctx, game, state, next.master, skill) === false) {
+  if (skill?.kind === "auto" && bondIsValid(ctx, game, state, next.master, skill, next.card) === false) {
     if (!secretAutoSource(game, state, next)) log(ev, { type: "note", text: `${named}'s [Bond ${skill.bond}] condition does not hold, so its skill does not activate` });
     return true;
   }

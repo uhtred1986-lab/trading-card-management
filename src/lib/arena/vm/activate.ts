@@ -110,6 +110,7 @@ import { findCard, moveCard } from "./zones";
 import { lifeToHandForbidden } from "./life-movement";
 import { spendUse, usesLeft } from "./limits";
 import type { KeywordCost } from "./keyword-costs";
+import { bondIsValid } from "./bond";
 import { isOrderedZAwaken, zAwakenCost } from "./z-awaken-costs";
 
 /**
@@ -575,8 +576,8 @@ export function activationRefusals(
   if (left === 0) before.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   // 22-6 / 22-31: [Bond X] and [Sparking X] are conditions on using the skill,
   // counted over a pool the game declares.
-  if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) {
-    before.push({ kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more Battle Cards in play` });
+  if (sk.bond != null && bondIsValid(ctx, game, state, player, sk, card) !== true) {
+    before.push({ kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more matching Battle Cards in play` });
   }
   if (!sparkingIsValid(state, player, sk.validity)) {
     before.push({ kind: "condition", text: `[Sparking ${sk.sparking}]: ${sk.sparking} or more cards in your Drop Area` });
@@ -825,7 +826,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
     // not, so an Extra whose tax cannot be paid is not eligible at all.
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return false;
     if (usesLeft(state, player, card, sk) === 0) return false;
-    if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) return false;
+    if (sk.bond != null && bondIsValid(ctx, game, state, player, sk, card) !== true) return false;
     if (!sparkingIsValid(state, player, sk.validity)) return false;
     const condition = line.script.price?.condition;
     return !condition || vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, condition);

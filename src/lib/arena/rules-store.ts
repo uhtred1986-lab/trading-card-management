@@ -28,6 +28,7 @@ import type { Cond, CostRecord, SkillPrice, XCost } from "./vm/script";
 import type { Trigger } from "./types";
 import { clauseShape, mechanismOf, PHRASING_ONLY } from "./gaps";
 import type { EngineId } from "./engines";
+import { bondSelector } from "./text/bond";
 import { parseSkills, skillLines } from "./text/cards";
 import { needsPaymentRecord, priceFromCostRecord, costRecordProblem, zeroCostRecord, zeroSkillPrice } from "./vm/skill-payment";
 import { reviewVersion } from "./rule-review-version";
@@ -278,6 +279,7 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   // affordability is checked on the live board, like the other Counters.
 
   if (kind === "permanent") {
+    if (parseSkills(row.printed).some(skill => bondSelector(skill)?.kind === "unknown")) unsupported.push("the specified Bond Permanent selector is not yet resolved");
     for (const op of row.ops as Op[]) {
       const gap = permanentOpGap(op);
       if (gap) unsupported.push(gap);

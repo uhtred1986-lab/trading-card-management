@@ -18,7 +18,7 @@ const PART = String.raw`(?:(?:red|blue|green|yellow|black|white)\s+)?${BRACKET}(
 /** "Red ≪Saiyan≫ cards and/or ≪Bardock's Crew≫ cards" (BT13-006): two or more alternatives. */
 const COMPOUND = new RegExp(String.raw`^${PART}(?:\s*,?\s+(?:and\/or|or)\s+${PART})+$`, "i");
 /** One bracketed name, with or without "card(s)" after it: "≪Universe 6≫" (#549), "≪Ginyu Force≫ card" (BT29-083, #1163). */
-const SINGLE = new RegExp(String.raw`^${BRACKET}(?:\s+cards?)?$`, "i");
+const SINGLE = new RegExp(String.raw`^(?:(?:red|blue|green|yellow|black|white)\s+)?${BRACKET}(?:\s+cards?)?$`, "i");
 const ORBS = /\{(?:[rugykbw]|\d+)\}(?:\/\{[rugykbw]\})?/gi;
 const NAME_KEYS = ["traits", "characters", "names"] as const;
 
@@ -108,9 +108,18 @@ export function bondSelector(skill: Skill): BondSelector | null {
   if (skill.bond == null) return null;
   const text = bondText(skill);
   if (!text || CUED.test(text)) return { kind: "any" };
+  // R-444: exact whole descriptors, not arbitrary residual action text.
+  if (/^(?:red|blue|green|yellow|black|white) battle cards?$/i.test(text)) {
+    const filter = parseFilter(text);
+    return !filter.unreadable && filter.type === "BATTLE" && filter.colors.length === 1 && onlyKeys(filter, new Set(["colors", "type"])) ? { kind: "filter", filter } : { kind: "unknown" };
+  }
+  if (/^cards? with <[^>]+> in (?:its|their) character names?$/i.test(text)) {
+    const filter = parseFilter(text);
+    return !filter.unreadable && filter.charactersIncluding.length === 1 && onlyKeys(filter, new Set(["charactersIncluding"])) ? { kind: "filter", filter } : { kind: "unknown" };
+  }
   if (SINGLE.test(text)) {
     const filter = parseFilter(text);
-    if (!namesOnly(filter) || filter.colors.length) return { kind: "unknown" };
+    if (!namesOnly(filter)) return { kind: "unknown" };
     const named = NAME_KEYS.find((key) => filter[key].length > 0)!;
     return filter[named].length === 1 ? { kind: "filter", filter } : { kind: "unknown" };
   }

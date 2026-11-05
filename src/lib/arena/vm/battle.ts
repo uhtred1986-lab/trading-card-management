@@ -95,6 +95,8 @@ import { spendUse, usesLeft } from "./limits";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
 import { findCard, isTokenCard, moveCard } from "./zones";
 import type { VmBattle, VmState } from "./state";
+import { bondIsValid } from "./bond";
+import { bondDescriptorOnly } from "../text/bond";
 
 // ── the phase, from the Main Phase's own "attack" choice ────────────────────
 
@@ -852,12 +854,13 @@ const counterVarsKey = (card: string, skillIndex: number) => `costvars:${card}:$
  * throws a typed `NotYet` naming #716, never a free activation.
  */
 function readCounterPrice(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, sk: Skill): { ok: true; ops: Op[] | null } | { ok: false; why: Requirement } {
+  if (sk.bond != null && bondIsValid(ctx, game, state, player, sk, card) !== true) return { ok: false, why: { kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more matching Battle Cards` } };
   if (costIsOnlyOrbs(sk.cost)) return { ok: true, ops: null };
   const price = skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price;
   const ops = price?.ops?.length ? price.ops : null;
   // No record of the price, or an X / pay-with price this window has no way
   // to name: unread, as before.
-  if (!price || (!price.condition && !ops) || price.x || price.payWith?.length) return { ok: false, why: { kind: "unread", card } };
+  if (!price || (!price.condition && !ops && !bondDescriptorOnly(sk)) || price.x || price.payWith?.length) return { ok: false, why: { kind: "unread", card } };
   if (price.condition && !vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, price.condition)) {
     return { ok: false, why: { kind: "condition", text: costText(sk.cost) } };
   }

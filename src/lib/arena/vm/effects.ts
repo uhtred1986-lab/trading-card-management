@@ -52,7 +52,7 @@ import type { EngineContext, GameEvent } from "../types";
 import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Cond, type Op, type Ref, type ScriptFrame, type Selector } from "./script";
 import { redirectOf } from "./common";
 import { type AltCost, type Replacement } from "../types";
-import type { CardIdentityGain, Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
+import type { CardIdentityGain, Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat, Skill } from "../types";
 import { other as otherPlayer } from "../types";
 import type { GameDefinition } from "../rulesets";
 import type { CardFilter } from "../text/filters";
@@ -744,6 +744,7 @@ export function permanents(
   targets: (frame: ScriptFrame, op: Op) => string[],
   holds: (frame: ScriptFrame, op: Op) => boolean,
   measure: (frame: ScriptFrame, amount: Amount) => number,
+  bondValid: (source: string, player: PlayerId, skill: Skill) => boolean,
   /** Walk only the programs this accepts — the immunity pass (`vm/program.ts`) skips every [Permanent] that grants none, on a path taken once per candidate of every selector. */
   only?: (ops: Op[]) => boolean,
 ): VmStatic[] {
@@ -792,7 +793,7 @@ export function permanents(
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
           if (!sparkingIsValid(state, p, sk.validity)) continue;
-          if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
+          if (sk.bond != null && !bondValid(src, p, sk)) continue;
           const ops = extra ? [...program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy")), ...(zone === "drop" && areaFlags(printed).drop ? dropSelfOps(program.ops) : [])]
             : zone === "life" ? lifeSelfOps(program.ops)
             : zone === "warp" ? [...program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op)), ...warpSelfOps(program.ops)]
@@ -818,7 +819,7 @@ export function permanents(
             const program = showing.scripts.bySkill[sk.index];
             if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
             if (!sparkingIsValid(state, p, sk.validity)) continue;
-            if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
+            if (sk.bond != null && !bondValid(src, p, sk)) continue;
             const ops = pileOps(program.ops);
             if (!ops.length) continue;
             collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, true, targets, holds, measure);

@@ -582,7 +582,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // 22-21: a pending Auto is only created while its Bond condition is
       // valid. Unknown named selectors are left for the normal unread-rule
       // boundary; they must never be treated as an unrestricted count here.
-      if (sk.kind === "auto" && bondIsValid(ctx, game, state, master, sk) === false) continue;
+      if (sk.kind === "auto" && bondIsValid(ctx, game, state, master, sk, match.card) === false) continue;
       // 9-1-5: one skill of a card switched off — by index, or a whole kind at
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
