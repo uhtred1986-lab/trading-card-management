@@ -1,3 +1,5 @@
+import { stepScript } from "../../src/lib/arena/vm/script";
+import { vmHost } from "../../src/lib/arena/vm/host";
 /** R464: conditional hand replacements preserve the original play boundary. */
 import assert from "node:assert/strict";
 import {card,fifty} from "./harness";
@@ -102,5 +104,15 @@ for(const owner of ["p1","p2"] as const)for(const name of names)for(const negate
  assert.equal(s.prompt.kind,"counter");assert.equal(s.prompt.player,owner);s=answer(s,negate?answerCard:null);
  s=untilChoice(s);s=take(s,{type:"choose",player:owner,cards:[p.target]});s=finish(s);
  assert.ok(s.sides[other(owner)].zones[negate?"drop":"battle"].includes(p.counter));assert.ok(s.sides[owner].zones[negate?"battle":"hand"].includes(p.target));assert.equal(s.skillPlayScopes,undefined);cases++;
+}
+// A name-specific play prohibition blocks only the independent self-play.
+for(const owner of ["p1","p2"] as const)for(const name of names){
+ const p=prepared(owner,name);let s=p.s;
+ assert.equal(stepScript(vmHost(ctx,game,s,[]),{ops:[{op:"forbid",what:"play",side:"opponent",filter:parseFilter(`{${defs[name].name}}`),until:"turn"}],ip:0,vars:{},card:s.sides[owner].zones.leader[0],master:owner}),"done");
+ const ownDeck=s.sides[other(owner)].zones.deck.length,ownHand=s.sides[other(owner)].zones.hand.length;
+ assert.ok(RULES.legalActions(ctx,s).some(x=>x.action.type==="counter"&&x.action.card===p.counter),"play prohibition does not forbid activation");
+ s=untilChoice(answer(s,p.counter));assert.ok(s.sides[other(owner)].zones.drop.includes(p.counter));assert.ok(!s.pending.some(auto=>auto.card===p.counter),"failed self-play creates no own arrival Auto");
+ s=take(s,{type:"choose",player:owner,cards:[p.target]});s=finish(s);
+ assert.ok(s.sides[owner].zones.hand.includes(p.target),"incoming replacement is not contingent on self-play completing");assert.ok(s.sides[other(owner)].zones.drop.includes(p.counter));assert.equal(s.sides[other(owner)].zones.deck.length,ownDeck);assert.equal(s.sides[other(owner)].zones.hand.length,ownHand-1);cases++;
 }
 console.log(`counter-return-replacement-5: ${cases} native cases passed`);
