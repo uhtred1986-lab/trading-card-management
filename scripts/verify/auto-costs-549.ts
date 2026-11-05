@@ -532,9 +532,9 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
     { op: "choose", sel: { area: "battle", side: "opponent", count: 1 }, as: "paid" },
     { op: "moveTo", target: { var: "paid" }, to: "drop" },
   ]);
-  for (const mode of ["optional", "mandatory", "effect-only"] as const) {
+  for (const mode of ["optional", "optional-same-destination", "mandatory", "effect-only"] as const) {
     const a = mainWith("MIX549"); const energy = stage(a.state, "ENERGY549", "energy"); const target = stage(a.state, "V1", "battle", "p2");
-    addEffect(a.state, [], { master: "p2", source: target, target, kind: "replaceLeave", value: { to: "warp", ...(mode === "optional" ? { optional: true } : {}), ...(mode === "effect-only" ? { by: "skill" } : {}) }, until: "turn" });
+    addEffect(a.state, [], { master: "p2", source: target, target, kind: "replaceLeave", value: { to: mode === "optional-same-destination" ? "drop" : "warp", ...(mode.startsWith("optional") ? { optional: true } : {}), ...(mode === "effect-only" ? { by: "skill" } : {}) }, until: "turn" });
     const ev = pend(a.state, a.source);
     if (mode === "mandatory") {
       assert.equal(a.state.prompt.kind, "main"); assert.equal(a.state.cards[energy].mode, "active"); assert.ok(a.state.sides.p2.zones.battle.includes(target));
@@ -542,12 +542,12 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
     }
     assert.equal(a.state.prompt.kind, "chooseMode");
     let result = answer(a.state, 0);
-    if (mode === "optional") {
+    if (mode.startsWith("optional")) {
       assert.equal(result.state.prompt.kind, "replaceMove"); assert.equal(result.state.cards[energy].mode, "rest");
       assert.ok(result.state.sides.p2.zones.battle.includes(target)); assert.equal(draws(result.events), 0);
       assert.ok(result.state.prompt.kind === "replaceMove" && result.state.prompt.options.length === 2, "the affected opponent keeps both legal replacement choices");
       const failed = answer(result.state, 0, "p2");
-      assert.ok(failed.state.sides.p2.zones.warp.includes(target));
+      assert.ok(failed.state.sides.p2.zones[mode === "optional-same-destination" ? "drop" : "warp"].includes(target));
       assert.equal(failed.state.cards[energy].mode, "rest", "5-8-4 retains the earlier orb payment");
       assert.equal(draws(failed.events), 0); assert.equal(failed.events.some((e) => e.type === "skill" && e.card === a.source), false);
       assert.ok(failed.events.some((e) => e.type === "note" && /payment to fail/.test(e.text)));
