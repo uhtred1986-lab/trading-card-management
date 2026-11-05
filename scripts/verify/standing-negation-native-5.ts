@@ -12,7 +12,7 @@ import { newCard } from "../../src/lib/arena/vm/zones";
 import { resolvePlay } from "../../src/lib/arena/vm/play";
 import { vmHost } from "../../src/lib/arena/vm/host";
 import { hasKeyword } from "../../src/lib/arena/vm/program";
-import { endEffects, skillsNegated } from "../../src/lib/arena/vm/effects";
+import { addEffect, endEffects, skillsNegated } from "../../src/lib/arena/vm/effects";
 import { expireStandingNegationBatch, validateStandingNegationRead } from "../../src/lib/arena/vm/standing-negation-runtime";
 const defs = { ...CTX.defs }, scripts: Record<string, CardScripts> = { ...CTX.scripts };
 for (const [id, fixture] of Object.entries(fixtures)) {
@@ -116,6 +116,26 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
   local.scripts!["DB1-066"].bySkill[0].unsupported.push("changed stored source");
   assert.throws(()=>skillsNegated(state,"king"),/validate standing-negation history/);
   assert.throws(()=>validateStandingNegationRead(local,state),/complete unconditional/);count++;
+ }
+
+ for (const expiry of ["turn", "afterOpponentCharge"] as const) {
+  let state=fresh();delete state.standingNegationHistory;
+  for(const action of [{type:"chooseFirst",player:state.chooser,first:master},{type:"mulligan",player:master,redraw:false},{type:"mulligan",player:other,redraw:false},{type:"pass",player:master}] as Action[]) state=RULES.apply(ctx,state,action).state as VmState;
+  state.cards.loan=newCard("loan","V1",other);state.cards.loan.mode="active";state.sides[master].zones.battle.push("loan");
+  addEffect(state,[],{target:"loan",kind:"control",value:0,until:expiry,master,control:{from:other}});
+  const later=addEffect(state,[],{target:"loan",kind:"power",value:1000,until:"battleOrTurn",master});
+  const result=RULES.apply(ctx,JSON.parse(JSON.stringify(state)),{type:"endMain",player:master});state=result.state as VmState;
+  assert.equal(state.standingNegationHistory,undefined);
+  if(expiry==="turn") {
+    assert.ok(state.sides[other].zones.battle.includes("loan"));
+    const returned=result.events.findIndex(event=>event.type==="move" && event.card==="loan");
+    const secondExpiry=result.events.findIndex(event=>event.type==="effectEnded" && event.effect.id===later.id);
+    assert.ok(returned>=0 && secondExpiry>returned,"legacy turn loan callback precedes battleOrTurn expiry");
+  } else {
+    assert.ok(state.sides[master].zones.battle.includes("loan"),"legacy Charge expiry does not introduce loan callbacks");
+    assert.ok(!state.effects.some(effect=>effect.target==="loan" && effect.kind==="control"));
+  }
+  count++;
  }
 
 }

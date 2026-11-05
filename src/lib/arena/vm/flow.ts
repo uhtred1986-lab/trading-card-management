@@ -286,11 +286,18 @@ const STEP_WORK: Record<string, Work> = {
     run: (ctx, game, state, ev) => {
       // 7-4-5/6: "for the turn" effects end, and 20-15's last timing is the
       // one that happens as the turn closes over them.
-      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
-        ...endEffectsOfDuration(s, events, "turn"),
-        ...endEffectsOfDuration(s, events, "battleOrTurn"),
-        ...endOwnTurnEffects(s, events),
-      ]));
+      if (state.standingNegationHistory) {
+        returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
+          ...endEffectsOfDuration(s, events, "turn"),
+          ...endEffectsOfDuration(s, events, "battleOrTurn"),
+          ...endOwnTurnEffects(s, events),
+        ]));
+      } else {
+        // Preserve the legacy callback order outside the opted-in writer proof.
+        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "turn"));
+        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
+        returnLoans(ctx, game, state, ev, endOwnTurnEffects(state, ev));
+      }
       state.programs.push(...dueDelays(state, "turnCleanup"));
     },
   },
@@ -351,9 +358,14 @@ const STEP_WORK: Record<string, Work> = {
       // step it was written for has now happened, so it is spent — on this
       // player's cards only, which is what makes "next" the right one
       // whichever turn the effect was made on (the legacy `turn.activeAll`).
-      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
-        ...endAfterChargeEffects(s, events, covered), ...endAfterOpponentChargeEffects(s, events),
-      ]));
+      if (state.standingNegationHistory) {
+        returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
+          ...endAfterChargeEffects(s, events, covered), ...endAfterOpponentChargeEffects(s, events),
+        ]));
+      } else {
+        endAfterChargeEffects(state, ev, covered);
+        endAfterOpponentChargeEffects(state, ev);
+      }
     },
   },
   chargeDraw: {
@@ -473,9 +485,14 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // ends them after [Revenge]'s KO and [Dual Attack]'s stand (#154 found
       // the rules engine never ending them at all, through [Alliance]).
       if (top.phase === "battle") {
-        returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
-          ...endEffectsOfDuration(s, events, "battle"), ...endEffectsOfDuration(s, events, "battleOrTurn"),
-        ]));
+        if (state.standingNegationHistory) {
+          returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
+            ...endEffectsOfDuration(s, events, "battle"), ...endEffectsOfDuration(s, events, "battleOrTurn"),
+          ]));
+        } else {
+          returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battle"));
+          returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
+        }
         state.battle = null;
       }
       // 7-3: a phase running out of steps is the moment "at the end of your
@@ -716,7 +733,10 @@ export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmSt
     if (shown) log(ev, { ...shown, skipped: true });
     // 20-13-5: a duration ending in this Charge Phase ends immediately when
     // that phase is skipped, even though its Active Step will never run.
-    if (name === game.game?.phases?.[0]) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endAfterOpponentChargeEffects(s, events)));
+    if (name === game.game?.phases?.[0]) {
+      if (state.standingNegationHistory) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endAfterOpponentChargeEffects(s, events)));
+      else endAfterOpponentChargeEffects(state, ev);
+    }
     // …and so does "until the start of your next Main Phase" (#1163) when the
     // phase whose first step would have ended it is skipped.
     if (declared.steps.includes("mainPending")) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endNextMainEffects(s, events)));
