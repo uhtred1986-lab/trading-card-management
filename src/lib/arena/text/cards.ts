@@ -634,6 +634,10 @@ function tidyEffect(effect: string): string {
 function makeSkill(index: number, tags: string[], keyword: KeywordSkill | null, cost: string, effect: string, raw: string): Skill {
   effect = tidyEffect(effect);
   cost = tidyEffect(cost);
+  // R-452: a circled generic orb before an EX-Evolve action price.
+  // Normalize only the parsed price; the printed raw line stays unchanged.
+  if (keyword?.name === "Evolve" && keyword.variant === "EX-Evolve")
+    cost = cost.replace(/^(\d+)(?=\s*,)/, "{$1}");
   const lower = tags.map((t) => t.toLowerCase());
   const num = (re: RegExp): number | null => {
     for (const t of lower) {
