@@ -1,5 +1,7 @@
 /** R466 standalone contract proof; no native under-Counter support claim yet. */
 import assert from "node:assert/strict";
+import {programProblem} from "../../src/lib/arena/vm/script-schema";
+import {printRule,parseRule,deepEqual,type Rule} from "../../src/lib/arena/lang";
 import { card } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
@@ -9,6 +11,9 @@ const reorder = (value: unknown): unknown => Array.isArray(value) ? value.map(re
 let cases = 0;
 const permit = counterUnderPermit();
 assert.equal(counterUnderPermitProblem(permit), null);cases++;
+assert.equal(programProblem([permit]),null);cases++;
+const rule:Rule={kind:"permanent",trigger:[],cost:null,cond:null,ops:[permit]};
+const parsed=parseRule(printRule(rule));assert.ok(parsed.ok);if(!parsed.ok)throw new Error("parse");assert.ok(deepEqual(parsed.value,rule));cases++;
 assert.equal(counterUnderPermitProblem(reorder(permit)), null);cases++;
 for (const fault of ["host", "self", "duration", "price", "free", "policy", "version"] as const) {
   const bad = structuredClone(permit);
@@ -17,9 +22,9 @@ for (const fault of ["host", "self", "duration", "price", "free", "policy", "ver
   if (fault === "duration") bad.until = "turn";
   if (fault === "price") delete bad.price;
   if (fault === "free") bad.price!.ops = [{ op: "draw", n: 1 }];
-  if (fault === "policy") delete (bad as Partial<typeof bad>).counterUnder;
-  if (fault === "version") Object.assign(bad.counterUnder, { version: 0 });
-  assert.ok(counterUnderPermitProblem(bad));cases++;
+  if (fault === "policy") delete (bad as Partial<typeof bad>).counterUnderPolicy;
+  if (fault === "version") Object.assign(bad, { counterUnderPolicy: "asHandV0" });
+  assert.ok(counterUnderPermitProblem(bad));assert.ok(programProblem([bad]));cases++;
 }
 assert.ok(isUnderCounterOwnDiscount(underCounterOwnDiscount()));cases++;
 assert.ok(isUnderCounterOwnDiscount(reorder(underCounterOwnDiscount()) as ReturnType<typeof underCounterOwnDiscount>));cases++;

@@ -6,14 +6,14 @@ type Permit = Extract<Op, { op: "permit" }>;
 /** Kept standalone until the reviewed route is wired into the shared Op schema. */
 export type CounterUnderPermit = Omit<Permit, "what"> & {
   what: "counterFromUnder";
-  counterUnder: { version: 1; asHand: true };
+  counterUnderPolicy: "asHandV1";
 };
 
 export function counterUnderPermit(): CounterUnderPermit {
   return {
     op: "permit",
     what: "counterFromUnder",
-    counterUnder: { version: 1, asHand: true },
+    counterUnderPolicy: "asHandV1",
     until: "game",
     target: { sel: { special: "self" } },
     source: { ...emptyFilter(), names: ["universal tuffleization plan"] },

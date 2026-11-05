@@ -1,3 +1,5 @@
+import { stepCounterNonhandTax } from "./counter-tax";
+import { validCounterUnderOrigin } from "./counter-under";
 import { guardCounterNonhandTaxPayment } from "./counter-nonhand-tax";
 import { validCounterEnergyOrigin } from "./counter-energy";
 import { requireCounterActivationOrigin } from "./counter-activation-origin";
@@ -1403,7 +1405,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireCounterSelfBinding(frame, sourceScript);
     requireCounterActivationOrigin(frame, sourceScript);
     if (frame.skillKind === "counter" && frame.saveVarsAs === `costvars:${frame.card}:${frame.skillIndex}`) rebuildScope("rebuild this saved alternative Counter payment before activation");
-    if (frame.counterCost && frame.ops.length && !sourceScript?.price?.ops?.length && !frame.counterCost.alternative && !validCounterDropOrigin(ctx, state, frame) && !validCounterEnergyOrigin(ctx, state, frame)) rebuildScope("rebuild the saved alternative Counter source");
+    if (frame.counterCost && frame.ops.length && !sourceScript?.price?.ops?.length && !frame.counterCost.alternative && !validCounterDropOrigin(ctx, state, frame) && !validCounterEnergyOrigin(ctx, state, frame) && !validCounterUnderOrigin(ctx, state, frame)) rebuildScope("rebuild the saved alternative Counter source");
     requireEnergyCouponFrame(ctx, state, frame);
     requireReplacementOrigin(frame, sourceScript);
     requireMovementResults(frame, sourceScript);
@@ -1450,6 +1452,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.reviveCost) return stepReviveCost(ctx, game, state, ev, frame);
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.counterCost) return stepCounterCost(ctx, game, state, ev, frame);
+    if (frame.counterNonhandTax) return stepCounterNonhandTax(ctx, game, state, ev, frame);
     if (frame.swapCost) return stepSwapCost(ctx, game, state, ev, frame);
     if (frame.keywordPrice) assertCurrentFusion(frame.keywordPrice, !!frame.evolutionIdentity);
     if (frame.keywordCost) return stepKeywordCost(ctx, game, state, ev, frame);

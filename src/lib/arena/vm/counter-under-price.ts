@@ -2,10 +2,12 @@
 import type { EngineContext, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
-import { keywordStatics, skillsNegated, skillNegated, type VmStatic } from "./effects";
-import { condHolds, standingKindNegated, staticsNow } from "./program";
+import { keywordStatics, permanents, skillsNegated, skillNegated, type VmStatic } from "./effects";
+import { amount, attrsNow, condHolds, standingKindNegated, staticsNow } from "./program";
 import { skillsShowing } from "./triggers";
 import { hostOf, findCard } from "./zones";
+import { predicateOf } from "./filters";
+import { bondIsValid } from "./bond";
 import { NotYet } from "./errors";
 import { cardPrice } from "./costs";
 import { isUnderCounterOwnDiscount } from "./counter-under-contract";
@@ -57,11 +59,40 @@ export function underCounterOwnCostLayers(
   );
 }
 
+/** Detect external hand-target layers without relocating any card or changing counts.
+ * This is an explicit unsupported boundary, not a price adjustment. */
+export function underCounterExternalCostProblem(
+  ctx: EngineContext, game: GameDefinition, state: VmState, card: string, master: PlayerId,
+): string | null {
+  const attributes = attrsNow(ctx, game, state, card);
+  const possible = permanents(ctx, game, state,
+    (frame, op) => {
+      if (frame.card === card || op.op !== "costReduction" || !op.target || !("sel" in op.target)) return [];
+      const sel = op.target.sel;
+      if (sel.area !== "hand" || sel.special === "self") return [];
+      if ((sel.side ?? "you") === "you" && frame.master !== master) return [];
+      if (sel.side === "opponent" && frame.master === master) return [];
+      if (sel.filter && !predicateOf(sel.filter, game)(attributes)) return [];
+      // Rich selection qualifiers are deliberately not guessed. A possibly
+      // matching hand-only layer is sufficient to refuse before payment.
+      return [card];
+    },
+    (frame, op) => op.op === "if" && condHolds(ctx, game, state, frame, op.cond),
+    (frame, value) => amount(ctx, game, state, frame, value),
+    (source, player, skill) => bondIsValid(ctx, game, state, player, skill, source) !== false,
+    ops => containsOwnDiscount(ops),
+  );
+  return possible.some(layer => layer.target === card)
+    ? "evaluate an external hand-target cost modifier for an under-card Counter"
+    : null;
+}
+
 /** Caller must first establish the exact original under-card permission. */
 export function underCounterCardPrice(
   ctx: EngineContext, game: GameDefinition, state: VmState, card: string, master: PlayerId,
 ): ReturnType<typeof cardPrice> {
-  const problem = underCounterOwnCostProblem(ctx, game, state, card);
+  const problem = underCounterOwnCostProblem(ctx, game, state, card) ??
+    underCounterExternalCostProblem(ctx, game, state, card, master);
   if (problem) throw new NotYet(problem, "R466");
   const standing = [...staticsNow(ctx, game, state), ...underCounterOwnCostLayers(ctx, game, state, card, master)];
   return cardPrice(ctx, game, state, card, undefined, standing);
