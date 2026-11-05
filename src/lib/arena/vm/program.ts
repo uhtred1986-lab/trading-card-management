@@ -1997,10 +1997,10 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) =>
         c.from?.length ? !!state.cards[id]?.playedThisTurn && (c.from as string[]).includes(state.cards[id]?.playedFrom ?? "") : !!(c.played ? state.cards[id]?.playedThisTurn : state.cards[id]?.placedThisTurn));
     case "every": {
-      const ids = resolveSelector(ctx, game, state, frame, c.sel);
+      const ids = resolveSelector(ctx, game, state, frame, c.sel, true);
       // Nothing there is not "all of it" (0-2-4-1).
       if (!ids.length) return false;
-      const ok = new Set(resolveSelector(ctx, game, state, frame, c.matching));
+      const ok = new Set(resolveSelector(ctx, game, state, frame, c.matching, true));
       return ids.every((id) => ok.has(id));
     }
     case "any":

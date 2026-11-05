@@ -3198,7 +3198,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // 3-1-2: a Leader Card stays in the Leader Area. Skills may change
           // its power or negate it, but nothing puts it anywhere else — and
           // an empty Leader Area is a state the rest of the engine cannot read.
-          if (h.areaOf(id) === "leader") {
+          // R-397 / 15-1-4-2, -5: the controller's effect may move its
+          // Z-Leader; the zone primitive removes only that top card and
+          // restores its Leader. Ordinary Leaders and opponent effects stay barred.
+          if (h.areaOf(id) === "leader" && !(h.defOf(id).type === "Z-LEADER" && h.masterOf(id) === master)) {
             frame.moveLoop.index++;
             continue;
           }

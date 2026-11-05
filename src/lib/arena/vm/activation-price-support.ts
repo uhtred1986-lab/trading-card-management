@@ -101,8 +101,15 @@ export function activationPriceProblem(ops: Op[]): string | null {
   return null;
 }
 
+/** R-397: a whole next own Charge Phase is the sole printed commitment. */
+export function isZAwakenChargeSkipPrice(ops: Op[]): boolean {
+  const op = ops[0];
+  return ops.length === 1 && op.op === "skip" && op.what === "charge" && op.when === "next" && (!op.side || op.side === "you") && Object.entries(op).every(([key, value]) => value === undefined || ["op", "what", "when", "side"].includes(key));
+}
+
 /** R-396: fixed, single-card Z-Awaken prices that do not compete for Z-Energy. */
 export function supportedZAwakenActionPrice(ops: Op[]): boolean {
+  if (isZAwakenChargeSkipPrice(ops)) return true;
   const keys = (value: object): string[] => Object.entries(value).filter(([, v]) => v !== undefined).map(([k]) => k);
   const [pick, move, ...rest] = ops;
   if (rest.length || pick?.op !== "choose" || move?.op !== "moveTo" || !("var" in move.target) || move.target.var !== pick.as || keys(move.target).length !== 1) return false;

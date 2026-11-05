@@ -1,0 +1,51 @@
+/** R-397: commit and consume BT18-003's next-own-Charge cost. */
+import assert from "node:assert/strict";
+import {card,fifty} from "./harness";
+import {skillRecords} from "../../src/lib/arena/draft";
+import {rulesFromRows,runtimeSupportOfRow,type RuleRow} from "../../src/lib/arena/rules-store";
+import {RULES} from "../../src/lib/arena/vm";
+import {rulesetFor} from "../../src/lib/arena/rulesets";
+import {moveCard} from "../../src/lib/arena/vm/zones";
+import {run} from "../../src/lib/arena/vm/flow";
+import {activationsOf,resolveActivation} from "../../src/lib/arena/vm/activate";
+import {queueKeywordCost,stepKeywordCost} from "../../src/lib/arena/vm/keyword-costs";
+import {stepScript} from "../../src/lib/arena/vm/script";
+import {vmHost} from "../../src/lib/arena/vm/host";
+import {resolveSelector} from "../../src/lib/arena/vm/program";
+import {addEffect} from "../../src/lib/arena/vm/effects";
+import {readableAutomaticPrice} from "../../src/lib/arena/vm/auto-costs";
+import type {Action,CardDef,EngineContext,PlayerId,GameEvent} from "../../src/lib/arena/types";
+import type {VmState} from "../../src/lib/arena/vm/state";
+const PRINT={"id": "BT18-003", "type": "Z-LEADER", "colors": ["Red"], "cost": null, "specified": null, "z": "3", "power": 100000, "name": "SS4 Gogeta, the Ultimate Fusion", "characters": ["Gogeta: GT"], "traits": ["Saiyan"], "skill": "[Permanent] You can only include 1 copy of this card in your Z-Deck.<br>[Z-Awaken] Your life is at 4 or less, all of your energy is in Rest Mode, and you skip your Charge Phase during your next turn: Red &lt;Son Goku: GT&gt; &lt;Vegeta: GT&gt;. (Pay the skill cost and Z-Energy, then play this card from your Z-Deck on top of the specified Leader's back side.)<br>[Permanent] While this card is in a battle, you can't activate Extra skills or use cards in combos.<br>[Auto] At the end of your opponent's turn, switch this card to Active Mode and remove it from the game.", "backName": null, "backSkill": null};
+const copy=<T,>(v:T):T=>JSON.parse(JSON.stringify(v));
+const defs:Record<string,CardDef>={BASE:card("BASE",{type:"LEADER",colors:["Red"],characters:["Son Goku: GT","Vegeta: GT"],back:{name:"Awakened Test Leader",power:15000,skill:null}}),FILLER:card("FILLER",{})};
+defs[PRINT.id]=card(PRINT.id,{type:"Z-LEADER",colors:["Red"],characters:PRINT.characters,traits:PRINT.traits,zEnergyCost:Number(PRINT.z),power:PRINT.power,skill:PRINT.skill});
+const records=Object.values(defs).flatMap(skillRecords),row=records.find(r=>r.cardId===PRINT.id&&r.printed.includes("[Z-Awaken]"))!;assert.equal(row.cost?.readable,true);assert.deepEqual(row.cost?.program,[{op:"skip",what:"charge",when:"next"}]);assert.deepEqual(runtimeSupportOfRow(row).unsupported,[]);
+assert.throws(()=>readableAutomaticPrice(row.cost!.program!),/action price containing skip/,"ordinary Auto prices do not inherit Z-Awaken admission");
+const ctx:EngineContext={defs,scripts:rulesFromRows(copy(records.map((r,id)=>({...r,id,source:"compiler",status:"confirmed"}) as unknown as RuleRow)),defs)};
+const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
+const other=(p:PlayerId):PlayerId=>p==="p1"?"p2":"p1";
+const take=(s:VmState,a:Action)=>RULES.apply(ctx,copy(s),a);
+function stage(s:VmState,p:PlayerId,area:string){const id=s.sides[p].zones.deck.at(-1)!;assert.ok(moveCard(s,game,id,area,{owner:p}).ok);s.pending=[];return id;}
+function fresh(p:PlayerId){let s=RULES.createGame(ctx,{seed:397,p1:{name:"One",leader:"BASE",main:fifty("FILLER"),z:[PRINT.id]},p2:{name:"Two",leader:"BASE",main:fifty("FILLER"),z:[PRINT.id]}}).state as VmState;for(const a of [{type:"chooseFirst",player:s.chooser,first:p},{type:"mulligan",player:p,redraw:false},{type:"mulligan",player:other(p),redraw:false},{type:"charge",player:p,card:null}] as Action[])s=take(s,a).state as VmState;s.cards[s.sides[p].zones.leader[0]].flipped=true;while(s.sides[p].zones.life.length>4)moveCard(s,game,s.sides[p].zones.life.at(-1)!,"hand",{owner:p});for(let n=0;n<3;n++)stage(s,p,"zEnergy");const energy=stage(s,p,"energy");s.cards[energy].mode="rest";return s;}
+function offer(s:VmState,p:PlayerId){return RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="activate"&&a.card===s.sides[p].zones.zDeck[0]&&a.skill===row.skillIndex);}
+let cases=0;
+for(const p of ["p1","p2"] as const){
+ for(const variant of ["paid","life5","activeEnergy","shortZ","front","zeroEnergy","protectedActive","protectedRest"]){let s=fresh(p);const base=s.sides[p].zones.leader[0],z=s.sides[p].zones.zDeck[0];if(variant==="life5")stage(s,p,"life");if(variant==="activeEnergy")s.cards[s.sides[p].zones.energy[0]].mode="active";if(variant==="shortZ")moveCard(s,game,s.sides[p].zones.zEnergy[0],"drop",{owner:p});if(variant==="front")s.cards[base].flipped=false;if(variant==="zeroEnergy")moveCard(s,game,s.sides[p].zones.energy[0],"drop",{owner:p});if(variant.startsWith("protected")){const energy=s.sides[p].zones.energy[0];if(variant==="protectedActive")s.cards[energy].mode="active";addEffect(s,[],{target:energy,kind:"immune",value:0,until:"game",master:p,immune:{from:p}});assert.deepEqual(resolveSelector(ctx,game,s,{ops:[],ip:0,vars:{},card:z,master:p,skillIndex:row.skillIndex},{side:"you",area:"energy"}),[],"ordinary choice still excludes immunity");}const before=copy(s),a=offer(s,p);assert.deepEqual(s,before);assert.equal(!!a,["paid","protectedRest"].includes(variant),variant);if(a){s=take(s,a).state as VmState;assert.equal(s.sides[p].zones.leader[0],z);assert.equal(s.sides[p].attrs.zAwakens,1);assert.deepEqual(s.sides[p].skips,[{what:"charge",when:"next",turn:s.turn}]);assert.equal(s.sides[p].zones.zEnergy.length,0);}else assert.equal(s.sides[p].skips?.length??0,0);cases++;}
+ for(const ownTurn of [true,false]){let s=fresh(p);const z=s.sides[p].zones.zDeck[0];s.turnPlayer=ownTurn?p:other(p);s.phase="battle";s.battle={attacker:s.sides[s.turnPlayer].zones.leader[0],guard:s.sides[other(s.turnPlayer)].zones.leader[0],target:s.sides[other(s.turnPlayer)].zones.leader[0],step:ownTurn?"offense":"defense",negated:false,blockerOffered:false,counters:[]};s.prompt={kind:"combo",player:p,side:ownTurn?"offense":"defense"};const a=offer(s,p);assert.ok(a);s=take(s,a).state as VmState;assert.equal(s.sides[p].zones.leader[0],z);assert.deepEqual(s.sides[p].skips,[{what:"charge",when:"next",turn:s.turn}]);assert.equal(ownTurn?s.battle?.attacker:s.battle?.guard,z);if(!ownTurn){
+ // Close the staged Battle fixture, then use the real end-turn transition.
+ delete s.battle;s.phase="main";s.prompt={kind:"main",player:other(p)};const hand=s.sides[p].zones.hand.length;const r=take(s,{type:"endMain",player:other(p)});s=r.state as VmState;assert.ok(r.events.some(e=>e.type==="phase"&&e.phase==="charge"&&e.player===p&&e.skipped));assert.equal(s.sides[p].zones.hand.length,hand);assert.equal(s.sides[p].skips?.length??0,0);assert.ok(s.sides[p].zones.removed.includes(z));}cases++;}
+ // Primitive negative controls: ordinary Leaders never leave, and another
+ // player's effect cannot remove this player's Z-Leader (15-1-4-2).
+ for(const ordinary of [true,false]){let s=fresh(p);if(!ordinary)s=take(s,offer(s,p)!).state as VmState;const target=s.sides[p].zones.leader[0],actor=ordinary?p:other(p);stepScript(vmHost(ctx,game,s,[]),{ops:[{op:"moveTo",target:{var:"target"},to:"removed"}],ip:0,vars:{target:[target]},card:s.sides[actor].zones.leader[0],master:actor});assert.equal(s.sides[p].zones.leader[0],target);assert.ok(!s.sides[p].zones.removed.includes(target));cases++;}
+ // Staged post-resource continuation only: no natural response window exists
+ // here. The paid skip survives a failed subsequent Leader placement.
+ {const s=fresh(p),z=s.sides[p].zones.zDeck[0],base=s.sides[p].zones.leader[0];const line=activationsOf(ctx,s,game.actions.activate!,z,game).find(l=>l.skill.index===row.skillIndex)!;resolveActivation(ctx,game,s,[],p,line);const effect=s.programs[0];queueKeywordCost(s,effect);const price=s.programs.shift()!;assert.equal(stepKeywordCost(ctx,game,s,[],price),"done");assert.equal(s.sides[p].skips?.length,1);s.cards[base].flipped=false;run(ctx,game,s,[]);assert.equal(s.sides[p].skips?.length,1);assert.ok(s.sides[p].zones.removed.includes(z));assert.equal(s.sides[p].attrs.zAwakens,1);cases++;}
+ // Follow real turns: the opponent's Charge is unaffected, the next own
+ // Charge omits untap/draw/charging and expires start-of-own-turn effects.
+ {let s=fresh(p);const energy=s.sides[p].zones.energy[0],target=stage(s,p,"battle"),z=s.sides[p].zones.zDeck[0];s.cards[target].mode="rest";addEffect(s,[],{master:p,source:target,target,kind:"power",value:5000,until:"nextTurn"});s=take(s,offer(s,p)!).state as VmState;const hand=s.sides[p].zones.hand.length,deck=s.sides[p].zones.deck.length,events:GameEvent[]=[];const start=s.turn;
+ for(let i=0;i<60&&!(s.turn>=start+2&&s.turnPlayer===p&&s.prompt.kind==="main");i++){const as=RULES.legalActions(ctx,s).map(x=>x.action),a=as.find(a=>a.type==="charge"&&a.card===null)??as.find(a=>a.type==="endMain")??as.find(a=>a.type==="pass")??as[0];assert.ok(a,JSON.stringify(s.prompt));const r=take(s,a);s=r.state as VmState;events.push(...r.events);}
+ assert.ok(events.some(e=>e.type==="phase"&&e.phase==="charge"&&e.player===p&&e.skipped));assert.ok(!events.some(e=>e.type==="phase"&&e.phase==="charge"&&e.player===other(p)&&e.skipped));assert.equal(s.cards[energy].mode,"rest");assert.equal(s.cards[target].mode,"rest");assert.equal(s.sides[p].zones.hand.length,hand);assert.equal(s.sides[p].zones.deck.length,deck);assert.equal(s.sides[p].skips?.length??0,0);assert.ok(!s.effects.some(e=>e.target===target&&e.until==="nextTurn"));assert.ok(s.sides[p].zones.removed.includes(z),"printed end-opponent-turn Auto removed the Z-Leader but retained the paid skip");
+ const next=s.turn;for(let i=0;i<60&&!(s.turn>=next+2&&s.turnPlayer===p&&s.prompt.kind==="charge");i++){const as=RULES.legalActions(ctx,s).map(x=>x.action),a=as.find(a=>a.type==="charge"&&a.card===null)??as.find(a=>a.type==="endMain")??as.find(a=>a.type==="pass")??as[0];assert.ok(a);s=take(s,a).state as VmState;}assert.equal(s.cards[energy].mode,"active");assert.equal(s.cards[target].mode,"active");assert.equal(s.sides[p].zones.hand.length,hand+1);assert.equal(s.prompt.kind,"charge");cases++;}
+}
+console.log(`Z-Awaken Charge price 5: ${cases} stored/native scenarios passed`);

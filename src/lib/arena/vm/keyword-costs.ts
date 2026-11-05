@@ -1,3 +1,4 @@
+import { isZAwakenChargeSkipPrice } from "./activation-price-support";
 import { resolveSelector, attrsNow } from "./program";
 import { hasDropBottomRoute } from "./fusion-materials";
 import { fusionLineProblem, evolutionLineProblem, absorbLineProblem, potaraLineProblem } from "./skill-identity";
@@ -105,6 +106,9 @@ function materialIndependent(ops: Op[]): boolean {
 
 /** Refuse what the strict host cannot charge, as a typed gap — never call it unaffordable, never let it be free. */
 function readable(line: ActivationLine, ops: Op[]): void {
+  // R-397: the cost is the future-phase commitment itself; the ordinary
+  // Auto/payment grammar does not thereby admit arbitrary skip operations.
+  if (line.keyword?.name === "Z-Awaken" && isZAwakenChargeSkipPrice(ops)) return;
   readableAutomaticPrice(ops, labelOf(line), OWNER, { draw: true });
   if (isFusion(line) && !materialIndependent(ops)) throw new NotYet(`pay a ${labelOf(line)} action price that may touch its materials`, OWNER);
 }

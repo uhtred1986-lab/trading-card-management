@@ -966,6 +966,8 @@ function parseDelayClause(clause: string): { at: DelayTiming; scope: DelayScope;
  */
 function parseTrailingDelay(clause: string): { at: DelayTiming; scope: DelayScope; label: string; head: string } | null {
   const t = clean(clause);
+  // R-397: this creates the skip now; it does not defer creating it until the skipped phase.
+  if (/^(?:you )?skip your charge phase during your next turn$/.test(t)) return null;
   const best = bestDelay(t, (src) => new RegExp(`^(.+?)[\\s,]+(?:${src})$`));
   if (!best) return null;
   const head = best.m[1].trim();
@@ -1883,6 +1885,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // of its own. "…, then start your Main Phase" is again the same rule said
   // in words, dropped by `connective`.
   if (t === "skip all phases until the charge phase in your next turn") return [{ op: "skip", what: "span" }];
+
+  // R-397 / BT18-003: commit the next own Charge Phase as an activation cost.
+  if (/^(?:you )?skip your charge phase during your next turn$/.test(t)) return [{ op: "skip", what: "charge", when: "next" }];
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
   // "…, and **you draw** 1 card" (BT8-089b, TB2-033, BT19-022): the same draw with its subject said.
