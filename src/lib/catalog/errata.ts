@@ -47,6 +47,9 @@ function spaceBeforeKeyword(text: string): string {
  * be caught by `npm test`, which has no catalog to read.
  */
 export const CORRECTIONS: Record<string, [RegExp, string][]> = {
+  // Deckplanet labels Tora's blue activation orb as black; verified against Bandai, 5 Nov 2026:
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/EX25-13.png
+  "EX25-13": [[/(\[Activate:\s*Main\]\s*\[Limit\s+1\]\s*)\{b\}(?=\s*,\s*if your Leader is a blue)/gi, "$1{u}"]],
   // The text export loses the circled 6; verified against Bandai's printed card, 5 Nov 2026:
   // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT13-046.png
   "BT13-046": [[/(\[EX-Evolve\])\s*\?(?=,\s*draw\s+2\s+cards:)/gi, "$1{6}"]],

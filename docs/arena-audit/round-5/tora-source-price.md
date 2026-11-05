@@ -1,0 +1,5 @@
+# EX25-13 activation orb source correction — 5 Nov 2026
+
+The recovered Deckplanet text prints `[Activate: Main][Limit 1]{b}` for Tora, Disappointment. Bandai’s [official card image](https://www.dbs-cardgame.com/images/cardlist/cardimg/EX25-13.png), independently inspected by the implementation worker and coordinator, shows one blue orb. The correction changes only that exact activation prefix from `{b}` to `{u}` on EX25-13; it preserves the Leader/energy conditions, card energy cost and effect text.
+
+Image evidence: `/workspace/shared/arena-support5/conditions-r448/EX25-13.png`, SHA-256 `74970ef781a4ad2505774fb3e5ebeb04e64da35c20f42a7d843acd1838d31c00`. The existing errata-official-2 suite now checks the exact substitution, idempotence, unrelated-card isolation and compiled Blue1 payment; that suite and changed-file lint pass. Native coupon/payment scenarios and the combined full-record comparison accompany R448. No database write or ordinary-card specified-cost override is introduced.

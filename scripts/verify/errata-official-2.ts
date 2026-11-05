@@ -250,3 +250,13 @@ const frameOf = (s: VmState, p: PlayerId, vars: Record<string, string[]> = {}, d
 }
 
 console.log("errata-official-2: identity errata (names, characters, BT19-140's no-colour cost) through the sync, BT21-068's deck rule flagged, the held errata read (R-116 price, R-117 all 12, R-122 bans, R-123 Z-Deck placing, R-124 this card or, R-125 maximum), BT20-024 and BT11-064, orSelf/placeOnTop/R-117 in the VM — passed");
+
+// EX25-13's official image has a blue activation orb, not the feed's black one.
+{
+  const raw = "[Activate: Main][Limit 1]{b}, if your Leader is a blue ≪Bardock's Crew≫ card and you have 3 or more energy: Play this card from your hand, and during this turn, the next time you activate the [Activate: Main] skill on {Tora's Red Armband} from your hand, reduce the energy cost by 2.";
+  const corrected = correctSkillText("EX25-13", raw);
+  assert.equal(corrected, raw.replace("{b}", "{u}"));
+  assert.equal(correctSkillText("EX25-13", corrected), corrected);
+  assert.equal(correctSkillText("UNRELATED", raw), raw);
+  assert.deepEqual(skillRecords(card("EX25-13", { skill: corrected }))[0].cost!.orbs, { Blue: 1 });
+}
