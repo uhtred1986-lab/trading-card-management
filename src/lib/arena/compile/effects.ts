@@ -7361,10 +7361,11 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
       const wide = skillScopeOf(scope, c, true);
       if (wide) {
         // The price belongs to the card, not to one of its lines. An Extra is
-        // bought by activating it, so "[Activate]" adds nothing; a keyword
-        // names the cards that print it; any other line (a [Counter], an
-        // [Evolve]) would make the change wider than printed - unread.
-        if (wide.evolve || (wide.skillKind && wide.skillKind !== "activate")) return null;
+        // bought by activating it, but a Main/Battle timing restriction cannot
+        // be represented by a general card-energy modifier (P-524 FAQ). Even
+        // bare Activate must exclude Counter. Keyword tags may name cards;
+        // explicit skill-kind or Evolve restrictions need a payment scope.
+        if (wide.evolve || wide.skillKind) return null;
         target = wide.target;
         if (wide.tag) {
           const named = KEYWORD_NAMES[wide.tag];
