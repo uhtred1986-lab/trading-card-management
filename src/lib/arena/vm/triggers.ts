@@ -584,7 +584,13 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
     // `front` is 23-5-2-4's exception: a moment that is about the card
     // switching to Hidden Mode is answered by its front side.
     if (!inst || (inst.hidden && !match.front) || skillsNegated(state, match.card)) continue;
-    const master = masterOf(game, state, match.card);
+    // RM 9-6-9-1-2 and BT10-153 Q&A: a self departure Auto belongs
+    // to the source's former Battle controller, even after returning to its
+    // physical owner's area. The move already captured that holder.
+    const originalHolder = moment.event === "moved" && moment.card === match.card
+      && moment.args.from === "battle" && (LEFT_BATTLE_BY_SKILL.has(match.trigger) || SELF_MOVE_FROM_BATTLE.has(match.trigger))
+      ? moment.args.fromHolder : undefined;
+    const master = originalHolder === "p1" || originalHolder === "p2" ? originalHolder : masterOf(game, state, match.card);
     // Read once per card: a text box is parsed by a regex, and a moment that
     // every card in play hears would otherwise parse each of them twice.
     const showing = skillsShowing(ctx, state, match.card);
