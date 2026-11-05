@@ -47,6 +47,9 @@ function spaceBeforeKeyword(text: string): string {
  * be caught by `npm test`, which has no catalog to read.
  */
 export const CORRECTIONS: Record<string, [RegExp, string][]> = {
+  // The text export loses the circled 6; verified against Bandai's printed card, 5 Nov 2026:
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT13-046.png
+  "BT13-046": [[/(\[EX-Evolve\])\s*\?(?=,\s*draw\s+2\s+cards:)/gi, "$1{6}"]],
   // Deckplanet omits the Awaken threshold; verified against Bandai's printed front, 4 Nov 2026:
   // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT26-031.png
   "BT26-031": [[/you\s+have\s+or\s+more\s+Z-Energy/g, "you have 3 or more Z-Energy"]],
