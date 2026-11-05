@@ -42,7 +42,11 @@ export function taxPayerProblem(
   }
   if (requireCaptured) for (const [name, ids] of Object.entries(vars)) {
     if (name.endsWith("@epoch")) continue;
-    for (const card of ids) if (state.cards[card] && !payers[`${name}:${card}`]) return "missing";
+    for (const card of ids) if (state.cards[card]) {
+      const payer = payers[`${name}:${card}`];
+      if (!payer) return "missing";
+      if (payer.card !== card) return "malformed";
+    }
   }
   return stale ? "stale" : null;
 }

@@ -160,12 +160,12 @@ for (const p of ["p1", "p2"] as const) for (const variant of ["drop", "compete",
  checks++;
 }
 // Multi-pick tax payers are also bound before later selections and reload.
-for (const p of ["p1", "p2"] as const) for (const corrupt of [false, true]) {
+for (const p of ["p1", "p2"] as const) for (const corrupt of [false, true, "alias"]) {
  let s=fresh(other(p)); const source=stage(s,p,"BT8-119","battle"), dual=stage(s,p,"DUAL","hand"), first=stage(s,p,"F","hand"), second=stage(s,p,"F","hand"), attacker=stage(s,other(p),"BIG","battle"); s.cards[source].mode="rest";
  addEffect(s,[],{target:"",kind:"forbid",value:0,until:"turn",master:other(p),source:s.sides[other(p)].zones.leader[0],forbid:{what:"activateSkill",player:p,filter:{...emptyFilter(),type:"BATTLE"},pay:[{op:"choose",sel:{side:"you",area:"hand",count:2,upTo:false},as:"twoTax"},{op:"moveTo",target:{var:"twoTax"},to:"drop"}]}});
  events=[]; s=battleKo(s,attacker,source); s=take(s,{type:"choose",player:p,cards:[dual]}); s=take(s,{type:"choose",player:p,cards:[first]}); assert.equal(s.prompt.kind,"chooseCards");
  if(corrupt) {
-  for(const f of s.programs)if(f.autoCost?.reviveTax)delete f.autoCost.reviveTax.paying;
+  for(const f of s.programs)if(f.autoCost?.reviveTax) { if(corrupt==="alias")f.autoCost.reviveTax.aliases=[]; else delete f.autoCost.reviveTax.paying; }
   s=take(s,{type:"choose",player:p,cards:[second]}); assert.equal(s.outcome?.kind,"interrupted");
  } else {
   assert.ok(moveCard(s,game,first,"drop",{owner:p}).ok); assert.ok(moveCard(s,game,first,"hand",{owner:p}).ok);
