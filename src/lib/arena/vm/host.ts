@@ -561,9 +561,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // The moment, in the words `triggers.rules` is written in. A program that
     // pends is naming a legacy trigger, and `pendByName` is the one translation
     // — see its note.
-    pend: (trigger, cardId, subject, sourceNegated) => {
+    pend: (trigger, cardId, subject, sourceNegated, sourceMaster) => {
       const before = new Set(state.pending);
-      pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated);
+      pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated, sourceMaster);
       const scope = state.skillPlayScopes?.at(-1);
       if (trigger === "played" && scope?.played.some(item => item.card === cardId && item.epoch === (state.cards[cardId]?.zoneEpoch ?? 0))) witnessArrivalAutos(state, scope, cardId, before);
     },
@@ -1190,7 +1190,7 @@ function clearAutoReveal(state: VmState, card: string): void {
  * covers only the names a program says outright, and a name with no moment of
  * its own is a note rather than a silent miss.
  */
-function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string, sourceNegated?: number[]): void {
+function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string, sourceNegated?: number[], sourceMaster?: PlayerId): void {
   // A switch to Rest Mode by a skill is `setMode`'s own moment, fired as the
   // card switched and saying what switched it (#157); the name the program
   // also says is that same happening, already answered.
@@ -1198,7 +1198,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // R-362: one face-up transition is broadcast about the actual Life card. Its source is separate;
   // explicit hand watchers and the Life card itself join the controller's ordinary watchers.
   const eventCard = trigger === "flippedFaceUp" ? id : (WATCHED_MOVE.has(trigger) && subject) ? subject : id;
-  const master = state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer;
+  const master = sourceMaster ?? (state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer);
   // Phrasing batch 8: "when your opponent takes damage from a skill" is pended on each of the dealer's cards, and the
   // moment is about the damaged player (`watcher: opponent` asks the other side of it), so its side is the other one.
   const controller = ABOUT_THE_OTHER_SIDE.has(trigger) ? otherPlayer(master) : master;
@@ -1222,7 +1222,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A watched move (phrasing batch 5) is pended once, about the moved card: every watcher the declaration names
   // answers — in play, and in a hand when its skill plays itself from there (DB2-174, `matchTriggers`' hand watchers).
   const watched = WATCHED_MOVE.has(trigger) || trigger === "flippedFaceUp";
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: { ...moment.args, ...(sourceMaster && moment.args.from === "battle" ? { fromHolder: sourceMaster } : {}) }, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 
