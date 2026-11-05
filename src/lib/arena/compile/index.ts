@@ -1,3 +1,4 @@
+import { counterEnergyPermit } from "../vm/counter-energy-contract";
 import { counterDropPermit, COUNTER_DROP_COLORS } from "../vm/counter-drop-contract";
 import { compilePotaraMaterials } from "./potara-materials";
 import { isPotaraSkill, POTARA_REBUILD } from "../vm/potara-materials";
@@ -949,6 +950,11 @@ function compileSkillText(skill: Skill): Script {
   // splitting its conjunction would lose either the area or a removal.
   const counterDrop = c.permanent ? /^if this card is in your drop(?: area)?,? you can activate it by paying its energy cost and removing it and 1 (red|blue|green|yellow) card in your hand from the game\.?$/i.exec(text.trim()) : null;
   if (counterDrop) return { ops: [counterDropPermit(COUNTER_DROP_COLORS.find(color => color.toLowerCase() === counterDrop[1].toLowerCase())!)], unsupported: [] };
+  const counterEnergy = c.permanent ? /^(?:if your leader(?: card)? is a blue ≪red ribbon army≫ card,? )?you can activate this card['’]s \[counter\] skill from your energy by paying its energy cost(?: and (choosing 1 card in your hand and discarding it|discarding 1 card from your hand))?\.?$/i.exec(text.trim()) : null;
+  if (counterEnergy) {
+    const leader = /^if /i.test(text.trim()), discard = !!counterEnergy[1];
+    if (leader || discard) return { ops: [counterEnergyPermit(leader, discard)], unsupported: [] };
+  }
   const evolveZ = c.permanent ? evolveFromZEnergyPermit(text) : null;
   if (evolveZ) return { ops: [evolveZ], unsupported: [] };
   const evolveAreas = c.permanent ? evolveEnergyBasesPermit(text) : null;

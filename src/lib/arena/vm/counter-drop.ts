@@ -36,9 +36,10 @@ export function validCounterDropOrigin(ctx: EngineContext, state: VmState, frame
 }
 
 export interface CounterDropOccurrences { version: 1; cards: Record<string, number> }
-export function counterDropOccurrences(state: VmState, candidates: readonly string[]): { dropOccurrences?: CounterDropOccurrences } {
+export function counterDropOccurrences(state: VmState, candidates: readonly string[]): { dropOccurrences?: CounterDropOccurrences; energyOccurrences?: CounterDropOccurrences } {
  const cards=Object.fromEntries(candidates.filter(id=>findCard(state,id)?.zone==="drop").map(id=>[id,state.cards[id].zoneEpoch??0]));
- return Object.keys(cards).length ? {dropOccurrences:{version:1,cards}} : {};
+ const energy=Object.fromEntries(candidates.filter(id=>findCard(state,id)?.zone==="energy").map(id=>[id,state.cards[id].zoneEpoch??0]));
+ return {...(Object.keys(cards).length ? {dropOccurrences:{version:1 as const,cards}} : {}),...(Object.keys(energy).length ? {energyOccurrences:{version:1 as const,cards:energy}} : {})};
 }
 export function counterDropOccurrenceProblem(state: VmState, card: string, saved: CounterDropOccurrences | undefined): string | null {
  const epoch=saved?.cards?.[card];

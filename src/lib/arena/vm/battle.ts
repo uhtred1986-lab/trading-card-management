@@ -1,5 +1,7 @@
 import { newCounterSelfChoices } from "./counter-self-binding";
 import type { ExtraCounterBinding, ExtraCounterCost, ExtraCounterSource } from "./counter-extra-cost";
+import { resetEnergyCounterOccurrence, counterEnergyPermission, counterEnergyAdmissionProblem, validCounterEnergyOrigin, counterEnergyOccurrenceProblem, requireCounterEnergyOccurrence } from "./counter-energy";
+import type { CounterActivationOrigin } from "./counter-activation-origin";
 import { counterSpiritBoostX, counterXValue } from "./counter-x";
 import { counterDropPermission, validCounterDropOrigin, counterDropOccurrences, requireCounterDropOccurrence, counterDropOccurrenceProblem } from "./counter-drop";
 import { staleExtraSelfActivation } from "./extra-activation";
@@ -730,7 +732,7 @@ export function counterAbilityAvailability(
 
   const window = openWindowOf(prompt.window);
   const rows: AbilityAvailability[] = [];
-  const cards = new Set([...state.sides[player].zones.hand, ...state.sides[player].zones.drop, ...prompt.candidates]);
+  const cards = new Set([...state.sides[player].zones.hand, ...state.sides[player].zones.drop, ...state.sides[player].zones.energy, ...prompt.candidates]);
   for (const card of cards) {
     const counterSkills = skillsShowing(ctx, state, card).skills.filter((skill) => skill.kind.startsWith("counter:"));
     if (!counterSkills.length) continue;
@@ -752,7 +754,7 @@ export function counterAbilityAvailability(
           // Only a native ordinary orb price is a complete resource summary.
           // Alternative/action prices remain incomplete rather than inferred free.
           // A condition-only price (#716) charges nothing beyond the energy.
-          if (offer.cost || action.type !== "counter" || action.alt || counterDropPermission(ctx, game, state, player, card)
+          if (offer.cost || action.type !== "counter" || action.alt || counterDropPermission(ctx, game, state, player, card) || counterEnergyPermission(ctx, game, state, player, card)
             || counterPriceOps(skillsShowing(ctx, state, card).scripts.bySkill[skill.index])
             || (!costIsOnlyOrbs(skill.cost) && !skillsShowing(ctx, state, card).scripts.bySkill[skill.index]?.price?.condition)) return offer;
           const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, skill, action.x));
@@ -814,7 +816,7 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (window === "attack" && !state.battle) return [];
   if (windowClosedBy(ctx, game, state, window)) return [];
   const out: CounterCandidate[] = [];
-  for (const card of [...state.sides[responder].zones.hand, ...state.sides[responder].zones.drop.filter(id => counterDropPermission(ctx, game, state, responder, id))]) {
+  for (const card of [...state.sides[responder].zones.hand, ...state.sides[responder].zones.drop.filter(id => counterDropPermission(ctx, game, state, responder, id)), ...state.sides[responder].zones.energy.filter(id => counterEnergyPermission(ctx, game, state, responder, id))]) {
     const showing = skillsShowing(ctx, state, card);
     if (baseTypeOf(ctx, state, card) === "EXTRA" && staleExtraSelfActivation(showing.scripts)) continue;
     for (const sk of showing.skills) {
@@ -1009,9 +1011,11 @@ function counterRoutes(ctx: EngineContext, game: GameDefinition, state: VmState,
     const routes = counterXChoices(ctx, state, player, card, sk).map(n => counterRoutes(ctx, game, state, player, card, sk, n));
     return { paid: routes.some(r => r.paid), alt: routes.find(r => r.alt)?.alt ?? null, why: routes.find(r => r.paid)?.why ?? routes[0]?.why ?? [] };
   }
-  const occurrenceProblem = state.prompt.kind === "counter" && state.prompt.player === player && state.prompt.candidates.includes(card) ? counterDropOccurrenceProblem(state, card, state.prompt.dropOccurrences) : null;
+  const occurrenceProblem = state.prompt.kind === "counter" && state.prompt.player === player && state.prompt.candidates.includes(card) ? counterDropOccurrenceProblem(state, card, state.prompt.dropOccurrences) ?? counterEnergyOccurrenceProblem(state, card, state.prompt.energyOccurrences) : null;
   if (occurrenceProblem) return { paid: false, alt: null, why: [{ kind: "other", detail: occurrenceProblem }] };
-  if (!state.sides[player].zones.hand.includes(card) && !counterDropPermission(ctx, game, state, player, card)) return { paid: false, alt: null, why: [{ kind: "other", detail: "no Counter permission from this area" }] };
+  const energyGap = counterEnergyAdmissionProblem(ctx, game, state, player, card);
+  if (energyGap) return { paid: false, alt: null, why: [{ kind: "other", detail: energyGap }] };
+  if (!state.sides[player].zones.hand.includes(card) && !counterDropPermission(ctx, game, state, player, card) && !counterEnergyPermission(ctx, game, state, player, card)) return { paid: false, alt: null, why: [{ kind: "other", detail: "no Counter permission from this area" }] };
   const reading = readCounterPrice(ctx, game, state, player, card, sk);
   if (!reading.ok) return { paid: false, alt: null, why: [reading.why] };
   if (handExtraCounter(ctx, state, player, card)) {
@@ -1027,8 +1031,10 @@ function counterRoutes(ctx: EngineContext, game: GameDefinition, state: VmState,
   const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, sk, x));
   const plan = planCost(ctx, game, state, player, price, card);
   const drop = counterDropPermission(ctx, game, state, player, card);
-  const alt = drop ? null : counterAlt(ctx, game, state, card, player);
-  const ops = drop ? [...drop.price.ops!, ...(reading.ops ?? [])] : reading.ops;
+  const energy = counterEnergyPermission(ctx, game, state, player, card);
+  const permit = drop ?? energy;
+  const alt = permit ? null : counterAlt(ctx, game, state, card, player);
+  const ops = permit ? [...permit.price.ops!, ...(reading.ops ?? [])] : reading.ops;
   if (alt?.pay === "program" && (ops || (price.markersOff.length && x === undefined) || price.pooled.some(p => p.n > 0))) programAltBesideAction();
   const paid = plan.ok && (!ops || counterActionFinishes(ctx, game, state, player, card, sk, ops, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, counterPaymentAction(game).cost), x));
   const altOk = !!alt && counterActionFinishes(ctx, game, state, player, card, sk, alt.pay === "program" ? alt.ops ?? [] : ops ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], player, card, sk, alt, x), x);
@@ -1076,6 +1082,7 @@ export interface CounterCost {
   alternative?: { version: 1; sourceEpoch: number };
   /** R438: original Drop occurrence, then its successful payment departure. */
   dropOrigin?: { version: 1; sourceEpoch: number; permissionSkill: number; paidEpoch?: number };
+  energyOrigin?: { version: 1; sourceEpoch: number; permissionSkill: number };
   /** Its effect, run only once the whole price is paid. */
   effect: Op[];
   /** Paid at "without paying its energy cost" (5-3) — what `skillActivated` reports. */
@@ -1220,6 +1227,13 @@ export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state:
       return "done";
     }
   }
+  if (cost.energyOrigin) {
+    if (!validCounterEnergyOrigin(ctx, state, frame)) rebuildScope("rebuild the saved energy Counter source");
+    if (!state.sides[frame.master].zones.energy.includes(frame.card) || (state.cards[frame.card]?.zoneEpoch ?? 0) !== cost.energyOrigin.sourceEpoch) {
+      log(ev, { type: "note", text: "[Counter] activation failed: the original energy source left" });
+      return "done";
+    }
+  }
   if (cost.dropOrigin) {
     const origin = cost.dropOrigin;
     if (!validCounterDropOrigin(ctx, state, frame)) rebuildScope("rebuild the saved Drop Counter source");
@@ -1258,25 +1272,26 @@ export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state:
   }
   // #677: the printed price is paid; the rule's prices come next (22-30-3's
   // "then, if there is an additional skill cost, … pay it"), with the card
-  // in its declared route’s paid location (hand or Removed). This frame
+  // in its declared route’s paid location (hand, Energy or Removed). This frame
   // activates it only once the gate lets it through.
   if (cost.dropOrigin && cost.dropOrigin.paidEpoch === undefined) rebuildScope("rebuild the completed Drop Counter source payment");
   if (cost.taxGate) {
     const gate = cost.taxGate;
     delete cost.taxGate;
     state.programs.unshift({ ...frame, ops: [], ip: 0 });
-    queueTaxGate(state, { ...gate, ...(cost.dropOrigin ? { counterDropPaidEpoch: cost.dropOrigin.paidEpoch } : {}) }, 1, true);
+    queueTaxGate(state, { ...gate, ...(cost.dropOrigin ? { counterDropPaidEpoch: cost.dropOrigin.paidEpoch } : {}), ...(cost.energyOrigin ? { counterEnergyEpoch: cost.energyOrigin.sourceEpoch } : {}) }, 1, true);
     return "done";
   }
   // #550 (20-5-3): what the price chose — its names and, for a `bindX`
   // choice, X — is the effect's, exactly as `vm/activate.ts` hands an
   // [Activate]'s price on through `saveVars`/`saveX`.
-  activateCounterSkill(ctx, game, state, ev, frame.master, frame.card, cost.skill, cost.effect, cost.free, cost.afterSkillKeywords, frame.vars, frame.x, frame.paidMarkers, cost.dropOrigin);
+  activateCounterSkill(ctx, game, state, ev, frame.master, frame.card, cost.skill, cost.effect, cost.free, cost.afterSkillKeywords, frame.vars, frame.x, frame.paidMarkers, cost.dropOrigin, undefined, frame.counterDeclaredScript?.script, frame.counterActivation);
   return "done";
 }
 
 function failCounter(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" {
-  if (!frame.counterCost?.dropOrigin && (!frame.counterCost?.extra || sameExtraSource(state, frame.master, frame.card, frame.counterCost.extra.source)) && state.sides[frame.master].zones.hand?.includes(frame.card)) moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true });
+  if (frame.counterCost?.energyOrigin && state.sides[frame.master].zones.energy.includes(frame.card) && (state.cards[frame.card]?.zoneEpoch ?? 0) === frame.counterCost.energyOrigin.sourceEpoch) moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true, beforeTriggers: resetEnergyCounterOccurrence(state, ev, frame.card) });
+  if (!frame.counterCost?.dropOrigin && !frame.counterCost?.energyOrigin && (!frame.counterCost?.extra || sameExtraSource(state, frame.master, frame.card, frame.counterCost.extra.source)) && state.sides[frame.master].zones.hand?.includes(frame.card)) moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true });
   log(ev, { type: "note", text: "[Counter] activation failed: its skill cost could not be paid in full" });
   return "done";
 }
@@ -1292,14 +1307,18 @@ function futureCounterProblem(state: VmState, sk: Skill, ops: Op[]): string | nu
 
 /**
  * 22-10-7 then 9-7-3-2: the [Counter] is activated — written down by the
- * battle, the hand source placed in Drop (a paid Drop source stays Removed),
+ * battle, the original hand/Energy source placed in Drop (a paid Drop source stays Removed),
  * the `skillActivated` moment, the line
  * announced and its effect queued. Reached once its whole price is paid.
  */
 function activateCounterSkill(
   ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, card: string, sk: Skill, program: Op[], free: boolean,
-  afterSkillKeywords: ("Heroic" | "Villainous")[], vars: ScriptFrame["vars"] = {}, x?: number, paidMarkers?: PaidMarkers, dropOrigin?: CounterCost["dropOrigin"], extraPaidSource?: ExtraCounterSource, declaredScript?: import("./script").Script,
+  afterSkillKeywords: ("Heroic" | "Villainous")[], vars: ScriptFrame["vars"] = {}, x?: number, paidMarkers?: PaidMarkers, dropOrigin?: CounterCost["dropOrigin"], extraPaidSource?: ExtraCounterSource, declaredScript?: import("./script").Script, counterActivation?: CounterActivationOrigin,
 ): void {
+  // R463: the activated line survives the original energy occurrence's reset.
+  if (counterActivation?.from === "energy") {
+    declaredScript ??= skillsShowing(ctx, state, card).scripts.bySkill[sk.index];
+  }
   paidMarkers = bindPaidMarkers(paidMarkers, card, sk.index, { fixed: sk.spiritBoost, x: counterSpiritBoostX((declaredScript ?? skillsShowing(ctx, state, card).scripts.bySkill[sk.index])?.price?.x) ? x ?? 0 : null });
   const admission = paidCounterAdmission((declaredScript ?? skillsShowing(ctx, state, card).scripts.bySkill[sk.index]), program);
   // 22-10-7: the battle writes the counter down before it is lost in the
@@ -1309,16 +1328,19 @@ function activateCounterSkill(
   if (b) (b.counters ??= []).push({ card, by: player, after: state.sides[player].zones.combo?.length ?? 0 });
   const afterSkill = afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {};
   spendUse(state, player, card, sk);
-  if (!dropOrigin && !extraPaidSource) moved(ctx, game, state, ev, card, "drop", { owner: player, reveal: true });
+  if (!dropOrigin && !extraPaidSource) moved(ctx, game, state, ev, card, "drop", {
+    owner: player, reveal: true,
+    ...(counterActivation?.from === "energy" ? { beforeTriggers: resetEnergyCounterOccurrence(state, ev, card) } : {}),
+  });
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
   // Audit triggers 1: which [Counter] it is ("[Counter: Play]", "[Counter: Attack]"), for the moments that name one (EX13-19).
-  fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: dropOrigin ? "drop" : "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA", cardActivation: baseTypeOf(ctx, state, card) === "EXTRA" } });
+  fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: dropOrigin ? "drop" : counterActivation?.from ?? "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA", cardActivation: baseTypeOf(ctx, state, card) === "EXTRA" } });
   log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: !!b });
   // 9-7-2, 22-10-4 (#552): the activation is a counter motion, queued even
   // with no effect to run, so the opponent's [Counter: Counter] window
   // (9-7-3-3) opens over it once it reaches the front (`vm/flow.ts`).
-  state.programs.unshift({ ...(declaredScript ? { counterDeclaredScript: { version: 1 as const, card, skillIndex: sk.index, kind: sk.kind, script: structuredClone(declaredScript) } } : {}), markerHistoryContract: markerHistoryContract(program, (declaredScript ?? skillsShowing(ctx, state, card).scripts.bySkill[sk.index])?.price), ...(paidMarkers ? { paidMarkers } : {}), counterAdmission: admission, counterSelfChoices: newCounterSelfChoices(program), ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterSource: { version: 1, card, epoch: state.cards[card].zoneEpoch ?? 0 }, counterMotion: { by: player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill, ...(x === undefined ? {} : { x }) });
+  state.programs.unshift({ counterActivation, ...(declaredScript ? { counterDeclaredScript: { version: 1 as const, card, skillIndex: sk.index, kind: sk.kind, script: structuredClone(declaredScript) } } : {}), markerHistoryContract: markerHistoryContract(program, (declaredScript ?? skillsShowing(ctx, state, card).scripts.bySkill[sk.index])?.price), ...(paidMarkers ? { paidMarkers } : {}), counterAdmission: admission, counterSelfChoices: newCounterSelfChoices(program), ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterSource: { version: 1, card, epoch: state.cards[card].zoneEpoch ?? 0 }, counterMotion: { by: player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill, ...(x === undefined ? {} : { x }) });
 }
 
 /**
@@ -1620,12 +1642,15 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     delete askingMotion(state)?.counterMotion?.asking;
     return "done";
   }
-  // 22-10-5: hand is the default; only the typed own-Drop permission
-  // widens it, and a frozen Drop candidate binds its original occurrence.
+  // 22-10-5: hand is the default; typed own-Drop/Energy permissions
+  // widen it, and frozen candidates bind their original occurrences.
   requireCounterDropOccurrence(state, action.card, pr.dropOccurrences);
+  requireCounterEnergyOccurrence(state, action.card, pr.energyOccurrences);
   const dropPermit = counterDropPermission(ctx, game, state, action.player, action.card);
-  if (!state.sides[action.player].zones.hand?.includes(action.card) && !dropPermit) throw new IllegalAction("that card has no Counter permission from its current area");
-  if (dropPermit && action.alt) throw new IllegalAction("the Drop permission requires paying its energy cost");
+  const energyPermit = counterEnergyPermission(ctx, game, state, action.player, action.card);
+  const sourcePermit = dropPermit ?? energyPermit;
+  if (!state.sides[action.player].zones.hand?.includes(action.card) && !sourcePermit) throw new IllegalAction("that card has no Counter permission from its current area");
+  if (sourcePermit && action.alt) throw new IllegalAction("the nonhand permission requires paying its energy cost");
   const card = action.card;
   const window = openWindowOf(pr.window);
   const showing = skillsShowing(ctx, state, card);
@@ -1656,7 +1681,8 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // energy is still untouched.
   const reading = readCounterPrice(ctx, game, state, action.player, card, sk);
   if (!reading.ok) throw new IllegalAction(`can't pay the counter's cost: ${reading.why.kind}`);
-  const actionPrice = dropPermit ? [...dropPermit.price.ops!, ...(reading.ops ?? [])] : reading.ops;
+  const actionPrice = sourcePermit ? [...sourcePermit.price.ops!, ...(reading.ops ?? [])] : reading.ops;
+  const counterActivation: CounterActivationOrigin = { version: 1, card, epoch: state.cards[card].zoneEpoch ?? 0, skillIndex: sk.index, kind: sk.kind, from: energyPermit ? "energy" : dropPermit ? "drop" : "hand" };
   // 5-3: the printed alternative is paid *instead of* the card's energy cost
   // and the line's orbs — the legacy `payAltCost` on `action.alt` (#439). It
   // replaces the energy only: a printed action price is still owed (#716).
@@ -1683,7 +1709,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     if (!plan.ok) throw new IllegalAction(`can't pay the counter's cost: ${plan.why[0]?.kind}`);
     if (action.pay === undefined && plan.asks && plan.options.length > 1) {
       const describe = `activate ${nameOf(ctx, state, card)}'s counter`;
-      state.prompt = { kind: "payCost", player: action.player, action: { ...action, skill: sk.index }, ...(pr.dropOccurrences ? {dropOccurrences:structuredClone(pr.dropOccurrences)} : {}), options: plan.options, ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe };
+      state.prompt = { kind: "payCost", player: action.player, action: { ...action, skill: sk.index }, ...(pr.dropOccurrences ? {dropOccurrences:structuredClone(pr.dropOccurrences)} : {}), ...(pr.energyOccurrences ? {energyOccurrences:structuredClone(pr.energyOccurrences)} : {}), options: plan.options, ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe };
       return "asked";
     }
     // 5-8-2: the energy chosen must leave the whole action price payable;
@@ -1708,10 +1734,10 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const strictPrice = alt?.pay === "program" ? alt.ops ?? [] : actionPrice;
   if (x !== undefined && paidResources?.paidMarkers) paidResources.paidMarkers = bindPaidMarkers(paidResources.paidMarkers, card, sk.index, { fixed: sk.spiritBoost, x });
   if (strictPrice || taxGate) {
-    state.programs.unshift({ markerHistoryContract: markerHistoryContract(program, skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price), ...paidResources, ...(x === undefined ? {} : { x }), ops: strictPrice ?? [], ip: 0, vars: paidResources?.vars ?? {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterCost: { ...(dropPermit ? { dropOrigin: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0, permissionSkill: dropPermit.skillIndex } } : {}), skill: sk, effect: program, free: alt?.pay === "none", ...(alt?.pay === "program" ? { alternative: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0 } } : {}), afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
+    state.programs.unshift({ counterActivation, ...(energyPermit ? { counterDeclaredScript: { version: 1 as const, card, skillIndex: sk.index, kind: sk.kind, script: structuredClone(showing.scripts.bySkill[sk.index]!) } } : {}), markerHistoryContract: markerHistoryContract(program, skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price), ...paidResources, ...(x === undefined ? {} : { x }), ops: strictPrice ?? [], ip: 0, vars: paidResources?.vars ?? {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterCost: { ...(energyPermit ? { energyOrigin: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0, permissionSkill: energyPermit.skillIndex } } : {}), ...(dropPermit ? { dropOrigin: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0, permissionSkill: dropPermit.skillIndex } } : {}), skill: sk, effect: program, free: alt?.pay === "none", ...(alt?.pay === "program" ? { alternative: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0 } } : {}), afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
     return "done";
   }
-  activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords, paidResources?.vars, x, paidResources?.paidMarkers);
+  activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords, paidResources?.vars, x, paidResources?.paidMarkers, undefined, undefined, undefined, counterActivation);
   return "done";
 }
 
@@ -2304,7 +2330,7 @@ export function battleRejectedActions(ctx: EngineContext, game: GameDefinition, 
     // Every counter card in hand that is not on the menu: a candidate the
     // energy cannot cover, a counter for another moment, or one this engine
     // cannot read — the same gates `counterCandidates` and the menu apply.
-    for (const id of [...zone("hand"), ...zone("drop")]) {
+    for (const id of [...zone("hand"), ...zone("drop"), ...zone("energy")]) {
       const why = counterWhy(ctx, game, state, p, id, pr.window, pr.candidates);
       if (why) push({ action: { type: "counter", player: p, card: id }, label: `Counter with ${nameOf(ctx, state, id)}`, why });
     }

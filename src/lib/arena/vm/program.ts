@@ -1,3 +1,4 @@
+import { counterActivationFrom } from "./counter-activation-origin";
 import { requirePaidMarkers } from "./paid-markers";
 import { requireEnergyCouponEffects } from "./energy-coupon-saves";
 import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
@@ -2039,6 +2040,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     }
     // BT15-118's "a turn in which this card was placed in a Battle Area"
     // (5-5-4): the card's memory of arriving (`VmCard.placedThisTurn`).
+    case "counterActivatedFrom": return counterActivationFrom(frame, c.from, c.skill);
     case "placedThisTurn":
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) =>
         c.from?.length ? !!state.cards[id]?.playedThisTurn && (c.from as string[]).includes(state.cards[id]?.playedFrom ?? "") : !!(c.played ? state.cards[id]?.playedThisTurn : state.cards[id]?.placedThisTurn));

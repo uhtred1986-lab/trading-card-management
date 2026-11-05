@@ -1,3 +1,4 @@
+import { requireCounterEnergyOccurrence } from "./counter-energy";
 import { requireCounterDropOccurrence } from "./counter-drop";
 import { counterXValue } from "./counter-x";
 /**
@@ -483,7 +484,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       const pr = prev.prompt;
       if (pr.kind !== "payCost") throw new IllegalAction("no payment is being asked for");
       if (action.player !== pr.player) throw new IllegalAction("that payment belongs to another player");
-      if (pr.action.type === "counter" && pr.action.card) requireCounterDropOccurrence(state, pr.action.card, pr.dropOccurrences);
+      if (pr.action.type === "counter" && pr.action.card) { requireCounterDropOccurrence(state, pr.action.card, pr.dropOccurrences); requireCounterEnergyOccurrence(state, pr.action.card, pr.energyOccurrences); }
       if (pr.action.type === "counter" && pr.action.card && (pr.extraCounter || state.sides[pr.player].zones.hand.includes(pr.action.card) && ctx.defs[state.cards[pr.action.card]?.cardId]?.type === "EXTRA")) requireExtraCounterBinding(state, pr.player, pr.action.card, pr.extraCounter);
       if (pr.extraCounter) {
         if (pr.action.type !== "counter" || !pr.action.card || pr.action.skill !== pr.extraCounter.skillIndex || (pr.action.x ?? null) !== pr.extraCounter.selectedX) throw new IllegalAction("rebuild the saved Extra Counter skill and selected X");

@@ -551,6 +551,7 @@ export type Cond =
    * Audit conditions 3: with `from`, the play was made from one of those areas — "Additionally, if this card was played
    * from a Drop" (BT31-050), asked by the [Auto] its play triggered (`VmCard.playedFrom`).
    */
+  | { kind: "counterActivatedFrom"; from: "energy"; skill: "counter:attack" }
   | { kind: "placedThisTurn"; sel: Selector; played?: true; from?: ScriptArea[] }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
@@ -1412,7 +1413,7 @@ export type Op =
    * `filter` describes may come from under the target (the granting card)
    * instead — a Battle Card the cost's own description fits, one for one.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "counterFromEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1726,6 +1727,8 @@ export interface ScriptFrame {
   /** Expected scoped coupon operations captured by a fresh effect activation. */
   energyCouponContract?: import("./energy-coupon-saves").EnergyCouponContract;
   activationEnergyPayment?: import("./costs").CapturedEnergyCouponUses;
+  /** R463: immutable declaration origin survives payment and self-play. */
+  counterActivation?: import("./counter-activation-origin").CounterActivationOrigin;
   /** The typed admission gate was satisfied before this Counter activated. */
   counterAdmission?: import("./paid-admission").PaidAdmission;
   counterChoice?: { version: 1; candidates?: { card: string; epoch: number }[] };
@@ -1790,6 +1793,7 @@ export interface ScriptFrame {
   /** #677: the 20-14 prices on an activation, charged one at a time and re-read live in front of what it guards. Additive: older states never carry one. */
   taxGate?: import("./activate").TaxGate;
   /** R453: source authority while a queued Extra Counter tax is being paid. */
+  counterNonhandTax?: import("./counter-nonhand-tax").CounterNonhandTax;
   extraCounterTax?: { version: 1; source: import("./counter-extra-cost").ExtraCounterSource };
   /** The Extra skill declared in hand survives source placement and self-costs. */
   counterDeclaredScript?: { version: 1; card: string; skillIndex: number; kind: string; script: Script };

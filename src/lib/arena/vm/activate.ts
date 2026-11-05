@@ -1,3 +1,4 @@
+import { resetEnergyCounterOccurrence } from "./counter-energy";
 import { rebuildScope } from "./skill-play-scope";
 import { bindPaidMarkers, markerHistoryContract } from "./paid-markers";
 import { energyCouponContract } from "./energy-coupon-saves";
@@ -1012,6 +1013,7 @@ export interface TaxGate {
   /** R438: a Drop Counter has already removed this exact source as payment. */
   counterDropPaidEpoch?: number;
   counterExtraSource?: import("./counter-extra-cost").ExtraCounterSource;
+  counterEnergyEpoch?: number;
 }
 
 /**
@@ -1065,6 +1067,14 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
       return "done";
     }
   }
+  if (gate.counter && gate.from === "energy") {
+    if (!Number.isSafeInteger(gate.counterEnergyEpoch) || gate.counterEnergyEpoch! < 0) rebuildScope("rebuild the saved energy Counter tax source");
+    if (!state.sides[gate.player].zones.energy.includes(gate.card) || (state.cards[gate.card]?.zoneEpoch ?? 0) !== gate.counterEnergyEpoch) {
+      state.programs.splice(0, gate.guards);
+      log(ev, { type: "note", text: "[Counter] activation failed: the original energy source left before its tax completed" });
+      return "done";
+    }
+  }
   if (gate.counter && gate.from === "drop") {
     if (!Number.isSafeInteger(gate.counterDropPaidEpoch) || gate.counterDropPaidEpoch! < 0) rebuildScope("rebuild the saved Drop Counter tax source");
     if (!state.sides[gate.player].zones.removed.includes(gate.card) || (state.cards[gate.card]?.zoneEpoch ?? 0) !== gate.counterDropPaidEpoch) {
@@ -1077,12 +1087,24 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
   if (!owed.length) return "done";
   if (unpaidActivationTax(ctx, game, state, gate.player, gate.card, owed)) {
     state.programs.splice(0, gate.guards);
-    if (gate.counter && state.sides[gate.player].zones[ACTIVATION_ZONES.hand]?.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true });
+    if (gate.counter && gate.from === "energy" && state.sides[gate.player].zones.energy.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true, beforeTriggers: resetEnergyCounterOccurrence(state, ev, gate.card) });
+    if (gate.counter && gate.from !== "energy" && state.sides[gate.player].zones[ACTIVATION_ZONES.hand]?.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true });
     log(ev, { type: "note", text: "The skill's activation failed: a price a rule puts on it (20-14-1) can no longer be paid" });
     return "done";
   }
+  if (gate.counter && (gate.from === "energy" || gate.from === "drop") &&
+    (gate.guards !== 1 || !state.programs[0]?.counterCost || state.programs[0].card !== gate.card ||
+      state.programs[0].master !== gate.player || !Number.isSafeInteger(state.programs[0].skillIndex))) {
+    rebuildScope("rebuild the saved non-hand Counter tax activation owner");
+  }
+  const counterNonhandTax = gate.counter && (gate.from === "energy" || gate.from === "drop") ? {
+    version: 1 as const, card: gate.card, cardId: state.cards[gate.card].cardId,
+    epoch: (gate.from === "energy" ? gate.counterEnergyEpoch : gate.counterDropPaidEpoch)!,
+    area: gate.from === "energy" ? "energy" as const : "removed" as const,
+    skillIndex: state.programs[0].skillIndex!,
+  } : undefined;
   gate.paid.push(owed[0].key);
-  state.programs.unshift({ ops: owed[0].ops, ip: 0, vars: {}, card: gate.card, master: gate.player, ...(gate.counterExtraSource ? { extraCounterTax: { version: 1 as const, source: structuredClone(gate.counterExtraSource) } } : {}) }, frame);
+  state.programs.unshift({ ops: owed[0].ops, ip: 0, vars: {}, card: gate.card, master: gate.player, ...(counterNonhandTax ? { counterNonhandTax } : {}), ...(gate.counterExtraSource ? { extraCounterTax: { version: 1 as const, source: structuredClone(gate.counterExtraSource) } } : {}) }, frame);
   return "done";
 }
 

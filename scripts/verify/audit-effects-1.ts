@@ -212,9 +212,15 @@ for (const [id, text, forWhat] of [
   assert.ok(alt && alt.pay === "none" && alt.for === "play" && alt.target && "sel" in alt.target && alt.target.sel.area === "hand" && alt.target.sel.filter?.names.join() === "kamehameha energy release", `C: BT27-052 — the waiver on the named card in your hand (${JSON.stringify(rec.ops)})`);
   records++;
 }
+// R463 now represents Android 15's permission without turning it into a play.
+{
+  const rec = skillRecords(card("BT17-055", { type: "BATTLE", skill: "[Permanent] If your Leader Card is a blue ≪Red Ribbon Army≫ card, you can activate this card's [Counter] skill from your energy by paying its energy cost." }))[0];
+  assert.deepEqual(rec.unread, []);
+  assert.ok(opsDeep(rec.ops).some(op => op.op === "permit" && op.what === "counterFromEnergy"));
+  assert.ok(!opsDeep(rec.ops).some(op => op.op === "play"));
+}
 // Areas no engine offers a skill from, and an action price for an Extra's use: unread, where each was a play.
 for (const [id, text] of [
-  ["BT17-055", "[Permanent] If your Leader Card is a blue ≪Red Ribbon Army≫ card, you can activate this card's [Counter] skill from your energy by paying its energy cost."],
   ["BT19-093", "[Permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand."],
   ["BT21-048", "[Permanent] If this card is under a {Universal Tuffleization Plan} in your Battle Area, you can activate this card's [Counter] skill under the same conditions as if it were in your hand."],
   ["DB2-164", "[Permanent] If you have 4 or more energy, you can activate this card from your hand by placing 1 red card in your hand in your Drop Area instead of paying this card's energy cost."],

@@ -28,6 +28,16 @@ export interface CapabilityEvidence {
 
 export const CAPABILITY_EVIDENCE: readonly CapabilityEvidence[] = [
   {
+    id: "arena-energy-counter-movement-auto",
+    label: "Original movement Auto during Energy Counter staging",
+    status: "unsupported",
+    evidence: "runtime-gap",
+    citation: "3-1-4; 9-6-9-2; R463; R454 follow-up",
+    ownerIssue: 1249,
+    proof: "scripts/verify/energy-counter-native-5.ts — typed copied energy-to-Drop Auto refuses before payment; unrelated played Auto remains admissible",
+    detail: "The three typed Energy Counter permissions refuse an original source carrying an Auto whose stored movement pattern can match rule-driven Energy-to-Drop staging. Preserving the original movement Auto program and negation facts remains R454; ordinary staging, copied Counter resolution and unrelated arrival Autos are separate supported paths.",
+  },
+  {
     id: "arena-skill-unread-referee",
     label: "An unread due skill explicitly interrupts the game",
     status: "supported",

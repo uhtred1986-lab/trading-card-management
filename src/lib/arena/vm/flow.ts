@@ -1,3 +1,6 @@
+import { guardCounterNonhandTaxPayment } from "./counter-nonhand-tax";
+import { validCounterEnergyOrigin } from "./counter-energy";
+import { requireCounterActivationOrigin } from "./counter-activation-origin";
 import { validCounterDropOrigin } from "./counter-drop";
 import { requireMarkerHistoryFrame, markerHistoryContract } from "./paid-markers";
 import { counterChoiceTail } from "./counter-continuation";
@@ -1356,6 +1359,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (!guardCounterNonhandTaxPayment(ctx, state, ev, frame)) return "done";
     if (!guardExtraCounterTaxPayment(ctx, state, ev, frame)) return "done";
     if (!guardCounterSelfTaxPayment(state, frame, parent => programSourceScript(ctx, state, parent))) return "done";
     if (frame.replacementFallback) return stepReplacementFallback(ctx, game, state, ev, frame);
@@ -1394,8 +1398,9 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireMarkerHistoryFrame(frame, sourceScript);
     requireCounterAdmission(frame, sourceScript);
     requireCounterSelfBinding(frame, sourceScript);
+    requireCounterActivationOrigin(frame, sourceScript);
     if (frame.skillKind === "counter" && frame.saveVarsAs === `costvars:${frame.card}:${frame.skillIndex}`) rebuildScope("rebuild this saved alternative Counter payment before activation");
-    if (frame.counterCost && frame.ops.length && !sourceScript?.price?.ops?.length && !frame.counterCost.alternative && !validCounterDropOrigin(ctx, state, frame)) rebuildScope("rebuild the saved alternative Counter source");
+    if (frame.counterCost && frame.ops.length && !sourceScript?.price?.ops?.length && !frame.counterCost.alternative && !validCounterDropOrigin(ctx, state, frame) && !validCounterEnergyOrigin(ctx, state, frame)) rebuildScope("rebuild the saved alternative Counter source");
     requireEnergyCouponFrame(ctx, state, frame);
     requireReplacementOrigin(frame, sourceScript);
     requireMovementResults(frame, sourceScript);

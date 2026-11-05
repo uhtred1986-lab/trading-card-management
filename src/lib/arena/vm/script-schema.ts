@@ -1,3 +1,4 @@
+import { counterEnergyPermitProblem } from "./counter-energy-contract";
 import { counterDropPermitProblem } from "./counter-drop-contract";
 import { ENERGY_ACTIVATIONS } from "./energy-coupons";
 import { potaraMaterialsProblem } from "./potara-materials";
@@ -354,7 +355,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "counterFromDrop", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "counterFromDrop", "counterFromEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -1194,6 +1195,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "unionEnergy") return `this card’s [Union] skill from hand may choose Battle Cards in your energy`;
       if (op.what === "unionFusionAreas") return `${op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards"}' [Union-Fusion] can choose its specified cards in your Battle Area or Drop, those going to their owner's Warp${forThe(op.until, r)}`;
       if (op.what === "evolveEnergyBases") return `${describeRef(op.target)}'s [Evolve] skill used from hand may choose its specified Battle Card from your energy; that energy-base evolution plays this card in Active Mode`;
+      if (op.what === "counterFromEnergy") return `${op.price?.condition ? `if ${describeCond(op.price.condition)}: ` : ""}this card’s [Counter] may be activated from your energy by paying its energy cost${op.price?.ops?.length ? " and discarding 1 card from your hand" : ""}`;
       if (op.what === "counterFromDrop") {
         const choice = op.price?.ops?.find(item => item.op === "choose");
         return `this card's [Counter] may be activated from your Drop by paying its energy cost and removing this card and 1 ${(choice?.op === "choose" ? choice.sel.filter?.colors ?? [] : []).join("/").toLowerCase()} card from your hand from the game`;
@@ -1624,6 +1626,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026). `what: Union-Fusion` / `Union-Potara` / `Union-Absorb` is that [Union] keyword only. As the lone IF of an [Auto] on `played` — \"when this card is played using [Union]\" (BT14-114, BT28-097 …) — it is the trigger's own condition: `resolvePlay` withdraws the Auto from any play that was not such an entry, so it is never triggered by an ordinary, failed or other-variant play. With `sel: subject`, beside the description of the played card in an `all`, on an [Auto] on `youPlayed` — \"when your <X> card is played by a [Union] skill\" (BT22-033, BT25-036 back, P-682), \"when you play a Battle Card using a [Union-Fusion] skill\" (BT12-122) — it is the same trigger condition about that card, and the [Auto] carries the subject's entry as it was when triggered. `what: Evolve` (prohibition batch 6, EX04-04's \"if you played this card with [evolve]\") is the same lasting memory of a successful entry by an [Evolve], [EX-Evolve] or [Xeno-Evolve] play (22-5-2-2: \"[Evolve]\" is every one of them), kept while the copy stays in the area. Audit conditions 2 (3 Nov 2026): `what: EX-Evolve` / `Swap` / `Arrival` / `Successor` is that keyword's own play alone (\"when you play this card with [Swap]\", BT4-083; \"…using [Arrival]\", BT25-129), the same lasting memory; `what: skill` is a play a skill made (\"…played using a skill\", BT16-051), `by: other` another card's skill (BT20-104), `by: self` the card's own (P-628), and `source` the card whose skill it was, as it stands (\"…with the skill of {Majin Buu's Sealed Ball}\", BT2-028; \"…with <Trunks: Future> skill\", BT2-041) — a play its player declared is no skill's. Under `not` it is \"…played without using skills\" (BT15-042). Every one of them, as a lone IF of an [Auto] on `played`, is the trigger's own condition (`playGates`)",
   },
+  counterActivatedFrom: { fields: [{ name: "from", type: { enum: ["energy"] }, required: true }, { name: "skill", type: { enum: ["counter:attack"] }, required: true }], sentence: () => "this card’s [Counter:Attack] was activated from your energy", doc: "R463: captured declaration area; not the source’s current area after payment or self-play." },
   placedThisTurn: {
     fields: [SEL, { name: "played", type: "boolean" }, { name: "from", type: { list: { enum: AREAS } } }],
     sentence: (raw) => {
@@ -1887,6 +1890,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   inBattle:       "macro over `count`",
   battled:        "macro over `count`",
   playedUsing:    "macro over `count`",
+  counterActivatedFrom: "primitive",
   placedThisTurn: "macro over `count`",
   every:         "macro over `count` + `not`",
   any:            "primitive",
@@ -2240,6 +2244,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
       if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
     }
+    if (o.op === "permit" && o.what === "counterFromEnergy") { const bad = counterEnergyPermitProblem(o); if (bad) return `${step}: ${bad}`; }
     if (o.op === "permit" && o.what === "counterFromDrop") { const bad = counterDropPermitProblem(o); if (bad) return `${step}: ${bad}`; }
     if (o.op === "permit" && o.what === "unionLine" && (typeof o.line !== "string" || !o.line || !isRecord(o.price))) return `${step}: a granted Union line needs its typed skill price; regenerate the grant`;
     if (o.op === "permit" && o.what === "unionLine") {

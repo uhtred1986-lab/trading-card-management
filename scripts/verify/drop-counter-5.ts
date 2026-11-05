@@ -101,7 +101,7 @@ for(const owner of ["p1","p2"] as const)for(const cardId of ids)for(const mode o
  if(mode!=="tax-fail")assert.ok(s.sides[owner].zones.hand.includes(secondPayer));
  if(mode.startsWith("tax")){
  assert.equal(history.filter(e=>e.type==="skill"&&e.card===source&&e.skill===0).length,0);
- if(mode==="tax-pay"||mode==="tax-source"){assert.equal(s.prompt.kind,"chooseCards");if(mode==="tax-source")assert.ok(moveCard(s,game,source,"hand",{owner}).ok);s=take(s,{type:"choose",player:owner,cards:[secondPayer]});assert.ok(s.sides[owner].zones.warp.includes(secondPayer));}
+ if(mode==="tax-pay"||mode==="tax-source"){assert.equal(s.prompt.kind,"chooseCards");if(mode==="tax-source")assert.ok(moveCard(s,game,source,"hand",{owner}).ok);s=take(s,{type:"choose",player:owner,cards:[secondPayer]});assert.equal(s.sides[owner].zones.warp.includes(secondPayer),mode==="tax-pay");if(mode==="tax-source")assert.ok(s.sides[owner].zones.hand.includes(secondPayer));}
  assert.equal(history.filter(e=>e.type==="skill"&&e.card===source&&e.skill===0).length,mode==="tax-pay"?1:0);
  assert.ok(s.sides[owner].zones[mode==="tax-source"?"hand":"removed"].includes(source));assert.ok(s.sides[owner].zones.removed.includes(payer));cases++;continue;
  }

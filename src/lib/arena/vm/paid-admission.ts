@@ -4,7 +4,7 @@ import { rebuildScope } from "./skill-play-scope";
 export interface PaidAdmission { version: 1; condition: Cond }
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  if (value && typeof value === "object") return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(",")}}`;
+  if (value && typeof value === "object") return `{${Object.keys(value).filter(key => (value as Record<string, unknown>)[key] !== undefined).sort().map(key => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(",")}}`;
   return JSON.stringify(value) ?? "undefined";
 }
 const same = (a: unknown, b: unknown): boolean => canonical(a) === canonical(b);

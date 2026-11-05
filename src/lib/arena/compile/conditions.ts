@@ -433,6 +433,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // matched before this is reached, so they are not caught here.
   // "If your have 2 or more ≪Saiyan≫ cards in your Warp" (BT27-015) is a misprint of "you".
   const t = trimmed.replace(/^(?:if|when|while|during)\s+/, "").replace(/^your have /, "you have ");
+  if (/^you activated this card['’]s \[counter: ?attack\] skill from your energy$/.test(t)) return { cond: { kind: "counterActivatedFrom", from: "energy", skill: "counter:attack" } };
   // "if your Leader Card is yellow and your life is at 4 or less" splits on the
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
