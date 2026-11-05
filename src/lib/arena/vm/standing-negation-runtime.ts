@@ -58,7 +58,8 @@ export function refuseStandingNegationMutation(state: VmState, procedure: string
 
 /** All effects ending at one timing disappear before the standing graph is observed. */
 export function expireStandingNegationBatch(ctx: EngineContext, state: VmState, ev: GameEvent[], expire: (state: VmState, ev: GameEvent[]) => ContinuousEffect[]): ContinuousEffect[] {
-  if (state.standingNegationHistory) {
+  if (!state.standingNegationHistory) return expire(state, ev);
+  {
     // Preview only the expiry list: a loan return needs its own reviewed simultaneous movement protocol.
     const ended = expire(structuredClone(state), []);
     if (ended.some(effect => effect.kind === "control")) refuseStandingNegationMutation(state, "control expiry", ctx);
