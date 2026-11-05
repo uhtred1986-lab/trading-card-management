@@ -1,0 +1,47 @@
+[
+  {
+    "id": "BT13-046#10",
+    "fields": [
+      "printed",
+      "cost"
+    ],
+    "before": {
+      "printed": "[ex-evolve]?, draw 2 cards: <Boujack> with an energy cost of 3 or 4.",
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "?, draw 2 cards",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "printed": "[ex-evolve]{6}, draw 2 cards: <Boujack> with an energy cost of 3 or 4.",
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "draw 2 cards",
+        "orbs": {
+          "any": 6
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "draw",
+            "n": 2
+          }
+        ]
+      }
+    },
+    "allOtherFieldsIdentical": true
+  }
+]
