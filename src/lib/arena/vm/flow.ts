@@ -52,7 +52,7 @@ import { comboScriptProblem } from "./combo-qualification";
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { type Action, type EngineContext, type GameEvent, type Skill } from "../types";
+import { counterKindOf, type Action, type EngineContext, type GameEvent, type Skill } from "../types";
 import { AREAS, PHASES } from "./script";
 import { nextRandom, shuffle } from "./rng";
 import { PLAYERS, other, type Area, type MoveReason, type Phase, type PlayerId, type Prompt, type ReplacementResult } from "../types";
@@ -1370,7 +1370,12 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     }
     requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
-    const sourceScript = frame.counterCost?.extra?.declaredScript ?? frame.counterDeclaredScript ?? (frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined);
+    const declaration = frame.counterDeclaredScript;
+    if (declaration && (declaration.version !== 1 || declaration.card !== frame.card || !Number.isSafeInteger(declaration.skillIndex) || declaration.skillIndex < 0 || declaration.skillIndex !== frame.skillIndex || !declaration.script || declaration.script.kind !== declaration.kind || !counterKindOf(declaration.kind))) {
+      rebuildScope("rebuild this Counter continuation against its current stored rule: mismatched declared skill identity");
+    }
+    if (frame.counterCost?.extra && frame.counterCost.extra.skillIndex !== frame.skillIndex) rebuildScope("rebuild this saved Extra Counter selected skill");
+    const sourceScript = frame.counterCost?.extra?.declaredScript ?? declaration?.script ?? (frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined);
     if ((frame.counterChoice || state.skillPlayScopes?.some(scope => scope.id === frame.skillEffectOrigin?.scope && scope.purpose === "counterContinuation")) && (sourceScript?.kind !== "counter:play" || !counterChoiceTail(sourceScript.ops))) rebuildScope("rebuild this Counter continuation against its current stored rule");
     if (frame.counterPlay && sourceScript?.kind === "counter:play" && counterChoiceTail(sourceScript.ops)) {
       const origin = frame.skillEffectOrigin;

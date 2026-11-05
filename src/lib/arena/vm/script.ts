@@ -1787,7 +1787,7 @@ export interface ScriptFrame {
   /** R453: source authority while a queued Extra Counter tax is being paid. */
   extraCounterTax?: { version: 1; source: import("./counter-extra-cost").ExtraCounterSource };
   /** The Extra skill declared in hand survives source placement and self-costs. */
-  counterDeclaredScript?: Script;
+  counterDeclaredScript?: { version: 1; card: string; skillIndex: number; kind: string; script: Script };
   /** #716: a [Counter]'s printed action price, paid on the strict host before the skill activates. Additive: older states never carry one. */
   counterCost?: import("./battle").CounterCost;
   /** #552: this frame is an activated [Counter]'s counter motion (9-7-2), answered by a [Counter: Counter] window before it resolves. Additive: older states never carry one. */

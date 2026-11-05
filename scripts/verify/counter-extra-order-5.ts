@@ -237,4 +237,20 @@ for (const p of ["p1", "p2"] as const) for (const damage of ["otherCopy", "defin
   assert.deepEqual(copy(s), before);
   cases++;
 }
+// Capturing a script must not let a saved continuation silently change its skill identity.
+for (const p of ["p1", "p2"] as const) for (const fault of ["index", "source", "version", "kind"]) {
+  const start = setup(p, "BT14-029", 3);
+  const s = take(start.s, { type: "counter", player: p, card: start.source, skill: 0, x: 1 });
+  assert.equal(s.prompt.kind, "chooseCards");
+  const frame = s.programs.find(f => f.counterDeclaredScript)!;
+  assert.ok(frame?.counterDeclaredScript);
+  if (fault === "index") frame.skillIndex = 999;
+  if (fault === "source") frame.counterDeclaredScript.card = start.payer!;
+  if (fault === "version") frame.counterDeclaredScript.version = 2 as never;
+  if (fault === "kind") frame.counterDeclaredScript.kind = "counter:bogus";
+  const stopped = take(copy(s), { type: "choose", player: p, cards: [] });
+  assert.match(JSON.stringify(stopped.outcome), /mismatched declared skill identity/);
+  assert.equal(stopped.cards[start.payer!].markers, 2, "completed payment is not replayed or refunded");
+  cases++;
+}
 console.log(`Extra Counter phase order5: ${cases} cases passed`);
