@@ -282,9 +282,9 @@ DEFINE OP negateSkillsOfKind
 
 -- §9-1-5 — "negate this card's [Energy-Exhaust] skill in all areas"
 DEFINE OP negateKeyword
-  TAKES (keyword: word, target: ref)
+  TAKES (keyword: word, target: ref, allAreas: boolean, until: duration)
   DO {
-    negate(target: $target, what: keyword, keyword: $keyword)
+    negate(target: $target, what: keyword, keyword: $keyword, allAreas: $allAreas, until: $until)
   }
   text: "the target loses the named keyword skill"
   doc: "what `negateKeyword` means: one named keyword taken away, wherever the card sits — no duration of its own, unlike the other three"

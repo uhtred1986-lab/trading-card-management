@@ -2892,7 +2892,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   }
   if ((m = /^negate its \[([a-z0-9\- ]+)\](?: skill)? in (?:all|any) areas?$/.exec(t)) && c.permanent && itsSelf) {
     const kw = keywordOf(m[1]);
-    if (kw) return [{ op: "negateKeyword", keyword: kw.name, target: { sel: { special: "self" } } }];
+    if (kw) return [{ op: "negateKeyword", keyword: kw.name, target: { sel: { special: "self" } }, allAreas: true }];
   }
   if ((m = /^negate (.+?)'s \[([a-z0-9\- ]+)\](?: skill)?(?: in (?:all|any) areas?)?$/.exec(t))) {
     // A tag that names a *kind* of skill rather than a keyword ("[Auto]") is
@@ -2900,7 +2900,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const kw = keywordOf(m[2]);
     if (kw) {
       const ref = refFor(m[1], c);
-      return ref ? [{ op: "negateKeyword", keyword: kw.name, target: ref }] : null;
+      const allAreas = c.permanent && ref && "sel" in ref && ref.sel.special === "self" && /in (?:all|any) areas?$/.test(t);
+      return ref ? [{ op: "negateKeyword", keyword: kw.name, target: ref, ...(allAreas ? { allAreas: true } : {}) }] : null;
     }
     if (!/^(?:auto|activate|counter|permanent)\b/.test(m[2])) return null;
   }

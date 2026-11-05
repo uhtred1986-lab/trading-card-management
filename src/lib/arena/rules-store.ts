@@ -175,8 +175,18 @@ function comboDepartureContractGap(row: { printed: string; ops: unknown }): stri
 }
 
 /** All-area self protection is a stored qualification, never inferred in play. */
-function negationAreaContractGap(row: { printed: string; ops: unknown }): string | null {
+function negationAreaContractGap(row: { printed: string; ops: unknown; kind?: string }): string | null {
   const text = row.printed.toLowerCase();
+  if (row.kind === "permanent" && /negate (?:its|this card['’]s) \[[^\]]+\](?: skill)? in (?:all|any) areas?/.test(text)) {
+    const missing = (value: unknown): boolean => {
+      if (Array.isArray(value)) return value.some(missing);
+      if (!value || typeof value !== "object") return false;
+      const op = value as Record<string, unknown>;
+      if ((op.op === "negateKeyword" || (op.op === "negate" && op.what === "keyword")) && op.allAreas !== true) return true;
+      return Object.values(op).some(missing);
+    };
+    if (missing(row.ops)) return "rebuild the stored self keyword negation all-area qualification";
+  }
   const allArea = /skills?[^.;]*(?:can't|cannot|can not) be negated[^.;]*in (?:any|all) areas?\b|skills?[^;]*in (?:any|all) areas?[^;]*(?:can't|cannot|can not) be negated/.test(text);
   const originalOnly = /original skills?[^.;]*(?:can't|cannot|can not) be negated/.test(text);
   if (!allArea && !originalOnly) return null;
