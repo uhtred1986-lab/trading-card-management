@@ -475,6 +475,13 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-r475-copied-capture-1", file: "src/lib/arena/vm/triggers.ts", ordinal: 7, kind: "not-yet", classification: "validated-guard", citation: "R-475; RM9-1-2-2-1", detail: "Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read." },
+  { id: "arena-vm-notyet-r475-copied-capture-2", file: "src/lib/arena/vm/triggers.ts", ordinal: 8, kind: "not-yet", classification: "validated-guard", citation: "R-475; RM9-1-2-2-1", detail: "Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read." },
+  { id: "arena-vm-notyet-r475-grant-history-1", file: "src/lib/arena/vm/resolved-grant-deletion.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-475; RM9-1-2-2-1", detail: "Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read." },
+  { id: "arena-vm-notyet-r475-grant-history-2", file: "src/lib/arena/vm/resolved-grant-deletion.ts", ordinal: 2, kind: "not-yet", classification: "validated-guard", citation: "R-475; RM9-1-2-2-1", detail: "Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read." },
+  { id: "arena-vm-notyet-r475-grant-history-3", file: "src/lib/arena/vm/resolved-grant-deletion.ts", ordinal: 3, kind: "not-yet", classification: "validated-guard", citation: "R-475; RM9-1-2-2-1", detail: "Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read." },
+  { id: "arena-vm-notyet-r475-grant-history-4", file: "src/lib/arena/vm/resolved-grant-deletion.ts", ordinal: 4, kind: "not-yet", classification: "validated-guard", citation: "R-475; RM9-1-2-2-1", detail: "Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read." },
+  { id: "arena-vm-notyet-r475-grant-history-5", file: "src/lib/arena/vm/resolved-grant-deletion.ts", ordinal: 5, kind: "not-yet", classification: "validated-guard", citation: "R-475; RM9-1-2-2-1", detail: "Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read." },
   {id:"arena-vm-notyet-r474-awaken-alternative",file:"src/lib/arena/vm/awaken-alternative-costs.ts",ordinal:1,kind:"not-yet",classification:"validated-guard",citation:"R-474; RM 5-8-2; 22-2; 23-2",detail:"Saved alternative Awaken source, one-host pile, offered and selected payer occurrences, and paid continuation must retain their typed contracts; obsolete or malformed saves require rebuilding."},
   {"id":"arena-vm-notyet-r457-field-costs-1","file":"src/lib/arena/vm/field-costs.ts","ordinal":1,"kind":"not-yet","classification":"validated-guard","citation":"R-457/R-469; RM 12-2; 22-3; 3-1-4","detail":"Saved Field payment/source/tax/cleanup provenance must match the current typed phase and original occurrence; malformed or obsolete data requires rebuilding."},
   {"id":"arena-vm-notyet-r457-field-costs-2","file":"src/lib/arena/vm/field-costs.ts","ordinal":2,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"R-457/R-469; RM 12-2; 22-3; 3-1-4","ownerIssue":1249,"detail":"Only empty or exact draw-one Field action prices are admitted; the eighty-descriptor census contains no other action price."},
@@ -616,6 +623,13 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-r475-copied-capture-1": "capturedSkillShowing|-|!capture > index >= COPIED_SKILL_BASE && index < GRANTED_LINE_BASE",
+  "arena-vm-notyet-r475-copied-capture-2": "capturedSkillShowing|-|-",
+  "arena-vm-notyet-r475-grant-history-1": "receiptsOf|-|-",
+  "arena-vm-notyet-r475-grant-history-2": "resolvedGrantDeleted|-|!receipt || receipt.version !== 1 || typeof receipt.deleted !== \"boolean\"",
+  "arena-vm-notyet-r475-grant-history-3": "resolvedGrantReceipt|-|!receipt",
+  "arena-vm-notyet-r475-grant-history-4": "requireLiveGrantIdentity|-|effect && ((state.cards[receipt.card]?.hiddenCount ?? 0) !== receipt.hiddenCount || (state.cards[receipt.card]?.zoneEpoch ?? 0) !== receipt.epoch || effect.kind !== receipt.kind || (effect.kind === \"copiedSkills\" && canonicalTaxValue(effect.copied) !== canonicalTaxValue(receipt.copied)))",
+  "arena-vm-notyet-r475-grant-history-5": "capturedResolvedGrant|-|matches.length !== 1",
   "arena-vm-notyet-r474-awaken-alternative": "rebuild|-|-",
   "arena-vm-notyet-r457-field-costs-1": "fieldSourceProblem|-|!source || source.version !== 1 || source.card !== card || source.master !== master || ![\"p1\", \"p2\"].includes(source.owner) || ![\"p1\", \"p2\"].includes(source.master)\n    || ![\"p1\", \"p2\"].includes(source.holder) || typeof source.cardId !== \"string\" || typeof source.area !== \"string\" || !source.area || !Number.isSafeInteger(source.epoch) || source.epoch < 0",
   "arena-vm-notyet-r457-field-costs-2": "fieldAction|-|-",
@@ -703,8 +717,8 @@ export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
   "arena-vm-notyet-trigger-usage-record": "pendAutos|-|sk.kind === \"auto\" && (combo !== undefined || script?.trigger?.some((t) => t === \"comboUsed\" || t === \"comboed\")) > gap",
   "arena-vm-notyet-trigger-combo-record": "pendAutos|-|sk.kind === \"auto\" && [\"comboUsed\", \"comboed\"].includes(match.trigger) && !combo",
   "arena-vm-notyet-combo-origin-missing": "pendAutos|-|combo && (match.trigger === \"comboUsed\" || match.trigger === \"comboed\") > combo.origins > origin === undefined",
-  "arena-vm-notyet-trigger-validity-record": "skillsShowing|-|bareKeyword && script && validityProblem(script.validity)",
-  "arena-vm-notyet-sparking-native-keyword": "skillsShowing|-|bareKeyword && (sk.sparking !== null || script?.validity?.sparking != null)",
+  "arena-vm-notyet-trigger-validity-record": "executableSkill|-|bareKeyword && script && validityProblem(script.validity)",
+  "arena-vm-notyet-sparking-native-keyword": "executableSkill|-|bareKeyword && (sk.sparking !== null || script?.validity?.sparking != null)",
   "arena-vm-notyet-usage-record": "requireUsage|-|gap",
   "arena-vm-notyet-validity-record": "requireValidity|-|gap",
   "arena-vm-notyet-hand-return-subject-info": 'pendAutos|-|match.trigger === "yourCardReturnedToHand" || match.trigger === "yourUnisonLeft" > first?.op === "if" && first.cond.kind === "count" && first.cond.sel.special === "subject" && first.cond.sel.filter > !subjectInfo',
