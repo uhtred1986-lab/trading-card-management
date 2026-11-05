@@ -136,7 +136,7 @@ function splitRunOn(line: string): string[] {
     const ch = line[i];
     if (ch === "(" || ch === "（") depth++;
     else if (ch === ")" || ch === "）") depth = Math.max(0, depth - 1);
-    else if (depth === 0 && ch === "[" && i > start && /[.]\s+$/.test(line.slice(start, i)) && opensASkill(line.slice(i))) {
+    else if (depth === 0 && ch === "[" && i > start && /[.]\s*$/.test(line.slice(start, i)) && opensASkill(line.slice(i))) {
       const piece = line.slice(start, i).trim();
       if (piece) out.push(piece);
       start = i;
