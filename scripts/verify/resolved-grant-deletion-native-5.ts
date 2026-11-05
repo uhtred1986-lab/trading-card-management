@@ -6,8 +6,9 @@ import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { addEffect, endEffects } from "../../src/lib/arena/vm/effects";
+import { resolvedGrantDeleted } from "../../src/lib/arena/vm/resolved-grant-deletion";
 import { moveCard } from "../../src/lib/arena/vm/zones";
-import { hasKeyword } from "../../src/lib/arena/vm/program";
+import { hasKeyword, hookFrame } from "../../src/lib/arena/vm/program";
 import { capturedSkillShowing, skillsShowing } from "../../src/lib/arena/vm/triggers";
 import { copiedSkillIndex } from "../../src/lib/arena/vm/common";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
@@ -25,6 +26,9 @@ const defs: Record<string, CardDef> = {
   WATCHER: card("WATCHER", { skill: "[Auto] When you play a Battle Card, draw 1 card." }),
   ENDER: card("ENDER", { skill: "[Auto] At the end of your turn, draw 1 card." }),
   NEGATOR: card("NEGATOR", { skill: "[Auto] At the end of your turn, choose up to 1 of your Battle Cards and negate its skills for the turn." }),
+  HOOK: card("HOOK", { skill: "[Heroic]" }),
+  REPLACE: card("REPLACE", { skill: "[Permanent] If this card would be KO'd, you may place 1 card from your hand in your Drop instead." }),
+  KILL: card("KILL", { skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it." }),
   PLAY: card("PLAY", { skill: "[Activate: Main] Choose up to 1 Battle Card from your hand and play it." }),
 };
 const rows = Object.values(defs).flatMap(skillRecords).map((row, id) => ({ ...row, id, source: "compiler", status: "confirmed" }) as unknown as RuleRow);
@@ -49,6 +53,24 @@ function activate(s: VmState, player: PlayerId, target: string): VmState {
   assert.ok(a); return take(s, a);
 }
 let cases = 0;
+// Captured keyword hook frames are staged at the existing shared pending
+// boundary; these are protocol controls, not legal intervening skill actions.
+for (const player of ["p1", "p2"] as const) for (const form of ["keyword", "copy"] as const) for (const fault of ["none", "kind", "whole", "reentered-kind", "revealed-kind"] as const) {
+  let s = fresh(player); const target = stage(s, player, "F", "battle");
+  const effect = form === "copy" ? grant(s, player, target, "HOOK") : addEffect(s, [], { target, master: player, kind: "keyword", value: { name: "Heroic" }, until: "game" });
+  const index = form === "copy" ? copiedSkillIndex(effect.id, 0) : undefined;
+  const frame = hookFrame(ctx, game, s, target, [{ op: "draw", n: 1 }], {}, index, form === "keyword" ? effect.id : undefined);
+  if (form === "copy") assert.ok(frame.copiedSkillCapture);
+  if (fault === "reentered-kind") {
+    assert.equal(stepScript(vmHost(ctx, game, s, []), { ops: [{ op: "moveTo", target: { var: "target" }, to: "drop" }, { op: "moveTo", target: { var: "target" }, to: "battle" }], ip: 0, vars: { target: [target] }, card: s.sides[player].zones.leader[0], master: player }), "done");
+  }
+  if (fault === "revealed-kind") { const host = vmHost(ctx, game, s, []); host.setHidden(target, true); host.setHidden(target, false); }
+  if (fault === "whole") { addEffect(s, [], { target, master: player, kind: "negateSkills", value: 0, until: "battle" }); endEffects(s, [], "battle"); }
+  if (fault === "kind" || fault === "reentered-kind" || fault === "revealed-kind") addEffect(s, [], { target, master: player, kind: "negateSkillKind", value: "keyword", until: "battle" });
+  s.pending.push({ kind: "hook", card: target, skillIndex: index, master: player, trigger: "afterSkill", frame });
+  const before = s.sides[player].zones.hand.length; s = take(s, { type: "endMain", player });
+  assert.equal(s.sides[player].zones.hand.length, before + (fault === "none" || fault === "reentered-kind" || fault === "revealed-kind" ? 1 : 0)); assert.ok(!s.outcome); cases++;
+}
 for (const owner of ["p1", "p2"] as const) for (const deleted of [false, true]) {
   const player = other(owner); let s = fresh(player); const target = stage(s, owner, "F", "battle"), source = stage(s, player, "F", "battle");
   addEffect(s, [], { target, master: owner, kind: "keyword", value: { name: "Barrier" }, until: "game" });
@@ -73,6 +95,17 @@ for (const player of ["p1", "p2"] as const) {
   assert.equal(JSON.stringify(s), before, "queries do not mutate history");
   addEffect(s, [], { target, master: player, kind: "keyword", value: { name: "Barrier" }, until: "game" });
   assert.ok(hasKeyword(ctx, game, s, target, "Barrier"), "new grant is independent"); cases++;
+}
+for (const player of ["p1", "p2"] as const) {
+  const s = fresh(player), target = stage(s, player, "PRINTED", "battle");
+  const old = addEffect(s, [], { target, master: player, kind: "keyword", value: { name: "Blocker" }, until: "game" });
+  addEffect(s, [], { target, master: player, kind: "negateSkills", value: 0, until: "turn" });
+  assert.equal(hasKeyword(ctx, game, s, target, "Blocker"), false);
+  endEffects(s, [], "turn");
+  assert.ok(hasKeyword(ctx, game, s, target, "Blocker"), "same-name printed keyword returns");
+  assert.ok(resolvedGrantDeleted(s, target, old.id), "same-name old grant stays deleted");
+  const freshGrant = addEffect(s, [], { target, master: player, kind: "keyword", value: { name: "Blocker" }, until: "game" });
+  assert.equal(resolvedGrantDeleted(s, target, freshGrant.id), false); cases++;
 }
 for (const player of ["p1", "p2"] as const) for (const fault of ["none", "negate", "expire", "missing", "changed-record", "changed-rule"] as const) {
   let s = fresh(player); const target = stage(s, player, "F", "battle"), picked = stage(s, player, "F", "drop");
@@ -128,5 +161,16 @@ for (const player of ["p1", "p2"] as const) for (const fault of ["negate", "expi
     const a = RULES.legalActions(ctx, s).find(entry => entry.action.type === "counter" && entry.action.card === null)?.action; assert.ok(a); s = take(s, a);
   }
   assert.equal(s.sides[player].zones.hand.length, before + 1, "R422 witnessed arrival survives later grant deletion/expiry/departure"); assert.ok(!s.outcome); cases++;
+}
+for (const player of ["p1", "p2"] as const) {
+  let s = fresh(player); const source = stage(s, player, "KILL", "battle"), victim = stage(s, other(player), "F", "battle");
+  grant(s, other(player), victim, "REPLACE");
+  assert.deepEqual(rows.find(row => row.cardId === "REPLACE")!.unread, []);
+  s = activate(s, player, source); s = take(s, { type: "choose", player, cards: [victim] });
+  assert.equal(s.prompt.kind, "replaceMove"); s = take(s, { type: "chooseMode", player: other(player), index: 0 });
+  assert.equal(s.prompt.kind, "chooseCards"); const frame = s.programs.find(frame => frame.card === victim)!; assert.ok(frame.copiedSkillCapture);
+  addEffect(s, [], { target: victim, master: player, kind: "negateSkills", value: 0, until: "battle" }); endEffects(s, [], "battle");
+  const discarded = s.sides[other(player)].zones.hand[0]; s = take(copy(s), { type: "choose", player: other(player), cards: [discarded] });
+  assert.ok(s.sides[other(player)].zones.drop.includes(discarded)); assert.ok(s.sides[other(player)].zones.battle.includes(victim)); assert.ok(!s.outcome); cases++;
 }
 console.log(`resolved grant deletion native: ${cases} cases passed`);

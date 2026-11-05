@@ -1373,6 +1373,17 @@ function programSourceScript(ctx: EngineContext, state: VmState, frame: ScriptFr
   return frame.counterCost?.extra?.declaredScript ?? declaration?.script ?? (frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? capturedSkillShowing(ctx, state, frame.card, frame.skillIndex, frame.copiedSkillCapture).script : undefined);
 }
 
+/** The same pending-stage policy, bound to the original observed source. */
+function capturedHookNegated(ctx: EngineContext, state: VmState, frame: ScriptFrame): boolean {
+  if (frame.grantEffectId !== undefined) return capturedGrantedSkillNegated(state, frame.card, frame.grantEffectId, frame.skillIndex);
+  if (frame.copiedSkillCapture) {
+    const captured = capturedSkillShowing(ctx, state, frame.card, frame.skillIndex!, frame.copiedSkillCapture);
+    if (captured.deleted) return true;
+    if ((state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.copiedSkillCapture.epoch || (state.cards[frame.card]?.hiddenCount ?? 0) !== frame.copiedSkillCapture.hiddenCount) return false;
+  }
+  return skillsNegated(state, frame.card) || (frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")) || (frame.standingGrantId !== undefined && grantedSkillNegated(state, frame.card, frame.standingGrantId));
+}
+
 function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "done" | "wait" {
   const frame = state.programs.shift();
   if (!frame) return "done";
@@ -1536,7 +1547,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       }
       return result;
     }
-    if (frame.pendingHookSkill && (frame.grantEffectId !== undefined ? capturedGrantedSkillNegated(state, frame.card, frame.grantEffectId, frame.skillIndex) : skillsNegated(state, frame.card) || (frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")) || (frame.standingGrantId !== undefined && grantedSkillNegated(state, frame.card, frame.standingGrantId)))) {
+    if (frame.pendingHookSkill && capturedHookNegated(ctx, state, frame)) {
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}'s skill is negated, so it does not resolve` });
       return "done";
     }

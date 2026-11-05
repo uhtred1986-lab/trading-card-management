@@ -584,7 +584,7 @@ export function grantedSkillNegated(state: VmState, id: string, grantId: number 
 export function capturedGrantedSkillNegated(state: VmState, id: string, grantId: number, skillIndex?: number): boolean {
   const receipt = capturedResolvedGrant(state, id, grantId);
   if (receipt.deleted) return true;
-  if ((state.cards[id]?.zoneEpoch ?? 0) !== receipt.epoch) return false;
+  if ((state.cards[id]?.zoneEpoch ?? 0) !== receipt.epoch || (state.cards[id]?.hiddenCount ?? 0) !== receipt.hiddenCount) return false;
   return keywordSkillsNegated(state, id) || (skillIndex !== undefined && skillNegated(state, id, skillIndex, "keyword")) || state.effects.some(effect => effect.kind === "negateGrantedSkill" && effect.target === id && effect.value === grantId);
 }
 

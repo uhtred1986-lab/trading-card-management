@@ -35,6 +35,9 @@ for (const player of ["p1", "p2"] as PlayerId[]) {
   const corrupt = JSON.parse(before) as VmState;
   corrupt.resolvedGrantDeletions!.push({ ...corrupt.resolvedGrantDeletions![0] });
   assert.throws(() => resolvedGrantDeleted(corrupt, card, keyword.id), /rebuild resolved skill-grant/); cases++;
+  const badHidden = JSON.parse(before) as VmState;
+  delete (badHidden.resolvedGrantDeletions![0] as { hiddenCount?: number }).hiddenCount;
+  assert.throws(() => resolvedGrantDeleted(badHidden, card, keyword.id), /rebuild resolved skill-grant/); cases++;
   const badShape = JSON.parse(before) as VmState;
   (badShape as unknown as { resolvedGrantDeletions: unknown }).resolvedGrantDeletions = {};
   assert.throws(() => resolvedGrantDeleted(badShape, card, keyword.id), /rebuild resolved skill-grant/); cases++;
@@ -59,6 +62,9 @@ for (const player of ["p1", "p2"] as PlayerId[]) {
   assert.throws(() => resolvedGrantDeleted(reentered, card, fresh.id), /rebuild resolved skill-grant/); cases++;
   delete reload.resolvedGrantDeletions;
   assert.throws(() => requireResolvedGrantHistory(reload, card), /rebuild resolved skill-grant/); cases++;
+  const oldSave = JSON.stringify(reload);
+  assert.throws(() => addEffect(reload, [], { target: card, master: player, kind: "negateSkills", value: 0, until: "turn" }), /rebuild resolved skill-grant/);
+  assert.equal(JSON.stringify(reload), oldSave, "legacy refusal precedes effect ID allocation and mutation"); cases++;
   reload.effects = [];
   assert.doesNotThrow(() => requireResolvedGrantHistory(reload, card)); cases++;
 }

@@ -97,6 +97,7 @@ export interface CopiedSkillCapture {
   version: 1;
   card: string;
   epoch: number;
+  hiddenCount: number;
   grant: number;
   index: number;
   sourceIndex: number;
@@ -878,8 +879,9 @@ export function captureCopiedSkill(state: VmState, card: string, skill: Skill, s
     const sourceIndex = effect.copied.skills.find(index => copiedSkillIndex(effect.id, index) === skill.index);
     if (sourceIndex === undefined) continue;
     const epoch = state.cards[card]?.zoneEpoch ?? 0;
-    resolvedGrantReceipt(state, card, epoch, effect.id);
-    return { version: 1, card, epoch, grant: effect.id, index: skill.index, sourceIndex, record: canonicalTaxValue({ skill, script }) };
+    const hiddenCount = state.cards[card]?.hiddenCount ?? 0;
+    resolvedGrantReceipt(state, card, epoch, effect.id, hiddenCount);
+    return { version: 1, card, epoch, hiddenCount, grant: effect.id, index: skill.index, sourceIndex, record: canonicalTaxValue({ skill, script }) };
   }
   return undefined;
 }
@@ -893,8 +895,8 @@ export function capturedSkillShowing(ctx: EngineContext, state: VmState, card: s
     return { skill: showing.skills.find(skill => skill.index === index), script: showing.scripts.bySkill[index], deleted: false };
   }
   const fail = (): never => { throw new NotYet("rebuild the captured copied-skill declaration", "R475"); };
-  if (capture.version !== 1 || capture.card !== card || capture.index !== index || !Number.isSafeInteger(capture.epoch) || capture.epoch < 0 || !Number.isSafeInteger(capture.grant) || capture.grant < 0 || !Number.isSafeInteger(capture.sourceIndex) || capture.sourceIndex < 0 || copiedSkillIndex(capture.grant, capture.sourceIndex) !== index || typeof capture.record !== "string") return fail();
-  const receipt = resolvedGrantReceipt(state, card, capture.epoch, capture.grant), copied = receipt.copied;
+  if (capture.version !== 1 || capture.card !== card || capture.index !== index || !Number.isSafeInteger(capture.epoch) || capture.epoch < 0 || !Number.isSafeInteger(capture.hiddenCount) || capture.hiddenCount < 0 || !Number.isSafeInteger(capture.grant) || capture.grant < 0 || !Number.isSafeInteger(capture.sourceIndex) || capture.sourceIndex < 0 || copiedSkillIndex(capture.grant, capture.sourceIndex) !== index || typeof capture.record !== "string") return fail();
+  const receipt = resolvedGrantReceipt(state, card, capture.epoch, capture.grant, capture.hiddenCount), copied = receipt.copied;
   if (receipt.kind !== "copiedSkills" || !copied || !copied.skills.includes(capture.sourceIndex)) return fail();
   const source = ctx.defs[copied.cardId];
   if (!source) return fail();

@@ -10,6 +10,7 @@ export interface ResolvedGrantDeletion {
   version: 1;
   card: string;
   epoch: number;
+  hiddenCount: number;
   grant: number;
   kind: "keyword" | "copiedSkills";
   deleted: boolean;
@@ -27,13 +28,14 @@ function receiptsOf(state: VmState): ResolvedGrantDeletion[] {
   for (const receipt of receipts) {
     if (!receipt || receipt.version !== 1 || typeof receipt.card !== "string"
       || !Number.isSafeInteger(receipt.epoch) || receipt.epoch < 0
+      || !Number.isSafeInteger(receipt.hiddenCount) || receipt.hiddenCount < 0
       || !Number.isSafeInteger(receipt.grant) || receipt.grant < 0
       || typeof receipt.deleted !== "boolean") return fail();
     if (receipt.kind === "copiedSkills") {
       if (!Array.isArray(receipt.skills) || receipt.skills.some(index => !Number.isSafeInteger(index) || index < 0)
         || new Set(receipt.skills).size !== receipt.skills.length || !receipt.copied || typeof receipt.copied.cardId !== "string" || !["front", "back"].includes(receipt.copied.side) || !Array.isArray(receipt.copied.skills) || JSON.stringify(receipt.copied.skills) !== JSON.stringify(receipt.skills) || (receipt.copied.quoted !== undefined && typeof receipt.copied.quoted !== "boolean") || (receipt.copied.from !== undefined && typeof receipt.copied.from !== "string") || (receipt.copied.name !== undefined && typeof receipt.copied.name !== "string")) return fail();
     } else if (receipt.kind !== "keyword" || receipt.skills !== undefined || receipt.copied !== undefined) return fail();
-    const key = JSON.stringify([receipt.card, receipt.epoch, receipt.grant]);
+    const key = JSON.stringify([receipt.card, receipt.epoch, receipt.hiddenCount, receipt.grant]);
     if (seen.has(key)) return fail();
     seen.add(key);
   }
@@ -57,15 +59,16 @@ export function captureResolvedGrantDeletions(state: VmState, changed: Continuou
   if (changed.kind === "negateSkills") requireResolvedGrantHistory(state, card);
   const deleted = state.effects.some(effect => effect.kind === "negateSkills" && effect.target === card);
   const epoch = state.cards[card].zoneEpoch ?? 0;
+  const hiddenCount = state.cards[card].hiddenCount ?? 0;
   const grants = changed.kind === "negateSkills"
     ? state.effects.filter(effect => effect.target === card && (effect.kind === "keyword" || effect.kind === "copiedSkills"))
     : [changed];
   for (const grant of grants) {
     if (grant.kind !== "keyword" && grant.kind !== "copiedSkills") continue;
     const receipts = state.resolvedGrantDeletions ??= [];
-    const existing = receipts.find(receipt => receipt.card === card && receipt.epoch === epoch && receipt.grant === grant.id);
+    const existing = receipts.find(receipt => receipt.card === card && receipt.epoch === epoch && receipt.hiddenCount === hiddenCount && receipt.grant === grant.id);
     if (existing) { existing.deleted ||= deleted; continue; }
-    receipts.push({ version: 1, card, epoch, grant: grant.id, kind: grant.kind, deleted,
+    receipts.push({ version: 1, card, epoch, hiddenCount, grant: grant.id, kind: grant.kind, deleted,
       ...(grant.kind === "copiedSkills" ? { skills: [...(grant.copied?.skills ?? [])], copied: structuredClone(grant.copied!) } : {}) });
   }
 }
@@ -75,7 +78,8 @@ export function resolvedGrantDeleted(state: VmState, card: string, grant: number
   const inst = state.cards[card];
   if (!inst) return false;
   const epoch = inst.zoneEpoch ?? 0;
-  const receipt = receiptsOf(state).find(value => value.card === card && value.epoch === epoch && value.grant === grant);
+  const hiddenCount = inst.hiddenCount ?? 0;
+  const receipt = receiptsOf(state).find(value => value.card === card && value.epoch === epoch && value.hiddenCount === hiddenCount && value.grant === grant);
   if (!receipt || receipt.version !== 1 || typeof receipt.deleted !== "boolean") {
     throw new NotYet("rebuild resolved skill-grant deletion history", "R475");
   }
@@ -94,8 +98,8 @@ export function requireResolvedGrantHistory(state: VmState, card: string): void 
 
 /** A caller can inspect an old observed occurrence without substituting the
  * card's current occurrence. Used only for captured pending/active programs. */
-export function resolvedGrantReceipt(state: VmState, card: string, epoch: number, grant: number): ResolvedGrantDeletion {
-  const receipt = receiptsOf(state).find(value => value.card === card && value.epoch === epoch && value.grant === grant);
+export function resolvedGrantReceipt(state: VmState, card: string, epoch: number, grant: number, hiddenCount: number): ResolvedGrantDeletion {
+  const receipt = receiptsOf(state).find(value => value.card === card && value.epoch === epoch && value.hiddenCount === hiddenCount && value.grant === grant);
   if (!receipt) throw new NotYet("rebuild captured resolved skill-grant history", "R475");
   requireLiveGrantIdentity(state, receipt);
   return receipt;
@@ -103,7 +107,7 @@ export function resolvedGrantReceipt(state: VmState, card: string, epoch: number
 
 function requireLiveGrantIdentity(state: VmState, receipt: ResolvedGrantDeletion): void {
   const effect = state.effects.find(effect => effect.id === receipt.grant && effect.target === receipt.card);
-  if (effect && (effect.kind !== receipt.kind || (effect.kind === "copiedSkills" && canonicalTaxValue(effect.copied) !== canonicalTaxValue(receipt.copied)))) {
+  if (effect && ((state.cards[receipt.card]?.hiddenCount ?? 0) !== receipt.hiddenCount || (state.cards[receipt.card]?.zoneEpoch ?? 0) !== receipt.epoch || effect.kind !== receipt.kind || (effect.kind === "copiedSkills" && canonicalTaxValue(effect.copied) !== canonicalTaxValue(receipt.copied)))) {
     throw new NotYet("rebuild mismatched resolved skill-grant history", "R475");
   }
 }

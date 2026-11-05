@@ -5,7 +5,7 @@ import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
 import type { Script, ScriptFrame } from "./script";
 import { isComboDepartureProgram, skillNegated } from "./effects";
-import { skillsShowing } from "./triggers";
+import { captureCopiedSkill, skillsShowing } from "./triggers";
 import { condHolds, forbids } from "./program";
 import { automaticHasPrice } from "./secret-auto";
 import { requireUsage } from "./usage";
@@ -44,8 +44,10 @@ export function sameReplacementOccurrence(state: VmState, r: ReplacementAuto): b
 export function prepareReplacementAuto(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, id: string, to: string, move: ReplacementMove): void {
   const showing = skillsShowing(ctx, state, frame.card);
   const skill = showing.skills.find(sk => sk.index === frame.skillIndex);
-  if (skill?.kind !== "auto") return;
   const script = frame.skillIndex === undefined ? undefined : showing.scripts.bySkill[frame.skillIndex];
+  const copiedSkillCapture = skill ? captureCopiedSkill(state, frame.card, skill, script) : undefined;
+  if (copiedSkillCapture) frame.copiedSkillCapture = copiedSkillCapture;
+  if (skill?.kind !== "auto") return;
   // An already-activated Auto may install an ordinary timed replacement.
   // Only the whole triggerless Combo departure Auto is a new activation here.
   if (!script || script.trigger?.length || !isComboDepartureProgram(script.ops)) return;
