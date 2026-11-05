@@ -379,7 +379,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     group: "battle",
     meaning: "+10000 power, and the card does not switch to Active Mode during its master's Charge Phase.",
     engineRules:
-      "Both halves too, through its own attrBonus hook (#154) and its own activeStep hook (#155), the latter checked only against `chargeActivate`'s own switch to Active Mode — nothing stops the card being rested some other way.",
+      "Both halves too, through its own attrBonus hook (#154) and its own activeStep hook (#155), the latter checked only against `chargeActivate`'s own switch to Active Mode — nothing stops the card being rested some other way. While physically under another card, its effective power bonus is negated (R-468; 23-2-2); original power and printed Servant selector identity remain. The bonus returns after leaving the pile. Other under-card keyword hook families remain separate completion work.",
     support: "engine",
   },
 

@@ -1042,6 +1042,10 @@ export type QueryFact =
  * wrongly read" applies to a hook body exactly as it does to a card's.
  */
 export function queryHookStatics(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint): QueryFact[] {
+  // R468 / 23-2-2: the current attrBonus keyword, Servant, has no under-card
+  // exception. Keep printed keyword identity for selectors; suppress only its
+  // effective attribute bonus, without changing other hook families.
+  if (point === "attrBonus" && hostOf(state, subject)) return [];
   const spec = HOOK_CONTRACT[point];
   if (spec.answer !== "query") throw new Error(`vm/program.ts: "${point}" is an effect hook — use fireHook, not queryHookStatics`);
   const out: QueryFact[] = [];
