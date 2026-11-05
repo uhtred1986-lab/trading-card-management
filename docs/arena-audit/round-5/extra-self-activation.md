@@ -6,7 +6,7 @@ RM 12-1-3 and 12-2-2 through 12-2-4 distinguish card activation from ordinary sk
 
 Native hand Activate, Counter, Field and invocation now provide typed cardActivation provenance. Own selfExtraActivated observes the exact source after payment; broad own/opposing watchers observe the same event. extraActivatedFromHand preserves explicitly printed hand origin. Battle keyword activation and unrelated Drop Extra Activate remain excluded. The future Drop-permission event is tested as a typed protocol control, not claimed as native Drop Counter support: that payment/permission implementation remains R438.
 
-Old own played mappings and broad mappings for explicit hand watchers require rebuilding across draft, confirmed and corrected stored rows. Missing own activation rules block actual card-activation routes before payment; unrelated Drop Activate remains usable. Saved hand activation moments lacking provenance and paid saved Counter continuations using stale own rules fail explicitly. This does not widen general Auto validity in Removed.
+Old own played mappings and broad mappings for explicit hand watchers require rebuilding across draft, confirmed and corrected stored rows. Missing own activation rules block actual card-activation routes before payment; unrelated Drop Activate remains usable. Saved hand activation moments lacking provenance and paid saved strict Counter continuations resumed under stale own rules fail explicitly. This does not widen general Auto validity in Removed.
 
 ## Exact record evidence
 
@@ -18,7 +18,7 @@ Eleven explicitly hand-qualified watchers: BT29-001#0b, BT29-029#10, BT29-003#20
 
 ## Validation
 
-`extra-self-activated-5` proves 41 native/protocol cases: actual BT7-024 lock, BT11-057 and BT10-058 Field effects, ordinary Main/Battle Extra activation, actual SD7-01 hand invocation observed by BT10-092, explicit hand watchers, genuine Battle arrival, unrelated Drop activation, native alternative Counter payment with own and broad/hand watcher draws, all-status stale/missing rows and saved-event refusal, both seats and JSON reloads. Protocol-only permitted Drop activation and saved-state fault controls are labelled separately.
+`extra-self-activated-5` proves 43 native/protocol cases: actual BT7-024 lock, BT11-057 and BT10-058 Field effects, ordinary Main/Battle Extra activation, actual SD7-01 hand invocation observed by BT10-092, explicit hand watchers, genuine Battle arrival, unrelated Drop activation, native alternative Counter payment with own and broad/hand watcher draws, all-status stale/missing rows and saved-event refusal, both seats and JSON reloads. Protocol-only permitted Drop activation and saved-state fault controls are labelled separately.
 
 Invocation origins (82), audit-triggers-3, free-extra-680, rulesets, affected-ID reading suites, TypeScript, changed-file lint and language/lang/Teach are checked. The two direct language fixtures were regenerated; only the reference fixture changes. Existing keywords and phrasing-batch-7 assertions are updated for the two exact new trigger names. The older wordings suite requires keywords in the same process for its Ultimate fixture; its standalone failure did not justify a runtime or assertion change.
 

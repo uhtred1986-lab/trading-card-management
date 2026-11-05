@@ -27,6 +27,7 @@ defs.BROAD=card("BROAD",{skill:"[Auto] When you activate a blue Extra Card, draw
 defs.DROPSELF=card("DROPSELF",{type:"EXTRA",colors:["Blue"],skill:"[Auto] When you activate this card, draw 3 cards. [Activate: Main] Send this card from your Drop Area to your Warp: Draw 1 card."});
 defs.ALT=card("ALT",{type:"EXTRA",colors:["Blue"],energyCost:3,skill:"[Counter: Attack] Negate the attack.<br>[Permanent] You can activate this card's [Counter] skill from your hand without paying its energy cost by choosing 1 other black card in your hand and placing it in your Drop Area.<br>[Auto] When you activate this card, draw 1 card."});
 defs.BLACK=card("BLACK",{colors:["Black"]});
+defs.STRICT=card("STRICT",{type:"EXTRA",colors:["Blue"],energyCost:1,skill:"[Counter: Attack] Choose 1 card in your hand and place it in your Drop Area: Negate the attack.<br>[Auto] When you activate this card, draw 1 card."});
 const rows=Object.values(defs).flatMap(skillRecords).map((r,id)=>({...r,id,source:"compiler",status:"confirmed"}) as unknown as RuleRow);
 const ctx:EngineContext={defs,scripts:rulesFromRows(copy(rows),defs)};const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
 const other=(p:PlayerId):PlayerId=>p==="p1"?"p2":"p1";
@@ -94,4 +95,11 @@ for(const owner of ["p1","p2"] as const){
 }
 assert.equal(isExtraCardActivation(true,"battle","activate:battle"),false,"ordinary Z-Extra Battle skill is not card activation");cases++;
 for(const [cardId,trigger] of [["BT7-024",["played","selfExtraActivated"]],["WATCH",["extraActivated","extraActivatedFromHand"]]] as const){const row=rows.find(r=>r.cardId===cardId&&r.kind==="auto")!;assert.ok(recordContractGaps({...row,trigger:[...trigger]}).some(g=>g.includes("rebuild the stored")),"duplicate stale and new trigger requires rebuilding");cases++;}
+for(const owner of ["p1","p2"] as const){
+ let s=fresh(other(owner));const source=stage(s,owner,"STRICT","hand");stage(s,owner,"OMNI","energy");stage(s,owner,"BLACK","hand");stage(s,owner,"BLACK","hand");
+ s=take(s,{type:"attack",player:other(owner),attacker:s.sides[other(owner)].zones.leader[0],target:s.sides[owner].zones.leader[0]});s=take(s,{type:"counter",player:owner,card:source});assert.equal(s.prompt.kind,"chooseCards");if(s.prompt.kind!=="chooseCards")throw new Error("strict price chooser");assert.ok(s.sides[owner].zones.energy.every(id=>s.cards[id].mode==="rest"),"energy paid before saved choice");
+ const oldCtx={...ctx,scripts:rulesFromRows(rows.map(r=>r.cardId==="STRICT"&&r.kind==="auto"?{...r,trigger:["played"]}:r),defs)};
+ const result=RULES.apply(oldCtx,copy(s),{type:"choose",player:owner,cards:[s.prompt.choice.candidates[0]]}).state as VmState;
+ assert.match(JSON.stringify(result.outcome),/rebuild the stored Extra self-activation trigger/);assert.ok(result.sides[owner].zones.energy.every(id=>result.cards[id].mode==="rest"));cases++;
+}
 console.log(`extra-self-activated-5: ${cases} native and protocol cases passed`);
