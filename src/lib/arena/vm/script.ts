@@ -1985,6 +1985,9 @@ export interface ScriptFrame {
    * "you may" also made "up to" is owed in full (`owedInFull`, #720).
    */
   offered?: true;
+  /** R476: original movement owns its optional pre-entry effect through suspension. */
+  energyEntry?: import("./energy-entry-continuation").EnergyEntryContinuation;
+  energyEntrySequence?: number;
   /** A `moveTo`/`ko` loop suspended for a replacement choice. */
   moveLoop?: {
     kind: "moveTo" | "ko";

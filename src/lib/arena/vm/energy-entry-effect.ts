@@ -10,9 +10,9 @@ export const ENERGY_ENTRY_SLOTS = ["§energyEntryFirst", "§energyEntrySecond"] 
 export function energyEntryEffect(policy: EnergyEntryExhaustPolicy): Op[] {
   if (energyEntryPolicyProblem(policy)) throw new NotYet("rebuild this Energy entry policy", "R476");
   const [first, second] = ENERGY_ENTRY_SLOTS;
-  return [{ op: "may", ops: [
-    { op: "choose", sel: { side: "you", area: "drop", count: 1, filter: { ...emptyFilter(), colors: [policy.colors[0]] } }, as: first },
-    { op: "choose", sel: { side: "you", area: "drop", count: 1, filter: { ...emptyFilter(), colors: [policy.colors[1]] }, notIn: [first] }, as: second },
+  return [{ op: "may", reason: "Optional Energy-Exhaust entry procedure", ops: [
+    { op: "choose", sel: { side: "you", area: "drop", count: 1, filter: { ...emptyFilter(), colors: [policy.colors[0]] } }, as: first, reason: `Choose a ${policy.colors[0]} card from your Drop` },
+    { op: "choose", sel: { side: "you", area: "drop", count: 1, filter: { ...emptyFilter(), colors: [policy.colors[1]] }, notIn: [first] }, as: second, reason: `Choose a ${policy.colors[1]} card from your Drop` },
     { op: "moveTo", target: { var: first }, to: "warp", cause: "effect", completedAs: first },
     { op: "moveTo", target: { var: second }, to: "warp", cause: "effect", completedAs: second },
   ] }];
