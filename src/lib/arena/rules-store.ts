@@ -218,8 +218,24 @@ function movementResultContractGap(row: { printed: string; ops: unknown }): stri
  * an out-of-date record that rebuilding the rule writes, not a clause the engine
  * cannot do: `ruleHealth` reports it as `needsRebuild`, never as a health.
  */
+/** R447: old rows must not execute card-energy discounts with discarded skill scope. */
+function couponScopeContractGap(row: { printed: string; ops: unknown }): string | null {
+  if (!/next time[^.]*\b(?:activate|use)\b[^.]*\[activate(?::[^\]]+)?\][^.]*reduce (?:the|its) energy cost/i.test(row.printed)) return null;
+  const unscoped = (ops: unknown): boolean => Array.isArray(ops) && ops.some(raw => {
+    if (!raw || typeof raw !== "object") return false;
+    const op = raw as Op;
+    return (op.op === "costReduction" && (!op.what || op.what === "energy"))
+      || (op.op === "if" && (unscoped(op.then) || unscoped(op.else)))
+      || (op.op === "may" && unscoped(op.ops))
+      || (op.op === "chooseMode" && op.modes.some(mode => unscoped(mode.ops)));
+  });
+  return unscoped(row.ops) ? "rebuild the card-energy coupon's explicit activation scope" : null;
+}
+
 export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown; cond?: unknown }): string[] {
   const gaps: string[] = [];
+  const couponGap = couponScopeContractGap(row);
+  if (couponGap) gaps.push(couponGap);
   const movementGap = movementResultContractGap(row);
   if (movementGap) gaps.push(movementGap);
   const negationAreaGap = negationAreaContractGap(row);
@@ -438,7 +454,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
       : { paidAdmission: storedPaidAdmission(row.cond, price?.condition), kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };

@@ -9,3 +9,5 @@ Offline full-record comparison on the recovered 6,597-card input changes only EX
 Evidence: `/workspace/shared/arena-support5/conditions-r447/{after-full.json,full-record-diff.json,own-faq.json}`. The recovered catalog is not claimed byte-identical to the earlier lost snapshot.
 
 Checks: focused printed and synthetic scope tests; cost-reductions-907; audit-effects-2 (82 records, 10 both-seat VM cases); rulings; typecheck; eslint on changed files. No database, full gate, build or dependency installation.
+
+The follow-up loader guard refuses old unscoped card-energy operations for this printed family in draft, confirmed and corrected rows. It does not silently execute an old broad coupon after the compiler stops producing it. Six actual-record loader controls cover both cards and all three statuses.
