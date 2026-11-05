@@ -475,6 +475,8 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  {"id":"arena-vm-notyet-r482-energy-entry-charge-1","file":"src/lib/arena/vm/energy-entry-charge.ts","ordinal":1,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"RM 7-2-11 through 7-2-13; R482","detail":"Optional Charge refuses valid taxed/altered declarations and incoming replacements, as well as stale or malformed original-action receipts. The six from-any-area product records remain unadmitted.","ownerIssue":1247},
+  {"id":"arena-vm-notyet-r482-script-4","file":"src/lib/arena/vm/script.ts","ordinal":4,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"RM 7-2-11 through 7-2-13; R482","detail":"Optional Charge refuses valid taxed/altered declarations and incoming replacements, as well as stale or malformed original-action receipts. The six from-any-area product records remain unadmitted.","ownerIssue":1247},
   {"id":"arena-vm-notyet-r476-energy-entry-continuation-3","file":"src/lib/arena/vm/energy-entry-continuation.ts","ordinal":3,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"RM 22-31; R476 bounded native prerequisite","detail":"Optional Energy entry remains bounded: unreviewed origins, prices, multi-card ordering, protection changes or native procedures refuse; the six product records remain unadmitted.","ownerIssue":1247},
   {"id":"arena-vm-notyet-r476-energy-entry-continuation-4","file":"src/lib/arena/vm/energy-entry-continuation.ts","ordinal":4,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"RM 22-31; R476 bounded native prerequisite","detail":"Optional Energy entry remains bounded: unreviewed origins, prices, multi-card ordering, protection changes or native procedures refuse; the six product records remain unadmitted.","ownerIssue":1247},
   {"id":"arena-vm-notyet-r476-energy-entry-continuation-5","file":"src/lib/arena/vm/energy-entry-continuation.ts","ordinal":5,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"RM 22-31; R476 bounded native prerequisite","detail":"Optional Energy entry remains bounded: unreviewed origins, prices, multi-card ordering, protection changes or native procedures refuse; the six product records remain unadmitted.","ownerIssue":1247},
@@ -661,6 +663,8 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-r482-energy-entry-charge-1": "<top-level>|-|-",
+  "arena-vm-notyet-r482-script-4": "stepScript|\"moveTo\"|frame.awaiting === \"replaceMove\" > frame.energyCharge && choices.length",
   "arena-vm-notyet-r476-energy-entry-continuation-3": "requireNoPayerReplacement|-|child.awaiting === \"replaceMove\" || child.replacementMove || child.replacementAuto || child.replacing || child.moveLoop?.choices?.length",
   "arena-vm-notyet-r476-energy-entry-continuation-4": "runEnergyEntryContinuation|-|childHost.areaOf(id) === \"drop\" && childHost.replacementsFor(id,\"effect\",{actor:pending.child.master,requestedTo:\"warp\"}).length",
   "arena-vm-notyet-r476-energy-entry-continuation-5": "runEnergyEntryContinuation|-|-",
@@ -675,7 +679,7 @@ export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
   "arena-vm-notyet-r476-energy-entry-preflight-3": "guardEnergyEntryBatch|-|ids.length!==1 || sources.length!==1",
   "arena-vm-notyet-r476-energy-entry-preflight-4": "guardEnergyEntryBatch|-|(area!==\"hand\"&&area!==\"deck\") || state.cards[id]?.under.length || h.defOf(id).type!==\"BATTLE\" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner===\"both\"",
   "arena-vm-notyet-r476-energy-entry-preflight-5": "guardEnergyEntryBatch|-|op.cause===\"cost\" || frame.saveVarsAs || frame.keywordPrice || frame.keywordCost || frame.counterCost || frame.autoCost",
-  "arena-vm-notyet-r476-energy-entry-preflight-6": "guardEnergyEntryBatch|-|h.replacementsFor(id,op.cause??\"effect\",{actor:frame.master,requestedTo:\"energy\"}).length",
+  "arena-vm-notyet-r476-energy-entry-preflight-6": "guardEnergyEntryBatch|-|h.replacementsFor(id,frame.declaredCharge?\"charge\":op.cause??\"effect\",{actor:frame.declaredCharge?undefined:frame.master,requestedTo:\"energy\"}).length",
   "arena-vm-notyet-r476-energy-entry-runtime-1": "<top-level>|-|-",
   "arena-vm-notyet-r476-energy-entry-runtime-2": "optionalEnergyArrival|-|earned > !placed.ok || placed.move.to!==\"energy\"",
   "arena-vm-notyet-r476-energy-entry-runtime-3": "optionalEnergyArrival|-|earned > forbids(ctx,game,projected,\"beNegated\",actor)!==protectedBefore",
