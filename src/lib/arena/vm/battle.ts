@@ -1,3 +1,5 @@
+import { projectStandingNegationMoves } from "./standing-negation-projection";
+import { validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureComboDeclaration, dropComboPermission, requireComboDeclaration } from "./drop-combo";
 import { counterArrivalParentProblem } from "./counter-arrival-parent";
 import { counterArrivalDescriptor } from "./counter-arrival-policy";
@@ -409,11 +411,17 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
             // Project only that information on a copy. Live area membership,
             // selectors, and payments remain on the actual Combo Area board.
             const projected = structuredClone(state);
+            validateStandingNegationRead(ctx, projected);
             const route = leaveRoute(ctx, game, projected, [], id, "combo", "drop", {});
             if (route.stays || route.to !== "drop") throw new NotYet("resolve a replacement of a pre-announced Combo-to-Drop Auto", "#609");
-            const placed = moveCard(projected, game, id, "drop", { owner: holder,
-              ...(route.mode ? { mode: route.mode } : {}), ...(route.position ? { position: route.position } : {}) });
-            if (!placed.ok || placed.move.to !== "drop") throw new NotYet("project a pre-announced Combo-to-Drop movement subject", "#609");
+            if (projected.standingNegationHistory) {
+              projectStandingNegationMoves(ctx, game, projected, [{ id, to: "drop", owner: holder,
+                ...(route.mode ? { mode: route.mode } : {}), ...(route.position ? { position: route.position } : {}) }], "comboSubject");
+            } else {
+              const placed = moveCard(projected, game, id, "drop", { owner: holder,
+                ...(route.mode ? { mode: route.mode } : {}), ...(route.position ? { position: route.position } : {}) });
+              if (!placed.ok || placed.move.to !== "drop") throw new NotYet("project a pre-announced Combo-to-Drop movement subject", "#609");
+            }
             const subjectInfo = attrsNow(ctx, game, projected, id);
             for (const pending of pended) pending.subjectInfo = subjectInfo;
           }

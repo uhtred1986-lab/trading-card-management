@@ -1,3 +1,5 @@
+import { projectStandingNegationMoves } from "./standing-negation-projection";
+import { validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureCopiedSkill } from "./triggers";
 import { canPayAwakenAlternative, hasAwakenAlternative } from "./awaken-alternative-costs";
 import { fieldAction, fieldPaymentRefusals, isFieldPayment, queueFieldCost } from "./field-costs";
@@ -902,6 +904,7 @@ export function unpaidActivationTaxAfter(ctx: EngineContext, game: GameDefinitio
   if (!taxes.length) return null;
   if (energy <= 0) return unpaidActivationTax(ctx, game, state, player, card, taxes);
   const copy = structuredClone(state);
+  validateStandingNegationRead(ctx, copy);
   for (const id of activeEnergy(game, copy, player).slice(0, energy)) copy.cards[id].mode = "rest";
   return unpaidActivationTax(ctx, game, copy, player, card, taxes);
 }
@@ -924,13 +927,15 @@ const KEYWORD_OUTLAYS_MAX = 128;
 export function unpaidKeywordPlayTax(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skill: Skill, taxes: TaxInForce[], energy: number): TaxInForce | null {
   if (!taxes.length) return null;
   const board = structuredClone(state);
+  validateStandingNegationRead(ctx, board);
   for (const id of activeEnergy(game, board, player).slice(0, energy)) board.cards[id].mode = "rest";
   const outlays = keywordOutlays(ctx, game, board, player, card, skill);
   if (!outlays?.length) return unpaidActivationTax(ctx, game, board, player, card, taxes);
   let first: TaxInForce | null = null;
   for (const outlay of outlays.slice(0, KEYWORD_OUTLAYS_MAX)) {
     const after = structuredClone(board);
-    for (const { id, to } of outlay) moveCard(after, game, id, to, { owner: after.cards[id].owner });
+    if (after.standingNegationHistory) projectStandingNegationMoves(ctx, game, after, outlay, "keywordPrice");
+    else for (const { id, to } of outlay) moveCard(after, game, id, to, { owner: after.cards[id].owner });
     const unpaid = unpaidActivationTax(ctx, game, after, player, card, taxes);
     if (!unpaid) return null;
     first ??= unpaid;
@@ -1195,10 +1200,10 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
   if (!waived && !deferredFusion && !deferredZAwaken && !deferredOverRealm) {
     spendSkillCostUses(ctx, game, state, ev, card, sk);
-    if (!priceOps && activationEnergyPayment) consumeActivationEnergyUses(state, ev, activationEnergyPayment);
+    if (!priceOps && activationEnergyPayment) consumeActivationEnergyUses(ctx, state, ev, activationEnergyPayment);
     // An Extra used from the hand pays its energy cost with the line (12-2-2):
     // "the next time you activate it, reduce the energy cost by {g}" is spent here.
-    if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) spendPriceUses(state, ev, card);
+    if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) spendPriceUses(ctx, state, ev, card);
   }
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.

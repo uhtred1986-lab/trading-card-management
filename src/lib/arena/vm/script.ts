@@ -4143,7 +4143,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const made = h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "specifiedCost", value: { colors: op.colors, sign }, until: op.until ?? "turn", ...(uses !== undefined ? { uses } : {}), ...(group !== undefined ? { group } : {}) });
             if (uses !== undefined && group === undefined && made) {
               group = made.id;
-              made.group = made.id;
+              if (h.setEffectGroup) h.setEffectGroup(made.id, made.id);
+              else made.group = made.id;
             }
           }
           break;
@@ -4225,7 +4226,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           });
           if (uses !== undefined && group === undefined && made) {
             group = made.id;
-            made.group = made.id;
+            if (h.setEffectGroup) h.setEffectGroup(made.id, made.id);
+            else made.group = made.id;
           }
         }
         break;

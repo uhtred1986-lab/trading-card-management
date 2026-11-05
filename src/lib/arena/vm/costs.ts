@@ -1,3 +1,4 @@
+import { expireStandingNegationBatch } from "./standing-negation-runtime";
 import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
 import { emptyUnisons } from "./unison-zero";
 import type { CardFilter } from "../text/filters";
@@ -1262,7 +1263,7 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
  */
 export function spendSkillCostUses(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, sk: Skill): void {
   const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
-  spendUses(state, ev, state.effects.filter((e) => e.kind === channel && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)) && activateTimingReaches(sk, e.activateTiming) && skillTagMatches(sk, e.tag) && onCard(ctx, game, state, e, card)));
+  spendUses(ctx, state, ev, state.effects.filter((e) => e.kind === channel && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)) && activateTimingReaches(sk, e.activateTiming) && skillTagMatches(sk, e.tag) && onCard(ctx, game, state, e, card)));
 }
 
 /**
@@ -1294,14 +1295,31 @@ function onCard(ctx: EngineContext, game: GameDefinition, state: VmState, e: Con
  * use however many cards its words reached, so a change with a `group` ends
  * together with every other change of its group.
  */
-function spendUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): void {
+function spendUses(ctx: EngineContext, state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): void {
   if (!spent.length) return;
+  if (state.standingNegationHistory) {
+    const groups = new Set(spent.filter(effect => effect.uses === 1 && effect.group !== undefined).map(effect => effect.group));
+    // Current writers group only one-use cost modifiers. Negation or protection
+    // ending during payment needs a separate cost/activation timing contract.
+    if (state.effects.some(effect => effect.group !== undefined && groups.has(effect.group)
+      && !["cost", "specifiedCost", "skillCost", "evolveCost"].includes(effect.kind)))
+      throw new NotYet("expire a coupon group containing non-cost effects before activation", "R477");
+  }
+  // Selection is fixed before payment. Preview and commit use the same complete
+  // group batch; no selector is re-read after one coupon has disappeared.
+  const positions = spent.map(effect => state.effects.indexOf(effect));
+  expireStandingNegationBatch(ctx, state, ev, (board, events) =>
+    spendSelectedUses(board, events, positions.map(position => board.effects[position])));
+}
+function spendSelectedUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): ContinuousEffect[] {
+  if (!spent.length) return [];
   for (const e of spent) e.uses = e.uses! - 1;
   const groups = new Set(spent.filter((e) => e.uses === 0 && e.group !== undefined).map((e) => e.group));
   const ended = state.effects.filter((e) => (spent.includes(e) && e.uses === 0) || (e.group !== undefined && groups.has(e.group)));
-  if (!ended.length) return;
+  if (!ended.length) return [];
   state.effects = state.effects.filter((e) => !ended.includes(e));
   for (const e of ended) log(ev, { type: "effectEnded", effect: e });
+  return ended;
 }
 
 /**
@@ -1317,15 +1335,15 @@ export function captureActivationEnergyUses(ctx: EngineContext, game: GameDefini
   return { version: 1, ids: state.effects.filter(e => e.kind === "cost" && e.energyActivation !== undefined && energyActivationReaches(e.energyActivation, payment) && e.uses != null && e.uses > 0 && onCard(ctx, game, state, e, card)).map(e => e.id) };
 }
 /** Successful full payment consumes only captured, still-existing coupons; no expired effect is resurrected. */
-export function consumeActivationEnergyUses(state: VmState, ev: GameEvent[], captured: CapturedEnergyCouponUses): void {
+export function consumeActivationEnergyUses(ctx: EngineContext, state: VmState, ev: GameEvent[], captured: CapturedEnergyCouponUses): void {
   if (captured.version !== 1 || !Array.isArray(captured.ids) || captured.ids.some(id => !Number.isSafeInteger(id) || id < 0) || new Set(captured.ids).size !== captured.ids.length) throw new IllegalAction("rebuild this saved activation-energy coupon payment");
   const present = state.effects.filter(e => captured.ids.includes(e.id));
   if (present.some(e => e.kind !== "cost" || !e.energyActivation || e.uses === undefined)) throw new IllegalAction("the captured activation-energy coupon changed");
-  spendUses(state, ev, present.filter(e => e.uses! > 0));
+  spendUses(ctx, state, ev, present.filter(e => e.uses! > 0));
 }
 
-export function spendPriceUses(state: VmState, ev: GameEvent[], card: string): void {
-  spendUses(state, ev, state.effects.filter((e) => (e.kind === "cost" || e.kind === "specifiedCost") && !e.energyActivation && e.target === card && e.uses != null && e.uses > 0));
+export function spendPriceUses(ctx: EngineContext, state: VmState, ev: GameEvent[], card: string): void {
+  spendUses(ctx, state, ev, state.effects.filter((e) => (e.kind === "cost" || e.kind === "specifiedCost") && !e.energyActivation && e.target === card && e.uses != null && e.uses > 0));
 }
 
 /**

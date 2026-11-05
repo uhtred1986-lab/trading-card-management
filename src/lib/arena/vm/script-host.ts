@@ -244,6 +244,8 @@ export interface ScriptHost {
   negateSkillIndex(id: string, index: number): void;
   /** 9-1-4: put a continuous effect in force. */
   addEffect(e: EffectSpec): ContinuousEffect | undefined;
+  /** Update a new effect group through the native standing-history writer. */
+  setEffectGroup?(effectId: number, group: number): void;
   /** 20-15: schedule a program for a later moment. */
   schedule(d: DelaySpec): void;
   /** 20-13: skip a step, this time round or the next. */
