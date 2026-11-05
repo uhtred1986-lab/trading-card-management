@@ -1338,6 +1338,8 @@ export type Op =
       fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "under" | "any";
       fromOwnArea?: true;
       sameNameAsSelf?: boolean;
+      /** R469: same card number as any currently observed selected card. */
+      copiesOf?: Selector;
       bySkill?: boolean;
       exceptEvolve?: boolean;
       /** #930: "you can only play Battle Cards by using [Union-Fusion]" — the one kind of play still allowed (`Prohibition.exceptUnion`). */
@@ -1416,7 +1418,7 @@ export type Op =
    * `filter` describes may come from under the target (the granting card)
    * instead — a Battle Card the cost's own description fits, one for one.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "counterFromEnergy" | "counterFromUnder" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; counterUnderPolicy?: "asHandV1"; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "fieldKeepOthers" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "counterFromEnergy" | "counterFromUnder" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; counterUnderPolicy?: "asHandV1"; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1791,6 +1793,10 @@ export interface ScriptFrame {
   aegisCost?: import("./aegis-costs").AegisCost;
   /** #549: captured, reloadable Auto cost/effect continuation. */
   autoCost?: import("./auto-costs").AutomaticCost;
+  /** R457: original Field declaration and ordered Extra payment continuation. */
+  fieldCost?: import("./field-costs").FieldCost;
+  /** R469: mandatory other-Field cleanup, with suspendable replacements. */
+  fieldCleanup?: import("./field-rules").FieldCleanup;
   /** R-399: an exact, saved selection for freely chosen resource pools. */
   poolPayment?: import("./pooled-costs").FramePoolPayment;
   /** #677: the 20-14 prices on an activation, charged one at a time and re-read live in front of what it guards. Additive: older states never carry one. */
@@ -3117,7 +3123,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // find"). Only the candidates in open areas still have to be taken. Never a price's (5-8-2-2 is paid in full).
         // Phrasing batch 9: the hand's cards only on an effect — a price run on a frame of its own ([Aegis]'s hand colours,
         // a [Revive], a keyword's action price, …) is paid in full (5-8-2-2), as a `saveVarsAs` price is.
-        const paying = !!(frame.saveVarsAs || frame.aegisCost || frame.reviveCost || frame.dropCost || frame.autoCost || frame.counterCost || frame.swapCost || frame.keywordCost || frame.keywordPrice);
+        const paying = !!(frame.saveVarsAs || frame.aegisCost || frame.fieldCost || frame.reviveCost || frame.dropCost || frame.autoCost || frame.counterCost || frame.swapCost || frame.keywordCost || frame.keywordPrice);
         const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => (paying ? inSecretPile(h, id) : declinablePick(h, id))).length : 0;
         const floor = secretCands ? Math.min(minimum, sofar.length + cands.length - secretCands) : minimum;
 
@@ -4030,6 +4036,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}),
             player: players[0],
             filter: op.filter,
+            ...(op.copiesOf ? { copiesOf: op.copiesOf, master: frame.master } : {}),
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,
           },
         });

@@ -1209,6 +1209,17 @@ function ruleApplies(
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
+  if (f.copiesOf) {
+    const source = rule.source;
+    const master = f.master ?? rule.master ?? (source ? masterOf(game, state, source) : undefined);
+    if (!source || !master || !opts.card || !state.cards[opts.card]) return false;
+    //9-1-6: this skill references the selected cards' effective keywords.
+    // The ordinary CardFilter keyword reader preserves printed text instead.
+    const keywordRequirements = f.copiesOf.filter?.keywords ?? [];
+    const selector = keywordRequirements.length ? { ...f.copiesOf, filter: { ...f.copiesOf.filter!, keywords: [] } } : f.copiesOf;
+    const observed = resolveSelector(ctx, game, state, { card: source, master, ops: [], ip: 0, vars: {} }, selector, true);
+    if (!observed.some(id => state.cards[id]?.cardId === state.cards[opts.card!].cardId && keywordRequirements.every(keyword => hasKeyword(ctx, game, state, id, keyword)))) return false;
+  }
   // A missing/stale defender cannot prove that a qualified declaration is legal.
   // Only declaration callers supply this context; Blocker redirects do not.
   if (f.attackTarget && opts.attackTarget && state.cards[opts.attackTarget] &&

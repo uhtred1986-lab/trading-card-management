@@ -356,7 +356,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "counterFromDrop", "counterFromEnergy", "counterFromUnder", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "counterUnderPolicy", type: { enum: ["asHandV1"] } }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "fieldKeepOthers", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "counterFromDrop", "counterFromEnergy", "counterFromUnder", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "counterUnderPolicy", type: { enum: ["asHandV1"] } }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -989,6 +989,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "fromArea", type: { enum: ["hand", "battle", "drop", "deck", "energy", "unison", "under", "any"] } },
       { name: "fromOwnArea", type: "boolean" },
       { name: "sameNameAsSelf", type: "boolean" },
+      { name: "copiesOf", type: "selector" },
       { name: "bySkill", type: "boolean" },
       { name: "exceptEvolve", type: "boolean" },
       { name: "exceptUnion", type: { list: { enum: ["Fusion", "Potara", "Absorb"] } } },
@@ -1059,7 +1060,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       {
         const who = op.turnPlayer ? "the turn player" : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         // "You may not activate [EX-Evolve]" (BT4-003).
-        if (op.what === "activateSkill" && op.keywordSkill && !op.target) return `${who} can't activate [${op.keywordSkill}]${escape}${forThe(op.until, r)}`;
+        if (op.what === "activateSkill" && op.keywordSkill && !op.target) return `${who} can't activate [${op.keywordSkill}]${op.copiesOf ? ` on a card with the same card number as ${describeSelector(op.copiesOf)}` : ""}${escape}${forThe(op.until, r)}`;
         // BT30-146: the Charge Phase's switch of that player's cards in one area.
         if (op.what === "switchToActiveInCharge" && !op.target) {
           const cards = op.filter ? describeFilter(op.filter, { plural: true }) : "cards";
@@ -1212,6 +1213,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "absorbMaterialUnder") return `when placing Battle Cards under other cards to pay the skill costs of your ${op.filter ? describeFilter(op.filter, { plural: false }) : "card"}s' [Union-Absorb], you can use Battle Cards from under ${describeRef(op.target)} instead, one for one`;
       if (op.what === "startLife") return `you start the game with ${op.n ?? 8} life`;
       if (op.what === "awakenLife") return `${describeRef(op.target)} can activate its [Awaken] ${op.n !== undefined && op.n < 99 ? `while your life is at ${op.n} or less` : "at any life"}${forThe(op.until, r)}`;
+      if (op.what === "fieldKeepOthers") return `keep your other Fields when placing ${op.filter ? describeFilter(op.filter) : "a Field"}${forThe(op.until, r)}`;
       if (op.what === "fieldBattle") return `the [Field] skill on ${describeRef(op.target)} in your hand can also be activated at [Activate: Battle] timings`;
       return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
     },
@@ -2246,6 +2248,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
       if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
     }
+    if (o.op === "forbid" && o.copiesOf !== undefined && o.what !== "activateSkill") return `${step}: copiesOf currently qualifies skill activation only`;
     if (o.op === "permit" && o.what === "counterFromUnder") { const bad = counterUnderPermitProblem(o); if (bad) return `${step}: ${bad}`; }
     if (o.op === "permit" && o.what !== "counterFromUnder" && o.counterUnderPolicy !== undefined) return `${step}: counterUnderPolicy belongs only to counterFromUnder`;
     if (o.op === "permit" && o.what === "counterFromEnergy") { const bad = counterEnergyPermitProblem(o); if (bad) return `${step}: ${bad}`; }
