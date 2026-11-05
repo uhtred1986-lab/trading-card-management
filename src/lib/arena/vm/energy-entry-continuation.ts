@@ -2,7 +2,7 @@ import { bindEnergyEntryPayers, offerEnergyEntryPayers, requireEnergyEntryPayers
 /** R476 suspended ordinary effect owned by one original Energy movement. */
 import type { EnergyEntryExhaustPolicy } from "./energy-entry-policy";
 import { energyEntryPolicyProblem } from "./energy-entry-policy";
-import { energyEntryEffect, energyEntryPayersCompleted } from "./energy-entry-effect";
+import { energyEntryEffect, energyEntryPayersCompleted, ENERGY_ENTRY_SLOTS } from "./energy-entry-effect";
 import { captureEnergyEntryWitness, requireEnergyEntryWitness, type EnergyEntryWitness } from "./energy-entry-witness";
 import { canonicalTaxValue as canonical } from "./tax-receipt";
 import { NotYet } from "./errors";
@@ -40,18 +40,37 @@ export function requireEnergyEntryContinuation(h: ScriptHost, parent: ScriptFram
     !Number.isSafeInteger(child.ip) || child.ip < 0 || !Array.isArray(child.ops) || child.ip > child.ops.length ||
     (canonical(child.ops) !== canonical(original) && (first.op !== "may" || canonical(child.ops) !== canonical(first.ops))) ||
     pending.completed && child.ip !== child.ops.length) fail();
+  requireNoPayerReplacement(child);
   requireEnergyEntryPayers(h,child,pending.payers);
 }
 
-/** Child choices/replacements always return to the original parent, including after reload. */
+/** A serialized replacement continuation cannot bypass the live-route preflight. */
+function requireNoPayerReplacement(child: ScriptFrame): void {
+  if (child.awaiting === "replaceMove" || child.replacementMove || child.replacementAuto || child.replacing || child.moveLoop?.choices?.length)
+    throw new NotYet("optional Energy-entry payer replacement continuation", "R476");
+}
+
+/** Child choices return to the original parent, including after reload.
+ * Payer replacement/interrupt continuations remain unadmitted. */
 export function runEnergyEntryContinuation(parentHost: ScriptHost, childHost: ScriptHost, parent: ScriptFrame, pending: EnergyEntryContinuation): "suspended" | "completed" {
+  requireNoPayerReplacement(pending.child);
   if (pending.completed) return "completed";
   let transferred = false;
   requireEnergyEntryPayers(childHost,pending.child,pending.payers);
   const bind = () => bindEnergyEntryPayers(childHost,pending.child,pending.payers);
+  const guardPayerRoutes = () => {
+    // Check both bound payers before the first one can move. In particular a
+    // second-payer substitute must not strand a paid first card or a stale
+    // chooser prompt. These are ordinary effects, never cost-host moves.
+    for (const name of ENERGY_ENTRY_SLOTS) for (const id of pending.child.vars[name] ?? []) {
+      if (childHost.areaOf(id) === "drop" && childHost.replacementsFor(id,"effect",{actor:pending.child.master,requestedTo:"warp"}).length) throw new NotYet("optional Energy-entry payer replacement route", "R476");
+    }
+  };
+  guardPayerRoutes();
   const host: ScriptHost = { ...childHost,
     resolveSelector: (frame,sel) => { const ids=childHost.resolveSelector(frame,sel);offerEnergyEntryPayers(childHost,frame,pending.payers,ids);return ids; },
     ask: prompt => { bind();childHost.ask(prompt); },
+    replacementsFor: (id,reason,opts) => { guardPayerRoutes();return childHost.replacementsFor(id,reason,opts); },
     move: (id,to,owner,opts) => {
       bind();
       const result=childHost.move(id,to,owner,opts);
@@ -59,7 +78,7 @@ export function runEnergyEntryContinuation(parentHost: ScriptHost, childHost: Sc
       return result;
     },
     resume: () => { transferred = true; parentHost.resume(parent); },
-    interrupt: first => { transferred = true; parentHost.interrupt(first, parent); },
+    interrupt: () => { throw new NotYet("optional Energy-entry child interrupt continuation", "R476"); },
   };
   const result = stepScript(host, pending.child);
   if (result === "wait" || transferred) return "suspended";
