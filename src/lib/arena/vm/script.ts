@@ -1533,6 +1533,7 @@ export interface PayWith {
 }
 
 export interface SkillPrice {
+  awakenAlternative?: import("./awaken-alternative").AwakenAlternative;
   /** #907: compiled Fusion material authority; catalog wording is display only. */
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
@@ -1580,6 +1581,7 @@ export interface XCost {
  * reaches the database) to know what a price looks like.
  */
 export interface CostRecord {
+  awakenAlternative?: import("./awaken-alternative").AwakenAlternative;
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
   absorb?: AbsorbProcedure;
