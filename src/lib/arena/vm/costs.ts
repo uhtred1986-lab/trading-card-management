@@ -1297,6 +1297,14 @@ function onCard(ctx: EngineContext, game: GameDefinition, state: VmState, e: Con
  */
 function spendUses(ctx: EngineContext, state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): void {
   if (!spent.length) return;
+  if (state.standingNegationHistory) {
+    const groups = new Set(spent.filter(effect => effect.uses === 1 && effect.group !== undefined).map(effect => effect.group));
+    // Current writers group only one-use cost modifiers. Negation or protection
+    // ending during payment needs a separate cost/activation timing contract.
+    if (state.effects.some(effect => effect.group !== undefined && groups.has(effect.group)
+      && !["cost", "specifiedCost", "skillCost", "evolveCost"].includes(effect.kind)))
+      throw new NotYet("expire a coupon group containing non-cost effects before activation", "R477");
+  }
   // Selection is fixed before payment. Preview and commit use the same complete
   // group batch; no selector is re-read after one coupon has disappeared.
   const positions = spent.map(effect => state.effects.indexOf(effect));
