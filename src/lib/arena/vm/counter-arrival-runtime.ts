@@ -145,6 +145,10 @@ export function retireCounterArrivalTemplates(owner: SkillPlayScope): void {
 /** Guard old active frames before any of their effect instructions execute. */
 export function requireCounterArrivalContract(frame: ScriptFrame, source: import("./script").Script | undefined): void {
   const descriptor = counterArrivalDescriptor(source?.ops);
+  if (frame.counterCost || frame.taxGate || frame.counterNonhandTax || frame.extraCounterTax) {
+    if (frame.arrivalDecision) rebuildScope("rebuild this conflicting Counter payment and arrival execution");
+    return;
+  }
   if (!descriptor && !frame.arrivalDecision) return;
   if (!descriptor || !frame.counterPlay || source?.kind !== "counter:play" ||
     frame.skillEffectOrigin?.version !== 2 || frame.skillEffectOrigin.kind !== "counter" ||
