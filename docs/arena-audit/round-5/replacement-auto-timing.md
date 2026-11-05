@@ -1,5 +1,7 @@
 # R424 — Combo replacement Auto timing
 
+R425 subsequently adds external activation-tax payment; see [replacement tax continuation](replacement-auto-tax.md). The tax refusal described below records R424's original boundary.
+
 BT12-071/072/074/075's own Q&A asks whether its Auto activates when BT10-062 sends it from Combo to Drop: “Yes, it does.” RM 4-3-2-3/4 supplies the before/after skill Counter timings. RM 9-10-2-3 permits each replacement once per original event; 9-10-3-1 and 20-1-11 require the optional substitute to complete. RM 9-5 keeps ordinary Permanent replacement application separate from Auto activation.
 
 The four stored destination-bound, condition-guarded programs now activate their exact self-choice/self-play substitute with a serialized replacement origin. Admission retains the source's typed validity/usage, Leader/combo-origin price condition, skill negation and activation prohibitions. The skill activation is announced once, and the shared Counter scope encloses its immediate effect without a checkpoint inside the interrupted departure.

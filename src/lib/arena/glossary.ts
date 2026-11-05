@@ -708,7 +708,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Combo replacement Auto timing (R-424)",
-    body: "Turles's own Combo-to-Drop self-play replacement Auto activates with Counter:Play timing before and after its effect. A failed substitute resumes the original departure and any other unused replacement choices, bound to the original Combo occurrence. Saved affected legacy continuations require rebuilding. Activation prices/taxes and more complex substitute bodies remain explicitly unsupported; Permanent replacements are not new Auto activations.",
+    body: "Turles's own Combo-to-Drop self-play replacement Auto activates with Counter:Play timing before and after its effect. A failed substitute resumes the original departure and any other unused replacement choices, bound to the original Combo occurrence. Saved affected legacy continuations require rebuilding. External activation taxes use the ordinary Auto payment continuation (R-425); decline or failed payment restores the original departure without activating. Printed action prices and more complex substitute bodies remain explicitly unsupported; Permanent replacements are not new Auto activations.",
   },
   {
     title: "Negation protection before entry (R-423)",

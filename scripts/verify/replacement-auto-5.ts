@@ -110,8 +110,8 @@ for(const owner of ["p1","p2"] as const){
  const taxed=copy(s);
  assert.equal(stepScript(vmHost(ctx,game,taxed,[]),{ops:[{op:"forbid",what:"activateSkill",side:"opponent",unlessPay:[{op:"discard",n:1}],until:"turn"}],ip:0,vars:{},card:s.sides[other(owner)].zones.leader[0],master:other(owner)}),"done");
  const before=copy(taxed);
- assert.throws(()=>prepareReplacementAuto(ctx,game,taxed,copy(frame),combo,"drop",{owner}),/pay a replacement Auto activation price/);
- assert.deepEqual(copy(taxed),before,"tax admission refuses before original movement or payment");cases++;
+ prepareReplacementAuto(ctx,game,taxed,copy(frame),combo,"drop",{owner});
+ assert.deepEqual(copy(taxed),before,"tax preparation does not move or pay before its continuation");cases++;
  const banned=copy(s);
  assert.equal(stepScript(vmHost(ctx,game,banned,[]),{ops:[{op:"forbid",what:"activateSkill",side:"opponent",until:"turn"}],ip:0,vars:{},card:s.sides[other(owner)].zones.leader[0],master:other(owner)}),"done");
  const candidate=copy(frame);delete candidate.skillEffectOrigin;

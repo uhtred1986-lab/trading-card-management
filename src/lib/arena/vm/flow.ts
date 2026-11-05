@@ -1331,7 +1331,14 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   if (!frame) return "done";
   try {
     if (frame.replacementFallback) return stepReplacementFallback(ctx, game, state, ev, frame);
-    if (frame.replacementAuto && !beginReplacementAuto(ctx, game, state, ev, frame)) return "done";
+    if (frame.replacementAuto && !beginReplacementAuto(ctx, game, state, frame, (skill, program) => {
+      const tax = activationTaxGate(ctx, game, state, frame.master, frame.card, "auto");
+      if (tax && unpaidActivationTax(ctx, game, state, frame.master, frame.card, activationTaxes(ctx, game, state, frame.master, frame.card, "auto"))) {
+        log(ev, { type: "note", text: "The replacement Auto cannot activate: its additional price cannot be paid" });
+        return;
+      }
+      queueAutomatic(ctx, game, state, ev, frame, skill, program, tax);
+    })) return "done";
     if (frame.skillPlayFinish) {
       const scope = scopeForFinish(state, frame);
       if (scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";

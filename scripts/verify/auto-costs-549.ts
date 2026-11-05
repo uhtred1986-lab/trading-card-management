@@ -1319,7 +1319,7 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
     return a.state.prompt.kind === "chooseMode" ? a.state.prompt.options : [];
   };
   assert.deepEqual(labels("ACTION549"), ["Pay: choose 1 card in your hand, move the chosen cards to drop", "Don't pay"], "a hand price names itself");
-  assert.deepEqual(labels("FACEUP549"), ["Pay: choose 1 card in your Life Area, turn the chosen cards face up", "Don't pay"], "a Life-card price names itself");
+  assert.deepEqual(labels("FACEUP549"), ["Pay: choose 1 card in your Life Area, without seeing them, turn the chosen cards face up", "Don't pay"], "a Life-card price names itself");
   assert.deepEqual(labels("MIX549", 1), ["Pay: 1 Red; choose 1 card in your hand, move the chosen cards to drop", "Don't pay"], "orbs and a program are both said");
   assert.deepEqual(labels("A549", 1), ["Pay: 1 Red", "Don't pay"], "an orb-only price reads as before");
   for (const id of ["ACTION549", "MIX549", "FACEUP549"] as const) assert.ok(!labels(id, 1).some((o) => /nothing/.test(o)), `${id}: a real price is never labelled "nothing"`);
