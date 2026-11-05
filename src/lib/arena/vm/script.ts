@@ -3350,6 +3350,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         };
         while (frame.moveLoop && frame.moveLoop.kind === "moveTo" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
+          // A suspended optional effect finishes before any newly active
+          // prohibition can skip its original incoming card. Its final payer
+          // movement may change those rules, so completion reruns them below.
+          if (frame.energyEntry && h.prepareEnergyEntry) {
+            const entry = h.prepareEnergyEntry(frame, id, frame.energyEntry.witness.destination);
+            if (entry === "wait") return "wait";
+            if (entry === "recheck") continue;
+          }
           if (op.completedAs && !frame.movementResults![op.completedAs].selected.some(item => item.card === id && item.epoch === h.zoneEpoch(id))) {
             if (frame.awaiting === "replaceMove") { h.clearLastMode(); frame.awaiting = undefined; }
             frame.moveLoop.index++;
@@ -3460,7 +3468,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             }
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
-          if (dest === "energy" && h.prepareEnergyEntry?.(frame, id, { player: owner, area: "energy", ...(op.mode ? { mode: op.mode } : {}) }) === "wait") return "wait";
+          if (dest === "energy" && h.prepareEnergyEntry) {
+            const entry = h.prepareEnergyEntry(frame, id, { player: owner, area: "energy", ...(op.mode ? { mode: op.mode } : {}) });
+            if (entry === "wait") return "wait";
+            if (entry === "recheck") continue;
+          }
           const deferred = defers(replaced);
           const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
           if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: op.cause ?? "effect", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
@@ -3567,6 +3579,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           frame.moveLoop.leftBattle = undefined;
           frame.moveLoop.index++;
         }
+        if (h.prepareEnergyEntry) frame.energyEntry = undefined;
         frame.moveLoop = undefined;
         // Phrasing batch 9 (owner's ruling of 27 Oct 2026 on BT10-054, 3-1-4): the cards a named move took are the cards
         // as they arrived. One that leaves that area and comes back is a new card, and no longer the one "you placed in

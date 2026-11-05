@@ -183,8 +183,10 @@ export interface ScriptHost {
   guardEnergyEntryFrame?(frame: ScriptFrame): void;
   guardEnergyEntryBatch?(frame: ScriptFrame, ids: string[]): void;
   /** Run the original movement's optional child before the native mover captures
-   * final mode. A waiting child must requeue this parent, never itself. */
-  prepareEnergyEntry?(frame: ScriptFrame, id: string, destination: { player: PlayerId; area: "energy"; mode?: "active" | "rest" }): "ready" | "wait";
+   * final mode. A waiting child must requeue this parent, never itself.
+   * First completion returns recheck so payer effects cannot stale earlier
+   * prohibition/replacement checks on the original movement. */
+  prepareEnergyEntry?(frame: ScriptFrame, id: string, destination: { player: PlayerId; area: "energy"; mode?: "active" | "rest" }): "ready" | "wait" | "recheck";
   reportsMovement?: true;
   move(id: string, to: Area, owner: PlayerId, opts?: MoveOptions): Area;
   /** 5-9: KO a card, by this source. */

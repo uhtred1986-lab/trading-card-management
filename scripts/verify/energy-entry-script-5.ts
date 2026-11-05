@@ -27,7 +27,7 @@ function stage(state: VmState, player: PlayerId, cardId: string, area: string): 
 
 let cases=0;
 const policy={version:1 as const,colors:["Red","Blue"] as ["Red","Blue"]};
-for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck"] as const)for(const accept of [false,true]){
+for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck"] as const)for(const accept of [false,true])for(const blockAfterPayer of [false,true]){
  let state=RULES.createGame(ctx,{seed:476,p1:{name:"One",leader:"L",main:fifty("F")},p2:{name:"Two",leader:"L",main:fifty("F")}}).state as VmState;
  const incoming=stage(state,player,"IN",origin);
  stage(state,player,"R","drop");stage(state,player,"R","drop");stage(state,player,"B","drop");stage(state,player,"B","drop");
@@ -37,16 +37,18 @@ for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck"] as 
  for(;;){
   const base=vmHost(ctx,game,state,events,parent);
   const host={...base,
+   forbids:(...args:Parameters<typeof base.forbids>)=>args[0]==="energyCap"&&blockAfterPayer&&state.sides[player].zones.warp.length>0 || base.forbids(...args),
    guardEnergyEntryFrame:()=>{order.push("frame");},
    guardEnergyEntryBatch:()=>{order.push("batch");},
-   prepareEnergyEntry:(frame:ScriptFrame,id:string,destination:{player:PlayerId;area:"energy";mode?:"active"|"rest"}):"ready"|"wait"=>{
+   prepareEnergyEntry:(frame:ScriptFrame,id:string,destination:{player:PlayerId;area:"energy";mode?:"active"|"rest"}):"ready"|"wait"|"recheck"=>{
     assert.equal(state.sides[player].zones[origin].includes(incoming),true);
     frame.energyEntry??=createEnergyEntryContinuation(base,frame,id,10,policy,destination);
     const pending=frame.energyEntry;
     requireEnergyEntryContinuation(base,frame,pending,10,policy,destination);
+    const completedBefore=pending.completed;
     if(runEnergyEntryContinuation(base,vmHost(ctx,game,state,events,pending.child),frame,pending)==="suspended")return "wait";
     assert.equal(energyEntryNegationEarned(pending),accept);
-    order.push("ready");return "ready";
+    order.push("ready");return completedBefore?"ready":"recheck";
    },
    move:(...args:Parameters<typeof base.move>)=>{
     assert.equal(parent.energyEntry?.completed,true,"child is completed before native mode capture/move");
@@ -63,13 +65,15 @@ for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck"] as 
   else if(state.prompt.kind==="chooseCards")state.lastChoice=[state.prompt.choice.candidates[0]];
   else assert.fail(`unexpected ${state.prompt.kind}`);
  }
- assert.equal(attempts,1);assert.equal(parent.ip,1);assert.equal(parent.energyEntry,undefined);
- assert.deepEqual(order.slice(-2),["ready","move"]);
- assert.equal(state.sides[player].zones.energy.includes(incoming),true);
+ const blocked=accept&&blockAfterPayer;
+ assert.equal(attempts,blocked?0:1);assert.equal(parent.ip,1);assert.equal(parent.energyEntry,undefined);
+ if(!blocked)assert.deepEqual(order.slice(-2),["ready","move"]);
+ assert.equal(state.sides[player].zones.energy.includes(incoming),!blocked);
+ assert.equal(state.sides[player].zones.warp.length,accept?2:0,"a new cap does not abandon an already started child");
  // This seam-only wrapper deliberately does not install negation. Native
  // mode still sees Energy-Exhaust; earning it is not implementing it.
- assert.equal(state.cards[incoming].mode,"rest");
- assert.equal(stepScript(vmHost(ctx,game,state,events),parent),"done");assert.equal(attempts,1);
+ if(!blocked)assert.equal(state.cards[incoming].mode,"rest");
+ assert.equal(stepScript(vmHost(ctx,game,state,events),parent),"done");assert.equal(attempts,blocked?0:1);
  cases++;
 }
 for(const player of ["p1","p2"] as const){
