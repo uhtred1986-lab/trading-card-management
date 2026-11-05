@@ -493,6 +493,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       finishStandingNegationMutation(ctx, state, transaction);
       return added;
     },
+    setEffectGroup: (effectId, group) => {
+      const effect = state.effects.find(item => item.id === effectId);
+      if (!effect) throw new IllegalAction("the effect to group is no longer available");
+      const transaction = beginStandingNegationMutation(ctx, state);
+      effect.group = group;
+      finishStandingNegationMutation(ctx, state, transaction);
+    },
     schedule: (d) => {
       schedule(state, ev, d);
     },
