@@ -139,6 +139,8 @@ export interface SideView {
   /** Null when the hand is the opponent's: only its size is public (3-3-3). */
   hand: CardView[] | null;
   handCount: number;
+  /** R461: declared alternative Counter sources revealed during payment; other hand cards remain secret. */
+  revealedHand?: CardView[];
   life: number;
   /**
    * 3-9-2-1: the life cards a skill turned face up, and the same in the

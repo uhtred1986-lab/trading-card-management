@@ -345,6 +345,7 @@ function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: P
   const choices = hiddenChoices(state, p, viewer, mine);
   const rules = rulesOn(ctx, game, state, p);
   const readable = vmRevealedTo(game, state, viewer);
+  const revealedHand = revealedAlternativeCounters(state).filter(id => at(VIEW_ZONES.hand).includes(id)).map(id => cardView(ctx, game, state, id, images, availability, viewer));
   const inspect = (zone: string) => at(zone).filter((id) => readable.has(id)).map((id) => cardView(ctx, game, state, id, images, availability, viewer));
   return {
     player: p,
@@ -358,6 +359,7 @@ function sideView(ctx: EngineContext, game: GameDefinition, state: VmState, p: P
     // 3-3-3: only the size of an opponent's hand is public.
     hand: mine ? cards(VIEW_ZONES.hand) : null,
     handCount: at(VIEW_ZONES.hand).length,
+    ...(revealedHand.length ? { revealedHand } : {}),
     life: at(VIEW_ZONES.life).length,
     lifeFaceUp: faceUp(VIEW_ZONES.life),
     zDeckFaceUp: faceUp(VIEW_ZONES.zDeck),
@@ -500,6 +502,14 @@ function cardView(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
   };
 }
 
+/** R461 / 12-2-2-1: only the declared payment source is revealed. */
+function revealedAlternativeCounters(state: VmState): string[] {
+  return state.programs.flatMap(frame => {
+    const alternative = frame.counterCost?.alternative;
+    return alternative?.version === 1 && alternative.sourceEpoch === (state.cards[frame.card]?.zoneEpoch ?? 0) && state.sides[frame.master].zones.hand.includes(frame.card) ? [frame.card] : [];
+  });
+}
+
 /**
  * Every card instance whose identity `viewer` may know right now — the legacy
  * `revealedTo` (`../view.ts`), read off the zone declarations rather than a
@@ -535,6 +545,7 @@ export function vmRevealedTo(game: GameDefinition, state: VmState, viewer: Playe
       for (const id of ids ?? []) if (open || state.cards[id]?.faceUp) add(id);
     }
   }
+  for (const id of revealedAlternativeCounters(state)) add(id);
   const pr = state.prompt;
   if (pr.kind === "chooseCards" && pr.player === viewer && !pr.choice.blind) for (const id of pr.choice.candidates) add(id);
   return out;

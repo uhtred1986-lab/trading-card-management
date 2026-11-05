@@ -70,7 +70,7 @@ import { requireSkillPayment } from "./skill-payment";
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
 import { prepareReplacementAuto } from "./replacement-auto";
-import type { SkillPlayScope } from "./skill-play-scope";
+import { rebuildScope, type SkillPlayScope } from "./skill-play-scope";
 import { counterBindingProblem } from "./skill-play-binding";
 import { battleIntact, damageRule } from "./battle-damage";
 import { IllegalAction } from "./common";
@@ -847,9 +847,6 @@ function counterPriceOps(script: { price?: { ops?: Op[] | null } } | undefined):
   return ops?.length ? ops : null;
 }
 
-/** Where a [Counter]'s action price leaves what it chose for the effect — `vm/activate.ts`'s own key shape. */
-const counterVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${skillIndex}`;
-
 /**
  * #716 (1-6, 5-8-3): what a [Counter] line prints before its colon beyond
  * orbs, read off its record — a condition that must hold (9-1-3) and an action
@@ -899,7 +896,7 @@ function counterRoutes(ctx: EngineContext, game: GameDefinition, state: VmState,
   const ops = reading.ops;
   if (alt?.pay === "program" && (ops || price.markersOff.length || price.pooled.some(p => p.n > 0))) programAltBesideAction();
   const paid = plan.ok && (!ops || counterActionFinishes(ctx, game, state, player, card, sk, ops, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, counterPaymentAction(game).cost)));
-  const altOk = !!alt && counterActionFinishes(ctx, game, state, player, card, sk, ops ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], player, card, sk, alt));
+  const altOk = !!alt && counterActionFinishes(ctx, game, state, player, card, sk, alt.pay === "program" ? alt.ops ?? [] : ops ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], player, card, sk, alt));
   return { paid, alt: altOk ? alt : null, why: paid ? [] : plan.ok ? [{ kind: "other", detail: "its skill cost cannot be paid in full" }] : plan.why };
 }
 
@@ -937,6 +934,8 @@ const notYetWhy = (err: NotYet): Requirement => ({ kind: "other", detail: `not y
 export interface CounterCost {
   /** The printed line being activated. */
   skill: Skill;
+  /** R461: alternative payment retains the original unpaid hand occurrence. */
+  alternative?: { version: 1; sourceEpoch: number };
   /** Its effect, run only once the whole price is paid. */
   effect: Op[];
   /** Paid at "without paying its energy cost" (5-3) — what `skillActivated` reports. */
@@ -957,6 +956,13 @@ export interface CounterCost {
  */
 export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.counterCost!;
+  if (cost.alternative) {
+    if (cost.alternative.version !== 1 || !Number.isSafeInteger(cost.alternative.sourceEpoch) || cost.alternative.sourceEpoch < 0) rebuildScope("rebuild the saved alternative Counter source");
+    if (!state.sides[frame.master].zones.hand.includes(frame.card) || (state.cards[frame.card]?.zoneEpoch ?? 0) !== cost.alternative.sourceEpoch) {
+      log(ev, { type: "note", text: "[Counter] activation failed: the original alternative-payment source left the hand" });
+      return "done";
+    }
+  }
   try {
     if (!(frame.awaiting === "replaceMove" && state.lastMode !== null) && !canFinishAutomaticPrice(ctx, game, state, frame)) {
       if (frame.awaiting) throw new IllegalAction("that [Counter] skill cost payment is no longer available");
@@ -1381,7 +1387,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // An action alternative (`pay: "program"`) is not paid here: it runs as a
   // price program in front of the effect, below.
   if (alt) {
-    if (!counterActionFinishes(ctx, game, state, action.player, card, sk, actionPrice ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], action.player, card, sk, alt))) {
+    if (!counterActionFinishes(ctx, game, state, action.player, card, sk, alt.pay === "program" ? alt.ops ?? [] : actionPrice ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], action.player, card, sk, alt))) {
       throw new IllegalAction("can't pay the counter's cost: its skill cost cannot be paid in full");
     }
     if (alt.pay !== "program") chargeCounterAlternative(ctx, game, state, ev, action.player, card, sk, alt);
@@ -1414,22 +1420,9 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // once it is paid in full does the card go to the Drop and the skill
   // activate, with what the price chose handed to the effect ("the card that
   // was switched to Hidden Mode by this skill", BT28-121).
-  if (actionPrice || taxGate) {
-    state.programs.unshift({ ops: actionPrice ?? [], ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterCost: { skill: sk, effect: program, free: alt?.pay === "none", afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
-    return "done";
-  }
-  // 4-3-3: an action alternative runs as its own program in front of the
-  // effect and hands on what it chose; the price finishing is what announces
-  // the line — `vm/activate.ts`'s shape, which the host already reads.
-  if (alt?.pay === "program" && alt.ops?.length) {
-    const b = state.battle;
-    if (b) (b.counters ??= []).push({ card, by: action.player, after: state.sides[action.player].zones.combo?.length ?? 0 });
-    const afterSkill = afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {};
-    spendUse(state, action.player, card, sk);
-    moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
-    fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA", cardActivation: baseTypeOf(ctx, state, card) === "EXTRA" } });
-    const key = counterVarsKey(card, sk.index);
-    state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", saveVarsAs: key }, { counterAdmission: paidCounterAdmission(showing.scripts.bySkill[sk.index], program), ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", pricedBy: { key, text: sk.raw }, counterSource: { version: 1, card, epoch: state.cards[card].zoneEpoch ?? 0 }, counterMotion: { by: action.player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill });
+  const strictPrice = alt?.pay === "program" ? alt.ops ?? [] : actionPrice;
+  if (strictPrice || taxGate) {
+    state.programs.unshift({ ops: strictPrice ?? [], ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterCost: { skill: sk, effect: program, free: alt?.pay === "none", ...(alt?.pay === "program" ? { alternative: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0 } } : {}), afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
     return "done";
   }
   activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords);
