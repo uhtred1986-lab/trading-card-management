@@ -60,7 +60,8 @@ import type { EngineState, Trigger } from "./harness";
 {
   // 22-14-3: a card with [Ultimate] leaving a Battle Area is removed from the
   // game instead of going wherever it was headed.
-  // `verify/keywords.ts` defines ULT, and proves the same on both engines.
+  // Keep the fixture local so this suite can also run independently.
+  DEFS.ULT = { ...DEFS.V1, id: "ULT", name: "ULT", skill: "[Ultimate]" };
   const s = stagedG({ battle: ["ULT"] });
   const ult = zoneOf(s, "p1", "battle")[0];
   koCardG(s, ult);

@@ -1453,8 +1453,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         { card: "p1#9", player: "p1", replaced: true },
         { card: "p1#9", player: "p1", replaced: true },
         { card: "p1#9", player: "p1", rest: true },
-        { card: "p1#9", player: "p1", negated: true },
-        { card: "p1#9", player: "p1", rest: true, negated: true },
+        { card: "p1#9", player: "p1", negated: true, negatedBy: { player: "p1", source: "p1#0" } },
+        { card: "p1#9", player: "p1", rest: true, negated: true, negatedBy: { player: "p1", source: "p1#0" } },
       ];
       for (const [index, rec] of resolvingOps.entries()) {
         kept.r = [];
@@ -2522,8 +2522,9 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const done = played(board, action);
     assert.deepEqual(done.r.events, [
       { type: "action", action },
-      { type: "move", card: "p1#46", from: "zEnergy", to: "drop", owner: "p1" },
+      // R-399: with the whole pool required, preserve its declared order.
       { type: "move", card: "p1#3", from: "zEnergy", to: "drop", owner: "p1" },
+      { type: "move", card: "p1#46", from: "zEnergy", to: "drop", owner: "p1" },
       { type: "mode", card: "p1#43", mode: "rest" },
       { type: "move", card: zCard, from: "zDeck", to: "battle", owner: "p1", reveal: true },
     ], "a Z-card play did not spend two Z-Energy before resting energy and arriving");
