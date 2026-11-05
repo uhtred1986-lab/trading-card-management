@@ -1,4 +1,4 @@
-import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
+import { guardEnergyEntryLifetimes, refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 import { guardOptionalEnergyFrame, prepareOptionalEnergyEntry, optionalEnergyArrival, guardUnownedEnergyEntry, type OptionalEnergyArrival } from "./energy-entry-runtime";
 import { guardEnergyEntryBatch } from "./energy-entry-preflight";
 import { beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
@@ -260,12 +260,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     move: (id, to, owner, opts) => {
       const arrival = retainedFrame?.arrivalDecision;
       const energyEntry=to === "energy" ? optionalEnergyArrival(ctx,game,state,vmHost(ctx,game,state,ev,retainedFrame),retainedFrame,id,owner,opts?.requestedMode) : undefined;
+      const actor=opts?.actor ?? (energyEntry ? retainedFrame?.master : undefined);
+      const source=opts?.source ?? (energyEntry ? retainedFrame?.card : undefined);
       const onResult: NonNullable<typeof opts>["onResult"] = result => {
         opts?.onResult?.(result);
         if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
           state.resolving?.card === id && (result.completed || result.toEpoch !== result.fromEpoch)) state.resolving.replaced = true;
       };
-      moveTo(ctx, game, state, ev, id, to, owner, { onResult, energyEntry, actor: opts?.actor, requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      moveTo(ctx, game, state, ev, id, to, owner, { onResult, energyEntry, actor, requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(source ? { source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -287,6 +289,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `placeUnder` fires none either — only the client-visible picture),
     // which is why this is `log`, not `emit`.
     placeUnder: (id, host, frame, onResult) => {
+      refuseEnergyEntryProcedure(state,[id,host]);
       refuseStandingNegationMutation(state, "under placement", ctx);
       // Audit triggers 3: where it came from, read before it joins the pile (which is in no area, 23-2).
       const from = zoneOf(state, id), fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
@@ -328,6 +331,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // pile under it in its order (23-2-2-1, 23-2-6). Not in a Leader Area: a
     // Leader is the only card that stands there (3-1-2, 17-1-1).
     placeOnTop: (id, host) => {
+      refuseEnergyEntryProcedure(state,[id,host]);
       refuseStandingNegationMutation(state, "stack placement", ctx, zoneOf(state, host) === "battle" ? id : undefined);
       const top = state.cards[host];
       const at = findCard(state, host);
@@ -417,6 +421,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       card(id).faceUp = faceUp;
     },
     setHidden: (id, hidden, by) => {
+      refuseEnergyEntryProcedure(state,[id]);
       refuseStandingNegationMutation(state, "Hidden switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
       clearAutoReveal(state, id);
       card(id).hidden = hidden;
@@ -437,6 +442,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       emit(ctx, game, state, ev, { event: "hiddenSwitched", card: id, controller, args: { hidden, in: zoneOf(state, id) ?? "", ...cause } }, null);
     },
     flip: (id, toBack = true) => {
+      refuseEnergyEntryProcedure(state,[id]);
       refuseStandingNegationMutation(state, "face switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
       card(id).flipped = toBack;
       log(ev, { type: "flip", card: id, flipped: toBack });
@@ -1096,7 +1102,7 @@ function moveTo(
   const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode, opts.energyEntry?.negate).mode : route.mode;
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
   const transaction = beginStandingNegationMutation(ctx, state, to === "battle" ? id : undefined);
-  const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
+  const placed = moveCard(state, game, id, to, { energyEntryCleanup: true, owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     finishStandingNegationMutation(ctx, state, transaction);

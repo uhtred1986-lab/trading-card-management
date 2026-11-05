@@ -1,5 +1,8 @@
 /** R476 ordinary-effect mechanism controls; no native entry admission yet. */
 import assert from "node:assert/strict";
+import standingFixtures from "./fixtures/standing-negation-observation-5.json";
+import { resolvePlay } from "../../src/lib/arena/vm/play";
+import { validateStandingNegationRead } from "../../src/lib/arena/vm/standing-negation-runtime";
 import { card, fifty } from "./harness";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
@@ -72,11 +75,14 @@ for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck"] as 
  assert.equal(events.filter(event=>event.type==="move"&&event.card===incoming&&event.to==="energy").length,1);
  assert.equal(parent.energyEntry,undefined);cases++;
  if(choice==="accept"){
+  RULES.boardView(ctx,copy(state),player,{});RULES.legalActions(ctx,copy(state));
+  assert.equal(JSON.stringify({state,parent}).includes("energyEntryCleanup"),false,"cleanup ownership is only a synchronous call option");
   const malformedStamps=[
    (saved:VmState)=>{saved.effects.find(effect=>effect.energyEntryEpoch!==undefined)!.energyEntryEpoch!++;},
    (saved:VmState)=>{saved.effects.find(effect=>effect.energyEntryEpoch!==undefined)!.source="wrong-source";},
    (saved:VmState)=>{saved.effects.find(effect=>effect.energyEntryEpoch!==undefined)!.target=saved.sides[player].zones.leader[0];},
    (saved:VmState)=>{saved.effects.find(effect=>effect.energyEntryEpoch!==undefined)!.kind="power";},
+   (saved:VmState)=>{saved.effects.find(effect=>effect.energyEntryEpoch!==undefined)!.value="Blocker";},
    (saved:VmState)=>{saved.effects.find(effect=>effect.energyEntryEpoch!==undefined)!.until="turn";},
    (saved:VmState)=>{saved.effects.find(effect=>effect.energyEntryEpoch!==undefined)!.master=player==="p1"?"p2":"p1";},
    (saved:VmState)=>{saved.sides[player].zones.energy=saved.sides[player].zones.energy.filter(id=>id!==incoming);saved.sides[player].zones.hand.push(incoming);},
@@ -90,12 +96,22 @@ for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck"] as 
    ()=>moveCard(state,game,incoming,"drop"),
    ()=>moveCard(state,game,incoming,"drop",{under:state.sides[player].zones.leader[0]}),
    ()=>moveCard(state,game,state.sides[player].zones.leader[0],"battle",{onto:incoming}),
+   ()=>vmHost(ctx,game,state,events).placeUnder(incoming,state.sides[player].zones.leader[0]),
+   ()=>vmHost(ctx,game,state,events).placeOnTop(incoming,state.sides[player].zones.leader[0]),
+   ()=>vmHost(ctx,game,state,events).setHidden(incoming,true),
+   ()=>vmHost(ctx,game,state,events).flip(incoming,true),
   ]){
    const before=JSON.stringify({state,events});assert.throws(mutate,/procedure for an optional Energy negation occurrence/);assert.equal(JSON.stringify({state,events}),before);cases++;
   }
 
   const unrelated=vmHost(ctx,game,state,events).addEffect({target:incoming,kind:"power",value:1000,until:"game"})!;
   const oldKeyword=vmHost(ctx,game,state,events).addEffect({target:incoming,kind:"negateKeyword",value:"Blocker",until:"game"})!;
+  if(origin==="hand"){
+   const projected=copy(state),departureEvents:GameEvent[]=[];
+   vmHost(ctx,game,projected,departureEvents).move(incoming,"drop",player);
+   assert.ok(projected.sides[player].zones.drop.includes(incoming));assert.equal(projected.effects.some(effect=>effect.energyEntryEpoch!==undefined),false);
+   assert.equal(hasKeyword(ctx,game,projected,incoming,"Energy-Exhaust"),true);cases++;
+  }
   moved(ctx,game,state,events,incoming,"drop",{owner:player});
   assert.equal(state.effects.some(effect=>effect.target===incoming&&effect.energyEntryEpoch!==undefined),false);
   assert.ok(state.effects.some(effect=>effect.id===unrelated.id));assert.ok(state.effects.some(effect=>effect.id===oldKeyword.id),"unstamped keyword effect follows existing flow lifetime");
@@ -203,5 +219,25 @@ for(const player of ["p1","p2"] as const)for(const scenario of ["batch","drop","
  const before=JSON.stringify({state,events,frame});
  assert.throws(()=>stepScript(host,frame),error=>error instanceof NotYet);
  assert.equal(JSON.stringify({state,events,frame}),before,"unsupported route refuses before first ordinary payment or batch move");cases++;
+}
+for(const player of ["p1","p2"] as const){
+ const localDefs={...defs,"DB1-066":card("DB1-066",{skill:standingFixtures["DB1-066"].skill})};
+ const localRows=Object.values(localDefs).flatMap(skillRecords);
+ const localCtx:EngineContext={defs:localDefs,scripts:rulesFromRows(localRows.map((row,id)=>({...row,id,status:"draft",source:"compiler"}) as unknown as RuleRow),localDefs)};
+ localCtx.scripts!.IN.bySkill[10].ops=[{op:"energyEntryExhaust",colors:["Red","Blue"]}];localCtx.scripts!.IN.bySkill[10].unsupported=[];
+ let state=RULES.createGame(localCtx,{seed:476,p1:{name:"One",leader:"L",main:fifty("F")},p2:{name:"Two",leader:"L",main:fifty("F")}}).state as VmState;
+ const incoming=stage(state,player,"IN","hand"),king=stage(state,player,"DB1-066","hand"),events:GameEvent[]=[];
+ stage(state,player,"R","drop");stage(state,player,"R","drop");stage(state,player,"B","drop");stage(state,player,"B","drop");
+ resolvePlay(localCtx,game,state,events,king,player);assert.ok(state.standingNegationHistory);
+ let frame:ScriptFrame={card:state.sides[player].zones.leader[0],master:player,ops:[{op:"moveTo",target:{var:"incoming"},to:"energy"}],vars:{incoming:[incoming]},ip:0};
+ for(let n=0;n<5;n++){
+  if(stepScript(vmHost(localCtx,game,state,events,frame),frame)==="done")break;
+  state=copy(state);frame=state.programs.shift()!;validateStandingNegationRead(localCtx,state);
+  if(state.prompt.kind==="chooseMode")state.lastMode=0;
+  else if(state.prompt.kind==="chooseCards")state.lastChoice=[state.prompt.choice.candidates[0]];
+  else assert.fail("missing optional question");
+ }
+ validateStandingNegationRead(localCtx,state);assert.equal(state.cards[incoming].mode,"active");assert.equal(hasKeyword(localCtx,game,state,incoming,"Energy-Exhaust"),false);
+ moved(localCtx,game,state,events,incoming,"drop",{owner:player});validateStandingNegationRead(localCtx,state);assert.equal(hasKeyword(localCtx,game,state,incoming,"Energy-Exhaust"),true);cases++;
 }
 console.log(`energy-entry-native-5: ${cases} synthetic native entry checks passed; compiler/source admission remains blocked`);
