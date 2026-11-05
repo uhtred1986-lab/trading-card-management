@@ -5203,6 +5203,10 @@
   ],
   "costItems": [
     {
+      "syntax": "AWAKENALT",
+      "doc": "the versioned life-or-single-pile Awaken payment contract as quoted JSON"
+    },
+    {
       "syntax": "EVOLUTION",
       "doc": "the versioned EX-Evolve Battle-base contract as a quoted JSON object"
     },

@@ -11,7 +11,7 @@ import { IllegalAction } from "./common";
 import { NotYet } from "./errors";
 import { fire, log } from "./events";
 import { vmHost } from "./host";
-import { keywordAfterProgram, keywordProgram } from "./keyword-do";
+import { keywordAfterProgram, keywordMoveOf, keywordProgram } from "./keyword-do";
 import { forbiddenBy, resolveSelector, spendProhibitionUse, standingKindNegated, standingKeywordsNegated } from "./program";
 import { stepScript } from "./script";
 import { canonicalTaxValue as canonical } from "./tax-receipt";
@@ -80,13 +80,21 @@ export function queueAwakenAlternative(state: VmState, master: PlayerId, line: A
 }
 function requireCost(frame: ScriptFrame): AwakenAlternativeCost {
   const cost = frame.awakenAlternativeCost;
-  if (!cost || cost.version !== 1 || !validOccurrence(cost.source) || cost.source.card !== frame.card || cost.source.master !== frame.master || typeof cost.source.cardId !== "string" || !cost.line?.skill || !cost.line.script?.price || cost.line.card !== frame.card || cost.line.skillIndex !== frame.skillIndex || cost.line.skill.index !== frame.skillIndex || !hasAwakenAlternative(cost.line) || awakenAlternativeProblem(cost.descriptor) || canonical(cost.descriptor) !== canonical(cost.line.script.price.awakenAlternative) || !["route", "host", "payers"].includes(cost.stage) || !cost.payers || typeof cost.payers !== "object" || Array.isArray(cost.payers) || !Array.isArray(frame.ops) || !Number.isSafeInteger(frame.ip) || frame.ip < 0 || frame.ip > frame.ops.length || !frame.vars || typeof frame.vars !== "object" || Array.isArray(frame.vars)) rebuild("rebuild the saved alternative Awaken declaration");
+  if (!cost || cost.version !== 1 || !validOccurrence(cost.source) || cost.source.card !== frame.card || cost.source.master !== frame.master || !["p1", "p2"].includes(cost.source.master) || !Number.isSafeInteger(frame.skillIndex) || frame.skillIndex! < 0 || typeof cost.source.cardId !== "string" || !cost.line?.skill || !cost.line.script?.price || cost.line.card !== frame.card || cost.line.skillIndex !== frame.skillIndex || cost.line.skill.index !== frame.skillIndex || !hasAwakenAlternative(cost.line) || awakenAlternativeProblem(cost.descriptor) || canonical(cost.descriptor) !== canonical(cost.line.script.price.awakenAlternative) || !["route", "host", "payers"].includes(cost.stage) || !cost.payers || typeof cost.payers !== "object" || Array.isArray(cost.payers) || !Array.isArray(frame.ops) || !Number.isSafeInteger(frame.ip) || frame.ip < 0 || frame.ip > frame.ops.length || !frame.vars || typeof frame.vars !== "object" || Array.isArray(frame.vars)) rebuild("rebuild the saved alternative Awaken declaration");
   if (cost.routes !== undefined && (!Array.isArray(cost.routes) || !cost.routes.length || cost.routes.some(route => route !== "free" && route !== "under") || new Set(cost.routes).size !== cost.routes.length)) rebuild("rebuild the alternative Awaken route choice");
   if (cost.hosts !== undefined && (!Array.isArray(cost.hosts) || cost.hosts.some(host => !validOccurrence(host)) || new Set(cost.hosts.map(host => host.card)).size !== cost.hosts.length)) rebuild("rebuild the alternative Awaken host choice");
   if (cost.pool !== undefined && (!Array.isArray(cost.pool) || cost.pool.some(payer => !validOccurrence(payer)) || new Set(cost.pool.map(payer => payer.card)).size !== cost.pool.length)) rebuild("rebuild the original alternative Awaken pile");
   if (cost.offered !== undefined && (!Array.isArray(cost.offered) || cost.offered.some(payer => !validOccurrence(payer)) || new Set(cost.offered.map(payer => payer.card)).size !== cost.offered.length)) rebuild("rebuild the offered alternative Awaken payer occurrences");
   for (const [card, payer] of Object.entries(cost.payers)) if (!card || !payer || !Number.isSafeInteger(payer.epoch) || payer.epoch < 0 || typeof payer.paid !== "boolean") rebuild("rebuild the alternative Awaken payer occurrences");
   if (cost.stage === "payers" && (!validOccurrence(cost.host) || !cost.pool)) rebuild("rebuild the chosen alternative Awaken host occurrence");
+  if (cost.stage !== "payers" && (frame.ops.length || frame.ip !== 0 || Object.keys(frame.vars).length)) rebuild("rebuild the alternative Awaken route/host phase");
+  if (cost.stage === "payers") {
+    if (canonical(frame.ops) !== canonical([payerChoice(cost.descriptor.count)]) || canonical(frame.vars[HOST]) !== canonical([cost.host!.card]) || canonical(frame.vars[`${HOST}@epoch`]) !== canonical([`${cost.host!.card}@${cost.host!.epoch}`])
+      || canonical(frame.vars[POOL]) !== canonical(cost.pool!.map(payer => payer.card)) || canonical(frame.vars[`${POOL}@epoch`]) !== canonical(cost.pool!.map(payer => `${payer.card}@${payer.epoch}`))) rebuild("rebuild the original alternative Awaken pile binding");
+    const prior = frame.vars[PAYERS] ?? [];
+    if (!Array.isArray(prior) || new Set(prior).size !== prior.length || prior.some(card => !cost.payers[card])) rebuild("rebuild the selected alternative Awaken payer receipts");
+    if (frame.awaiting === PAYERS && !cost.offered) rebuild("rebuild the offered alternative Awaken payer occurrences");
+  }
   return cost;
 }
 function sourceValid(state: VmState, cost: AwakenAlternativeCost): boolean {
@@ -100,6 +108,7 @@ function fail(state: VmState, ev: GameEvent[], frame: ScriptFrame, message: stri
 }
 function liveLine(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, cost: AwakenAlternativeCost): boolean {
   const showing = skillsShowing(ctx, state, frame.card), skill = showing.skills.find(sk => sk.index === cost.line.skillIndex);
+  if (canonical(cost.line.keyword) !== canonical(keywordMoveOf(game, cost.line.skill)) || cost.line.kind !== cost.line.keyword?.offer) rebuild("rebuild the saved alternative Awaken keyword declaration");
   return !!skill && canonical(skill) === canonical(cost.line.skill) && canonical(showing.scripts.bySkill[cost.line.skillIndex]) === canonical(cost.line.script)
     && !skillsNegated(state, frame.card) && !skillNegated(state, frame.card, skill.index, skill.kind)
     && !keywordSkillsNegated(state, frame.card) && !standingKindNegated(ctx, game, state, frame.card, skill.kind)

@@ -48,13 +48,14 @@ for(const owner of ["p1","p2"]as const){
  const {s:initial,leader}=fresh(owner);let s=initial;const first=pile(s,owner,3),second=pile(s,owner,3);s=take(s,offer(s,leader)!);assert.equal(s.prompt.kind,"chooseCards");if(s.prompt.kind==="chooseCards")assert.deepEqual(s.prompt.choice.candidates,[first.host,second.host]);
  s=take(s,{type:"choose",player:owner,cards:[second.host]});for(const id of second.payers.slice(0,3))if(s.prompt.kind==="chooseCards")s=take(s,{type:"choose",player:owner,cards:[id]});assert.equal(s.cards[leader].flipped,true);assert.deepEqual(s.cards[first.host].under,first.payers);assert.deepEqual(s.cards[second.host].under,[]);cases++;
 }
-for(const owner of ["p1","p2"]as const)for(const fault of ["payer-aba","offered-aba","host-aba","source-aba","negated","negation-restored","ban","missing-payer","missing-offered","missing-line","missing-ops"]as const){
+for(const owner of ["p1","p2"]as const)for(const fault of ["payer-aba","offered-aba","host-aba","source-aba","negated","negation-restored","ban","missing-payer","missing-offered","missing-line","missing-ops","missing-keyword-declaration"]as const){
  const {s:initial,leader}=fresh(owner);let s=initial;const {host,payers}=pile(s,owner,4);s=take(s,offer(s,leader)!);assert.equal(s.prompt.kind,"chooseCards");
  const early=fault==="offered-aba";if(!early)s=take(s,{type:"choose",player:owner,cards:[payers[0]]});
  const frame=s.programs.find(f=>f.awakenAlternativeCost)!;assert.ok(frame);
  if(fault==="missing-payer")delete frame.awakenAlternativeCost!.payers[payers[0]];
  if(fault==="missing-offered")delete frame.awakenAlternativeCost!.offered;
  if(fault==="missing-line")delete (frame.awakenAlternativeCost as unknown as {line?:unknown}).line;
+ if(fault==="missing-keyword-declaration")frame.awakenAlternativeCost!.line.keyword!.after=[];
  if(fault==="missing-ops")delete (frame as unknown as {ops?:unknown}).ops;
  if(fault==="payer-aba"||early){assert.ok(moveCard(s,game,payers[0],"drop",{owner}).ok);assert.ok(moveCard(s,game,payers[0],"battle",{owner,under:host}).ok);}
  if(fault==="host-aba"){assert.ok(moveCard(s,game,host,"hand",{owner}).ok);assert.ok(moveCard(s,game,host,"battle",{owner}).ok);}
@@ -90,10 +91,19 @@ assert.equal(validateRule(rule,"keyword"),null);const parsed=parseRule(printRule
 for(const bad of [{...row.cost,condition:{kind:"life",side:"you",atMost:4}},{...row.cost,program:[{op:"draw",n:1}]},{...row.cost,awakenAlternative:{...row.cost!.awakenAlternative,count:0}}])assert.ok(costRecordProblem(bad));cases+=4;
 for(const owner of ["p1","p2"]as const)for(const mode of ["success","fail"]as const){
  const {s:initial,leader}=fresh(owner);let s=initial;const {payers}=pile(s,owner,4);
- addEffect(s,[],{target:leader,kind:"forbid",value:0,until:"game",forbid:{what:"activateSkill",player:owner,uses:1,fromArea:"leader",skillKind:"activate:main/battle",keyword:"Awaken"}});
+ addEffect(s,[],{target:leader,kind:"forbid",value:0,until:"game",forbid:{what:"activateSkill",player:owner,uses:1,skillKinds:["activate:main/battle"],keywordSkill:"Awaken"}});
  s=take(s,offer(s,leader)!);assert.equal(s.effects.find(e=>e.forbid?.what==="activateSkill")!.forbid!.uses,1);
  if(mode==="fail")addEffect(s,[],{target:leader,kind:"forbid",value:0,until:"game",forbid:{what:"flipLeaderBack",player:owner}});
  let activationEvents=0;for(const id of payers.slice(0,3))if(s.prompt.kind==="chooseCards"){const result=RULES.apply(ctx,copy(s),{type:"choose",player:owner,cards:[id]});s=result.state as VmState;activationEvents+=result.events.filter(e=>e.type==="skill"&&e.card===leader).length;}
  assert.equal(s.cards[leader].flipped,mode==="success");assert.equal(s.effects.find(e=>e.forbid?.what==="activateSkill")!.forbid!.uses,mode==="success"?0:1);assert.equal(activationEvents,mode==="success"?1:0);cases++;
+}
+// Stage an ordinary combo window to exercise the real Activate: Battle route.
+for(const owner of ["p1","p2"]as const)for(const ownTurn of [true,false]){
+ const {s:initial,leader}=fresh(owner);let s=initial;const {payers}=pile(s,owner,3),opponent=other(owner);s.turnPlayer=ownTurn?owner:opponent;s.phase="battle";
+ const attacker=s.sides[s.turnPlayer].zones.leader[0],guard=s.sides[other(s.turnPlayer)].zones.leader[0];s.battle={attacker,guard,target:guard,step:ownTurn?"offense":"defense",negated:false,blockerOffered:false,counters:[]};s.prompt={kind:"combo",player:owner,side:ownTurn?"offense":"defense"};
+ const a=offer(s,leader);assert.ok(a);s=take(s,a);assert.equal(s.cards[leader].flipped,true);assert.deepEqual(s.cards[leader].under,payers);assert.notEqual(s.outcome?.kind,"interrupted");cases++;
+}
+for(const owner of ["p1","p2"]as const){
+ const {s:initial,leader}=fresh(owner);let s=initial;const short=pile(s,owner,2),complete=pile(s,owner,3);s=take(s,offer(s,leader)!);assert.equal(s.cards[leader].flipped,true);assert.deepEqual(s.cards[leader].under,complete.payers);assert.deepEqual(s.cards[short.host].under,short.payers);cases++;
 }
 console.log(`awaken-alternative-5: ${cases} stored/native cases passed`);
