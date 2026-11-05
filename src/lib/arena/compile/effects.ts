@@ -3240,11 +3240,12 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // Require the established incoming-card antecedent, not an arbitrary "it".
     const shortDrop = /^place (?:it|that card) (?:in|into) its owner'?s drop(?: area)? instead[.]?$/i.test(clause.trim());
     const shortBottom = /^place (?:it|that card) at the bottom of its owner'?s deck instead[.]?$/i.test(clause.trim());
-    if (c.skillKind === "counter:play" && (shortDrop || shortBottom)) {
+    const shortHand = /^return (?:it|that card) to its owner'?s hand instead[.]?$/i.test(clause.trim());
+    if (c.skillKind === "counter:play" && (shortDrop || shortBottom || shortHand)) {
       const ref = refFor("it", c);
       if (ref && "sel" in ref && ref.sel.special === "resolving") {
         const type = ref.sel.filter?.type;
-        return [{ op: "resolvingPlay", instead: shortDrop ? "drop" : "deck", ...(shortBottom ? { position: "bottom" as const } : {}), ...(type === "BATTLE" || type === "UNISON" || type === "EXTRA" ? { cardType: type } : {}) }];
+        return [{ op: "resolvingPlay", instead: shortDrop ? "drop" : shortHand ? "hand" : "deck", ...(shortBottom ? { position: "bottom" as const } : {}), ...(type === "BATTLE" || type === "UNISON" || type === "EXTRA" ? { cardType: type } : {}) }];
       }
     }
     const playedType = /\bbattle card\b/.test(t) ? "BATTLE" as const : /\bunison card\b/.test(t) ? "UNISON" as const : /\bextra card\b/.test(t) ? "EXTRA" as const : undefined;
