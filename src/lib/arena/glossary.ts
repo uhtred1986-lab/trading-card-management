@@ -123,7 +123,7 @@ export const KEYWORDS: Record<KeywordSkill["name"], KeywordDoc> = {
     meaning:
       "When this Z-Card is placed on your Leader or into a Battle or Unison Area, put up to X cards matching the printed description from your Z-Deck underneath it. They become part of the card on top.",
     engineRules:
-      "Built as its keyword's own `DO` (`at: [played, leaderPlaced]` in `keywords.rules`, #155): pended as the Z-Card is played and as it is placed on the Leader, announced as printed, and the Z-Deck cards the line's description matches (`asPrinted`) are offered, up to X or none, and go under it. Each card goes straight under (23-2). When the Z-Card leaves play the cards under it go to the Drop (23-2-5).",
+      "R-457/R-469 implementation checkpoint (verification incomplete): native Field activation now pays card energy, stages the original hand occurrence in the Drop, pays its printed skill price and activation taxes, then places that occurrence in the Battle Area in Active Mode. Invoked Field skills waive their original price but retain activation conditions. Rule cleanup captures all other Fields and asks their owners for mandatory processing order; replacement choices can suspend that cleanup. King Cold’s typed exception applies only to the specified mono-green original-cost-2 Field, while its same-card-number activation restriction observes effective Field skills. Rule cleanup retains negated printed Field identity and excludes deleted granted skills. Native replacement, saved-payment and full compatibility proofs remain unfinished; this checkpoint is not a completed support claim.",
     support: "engine",
   },
 

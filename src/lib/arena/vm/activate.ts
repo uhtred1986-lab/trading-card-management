@@ -1,3 +1,4 @@
+import { fieldAction, fieldPaymentRefusals, isFieldPayment, queueFieldCost } from "./field-costs";
 import { sameCounterUnderDeclaration, sameCounterUnderSource, validCounterUnderOrigin, resetUnderCounterOccurrence } from "./counter-under";
 import { resetEnergyCounterOccurrence } from "./counter-energy";
 import { isOverRealmPayment, overRealmAction, overRealmCost } from "./over-realm-cost";
@@ -520,7 +521,7 @@ function chargeablePrice(line: ActivationLine): boolean {
   // (#926): their `DO` pays it where it says `payActionPrice`
   // (`vm/keyword-costs.ts`), on the same strict host. R-387 admits Awaken's
   // action price before its native effect, with source/material occurrences guarded.
-  if (price.ops?.length) return !line.keyword || line.keyword.name === "Awaken" || aegis || !!swapActionPrice(line) || !!keywordActionPrice(line);
+  if (price.ops?.length) return !line.keyword || line.keyword.name === "Awaken" || aegis || (isFieldPayment(line) && fieldAction(line).length > 0) || !!swapActionPrice(line) || !!keywordActionPrice(line);
   return true;
 }
 
@@ -589,7 +590,7 @@ export function activationRefusals(
   if (unpaidPlay) before.push({ kind: "forbidden", by: unpaidPlay.by, until: unpaidPlay.until, unless: `you pay, each time: ${describeScript(unpaidPlay.ops).replace(/ other than this card\b/g, " other than the card being played")}` });
   // 20-14-1 (#677): a price on activating that cannot be paid is a ban, named
   // with the price — the legacy `whyNotActivate` asks it at the same place.
-  const unpaid = banned ? null : unpaidActivationTaxAfter(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind), boundFor(ctx, game, state, player, line).energy?.total ?? 0);
+  const unpaid = banned || isFieldPayment(line) ? null : unpaidActivationTaxAfter(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind), boundFor(ctx, game, state, player, line).energy?.total ?? 0);
   if (unpaid) before.push({ kind: "forbidden", by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
   const left = usesLeft(state, player, card, sk);
   if (left === 0) before.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
@@ -813,7 +814,7 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
     // R-270: asked as the [Field] keyword skill, so "you can't activate [Field] cards" (XD3-01, `keywordSkill: Field`) holds here.
     if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: skill.kind, keyword: "Field" })) return "blocked";
     const line: ActivationLine = { card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind: keyword.offer as string, keyword };
-    if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return "blocked";
+    if (fieldPaymentRefusals(ctx, game, state, player, line, true).length) return "blocked";
     if (usesLeft(state, player, card, skill) === 0 || !sparkingIsValid(state, player, skill.validity)) return "blocked";
     return line;
   }
@@ -1179,6 +1180,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   const afterSkillKeywords: ("Heroic" | "Villainous")[] = isExtra(ctx, game, state, card)
     ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
     : [];
+  if (isFieldPayment(line) && !resolved) { queueFieldCost(ctx, game, state, player, line, waived); return; }
   const priceOps = waived ? null : actionPriceOf(line);
   const activationEnergyPayment = !waived && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card) ? captureActivationEnergyUses(ctx, game, state, card, sk) : undefined;
   const deferredOverRealm = !waived && isOverRealmPayment(line);

@@ -103,10 +103,7 @@ DEFINE KEYWORD Field
   DO {
     play(target: [self])
   }
-  HOOK onEnter {
-    choose(sel: UP TO 1 "Extra Card with [Field]" IN you.battle otherThanSelf, as: "t")
-    moveTo(target: $t, to: drop)
-  }
+  --22-3-5 cleanup is mandatory rule processing (R469), including replacements.
 
 -- 22-4
 DEFINE KEYWORD Blocker

@@ -1,3 +1,4 @@
+import { fieldPaymentRefusals, isFieldPayment, queueFieldCost } from "./field-costs";
 import { isOverRealmPayment, overRealmPaymentRefusals, retainOverRealmSelection } from "./over-realm-cost";
 /**
  * A move, as a declaration — and the refusal that comes with it.
@@ -264,7 +265,9 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
     return out.length ? out : [{ card: line.card, skill: line.skillIndex, why: short, price: priceFor(ctx, game, state, def, line.card, bound) }];
   }
   const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
-  if (!why.length && isOverRealmPayment(line)) {
+  if (!why.length && isFieldPayment(line)) {
+    if (!gates.after.length) why.push(...fieldPaymentRefusals(ctx, game, state, player, line));
+  } else if (!why.length && isOverRealmPayment(line)) {
     if (!gates.after.length) why.push(...overRealmPaymentRefusals(ctx, game, state, player, line));
   } else if (!why.length && isOrderedZAwaken(line)) {
     if (!gates.after.length) why.push(...orderedZAwakenRefusals(ctx, game, state, player, line));
@@ -302,7 +305,7 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
   const alt = open ? activationAlt(ctx, game, state, def, player, line) : null;
   if (alt) {
     const altPrice = def.cost?.length ? priceFor(ctx, game, state, def, line.card, alt.bound) : freePrice();
-    if (!def.cost?.length || planCost(ctx, game, restedAlready(state, alt.resting), player, altPrice, line.card).ok) out.push({ card: line.card, skill: line.skillIndex, alt: alt.alt, why: [], price: altPrice });
+    if ((!isFieldPayment(line) || !fieldPaymentRefusals(ctx, game, state, player, line, false, alt.alt).length) && (!def.cost?.length || planCost(ctx, game, restedAlready(state, alt.resting), player, altPrice, line.card).ok)) out.push({ card: line.card, skill: line.skillIndex, alt: alt.alt, why: [], price: altPrice });
   }
   // EX03-16: an [Evolve] whose price changes only onto a named base is a
   // candidate once per such base, at the price that base gives it — the
@@ -924,6 +927,12 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // on and before `spendUses` spends a counted rule's use. A keyword's own
   // move has no single boundary they are known to belong at yet, so one under
   // a tax stops here — before anything is paid — rather than going untaxed.
+  if (line && isFieldPayment(line)) {
+    if (fieldPaymentRefusals(ctx, game, state, player, line, false, chosen.alt, action).length) throw new IllegalAction("the complete Field activation cost cannot be paid");
+    queueFieldCost(ctx, game, state, player, line, false, chosen.alt, action);
+    if (def.again !== true) answered(state);
+    return "done";
+  }
   const gate = line ? activationTaxGate(ctx, game, state, player, line.card, line.kind) : null;
   if (line?.keyword && gate) throw new NotYet(`charge a 20-14 activation tax on a keyword's own [${line.keyword.name}] move`, "#677");
   // A keyword move that is the keyword's alone is announced as it is paid for

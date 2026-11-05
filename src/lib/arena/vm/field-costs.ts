@@ -4,10 +4,13 @@ import type { Action, CardOccurrence, EngineContext, GameEvent, PlayerId, Requir
 import { activationAlt, activationMoment, boundFor, resolveActivation, type ActivationLine } from "./activate";
 import type { GameDefinition } from "../rulesets";
 import { automaticPriceHost, AutoPaymentFailed, canFinishAutomaticPrice } from "./auto-costs";
-import { dropEffectsOn, type VmAltCost } from "./effects";
+import { dropEffectsOn, skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { moved } from "./flow";
+import { replacementChoices } from "./replace";
+import { fieldRuleHost } from "./field-rules";
+import { completedMovement } from "./movement-result";
 import { vmHost } from "./host";
-import { taxesOn } from "./program";
+import { forbiddenBy, taxesOn } from "./program";
 import { canonicalTaxValue as canonical } from "./tax-receipt";
 import { cardPrice, captureActivationEnergyUses, consumeActivationEnergyUses, chargeCost, freePrice, payAltCost, planCost, priceFor, spendSkillCostUses, type CapturedEnergyCouponUses, type Price, type VmPayment } from "./costs";
 import { IllegalAction } from "./common";
@@ -16,6 +19,7 @@ import { stepScript, type Op, type ScriptFrame } from "./script";
 import type { VmState } from "./state";
 import { captureTaxPayers, markTaxPayerPaid, taxPayerProblem, taxPayerProgramProblem, type TaxPayers } from "./tax-payers";
 import { requireSkillPayment } from "./skill-payment";
+import { usesLeft } from "./limits";
 import { fire, log } from "./events";
 import { findCard, hostOf } from "./zones";
 
@@ -50,7 +54,7 @@ export interface FieldCost {
   paidTaxes: string[];
   tax?: { identity: string; ops: Op[]; accepted: boolean; payers: TaxPayers };
 }
-export const isFieldPayment = (line: Pick<ActivationLine, "keyword">): boolean => line.keyword?.name === "Field";
+export const isFieldPayment = (line: Pick<ActivationLine, "keyword">): boolean => line?.keyword?.name === "Field";
 
 export function captureFieldSource(ctx: EngineContext, state: VmState, master: PlayerId, card: string): FieldSource {
   const inst = state.cards[card], at = findCard(state, card);
@@ -58,7 +62,7 @@ export function captureFieldSource(ctx: EngineContext, state: VmState, master: P
   return { version: 1, card, cardId: inst.cardId, epoch: inst.zoneEpoch ?? 0, area: at.zone, owner: inst.owner, holder: at.owner, master };
 }
 export function fieldSourceProblem(state: VmState, source: FieldSource | undefined, card: string, master: PlayerId): string | null {
-  if (!source || source.version !== 1 || source.card !== card || source.master !== master || !["p1", "p2"].includes(source.owner)
+  if (!source || source.version !== 1 || source.card !== card || source.master !== master || !["p1", "p2"].includes(source.owner) || !["p1", "p2"].includes(source.master)
     || !["p1", "p2"].includes(source.holder) || typeof source.cardId !== "string" || typeof source.area !== "string" || !source.area || !Number.isSafeInteger(source.epoch) || source.epoch < 0)
     throw new NotYet("rebuild the missing or malformed Field source occurrence", "R457");
   const inst = state.cards[card], at = findCard(state, card);
@@ -112,7 +116,8 @@ function stageField(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   if (fieldSourceProblem(state, cost.source, cost.source.card, cost.source.master)) return false;
   if (cost.source.area !== "hand") return true;
   let completed = false;
-  moved(ctx, game, state, ev, cost.source.card, "drop", { owner: cost.source.owner, reason: "rule", reveal: true,
+  if (replacementChoices(ctx, game, state, cost.source.card, "rule", { requestedTo: "drop" }).some(choice => !choice.optional)) return false;
+  moved(ctx, game, state, ev, cost.source.card, "drop", { replaced: null, owner: cost.source.owner, reason: "rule", reveal: true,
     beforeTriggers: () => dropEffectsOn(state, ev, cost.source.card), onResult: result => { completed = result.completed; } });
   if (!completed) return false;
   cost.source = captureFieldSource(ctx, state, cost.source.master, cost.source.card);
@@ -190,6 +195,7 @@ function payFieldResources(ctx: EngineContext, game: GameDefinition, state: VmSt
   }
   const choice = cost.choices[cost.choices.length > 1 ? state.lastMode ?? -1 : 0];
   if (!choice) throw new IllegalAction("choose an offered Field resource payment");
+  if (!choice.price || !choice.payment || !Array.isArray(choice.payment.rest)) throw new NotYet("rebuild the saved Field resource payment", "R457");
   if (!Array.isArray(choice.payers) || choice.payers.length !== choice.payment.rest.length || choice.payers.some((payer, i) => !payer || payer.card !== choice.payment.rest[i] || !Number.isSafeInteger(payer.epoch) || payer.epoch < 0 || (state.cards[payer.card]?.zoneEpoch ?? 0) !== payer.epoch)) throw new IllegalAction("a selected Field energy occurrence is no longer available");
   const price = fieldPrice(ctx, game, state, cost, cardEnergy);
   const current = planCost(ctx, game, state, frame.master, price, frame.card, choice.payment.rest);
@@ -224,7 +230,7 @@ function stepFieldTaxes(ctx: EngineContext, game: GameDefinition, state: VmState
       if (answer === 1) throw new AutoPaymentFailed("the additional Field cost was declined");
       tax.accepted = true; frame.ops = structuredClone(tax.ops); frame.ip = 0; frame.vars = {};
     }
-    if (canonical(frame.ops) !== canonical(tax.ops)) throw new NotYet("rebuild the saved Field tax program", "R457");
+    if (!fieldTaxExpansion(tax.ops, frame.ops)) throw new NotYet("rebuild the saved Field tax program", "R457");
     const problem = taxPayerProblem(state, frame.vars, tax.payers);
     if (problem === "malformed" || problem === "missing") throw new NotYet("rebuild the saved Field tax payer occurrences", "R457");
     if (problem === "stale") throw new AutoPaymentFailed("an unpaid Field tax payer left its occurrence");
@@ -240,9 +246,10 @@ function stepFieldTaxes(ctx: EngineContext, game: GameDefinition, state: VmState
 
 export function stepFieldCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.fieldCost;
-  if (!cost || cost.version !== 1 || !isFieldPayment(cost.line) || cost.line.card !== frame.card || cost.line.skillIndex !== frame.skillIndex || cost.line.skill.index !== frame.skillIndex || typeof cost.waived !== "boolean" || !["cardResources", "stageSource", "skillResources", "skillAction", "taxes", "activate"].includes(cost.stage) || !Array.isArray(cost.paidTaxes) || cost.paidTaxes.some(key => typeof key !== "string") || new Set(cost.paidTaxes).size !== cost.paidTaxes.length || typeof cost.originalArea !== "string") throw new NotYet("rebuild this saved Field payment declaration", "R457");
+  if (!frame.vars || typeof frame.vars !== "object" || !cost || cost.version !== 1 || !cost.line?.skill || !cost.line.script?.price || cost.line.skill.keyword?.name !== "Field" || !isFieldPayment(cost.line) || cost.line.card !== frame.card || cost.line.skillIndex !== frame.skillIndex || cost.line.skill.index !== frame.skillIndex || typeof cost.waived !== "boolean" || !["cardResources", "stageSource", "skillResources", "skillAction", "taxes", "activate"].includes(cost.stage) || !Array.isArray(cost.paidTaxes) || cost.paidTaxes.some(key => typeof key !== "string") || new Set(cost.paidTaxes).size !== cost.paidTaxes.length || typeof cost.originalArea !== "string" || !game.zones[cost.originalArea] || !cost.moment || cost.moment.card !== frame.card || cost.moment.controller !== frame.master || cost.moment.event !== "skillActivated" || cost.moment.args?.from !== cost.originalArea) throw new NotYet("rebuild this saved Field payment declaration", "R457");
   try {
     const problem = fieldSourceProblem(state, cost.source, frame.card, frame.master);
+    if (!game.zones[cost.source.area]) throw new NotYet("rebuild the saved Field source area", "R457");
     if (problem) throw new AutoPaymentFailed(problem);
     if (cost.stage === "cardResources") {
       if (!cost.waived && cost.originalArea === "hand") {
@@ -255,7 +262,17 @@ export function stepFieldCost(ctx: EngineContext, game: GameDefinition, state: V
       cost.stage = "stageSource";
     }
     if (cost.stage === "stageSource") {
-      if (!stageField(ctx, game, state, ev, cost)) throw new AutoPaymentFailed("the Field did not complete its required Drop staging");
+      if (cost.source.area === "hand") {
+        const key = "§fieldStaging";
+        const ops: Op[] = [{ op: "moveTo", target: { var: key }, to: "drop", cause: "rule", completedAs: "§fieldStaged" }];
+        if (!frame.ops.length) { frame.ops = ops; frame.ip = 0; frame.vars = { [key]: [frame.card], [`${key}@epoch`]: [`${frame.card}@${cost.source.epoch}`] }; }
+        if (canonical(frame.ops) !== canonical(ops) || canonical(frame.vars[key]) !== canonical([frame.card]) || canonical(frame.vars[`${key}@epoch`]) !== canonical([`${frame.card}@${cost.source.epoch}`])) throw new NotYet("rebuild the saved Field staging program", "R457");
+        if (stepScript(fieldRuleHost(vmHost(ctx, game, state, ev)), frame) === "wait") return "wait";
+        if (!completedMovement(frame, "§fieldStaged", 1, true)) throw new AutoPaymentFailed("the Field did not complete its required Drop staging");
+        cost.source = captureFieldSource(ctx, state, frame.master, frame.card);
+        if (cost.source.area !== "drop") throw new AutoPaymentFailed("the Field did not enter its owner's Drop");
+      }
+      frame.ops = []; frame.ip = 0; frame.vars = {}; delete frame.moveLoop;
       cost.stage = "skillResources";
     }
     if (cost.stage === "skillResources") {
@@ -274,6 +291,11 @@ export function stepFieldCost(ctx: EngineContext, game: GameDefinition, state: V
       if (state.outcome) return "done";
       cost.stage = "activate";
     }
+    const sourceProblem = fieldSourceProblem(state, cost.source, frame.card, frame.master);
+    if (sourceProblem || !conditionHolds(ctx, game, state, cost) || usesLeft(state, frame.master, frame.card, cost.line.skill) === 0
+      || skillsNegated(state, frame.card) || skillNegated(state, frame.card, cost.line.skillIndex, cost.line.skill.kind)
+      || forbiddenBy(ctx, game, state, "activateSkill", { player: frame.master, card: frame.card, skillKind: cost.line.kind, keyword: "Field", from: cost.originalArea }))
+      throw new AutoPaymentFailed(sourceProblem ?? "the Field activation is no longer permitted");
     const key = "§fieldSource";
     const vars = { [key]: [frame.card], [`${key}@epoch`]: [`${frame.card}@${cost.source.epoch}`] };
     const ops: Op[] = [{ op: "moveTo", target: { sel: { fromVar: key, area: cost.source.area as import("./script").ScriptArea } }, to: "battle", mode: "active" }, ...(cost.line.script?.ops ?? [])];
@@ -289,4 +311,36 @@ export function stepFieldCost(ctx: EngineContext, game: GameDefinition, state: V
     log(ev, { type: "note", text: `Field activation failed: ${error.message}` });
     return "done";
   }
+}
+
+
+/** Old native Field DO frames could play a fresh hand/Drop occurrence. */
+export function requireFieldFrame(frame: ScriptFrame): void {
+  if (frame.viaKeyword !== "Field" || frame.fieldCost) return;
+  if (!frame.vars || typeof frame.vars !== "object" || Array.isArray(frame.vars)) throw new NotYet("rebuild the saved Field effect source occurrence", "R457");
+  const ids = frame.vars["§fieldSource"], epochs = frame.vars["§fieldSource@epoch"];
+  const prefix = `${frame.card}@`;
+  if (ids?.length !== 1 || ids[0] !== frame.card || epochs?.length !== 1 || typeof epochs[0] !== "string" || !epochs[0].startsWith(prefix) || !/^\d+$/.test(epochs[0].slice(prefix.length)) || !Number.isSafeInteger(Number(epochs[0].slice(prefix.length)))) throw new NotYet("rebuild the saved Field effect source occurrence", "R457");
+}
+
+
+/** The interpreter replaces conditional/mode nodes with their selected branch.
+ * Validate that saved executable steps are one such expansion of the tax,
+ * retaining every unrelated original instruction in its original position. */
+function fieldTaxExpansion(original: Op[], current: Op[]): boolean {
+  const sequence = (ops: Op[], start: number): Set<number> => {
+    let positions = new Set([start]);
+    for (const op of ops) {
+      const next = new Set<number>();
+      for (const position of positions) {
+        if (position < current.length && canonical(op) === canonical(current[position])) next.add(position + 1);
+        const branches = op.op === "if" ? [op.then, op.else ?? []] : op.op === "may" ? [op.ops, []] : op.op === "chooseMode" ? op.modes.map(mode => mode.ops) : [];
+        for (const branch of branches) for (const end of sequence(branch, position)) next.add(end);
+      }
+      positions = next;
+      if (!positions.size) break;
+    }
+    return positions;
+  };
+  return sequence(original, 0).has(current.length);
 }

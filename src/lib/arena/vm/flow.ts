@@ -1,3 +1,5 @@
+import { queueFieldCleanup, stepFieldCleanup } from "./field-rules";
+import { requireFieldFrame, stepFieldCost } from "./field-costs";
 import { stepCounterNonhandTax } from "./counter-tax";
 import { validCounterUnderOrigin } from "./counter-under";
 import { guardCounterNonhandTaxPayment } from "./counter-nonhand-tax";
@@ -1370,6 +1372,9 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (frame.fieldCleanup) return stepFieldCleanup(ctx, game, state, ev, frame);
+    if (frame.fieldCost) return stepFieldCost(ctx, game, state, ev, frame);
+    requireFieldFrame(frame);
     if (!guardCounterNonhandTaxPayment(ctx, state, ev, frame)) return "done";
     if (frame.overRealmReturn !== undefined && !overRealmReturnCurrent(state, frame)) return "done";
     if (frame.overRealmLateTax) return stepOverRealmLateTax(ctx, game, state, ev, frame);
@@ -1789,6 +1794,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (returnInfo && (to === "hand" || from === "unison")) moment.subjectInfo = returnInfo;
   if (sourceNegated) moment.sourceNegated = sourceNegated;
   emit(ctx, game, state, ev, moment, shown);
+  queueFieldCleanup(ctx, game, state, id, from, fromHolder);
   // #155: a keyword's onLeave/onEnter hook, scoped to a place a card is *in
   // play* in (9-1-3-1) — [Field] cares about the Battle Area, never a hand or
   // deck a card passes through on the way to being dealt. `hookBodiesFor`
