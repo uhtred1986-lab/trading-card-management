@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Optional Energy-entry descriptor preparation",
+    body: "An unwired typed descriptor records the two distinct color slots of the optional Drop-to-Warp Energy-entry procedure. Source lookup refuses nested or mixed descriptors rather than silently losing their instructions. Payment preflight distinguishes possible stored descriptors across faces and copies from currently effective skills: exact bound unrelated targets remain allowed, but later selectors after state or binding changes stay conservatively unknown. The focused synthetic stored-program checks do not admit the six printed cards, wire a native entry continuation, or resolve the incoming Drop self-payer question. Their compiler readings and full runtime gaps remain unchanged.",
+  },
+  {
     title: "Adjacent printed skill boundaries (R-479)",
     body: "A sentence-ending period followed immediately by a skill opening tag separates skills even when the catalog omits whitespace. BT1-043, BT3-026 and BT18-043 retain independent types, triggers, costs and effects. Parenthesized reminders and tags within a sentence remain attached. Old fused records require rebuilding across review statuses; separating an unread sibling does not implement it.",
   },

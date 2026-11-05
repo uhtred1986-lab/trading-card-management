@@ -1171,6 +1171,7 @@ export type Op =
    * read by every rule that looks at what a card *is*, not by the ones that
    * look at what it does.
    */
+  | { op: "energyEntryExhaust"; colors: [Color, Color] }
   | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; names?: string[]; target?: Ref; allAreas?: boolean }
   /**
    * 9-10: where this card goes instead, when it would leave the Battle Area.
@@ -2495,6 +2496,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
     if (deferredCounter) { frame.ip++; continue; }
 
     switch (op.op) {
+      case "energyEntryExhaust":
+        throw new NotYet("an Energy entry descriptor outside its original movement", "R476");
       case "note":
         h.note(op.text);
         break;

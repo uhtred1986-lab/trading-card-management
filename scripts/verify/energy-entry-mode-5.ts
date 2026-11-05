@@ -35,7 +35,7 @@ for (const player of ["p1", "p2"] as const) for (const kind of ["E", "F"] as con
   const state = fresh(), id = stage(state, player, kind, "hand"), before = JSON.stringify(state);
   const observed = captureEnergyEntryMode(ctx, game, state, id, explicit);
   assert.equal(observed.mode, kind === "E" || explicit === "rest" ? "rest" : "active");
-  assert.equal(observed.exhausted, kind === "E"); assert.equal(JSON.stringify(state), before); cases++;
+  assert.equal(observed.restRequired, kind === "E"); assert.equal(JSON.stringify(state), before); cases++;
 }
 for (const player of ["p1", "p2"] as const) for (const [kind, prerequisite] of [["BT8-120", "BG"], ["EX18-05", "BO"]] as const) for (const prior of [false, true]) {
   const state = fresh(); if (prior) stage(state, player, prerequisite, "energy");
@@ -44,20 +44,20 @@ for (const player of ["p1", "p2"] as const) for (const [kind, prerequisite] of [
   assert.equal(captured.mode, prior ? "active" : "rest");
   assert.ok(moveCard(state, game, id, "energy", { owner: player, mode: captured.mode }).ok);
   assert.equal(state.cards[id].mode, prior ? "active" : "rest");
-  assert.equal(captureEnergyEntryMode(ctx, game, state, id).exhausted, false, "a post-entry query would wrongly allow self-qualification on first entry"); cases++;
+  assert.equal(captureEnergyEntryMode(ctx, game, state, id).restRequired, false, "a post-entry query would wrongly allow self-qualification on first entry"); cases++;
 }
 for (const player of ["p1", "p2"] as const) {
   const state = fresh(), id = stage(state, player, "BT14-151", "drop");
   stage(state, player, "AND", "drop"); const payer = stage(state, player, "AND", "drop");
-  assert.equal(captureEnergyEntryMode(ctx, game, state, id).exhausted, false);
+  assert.equal(captureEnergyEntryMode(ctx, game, state, id).restRequired, false);
   assert.ok(moveCard(state, game, payer, "warp", { owner: player }).ok);
-  assert.equal(captureEnergyEntryMode(ctx, game, state, id).exhausted, true, "validity must be captured after optional payer effects"); cases++;
+  assert.equal(captureEnergyEntryMode(ctx, game, state, id).restRequired, true, "validity must be captured after optional payer effects"); cases++;
 }
 for (const player of ["p1", "p2"] as const) for (const explicit of ["active", "rest"] as const) {
   const state = fresh(), id = stage(state, player, "E", "hand");
   addEffect(state, [], { target: id, kind: "negateKeyword", value: "Energy-Exhaust", until: "turn" });
   const captured = captureEnergyEntryMode(ctx, game, state, id, explicit);
-  assert.equal(captured.exhausted, false); assert.equal(captured.mode, explicit);
+  assert.equal(captured.restRequired, false); assert.equal(captured.mode, explicit);
   assert.ok(moveCard(state, game, id, "energy", { owner: player, mode: captured.mode }).ok); dropEffectsOn(state, [], id);
   assert.equal(state.cards[id].mode, explicit, "clearing old effects cannot rewrite the already captured entry mode"); cases++;
 }
