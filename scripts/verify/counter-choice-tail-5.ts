@@ -1,3 +1,5 @@
+import { vmHost } from "../../src/lib/arena/vm/host";
+import { parseFilter } from "../../src/lib/arena/text/filters";
 import { counterEffectOps, counterHasPaidAdmission } from "../../src/lib/arena/vm/counter-admission";
 import { counterBindingProblem } from "../../src/lib/arena/vm/skill-play-binding";
 /** R432: actual future-card Counter continuation prototype. */
@@ -30,6 +32,10 @@ defs["BT2-043"]=card("BT2-043",{colors:["Blue"],skill:"[Activate: Main] Place th
 defs.BLUEBARRIER=card("BLUEBARRIER",{colors:["Blue"],energyCost:3,skill:"[Barrier]"});
 defs.RED=card("RED",{colors:["Red"],energyCost:1});defs.BIG=card("BIG",{colors:["Blue"],energyCost:4});
 defs.LOW=card("LOW",{colors:["Blue"],characters:["Son Goku"],energyCost:2});defs.THREE=card("THREE",{colors:["Blue"],characters:["Vegeta"],energyCost:3});defs.BLUE=card("BLUE",{colors:["Blue"],energyCost:3});
+defs.DROPPLAY=card("DROPPLAY",{skill:"[Activate: Main] Choose up to 1 Battle Card in your Drop Area and play it."});
+defs.ENERGYPLAY=card("ENERGYPLAY",{skill:"[Activate: Main] Choose up to 1 Battle Card in your energy and play it."});
+defs.LIVEHAND=card("LIVEHAND",{colors:["Red"],energyCost:3,skill:"[Permanent] If your opponent has 8 or more cards in their hand, this card is also treated as blue in all areas."});
+defs.LIVEENERGY=card("LIVEENERGY",{colors:["Red"],energyCost:3,skill:"[Permanent] If your opponent has 1 or more energy, this card is also treated as blue in all areas."});
 const rows=Object.values(defs).flatMap(skillRecords).map((r,id)=>({...r,id,source:"compiler",status:"confirmed"}) as unknown as RuleRow);
 const ctx:EngineContext={defs,scripts:rulesFromRows(copy(rows),defs)};const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
 const other=(p:PlayerId):PlayerId=>p==="p1"?"p2":"p1";
@@ -94,6 +100,25 @@ for(const owner of ["p1","p2"] as const)for(const mode of ["zero","deflect","uni
 for(const owner of ["p1","p2"] as const){
  let s=fresh(owner);const source=stage(s,owner,"SOURCE","battle"),target=stage(s,owner,"F","hand"),counter=stage(s,other(owner),"DB1-040","hand"),own=stage(s,other(owner),"BLUE","battle");stage(s,other(owner),"ENERGY","energy");
  const a=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="activate"&&a.card===source);assert.ok(a);s=answer(take(s,a),null);assert.ok(s.prompt.kind==="chooseCards");s=take(s,{type:"choose",player:owner,cards:[target]});assert.equal(s.prompt.kind,"counter");s=answer(s,counter);s=finish(s);assert.ok(s.sides[owner].zones.battle.includes(target));assert.ok(s.sides[other(owner)].zones.battle.includes(own));assert.equal(s.skillPlayScopes,undefined);cases++;
+}
+for(const owner of ["p1","p2"] as const)for(const origin of ["drop","energy"] as const){
+ let s=fresh(owner);while(s.sides[owner].zones.hand.length>7)assert.ok(moveCard(s,game,s.sides[owner].zones.hand.at(-1)!,"drop").ok);assert.equal(s.sides[owner].zones.hand.length,7);
+ const source=stage(s,owner,origin==="drop"?"DROPPLAY":"ENERGYPLAY","battle"),target=stage(s,owner,"LOW",origin),counter=stage(s,other(owner),"DB1-040","hand"),own=stage(s,other(owner),"BLUE","battle"),live=stage(s,other(owner),origin==="drop"?"LIVEHAND":"LIVEENERGY","battle");stage(s,other(owner),"ENERGY","energy");
+ for(const id of [origin==="drop"?"DROPPLAY":"ENERGYPLAY",origin==="drop"?"LIVEHAND":"LIVEENERGY"])assert.ok(Object.values(ctx.scripts![id].bySkill).every(script=>!script.unsupported.length),id);
+ const a=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="activate"&&a.card===source);assert.ok(a);s=answer(take(s,a),counter);
+ for(let n=0;n<20&&s.prompt.kind!=="chooseCards";n++){const action=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="payCost"||a.type==="counter"&&a.card===null);assert.ok(action);s=take(s,action);}
+ assert.ok(s.prompt.kind==="chooseCards");assert.equal(vmHost(ctx,game,s,[]).resolveSelector({ops:[],ip:0,vars:{},card:counter,master:other(owner)},{side:"you",area:"battle",filter:parseFilter("blue Battle Card")}).includes(live),origin==="energy");s=take(s,{type:"choose",player:owner,cards:[target]});assert.ok(s.prompt.kind==="chooseCards");assert.equal(s.prompt.player,other(owner));assert.ok(s.sides[owner].zones.hand.includes(target));assert.ok(!s.sides[owner].zones[origin].includes(target));assert.equal(s.sides[owner].zones.hand.length,8);assert.equal(s.prompt.choice.candidates.includes(live),origin==="drop",JSON.stringify({origin,record:ctx.scripts![origin==="drop"?"LIVEHAND":"LIVEENERGY"],prompt:s.prompt,hand:s.sides[owner].zones.hand}));
+ s=take(s,{type:"choose",player:other(owner),cards:[own]});s=finish(s);assert.ok(s.sides[owner].zones.hand.includes(target));assert.ok(!s.sides[owner].zones.battle.includes(target));cases++;
+}
+for(const owner of ["p1","p2"] as const){
+ let s=fresh(owner);const target=stage(s,owner,"LOW","hand"),counter=stage(s,other(owner),"DB1-040","hand"),own=stage(s,other(owner),"BLUE","battle"),negator=stage(s,owner,"BT11-042","hand"),crusher=stage(s,owner,"BT1-110","hand");for(let n=0;n<8;n++)stage(s,owner,"ENERGY","energy");stage(s,other(owner),"ENERGY","energy");
+ const play=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="play"&&a.card===target);assert.ok(play);s=take(s,play);
+ while(s.prompt.kind==="payCost"){const pay=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="payCost");assert.ok(pay);s=take(s,pay);}
+ assert.equal(s.prompt.kind,"counter");s=answer(s,counter);let answers=0;
+ for(let n=0;n<20&&s.prompt.kind!=="chooseCards";n++){
+  if(s.prompt.kind==="counter"){assert.equal(s.prompt.window,"counter");assert.ok(s.prompt.candidates.includes(negator));assert.ok(!s.prompt.candidates.includes(crusher));answers++;s=answer(s,null);}else{const pay=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="payCost");assert.ok(pay);s=take(s,pay);}
+ }
+ assert.equal(answers,1);assert.ok(s.prompt.kind==="chooseCards");assert.equal(s.prompt.player,other(owner));assert.ok(s.sides[owner].zones.hand.includes(target));s=take(s,{type:"choose",player:other(owner),cards:[own]});assert.equal(s.prompt.kind,"main");assert.equal(s.skillPlayScopes,undefined);assert.ok(s.sides[other(owner)].zones.hand.includes(own));cases++;
 }
 const admission={kind:"count" as const,sel:{side:"you" as const,area:"leader" as const},atLeast:1};
 const original=ctx.scripts!["DB1-040"].bySkill[0];const gated={...original,price:{...original.price!,condition:admission},paidAdmission:{version:1 as const,condition:admission},ops:[{op:"if" as const,cond:admission,then:original.ops}]};
