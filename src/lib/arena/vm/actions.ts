@@ -1061,7 +1061,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // spent - whether it was paid in energy or bought at an alternative.
     if (card !== null && def.cost?.includes("energy")) {
       const at = findCard(state, card)?.zone;
-      if (at === "hand" || at === "zDeck") spendPriceUses(state, ev, card);
+      if (at === "hand" || at === "zDeck") spendPriceUses(ctx, state, ev, card);
     }
     runProgram(state, def, player, chosen);
     if (card !== null) chargeTaxes(ctx, game, state, def, player, card, action);
