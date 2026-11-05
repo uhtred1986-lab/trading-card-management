@@ -1,3 +1,4 @@
+import { captureTaxPayers, taxPayerProblem, taxPayerProgramProblem, markTaxPayerPaid, type TaxPayers } from "./tax-payers";
 import { bindPaidMarkers } from "./paid-markers";
 import { pooledPaymentVariants } from "./pooled-costs";
 import { skillPriceProblem } from "./skill-payment";
@@ -7,12 +8,12 @@ import type { GameDefinition } from "../rulesets";
 import { selectedCount, stepScript, type Op, type Ref, type Script, type ScriptFrame } from "./script";
 import type { ScriptHost } from "./script-host";
 import { vmHost } from "./host";
-import { burstNegated, boundFor, queueTaxGate, scopedPayersSpent, type TaxGate } from "./activate";
+import { activationTaxes, unpaidActivationTax, burstNegated, boundFor, queueTaxGate, scopedPayersSpent, type TaxGate } from "./activate";
 import { IllegalAction, sideOf } from "./common";
 import { NotYet, RulesetBroken } from "./errors";
 import { describeScript } from "./script-schema";
 import { activeEnergy, cardColors, chargeCost, payersFor, planCost, priceFor, spendSkillCostUses, type Price, type VmPayment } from "./costs";
-import { log } from "./events";
+import { fire, log } from "./events";
 import { hasPossibleReplacement, possibleAltPaymentReplacement, staticsNow } from "./program";
 import type { VmState } from "./state";
 import { skillsShowing } from "./triggers";
@@ -39,6 +40,34 @@ export interface AutomaticCost {
    * skill is activated (`vm/activate.ts`'s `TaxGate`). Additive.
    */
   taxGate?: Omit<TaxGate, "guards">;
+  reviveSource?: import("./revive-costs").ReviveSource;
+  reviveTax?: { version: 1; phase: "printed" | "tax"; paying?: string; aliases?: string[]; payers?: TaxPayers };
+}
+
+/** Only the current tax's aliases are payers: the original Revive source and
+ * already paid color aliases must not become a new source-presence condition. */
+export function reviveTaxPayers(state: VmState, frame: ScriptFrame, capture = false): void {
+  const tax = frame.autoCost?.reviveTax;
+  if (!tax) return;
+  if (tax.version !== 1 || !["printed", "tax"].includes(tax.phase) || (tax.phase === "tax" && (typeof tax.paying !== "string" || !tax.paying)) || (tax.phase === "printed" && (tax.paying !== undefined || tax.aliases !== undefined || tax.payers !== undefined))) throw new NotYet("rebuild saved Revive tax phase", "R467");
+  if (tax.phase === "printed") return;
+  if (!Array.isArray(tax.aliases) || tax.aliases.some(a => typeof a !== "string" || a.startsWith("§")) || !tax.payers) throw new NotYet("rebuild saved Revive tax payer contract", "R467");
+  const vars = Object.fromEntries(Object.entries(frame.vars).filter(([name]) => tax.aliases!.includes(name)));
+  const problem = taxPayerProblem(state, vars, tax.payers, !capture);
+  if (problem === "stale") throw new IllegalAction("that Revive tax payer occurrence is no longer available");
+  if (problem) throw new NotYet("rebuild saved Revive tax payer occurrences", "R467");
+  if (capture) captureTaxPayers(state, vars, tax.payers);
+}
+function taxAliases(ops: Op[]): string[] {
+  const found: string[] = [];
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(walk); return; }
+    if (!value || typeof value !== "object") return;
+    const object = value as Record<string, unknown>;
+    if (typeof object.op === "string" && typeof object.as === "string") found.push(object.as);
+    Object.values(object).forEach(walk);
+  };
+  walk(ops); return found;
 }
 
 /** A supported action-price must complete every instruction (5-8-2-2). */
@@ -103,6 +132,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       return found;
     },
     resolveRef: (f, ref) => {
+      reviveTaxPayers(state, f, true);
       const found = host.resolveRef(f, ref);
       const op = f.ops[f.ip];
       // The ordinary effect interpreter skips Leader departures. A skipped
@@ -168,6 +198,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       // R-427 / 5-8-2-2-1: a replaced original action is not paid merely
       // because the replacement happens to land in the same area. Explicit
       // alternative/modified price instructions already name their own `to`.
+      const originalEpoch = state.cards[id]?.zoneEpoch ?? 0;
       let completed = false;
       const actual = host.move(id, to, owner, { ...opts, reason: opts?.reason === "combo" && to === "combo" ? "combo" : "cost",
         onResult: result => { completed = result.completed; opts?.onResult?.(result); } });
@@ -176,6 +207,10 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
       }
+      const tax = payingFrame?.autoCost?.reviveTax;
+      if (tax?.paying && tax.payers) markTaxPayerPaid(tax.payers, id, originalEpoch);
+      const revive = payingFrame?.reviveCost;
+      if (revive && to === "drop" && payingFrame!.vars[revive.variable]?.includes(id) && !revive.paid.includes(id)) revive.paid.push(id);
       const extra = payingFrame?.counterCost?.extra;
       if (extra?.phase === "skillAction" && id === payingFrame!.card) extra.source = { card: id, cardId: state.cards[id].cardId, epoch: state.cards[id].zoneEpoch ?? 0, area: host.areaOf(id) ?? "" };
       return actual;
@@ -766,6 +801,30 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
 /** Finish the activation only after the entire action price completed. */
 export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }): void {
   const cost = frame.autoCost!;
+  // R467: a Revive tax is still a cost. Reuse the strict action-price
+  // runner, rather than generic TaxGate's ordinary effect interpreter.
+  if (cost.reviveTax && cost.taxGate) {
+    const tax = cost.reviveTax, gate = cost.taxGate;
+    if (tax.version !== 1 || frame.viaKeyword !== "Revive" || cost.skill.keyword?.name !== "Revive" || gate.card !== frame.card || gate.player !== frame.master || gate.skillKind !== "auto") throw new NotYet("rebuild saved Revive activation tax", "R467");
+    if (tax.paying) {
+      reviveTaxPayers(state, frame);
+      if (cost.stage !== "action" || frame.ip < frame.ops.length || frame.awaiting) throw new NotYet("rebuild incomplete Revive tax settlement", "R467");
+      gate.paid.push(tax.paying); tax.phase = "printed"; delete tax.paying; delete tax.aliases; delete tax.payers;
+    }
+    const owed = activationTaxes(ctx, game, state, gate.player, gate.card, gate.skillKind, gate.from).filter(t => !gate.paid.includes(t.key) && !gate.free.includes(t.key));
+    if (owed.length) {
+      if (unpaidActivationTax(ctx, game, state, gate.player, gate.card, owed)) { log(ev, { type: "note", text: "Revive activation failed: its additional activation tax cannot be paid" }); return; }
+      if (taxPayerProgramProblem(owed[0].ops)) throw new NotYet("bind successive Revive tax aliases", "R467");
+      tax.phase = "tax"; tax.paying = owed[0].key; tax.aliases = taxAliases(owed[0].ops); tax.payers = {};
+      for (const alias of tax.aliases) { delete frame.vars[alias]; delete frame.vars[`${alias}@epoch`]; }
+      cost.stage = "action";
+      frame.ops = structuredClone(owed[0].ops); frame.ip = 0;
+      delete frame.awaiting; delete frame.moveLoop;
+      state.programs.unshift(frame);
+      return;
+    }
+    delete cost.taxGate; delete cost.reviveTax;
+  }
   // #677: the printed price is paid; the rule's prices come next, and the
   // activation itself only once they are — this same frame, with nothing left
   // to pay, is what the gate lets through (or drops, if they can't be paid).
@@ -784,6 +843,11 @@ export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, st
   spendSkillCostUses(ctx, game, state, ev, frame.card, cost.skill);
   log(ev, { type: "skill", card: frame.card, skill: frame.skillIndex ?? cost.skill.index, master: frame.master, text: cost.skill.raw, inBattle: !!state.battle,
     ...(frame.autoRevealEpoch === undefined ? {} : { reveal: true as const, revealEpoch: frame.autoRevealEpoch }) });
+  // R467 / 22-34-3: Revive activates only after both its original-colour
+  // payment and every additional price/tax. The later play may still fail.
+  if (frame.viaKeyword === "Revive" && cost.skill.keyword?.name === "Revive") {
+    fire(ctx, game, state, { event: "keywordActivated", card: frame.card, controller: frame.master, args: { keyword: "Revive", from: "drop" } });
+  }
   const effect = { ...frame, ops: cost.effect, ip: 0 };
   delete effect.autoCost;
   delete effect.awaiting;
@@ -793,7 +857,7 @@ export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, st
 
 /** Verify declared resource instructions completed too: Burst/life movement
  * replacements cannot turn a known price into a partial payment (5-8-2-2). */
-function chargeAutomaticPayment(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, payment: VmPayment, costs: string[]): ReturnType<typeof chargeCost> {
+export function chargeAutomaticPayment(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, payment: VmPayment, costs: string[]): ReturnType<typeof chargeCost> {
   for (const id of payment.rest) {
     if (state.cards[id]?.mode !== "active") throw new IllegalAction("this Auto payment is no longer payable");
   }

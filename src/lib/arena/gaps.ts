@@ -216,6 +216,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   unionActivated: "when you activate a [Union] skill",
   unionAbsorbActivated: "when this card's [Union-Absorb] is activated",
   overlordActivated: "when you activate an [Overlord] skill",
+  reviveActivated: "when one of your Battle Cards activates [Revive]",
   overRealmPlayed: "when you play a card using [Over Realm]",
   selfExtraActivated: "when you activate this Extra Card",
   extraActivatedFromHand: "when you activate an Extra Card from your hand",

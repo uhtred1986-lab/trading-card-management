@@ -92,8 +92,8 @@ import { assertCurrentFusion, stepFusionMaterials, stepKeywordCost } from "./key
 import { stepDropCost } from "./drop-costs";
 import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { emptyUnisons } from "./unison-zero";
-import { queueReviveCost, stepReviveCost } from "./revive-costs";
-import { AutoPaymentFailed, automaticResourcesFinish, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
+import { requireReviveFrame, reviveCostPayable, queueReviveCost, stepReviveCost } from "./revive-costs";
+import { AutoPaymentFailed, automaticResourcesFinish, automaticPriceHost, reviveTaxPayers, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
 import { requireZAwakenBindings, activationTaxGate, activationTaxes, stepTaxGate, guardExtraCounterTaxPayment, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
 import { describeScript } from "./script-schema";
 import { IllegalAction } from "./common";
@@ -941,7 +941,11 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // #677: a 20-14 price on activating this [Auto] (EX06-35's "your opponent
   // can't activate skills unless …") makes it a priced one — read now, on the
   // board it is chosen on, before anything is paid.
-  const taxGate = skill?.kind === "auto" ? activationTaxGate(ctx, game, state, next.master, next.card, skill.kind) : null;
+  // R467 / 22-34-1: only this KO-triggered keyword is admitted through
+  // the priced Auto tax continuation; other keyword Autos keep their gap.
+  const nativeRevive = skill?.kind === "keyword" && skill.keyword?.name === "Revive" && next.trigger === "koed";
+  const taxKind = nativeRevive ? "auto" : skill?.kind;
+  const taxGate = taxKind === "auto" ? activationTaxGate(ctx, game, state, next.master, next.card, taxKind) : null;
   // 9-6-3-1 precedes the price decision in 9-6-4. A priced secret Auto is
   // shown when specified, but this declaration must never look like a fired
   // skill to event consumers or probes. The eventual skill event is separate.
@@ -966,20 +970,20 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   }
   // 9-6-3-2 with 20-14: an [Auto] is activated too, so a card that "can't
   // activate skills" (BT29-041) has its pending [Auto] cancelled.
-  if (skill?.kind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card, skillKind: "auto" })) {
+  if (taxKind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card, skillKind: "auto" })) {
     log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate, so it does not resolve" : `${named} can't activate skills, so its skill does not resolve` });
     return true;
   }
   // #677, 20-14-1 with 9-6-3-2: a price on activating it that cannot be paid
   // whole means the [Auto] cannot be activated, so it is cancelled. One that
   // can is part of its cost (9-6-4), offered below with any printed price.
-  if (skill && taxGate && unpaidActivationTax(ctx, game, state, next.master, next.card, activationTaxes(ctx, game, state, next.master, next.card, skill.kind))) {
+  if (skill && taxGate && !nativeRevive && unpaidActivationTax(ctx, game, state, next.master, next.card, activationTaxes(ctx, game, state, next.master, next.card, taxKind))) {
     log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate: a price a rule puts on it can't be paid" : `${named}'s skill can't be activated: a price a rule puts on it (20-14-1) can't be paid` });
     return true;
   }
   // A keyword's own [Auto] ([Offering], [Revive], [Alliance] …) has no
   // boundary the price is known to belong at yet: stopped, never untaxed.
-  if (skill?.kind === "keyword" && activationTaxes(ctx, game, state, next.master, next.card, skill.kind).length) {
+  if (skill?.kind === "keyword" && !nativeRevive && activationTaxes(ctx, game, state, next.master, next.card, skill.kind).length) {
     throw new NotYet("charge a 20-14 activation tax on a keyword's own [Auto]", "#677");
   }
   // Stage 7: a keyword's own line that answered through its declaration's
@@ -1022,7 +1026,11 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
         log(ev, { type: "note", text: `${named}: [Revive] can't play it — the price a rule puts on playing it (20-14-1) can't be paid` });
         return true;
       }
-      queueReviveCost(game, state, { ...frame, ...(printed ? { printed } : {}), viaKeyword: keyword.name }, keyword, skill, program);
+      if (taxGate && !reviveCostPayable(ctx, game, state, { ...frame, viaKeyword: keyword.name }, keyword, skill, program, taxGate)) {
+        log(ev, { type: "note", text: `${named}: Revive's complete color, additional and activation-tax costs cannot be paid` });
+        return true;
+      }
+      queueReviveCost(game, state, { ...frame, ...(printed ? { printed } : {}), viaKeyword: keyword.name }, keyword, skill, program, taxGate);
       return true;
     }
     queueAutomatic(ctx, game, state, ev, { ...frame, ops: keywordProgram(game, keyword, skill), ...(printed ? { printed } : {}), viaKeyword: keyword.name }, skill, program);
@@ -1384,6 +1392,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     }
     requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
+    requireReviveFrame(state, frame);
     const sourceScript = programSourceScript(ctx, state, frame);
     if ((frame.counterChoice || state.skillPlayScopes?.some(scope => scope.id === frame.skillEffectOrigin?.scope && scope.purpose === "counterContinuation")) && (sourceScript?.kind !== "counter:play" || !counterChoiceTail(sourceScript.ops))) rebuildScope("rebuild this Counter continuation against its current stored rule");
     if (frame.counterPlay && sourceScript?.kind === "counter:play" && counterChoiceTail(sourceScript.ops)) {
@@ -1477,10 +1486,12 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
         if (chooseFramePools(ctx, game, state, frame, choice.price, choice.payment, frame.ops.length ? payment => automaticResourcesFinish(ctx, game, state, frame, payment) : undefined) === "wait") return "wait";
         beginAutomaticCost(ctx, game, state, ev, frame, choice);
       }
+      reviveTaxPayers(state, frame);
       // Recheck the submitted choice on an isolated board before any mutation.
       // Invalid or dead-ending answers leave the persisted payment cursor intact.
       if (!(frame.awaiting === "replaceMove" && state.lastMode !== null) && !canFinishAutomaticPrice(ctx, game, state, frame)) throw new IllegalAction("that choice cannot pay the entire Auto skill cost");
-      const result = stepScript(automaticPriceHost(ctx, game, state, ev), frame);
+      const result = stepScript(automaticPriceHost(ctx, game, state, ev, frame.autoCost?.reviveTax ? frame : undefined), frame);
+      if (result === "wait") reviveTaxPayers(state, frame, true);
       if (result === "done") finishAutomaticCost(ctx, game, state, ev, frame);
       else if (state.prompt.kind === "chooseCards") {
         const prompt = state.prompt;

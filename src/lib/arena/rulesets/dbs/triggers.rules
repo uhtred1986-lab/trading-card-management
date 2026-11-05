@@ -789,6 +789,12 @@ DEFINE TRIGGER overlordActivated
   BIND "subject"
   text: "when you activate an [Overlord] skill"
 
+-- R467 / 22-34-3: complete Revive payment, before its play effect.
+DEFINE TRIGGER reviveActivated
+  ON keywordActivated(keyword: Revive, watcher: controller)
+  BIND "subject"
+  text: "when one of your Battle Cards activates [Revive]"
+
 -- §22-15 — when you play a card using [Over Realm]
 DEFINE TRIGGER overRealmPlayed
   ON keywordActivated(keyword: "Over Realm", watcher: controller)
