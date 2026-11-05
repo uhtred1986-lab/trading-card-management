@@ -4,7 +4,7 @@
 import type { Op, Selector } from "./script";
 
 type Binding = "single" | "ordered";
-const one = (sel: Selector): boolean => sel.take === 1 || !sel.alsoFrom?.length && (sel.special === "self" || sel.special === "subject");
+const one = (sel: Selector): boolean => !sel.alsoFrom?.length && !sel.orSelf && (sel.take === 1 || sel.special === "self" || sel.special === "subject");
 
 export function counterArrivalParentProblem(ops: readonly Op[]): string | null {
   function visit(body: readonly Op[], inherited: Map<string, Binding>): string | null {
@@ -37,9 +37,10 @@ export function counterArrivalParentProblem(ops: readonly Op[]): string | null {
       }
       if ("as" in op && typeof op.as === "string") bindings.delete(op.as);
       if (op.op === "choose") {
-        if ((one(op.sel) || op.sel.count === 1) && !op.exactly && !op.sumTo) bindings.set(op.as, "single");
+        const ordinaryCount = op.atMost === undefined && op.exactly === undefined && op.sumTo === undefined && !op.namedSet && !op.sel.eachUnionName;
+        if (ordinaryCount && (one(op.sel) || op.sel.count === 1)) bindings.set(op.as, "single");
         else if (op.sel.upTo && op.sel.side === "you" && op.sel.area === "hand" &&
-          (op.chooser === undefined || op.chooser === "you") && !op.exactly && !op.sumTo && !op.namedSet &&
+          (op.chooser === undefined || op.chooser === "you") && ordinaryCount && !op.owed &&
           Object.keys(op.sel).every(key => ["side", "area", "filter", "count", "upTo", "minCount", "ignoreBarrier", "differentNames"].includes(key))) {
           bindings.set(op.as, "ordered");
         }

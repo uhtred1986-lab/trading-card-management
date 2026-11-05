@@ -149,6 +149,11 @@ assert.equal(counterArrivalParentProblem([{ op: "delay", at: "turnEnd", ops: [pa
 cases += 3;
 for (const body of [
   [{ op: "play", target: { sel: { side: "you", area: "hand", count: 1 } } }],
+  [{ op: "play", target: { sel: { side: "you", area: "hand", take: 1, alsoFrom: [{ side: "you", area: "drop" }] } } }],
+  [{ ...parentChoose, sel: { side: "you", area: "hand", count: 1 }, atMost: 2 }, parentPlay],
+  [{ ...parentChoose, sel: { side: "you", area: "hand", count: 1, eachUnionName: true } }, parentPlay],
+  [{ ...parentChoose, sel: { side: "you", area: "hand", count: 1 }, namedSet: true }, parentPlay],
+  [{ ...parentChoose, owed: true }, parentPlay],
   [{ ...parentChoose, sel: { side: "you", area: "hand", count: 8 } }, parentPlay],
   [{ ...parentChoose, sel: { side: "you", area: "hand", count: 8, upTo: true, take: 8 } }, parentPlay],
   [parentChoose, { op: "mill", n: 2, as: "incoming" }, parentPlay],
