@@ -125,7 +125,13 @@ export function bondSelector(skill: Skill): BondSelector | null {
   }
   if (COMPOUND.test(text)) {
     const filter = compoundFilter(text);
-    return filter ? { kind: "filter", filter } : { kind: "unknown" };
+    if (filter) return { kind: "filter", filter };
+    // R-446 owner ruling: a color modifies its own named alternative.
+    // Parse the already bounded grammar part by part so the first color is
+    // not accidentally spread over an uncolored second alternative.
+    const alternatives = text.split(/\s*,?\s+(?:and\/or|or)\s+/i).map(part => parseFilter(part));
+    if (alternatives.every(part => namesOnly(part) && NAME_KEYS.reduce((n, key) => n + part[key].length, 0) === 1)) return { kind: "filter", filter: { ...parseFilter(""), anyOf: alternatives } };
+    return { kind: "unknown" };
   }
   return { kind: "unknown" };
 }

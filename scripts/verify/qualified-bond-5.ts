@@ -35,6 +35,10 @@ for (const p of PRINT)
 defs.UNDER = card("UNDER", { skill: "[Permanent][Bond 2] Green Battle Cards: When this card is under a card, the <Majin Buu> on top of this card gains [Barrier]." });
 defs.BUU = card("BUU", { colors: ["Green"], characters: ["Majin Buu"] });
 defs.CYCLE = card("CYCLE", { skill: "[Permanent][Bond 2] Negate the keyword skills of all your Battle Cards." });
+defs.UNKNOWNBOND=card("UNKNOWNBOND",{skill:"[Permanent][Bond 3] Red ≪Saiyan≫ or ≪Bardock's Crew≫ card with a halo: Your Leader gets +10000 power."});
+defs.REDSAIYAN=card("REDSAIYAN",{colors:["Red"],traits:["Saiyan"]});
+defs.BLUECREW=card("BLUECREW",{colors:["Blue"],traits:["Bardock's Crew"]});
+defs.REDCREW=card("REDCREW",{colors:["Red"],traits:["Bardock's Crew"]});
 defs.CYCLEIDENTITY = card("CYCLEIDENTITY", { skill: "[Permanent][Bond 2] This card gains ≪Saiyan≫ in all areas." });
 defs.CYCLEPROTECT = card("CYCLEPROTECT", { skill: "[Permanent][Bond 2] The skills of this card can't be negated in any area." });
 defs.PROTECTOR = card("PROTECTOR", { skill: "[Permanent] The skills of your Battle Cards can't be negated." });
@@ -78,11 +82,11 @@ for (const p of ["p1", "p2"] as const) {
             cases++;
         }
     {
-        const row = records.find(r => r.cardId === "P-698" && r.skillIndex === 10)!;
+        const row = records.find(r => r.cardId === "UNKNOWNBOND" && r.skillIndex === 0)!;
         assert.ok(runtimeSupportOfRow(row).unsupported.some(x => x.includes("Bond Permanent selector")));
         const draft = { ...ctx, scripts: rulesFromRows(copy(records.map((r, id) => ({ ...r, id, source: "compiler", status: "draft" }) as unknown as RuleRow)), defs) };
-        const s = fresh(p), source = stage(s, p, "P-698", "battle");
-        assert.throws(() => attrsNow(draft, game, s, source), NotYet, "unknown P698 is explicit in draft runtime");
+        const s = fresh(p), source = stage(s, p, "UNKNOWNBOND", "battle");
+        assert.throws(() => attrsNow(draft, game, s, source), NotYet, "unknown descriptor is explicit in draft runtime");
         cases++;
     }
     for (const match of ["FILLER", "FIELD"]) {
@@ -91,6 +95,14 @@ for (const p of ["p1", "p2"] as const) {
         stage(s, p, match, "battle");
         assert.equal(hasKeyword(ctx, game, s, top, "Barrier"), match === "FILLER", "under-pile specified Bond");
         cases++;
+    }
+    for (const variant of ["redSaiyan", "blueCrew", "redCrew", "nonRedSaiyan", "redOther", "wrongSide", "wrongArea", "bothTraits", "field"]) {
+        const s=fresh(p), source=stage(s,p,"P-698","battle"), leader=s.sides[p].zones.leader[0];
+        stage(s,p,"REDSAIYAN","battle");
+        if (variant !== "bothTraits") stage(s,variant === "wrongSide" ? other(p) : p,variant === "redSaiyan" ? "REDSAIYAN" : variant === "redCrew" ? "REDCREW" : variant === "nonRedSaiyan" ? "GOKU" : variant === "redOther" ? "WRONG" : variant === "field" ? "FIELD" : "BLUECREW",variant === "wrongArea" ? "hand" : "battle");
+        const yes=["redSaiyan","blueCrew","redCrew"].includes(variant);
+        assert.equal(Number(attrsNow(ctx,game,s,leader).power),Number(defs.BASE.power)+(yes?10000:0),"R446 "+variant);
+        assert.ok(source); cases++;
     }
     for (const mode of ["falls", "negated", "late"]) {
         const s = fresh(p), source = stage(s, p, "BT27-048", "battle"), foe = stage(s, other(p), "TARGET", "battle"), matches: string[] = [];

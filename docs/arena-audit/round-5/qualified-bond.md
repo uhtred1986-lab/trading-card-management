@@ -15,3 +15,7 @@ Validation: `qualified-bond-5` passes 102 stored/native scenarios, both seats, i
 Full-record result: exactly two changes, BT27-048#20 and P-470#10, each `cost` only changing unread to readable empty descriptor payment. Every other record and field is identical; 13,964 records remain 12,980 read / 984 unread. The new P-698 runtime refusal is intentionally separate from compiler-read totals.
 
 Parent independently reproduced the remaining conditional identity issue using actual BT2-001, yellow Son Goku energy and BT20-120: energy exposes Yellow/Red/Blue/Green, but BT20-120 remains Black. Runnable evidence is `recovery/static-identity-repro.ts`; fixing that general producer-condition dependency is still in completion scope.
+
+## Owner follow-up R-446
+
+The owner answered P-698's color-scope question on 5 November: **red Saiyans or Bardock's Crew of any color**. The exact bracketed compound grammar now has a part-wise fallback when the general filter parser cannot preserve color scope. Existing successfully parsed compounds retain their old representation. This resolves the pending P-698 runtime gap above; the unknown-selector guard remains for other unsupported descriptors. Added both-seat controls cover red Saiyan, blue/red Crew, non-red Saiyan, red non-Saiyan, wrong side/area, Field and a dual-trait source counted only once. The focused suite now has 120 scenarios. R-444's 102-case receipt describes its original checkpoint, before the owner answer.
