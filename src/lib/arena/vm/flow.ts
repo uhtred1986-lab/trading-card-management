@@ -1,3 +1,4 @@
+import { expireStandingNegationBatch, beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { capturedGrantedSkillNegated } from "./effects";
 import { capturedSkillShowing } from "./triggers";
 import { requireAwakenAlternativeFrame, stepAwakenAlternative } from "./awaken-alternative-costs";
@@ -253,7 +254,7 @@ const STEP_WORK: Record<string, Work> = {
     section: "7-2-4",
     waits: "an `until:` a duration expiry can be declared against, rather than the closed `DURATIONS` list the language carries",
     run: (ctx, game, state, ev) => {
-      returnLoans(ctx, game, state, ev, endTurnRelativeEffects(state, ev));
+      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endTurnRelativeEffects(s, events)));
     },
   },
   mainPending: {
@@ -262,7 +263,7 @@ const STEP_WORK: Record<string, Work> = {
     run: (ctx, game, state, ev) => {
       // #1163: "until the start of your next Main Phase" ends here, before
       // anything waiting for this Main Phase resolves.
-      returnLoans(ctx, game, state, ev, endNextMainEffects(state, ev));
+      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endNextMainEffects(s, events)));
       state.programs.push(...dueDelays(state, "mainStart"));
       // 7-2-11's one charge has gone by the moment the Main Phase begins,
       // whether or not a card was actually charged at the Charge Phase's own
@@ -285,11 +286,11 @@ const STEP_WORK: Record<string, Work> = {
     run: (ctx, game, state, ev) => {
       // 7-4-5/6: "for the turn" effects end, and 20-15's last timing is the
       // one that happens as the turn closes over them.
-      returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "turn"));
-      // Phrasing batch 7: the turn's half of "the end of a battle or the end of the turn, whichever comes first".
-      returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
-      // #930: "until the end of your turn" ends only at the end of its master's turn.
-      returnLoans(ctx, game, state, ev, endOwnTurnEffects(state, ev));
+      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
+        ...endEffectsOfDuration(s, events, "turn"),
+        ...endEffectsOfDuration(s, events, "battleOrTurn"),
+        ...endOwnTurnEffects(s, events),
+      ]));
       state.programs.push(...dueDelays(state, "turnCleanup"));
     },
   },
@@ -350,8 +351,9 @@ const STEP_WORK: Record<string, Work> = {
       // step it was written for has now happened, so it is spent — on this
       // player's cards only, which is what makes "next" the right one
       // whichever turn the effect was made on (the legacy `turn.activeAll`).
-      endAfterChargeEffects(state, ev, covered);
-      endAfterOpponentChargeEffects(state, ev);
+      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
+        ...endAfterChargeEffects(s, events, covered), ...endAfterOpponentChargeEffects(s, events),
+      ]));
     },
   },
   chargeDraw: {
@@ -471,10 +473,9 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // ends them after [Revenge]'s KO and [Dual Attack]'s stand (#154 found
       // the rules engine never ending them at all, through [Alliance]).
       if (top.phase === "battle") {
-        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battle"));
-        // Phrasing batch 7: "…until the end of a battle or the end of the turn, whichever comes first" (BT15-139)
-        // ends with the first battle to end after it was made, or with the turn (`endEffects` below), whichever is first.
-        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
+        returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
+          ...endEffectsOfDuration(s, events, "battle"), ...endEffectsOfDuration(s, events, "battleOrTurn"),
+        ]));
         state.battle = null;
       }
       // 7-3: a phase running out of steps is the moment "at the end of your
@@ -715,10 +716,10 @@ export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmSt
     if (shown) log(ev, { ...shown, skipped: true });
     // 20-13-5: a duration ending in this Charge Phase ends immediately when
     // that phase is skipped, even though its Active Step will never run.
-    if (name === game.game?.phases?.[0]) endAfterOpponentChargeEffects(state, ev);
+    if (name === game.game?.phases?.[0]) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endAfterOpponentChargeEffects(s, events)));
     // …and so does "until the start of your next Main Phase" (#1163) when the
     // phase whose first step would have ended it is skipped.
-    if (declared.steps.includes("mainPending")) returnLoans(ctx, game, state, ev, endNextMainEffects(state, ev));
+    if (declared.steps.includes("mainPending")) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endNextMainEffects(s, events)));
     return;
   }
   emit(ctx, game, state, ev, { event: "phaseStart", controller: state.turnPlayer, args: { phase: name } }, shownPhase(game, state, name));
@@ -1766,6 +1767,7 @@ export interface MoveCause {
  * zone a board cannot animate, and still a place a card arrived in.
  */
 export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
+  validateStandingNegationRead(ctx, state);
   const from = fromZone(state, id);
   const fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
   const report = (completed: boolean, actual = fromZone(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
@@ -1791,9 +1793,10 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (route.replacement) opts.usedReplacements?.add(route.replacement);
   if (route.stays) { report(false); return; }
   if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { report(false); return; }
+  if (state.cards[id]?.hidden || state.cards[id]?.under.length || from === null || (from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, id);
+  const transaction = beginStandingNegationMutation(ctx, state, id);
   const result = moveCard(state, game, id, route.to, { ...opts, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
-  report(!route.replacementApplied && result.move.to === asked, result.move.to);
   if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== id && !(result.move.released ?? []).some((released) => released.card === item.card));
   // Where it really went: a rule about what the card *is* may send it
   // somewhere else than asked (19-1-7, a token leaving play is removed).
@@ -1821,6 +1824,8 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
   if (to === asked) opts.beforeTriggers?.();
+  finishStandingNegationMutation(ctx, state, transaction, to === "battle" && from !== "battle" ? id : undefined);
+  report(!route.replacementApplied && result.move.to === asked, result.move.to);
   const moment = movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder);
   if (wasFaceUpLife) moment.args.faceUp = true;
   if (returnInfo && (to === "hand" || from === "unison")) moment.subjectInfo = returnInfo;

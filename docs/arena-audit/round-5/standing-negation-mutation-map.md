@@ -24,9 +24,9 @@ The complete direct `state.effects` array write census in VM source is `effects.
 
 ## Admission gates
 
-No production caller uses the adapter. Before admitting DB1-066 / BT10-153, demonstrate every listed mutation slice settles before any reader, trigger or saved choice; preserve current pre/post Deflect, original-controller departure Autos, R422 witnessed arrival and already-resolved Over Realm cleanup; source-review protection reactivation and standing grant regeneration. Keep other standing-negation families excluded. An assertion only at the end of `apply` cannot establish these requirements.
+The first bounded native writer fixture stage now uses the adapter. Before admitting DB1-066 / BT10-153, demonstrate every listed mutation slice settles before any reader, trigger or saved choice; preserve current pre/post Deflect, original-controller departure Autos, R422 witnessed arrival and already-resolved Over Realm cleanup; source-review protection reactivation and standing grant regeneration. Keep other standing-negation families excluded. An assertion only at the end of `apply` cannot establish these requirements.
 
-Focused proof at this stage: 32 history cases, 46 native observation cases including separate current and stale Whis records, and 24 synchronous adapter cases. These prove the bounded helpers, not native card gameplay.
+Focused proof at this stage: 32 history cases, 46 native observation cases including separate current and stale Whis records, and 24 synchronous adapter cases. These establish the helper prerequisites; native writer evidence follows below.
 
 
 Source discovery now precedes target/protection analysis. With no current whole-negator candidate, unrelated unread Permanents and external/timed protection do not introduce a refusal or require history; a no-candidate slice leaves absent history absent. The prior snapshot/history is still validated, so removal of the final active source produces and commits an empty observation. With another candidate remaining, uncertain protector reactivation still refuses. Exact reviewed printed whole-negation wording is used only to refuse a missing current record, never to compile or execute a skill. Copied whole-negator records remain an explicit source-identity boundary rather than disappearing into the unaffected path.
@@ -34,7 +34,7 @@ Source discovery now precedes target/protection analysis. With no current whole-
 
 The unaffected-board discovery guard also inspects copied source definitions and the original side/index printed identity. Missing definitions or the reviewed whole-negation printed intent cannot disappear merely because a copied source record is absent/empty. Unrelated valid copied Autos retain the unaffected fast path. Capture shares one validated current observation with its grant-invariant check; it does not cache observations across mutations.
 
-## Proposed first native writer slice (awaiting ownership)
+## First native writer slice plan
 
 - Add a validated read scope at context-bearing query/engine boundaries, including `program.ts:readingBoard` and the relevant `index.ts` entrypoints. Low-level `skillsNegated(state, id)` lacks context and must consume previously validated metadata; it cannot independently validate current compiled source/protection records. An unvalidated raw edge lookup is insufficient. Readers never initialize or repair generation history.
 - Wire ordinary non-stack Battle play/leave through `host.ts:moveTo` and `flow.ts:moved`, after replacement/prohibition checks and before movement/played emissions. Landing settles after `play.ts:resolvePlay.beforeTriggers` has installed pre-entry negation. Keep pre-leave negation and controller snapshots for departure Autos. Defer nested effect settlement to that arrival owner.
@@ -42,4 +42,15 @@ The unaffected-board discovery guard also inspects copied source definitions and
 - Wire complete duration-expiry timings as one batch. Initially refuse affected expiries containing control-return effects before mutation, rather than guessing `returnLoans` ordering. Refuse simultaneous enabling without proven ordering. Never settle per effect-array element.
 - Explicitly refuse unsupported affected mutation slices before their first mutation: stack/under placement, Hidden/face change, token/control procedures, unreviewed protection transitions and standing-grant regeneration. Unaffected boards retain existing behavior. Native stale-read assertions remain a backstop, not a substitute for caller coverage.
 
-This stage requests coordinated ownership of `host.ts`, `flow.ts`, `play.ts` and query/init entrypoints in `index.ts`, in addition to the current effects/program/helpers ownership. No such writer or reader wiring is included in this prototype commit. First native tests should stage exact DB1-066 / BT10-153 records and prove ordinary play/leave, temporary negation/expiry, pre-entry protection, original-controller departure information and resolved-grant deletion before any compiler admission.
+This plan is partially implemented below. Remaining writer/projection coverage and departure-trigger evidence still gate admission.
+
+
+## Native fixture checkpoint (2026-11-05)
+
+`standing-negation-runtime.ts` now wraps ordinary `host.moveTo` / `flow.moved`, standalone whole/index negation and resolved effect writes, and complete turn/battle/charge/main expiry batches. Movement settles after cleanup and pre-entry negation, before completion receipts and movement/played emissions. Energy entry mode is captured against the old settled board before invalidating its read witness. Expiring control returns refuse before mutation on affected boards. Low-level `skillsNegated` consumes transient source/state freshness witnesses; context-bearing readers validate history and current stored source identities first. New-game initialization is conditional on an exact complete stored policy. Persistent history is never initialized by a read.
+
+Unsupported affected Hidden/face/token/stack/under/control paths refuse before their mutation. Standing keyword/copied-grant regeneration has a preflight guard, including a first incoming negator and direct action declarations; resolved grants remain supported through R475 receipts. This checkpoint does **not** establish all hypothetical projections, cost-group expiry, queued skill-play declarations or original-controller departure-trigger behavior. Catalog compilation remains unchanged and both real cards remain blocked.
+
+`standing-negation-native-5.ts` passes 20 grouped checks across both seats: ordinary play/leave, temporary disable and complete expiry, protected/pre-negated Whis arrival, no-context reload refusal and contextual pure validation, first-negator regeneration refusal before placement, permanently deleted resolved keyword grants, source-record mutation freshness, and an actual saved `RULES.apply` ordinary play plus native endMain expiry, legalActions and boardView. The latter uses 113–114 card structural fixtures with exact stored Permanent records, not full printed card costs. Combined menu/play/counter/reload/view/endMain sequence measured about 1–2.2 seconds; this is not an optimized performance claim.
+
+Validation: history32, observer46, adapter24, native20, R475native50, R480native108 and standalone VM pass; targeted lint and TypeScript pass. No card database or stored-rule writes, catalog admission, migration, dependency, merge or deployment is included.
