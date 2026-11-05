@@ -1,3 +1,4 @@
+import { compileCounterArrival } from "./counter-arrival";
 import { counterUnderPermit } from "../vm/counter-under-contract";
 import { counterEnergyPermit } from "../vm/counter-energy-contract";
 import { counterDropPermit, COUNTER_DROP_COLORS } from "../vm/counter-drop-contract";
@@ -846,6 +847,8 @@ function aegisAltPermit(text: string): { head: string | null; opener: string | n
 }
 
 function compileSkillText(skill: Skill): Script {
+  const arrivalPolicy = compileCounterArrival(skill);
+  if (arrivalPolicy) return arrivalPolicy;
   // [Union-Fusion] and [Union-Potara] print two character names where an
   // effect would go, and the engine reads those itself. [Union-Absorb] is
   // different (22-13-6-1): its line really is "cost : effect", and the effect

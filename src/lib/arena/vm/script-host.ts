@@ -342,6 +342,8 @@ export interface ScriptHost {
    * rules engine. Absent on a host that processes none mid-program.
    */
   ruleInterrupt?(frame: ScriptFrame): ScriptFrame | null;
+  /** R435: whether the voluntary original incoming-to-Drop action can complete. */
+  canReplaceCounterArrival?(frame: ScriptFrame): boolean;
   /** 5-5-3: play these cards, then come back to `frame`. */
   /**
    * `counterWindow` (#155): the play a keyword's own move makes opens the

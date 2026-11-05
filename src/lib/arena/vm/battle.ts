@@ -1,3 +1,4 @@
+import { counterArrivalDescriptor } from "./counter-arrival-policy";
 import { canFinishCounterTaxes } from "./counter-tax";
 import { counterUnderPermission, counterUnderAdmissionProblem, counterUnderOccurrenceProblem, requireCounterUnderOccurrence, sameCounterUnderSource, validCounterUnderOrigin, resetUnderCounterOccurrence } from "./counter-under";
 import { underCounterCardPrice } from "./counter-under-price";
@@ -1323,6 +1324,9 @@ function counterBindingIdentity(state: VmState, sk: Skill): Pick<ScriptFrame, "c
 }
 function futureCounterProblem(state: VmState, sk: Skill, ops: Op[]): string | null {
   const profile = state.skillPlayScopes?.find(s => s.id === state.resolving?.scopeWindow?.scope)?.profile;
+  if (sk.kind === "counter:play" && counterArrivalDescriptor(ops)) {
+    return profile?.tokens || profile?.explicitWindow ? "a per-arrival optional Counter over token or explicit evolution plays" : null;
+  }
   return sk.kind === "counter:play" && state.resolving?.scopeWindow?.boundary === "before" ? counterBindingProblem(ops, profile?.tokens, profile?.arrivals === 1 && !profile.explicitWindow) : null;
 }
 
