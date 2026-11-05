@@ -157,6 +157,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   yourCardBattleToDrop: "when one of your cards goes from your Battle Area to the Drop",
   droppedFromHandByOpponent: "when an opponent's skill sends this card from your hand to the Drop",
   activeBySkill: "when this card is switched to Active Mode by a skill",
+  activeBySkillDuringYourTurn: "when this card is switched to Active Mode by a skill during your turn",
   yourEnergyActiveBySkill: "when your energy is switched to Active Mode by a skill",
   powerRaisedBySkill: "when this card's power is increased by a skill",
   powerLoweredBySkill: "when this card's power is decreased by a skill",

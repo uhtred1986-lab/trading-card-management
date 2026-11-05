@@ -1054,6 +1054,14 @@ DEFINE TRIGGER activeBySkill
   BIND "self"
   text: "when this card is switched to Active Mode by a skill"
 
+-- §1-10-1, §9-6: EX08-06 / EX19-30 / EX19-31. Only the Active alternative
+-- asks whose turn it is. Either player's skill can cause the actual switch.
+DEFINE TRIGGER activeBySkillDuringYourTurn
+  ON modeSwitched(by: skill, mode: active, in: [battle, leader, unison])
+  BIND "self"
+  WHERE isTurnPlayer(who: you)
+  text: "when this card is switched to Active Mode by a skill during your turn"
+
 -- §1-10-1 — when a skill switches your energy to Active Mode (BT22-137), once
 -- per energy card switched
 DEFINE TRIGGER yourEnergyActiveBySkill

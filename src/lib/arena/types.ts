@@ -1186,6 +1186,8 @@ export type Trigger =
   | "droppedFromHandByOpponent"
   /** "When this card is switched to Active Mode by a <Dr. Hedo: SH> card skill" (BT22-019): a skill's switch; its card is the subject. */
   | "activeBySkill"
+  /** The skill-caused switch during this card controller's turn; a coordinated play is unrestricted. */
+  | "activeBySkillDuringYourTurn"
   /** "When your energy is switched to Active Mode by a skill" (BT22-137): each energy card a skill stands; it is the subject. */
   | "yourEnergyActiveBySkill"
   /** "When this card's power is increased by one of your <Paikuhan> card skills" (BT18-032): the skill's card is the subject. */

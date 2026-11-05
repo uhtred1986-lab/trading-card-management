@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Played or skill-caused Active Mode during your turn (R-481)",
+    body: "EX08-06, EX19-30 and EX19-31 retain two Auto triggers. Playing the card qualifies on either turn; switching it from Rest to Active by a skill qualifies only during its controller's turn, regardless of which player used the skill. The turn check belongs to that event declaration, not the shared effect. Already Active cards and ordinary Charge Phase stands do not trigger the switch alternative. Other cause or turn qualifiers remain unread unless separately represented. This preserves existing skill-cause semantics without introducing a skill-cost exception; the three supported records do not establish complete-card support.",
+  },
+  {
     title: "Optional Energy-entry native boundary",
     body: "The typed optional Energy-Exhaust descriptor has a bounded native original-script movement bridge for one own Hand or Deck card. Its ordinary Drop-to-Warp child keeps the original parent through questions and reloads. Payer replacement routes, saved replacement continuations and unexpected child interrupts remain unsupported: all currently selected payer routes are checked before the first payer moves, preventing a substitute from stranding the original chooser. Decline and unselected replacement targets remain unaffected; final mode is captured after payer effects, and any earned, unprotected negation is installed on the new Energy occurrence before arrival. A dedicated epoch stamp ends only this negation on native host or flow departure. Source and projected arrival protection must agree, including both candidate modes; differing protection is an explicit unresolved timing boundary. Focused synthetic programs include real engine activation/answer and both-viewer Deck privacy controls, but the descriptor remains uncollected by Permanent loading and the compiler does not emit it. The six printed from-any-area cards retain their complete runtime gaps: Drop self-payment, other origins/controllers, multi-card ordering and non-script native entry are not admitted.",
   },

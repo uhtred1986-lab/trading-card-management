@@ -553,6 +553,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   const trailing = trailingTrigger(sk);
   const head = trailing ? `${trailing}, ${printed}` : printed;
   if (sk.kind === "auto" && momentsBatch1(head).some((m) => m.trigger === trigger)) return true;
+  if (trigger === "activeBySkillDuringYourTurn" && playedOrActiveDuringYourTurn(sk)) return true;
   // Audit triggers 2: a watched card's moment, read by the grammar (`watchedMomentOf`) when its description reads whole.
   if (sk.kind === "auto") {
     const watched = watchedMomentOf(effect.unmask(printed));
@@ -1240,6 +1241,8 @@ export function momentsBatch1(head: string): { trigger: Trigger; cause?: string;
   if ((m = B1_USE_TO_DISCARD.exec(head))) return bySide(m[1], "droppedFromHand", "droppedFromHandByYou", "droppedFromHandByOpponent");
   // 1-10-1: a card switched to Active Mode — any switch, the Charge Phase's included (BT31-029's Q&A) — or by a skill.
   if (/^when this card is switched to active mode(?:,|$)/.test(head)) return [{ trigger: "selfRestToActive" }];
+  // The turn qualifies this switch alone, including beside an unrestricted play (EX08-06, EX19-30/31).
+  if (/^when this card is switched to active mode by a skill during your turn(?:,|$)/.test(head)) return [{ trigger: "activeBySkillDuringYourTurn" }];
   if ((m = /^when this card is switched to active mode by (.+?)(?:,|$)/.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "activeBySkill", cause: m[1] }] : [];
   if (/^when your energy is switched (?:from rest mode )?to active mode by (?:a|any) skills?(?:,|$)/.test(head)) return [{ trigger: "yourEnergyActiveBySkill" }];
   if ((m = B1_DROP_TO_WARP.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "dropToWarpBySkill", cause: m[1] }] : [];
@@ -1413,12 +1416,17 @@ export function momentPartSkills(sk: Skill): Skill[] | null {
  * clause (an unread gap) instead of keeping half of it.
  */
 const PLAYED_COORDINATED = /^when (?:this card (?:in your hand )?is played|you play this card)((?: from your hand| using \[[^\]]*\])?)\s*,?\s+or\s+(?:when\s+)?([\s\S]*)$/;
+/** Exact coordinated head: the qualified switch is a separate typed moment, never a condition on the play. */
+export function playedOrActiveDuringYourTurn(sk: Skill): boolean {
+  return sk.kind === "auto" && /^when (?:you play this card|this card is played),? or when this card is switched to active mode by a skill during your turn(?:,|$)/.test(effectHead(maskNames(sk.effect).text));
+}
 export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (sk.kind !== "auto") return false;
   const head = effectHead(maskNames(sk.effect).text);
   const m = PLAYED_COORDINATED.exec(head);
   if (!m) return false;
   const [, qualifier, rest] = m;
+  if (playedOrActiveDuringYourTurn(sk)) return !autoTriggerMatches(sk, "activeBySkillDuringYourTurn");
   // A qualifier on the play that `played` would ignore: only "from your hand"
   // and "using [Over Realm]" have readers of their own.
   if (/^ using \[/.test(qualifier) && !/^ using \[(?:dark )?over realm/.test(qualifier)) return true;

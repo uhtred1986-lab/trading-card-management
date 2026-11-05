@@ -11,7 +11,7 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { readsMomentsOneByOne, triggersOf, unreadMoments } from "../gaps";
 import { effectHead, keywordOf, maskNames, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { autoTriggerMatches, YOUR_OTHER_BATTLE_DARK_PLAYED, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, yourCardPlayedUsingArrival, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, TURN_END_WHERE_PLAYED, type MomentCause } from "../text/triggers";
+import { autoTriggerMatches, YOUR_OTHER_BATTLE_DARK_PLAYED, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, playedOrActiveDuringYourTurn, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, yourCardPlayedUsingArrival, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, TURN_END_WHERE_PLAYED, type MomentCause } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, Selector } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
@@ -1199,6 +1199,8 @@ function compileSkillText(skill: Skill): Script {
     // (BT31-015, #940): a coordinated alternative the trigger readers could
     // not place is left unread, not dropped silently with the clause.
     if (playedOrUnplacedAlternative(skill)) return { ops: [], unsupported: [trigger, ...clauses] };
+    // The comma-separated alternative belongs to WHEN; its own typed moment carries the turn restriction.
+    if (playedOrActiveDuringYourTurn(skill) && /^or when this card is switched to active mode by a skill during your turn[,.]?$/i.test(clauses[0]?.trim() ?? "")) clauses.shift();
     // Audit triggers 1: a head that coordinates moments answers to each (`triggersOf`), and what it says about a card a
     // moment hands on is read off that moment. One that no reader places, or a condition one moment alone would carry,
     // leaves the moment clause unread (`momentIsRead`), the program kept as for any unread moment.
@@ -1790,7 +1792,7 @@ function batch1Condition(trigger: string): { cond: Cond | null } | null | undefi
   const whose = read.trigger.startsWith("opponentCardPower") ? ({ side: "opponent" } as const) : read.trigger === "yourCardPowerLowered" ? ({ side: "you" } as const) : {};
   if (read.subject === "battle") conds.push({ kind: "count", sel: { special: "subject", ...whose, area: "battle" }, atLeast: 1 });
   if (read.subject === "leader") conds.push({ kind: "count", sel: { special: "subject", ...whose, area: "leader" }, atLeast: 1 });
-  if (/\bduring your turn$/i.test(masked.text)) conds.push({ kind: "isTurnPlayer" });
+  if (read.trigger !== "activeBySkillDuringYourTurn" && /\bduring your turn$/i.test(masked.text)) conds.push({ kind: "isTurnPlayer" });
   return { cond: conds.length === 0 ? null : conds.length === 1 ? conds[0] : { kind: "all", conds } };
 }
 

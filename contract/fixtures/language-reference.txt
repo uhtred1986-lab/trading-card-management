@@ -5824,6 +5824,10 @@
       "words": "when this card is switched to Active Mode by a skill"
     },
     {
+      "name": "activeBySkillDuringYourTurn",
+      "words": "when this card is switched to Active Mode by a skill during your turn"
+    },
+    {
       "name": "yourEnergyActiveBySkill",
       "words": "when your energy is switched to Active Mode by a skill"
     },
