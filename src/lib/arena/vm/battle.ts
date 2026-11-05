@@ -1,3 +1,4 @@
+import { captureComboDeclaration, dropComboPermission, requireComboDeclaration } from "./drop-combo";
 import { counterArrivalParentProblem } from "./counter-arrival-parent";
 import { counterArrivalDescriptor } from "./counter-arrival-policy";
 import { canFinishCounterTaxes } from "./counter-tax";
@@ -1860,7 +1861,8 @@ function comboEligibleOnBoard(ctx: EngineContext, game: GameDefinition, state: V
   const field = (state.sides[player].zones.battle ?? []).filter(
     (id) => id !== b.attacker && id !== b.guard && (state.cards[id]?.mode === "active" || (state.cards[id]?.mode === "rest" && (restedSelf.includes(id) || rested.some((p) => permitted(ctx, game, state, p.filter, id))))),
   );
-  return [...hand, ...field].filter((id) => {
+  const drop = state.sides[player].zones.drop.filter(id => dropComboPermission(ctx, game, state, player, id));
+  return [...hand, ...field, ...drop].filter((id) => {
     const inst = state.cards[id];
     const def = inst && ctx.defs[inst.cardId];
     if (!def || !canCombo(def, comboPriceOf(game) === null)) return false;
@@ -1966,6 +1968,8 @@ export function applyBattleActivation(ctx: EngineContext, game: GameDefinition, 
 export function applyCombo(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): "done" | "asked" {
   if (action.type !== "combo") throw new RulesetBroken(state.game, "applyCombo called on a non-combo action");
   requirePrompt(state, action, ["combo"]);
+  const declaration = state.prompt.kind === "combo" ? state.prompt.comboDeclaration : undefined;
+  if (declaration) requireComboDeclaration(ctx, game, state, action.player, action.card, declaration, action.pay);
   if (!comboEligible(ctx, game, state, action.player).includes(action.card)) throw new IllegalAction("that card can't combo now");
   const inst = state.cards[action.card];
   const def = ctx.defs[inst.cardId];
@@ -1974,7 +1978,7 @@ export function applyCombo(ctx: EngineContext, game: GameDefinition, state: VmSt
     const plan = planCost(ctx, game, state, action.player, price, action.card, action.pay);
     if (!plan.ok) throw new IllegalAction(`can't pay the combo cost: ${plan.why[0]?.kind}`);
     if (action.pay === undefined && plan.asks && plan.options.length > 1) {
-      state.prompt = { kind: "payCost", player: action.player, action, options: plan.options, describe: `combo ${nameOf(ctx, state, action.card)}` };
+      state.prompt = { kind: "payCost", player: action.player, action, options: plan.options, comboDeclaration: declaration ?? captureComboDeclaration(ctx, game, state, action.player, action.card), describe: `combo ${nameOf(ctx, state, action.card)}` };
       return "asked";
     }
     chargeCost(ctx, game, state, ev, action.player, plan.payment, action.card, ["energy"]);
@@ -2025,7 +2029,11 @@ export function restoreNativePrompt(ctx: EngineContext, game: GameDefinition, st
   // the battle phase (#150), so an activation interrupted there is that one.
   if (action.type === "combo" || (action.type === "activate" && state.phase === "battle")) {
     const side: "offense" | "defense" = action.player === state.turnPlayer ? "offense" : "defense";
-    return { kind: "combo", player: action.player, side };
+    const saved = action.type === "combo" && state.prompt.kind === "payCost" ? state.prompt.comboDeclaration : undefined;
+    if (action.type === "combo" && state.prompt.kind === "payCost") {
+      requireComboDeclaration(ctx, game, state, action.player, action.card, saved);
+    }
+    return { kind: "combo", player: action.player, side, ...(saved ? { comboDeclaration: structuredClone(saved) } : {}) };
   }
   return null;
 }
@@ -2361,6 +2369,7 @@ export function battleRejectedActions(ctx: EngineContext, game: GameDefinition, 
       for (const r of activationsOfCard(id)) push(r);
     }
     for (const id of zone("battle")) push({ action: { type: "combo", player: p, card: id }, label: `Combo ${nameOf(ctx, state, id)}`, why: comboWhy(ctx, game, state, p, id) });
+    for (const id of zone("drop")) push({ action: { type: "combo", player: p, card: id }, label: `Combo ${nameOf(ctx, state, id)}`, why: comboWhy(ctx, game, state, p, id) });
     for (const id of cardsInPlay(state, p)) for (const r of activationsOfCard(id)) push(r);
     return out;
   }
@@ -2400,6 +2409,7 @@ export function battleRejectedActions(ctx: EngineContext, game: GameDefinition, 
  */
 function comboWhy(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): Requirement[] {
   const why: Requirement[] = [];
+  if (state.sides[player].zones.drop.includes(card) && !dropComboPermission(ctx, game, state, player, card)) why.push({ kind: "other", detail: "no permission to combo this card from Drop" });
   const b = state.battle;
   const inst = state.cards[card];
   if (state.sides[player].zones.battle?.includes(card)) {

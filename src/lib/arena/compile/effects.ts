@@ -3498,6 +3498,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     return [{ op: "permit", what: "attackActive", target: ref, until: durationOf(t), filter }];
   }
 
+  // R473: a standing Drop-area permission widens declared combo sources;
+  // it does not execute the ordinary skill-driven (free) combo operation.
+  if (c.permanent && (m = /^use (mono-(?:red|blue|green|yellow|black|white) ≪[^≫]+≫ cards? with \d+ combo power) from your drop(?: area)? in combos?$/.exec(t))) {
+    const filter = filterFor(m[1], null);
+    if (!filter || unreadFilterWords(m[1], filter).length || filter.type && filter.type !== "BATTLE") return null;
+    return [{ op: "permit", what: "comboFromDrop", target: { sel: { special: "self" } }, until: "game", filter: { ...filter, type: "BATTLE" } }];
+  }
+
   // 5-7 lifted: "you can use your mono-red Rest Mode ≪Saiyan≫ cards in
   // combos" (BT18-001), "during this turn, you can use white Rest Mode
   // <Vegeta: GT> cards in combos" (BT29-129). A combo normally takes a card
