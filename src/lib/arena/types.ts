@@ -919,6 +919,10 @@ export interface ContinuousEffect {
    * the first activation it applies to spends it and it ends there, still
    * bounded by `until`. Absent is every activation for the whole duration.
    */
+  /** Exact activation context for a card-energy coupon; absent does not narrow its price. */
+  energyActivation?: import("./vm/energy-coupons").EnergyActivation;
+  /** New cost effects distinguish a valid ordinary discount from an obsolete lost-scope save. */
+  costOrigin?: { version: 1; skillIndex: number | null; energyActivation: import("./vm/energy-coupons").EnergyActivation | null };
   uses?: number;
   /**
    * `skillCost` only: the change reaches only the keyword skill of this name -

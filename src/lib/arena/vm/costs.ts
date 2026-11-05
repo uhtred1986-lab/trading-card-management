@@ -1,3 +1,4 @@
+import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
 import { emptyUnisons } from "./unison-zero";
 import type { CardFilter } from "../text/filters";
 import { predicateOf } from "./filters";
@@ -420,7 +421,7 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
  * `whyNot` into the `unread` requirement the legacy engine gives for a price it
  * cannot read.
  */
-function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, charge: Charge, card: string): { total: number | null; orbs: Partial<Record<Color, number>> } {
+function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, charge: Charge, card: string, payment?: EnergyPaymentContext): { total: number | null; orbs: Partial<Record<Color, number>> } {
   const inst = state.cards[card];
   const def = inst && ctx.defs[inst.cardId];
   if (!def) return { total: 0, orbs: {} };
@@ -429,7 +430,7 @@ function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, char
   // discounts, so the reading below is the printed total less every reduction
   // in force — standing from a [Permanent] or put there for the turn by a skill
   // that resolved, which are one list to `valueOf` as they are to `playCost`.
-  const now = charge.amount ? attrsNow(ctx, game, state, card) : {};
+  const now = charge.amount ? attrsNow(ctx, game, state, card, undefined, payment) : {};
   const named = charge.amount ? now[charge.amount] : undefined;
   const total = charge.amount === null ? 0 : typeof named === "number" ? named : null;
   const orbs: Partial<Record<Color, number>> = {};
@@ -456,10 +457,10 @@ function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, char
  * the planner refuses it — because "nobody has named X" and "this card is free"
  * are different claims.
  */
-export function cardPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): { total: number; orbs: Partial<Record<Color, number>> } {
+export function cardPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, payment?: EnergyPaymentContext): { total: number; orbs: Partial<Record<Color, number>> } {
   const charge = Object.values(chargesOf(game)).find((c) => c.consumes === "energy");
   if (!charge) return { total: 0, orbs: {} };
-  const read = amountOn(ctx, game, state, charge, card);
+  const read = amountOn(ctx, game, state, charge, card, payment);
   return { total: read.total ?? 0, orbs: read.orbs };
 }
 
@@ -1301,8 +1302,21 @@ function spendUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): 
  * Called where a move's price is charged (`vm/actions.ts`), never while a menu
  * is built.
  */
+export interface CapturedEnergyCouponUses { version: 1; ids: number[] }
+/** Capture before a paid Extra leaves its printed area; later costs must not re-read that selector. */
+export function captureActivationEnergyUses(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, payment: EnergyPaymentContext): CapturedEnergyCouponUses {
+  return { version: 1, ids: state.effects.filter(e => e.kind === "cost" && e.energyActivation !== undefined && energyActivationReaches(e.energyActivation, payment) && e.uses != null && e.uses > 0 && onCard(ctx, game, state, e, card)).map(e => e.id) };
+}
+/** Successful full payment consumes only captured, still-existing coupons; no expired effect is resurrected. */
+export function consumeActivationEnergyUses(state: VmState, ev: GameEvent[], captured: CapturedEnergyCouponUses): void {
+  if (captured.version !== 1 || !Array.isArray(captured.ids) || captured.ids.some(id => !Number.isSafeInteger(id) || id < 0) || new Set(captured.ids).size !== captured.ids.length) throw new IllegalAction("rebuild this saved activation-energy coupon payment");
+  const present = state.effects.filter(e => captured.ids.includes(e.id));
+  if (present.some(e => e.kind !== "cost" || !e.energyActivation || e.uses === undefined)) throw new IllegalAction("the captured activation-energy coupon changed");
+  spendUses(state, ev, present.filter(e => e.uses! > 0));
+}
+
 export function spendPriceUses(state: VmState, ev: GameEvent[], card: string): void {
-  spendUses(state, ev, state.effects.filter((e) => (e.kind === "cost" || e.kind === "specifiedCost") && e.target === card && e.uses != null && e.uses > 0));
+  spendUses(state, ev, state.effects.filter((e) => (e.kind === "cost" || e.kind === "specifiedCost") && !e.energyActivation && e.target === card && e.uses != null && e.uses > 0));
 }
 
 /**

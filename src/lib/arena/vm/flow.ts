@@ -1,5 +1,6 @@
 import { counterChoiceTail } from "./counter-continuation";
 import { requirePlayReplacement } from "./short-play-replacement";
+import { energyCouponContract, requireEnergyCouponFrame } from "./energy-coupon-saves";
 import { chooseFramePools, primeFramePools } from "./pooled-costs";
 import { requireCounterAdmission } from "./counter-admission";
 import { completeRetainedResume, settleRetainedCounter, requireRetainedCounter } from "./retained-counter";
@@ -914,6 +915,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   }
   const frame: ScriptFrame & { autoRevealEpoch?: number } = {
     ...(skill?.kind === "auto" ? { skillEffectOrigin: { version: 2 as const, kind: "auto" as const } } : {}),
+    energyCouponContract: energyCouponContract(program?.ops ?? []),
     ops: program?.ops ?? [],
     ip: 0,
     vars: {},
@@ -1375,6 +1377,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     }
     requirePlayReplacement(frame, sourceScript);
     requireCounterAdmission(frame, sourceScript);
+    requireEnergyCouponFrame(ctx, state, frame);
     requireReplacementOrigin(frame, sourceScript);
     requireMovementResults(frame, sourceScript);
     requireDelayedMovementResults(frame, frame.skillIndex === undefined && state.cards[frame.card] ? Object.values(skillsShowing(ctx, state, frame.card).scripts.bySkill) : []);

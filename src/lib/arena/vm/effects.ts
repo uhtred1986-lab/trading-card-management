@@ -1,3 +1,4 @@
+import { energyCouponContract } from "./energy-coupon-saves";
 import { sparkingIsValid } from "./validity";
 /**
  * What is in force, and for how long.
@@ -219,6 +220,7 @@ export interface VmStatic {
   skillKind?: SkillKindPrefix;
   /** `skillCost`: "[Activate: Main]" or "[Activate: Battle]" alone (`ContinuousEffect.activateTiming`). */
   activateTiming?: "main" | "battle";
+  energyActivation?: import("./energy-coupons").EnergyActivation;
   /** `skillCost`: the keyword skill the change is about (`ContinuousEffect.tag`). */
   tag?: string;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
@@ -514,7 +516,7 @@ export function dueDelays(state: VmState, at: DelayTiming): ScriptFrame[] {
   if (!ready.length) return [];
   const ids = new Set(ready.map((d) => d.id));
   state.delayed = state.delayed.filter((d) => !ids.has(d.id));
-  return ready.map((d) => ({ ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject, skillEffectOrigin: { version: 2, kind: "delayed" } }));
+  return ready.map((d) => ({ energyCouponContract: energyCouponContract(d.ops), ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject, skillEffectOrigin: { version: 2, kind: "delayed" } }));
 }
 
 /** An effect scheduled for "this turn" whose moment has gone never happens. Keeps the list from growing over a long game. */
@@ -1088,7 +1090,7 @@ function collect(
       if (value == null) continue;
       // 20-21-2: an energy cost reduced "by {r}" keeps the orbs it was said in.
       const named = kind === "cost" && op.colors?.length ? { colors: op.colors } : {};
-      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...named });
+      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.energyActivation ? { energyActivation: op.energyActivation } : {}), ...named });
       continue;
     }
     // 5-3: another price for the card itself — "you can play this card from

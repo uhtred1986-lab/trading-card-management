@@ -1,4 +1,4 @@
-/** R-447: refuse card-energy coupons whose activation timing would be lost. */
+/** R-447/R448: old lost-scope records refuse; new typed coupons preserve activation timing. */
 import assert from "node:assert/strict";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { rulesFromRows, runtimeSupportOfRow, type RuleRow } from "../../src/lib/arena/rules-store";
@@ -8,17 +8,18 @@ for (const [id,text] of Object.entries(printed)) {
   const line = parseSkills(text).find(skill => /reduce the energy cost/i.test(skill.effect));
   assert.ok(line, id);
   const script = compileSkill(line);
-  assert.ok(script.unsupported.some(part => /reduce the energy cost/i.test(part)), id);
-  assert.ok(!JSON.stringify(script.ops).includes('"op":"costReduction"'), id);
+  assert.deepEqual(script.unsupported, [], id);
+  assert.ok(JSON.stringify(script.ops).includes('"energyActivation":"main"'), id);
 }
 for (const timing of ["Main", "Battle", "Main/Battle"]) {
   const script = compileSkill(parseSkills(`[Activate: Main] During this turn, the next time you activate the [Activate: ${timing}] skill on a blue Extra with an energy cost of 1 from your hand, reduce the energy cost by {u}.`)[0]);
-  assert.ok(script.unsupported.length, timing);
-  assert.ok(!JSON.stringify(script.ops).includes('"op":"costReduction"'), timing);
+  assert.deepEqual(script.unsupported, [], timing);
+  assert.ok(JSON.stringify(script.ops).includes(`"energyActivation":"${timing.toLowerCase()}"`), timing);
 }
 {
   const script = compileSkill(parseSkills("[Activate: Main] During this turn, the next time you activate the [Activate] skill on a blue Extra from your hand, reduce the energy cost by 1.")[0]);
-  assert.ok(script.unsupported.length, "bare Activate also excludes Counter");
+  assert.deepEqual(script.unsupported, []);
+  assert.ok(JSON.stringify(script.ops).includes('"energyActivation":"activate"'), "bare Activate excludes Counter through typed scope");
 }
 for (const text of [
   "[Activate: Main] During this turn, the next time you play a blue Battle Card from your hand, reduce its energy cost by 1.",
@@ -28,7 +29,7 @@ for (const text of [
   assert.deepEqual(script.unsupported, [], text);
   assert.ok(JSON.stringify(script.ops).includes('"op":"costReduction"'), text);
 }
-console.log("coupon-timing-gap-5: two printed refusals, three timing controls and two retained coupon forms passed");
+console.log("coupon-timing-gap-5: two typed printed coupons, three timing controls, two retained forms and six stale-row refusals passed");
 
 const oldOps = {"P-524#10": [{"op": "costReduction", "target": {"sel": {"side": "you", "area": "hand", "filter": {"colors": ["Blue"], "notColors": [], "monoColor": false, "multiColor": false, "characters": [], "notCharacters": [], "charactersIncluding": [], "notCharactersIncluding": [], "charactersAll": [], "namesAll": [], "traits": [], "notTraits": [], "characterOrTrait": false, "onlyCharacters": false, "names": [], "notNames": [], "namesIncluding": [], "notNamesIncluding": [], "notKeywords": [], "keywords": [], "skillKind": null, "unreadable": false, "noKeywords": false, "type": "EXTRA", "notType": null, "faceUp": false, "token": false, "notToken": false, "costMin": 1, "costMax": 1, "powerMin": null, "powerMax": null, "originalPowerMin": null, "originalPowerMax": null, "comboPowerMin": null, "comboPowerMax": null, "markersMin": null, "markersMax": null, "specifiedCostMin": null, "specifiedCostMax": null, "specifiedCostNone": false, "costAtMostEnergy": false, "costBelowEnergy": false, "costAtLeastEnergy": false, "costAboveEnergy": false, "energyOfOpponent": false, "originallySkillLess": false, "skillLess": false, "powerRel": null, "nameInSkillTextOf": null, "z": null}, "count": 99}}, "amount": 1, "colors": ["Blue"], "until": "turn", "uses": 1}], "EX25-13#20": [{"op": "choose", "sel": {"special": "self", "area": "hand"}, "as": "p0", "reason": "Play this card from your hand"}, {"op": "play", "target": {"var": "p0"}}, {"op": "costReduction", "target": {"sel": {"side": "you", "area": "hand", "filter": {"colors": [], "notColors": [], "monoColor": false, "multiColor": false, "characters": [], "notCharacters": [], "charactersIncluding": [], "notCharactersIncluding": [], "charactersAll": [], "namesAll": [], "traits": [], "notTraits": [], "characterOrTrait": false, "onlyCharacters": false, "names": ["Tora's Red Armband"], "notNames": [], "namesIncluding": [], "notNamesIncluding": [], "notKeywords": [], "keywords": [], "skillKind": null, "unreadable": false, "noKeywords": false, "type": null, "notType": null, "faceUp": false, "token": false, "notToken": false, "costMin": null, "costMax": null, "powerMin": null, "powerMax": null, "originalPowerMin": null, "originalPowerMax": null, "comboPowerMin": null, "comboPowerMax": null, "markersMin": null, "markersMax": null, "specifiedCostMin": null, "specifiedCostMax": null, "specifiedCostNone": false, "costAtMostEnergy": false, "costBelowEnergy": false, "costAtLeastEnergy": false, "costAboveEnergy": false, "energyOfOpponent": false, "originallySkillLess": false, "skillLess": false, "powerRel": null, "nameInSkillTextOf": null, "z": null}, "count": 99}}, "amount": 2, "until": "turn", "uses": 1}]};
 for (const id of ["P-524", "EX25-13"] as const) {

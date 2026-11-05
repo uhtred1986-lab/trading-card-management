@@ -7368,15 +7368,17 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
   if (word === "energy") {
     // The card's own price: a play, a placement from the Z-Deck, an Extra's use.
     let target: Ref | null = null;
+    let energyActivation: import("../vm/energy-coupons").EnergyActivation | undefined;
     if (verb === "activate" || verb === "use") {
       const wide = skillScopeOf(scope, c, true);
       if (wide) {
-        // The price belongs to the card, not to one of its lines. An Extra is
-        // bought by activating it, but a Main/Battle timing restriction cannot
-        // be represented by a general card-energy modifier (P-524 FAQ). Even
-        // bare Activate must exclude Counter. Keyword tags may name cards;
-        // explicit skill-kind or Evolve restrictions need a payment scope.
-        if (wide.evolve || wide.skillKind) return null;
+        // Card-energy coupons carry a payment-only activation scope. P-524's
+        // Main coupon excludes Main/Battle but includes Field; even bare
+        // Activate excludes Counter. Ordinary card attributes stay unchanged.
+        // Keyword tags still describe cards; Evolve/other line kinds remain
+        // outside this bounded activation-energy contract.
+        if (wide.evolve || (wide.skillKind && wide.skillKind !== "activate")) return null;
+        if (wide.skillKind === "activate") energyActivation = wide.activateTiming ?? (/\[activate: ?main\/battle\]/i.test(scope) ? "main/battle" : "activate");
         target = wide.target;
         if (wide.tag) {
           const named = KEYWORD_NAMES[wide.tag];
@@ -7386,7 +7388,7 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
       } else target = /\bskills?\b/i.test(scope) ? null : refFor(scope, c);
     } else target = refFor(scope, c);
     if (!target || (c.stale && target === c.stale)) return null;
-    return [{ op: "costReduction", target: every(toHand(target)), amount, ...(colors ? { colors } : {}), until, ...budget }];
+    return [{ op: "costReduction", target: every(toHand(target)), amount, ...(colors ? { colors } : {}), ...(energyActivation ? { energyActivation } : {}), until, ...budget }];
   }
   // Skill cost (the default noun after "activate").
   if (verb !== "activate" && verb !== "use") return null;

@@ -1,3 +1,4 @@
+import { energyCouponContract } from "./energy-coupon-saves";
 import { sparkingIsValid } from "./validity";
 import { requireSkillPayment } from "./skill-payment";
 import { fusionIdentityProblem } from "./skill-identity";
@@ -90,7 +91,7 @@ import { disjointGroups, disjointPayable } from "./disjoint";
 import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, paidPoolVar, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, paidPoolVar, restingFor, skillOrbs, captureActivationEnergyUses, consumeActivationEnergyUses, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
 import { supportedZAwakenActionPrice, activationPriceProblem, isFixedUnderHost, taxPowerOnSelf } from "./activation-price-support";
 import { keywordSkillsNegated, skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
@@ -344,7 +345,7 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
   const orbs: Partial<Record<Color, number>> = { ...own.orbs };
   let total = own.total;
   if (withCardPrice && inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
-    const play = cardPrice(ctx, game, state, line.card);
+    const play = cardPrice(ctx, game, state, line.card, sk);
     total += play.total;
     for (const [colour, n] of Object.entries(play.orbs)) orbs[colour as Color] = (orbs[colour as Color] ?? 0) + (n ?? 0);
   }
@@ -1082,6 +1083,8 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   const afterSkillKeywords: ("Heroic" | "Villainous")[] = isExtra(ctx, game, state, card)
     ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
     : [];
+  const priceOps = waived ? null : actionPriceOf(line);
+  const activationEnergyPayment = !waived && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card) ? captureActivationEnergyUses(ctx, game, state, card, sk) : undefined;
   const deferredFusion = !waived && isFusionPayment(line);
   const deferredZAwaken = !waived && isOrderedZAwaken(line);
   if (!deferredFusion && !deferredZAwaken) spendUse(state, player, card, sk);
@@ -1090,6 +1093,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
   if (!waived && !deferredFusion && !deferredZAwaken) {
     spendSkillCostUses(ctx, game, state, ev, card, sk);
+    if (!priceOps && activationEnergyPayment) consumeActivationEnergyUses(state, ev, activationEnergyPayment);
     // An Extra used from the hand pays its energy cost with the line (12-2-2):
     // "the next time you activate it, reduce the energy cost by {g}" is spent here.
     if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) spendPriceUses(state, ev, card);
@@ -1108,7 +1112,6 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // 4-3-3: a line with an action price is announced once the price is paid —
   // the legacy `skill.resolve`, which runs after the price — so it is the
   // price's frame finishing that announces it (`vm/host.ts`'s `saveVars`).
-  const priceOps = waived ? null : actionPriceOf(line);
   // #926: a [Union]/[Evolve] move with an action price is announced, and its
   // moments fired, once its `DO` has paid it (`vm/keyword-costs.ts`) — read
   // now, while "from: hand" is still true.
@@ -1131,7 +1134,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // R-395 / 22-46-3, -6: retain the chosen Leader and Z-Deck occurrences
   // across saved continuations. `asPrinted` still checks their current traits.
   const zAwakenVars = line.keyword?.name === "Z-Awaken" ? zAwakenBindings(state, player, card) : {};
-  const effect: ScriptFrame = { ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...zAwakenVars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  const effect: ScriptFrame = { ...(priceOps && activationEnergyPayment ? { activationEnergyPayment } : {}), energyCouponContract: energyCouponContract(program), ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...zAwakenVars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and

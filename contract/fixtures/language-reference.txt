@@ -1614,7 +1614,7 @@
     {
       "name": "costModifier",
       "class": "primitive",
-      "signature": "{\"op\":\"costModifier\",\"target\"?:TARGET,\"amount\"?:AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"pay\"?:\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\"|\"activate:battle\",\"alt\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"onto\"?:TARGET,\"uses\"?:N}",
+      "signature": "{\"op\":\"costModifier\",\"target\"?:TARGET,\"amount\"?:AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"energyActivation\"?:\"activate\"|\"main\"|\"battle\"|\"main/battle\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"pay\"?:\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\"|\"activate:battle\",\"alt\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"onto\"?:TARGET,\"uses\"?:N}",
       "fields": [
         {
           "name": "target",
@@ -1642,6 +1642,18 @@
             "combo",
             "zEnergy",
             "specified"
+          ]
+        },
+        {
+          "name": "energyActivation",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "activate",
+            "main",
+            "battle",
+            "main/battle"
           ]
         },
         {
@@ -1757,7 +1769,7 @@
     {
       "name": "costReduction",
       "class": "macro over `costModifier`",
-      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"activateTiming\"?:\"main\"|\"battle\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"uses\"?:N,\"onto\"?:TARGET}",
+      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"activateTiming\"?:\"main\"|\"battle\",\"energyActivation\"?:\"activate\"|\"main\"|\"battle\"|\"main/battle\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"uses\"?:N,\"onto\"?:TARGET}",
       "fields": [
         {
           "name": "target",
@@ -1806,6 +1818,18 @@
           "enumValues": [
             "main",
             "battle"
+          ]
+        },
+        {
+          "name": "energyActivation",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "activate",
+            "main",
+            "battle",
+            "main/battle"
           ]
         },
         {

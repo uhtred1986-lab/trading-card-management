@@ -1,4 +1,6 @@
 import { playReplacementDescriptor, shortPlayReplacementGap } from "./vm/short-play-replacement";
+import { printsScopedEnergyCoupon } from "./vm/energy-coupons";
+import { unscopedEnergyCoupon } from "./vm/energy-coupon-saves";
 import { storedPaidAdmission } from "./vm/paid-admission";
 import { printedSpiritBoostDescriptor } from "./text/spirit-boost";
 import { legacyMovementHinge } from "./vm/movement-result";
@@ -229,16 +231,7 @@ function spiritBoostContractGap(row: Pick<RuleRow, "printed" | "cost">): string 
  */
 /** R447: old rows must not execute card-energy discounts with discarded skill scope. */
 function couponScopeContractGap(row: { printed: string; ops: unknown }): string | null {
-  if (!/next time[^.]*\b(?:activate|use)\b[^.]*\[activate(?::[^\]]+)?\][^.]*reduce (?:the|its) energy cost/i.test(row.printed)) return null;
-  const unscoped = (ops: unknown): boolean => Array.isArray(ops) && ops.some(raw => {
-    if (!raw || typeof raw !== "object") return false;
-    const op = raw as Op;
-    return (op.op === "costReduction" && (!op.what || op.what === "energy"))
-      || (op.op === "if" && (unscoped(op.then) || unscoped(op.else)))
-      || (op.op === "may" && unscoped(op.ops))
-      || (op.op === "chooseMode" && op.modes.some(mode => unscoped(mode.ops)));
-  });
-  return unscoped(row.ops) ? "rebuild the card-energy coupon's explicit activation scope" : null;
+  return printsScopedEnergyCoupon(row.printed) && unscopedEnergyCoupon(row.ops) ? "rebuild the card-energy coupon's explicit activation scope" : null;
 }
 
 export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown; cond?: unknown }): string[] {

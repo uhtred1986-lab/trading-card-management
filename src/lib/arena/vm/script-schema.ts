@@ -1,3 +1,4 @@
+import { ENERGY_ACTIVATIONS } from "./energy-coupons";
 import { potaraMaterialsProblem } from "./potara-materials";
 import { fusionMaterialsProblem } from "./fusion-materials";
 import { skillPriceProblem } from "./skill-payment";
@@ -255,6 +256,7 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "activateTiming", type: { enum: ["main", "battle"] } },
+  { name: "energyActivation", type: { enum: ENERGY_ACTIVATIONS } },
   { name: "tag", type: "string" },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
@@ -278,6 +280,7 @@ const COST_MODIFIER_FIELDS: OpField[] = [
   { name: "target", type: "ref", default: { sel: { special: "self" } } },
   { name: "amount", type: "amount" },
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
+  { name: "energyActivation", type: { enum: ENERGY_ACTIVATIONS } },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "tag", type: "string" },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
@@ -795,7 +798,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const op = raw as OpOf<"costReduction">;
       if (op.what !== "specified") {
-        if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
+        if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind && !op.energyActivation) {
           // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
           // 2 less" alone would not say.
           const orbs = costOrbs(op.colors);
@@ -805,7 +808,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
           return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + price + orbs + costSpan(op.uses, op.until, r);
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
-        const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? `Activate${op.activateTiming === "main" ? ": Main" : op.activateTiming === "battle" ? ": Battle" : ""}` : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
+        const scoped = op.energyActivation ? ` when paying for ${op.energyActivation === "activate" ? "an Activate skill" : op.energyActivation === "main" ? "an exact Activate: Main skill or Field" : `an exact Activate: ${op.energyActivation} skill`}` : op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? `Activate${op.activateTiming === "main" ? ": Main" : op.activateTiming === "battle" ? ": Battle" : ""}` : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
         // EX03-16: a change scoped to the card the [Evolve] lands on.
         // "The next time you activate …" (BT31-096): spent by the activations it reaches.
         const budget = costSpan(op.uses, op.until, r);
@@ -1404,6 +1407,7 @@ export function costModifierAs(op: Op): Op {
     amount: op.amount,
     ...(op.what !== undefined ? { what: op.what } : {}),
     ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+    ...(op.energyActivation ? { energyActivation: op.energyActivation } : {}),
     ...(op.tag ? { tag: op.tag } : {}),
     ...(op.colors?.length ? { colors: op.colors } : {}),
     ...(op.until !== undefined ? { until: op.until } : {}),
@@ -2213,6 +2217,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     const spec = typeof o.op === "string" ? OP_SCHEMA[o.op as Op["op"]] : undefined;
     if (!spec) return `${here}: the engine has no step called ${JSON.stringify(o.op)}`;
     const step = `${here} (${o.op as string})`;
+    if (o.energyActivation !== undefined && ((o.op !== "costReduction" && o.op !== "costModifier") || (o.what !== undefined && o.what !== "energy") || o.skillKind !== undefined || o.activateTiming !== undefined || o.tag !== undefined || o.pay !== undefined)) return `${step}: an activation energy coupon must modify only card energy and carry its own scope`;
     const stray = unknownKey(o, ["op", ...spec.fields.map((f) => f.name)]);
     if (stray) return `${step} has no field ${JSON.stringify(stray)}${hintFor(stray, spec.fields)}`;
     for (const f of spec.fields) {

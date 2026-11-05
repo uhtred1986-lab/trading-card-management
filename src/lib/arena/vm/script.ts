@@ -1052,6 +1052,8 @@ export type Op =
       what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
+      /** Card energy only: exact activation whose payment receives this coupon (R448). */
+      energyActivation?: import("./energy-coupons").EnergyActivation;
       /** `costReduction`'s `tag`, carried through unchanged. */
       tag?: string;
       pay?: "none" | "life" | "program" | "energy";
@@ -1095,6 +1097,8 @@ export type Op =
       what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
+      /** Card energy only: exact activation whose payment receives this coupon (R448). */
+      energyActivation?: import("./energy-coupons").EnergyActivation;
       /** Audit lane E: with `skillKind: "activate"`, the one timing printed — "[Activate: Main]" or "[Activate: Battle]"; an "[Activate: Main/Battle]" line is either. */
       activateTiming?: "main" | "battle";
       /**
@@ -1716,6 +1720,9 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** Expected scoped coupon operations captured by a fresh effect activation. */
+  energyCouponContract?: import("./energy-coupon-saves").EnergyCouponContract;
+  activationEnergyPayment?: import("./costs").CapturedEnergyCouponUses;
   /** The typed admission gate was satisfied before this Counter activated. */
   counterAdmission?: import("./paid-admission").PaidAdmission;
   counterChoice?: { version: 1; candidates?: { card: string; epoch: number }[] };
@@ -4115,7 +4122,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // (BT28-061), "the [EX-Evolve] skill on a yellow … <Son Gohan: Youth> card from your hand" (EX25-26) — waits the
         // same way for the next such activation this turn, wherever the description looks. Pinned to the cards there
         // when it resolved, a card played or drawn later was never reached.
-        if ((kind === "skillCost" || kind === "evolveCost") && uses !== undefined && !op.onto && op.target && "sel" in op.target && !op.target.sel.areas?.length && !op.target.sel.special && !op.target.sel.fromVar) {
+        if ((kind === "skillCost" || kind === "evolveCost" || (kind === "cost" && op.energyActivation)) && uses !== undefined && !op.onto && op.target && "sel" in op.target && !op.target.sel.areas?.length && !op.target.sel.special && !op.target.sel.fromVar) {
           // Every card it finds, not a count of them (the compiler's `count: 99`).
           const sel: Selector = { ...op.target.sel };
           delete sel.count;
@@ -4126,6 +4133,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             target: "",
             kind,
             value: by,
+            ...(op.energyActivation ? { energyActivation: op.energyActivation } : {}),
+            ...(kind === "cost" ? { costOrigin: { version: 1 as const, skillIndex: frame.skillIndex ?? null, energyActivation: op.energyActivation ?? null } } : {}),
             until: op.until ?? "turn",
             tag: op.tag,
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
@@ -4145,6 +4154,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             target: id,
             kind,
             value: by,
+            ...(op.energyActivation ? { energyActivation: op.energyActivation } : {}),
+            ...(kind === "cost" ? { costOrigin: { version: 1 as const, skillIndex: frame.skillIndex ?? null, energyActivation: op.energyActivation ?? null } } : {}),
             until: op.until ?? "turn",
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
             ...(op.activateTiming ? { activateTiming: op.activateTiming } : {}),

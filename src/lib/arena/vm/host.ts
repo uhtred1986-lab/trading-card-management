@@ -82,7 +82,7 @@ import { untilWords } from "../effects";
 import { attrsNow, amount, condHolds, staticsNow, forbiddenForCard, forbids, hasKeyword, keywordInstancesInForce, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
-import { comboPriceOf } from "./costs";
+import { consumeActivationEnergyUses, comboPriceOf } from "./costs";
 import { queueKeywordCost } from "./keyword-costs";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
@@ -679,6 +679,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     saveVars: (key, vars, paidCardInfo) => {
       const effect = state.programs.find((f) => f.pricedBy?.key === key);
       if (!effect) throw new RulesetBroken(state.game, `a price finished with no effect waiting for what it chose (${key})`);
+      if (effect.activationEnergyPayment) consumeActivationEnergyUses(state, ev, effect.activationEnergyPayment);
       effect.vars = { ...vars, ...effect.vars };
       if (paidCardInfo) effect.paidCardInfo = { ...paidCardInfo, ...effect.paidCardInfo };
       log(ev, { type: "skill", card: effect.card, skill: effect.skillIndex ?? 0, master: effect.master, text: effect.pricedBy!.text, inBattle: !!state.battle });

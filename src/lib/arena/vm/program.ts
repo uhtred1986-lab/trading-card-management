@@ -1,3 +1,5 @@
+import { requireEnergyCouponEffects } from "./energy-coupon-saves";
+import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
 import { completedMovement, completedSwitch } from "./movement-result";
 import { isPotaraSkill, requirePotaraMaterials } from "./potara-materials";
 import { requireUsage } from "./usage";
@@ -402,7 +404,8 @@ function namesNow(attrs: Attrs): string[] {
  * see the same number — the property `verify/vm.ts` asserts against the legacy
  * engine's `matches`.
  */
-export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, suppliedStanding?: VmStatic[]): Attrs {
+export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, suppliedStanding?: VmStatic[], payment?: EnergyPaymentContext): Attrs {
+  requireEnergyCouponEffects(ctx, state);
   const card = state.cards[id];
   const def = card ? ctx.defs[card.cardId] : undefined;
   if (!def) return {};
@@ -498,8 +501,14 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // Every change in force **about this card**, of every kind: which of them a
   // layer reads is `LAYER_KINDS`, and keeping that pairing in one place is the
   // whole reason this no longer filters by the attribute's name (#148).
-  const mine = standing.filter((e) => e.target === id);
-  const timed = state.effects.filter((e) => e.target === id);
+  const mine = standing.filter((e) => e.target === id && energyActivationReaches(e.energyActivation, payment));
+  const timed = state.effects.filter((e) => {
+    if (!energyActivationReaches(e.energyActivation, payment)) return false;
+    if (e.target === id) return true;
+    if (!payment || !e.energyActivation || !e.matching || (e.uses ?? 1) <= 0) return false;
+    const frame: ScriptFrame = { ops: [], ip: 0, vars: e.matching.vars, card: e.source ?? id, master: e.master };
+    return resolveSelector(ctx, game, state, frame, e.matching.sel).includes(id);
+  });
   // 20-1: list identity changes add to the effective card in every area, but
   // do not rewrite what is printed. Generic selectors keep reading effective
   // attributes; rules that explicitly ask for original colours must use the
