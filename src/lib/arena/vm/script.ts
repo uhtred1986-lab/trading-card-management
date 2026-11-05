@@ -1,4 +1,5 @@
 import { NotYet } from "./errors";
+import { mergeTaxPayers } from "./tax-receipt";
 import type { OverRealmSource } from "./over-realm-cost";
 /**
  * The effect language and its interpreter.
@@ -2947,8 +2948,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // R-396: a Z-Awaken payment may pause for a movement replacement.
           // Bind the selected occurrence so resuming cannot pay with a reentry.
           if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
-          if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
-          if (frame.overRealmLateTax) frame.overRealmLateTax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers = mergeTaxPayers(frame.keywordCost.overRealm.tax.payers, picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          if (frame.overRealmLateTax) frame.overRealmLateTax.payers = mergeTaxPayers(frame.overRealmLateTax.payers, picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
           if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] ??= h.zoneEpoch(id);
           // Mechanism batch 2 (3-1-7): a card picked out of a secret area by a description is shown if it goes on to
           // another secret area; remembered here, while it is still where it was chosen from.
@@ -3156,8 +3157,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           frame.vars[op.as] = picked;
           // R-443: optional Z-Awaken payments can pause between picks too.
           if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
-          if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
-          if (frame.overRealmLateTax) frame.overRealmLateTax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers = mergeTaxPayers(frame.keywordCost.overRealm.tax.payers, picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          if (frame.overRealmLateTax) frame.overRealmLateTax.payers = mergeTaxPayers(frame.overRealmLateTax.payers, picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
           // R-470: retain each Awaken payer while the remaining picks are pending.
           if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] ??= h.zoneEpoch(id);
           if (done) {

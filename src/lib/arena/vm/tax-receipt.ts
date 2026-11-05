@@ -10,3 +10,17 @@ export function taxReceiptIdentity(key: string, rule: unknown, source: { card: s
   // changed rule occupying the same ordinal in the current static list.
   return canonicalTaxValue({ version: 1, key, rule, source: key.startsWith("effect:") ? null : source });
 }
+
+type TaxPayer = { card: string; epoch: number; paid?: true };
+/** R456: incremental selections revisit earlier picks. One original
+ * occurrence has one receipt, including old saves containing duplicates. */
+export function mergeTaxPayers(payers: readonly TaxPayer[], added: readonly TaxPayer[] = []): TaxPayer[] {
+  const unique = new Map<string, TaxPayer>();
+  for (const payer of [...payers, ...added]) {
+    const key = JSON.stringify([payer.card, payer.epoch]);
+    const previous = unique.get(key);
+    if (!previous) unique.set(key, { ...payer });
+    else if (payer.paid) previous.paid = true;
+  }
+  return [...unique.values()];
+}
