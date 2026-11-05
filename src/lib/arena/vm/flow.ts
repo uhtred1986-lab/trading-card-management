@@ -1,3 +1,4 @@
+import { requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { guardUnownedEnergyEntry } from "./energy-entry-runtime";
 import { expireStandingNegationBatch, beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
@@ -1411,6 +1412,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (frame.energyCharge || state.energyCharge) requireEnergyCharge(game,state,frame);
     if (frame.fieldCleanup) return stepFieldCleanup(ctx, game, state, ev, frame);
     if (frame.awakenAlternativeCost) return stepAwakenAlternative(ctx, game, state, ev, frame);
     if (frame.fieldCost) return stepFieldCost(ctx, game, state, ev, frame);
@@ -1611,7 +1613,9 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     const ownCleanupSubstitute = !!substitute && frame.replacing === substitute.card;
     if (ownCleanupSubstitute) substitute.active = true;
     try {
-      return stepScript(vmHost(ctx, game, state, ev, frame), frame);
+      const result=stepScript(vmHost(ctx, game, state, ev, frame), frame);
+      if (result === "done" && frame.energyCharge) delete state.energyCharge;
+      return result;
     } finally {
       if (ownCleanupSubstitute) delete substitute!.active;
     }
@@ -1930,6 +1934,7 @@ export function endGame(ctx: EngineContext, game: GameDefinition, state: VmState
   // Otherwise a suspended window can restore its parent in the over phase
   // and overwrite the original outcome or continue playing after game end.
   state.programs = [];
+  delete state.energyCharge;
   delete state.skillPlayScopes;
   state.resolving = null;
   state.pending = [];

@@ -1,5 +1,5 @@
+import { prepareEnergyCharge, ownEnergyCharge, requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
-import { guardUnownedEnergyEntry } from "./energy-entry-runtime";
 import { requireStandingNegationBounds } from "./standing-negation-bounds";
 import { initializeStandingNegation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { requireCounterUnderOccurrence } from "./counter-under";
@@ -408,7 +408,8 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
   const state = structuredClone(prev);
   validateStandingNegationRead(ctx, state);
   if (["play", "playZ", "playUnison", "activate", "counter"].includes(action.type) && "card" in action && typeof action.card === "string") requireStandingNegationBounds(ctx, state, ["play", "playZ"].includes(action.type) && ctx.defs[state.cards[action.card]?.cardId]?.type === "BATTLE" ? action.card : undefined);
-  if (action.type === "charge" && action.card) guardUnownedEnergyEntry(ctx,state,action.card);
+  requireEnergyCharge(game,state);
+  const energyCharge=prepareEnergyCharge(ctx,game,state,action);
   const events: GameEvent[] = [{ type: "action", action }];
   // A completed declaration remains visible for its response snapshot. Only
   // the exact suspended frame may carry it through a further answer/reload.
@@ -660,6 +661,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       // move loses its prompt.
       if (took === "asked") return { state, events };
       spendUses(ctx, game, state, action);
+      if (energyCharge) ownEnergyCharge(game,state,energyCharge);
       // #150, 9-6: a declared play the opponent could answer with a [Counter:
       // Play] waits on that answer before it resolves — the window is the
       // question now, so the flow does not run on.

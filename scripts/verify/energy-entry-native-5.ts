@@ -134,7 +134,10 @@ for(const route of ["host","flow","charge"] as const){
  const before=JSON.stringify({state,events});
  if(route==="host")assert.throws(()=>vmHost(ctx,game,state,events).move(incoming,"energy","p1"),/original script movement/);
  if(route==="flow")assert.throws(()=>moved(ctx,game,state,events,incoming,"energy",{owner:"p1"}),/original script movement/);
- if(route==="charge")assert.throws(()=>RULES.apply(ctx,copy(state),{type:"charge",player:"p1",card:incoming}),/original script movement/);
+ if(route==="charge"){
+  const result=RULES.apply(ctx,copy(state),{type:"charge",player:"p1",card:incoming});
+  assert.equal(result.state.prompt.kind,"main");assert.equal(result.state.outcome,undefined);
+ }
  assert.equal(JSON.stringify({state,events}),before);cases++;
 }
 for(const malformed of [null,{}, {version:1}, {version:1,policy:{version:1,colors:["Red","Blue"]},witness:{}}])for(const route of ["direct","script"]){

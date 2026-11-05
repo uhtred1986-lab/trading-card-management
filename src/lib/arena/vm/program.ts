@@ -1,5 +1,5 @@
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
-import { validateStandingNegationRead } from "./standing-negation-runtime";
+import { beginStandingNegationMutation, finishStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureCopiedSkill } from "./triggers";
 import { counterActivationFrom } from "./counter-activation-origin";
 import { taxReceiptIdentity } from "./tax-receipt";
@@ -1596,11 +1596,13 @@ export function chargeSwitchForbidden(ctx: EngineContext, game: GameDefinition, 
  * one that turns the rule on.
  */
 export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; from?: string; skillKind?: string; keyword?: string } = {}): void {
-  for (const e of state.effects) {
-    if (e.kind !== "forbid" || !e.forbid || (e.forbid.uses ?? 0) <= 0) continue;
-    if (!ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid, key: `effect:${e.id}` }, opts)) continue;
-    e.forbid.uses = Math.max(0, (e.forbid.uses ?? 0) - 1);
-  }
+  // Read every applicable budget on one settled board before changing any use.
+  const spent = state.effects.filter(e => e.kind === "forbid" && e.forbid && (e.forbid.uses ?? 0) > 0
+    && ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid, key: `effect:${e.id}` }, opts));
+  if (!spent.length) return;
+  const token = beginStandingNegationMutation(ctx, state);
+  for (const e of spent) e.forbid!.uses = Math.max(0, (e.forbid!.uses ?? 0) - 1);
+  finishStandingNegationMutation(ctx, state, token);
 }
 
 // ── selectors (5-2) ─────────────────────────────────────────────────────────

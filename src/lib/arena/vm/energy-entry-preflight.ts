@@ -82,5 +82,5 @@ export function guardEnergyEntryBatch(ctx: EngineContext, state: VmState, h: Scr
   const destination=op.owner===undefined?h.ownerOf(id):owner;
   if((area!=="hand"&&area!=="deck") || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
   if(op.cause==="cost" || frame.saveVarsAs || frame.keywordPrice || frame.keywordCost || frame.counterCost || frame.autoCost)throw new NotYet("optional Energy entry inside a payment program", "R476");
-  if(h.replacementsFor(id,op.cause??"effect",{actor:frame.master,requestedTo:"energy"}).length)throw new NotYet("optional Energy entry with an incoming movement replacement", "R476");
+  if(h.replacementsFor(id,frame.declaredCharge?"charge":op.cause??"effect",{actor:frame.declaredCharge?undefined:frame.master,requestedTo:"energy"}).length)throw new NotYet("optional Energy entry with an incoming movement replacement", "R476");
 }

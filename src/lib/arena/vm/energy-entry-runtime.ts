@@ -33,6 +33,7 @@ export function guardOptionalEnergyFrame(ctx: EngineContext, state: VmState, h: 
 export function prepareOptionalEnergyEntry(ctx: EngineContext, state: VmState, h: ScriptHost, childHost: (child: ScriptFrame) => ScriptHost, frame: ScriptFrame, id: string, destination: EnergyEntryWitness["destination"]): "ready" | "wait" | "recheck" {
   const source = energyEntrySource(ctx,state,id,!!frame.energyEntry);
   if (!source) { if (frame.energyEntry) fail(); return "ready"; }
+  if (frame.declaredCharge && !frame.energyCharge) return fail();
   if (!frame.energyEntry) {
     guardEnergyEntryBatch(ctx,state,h,frame,frame.moveLoop?.ids ?? [id]);
     frame.energyEntry=createEnergyEntryContinuation(h,frame,id,source.skillIndex,source.policy,destination);
