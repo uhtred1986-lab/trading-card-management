@@ -38,6 +38,14 @@ function receiptsOf(state: VmState): ResolvedGrantDeletion[] {
   return receipts;
 }
 
+/** Validate before the writer mutates effects/IDs. A new grant must not bless
+ * an older live grant whose deleted-text history is unknowable. */
+export function prepareResolvedGrantChange(state: VmState, changed: Pick<ContinuousEffect, "kind" | "target">): void {
+  if (changed.kind !== "negateSkills" && changed.kind !== "keyword" && changed.kind !== "copiedSkills") return;
+  receiptsOf(state);
+  requireResolvedGrantHistory(state, changed.target);
+}
+
 /** Mutation-only capture; projections must never create deletion receipts. */
 export function captureResolvedGrantDeletions(state: VmState, changed: ContinuousEffect): void {
   if (changed.kind !== "negateSkills" && changed.kind !== "keyword" && changed.kind !== "copiedSkills") return;
@@ -62,8 +70,9 @@ export function captureResolvedGrantDeletions(state: VmState, changed: Continuou
 
 /** Pure identity query. A new grant or new physical occurrence is independent. */
 export function resolvedGrantDeleted(state: VmState, card: string, grant: number, skill?: number): boolean {
-  const epoch = state.cards[card]?.zoneEpoch;
-  if (epoch === undefined) return false;
+  const inst = state.cards[card];
+  if (!inst) return false;
+  const epoch = inst.zoneEpoch ?? 0;
   const receipt = receiptsOf(state).find(value => value.card === card && value.epoch === epoch && value.grant === grant);
   if (!receipt || receipt.version !== 1 || typeof receipt.deleted !== "boolean") {
     throw new NotYet("rebuild resolved skill-grant deletion history", "R475");

@@ -1,3 +1,4 @@
+import { captureResolvedGrantDeletions, prepareResolvedGrantChange, resolvedGrantDeleted } from "./resolved-grant-deletion";
 import { energyCouponContract } from "./energy-coupon-saves";
 import { sparkingIsValid } from "./validity";
 /**
@@ -368,8 +369,10 @@ export function costLayerGaps(game: GameDefinition): string[] {
 
 /** Put a continuous effect in force, and say so. The `effect` beat is what a client draws the surge from. */
 export function addEffect(state: VmState, ev: GameEvent[], spec: EffectSpec): ContinuousEffect {
+  prepareResolvedGrantChange(state, spec);
   const full: ContinuousEffect = { ...spec, master: spec.master ?? state.turnPlayer, id: state.nextEffect++, createdTurn: state.turn, ownerTurn: state.turnPlayer };
   state.effects.push(full);
+  captureResolvedGrantDeletions(state, full);
   log(ev, { type: "effect", effect: full });
   return full;
 }
@@ -573,6 +576,7 @@ export function keywordSkillsNegated(state: VmState, id: string): boolean {
 
 /** Negation of one effect-granted keyword, keyed by its persisted effect ID. */
 export function grantedSkillNegated(state: VmState, id: string, grantId: number | string): boolean {
+  if (typeof grantId === "number" && resolvedGrantDeleted(state, id, grantId)) return true;
   return skillsNegated(state, id) || state.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === id && (typeof grantId === "number" ? e.value === grantId : typeof e.value === "object" && e.value !== null && "standingGrantId" in e.value && e.value.standingGrantId === grantId && (e.value.sourceHiddenCount === undefined || (state.cards[e.value.source ?? ""]?.hiddenCount ?? 0) === e.value.sourceHiddenCount)));
 }
 
