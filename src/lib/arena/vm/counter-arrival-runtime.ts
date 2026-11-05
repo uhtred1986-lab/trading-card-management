@@ -109,6 +109,14 @@ export function requireCounterArrivalDecision(state: VmState, frame: ScriptFrame
     canonicalTaxValue(frame.counterDeclaredScript?.script) !== canonicalTaxValue(template.script)) {
     rebuildScope("rebuild this per-arrival Counter captured identity");
   }
+  const resumes = state.programs.flatMap(item => item.arrivalResume?.child === scope.id ? [item.arrivalResume] : []);
+  const resume = resumes[0];
+  if (resumes.length !== 1 || resume.version !== 1 || resume.owner !== owner.id || resume.binding !== template.id ||
+    !resume.frame || counterArrivalBatchFrameProblem(resume.frame.arrivalBatch, resume.frame, owner, resume.options) ||
+    canonicalTaxValue(resume.cards) !== canonicalTaxValue(resume.frame.arrivalBatch?.cards.map(item => item.card)) ||
+    canonicalTaxValue(resume.frame.arrivalBatch?.cards[resume.frame.arrivalBatch.cursor]) !== canonicalTaxValue(witness.arrival)) {
+    rebuildScope("rebuild this per-arrival Counter held play before its decision");
+  }
 }
 
 export function completeCounterArrivalDecision(state: VmState, resume: CounterArrivalResume): void {

@@ -62,3 +62,13 @@ export function counterArrivalPolicyProblem(ops: unknown): string | null {
     ? "rebuild the exact per-arrival Counter decision policy"
     : null;
 }
+
+/** Text is used only to reject obsolete persisted records, never to execute
+ * an interpretation at runtime. R435 preserves this corrected erratum text. */
+export const ULTRASONIC_EFFECT = "you can activate this skill if your opponent declares they're playing a battle card with 20000 power or less. your opponent may place that battle card in their drop area instead of playing it. if they don't, they choose 1 of their battle cards and place it in its owner's drop area.";
+export function counterArrivalRecordGap(row: { kind?: unknown; printed?: unknown; ops?: unknown; cond?: unknown }): string | null {
+  if (row.kind !== "counter:play" || typeof row.printed !== "string") return null;
+  const text = row.printed.replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim().toLowerCase();
+  if (text !== `[counter: play] ${ULTRASONIC_EFFECT}`) return null;
+  return row.cond != null || !counterArrivalDescriptor(row.ops) ? "rebuild the per-arrival optional Counter policy (R435)" : null;
+}

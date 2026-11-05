@@ -1,3 +1,4 @@
+import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { counterArrivalParentProblem } from "../../src/lib/arena/vm/counter-arrival-parent";
 /** R435 typed policy contract only; native multiple-arrival proof is separate. */
 import assert from "node:assert/strict";
@@ -128,6 +129,17 @@ assert.equal(stored.cond, null, "qualification stays per arrival, not an admissi
 assert.deepEqual(stored.unread, []);
 assert.ok(counterArrivalDescriptor(stored.ops));
 assert.match(stored.printed, /You can activate this skill if your opponent declares/);
+for (const status of ["draft", "confirmed", "corrected", "rejected"]) {
+  for (const fault of ["policy", "condition"]) {
+    const old = copy(stored);
+    if (fault === "policy") set(old.ops, [0, "then", 0, "counterArrivalPolicy"], undefined);
+    else old.cond = { kind: "count", sel: { special: "resolving" }, atLeast: 1 };
+    const loaded = rulesFromRows([{ ...old, id: 435, source: "compiler", status } as unknown as RuleRow], { "DB2-030": card("DB2-030", { type: "EXTRA", skill: printed }) });
+    assert.match(loaded["DB2-030"].bySkill[0].unsupported.join(" "), /per-arrival optional Counter policy/);
+    cases++;
+  }
+}
+
 cases++;
 const parentChoose: Op = { op: "choose", sel: { side: "you", area: "hand", count: 8, upTo: true, differentNames: true }, as: "incoming" };
 const parentPlay: Op = { op: "play", target: { var: "incoming" } };

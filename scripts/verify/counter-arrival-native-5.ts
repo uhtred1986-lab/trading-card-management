@@ -1,3 +1,4 @@
+import { buildSnapshot } from "../../src/lib/arena/snapshot";
 /** R435 native modal arrivals. SOURCE is a labeled mechanism fixture. */
 import assert from "node:assert/strict";
 import { vmHost } from "../../src/lib/arena/vm/host";
@@ -18,6 +19,7 @@ const defs: Record<string, CardDef> = {
   SOURCEEMPTY: card("SOURCEEMPTY", { skill: "[Activate: Main] Place this card in its owner's Drop Area, then choose up to 2 Battle Cards from your hand and play them." }),
   DEFLECT: card("DEFLECT", { skill: "[Deflect]", power: 10000 }),
   BARRIER: card("BARRIER", { skill: "[Barrier]", power: 10000 }),
+  NEGATE: card("NEGATE", { type: "EXTRA", colors: ["Red"], energyCost: 1, specifiedCost: { Red: 1 }, skill: "[Counter: Counter] Negate the [Counter] skill." }),
   HIGH: card("HIGH", { power: 25000, energyCost: 0, specifiedCost: {} }),
   UNISON: card("UNISON", { type: "UNISON", power: 10000, energyCost: 1, specifiedCost: {} }),
   LOW1: card("LOW1", { name: "First low", power: 10000 }),
@@ -59,6 +61,7 @@ function passTo(state: VmState, kind: string): VmState {
   }
   assert.equal(state.prompt.kind, kind); return state;
 }
+const snapshot = (state: VmState, viewer: PlayerId) => buildSnapshot({ id: 435, revision: 1, mode: "versus", status: "playing", p1Name: "One", p2Name: "Two", ctx, state, legal: [], log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
 let cases = 0;
 for (const player of ["p1", "p2"] as const) for (const empty of [true, false]) for (const firstAccept of [true, false]) for (const secondAccept of [true, false]) {
   let state = fresh(player);
@@ -152,14 +155,14 @@ for (const player of ["p1", "p2"] as const) for (const incomingDeflect of [false
   assert.equal(state.sides[player].zones.drop.includes(otherExisting), protection === "BARRIER");
   cases++;
 }
-for (const player of ["p1", "p2"] as const) for (const route of ["mandatory", "declineReplacement", "acceptReplacement"] as const) {
+for (const player of ["p1", "p2"] as const) for (const route of ["mandatory", "declineReplacement", "acceptReplacement", "sameDestination"] as const) {
   let state = fresh(player);
   const source = stage(state, player, "SOURCEEMPTY", "battle"), incoming = stage(state, player, "LOW2", "hand");
   const existing = stage(state, player, "LOW1", "battle"), counter = stage(state, other(player), "DB2-030", "hand");
   for (let n = 0; n < 2; n++) stage(state, other(player), "ENERGY", "energy");
   // Typed mechanism fixture: only a skill/effect departure controlled by the
   // opponent, never a payment. This catches using the strict cost host as proof.
-  assert.equal(stepScript(vmHost(ctx, game, state, []), { ops: [{ op: "replaceLeave", requestedTo: "drop", to: "warp", by: "skill", bySide: "opponent", optional: route !== "mandatory", until: "turn", target: { var: "incoming" } }],
+  assert.equal(stepScript(vmHost(ctx, game, state, []), { ops: [{ op: "replaceLeave", requestedTo: "drop", to: route === "sameDestination" ? "drop" : "warp", by: "skill", bySide: "opponent", optional: route !== "mandatory", until: "turn", target: { var: "incoming" } }],
     ip: 0, vars: { incoming: [incoming] }, card: state.sides[player].zones.leader[0], master: player }), "done");
   const activate = RULES.legalActions(ctx, state).map(item => item.action).find(item => item.type === "activate" && item.card === source);
   assert.ok(activate); state = take(state, activate); state = passTo(state, "counter");
@@ -174,7 +177,7 @@ for (const player of ["p1", "p2"] as const) for (const route of ["mandatory", "d
   }
   state = passTo(state, "main");
   assert.equal(state.sides[player].zones.battle.includes(incoming), route === "mandatory");
-  assert.equal(state.sides[player].zones.drop.includes(incoming), route === "declineReplacement");
+  assert.equal(state.sides[player].zones.drop.includes(incoming), route === "declineReplacement" || route === "sameDestination");
   assert.equal(state.sides[player].zones.warp.includes(incoming), route === "acceptReplacement");
   assert.equal(state.sides[player].zones.drop.includes(existing), route !== "declineReplacement");
   cases++;
@@ -240,5 +243,103 @@ for (const player of ["p1", "p2"] as const) {
   assert.ok(state.sides[other(player)].zones.drop.includes(counter));
   assert.equal(state.skillPlayScopes, undefined);
   cases++;
+}
+// Saved-state fault controls inject movement at a suspended modal answer;
+// these are occurrence/reload tests, not claimed legal mid-resolution actions.
+for (const player of ["p1", "p2"] as const) for (const fault of ["counter", "first", "second"] as const) {
+  let state = fresh(player);
+  const source = stage(state, player, "SOURCE", "battle");
+  const first = stage(state, player, "LOW1", "hand"), second = stage(state, player, "LOW2", "hand");
+  const counter = stage(state, other(player), "DB2-030", "hand");
+  for (let n = 0; n < 2; n++) stage(state, other(player), "ENERGY", "energy");
+  const activate = RULES.legalActions(ctx, state).map(item => item.action).find(item => item.type === "activate" && item.card === source);
+  assert.ok(activate); state = take(state, activate); state = passTo(state, "counter");
+  state = take(state, { type: "counter", player: other(player), card: counter });
+  state = passTo(state, "chooseCards");
+  state = take(state, { type: "choose", player, cards: [first] });
+  state = take(state, { type: "choose", player, cards: [second] });
+  assert.equal(state.prompt.kind, "chooseMode");
+  for (const viewer of [player, other(player)]) {
+    const publicState = JSON.stringify(snapshot(state, viewer));
+    for (const key of ["arrivalCounters", "arrivalBatch", "arrivalResume", "sourceEpoch"]) assert.ok(!publicState.includes(key), `${key} is internal`);
+    if (viewer !== player) assert.ok(!publicState.includes(JSON.stringify(second)), "later incoming hand identity stays private");
+  }
+  const moved = fault === "counter" ? counter : fault === "first" ? first : second;
+  const owner = fault === "counter" ? other(player) : player;
+  assert.ok(moveCard(state, game, moved, "warp", { owner }).ok);
+  assert.ok(moveCard(state, game, moved, fault === "counter" ? "drop" : "hand", { owner }).ok);
+  state = copy(state);
+  state = take(state, { type: "chooseMode", player, index: 0 });
+  if (fault !== "second") {
+    assert.equal(state.prompt.kind, "chooseMode", "next arrival must receive its own unanswered decision");
+    assert.equal(state.programs.find(frame => frame.arrivalDecision)?.arrivalDecision?.arrival.card, second);
+    state = take(state, { type: "chooseMode", player, index: 0 });
+  }
+  state = passTo(state, "main");
+  assert.ok(state.sides[player].zones.battle.includes(source), "stale occurrence never causes fallback");
+  assert.equal(state.sides[player].zones.hand.includes(first), fault === "first");
+  assert.equal(state.sides[player].zones.hand.includes(second), fault === "second");
+  assert.equal(state.sides[player].zones.drop.includes(first), fault !== "first");
+  assert.equal(state.sides[player].zones.drop.includes(second), fault !== "second");
+  assert.equal(state.skillPlayScopes, undefined);
+  cases++;
+}
+// A typed activation-tax fixture exercises the strict CounterCost capture path.
+// It is paid once before retaining the template, not once per arrival.
+for (const player of ["p1", "p2"] as const) {
+  let state = fresh(player);
+  const source = stage(state, player, "SOURCE", "battle");
+  const first = stage(state, player, "LOW1", "hand"), second = stage(state, player, "LOW2", "hand");
+  const counter = stage(state, other(player), "DB2-030", "hand");
+  const payer = state.sides[other(player)].zones.hand.find(id => id !== counter)!;
+  for (let n = 0; n < 2; n++) stage(state, other(player), "ENERGY", "energy");
+  assert.equal(stepScript(vmHost(ctx, game, state, []), { ops: [{ op: "forbid", what: "activateSkill", side: "opponent", until: "turn", unlessPay: [
+    { op: "choose", sel: { side: "you", area: "hand", count: 1 }, as: "taxCard" },
+    { op: "moveTo", target: { var: "taxCard" }, to: "drop" },
+  ] }], ip: 0, vars: {}, card: state.sides[player].zones.leader[0], master: player }), "done");
+  const activate = RULES.legalActions(ctx, state).map(item => item.action).find(item => item.type === "activate" && item.card === source);
+  assert.ok(activate); state = take(state, activate); state = passTo(state, "counter");
+  state = take(state, { type: "counter", player: other(player), card: counter });
+  state = passTo(state, "chooseCards");
+  assert.equal(state.prompt.kind, "chooseCards"); assert.equal(state.prompt.player, other(player));
+  const paid = RULES.apply(ctx, copy(state), { type: "choose", player: other(player), cards: [payer] });
+  state = paid.state as VmState; assert.equal(state.outcome, undefined);
+  assert.equal(paid.events.filter(event => event.type === "skill" && event.card === counter).length, 1);
+  state = passTo(state, "chooseCards");
+  state = take(state, { type: "choose", player, cards: [first] });
+  state = take(state, { type: "choose", player, cards: [second] });
+  for (let n = 0; n < 2; n++) {
+    assert.equal(state.prompt.kind, "chooseMode");
+    state = take(state, { type: "chooseMode", player, index: 0 });
+  }
+  state = passTo(state, "main");
+  assert.ok(state.sides[other(player)].zones.drop.includes(payer));
+  assert.equal(state.sides[other(player)].zones.drop.length, 2, "one Counter and one tax payer only");
+  assert.ok(state.sides[player].zones.drop.includes(first)); assert.ok(state.sides[player].zones.drop.includes(second));
+  cases++;
+}
+for (const player of ["p1", "p2"] as const) {
+  let state = fresh(player);
+  const source = stage(state, player, "SOURCE", "battle");
+  const first = stage(state, player, "LOW1", "hand"), second = stage(state, player, "LOW2", "hand");
+  const counter = stage(state, other(player), "DB2-030", "hand"), answer = stage(state, player, "NEGATE", "hand");
+  const siblingAnswer = stage(state, player, "NEGATE", "hand");
+  stage(state, player, "ENERGY", "energy");
+  for (let n = 0; n < 2; n++) stage(state, other(player), "ENERGY", "energy");
+  const activate = RULES.legalActions(ctx, state).map(item => item.action).find(item => item.type === "activate" && item.card === source);
+  assert.ok(activate); state = take(state, activate); state = passTo(state, "counter");
+  state = take(state, { type: "counter", player: other(player), card: counter });
+  state = passTo(state, "counter");
+  assert.equal(state.prompt.kind, "counter"); assert.equal(state.prompt.window, "counter");
+  for (const id of [answer, siblingAnswer]) assert.ok(RULES.legalActions(ctx, state).some(item => item.action.type === "counter" && item.action.card === id));
+  state = take(state, { type: "counter", player, card: answer });
+  if (state.prompt.kind === "payCost") assert.equal(state.prompt.extraCounter?.source.card, answer, "new declaration owns its own payment binding");
+  state = passTo(state, "chooseCards");
+  assert.ok(!state.skillPlayScopes?.some(scope => scope.arrivalCounters?.length), "negated Counter installs no template");
+  state = take(state, { type: "choose", player, cards: [first] });
+  state = take(state, { type: "choose", player, cards: [second] });
+  state = passTo(state, "main");
+  assert.ok(state.sides[player].zones.battle.includes(first)); assert.ok(state.sides[player].zones.battle.includes(second));
+  assert.equal(state.skillPlayScopes, undefined); cases++;
 }
 console.log(`counter-arrival-native-5: ${cases} native mechanism/stored-card cases passed`);

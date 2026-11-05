@@ -53,6 +53,7 @@ export function counterArrivalBatchProblem(value: unknown, owner: number): strin
 export function counterArrivalBatchFrameProblem(batch: CounterArrivalBatch | undefined, frame: ScriptFrame, owner: SkillPlayScope, options: CounterArrivalPlay["options"]): string | null {
   const problem = counterArrivalBatchProblem(batch, owner.id);
   if (problem || !batch) return problem ?? "missing Counter arrival batch";
+  if (!frame || !Array.isArray(frame.ops) || !options || typeof options !== "object") return "malformed Counter arrival resume frame";
   const saved = batch.play, op = saved.operation;
   if (frame.card !== owner.source || frame.master !== owner.master || frame.skillIndex !== owner.skillIndex ||
     saved.source !== owner.source || saved.master !== owner.master || saved.skillIndex !== owner.skillIndex ||

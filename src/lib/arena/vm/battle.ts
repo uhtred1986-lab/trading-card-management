@@ -1025,7 +1025,11 @@ function counterRoutes(ctx: EngineContext, game: GameDefinition, state: VmState,
   const reading = readCounterPrice(ctx, game, state, player, card, sk);
   if (!reading.ok) return { paid: false, alt: null, why: [reading.why] };
   if (handExtraCounter(ctx, state, player, card)) {
-    const binding = state.prompt.kind === "counter" && state.prompt.extraCounter ? state.prompt.extraCounter : extraBinding(ctx, state, player, card, sk, x);
+    // Candidate discovery may run while the previous Extra's payment prompt
+    // is still installed. Only the exact resumed declaration owns that stamp.
+    const pending = state.prompt.kind === "counter" && state.prompt.player === player ? state.prompt.extraCounter : undefined;
+    const binding = pending?.source?.card === card && pending.skillIndex === sk.index && pending.skillKind === sk.kind && pending.selectedX === (x ?? null)
+      ? pending : extraBinding(ctx, state, player, card, sk, x);
     const ops = reading.ops ?? [];
     const options = extraCardOptions(ctx, game, state, player, card, sk, ops, binding, x);
     const alt = counterAlt(ctx, game, state, card, player);

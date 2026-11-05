@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Ultrasonic Exchange resolves each incoming card (R-435)",
+    body: "The owner-approved FAQ interpretation preserves the corrected printed text while allowing an unknown skill-play declaration. Each actual Battle Card with power 20000 or less gets its own optional decision before entry. Complete original placement in Drop replaces that play; declining or failing that original movement instead chooses an existing Battle Card for Drop. Deflect protects incoming movement and existing-card effects, while Barrier prevents choosing an existing opposing card. One Counter activation pays once, and no new response window opens between arrivals. After-window, high-power, Unison and zero-arrival cases perform no fallback. Explicit selected order is preserved; automatic multi-card ordering, tokens and special play procedures remain completion work.",
+  },
+  {
     title: "Dash-separated Awaken alternatives (R-442)",
     body: "The dash in SD22-01's life-or-board Awaken condition separates alternatives. Four or fewer life is sufficient by itself; otherwise both two energy and a yellow Son Goku card costing at least two in play are required. The printed draw, optional energy ready, life-to-five adjustment and flip remain unchanged.",
   },

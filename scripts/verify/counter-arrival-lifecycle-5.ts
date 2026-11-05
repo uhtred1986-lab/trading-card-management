@@ -53,6 +53,16 @@ for (const master of ["p1", "p2"] as const) {
     state.programs = [];
     const resume = resumeFrame.arrivalResume!;
     assert.throws(() => completeCounterArrivalDecision(state, { ...resume, cards: [card] }), /held play/);
+    for (const fault of ["ops", "ip", "master", "source", "options"] as const) {
+      const bad = JSON.parse(JSON.stringify(resume));
+      if (fault === "ops") delete bad.frame.ops;
+      if (fault === "ip") bad.frame.ip = -1;
+      if (fault === "master") bad.frame.master = master;
+      if (fault === "source") bad.frame.card = "changed";
+      if (fault === "options") bad.options.mode = "rest";
+      assert.throws(() => completeCounterArrivalDecision(state, bad), /rebuild.*held play/);
+      cases++;
+    }
     completeCounterArrivalDecision(state, JSON.parse(JSON.stringify(resume)));
     assert.equal(template.state, "ready");
     assert.equal(template.active, undefined);
