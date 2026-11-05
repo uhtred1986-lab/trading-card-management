@@ -1801,8 +1801,12 @@ export function endGame(ctx: EngineContext, game: GameDefinition, state: VmState
   state.overReason = reason;
   state.outcome = outcome ?? { kind: winner ? "win" : "draw", winner, reason };
   state.flow = [];
-  // 0-1-3: nothing answers to a game that has ended, so the queue goes with it
-  // rather than being drained into an over phase by the checkpoint.
+  // 0-1-3: terminal means both running and parked work is discarded.
+  // Otherwise a suspended window can restore its parent in the over phase
+  // and overwrite the original outcome or continue playing after game end.
+  state.programs = [];
+  delete state.skillPlayScopes;
+  state.resolving = null;
   state.pending = [];
   delete state.pendingOrder;
   enterPhase(ctx, game, state, ev, over);

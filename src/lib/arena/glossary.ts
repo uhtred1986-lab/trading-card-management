@@ -720,7 +720,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Immediate skill lifetimes (R-421)",
-    body: "Ordinary Activate, Auto and Counter effects now keep a versioned immediate-effect lifetime while they resolve. A nested invocation completes inside its parent; internal end boundaries run before pending on-play Autos. A departed source does not cancel an activated effect, and JSON reload preserves the same scope. The conservative play scan includes tokens and Unisons, excludes activation-only instructions and delayed or granted programs, and preserves existing declared/keyword timing paths. This is lifecycle infrastructure: shared before/after Counter:Play windows and future-card bindings are not enabled by this step.",
+    body: "Ordinary Activate, Auto and Counter effects now keep a versioned immediate-effect lifetime while they resolve. A nested invocation completes inside its parent; internal end boundaries run before pending on-play Autos. A departed source does not cancel an activated effect, and JSON reload preserves the same scope. Game end discards both running and parked scopes, preserving the original outcome without resuming a parent (R-436). The conservative play scan includes tokens and Unisons, excludes activation-only instructions and delayed or granted programs, and preserves existing declared/keyword timing paths. This is lifecycle infrastructure: shared before/after Counter:Play windows and future-card bindings are not enabled by this step.",
   },
   {
     title: "Effect-invoked Extra skills from hand, deck and Drop (R-420)",
