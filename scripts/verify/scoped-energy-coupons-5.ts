@@ -13,6 +13,7 @@ import { energyCouponContract, requireEnergyCouponFrame } from "../../src/lib/ar
 import type { Op, ScriptFrame } from "../../src/lib/arena/vm/script";
 import { run } from "../../src/lib/arena/vm/flow";
 import { attrsNow } from "../../src/lib/arena/vm/program";
+import { energyActivationReaches } from "../../src/lib/arena/vm/energy-coupons";
 import { cardPrice } from "../../src/lib/arena/vm/costs";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -132,7 +133,20 @@ for (const p of ["p1", "p2"] as const) {
         s = take(s, { type: "activate", player: p, card: source, skill: 10 });
         const target = stage(s, p, "COUNTER", "hand");
         assert.equal(cardPrice(ctx, game, s, target, { kind: "counter:attack", keyword: null }).total, 1, "Counter pays full card energy");
-        assert.ok(s.effects.some(e => e.energyActivation));
+        const energy = stage(s, p, "FILLER", "energy");
+        const coupon = copy(s.effects.find(e => e.energyActivation)!);
+        // Stage an attack while retaining the natively created coupon. This is
+        // a payment boundary control, not a claim that P-524 lasts another turn.
+        s.turnPlayer = other(p);
+        s.turn = 2;
+        s.prompt = { kind: "main", player: other(p) };
+        s = take(s, { type: "attack", player: other(p), attacker: s.sides[other(p)].zones.leader[0], target: s.sides[p].zones.leader[0] });
+        const counter = RULES.legalActions(ctx, s).map(row => row.action).find(a => a.type === "counter" && a.card === target);
+        assert.ok(counter, "native Counter remains offered at its full price");
+        s = take(s, { ...counter, pay: [energy] } as Action);
+        assert.equal(s.cards[energy].mode, "rest", "Counter actually pays full energy");
+        assert.ok(s.sides[p].zones.drop.includes(target));
+        assert.deepEqual(s.effects.find(e => e.id === coupon.id), coupon, "Counter activation leaves coupon unconsumed");
         cases++;
     }
 }
@@ -273,3 +287,10 @@ assert.ok(programProblem([{ op: "costReduction", target: { sel: { special: "self
 assert.ok(programProblem([{ op: "costReduction", target: { sel: { special: "self" } }, amount: 1, energyActivation: "unknown" }]));
 assert.equal(programProblem([{ op: "costModifier", target: { sel: { special: "self" } }, amount: 1, energyActivation: "main" }]), null);
 console.log(`Scoped energy coupons5: ${cases} cases passed`);
+
+for (const scope of ["activate", "main", "battle", "main/battle"] as const) {
+    for (const kind of ["activate:main", "activate:battle", "activate:main/battle", "counter:attack"] as const) {
+        assert.equal(energyActivationReaches(scope, { kind, keyword: null }), scope === "activate" ? kind.startsWith("activate:") : kind === `activate:${scope}`);
+    }
+    assert.equal(energyActivationReaches(scope, { kind: "keyword", keyword: { name: "Field" } }), scope === "activate" || scope === "main");
+}
