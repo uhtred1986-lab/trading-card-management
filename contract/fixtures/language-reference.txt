@@ -5591,6 +5591,10 @@
       "words": "when you activate an [Overlord] skill"
     },
     {
+      "name": "reviveActivated",
+      "words": "when one of your Battle Cards activates [Revive]"
+    },
+    {
       "name": "overRealmPlayed",
       "words": "when you play a card using [Over Realm]"
     },

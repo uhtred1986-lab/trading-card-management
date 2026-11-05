@@ -51,7 +51,7 @@ export function reviveTaxPayers(state: VmState, frame: ScriptFrame, capture = fa
   if (!tax) return;
   if (tax.version !== 1 || !["printed", "tax"].includes(tax.phase) || (tax.phase === "tax" && (typeof tax.paying !== "string" || !tax.paying)) || (tax.phase === "printed" && (tax.paying !== undefined || tax.aliases !== undefined || tax.payers !== undefined))) throw new NotYet("rebuild saved Revive tax phase", "R467");
   if (tax.phase === "printed") return;
-  if (!Array.isArray(tax.aliases) || tax.aliases.some(a => typeof a !== "string" || a.startsWith("§")) || !tax.payers) throw new NotYet("rebuild saved Revive tax payer contract", "R467");
+  if (!Array.isArray(tax.aliases) || tax.aliases.some(a => typeof a !== "string" || a.startsWith("§")) || new Set(tax.aliases).size !== tax.aliases.length || taxAliases(frame.ops).some(a => !tax.aliases!.includes(a)) || !tax.payers) throw new NotYet("rebuild saved Revive tax payer contract", "R467");
   const vars = Object.fromEntries(Object.entries(frame.vars).filter(([name]) => tax.aliases!.includes(name)));
   const problem = taxPayerProblem(state, vars, tax.payers, !capture);
   if (problem === "stale") throw new IllegalAction("that Revive tax payer occurrence is no longer available");
