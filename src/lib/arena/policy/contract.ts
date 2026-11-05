@@ -128,7 +128,7 @@ export interface DecisionKey {
   at: string;
   menu: Record<string, Action>;
   /** `question` identifies the engine question the pick answers, so a sequence never spills into the next one. */
-  pick: { candidates: Record<string, string>; upTo: boolean; remaining: number | null; question: string } | null;
+  pick: { candidates: Record<string, string>; upTo: boolean; remaining: number | null; question: string; atomic?: true } | null;
 }
 
 export interface PolicyAnswer {
@@ -195,7 +195,7 @@ export interface DecisionInput {
   /** The engine's legal list, in the engine's words (real instance ids). */
   legal: LegalAction[];
   /** The open `chooseCards` question, when there is one, in real ids. */
-  choice: { reason: string; candidates: string[]; upTo: boolean; remaining: number | null; question: string; cover?: string[]; battlePowerTarget?: string } | null;
+  choice: { reason: string; candidates: string[]; upTo: boolean; remaining: number | null; question: string; atomic?: true; cover?: string[]; battlePowerTarget?: string } | null;
   aliases: AliasTable;
 }
 
@@ -235,10 +235,10 @@ export function buildDecisions(input: DecisionInput): { decisions: PolicyDecisio
     }
     listed.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     if (input.window === "chooseCards" && input.choice) {
-      const { reason, upTo, remaining, question, cover } = input.choice;
+      const { reason, upTo, remaining, question, cover, atomic } = input.choice;
       const candidates: Record<string, string> = {};
       for (const real of input.choice.candidates) candidates[aliasIds(real, aliases)] = real;
-      pick = { candidates, upTo, remaining, question };
+      pick = { candidates, upTo, remaining, question, ...(atomic ? { atomic } : {}) };
       listed.push({ kind: "pick", id: PICK_ID, reason: aliasedText(reason, aliases), candidates: Object.keys(candidates).sort(), upTo, remaining, ...(cover?.length ? { cover: [...cover] } : {}), ...(input.choice.battlePowerTarget ? { battlePowerTarget: aliasIds(input.choice.battlePowerTarget, aliases) } : {}) });
     }
   }
@@ -284,7 +284,7 @@ export function resolveAnswer(key: DecisionKey, answer: unknown): Resolution {
     return {
       ok: true,
       id: PICK_ID,
-      actions: cards.map((c) => choose([pick.candidates[c]])),
+      actions: pick.atomic ? [choose(cards.map(c => pick.candidates[c]))] : cards.map((c) => choose([pick.candidates[c]])),
       question: pick.question,
       ...(pick.upTo ? { close: choose([]) } : {}),
     };

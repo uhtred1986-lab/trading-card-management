@@ -1,3 +1,4 @@
+import { chooseFramePools, primeFramePools } from "./pooled-costs";
 import { hasDropBottomRoute } from "./fusion-materials";
 import { containsPotaraPlay, isPotaraSkill, potaraPrintedSelector, POTARA_REBUILD } from "./potara-materials";
 import { containsAbsorbPlay, isAbsorbSkill } from "./absorb-procedure";
@@ -83,7 +84,7 @@ import { stepDropCost } from "./drop-costs";
 import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { emptyUnisons } from "./unison-zero";
 import { queueReviveCost, stepReviveCost } from "./revive-costs";
-import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
+import { AutoPaymentFailed, automaticResourcesFinish, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
 import { requireZAwakenBindings, activationTaxGate, activationTaxes, stepTaxGate, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
 import { describeScript } from "./script-schema";
 import { IllegalAction } from "./common";
@@ -1403,12 +1404,14 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.autoCost) {
       const cost = frame.autoCost;
       if (cost.stage === "offer") {
+        if (cost.choices[0]) primeFramePools(game, state, frame, cost.choices[0].price);
         if (frame.awaiting !== "autoCost" || state.lastMode === null) {
           frame.awaiting = "autoCost";
           state.programs.unshift(frame);
           state.prompt = { kind: "chooseMode", player: frame.master, reason: "Pay this Auto skill's cost?", options: [...cost.choices.map((choice) => `Pay: ${choice.label}`), "Don't pay"] };
           return "wait";
         }
+        cost.selectedChoice = state.lastMode;
         const choice = cost.choices[state.lastMode];
         state.lastMode = null;
         delete frame.awaiting;
@@ -1416,6 +1419,12 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
           log(ev, { type: "note", text: "Auto skill declined: its cost was not paid" });
           return "done";
         }
+        cost.stage = "pools";
+      }
+      if (cost.stage === "pools") {
+        const choice = cost.choices[cost.selectedChoice!];
+        if (!choice) throw new IllegalAction("this Auto has no selected resource payment");
+        if (chooseFramePools(ctx, game, state, frame, choice.price, choice.payment, frame.ops.length ? payment => automaticResourcesFinish(ctx, game, state, frame, payment) : undefined) === "wait") return "wait";
         beginAutomaticCost(ctx, game, state, ev, frame, choice);
       }
       // Recheck the submitted choice on an isolated board before any mutation.

@@ -1748,6 +1748,8 @@ export interface ScriptFrame {
   aegisCost?: import("./aegis-costs").AegisCost;
   /** #549: captured, reloadable Auto cost/effect continuation. */
   autoCost?: import("./auto-costs").AutomaticCost;
+  /** R-399: an exact, saved selection for freely chosen resource pools. */
+  poolPayment?: import("./pooled-costs").FramePoolPayment;
   /** #677: the 20-14 prices on an activation, charged one at a time and re-read live in front of what it guards. Additive: older states never carry one. */
   taxGate?: import("./activate").TaxGate;
   /** #716: a [Counter]'s printed action price, paid on the strict host before the skill activates. Additive: older states never carry one. */

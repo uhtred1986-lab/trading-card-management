@@ -1470,7 +1470,7 @@ export type Prompt =
   | { kind: "blocker"; player: PlayerId; candidates: string[] }
   | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[] }
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
-  | { kind: "chooseCards"; player: PlayerId; choice: CardChoice }
+  | { kind: "chooseCards"; player: PlayerId; choice: CardChoice; pooledPayment?: { action: Action; cost: string; n: number; source: CardOccurrence | null; candidates: CardOccurrence[] } }
   /** "Choose one— ・A ・B" (20-2): which printed option is taken. */
   | { kind: "chooseMode"; player: PlayerId; reason: string; options: string[] }
   /** 9-10: the affected player chooses which replacement, if any, applies. */
@@ -1527,6 +1527,8 @@ export interface CardChoice {
   max: number;
   /** Continuation id the engine resolves when the choice comes back. */
   continuation: string;
+  /** A resource payment accepts its complete selected set in one action. */
+  atomic?: true;
   /**
    * The candidates are cards the chooser may not read (BT22-140: "1 card from
    * your opponent's hand"), so asking does not reveal them: they reach the
@@ -1542,20 +1544,28 @@ export interface CardChoice {
   cover?: Color[];
 }
 
+/** An exact card occurrence retained while a resource payment asks its owner. */
+export interface CardOccurrence { card: string; epoch: number }
+/** Explicit choices for declared resource pools; ordered draws such as Burst never use this. */
+export interface PoolPaymentSelection {
+  source: CardOccurrence | null;
+  pools: { cost: string; n: number; cards: CardOccurrence[] }[];
+}
+
 /** Everything a player can do, as sent to `apply()`. */
 export type Action =
   | { type: "chooseFirst"; player: PlayerId; first: PlayerId }
   | { type: "mulligan"; player: PlayerId; redraw: boolean }
   | { type: "charge"; player: PlayerId; card: string | null }
   /** `x` is the value the master picks for an X cost (1-2-2-2-1). */
-  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[]; alt?: boolean }
-  | { type: "playUnison"; player: PlayerId; card: string; x: number; pay?: string[] }
-  | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[] }
+  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[]; payPools?: PoolPaymentSelection; alt?: boolean }
+  | { type: "playUnison"; player: PlayerId; card: string; x: number; pay?: string[]; payPools?: PoolPaymentSelection }
+  | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[]; payPools?: PoolPaymentSelection }
   | { type: "growUnison"; player: PlayerId; card: string }
   /** `alt`: pay the printed alternative instead of the energy cost ([Invoker], 22-37). */
   /** `x` is the value an X price is paid at (20-5) — the same field, and the same meaning, as `play`'s. */
   /** `onto`: an [Evolve]'s base, named with the activation — offered only where a price change is scoped to that base (`costReduction`'s `onto`, EX03-16); the card then lands on it without a question. */
-  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; alt?: boolean; x?: number; onto?: string }
+  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; payPools?: PoolPaymentSelection; alt?: boolean; x?: number; onto?: string }
   | { type: "attack"; player: PlayerId; attacker: string; target: string }
   | { type: "endMain"; player: PlayerId }
   | { type: "combo"; player: PlayerId; card: string; pay?: string[] }

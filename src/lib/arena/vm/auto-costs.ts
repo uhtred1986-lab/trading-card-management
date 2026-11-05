@@ -1,3 +1,4 @@
+import { pooledPaymentVariants } from "./pooled-costs";
 import { skillPriceProblem } from "./skill-payment";
 /** Auto payment planning and its stored checkpoint continuation (#549). */
 import type { EngineContext, GameEvent, PlayerId, Skill } from "../types";
@@ -28,7 +29,8 @@ export interface AutomaticCost {
   effect: Op[];
   costs: string[];
   choices: { price: Price; payment: VmPayment; label: string; x?: number }[];
-  stage: "offer" | "action";
+  stage: "offer" | "pools" | "action";
+  selectedChoice?: number;
   /**
    * #677: the 20-14 prices a rule puts on activating this [Auto], part of the
    * one cost its master pays in its entirety or not at all (9-6-4) — named on
@@ -498,6 +500,16 @@ export function interchangeableCandidates(ctx: EngineContext, game: GameDefiniti
   return classes;
 }
 
+/** R-399: resource subsets can share the existing conservative state symmetry.
+ * A positional or bulk read of the destination also distinguishes payers. */
+export function interchangeablePoolCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, candidates: string[], source: string, destination: string): Map<string, string> {
+  const fixed = staticPositionalAreas(ctx, game, state);
+  for (const value of [state.programs, state.effects, state.delayed, state.pending, frame.ops]) positionalAreas(value, fixed);
+  if (ORDERED_ZONES.has(destination) || [...fixed].some(area => areaReads(game, area, destination)) || bulkReads(game, frame.ops.slice(frame.ip), destination)) fixed.add(source);
+  const simulated = { ...state, programs: state.programs[0] === frame ? state.programs : [frame, ...state.programs] };
+  return interchangeableCandidates(ctx, game, simulated, frame, candidates, fixed);
+}
+
 /** Preflight on an isolated board, including earlier instructions and all
  * source/event/X bindings. No cost, trigger or prompt escapes this simulation.
  * Choices are single-card interpreter answers, so every branch is replayable;
@@ -730,16 +742,17 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
     const payments = plan.asks && plan.options.length > 1 ? plan.options.map((option) => planCost(ctx, game, state, frame.master, price, frame.card, option.rest)) : [plan];
     for (const paymentPlan of payments) {
       if (!paymentPlan.ok) continue;
-      const clone = structuredClone(state);
-      try {
-        chargeAutomaticPayment(ctx, game, clone, [], frame, paymentPlan.payment, costs);
-      } catch (err) {
-        if (err instanceof IllegalAction) continue;
-        throw err;
-      }
       const paying = { ...frame, ops, ...(x ? { x: n } : {}) };
-      if (!canFinishAutomaticPrice(ctx, game, clone, paying)) continue;
-      choices.push({ price, payment: paymentPlan.payment, label: `${x ? `X = ${n}; ` : ""}${automaticPriceLabel(paymentPlan.describe, ops)}`, ...(x ? { x: n } : {}) });
+      const variants = ops.length && !ops.every(op => op.op === "skip" || op.op === "draw")
+        ? pooledPaymentVariants(ctx, game, state, paying, price, paymentPlan.payment) : [paymentPlan.payment];
+      for (const payment of variants) {
+        const clone = structuredClone(state);
+        try { chargeAutomaticPayment(ctx, game, clone, [], frame, payment, costs); }
+        catch (err) { if (err instanceof IllegalAction) continue; throw err; }
+        if (!canFinishAutomaticPrice(ctx, game, clone, paying)) continue;
+        choices.push({ price, payment, label: `${x ? `X = ${n}; ` : ""}${automaticPriceLabel(paymentPlan.describe, ops)}`, ...(x ? { x: n } : {}) });
+        break;
+      }
     }
   }
   return { skill, effect: frame.ops, costs, choices, stage: "offer" };
@@ -803,17 +816,26 @@ function sameAutomaticPayment(a: VmPayment, b: VmPayment): boolean {
     });
 }
 
+/** Exact selected resources must leave the following action price payable. */
+export function automaticResourcesFinish(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, payment: VmPayment): boolean {
+  const clone = structuredClone(state);
+  try { chargeAutomaticPayment(ctx, game, clone, [], frame, payment, frame.autoCost!.costs); }
+  catch (err) { if (err instanceof IllegalAction && !(err instanceof NotYet)) return false; throw err; }
+  return canFinishAutomaticPrice(ctx, game, clone, frame);
+}
+
 /** Set the paid cursor before running any action price; reload cannot charge
  * the same energy/marker/Burst/Spirit Boost payment a second time. */
 export function beginAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, choice: AutomaticCost["choices"][number]): void {
   const cost = frame.autoCost!;
-  const rechecked = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest);
+  const rechecked = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest, frame.poolPayment?.selection);
   if (!rechecked.ok || !sameAutomaticPayment(rechecked.payment, choice.payment)) throw new IllegalAction("this Auto payment is no longer payable");
   const clone = structuredClone(state);
   chargeAutomaticPayment(ctx, game, clone, [], frame, choice.payment, cost.costs);
   if (!canFinishAutomaticPrice(ctx, game, clone, { ...frame, ...(choice.x !== undefined ? { x: choice.x } : {}) })) throw new IllegalAction("this Auto's complete payment is no longer payable");
   const spent = scopedPayersSpent(ctx, game, state, frame.master, { card: frame.card, skillIndex: cost.skill.index, skill: cost.skill, kind: cost.skill.kind, script: undefined });
   cost.stage = "action";
+  delete frame.poolPayment;
   if (choice.x !== undefined) frame.x = choice.x;
   const paid = chargeAutomaticPayment(ctx, game, state, ev, frame, choice.payment, cost.costs);
   if (cost.skill.burst && burstNegated(ctx, game, state, frame.card) && !paid.paidCardInfo?.paid_burst) {

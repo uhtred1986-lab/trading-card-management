@@ -38,6 +38,7 @@
  * definition arrives as a generated constant (`rulesets/dbs/files.ts`), so
  * nothing here reads a file at request time.
  */
+import { selectedPoolAnswer } from "./pooled-costs";
 import { IllegalAction } from "./common";
 import { type AbilityAvailability, type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../types";
 import type { Beats } from "../beats";
@@ -508,6 +509,20 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       if (action.cards.some((id) => !choice.candidates.includes(id)) || new Set(action.cards).size !== action.cards.length) throw new IllegalAction("invalid choice");
       if (action.cards.length > choice.max) throw new IllegalAction(`choose at most ${choice.max}`);
       if (action.cards.length < choice.min) throw new IllegalAction(`choose at least ${choice.min}`);
+      if (pr.pooledPayment) {
+        const pending = pr.pooledPayment;
+        const selected = selectedPoolAnswer(state, pending, action.cards);
+        const prior = (pending.action as { payPools?: import("../types").PoolPaymentSelection }).payPools;
+        const pools = structuredClone(prior?.pools ?? []);
+        const previous = pools.find(p => p.cost === selected.cost);
+        if (previous) previous.cards.push(...selected.cards); else pools.push(selected);
+        const inner = { ...pending.action, payPools: { source: pending.source, pools } } as Action;
+        const native = restoreNativePrompt(ctx, game, state, pending.action);
+        if (native) state.prompt = native;
+        else run(ctx, game, state, events);
+        const again = apply(ctx, state, inner);
+        return { state: again.state, events: [...events, ...again.events] };
+      }
       state.lastChoice = action.cards;
       break;
     }

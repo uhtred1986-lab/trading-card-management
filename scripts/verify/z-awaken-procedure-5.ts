@@ -27,7 +27,8 @@ assert.equal(row.cost?.readable,true);assert.deepEqual(runtimeSupportOfRow(row).
 const ctx:EngineContext={defs,scripts:rulesFromRows(copy(records.map((r,id)=>({...r,id,source:"compiler",status:"confirmed"}) as unknown as RuleRow)),defs)};
 const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
 const other=(p:PlayerId):PlayerId=>p==="p1"?"p2":"p1";
-const take=(s:VmState,a:Action)=>RULES.apply(ctx,copy(s),a).state as VmState;
+// R-399 adds a resource choice before this suite's placement/action-price boundary.
+const take=(s:VmState,a:Action)=>{let next=RULES.apply(ctx,copy(s),a).state as VmState;while(next.prompt.kind==="chooseCards"&&next.prompt.pooledPayment){const pr=next.prompt;next=RULES.apply(ctx,copy(next),{type:"choose",player:pr.player,cards:pr.choice.candidates.slice(0,pr.choice.min)}).state as VmState;}return next;};
 function stage(s:VmState,p:PlayerId,id:string,area:string):string{const cid=s.sides[p].zones.deck.at(-1)!;s.cards[cid].cardId=id;assert.ok(moveCard(s,game,cid,area,{owner:p}).ok);s.pending=[];return cid;}
 function fresh(owner:PlayerId){
  let s=RULES.createGame(ctx,{seed:395,p1:{name:"One",leader:"BASE",main:fifty("FILLER"),z:[PRINT.id,PRINT.id]},p2:{name:"Two",leader:"BASE",main:fifty("FILLER"),z:[PRINT.id,PRINT.id]}}).state as VmState;

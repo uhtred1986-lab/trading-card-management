@@ -1,3 +1,4 @@
+import { chooseFramePools, primeFramePools, requirePoolOccurrence, resourceActionFinishes } from "./pooled-costs";
 import { isZAwakenChargeSkipPrice } from "./activation-price-support";
 import { resolveSelector, attrsNow } from "./program";
 import { hasDropBottomRoute } from "./fusion-materials";
@@ -72,7 +73,7 @@ export interface KeywordCost {
   /** Set on the `DO` frame once its strict frame is queued, so the price is never queued twice. */
   queued?: true;
   /** #907: all Fusion resource payment follows material payment, including orb-only lines. */
-  fusion?: { stage: "resources" | "native" | "action"; choices?: { price: Price; payment: VmPayment; label: string }[]; payment?: VmPayment; nativeIndex?: number; poolIndex?: number };
+  fusion?: { stage: "resources" | "native" | "action"; selectedChoice?: number; choices?: { price: Price; payment: VmPayment; label: string }[]; payment?: VmPayment; nativeIndex?: number; poolIndex?: number };
 }
 
 /** The label and owner every refusal and gap of this module is filed under. */
@@ -307,16 +308,21 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
   if (fusion.stage === "resources") {
     fusion.choices ??= fusionPlans(ctx, game, state, frame.master, cost.line, frame.x);
     if (!fusion.choices.length) return fail(state, ev, cost);
-    if (fusion.choices.length > 1 && frame.awaiting !== "fusionResources") {
+    primeFramePools(game, state, frame, fusion.choices[0].price);
+    if (fusion.selectedChoice === undefined && fusion.choices.length > 1 && frame.awaiting !== "fusionResources") {
       frame.awaiting = "fusionResources";
       state.programs.unshift(frame);
       state.prompt = { kind: "chooseMode", player: frame.master, reason: "Pay the Union-Fusion skill cost", options: fusion.choices.map((choice) => choice.label) };
       return "wait";
     }
-    const index = fusion.choices.length > 1 ? state.lastMode : 0;
+    const index = fusion.selectedChoice ?? (fusion.choices.length > 1 ? state.lastMode : 0);
     const choice = index === null ? undefined : fusion.choices[index];
     if (!choice) throw new IllegalAction("no such Fusion skill cost payment");
-    const current = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest);
+    fusion.selectedChoice = index!;
+    state.lastMode = null;
+    const following = keywordActionPrice(cost.line) ?? [];
+    if (chooseFramePools(ctx, game, state, frame, choice.price, choice.payment, following.length ? payment => resourceActionFinishes(ctx, game, state, frame, payment, game.actions.activate.cost ?? [], following) : undefined) === "wait") return "wait";
+    const current = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest, frame.poolPayment?.selection);
     if (!current.ok || !samePayment(current.payment, choice.payment)) throw new IllegalAction("that Fusion skill cost payment is no longer available");
     delete frame.awaiting;
     state.lastMode = null;
@@ -333,6 +339,7 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
   const charges = chargesOf(game);
   const host = automaticPriceHost(ctx, game, state, ev);
   const payment = fusion.payment!;
+  requirePoolOccurrence(state, frame);
   while (fusion.nativeIndex! < costs.length) {
     const name = costs[fusion.nativeIndex!];
     const charge = charges[name];
@@ -343,6 +350,7 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
       if (!to) throw new RulesetBroken(game.id, `the price ${name} takes cards but has no destination`);
       const id = cards[fusion.poolIndex!];
       if (id) {
+        requirePoolOccurrence(state, frame, name, id);
         const from = charge.from ?? { side: "you", area: "life" };
         const side = from.side === "opponent" ? other(frame.master) : frame.master;
         if (host.areaOf(id) !== from.area || !state.sides[side].zones[from.area]?.includes(id)) throw new IllegalAction("that Fusion pool payment is no longer available");
@@ -354,6 +362,7 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
         }
         const result = stepScript(host, frame);
         if (result === "wait") return "wait";
+        if (id === frame.card && frame.poolPayment) frame.poolPayment.sourcePaid = true;
         fusion.poolIndex!++;
         frame.ops = [];
         frame.ip = 0;
@@ -373,6 +382,7 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
   frame.ip = 0;
   delete frame.vars["§fusionNativePayment"];
   fusion.stage = "action";
+  delete frame.poolPayment;
   return "paid";
 }
 

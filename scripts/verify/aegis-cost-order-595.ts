@@ -302,14 +302,16 @@ for (const index of [0, 1]) {
   assert.equal(saved.cards[a.energy[0]].mode, "rest");
 }
 // A two-card synthetic native pool suspends on each physical departure. The
-// saved cursor never replays the first card. A later card controlled by the
+// saved cursor never replays the first card. R-399 declares this a choice pool;
+// both cards are forced, including the source paid first, and their epochs survive.
+// A later card controlled by the
 // other player, or no longer in the declared mode, is a stale payment even
 // though its area string still reads "battle".
 {
   const a = defense("A595", ["MULTI595", "MULTI595"], ["RED595"]);
   const second = stage(a.s, "PAYER595", "battle");
   const s = activate(a.s, a.card).state;
-  const custom = { ...game, costs: { ...game.costs, pool595: { ...game.costs.burst, name: "pool595", amount: "costOf", do: [{ op: "moveTo" as const, target: { sel: { side: "you" as const, area: "battle" as const, mode: "active" as const } }, to: "drop" as const }] } } };
+  const custom = { ...game, costs: { ...game.costs, pool595: { ...game.costs.burst, name: "pool595", asks: "choice" as const, amount: "costOf", do: [{ op: "moveTo" as const, target: { sel: { side: "you" as const, area: "battle" as const, mode: "active" as const } }, to: "drop" as const }] } } };
   const twoCost = { ...ctx, defs: { ...ctx.defs, A595: card("A595", { energyCost: 2, skill: "[Aegis red/blue][Once per turn] {1}" }) } };
   for (const id of [a.card, second]) addEffect(s, [], { target: id, kind: "replaceLeave", value: { to: "warp", optional: true, target: { special: "self" } }, until: "turn", source: id, master: "p1" });
   s.programs[0].aegisCost!.costs = ["energy", "pool595"];

@@ -74,6 +74,7 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network,
  * nothing read at request time.
  */
+import type { PoolPaymentSelection } from "../types";
 import type { EngineContext, GameEvent, ActionCost, Payer, Payment } from "../types";
 import type { AltCost } from "../types";
 import type { Color, ContinuousEffect, PlayerId, Requirement, Skill } from "../types";
@@ -123,7 +124,7 @@ export interface Charge {
   /**
    * The pool, read off the op's target: which side's zone, in which mode, and
    * which end the cards come off — `fromEnd` for the far end, last placed
-   * first (5-4's Z-Energy), and the top otherwise (22-27's deck).
+   * first for a deterministic bottom draw, and the top otherwise (22-27's deck).
    */
   from: { side: string; area: string; mode?: string; fromEnd?: boolean } | null;
   does: Op | null;
@@ -600,12 +601,16 @@ export type CostPlan =
  * Card to pay for something the energy could have covered is a cost the player
  * never agreed to.
  */
-export function planCost(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, price: Price, card: string | null, explicit?: string[]): CostPlan {
+export function planCost(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, price: Price, card: string | null, explicit?: string[], explicitPools?: PoolPaymentSelection): CostPlan {
   const why = whyNot(ctx, game, state, player, price, card);
+  const charges = chargesOf(game);
+  for (const pool of price.pooled) if (charges[pool.cost]?.asks === "choice" && choicePoolCards(game, state, player, pool).length < pool.n) why.push({ kind: "other", detail: `not enough eligible cards in the ${pool.area} payment pool` });
   if (why.length) return { ok: false, why };
 
   const energy = payEnergy(ctx, game, state, player, price, explicit);
   if (!energy) return { ok: false, why: [{ kind: "other", detail: "the active energy cannot cover the colours of the cost" }] };
+  const poolProblem = explicitPoolProblem(game, state, player, price, card, explicitPools, true);
+  if (poolProblem) return { ok: false, why: [{ kind: "other", detail: poolProblem }] };
   const lifeZone = state.sides[player].zones[SETUP_ZONES.life] ?? [];
   const payment: VmPayment = {
     rest: energy.rest,
@@ -615,16 +620,50 @@ export function planCost(ctx: EngineContext, game: GameDefinition, state: VmStat
     // 3-9-4: any card in life may be chosen when one leaves, and the topmost is
     // the one damage takes — the same end the legacy engine deals from.
     life: price.life ? lifeZone.slice(0, price.life) : [],
-    // 5-4: the Z-Energy is spent from the end of the pile, one at a time, which
-    // is the order the legacy `payZEnergy` takes it in and therefore the order
-    // the Drop Area ends up in — the declaration's `fromEnd`. 22-27's [Burst]
-    // takes the top of the deck, first card first, as `payKeywordCosts` does.
-    pooled: price.pooled.map((p) => ({ cost: p.cost, cards: p.fromEnd ? poolCards(state, player, p).slice(-p.n).reverse() : poolCards(state, player, p).slice(0, p.n) })),
+    // R-399 / 3-13-2: choice pools retain the selected occurrences. The
+    // default is only an affordability witness until the player chooses.
+    // Deterministic pools (Burst) keep their declared top/bottom order.
+    pooled: price.pooled.map((p) => ({ cost: p.cost, cards: completePoolWitness(game, state, player, p, explicitPools?.pools.find(x => x.cost === p.cost)?.cards.map(x => x.card) ?? []) })),
     restsSelf: price.rest,
   };
-  const charges = chargesOf(game);
   const asks = Object.values(charges).some((c) => c.asks === "choice" && (c.consumes === "energy" ? price.energy > 0 : c.consumes === "cards" && price.payers.length > 0));
   return { ok: true, payment, options: paymentOptions(ctx, game, state, player, price), describe: describePayment(ctx, game, state, payment), asks };
+}
+
+/** Only freely selected resource pools apply their declared mode to candidates. */
+export function choicePoolCards(game: GameDefinition, state: VmState, player: PlayerId, pool: PooledPrice): string[] {
+  const charge = chargesOf(game)[pool.cost];
+  const mode = charge?.asks === "choice" ? charge.from?.mode : undefined;
+  return poolCards(state, player, pool).filter(id => mode === undefined || state.cards[id]?.mode === mode);
+}
+
+function completePoolWitness(game: GameDefinition, state: VmState, player: PlayerId, pool: PooledPrice, picked: string[]): string[] {
+  const candidates = choicePoolCards(game, state, player, pool).filter(id => !picked.includes(id));
+  if (pool.fromEnd) candidates.reverse();
+  return [...picked, ...candidates.slice(0, pool.n - picked.length)];
+}
+
+/** Validate untrusted actions and reloaded payment selections without repicking. */
+export function explicitPoolProblem(game: GameDefinition, state: VmState, player: PlayerId, price: Price, card: string | null, selection?: PoolPaymentSelection, partial = false): string | null {
+  if (selection === undefined) return null;
+  if (!selection || !Array.isArray(selection.pools)) return "invalid pooled payment";
+  const source = selection.source;
+  if (card === null ? source !== null : !source || source.card !== card || !Number.isSafeInteger(source.epoch) || !state.cards[card] || (state.cards[card].zoneEpoch ?? 0) !== source.epoch)
+    return "the pooled payment's source occurrence is no longer available";
+  const costs = chargesOf(game), seenCosts = new Set<string>(), seenCards = new Set<string>();
+  for (const picked of selection.pools) {
+    if (!picked || typeof picked.cost !== "string" || seenCosts.has(picked.cost) || !Array.isArray(picked.cards)) return "invalid or duplicate pooled cost";
+    seenCosts.add(picked.cost);
+    const pool = price.pooled.find(p => p.cost === picked.cost);
+    if (!pool || !Number.isSafeInteger(picked.n) || picked.n !== pool.n || costs[picked.cost]?.asks !== "choice" || (partial ? picked.cards.length > pool.n : picked.cards.length !== pool.n)) return "the selected pool or number of cards does not match the cost";
+    const candidates = new Set(choicePoolCards(game, state, player, pool));
+    for (const item of picked.cards) {
+      if (!item || typeof item.card !== "string" || !Number.isSafeInteger(item.epoch) || seenCards.has(item.card) || !candidates.has(item.card)
+        || !state.cards[item.card] || (state.cards[item.card].zoneEpoch ?? 0) !== item.epoch) return "a selected pooled payment occurrence is no longer available";
+      seenCards.add(item.card);
+    }
+  }
+  return null;
 }
 
 /**

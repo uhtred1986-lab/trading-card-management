@@ -23,7 +23,8 @@ const records=Object.values(defs).flatMap(skillRecords);const rows=records.filte
 const ctx:EngineContext={defs,scripts:rulesFromRows(copy(records.map((r,id)=>({...r,id,source:"compiler",status:"confirmed"}) as unknown as RuleRow)),defs)};
 const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
 const other=(p:PlayerId):PlayerId=>p==="p1"?"p2":"p1";
-const take=(s:VmState,a:Action)=>RULES.apply(ctx,copy(s),a).state as VmState;
+// R-399 adds a resource choice before this suite's placement/action-price boundary.
+const take=(s:VmState,a:Action)=>{let next=RULES.apply(ctx,copy(s),a).state as VmState;while(next.prompt.kind==="chooseCards"&&next.prompt.pooledPayment){const pr=next.prompt;next=RULES.apply(ctx,copy(next),{type:"choose",player:pr.player,cards:pr.choice.candidates.slice(0,pr.choice.min)}).state as VmState;}return next;};
 function stage(s:VmState,p:PlayerId,id:string,area:string){const cid=s.sides[p].zones.deck.at(-1)!;s.cards[cid].cardId=id;assert.ok(moveCard(s,game,cid,area,{owner:p}).ok);s.pending=[];return cid;}
 function fresh(p:PlayerId,id:string){let s=RULES.createGame(ctx,{seed:396,p1:{name:"One",leader:id+"BASE",main:fifty("FILLER"),z:[id]},p2:{name:"Two",leader:id+"BASE",main:fifty("FILLER"),z:[id]}}).state as VmState;for(const a of [{type:"chooseFirst",player:s.chooser,first:p},{type:"mulligan",player:p,redraw:false},{type:"mulligan",player:other(p),redraw:false},{type:"charge",player:p,card:null}] as Action[])s=take(s,a);s.cards[s.sides[p].zones.leader[0]].flipped=true;while(s.sides[p].zones.life.length>3)moveCard(s,game,s.sides[p].zones.life.at(-1)!,"hand",{owner:p});stage(s,p,"FILLER","energy");for(let i=0;i<6;i++)stage(s,p,"FILLER","zEnergy");return s;}
 function offer(s:VmState,p:PlayerId,id:string){return RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="activate"&&a.card===s.sides[p].zones.zDeck[0]&&a.skill===rows.find(r=>r.cardId===id)!.skillIndex);}

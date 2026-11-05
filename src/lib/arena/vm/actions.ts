@@ -35,6 +35,7 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network, and
  * nothing read at request time.
  */
+import { askActionPool, pooledPaymentVariants } from "./pooled-costs";
 import { IllegalAction } from "./common";
 import { type AbilityAvailability, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import type { VmAltCost } from "./effects";
@@ -264,15 +265,23 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
   } else if (!why.length && def.cost?.length) {
     const plan = planCost(ctx, game, state, player, price, line.card);
     if (!plan.ok) why.push(...plan.why);
-    // #729: a [Swap]'s action price is offered only when the energy this plan
-    // pays leaves the whole action payable on the strict host, and 22-22-3's
-    // reveal still possible after it — proven on a copy of the board.
-    else if (!gates.after.length) why.push(...swapPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
-    // #926: the same for a [Union-Fusion]/[Union-Potara]/[Evolve]-family
-    // action price ("draw 1 card"): offered only when it can be paid in full
-    // after this plan's energy (5-8-3) — a deck too thin to draw from cannot.
-    if (plan.ok && !gates.after.length && !why.length) why.push(...keywordPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
-    if (plan.ok && !gates.after.length && !why.length) why.push(...dropPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
+    else if (!gates.after.length) {
+      const ops = line.script?.price?.ops ?? [];
+      const frame = { card: line.card, master: player, skillIndex: line.skillIndex, ops, ip: 0, vars: {} };
+      // No subset enumeration for a plain play or a price that cannot inspect
+      // these cards. Identity-sensitive prices need one complete witness.
+      const variants = ops.length && !ops.every(op => op.op === "skip" || op.op === "draw")
+        ? pooledPaymentVariants(ctx, game, state, frame, price, plan.payment) : [plan.payment];
+      let failures: Requirement[] = [];
+      for (const payment of variants) {
+        const charge = (s: VmState) => chargeCost(ctx, game, s, [], player, payment, line.card, def.cost!);
+        failures = swapPriceRefusals(ctx, game, state, player, line, charge);
+        if (!failures.length) failures = keywordPriceRefusals(ctx, game, state, player, line, charge);
+        if (!failures.length) failures = dropPriceRefusals(ctx, game, state, player, line, charge);
+        if (!failures.length) break;
+      }
+      why.push(...failures);
+    }
   }
   why.push(...gates.after);
   const out: Candidate[] = [{ card: line.card, skill: line.skillIndex, why, price }];
@@ -947,7 +956,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     }
   } else if (def.cost?.length && !declining(def, card)) {
     const explicit = (action as { pay?: string[] }).pay;
-    const plan = planCost(ctx, game, state, player, chosen.price, card, explicit);
+    const plan = planCost(ctx, game, state, player, chosen.price, card, explicit, (action as { payPools?: import("../types").PoolPaymentSelection }).payPools);
     if (!plan.ok) throw new IllegalAction(`${def.label ?? def.name} cannot be paid for: ${plan.why[0].kind}`);
     // 3-8-2: the player pays with whatever energy they like, so a price with
     // more than one genuinely different answer is *asked* before it is taken —
@@ -966,6 +975,14 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       state.prompt = { kind: "payCost", player, action, options: plan.options, describe: label.charAt(0).toLowerCase() + label.slice(1) };
       return "asked";
     }
+    const poolOps = line?.script?.price?.ops ?? [];
+    const completePool = line && poolOps.length && !poolOps.every(op => op.op === "skip" || op.op === "draw") ? (payment: typeof plan.payment) => {
+      const charge = (s: VmState) => chargeCost(ctx, game, s, [], player, payment, card, def.cost!);
+      return !swapPriceRefusals(ctx, game, state, player, line, charge).length
+        && !keywordPriceRefusals(ctx, game, state, player, line, charge).length
+        && !dropPriceRefusals(ctx, game, state, player, line, charge).length;
+    } : undefined;
+    if (card !== null && askActionPool(ctx, game, state, player, action, chosen.price, card, plan.payment, poolOps, completePool)) return "asked";
     // #729 (5-8-3): the energy chosen must leave a [Swap]'s whole action price
     // payable; refused here, on a copy, while nothing is paid.
     if (line) assertSwapPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
