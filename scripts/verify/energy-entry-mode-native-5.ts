@@ -1,4 +1,4 @@
-/** R476 script/native mode ordering; optional entry procedures remain unadmitted. */
+/** R480 script/native mode ordering; optional entry procedures remain unadmitted. */
 import assert from "node:assert/strict";
 import { card, fifty } from "./harness";
 import { RULES } from "../../src/lib/arena/vm";
