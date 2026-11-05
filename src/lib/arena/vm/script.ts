@@ -1718,6 +1718,7 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 export interface ScriptFrame {
   /** The typed admission gate was satisfied before this Counter activated. */
   counterAdmission?: import("./paid-admission").PaidAdmission;
+  counterChoice?: { version: 1; candidates?: { card: string; epoch: number }[] };
   counterSource?: { version: 1; card: string; epoch: number };
   retainedCounter?: { version: 1; owner: number; child: number };
   retainedResume?: import("./retained-counter").RetainedResume;
@@ -2831,6 +2832,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "choose": {
+        if (frame.counterChoice) {
+          const witness = frame.counterChoice;
+          if (witness.version !== 1) movementRebuild("rebuild this saved Counter chooser witness");
+          if (frame.awaiting === op.as) {
+            if (!Array.isArray(witness.candidates) || new Set(witness.candidates.map(item => item?.card)).size !== witness.candidates.length || witness.candidates.some(item => !item || typeof item.card !== "string" || !Number.isSafeInteger(item.epoch) || item.epoch < 0)) movementRebuild("rebuild this saved Counter chooser occurrences");
+            if (h.lastChoice()?.some(id => !witness.candidates!.some(item => item.card === id && item.epoch === h.zoneEpoch(id)))) throw new IllegalAction("that Counter choice occurrence is no longer available");
+          } else witness.candidates = h.resolveSelector(frame, op.sel).map(card => ({ card, epoch: h.zoneEpoch(card) }));
+        }
         const placement = frame.ops[frame.ip + 1];
         if (placement?.op === "switchMode" && placement.completedAs) {
           if (op.sel.count !== 1 || placement.completedAs !== op.as) movementRebuild("switch completion requires a one-card bound chooser");

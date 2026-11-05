@@ -1,10 +1,11 @@
+import { counterChoiceTail } from "./counter-continuation";
 /** R433: only the proven admission wrapper around the retained Counter family. */
 import type { Op, Script, ScriptFrame } from "./script";
 import { retainedCounterShape } from "./skill-play-binding";
 import { rebuildScope } from "./skill-play-scope";
 import { paidAdmissionBody, paidAdmissionMatches, paidAdmissionWitness, type PaidAdmission } from "./paid-admission";
 export function counterHasPaidAdmission(script: Script | undefined): boolean {
-  return script?.kind === "counter:play" && !!script.paidAdmission && retainedCounterShape(paidAdmissionBody(script));
+  return script?.kind === "counter:play" && !!script.paidAdmission && !counterChoiceTail(paidAdmissionBody(script)) && retainedCounterShape(paidAdmissionBody(script));
 }
 export function counterEffectOps(script: Script | undefined): Op[] {
   return counterHasPaidAdmission(script) ? paidAdmissionBody(script) : script?.ops ?? [];

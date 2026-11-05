@@ -1,3 +1,4 @@
+import { counterChoiceTail } from "./counter-continuation";
 /** Counter effects that modify a future arrival (RM 9-10; FAQ BT1-110).
  * Mixed conditional tails deliberately require a resumable deferred-effect
  * owner, not an approximation that finishes a Counter before its self-play.
@@ -26,6 +27,7 @@ function pureArrival(op: Op): boolean {
   return false;
 }
 export function retainedCounterShape(ops: readonly Op[]): boolean {
+  if (counterChoiceTail(ops)) return true;
   if (ops.length !== 1) return false;
   const root = ops[0];
   if (root.op !== "if" || root.else || root.cond.kind !== "count" || root.cond.sel.special !== "resolving" || root.then.length !== 3) return false;

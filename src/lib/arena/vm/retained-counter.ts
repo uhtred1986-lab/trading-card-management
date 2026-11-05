@@ -1,3 +1,4 @@
+import { counterChoiceTail } from "./counter-continuation";
 /** R432: one already-activated Counter waiting for a single future arrival. */
 import type { ScriptFrame } from "./script";
 import type { ScriptHost } from "./script-host";
@@ -35,6 +36,7 @@ function ownerScope(state: VmState, id: number): SkillPlayScope {
 function checkedEntry(owner: SkillPlayScope, entry: RetainedCounter): void {
   if (!entry || entry.version !== 1 || !Number.isSafeInteger(entry.id) || entry.id <= owner.id || !Number.isSafeInteger(entry.at) || entry.at < 0 || entry.at > (owner.bindings?.length ?? 0) || !["waiting", "running", "done"].includes(entry.state)) rebuildScope("rebuild this retained Counter binding");
   if (entry.state === "waiting") {
+    if (entry.frame && counterChoiceTail(entry.frame.ops) && (entry.scope?.purpose !== "counterContinuation" || entry.frame.counterChoice?.version !== 1)) rebuildScope("rebuild this retained Counter choice lifetime");
     if (!entry.scope || entry.scope.version !== 2 || entry.scope.id !== entry.id || entry.scope.parent !== owner.id || entry.scope.phase !== "effect" || entry.scope.window || !entry.frame || entry.frame.skillEffectOrigin?.scope !== entry.id || entry.frame.ip !== 0 || !Array.isArray(entry.frame.ops) || !entry.frame.ops.length || entry.frame.counterSource?.version !== 1 || entry.frame.counterSource.card !== entry.frame.card || !Number.isSafeInteger(entry.frame.counterSource.epoch) || entry.frame.counterSource.epoch < 0 || !entry.finish || entry.finish.skillPlayFinish?.scope !== entry.id) rebuildScope("rebuild this retained Counter continuation");
   } else if (entry.scope || entry.frame || entry.finish) rebuildScope("rebuild this consumed retained Counter continuation");
 }

@@ -1,3 +1,4 @@
+import { counterChoiceTail } from "./counter-continuation";
 /** Serialized lifetime of one immediate skill effect (RM 4-3-2-3/4).
  * Future/delayed/granted skills have their own lifetime, never this one's.
  */
@@ -15,6 +16,7 @@ export interface SkillEffectOrigin {
   scope?: number;
 }
 export interface SkillPlayScope {
+  purpose?: "counterContinuation";
   version: 2;
   id: number;
   parent?: number;
@@ -83,13 +85,15 @@ export function startSkillPlayScope(state: VmState, frame: ScriptFrame): SkillPl
   if (!origin) return null;
   if (![1, 2].includes(origin.version) || !["activate", "auto", "counter", "delayed", "hook", "replacement"].includes(origin.kind)) rebuildScope("rebuild this saved skill-effect provenance");
   const profile = immediatePlayProfile(frame.ops);
+  const continuation = origin.kind === "counter" && !!frame.counterPlay && counterChoiceTail(frame.ops);
   // Version 1 certified lifetime ancestry only, before shared timing existed.
   // A non-play effect needs no new timing; an affected active root must rebuild.
-  if (origin.scope === undefined && (!profile.arrivals || frame.viaKeyword || frame.declaredPlay || profile.explicitWindow && origin.kind === "hook")) return null;
+  if (origin.scope === undefined && (!profile.arrivals && !continuation || frame.viaKeyword || frame.declaredPlay || profile.explicitWindow && origin.kind === "hook")) return null;
   if (origin.version !== 2) rebuildScope("rebuild this saved skill effect for shared Counter timing version 2");
   if (origin.scope !== undefined) {
     validateScopeStack(state);
     const scope = state.skillPlayScopes?.at(-1);
+    if (scope?.purpose === "counterContinuation" && origin.kind !== "counter") rebuildScope("rebuild this Counter continuation provenance");
     if (!scope || scope.id !== origin.scope) rebuildScope("rebuild this saved skill-play continuation");
     return scope;
   }
@@ -98,8 +102,9 @@ export function startSkillPlayScope(state: VmState, frame: ScriptFrame): SkillPl
   const parent = scopes.at(-1)?.id;
   const id = (state.nextSkillPlayScope ?? 0) + 1;
   state.nextSkillPlayScope = id;
-  const scope: SkillPlayScope = { version: 2, id, ...(parent === undefined ? {} : { parent }), master: frame.master, source: frame.card, ...(frame.skillIndex === undefined ? {} : { skillIndex: frame.skillIndex }), profile, phase: "before", played: [] };
+  const scope: SkillPlayScope = { version: 2, id, ...(continuation ? { purpose: "counterContinuation" as const } : {}), ...(parent === undefined ? {} : { parent }), master: frame.master, source: frame.card, ...(frame.skillIndex === undefined ? {} : { skillIndex: frame.skillIndex }), profile, phase: continuation ? "effect" : "before", played: [] };
   scopes.push(scope);
+  if (continuation) frame.counterChoice = { version: 1 };
   frame.skillEffectOrigin = { ...origin, scope: id };
   // The runner already removed the root. Everything it interrupts with is
   // placed before this boundary, including a nested invoked skill's scope.
@@ -190,6 +195,7 @@ function validateScopeStack(state: VmState): void {
   for (let i = 0; i < scopes.length; i++) {
     const scope = scopes[i];
     if (!["before", "effect", "after"].includes(scope.phase) || !scope.profile || ![0, 1, "many"].includes(scope.profile.arrivals) || typeof scope.profile.tokens !== "boolean" || typeof scope.profile.explicitWindow !== "boolean" || !Array.isArray(scope.played) || scope.played.some(p => typeof p.card !== "string" || !Number.isSafeInteger(p.epoch) || p.epoch < 0)) rebuildScope("rebuild this saved skill-play state");
+    if (scope.purpose !== undefined && (scope.purpose !== "counterContinuation" || scope.profile.arrivals !== 0 || scope.profile.tokens || scope.profile.explicitWindow || scope.window || scope.played.length || scope.phase !== "effect")) rebuildScope("rebuild this saved Counter continuation lifetime");
     if (scope.window && (!Array.isArray(scope.window.programs) || scope.phase === "effect")) rebuildScope("rebuild this saved skill-play window state");
     if (scope.version !== 2 || !Number.isSafeInteger(scope.id) || scope.id < 1 || scope.id > (state.nextSkillPlayScope ?? 0) || scope.parent !== scopes[i - 1]?.id || i > 0 && scope.id <= scopes[i - 1].id) rebuildScope("rebuild this saved skill-play ancestry");
   }

@@ -1,3 +1,4 @@
+import { counterChoiceTail } from "./counter-continuation";
 import { requirePlayReplacement } from "./short-play-replacement";
 import { chooseFramePools, primeFramePools } from "./pooled-costs";
 import { requireCounterAdmission } from "./counter-admission";
@@ -67,7 +68,7 @@ import { NotYet } from "./errors";
 import { openSkillPlayWindow } from "./battle";
 import { recordMovementResult, requireMovementResults, requireDelayedMovementResults, prepareUnderSource, prepareCompletionSource, type MovementOutcome } from "./movement-result";
 import { beginReplacementAuto, prepareReplacementAuto, requireReplacementOrigin, sameReplacementOccurrence } from "./replacement-auto";
-import { arrivalAutoWasActive, finishSkillPlayScope, releaseSkillPlayWindow, requireSkillEffectOrigin, scopeForFinish, startSkillPlayScope } from "./skill-play-scope";
+import { rebuildScope, arrivalAutoWasActive, finishSkillPlayScope, releaseSkillPlayWindow, requireSkillEffectOrigin, scopeForFinish, startSkillPlayScope } from "./skill-play-scope";
 import { replacementPrompt, routeOf, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
@@ -1358,12 +1359,20 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.skillPlayFinish) {
       const scope = scopeForFinish(state, frame);
       if (settleRetainedCounter(state, scope, frame)) return "done";
-      if (scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";
+      if (scope.purpose !== "counterContinuation" && scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";
       finishSkillPlayScope(state, frame); return "done";
     }
     requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    if ((frame.counterChoice || state.skillPlayScopes?.some(scope => scope.id === frame.skillEffectOrigin?.scope && scope.purpose === "counterContinuation")) && (sourceScript?.kind !== "counter:play" || !counterChoiceTail(sourceScript.ops))) rebuildScope("rebuild this Counter continuation against its current stored rule");
+    if (frame.counterPlay && sourceScript?.kind === "counter:play" && counterChoiceTail(sourceScript.ops)) {
+      const origin = frame.skillEffectOrigin;
+      const scope = origin?.scope === undefined ? undefined : state.skillPlayScopes?.find(item => item.id === origin.scope);
+      if (!origin || origin.version !== 2 || origin.kind !== "counter" || (origin.scope !== undefined ? scope?.purpose !== "counterContinuation" || frame.counterChoice?.version !== 1 : frame.ip !== 0 || !counterChoiceTail(frame.ops))) {
+        rebuildScope("rebuild this saved Counter choice continuation");
+      }
+    }
     requirePlayReplacement(frame, sourceScript);
     requireCounterAdmission(frame, sourceScript);
     requireReplacementOrigin(frame, sourceScript);
