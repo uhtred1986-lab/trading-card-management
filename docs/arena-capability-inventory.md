@@ -56,6 +56,7 @@ The verifier parses every VM TypeScript file, checks exact coverage of every `ne
 
 | Stable ID | Classification | Source | Rule/source citation | Live owner / history | Exact behavior or guard |
 |---|---|---|---|---|---|
+| `arena-vm-notyet-movement-result` | Untested / guard | `src/lib/arena/vm/movement-result.ts` (not-yet #1) | R-426 | — | Legacy or malformed original-movement witnesses require rebuilding before an if-you-do continuation; unsupported host/target paths refuse before moving. |
 | `arena-vm-notyet-replacement-auto-guard` | Untested / guard | `src/lib/arena/vm/replacement-auto.ts` (not-yet #1) | R-424 | — | Affected legacy replacement frames and malformed saved occurrence identities require rebuilding before replacement Auto Counter timing. |
 | `arena-vm-notyet-replacement-auto-gap` | Unsupported | `src/lib/arena/vm/replacement-auto.ts` (not-yet #2) | R-424/R-425 | [#1249](https://github.com/uhtred1986-lab/trading-card-management/issues/1249) | Replacement Auto printed action prices and bodies beyond the bounded own Combo-to-Drop self-play require a suspendable replacement activation continuation; refused before original movement. |
 | `arena-vm-notyet-skill-play-scope` | Untested / guard | `src/lib/arena/vm/skill-play-scope.ts` (not-yet #1) | R-421/R-422; persisted immediate-effect lifetimes | — | Missing affected legacy provenance, invalid versions, malformed scope phase/profile/arrival occurrences, ancestry or window ownership, and invalid saved arrival bindings require rebuilding the match. Unrelated saved effects remain usable. |

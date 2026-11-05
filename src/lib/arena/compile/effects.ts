@@ -1011,6 +1011,34 @@ const REST_COMBO_DESCRIBED = /^(?:you (?:can|may) )?combo with ((?!this card\b).
 const OWN_SKILLS_BAN = /^you can't activate (?:(?:the )?skills (?:on|of) .+|\[field\] cards\b.*)$/;
 const OWN_ACTIVATION =/^you can't activate (?:(?:the )?\[counter(?:: [a-z ]+)?\] skills?|\{[^}]+\}(?:'s (?:\[(?:activate: main|activate: battle|auto)\] )?skills?)?)(?:\s+(?:for|during|until)\b.*)?$/;
 
+/** Keep this batch within one emitted body; conditional/delayed cross-body hinges need separate binding. */
+function retainAdjacentMovementHinges(ops: Op[]): void {
+  const used = new Set<string>();
+  for (let index = 0; index < ops.length; index++) {
+    const op = ops[index];
+    if (op.op === "if") {
+      const cond = op.cond.kind === "not" ? op.cond.cond : op.cond;
+      if (cond.kind === "moved") {
+        const choice = ops[index - 2], move = ops[index - 1];
+        if (choice?.op === "choose" && choice.as === cond.var && move?.op === "moveTo" && move.completedAs === cond.var) used.add(cond.var);
+        else op.cond = op.cond.kind === "not" ? { kind: "not", cond: { kind: "chose", var: cond.var } } : { kind: "chose", var: cond.var };
+      }
+      retainAdjacentMovementHinges(op.then); retainAdjacentMovementHinges(op.else ?? []);
+    } else if (op.op === "may" || op.op === "delay") retainAdjacentMovementHinges(op.ops);
+    else if (op.op === "chooseMode") for (const mode of op.modes) retainAdjacentMovementHinges(mode.ops);
+  }
+  for (const op of ops) if (op.op === "moveTo" && op.completedAs && !used.has(op.completedAs)) delete op.completedAs;
+}
+
+/** R-426: only an adjacent optional one-card choice followed by one ordinary move. */
+export function bindCompletedChoice(ops: Op[], name: string): Cond | null {
+  const move = ops[ops.length - 1], choice = ops[ops.length - 2];
+  if (move?.op !== "moveTo" || move.to === "under" || move.to === "play" || !("var" in move.target) || move.target.var !== name
+    || choice?.op !== "choose" || choice.as !== name || choice.sel.count !== 1 || !choice.sel.upTo) return null;
+  move.completedAs = name;
+  return { kind: "moved", var: name, all: true };
+}
+
 function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwise" | null {
   const t = clause.toLowerCase().replace(/[.,]$/, "").trim();
   if (/^otherwise$/.test(t)) return "otherwise";
@@ -8056,6 +8084,13 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       const all = exactCount(c, c.last);
       return all.atLeast ? ({ kind: "chose", var: c.last, atLeast: all.atLeast } as Cond) : null;
     })();
+    // R-426: preserve the one-card optional chooser, but witness its original
+    // movement rather than treating selection as completion (RM 20-16/17).
+    const completedChoice = (() => {
+      if (conn !== "ifDone" && conn !== "ifNotDone" || !c.last || ["may", "play", "flip"].includes(c.lastOp ?? "")) return null;
+      const open = groups[groups.length - 1], host = open.sink ?? open.ops;
+      return bindCompletedChoice(host, c.last);
+    })();
     const decided: Cond | null =
       c.lastOp === "may"
         ? offeredExact ? { kind: "all", conds: [{ kind: "did", what: "may" }, offeredExact] } : { kind: "did", what: "may" }
@@ -8070,7 +8105,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         : c.lastOp === "play"
           ? { kind: "did", what: "play" }
         : c.last
-          ? { kind: "chose", var: c.last, ...exactCount(c, c.last) }
+          ? completedChoice ?? { kind: "chose", var: c.last, ...exactCount(c, c.last) }
           : mayBefore
             ? { kind: "did", what: "may" }
             : sentSelf
@@ -8986,5 +9021,6 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     for (const cond of [...g.conds].reverse()) body = [{ op: "if", cond, then: body }];
     ops.push(...body);
   }
+  retainAdjacentMovementHinges(ops);
   return ops;
 }

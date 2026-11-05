@@ -28,7 +28,7 @@ Operations (each is an object with "op"; a field marked ? may be left out):
   {"op":"reveal","sel":SELECTOR,"as":"…","audience"?:"you"|"both"}
     shown to both players; the cards stay where they are (20-11-2). "audience":"you" is a look — shown to you alone, nothing logged (20-11); prefer "look", the spelling it means
   {"op":"ko","target":TARGET}
-  {"op":"moveTo","target":TARGET,"to":AREA,"position"?:"top"|"bottom","mode"?:"active"|"rest","reveal"?:true|false,"under"?:TARGET,"owner"?:"you"|"opponent","faceUp"?:true|false,"random"?:true|false,"cause"?:"ko"|"effect"|"rule"|…}
+  {"op":"moveTo","target":TARGET,"to":AREA,"position"?:"top"|"bottom","mode"?:"active"|"rest","reveal"?:true|false,"under"?:TARGET,"owner"?:"you"|"opponent","faceUp"?:true|false,"random"?:true|false,"cause"?:"ko"|"effect"|"rule"|…,"completedAs"?:"…"}
     "to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent's energy" — the area is theirs, not the card owner's (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement's own scope and, on the rules engine, by `triggers.rules`'s `moved(cause: …)`
   {"op":"play","target":TARGET,"mode"?:"active"|"rest","onto"?:TARGET,"negated"?:"turn"|"game","negatedKinds"?:["auto"|"activate"|"counter"|"permanent"|"keyword"],"negatedUntil"?:DURATION,"using"?:"Over Realm"|"Evolve"|"EX-Evolve"|…}
     "onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "negatedKinds" and "negatedUntil" are a nonempty exact kind list and its duration: those skills are negated on successful entry before played triggers and the landed counter window (R-388), respecting negation protection and the acting skill master/source. Use neither field for a later separate negation. "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword's own play and marks its arrival (22-15). "using: Union-Fusion/Union-Potara/Union-Absorb" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; "alsoUnder" puts [Union-Potara]'s second material under the card as part of the play.
@@ -152,6 +152,8 @@ COND is one of these (a field marked ? may be left out):
   {"kind":"did","what":"addToHand"|"play"|"negateAttack"|…}
     whether an earlier step of this same skill did that — {"what":"may"} reads the answer to a "you may"
   {"kind":"not","cond":COND}
+  {"kind":"moved","var":"…","atLeast"?:N,"all"?:true|false}
+    R-426: reads a moveTo completedAs result; replacements and prevented movement do not complete the original action
   {"kind":"chose","var":"…","atLeast"?:N}
     "If you do so" (20-16): whether an earlier choice was answered, and with how many
   {"kind":"choseFrom","var":"…","areas":[…]}

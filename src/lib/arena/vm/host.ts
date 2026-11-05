@@ -232,8 +232,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       }
       return drawn;
     },
+    reportsMovement: true,
     move: (id, to, owner, opts) => {
-      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      moveTo(ctx, game, state, ev, id, to, owner, { onResult: opts?.onResult, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -917,11 +918,13 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
+  opts: { onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
   const from = zoneOf(state, id);
+  const fromEpoch = state.cards[id]?.zoneEpoch ?? 0, asked = to;
+  const report = (completed: boolean, actual = zoneOf(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
   const returnInfo = from === "battle" || from === "unison" ? attrsNow(ctx, game, state, id) : undefined;
   const sourceNegated = from === "battle"
     ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
@@ -932,9 +935,9 @@ function moveTo(
   // 9-10: what stands in front of a card leaving play (`vm/replace.ts`) — a
   // redirect changes `to`, a substitute keeps the card where it is.
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
-  if (route.stays) return;
+  if (route.stays) { report(false); return; }
   to = route.to;
-  if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source, id)) return;
+  if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source, id)) { report(false); return; }
   const fromOwner = from ? ownerOfZone(state, id) : null;
   // 23-2-2-2: a card under another is in the area of the card on top, and
   // taking it out is shown as a move out of that area followed by the pile
@@ -953,8 +956,10 @@ function moveTo(
   const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
+    report(false);
     return;
   }
+  report(!route.replacementApplied && placed.move.to === asked, placed.move.to);
   clearAutoReveal(state, id);
   for (const released of placed.move.released ?? []) clearAutoReveal(state, released.card);
   // Where it really went, which a rule about what the card *is* may change

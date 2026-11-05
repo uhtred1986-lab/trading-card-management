@@ -1948,6 +1948,8 @@ export interface ActionCost {
 }
 
 export interface MoveOptions {
+  /** Internal synchronous result reporting; never stored in a card operation. */
+  onResult?: (result: import("./vm/movement-result").MovementOutcome) => void;
   /** "top" is the default: new cards go on top of Drop/Warp/Life (3-4-3, 3-9-2, 3-10-2). Deck bottom is used by some skills. */
   position?: "top" | "bottom";
   /** Entering an open area from a secret one shows the card. */

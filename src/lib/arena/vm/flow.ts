@@ -61,6 +61,7 @@ import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEff
 import { pendStandingPower, returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { openSkillPlayWindow } from "./battle";
+import { recordMovementResult, requireMovementResults, type MovementOutcome } from "./movement-result";
 import { beginReplacementAuto, prepareReplacementAuto, requireReplacementOrigin, sameReplacementOccurrence } from "./replacement-auto";
 import { arrivalAutoWasActive, finishSkillPlayScope, releaseSkillPlayWindow, requireSkillEffectOrigin, scopeForFinish, startSkillPlayScope } from "./skill-play-scope";
 import { replacementPrompt, routeOf, stepScript, type ScriptFrame } from "./script";
@@ -1283,9 +1284,13 @@ function zoneOfCard(state: VmState, id: string): string | null {
  */
 function stepReplacementFallback(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const original = frame.replacementFallback!;
-  const finishParentMove = (completed: boolean) => {
+  const finishParentMove = (completed: boolean, outcome?: MovementOutcome) => {
     const parent = state.programs.find(item => item.replacementMove?.card === original.card && item.replacementMove.epoch === original.epoch);
-    if (parent) { if (completed) parent.acted = (parent.acted ?? 0) + 1; delete parent.replacementMove; }
+    if (parent) {
+      if (outcome && parent.replacementMove?.completedAs) recordMovementResult(parent, parent.replacementMove.completedAs, outcome);
+      if (completed) parent.acted = (parent.acted ?? 0) + 1;
+      delete parent.replacementMove;
+    }
   };
   if (!sameReplacementOccurrence(state, original)) { finishParentMove(false); return "done"; }
   let selected: import("../types").ReplacementChoice | undefined;
@@ -1319,10 +1324,11 @@ function stepReplacementFallback(ctx: EngineContext, game: GameDefinition, state
   }
   const cleanup = state.battle?.endCombo?.substituteDeparture;
   if (cleanup && original.move.cleanupDeparture) cleanup.active = true;
-  try { moved(ctx, game, state, ev, original.card, "drop", { ...original.move, replaced: deferred ? { ...route!, deferred: true } : route }); }
+  let outcome: MovementOutcome | undefined;
+  try { moved(ctx, game, state, ev, original.card, "drop", { ...original.move, onResult: result => { outcome = result; }, replaced: deferred ? { ...route!, deferred: true } : route }); }
   finally { if (cleanup) delete cleanup.active; }
   if (substitute) state.programs.unshift(substitute);
-  else finishParentMove(route === null && findCard(state, original.card)?.zone === "drop");
+  else finishParentMove(!!outcome?.completed, outcome);
   return "done";
 }
 
@@ -1347,6 +1353,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireZAwakenBindings(frame);
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     requireReplacementOrigin(frame, sourceScript);
+    requireMovementResults(frame, sourceScript);
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
     }
@@ -1589,6 +1596,8 @@ export function draw(ctx: EngineContext, game: GameDefinition, state: VmState, e
 
 /** How a card came to move, for the pattern arguments that ask (`moved(asPlay: true)`, `moved(by: skill)`). */
 export interface MoveCause {
+  /** Internal synchronous result reporting, never serialized with a frame. */
+  onResult?: (result: MovementOutcome) => void;
   owner?: PlayerId;
   position?: "top" | "bottom";
   /**
@@ -1643,6 +1652,8 @@ export interface MoveCause {
  */
 export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
   const from = fromZone(state, id);
+  const fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
+  const report = (completed: boolean, actual = fromZone(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
   const fromHolder = findCard(state, id)?.owner;
   // BT29-029 / 9-6-9-1-2: read the returned card before leaving ends
   // source effects or control loans. Keep this on the private moment only.
@@ -1663,10 +1674,11 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     ...(opts.replacementEvent ? { event: opts.replacementEvent } : {}),
   });
   if (route.replacement) opts.usedReplacements?.add(route.replacement);
-  if (route.stays) return;
-  if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) return;
+  if (route.stays) { report(false); return; }
+  if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { report(false); return; }
   const result = moveCard(state, game, id, route.to, { ...opts, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
+  report(!route.replacementApplied && result.move.to === asked, result.move.to);
   if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== id && !(result.move.released ?? []).some((released) => released.card === item.card));
   // Where it really went: a rule about what the card *is* may send it
   // somewhere else than asked (19-1-7, a token leaving play is removed).

@@ -1,3 +1,4 @@
+import { completedMovement } from "./movement-result";
 import { isPotaraSkill, requirePotaraMaterials } from "./potara-materials";
 import { requireUsage } from "./usage";
 import { requireValidity } from "./validity";
@@ -2011,6 +2012,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const l = leaderOf(c.side);
       return !!l && state.cards[l].flipped === (c.flipped ?? true);
     }
+    case "moved":
+      return completedMovement(frame, c.var, c.atLeast, c.all);
     case "did":
       // #1121 (20-16): "if you do" is true only when the optional action happened, not when the offer was taken.
       if (c.what === "may" && frame.did?.may && frame.mayWitness && (frame.acted ?? 0) <= frame.mayWitness.base) return false;

@@ -13,6 +13,7 @@ import { baseType, canCombo, identityKey, keywordName, skillsOf, sumReachable } 
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
+import { recordMovementResult, startMovementResult, validateMovementResult, movementRebuild } from "./movement-result";
 import { completablePicks, disjointGroups, disjointPayable, laterSlots } from "./disjoint";
 import type { ScriptHost } from "./script-host";
 import type { AltCost, Area, Color, CounterKind, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, NegatedSkillKind, SkipWhat, Trigger } from "../types";
@@ -584,6 +585,7 @@ export type Cond =
    * paid by giving one, and an “up to” choice is the only way to decline, so
    * the two readings have to be told apart. Defaults to 1.
    */
+  | { kind: "moved"; var: string; atLeast?: number; all?: boolean }
   | { kind: "chose"; var: string; atLeast?: number }
   /**
    * Phrasing batch 6 (owner's ruling, 26 Oct 2026): "…in your hand or Drop Area and place it at the bottom of your deck.
@@ -814,7 +816,7 @@ export type Op =
    * `triggers.rules` may match `moved(cause: …)` (spec §2.5-2). Left out, a
    * move means `effect`, which is what nearly every one is.
    */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; random?: true; cause?: MoveReason; as?: string }
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; random?: true; cause?: MoveReason; as?: string; completedAs?: string }
   /**
    * `onto` plays the card on top of another, which is how [Union-Absorb]
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
@@ -1723,7 +1725,8 @@ export interface ScriptFrame {
   replacementFallback?: import("./replacement-auto").ReplacementAuto;
   /** Original Combo departure waiting beneath a replacement scope; only its
    * completed original move credits this parent's may/did witness. */
-  replacementMove?: { card: string; epoch: number };
+  replacementMove?: { card: string; epoch: number; completedAs?: string };
+  movementResults?: Record<string, import("./movement-result").MovementResult>;
   /** Exact Counter kind and the unknown-target window it answered. */
   counterPlay?: true;
   counterAnswerScope?: number;
@@ -3181,6 +3184,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // takes, named for a later clause (which also asks where they are by then).
         // Several moves under one name add up: "send up to 1 <Vegeta> card and 1 <Nappa> card … to your Warp … play all
         // the cards sent to the Warp by this skill" (BT7-051) is both cards.
+        if (op.completedAs && (!("var" in op.target) || op.to === "under" || op.to === "play")) movementRebuild("rebuild the original-movement target contract");
+        if (op.completedAs && !h.reportsMovement) movementRebuild("this host cannot report original movement completion");
+        if (op.completedAs && frame.moveLoop) validateMovementResult(frame, op.completedAs);
+        if (op.completedAs && !frame.moveLoop && "var" in op.target) {
+          const name = op.target.var;
+          const stamps = frame.vars[epochVar(name)];
+          const selected = (frame.vars[name] ?? []).map(card => {
+            const stamp = stamps?.find(item => item.startsWith(`${card}@`));
+            return { card, epoch: stamp ? Number(stamp.slice(card.length + 1)) : h.zoneEpoch(card) };
+          });
+          startMovementResult(frame, op.completedAs, selected);
+        }
         if (op.as && !frame.moveLoop) frame.vars[op.as] = [...new Set([...(frame.vars[op.as] ?? []), ...h.resolveRef(frame, op.target)])];
         frame.moveLoop ??= {
           kind: "moveTo",
@@ -3195,6 +3210,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         };
         while (frame.moveLoop && frame.moveLoop.kind === "moveTo" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
+          if (op.completedAs && !frame.movementResults![op.completedAs].selected.some(item => item.card === id && item.epoch === h.zoneEpoch(id))) {
+            if (frame.awaiting === "replaceMove") { h.clearLastMode(); frame.awaiting = undefined; }
+            frame.moveLoop.index++;
+            continue;
+          }
           // 3-1-2: a Leader Card stays in the Leader Area. Skills may change
           // its power or negate it, but nothing puts it anywhere else — and
           // an empty Leader Area is a state the rest of the engine cannot read.
@@ -3299,7 +3319,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const deferred = defers(replaced);
           const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
           if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: op.cause ?? "effect", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
-          if (substitute?.replacementAuto) frame.replacementMove = { card: id, epoch: substitute.replacementAuto.epoch };
+          if (substitute?.replacementAuto) frame.replacementMove = { card: id, epoch: substitute.replacementAuto.epoch, ...(op.completedAs ? { completedAs: op.completedAs } : {}) };
           // 3-10: "when this card is sent from your deck to your Warp by your
           // <Heles> card's skill" (BT30-106) asks where it came from, which is
           // gone once it has moved.
@@ -3322,7 +3342,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // deck or the life is revealed the same way.
           const picked = !!frame.specifiedPicks?.includes(id);
           const shown = op.reveal || (picked && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp))) || (picked && h.areaOf(id) === "hand" && (dest === "deck" || (dest === "life" && !op.faceUp)));
-          h.move(id, dest, owner, { position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          h.move(id, dest, owner, { ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
           // question inside it is asked rather than lost. Nothing below is

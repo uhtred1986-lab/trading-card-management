@@ -465,6 +465,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-movement-result", file: "src/lib/arena/vm/movement-result.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-426", detail: "Legacy or malformed original-movement witnesses require rebuilding before an if-you-do continuation; unsupported host/target paths refuse before moving." },
   { id: "arena-vm-notyet-replacement-auto-guard", file: "src/lib/arena/vm/replacement-auto.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-424", detail: "Affected legacy replacement frames and malformed saved occurrence identities require rebuilding before replacement Auto Counter timing." },
   { id: "arena-vm-notyet-replacement-auto-gap", file: "src/lib/arena/vm/replacement-auto.ts", ordinal: 2, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-424/R-425", detail: "Replacement Auto printed action prices and bodies beyond the bounded own Combo-to-Drop self-play require a suspendable replacement activation continuation; refused before original movement." },
   { id: "arena-vm-notyet-skill-play-scope", file: "src/lib/arena/vm/skill-play-scope.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-421/R-422; persisted immediate-effect lifetimes", detail: "Missing affected legacy provenance, invalid versions, malformed scope phase/profile/arrival occurrences, ancestry or window ownership, and invalid saved arrival bindings require rebuilding the match. Unrelated saved effects remain usable." },
@@ -548,6 +549,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-movement-result": "movementRebuild|-|-",
   "arena-vm-notyet-replacement-auto-guard": "replacementGuard|-|-",
   "arena-vm-notyet-replacement-auto-gap": "replacementGap|-|-",
   "arena-vm-notyet-skill-play-scope": "rebuildScope|-|-",

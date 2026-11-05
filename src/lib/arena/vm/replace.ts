@@ -228,7 +228,7 @@ function replacementFor(
 }
 
 /** What a departure becomes: the card stays where it is (a substitute ran, or will), or it goes here, in this mode. */
-export type LeaveRoute = { stays: true; replacement?: string } | { stays: false; to: string; mode?: string; position?: "top" | "bottom"; replacement?: string };
+export type LeaveRoute = { stays: true; replacement?: string; replacementApplied?: true } | { stays: false; to: string; mode?: string; position?: "top" | "bottom"; replacement?: string; replacementApplied?: true };
 
 /**
  * The 9-10 half of a move, read before the card goes anywhere — every mover
@@ -260,6 +260,7 @@ export function leaveRoute(
 ): LeaveRoute {
   const inPlay = inPlayZones(game);
   const held = (zone: string | null) => !!zone && (inPlay.includes(zone) || game.zones[zone]?.host === true);
+  let applied = false;
   let mode: string | undefined;
   let insteadPosition: "top" | "bottom" | undefined;
   const fromLife = from === LIFE_ZONE;
@@ -288,14 +289,16 @@ export function leaveRoute(
     if (instead?.ops?.length) {
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });
       if (!("deferred" in instead && instead.deferred)) runReplacement(ctx, game, state, ev, id, instead);
-      return { stays: true, ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
+      return { stays: true, replacementApplied: true, ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
     }
     if (instead?.to) {
+      applied = true;
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} goes to the ${instead.to}${instead.mode === "rest" ? " in Rest Mode" : ""} instead` });
       to = instead.to;
       mode = instead.mode;
       insteadPosition = instead.position;
     } else if (instead && opts.replaced !== undefined) {
+      applied = true;
       // A route the affected player picked says how the card arrives as well
       // as where, even when where is where it was going anyway.
       mode = instead.mode;
@@ -308,10 +311,10 @@ export function leaveRoute(
     for (const fact of queryHookStatics(ctx, game, state, id, "wouldLeave")) {
       if (fact.op !== "replace") continue;
       const redirect = redirectOf(fact.with);
-      if (redirect && redirect.to !== to) to = redirect.to;
+      if (redirect) { to = redirect.to; applied = true; }
     }
   }
-  return { stays: false, to, ...(mode ? { mode } : {}), ...(insteadPosition ? { position: insteadPosition } : {}), ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
+  return { stays: false, to, ...(applied ? { replacementApplied: true as const } : {}), ...(mode ? { mode } : {}), ...(insteadPosition ? { position: insteadPosition } : {}), ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
 }
 
 /**

@@ -15,7 +15,7 @@ import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause, playedHowGate } from "./conditions";
-import { compileClauseList, holdForGame, isComboDropReplacement, oneAreaOfTwo, splitModal, taxWordings } from "./effects";
+import { bindCompletedChoice, compileClauseList, holdForGame, isComboDropReplacement, oneAreaOfTwo, splitModal, taxWordings } from "./effects";
 import { bondDescriptorOnly } from "../text/bond";
 import { readsAsNothingSilently } from "./silent";
 import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
@@ -1553,7 +1553,7 @@ function compileSkillText(skill: Skill): Script {
     }
     if (modes.some((mode) => mode.ops.length)) {
       // What "if you do" reads (20-16): the offer taken, or the choice made, just before it.
-      const gate: Cond | null = !modalIfDone ? null : c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last } : null;
+      const gate: Cond | null = !modalIfDone ? null : c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? bindCompletedChoice(ops, c.last) ?? { kind: "chose", var: c.last } : null;
       if (modalIfDone && !gate) return { ops: [], unsupported: [...unsupported, "If you do"] };
       // Audit lane C: a head that ends on a condition hangs the menu on it — "…it gets +15000 power for the duration of
       // the battle, **and if it is your turn, also choose one—**" (EX06-21). Nested in a condition the head opened, the

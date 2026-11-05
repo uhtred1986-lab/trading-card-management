@@ -23,6 +23,7 @@ defs.DROP=card("DROP",{skill:"[Activate: Battle] Choose 1 card in your Combo Are
 defs.HAND=card("HAND",{skill:"[Activate: Battle] Choose 1 card in your Combo Area and return it to its owner's hand."});
 defs.ANSWER=card("ANSWER",{type:"EXTRA",energyCost:0,skill:"[Counter: Play] The Battle Card played is played in Rest Mode."});
 defs.MAYDROP=card("MAYDROP",{skill:"[Activate: Battle] You may place 1 card from your Combo Area in its owner's Drop Area. If you do, draw 1 card."});
+defs.CHOICEDROP=card("CHOICEDROP",{skill:"[Activate: Battle] You may choose 1 card in your Combo Area and place it in its owner\'s Drop Area. If you do, draw 1 card."});
 const records=Object.values(defs).flatMap(skillRecords);
 const rows=records.map((r,id)=>({...r,id,source:"compiler",status:"confirmed"}) as unknown as RuleRow);
 for(const r of rows)assert.deepEqual(runtimeSupportOfRow(r).unsupported,[],r.cardId+"#"+r.skillIndex);
@@ -56,9 +57,9 @@ function pass(s:VmState):VmState {
  const a=legal.find(x=>x.type==="counter"&&x.card===null)??legal.find(x=>x.type==="pass")??legal.find(x=>x.type==="zEnergyFromCombo"&&x.card===null)??legal.find(x=>x.type==="chooseMode"&&x.index===0);
  assert.ok(a,JSON.stringify(s.prompt));return take(s,a);
 }
-function ready(owner:PlayerId,id:string,skillMove:boolean|"may"=false){
+function ready(owner:PlayerId,id:string,skillMove:boolean|"may"|"choose"=false){
  history.length=0;
- let s=fresh(owner);const leader=s.sides[owner].zones.leader[0],combo=stage(s,owner,id,"hand"),answer=stage(s,other(owner),"ANSWER","hand"),driver=skillMove?stage(s,owner,skillMove==="may"?"MAYDROP":"DROP","battle"):undefined;
+ let s=fresh(owner);const leader=s.sides[owner].zones.leader[0],combo=stage(s,owner,id,"hand"),answer=stage(s,other(owner),"ANSWER","hand"),driver=skillMove?stage(s,owner,skillMove==="may"?"MAYDROP":skillMove==="choose"?"CHOICEDROP":"DROP","battle"):undefined;
  stage(s,other(owner),"ANSWER","hand");
  s=take(s,{type:"attack",player:owner,attacker:leader,target:s.sides[other(owner)].zones.leader[0]});
  while(s.prompt.kind!=="combo")s=pass(s);
@@ -167,6 +168,12 @@ for(const owner of ["p1","p2"] as const){
  const initial=ready(owner,"BT12-071","may");let s=initial.s;const {combo}=initial,before=s.sides[owner].zones.hand.length;
  assert.equal(stepScript(vmHost(ctx,game,s,[]),{ops:[{op:"forbid",what:"play",side:"opponent",until:"turn"},{op:"replaceLeave",from:["combo"],requestedTo:"drop",to:"drop",optional:true,until:"turn",target:{var:"target"}}],ip:0,vars:{target:[combo]},card:s.sides[other(owner)].zones.leader[0],master:other(owner)}),"done");
  s=advance(copy(s)).state;assert.ok(s.sides[owner].zones.drop.includes(combo));assert.equal(s.sides[owner].zones.hand.length,before,"a replacement redirect to Drop is not the original voluntary action");cases++;
+}
+// R-426: the unchanged optional one-card chooser now uses the original move witness.
+for(const owner of ["p1","p2"] as const)for(const prevent of [false,true]){
+ const initial=ready(owner,"BT12-071","choose");let s=initial.s;const {combo}=initial,before=s.sides[owner].zones.hand.length;
+ if(prevent)assert.equal(stepScript(vmHost(ctx,game,s,[]),{ops:[{op:"forbid",what:"play",side:"opponent",until:"turn"}],ip:0,vars:{},card:s.sides[other(owner)].zones.leader[0],master:other(owner)}),"done");
+ s=advance(copy(s)).state;assert.ok(s.sides[owner].zones[prevent?"drop":"battle"].includes(combo));assert.equal(s.sides[owner].zones.hand.length,before+Number(prevent),"only the unreplaced original fallback completes if-you-do");cases++;
 }
 const optional:Op={op:"replaceLeave",from:["combo"],requestedTo:"drop",to:"hand",optional:true,until:"turn",target:{sel:{area:"combo",side:"opponent"}}};
 const parsed=parseRule(`WHEN [Activate: Main]\nTHEN\n${printOps([optional])}`);assert.ok(parsed.ok);

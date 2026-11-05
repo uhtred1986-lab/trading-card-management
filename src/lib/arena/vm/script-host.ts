@@ -178,6 +178,7 @@ export interface ScriptHost {
   /** 5-4: draw, and say how many really came. */
   draw(p: PlayerId, n: number): number;
   /** 3-1-4: move a card to an area, with everything that entails. Returns where it really ended. */
+  reportsMovement?: true;
   move(id: string, to: Area, owner: PlayerId, opts?: MoveOptions): Area;
   /** 5-9: KO a card, by this source. */
   ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced">): void;

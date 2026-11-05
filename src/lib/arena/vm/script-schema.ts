@@ -543,6 +543,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "faceUp", type: "boolean" },
       { name: "random", type: "boolean" },
       { name: "cause", type: { enum: MOVE_REASONS }, default: "effect" },
+      { name: "completedAs", type: "string" },
       { name: "as", type: "string", offCard: "names the cards this move takes for a later clause — \"if the card you placed in your energy with this skill is in your energy\" (BT10-054, mechanism batch 2)" },
     ],
     // A move a macro lowered to reads as the spelling it stands for (#137,
@@ -1669,6 +1670,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: 'whether an earlier step of this same skill did that — {"what":"may"} reads the answer to a "you may"',
   },
   not: { fields: [{ name: "cond", type: "cond", required: true }], sentence: (raw) => `not (${describeCond((raw as CondOf<"not">).cond)})` },
+  moved: {
+    fields: [{ name: "var", type: "string", required: true }, AT_LEAST, { name: "all", type: "boolean" }],
+    sentence: (raw) => (raw as CondOf<"moved">).all ? "the chosen movement was completed in full" : `at least ${(raw as CondOf<"moved">).atLeast ?? 1} chosen original moves completed`,
+    doc: "R-426: reads a moveTo completedAs result; replacements and prevented movement do not complete the original action",
+  },
   chose: {
     fields: [{ name: "var", type: "string", required: true }, AT_LEAST],
     sentence: (raw) => {
@@ -1869,6 +1875,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   power:          "macro over `count`",
   did:            "primitive",
   not:            "primitive",
+  moved:          "primitive",
   chose:          "macro over `count`",
   choseFrom:      "primitive",
   varMatches:     "primitive",
@@ -2205,6 +2212,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
       if (bad) return bad;
     }
+    if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || typeof o.target.var !== "string" || o.to === "under" || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary area move`;
     if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
       if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
     }
@@ -2652,6 +2660,7 @@ export function condProblem(v: unknown, depth = 0, xBound = false, at = "cond"):
     const bad = fieldProblem(f, v[f.name], depth, xBound, `${here}.${f.name}`);
     if (bad) return bad;
   }
+  if (v.kind === "moved" && v.atLeast !== undefined && (!Number.isSafeInteger(v.atLeast) || Number(v.atLeast) < 1)) return `${here}.atLeast must be a positive integer`;
   // A condition never chooses, so a summed bound in one is read as nothing.
   return strayBound(v, here);
 }
