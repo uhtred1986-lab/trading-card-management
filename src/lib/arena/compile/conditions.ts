@@ -1671,7 +1671,9 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
     const energy = parseConditionClause(`all of your energy is ${m[1]}`, true);
     return leader && energy && energy.cond.kind === "every" ? { cond: { kind: "all", conds: [leader.cond, energy.cond] } } : null;
   }
-  if ((m = /^there(?: is|'s) a total of (\d+) or (more|less|fewer) energy between you and your opponent$/.exec(t))) {
+  // R-455: both printed orders observe the same two Energy Areas.
+  if ((m = /^you and your opponent have a total of (\d+) or (more|less|fewer) energy$/.exec(t))
+    || (m = /^there(?: is|'s) a total of (\d+) or (more|less|fewer) energy between you and your opponent$/.exec(t))) {
     return { cond: { kind: "count", sel: { side: "both", area: "energy" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) } };
   }
   if ((m = /^(?:an? (.+?) is in a(?: player's)? battle area|a player has an? (.+?) in their battle area)$/.exec(t))) {
