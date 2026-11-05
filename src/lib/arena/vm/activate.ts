@@ -1056,6 +1056,11 @@ export function guardExtraCounterTaxPayment(ctx: EngineContext, state: VmState, 
 /** One look of the gate at the front of the queue (`vm/flow.ts`'s runner); the frame is already off the queue. */
 export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" {
   const gate = frame.taxGate!;
+  if (gate.counter && (gate.from === "energy" || gate.from === "drop") &&
+    (gate.guards !== 1 || !state.programs[0]?.counterCost || state.programs[0].card !== gate.card ||
+      state.programs[0].master !== gate.player || !Number.isSafeInteger(state.programs[0].skillIndex))) {
+    rebuildScope("rebuild the saved non-hand Counter tax activation owner");
+  }
   if (gate.counter && gate.from === "hand" && (ctx.defs[state.cards[gate.card]?.cardId]?.type === "EXTRA" || state.programs.slice(0, gate.guards).some(f => f.card === gate.card && f.counterCost?.extra)) && !gate.counterExtraSource) rebuildScope("rebuild the saved hand-Extra Counter tax source");
   if (gate.counterExtraSource) {
     const source = gate.counterExtraSource;
@@ -1091,11 +1096,6 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
     if (gate.counter && gate.from !== "energy" && state.sides[gate.player].zones[ACTIVATION_ZONES.hand]?.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true });
     log(ev, { type: "note", text: "The skill's activation failed: a price a rule puts on it (20-14-1) can no longer be paid" });
     return "done";
-  }
-  if (gate.counter && (gate.from === "energy" || gate.from === "drop") &&
-    (gate.guards !== 1 || !state.programs[0]?.counterCost || state.programs[0].card !== gate.card ||
-      state.programs[0].master !== gate.player || !Number.isSafeInteger(state.programs[0].skillIndex))) {
-    rebuildScope("rebuild the saved non-hand Counter tax activation owner");
   }
   const counterNonhandTax = gate.counter && (gate.from === "energy" || gate.from === "drop") ? {
     version: 1 as const, card: gate.card, cardId: state.cards[gate.card].cardId,

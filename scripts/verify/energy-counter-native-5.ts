@@ -1,3 +1,4 @@
+import {stepTaxGate} from "../../src/lib/arena/vm/activate";
 import {buildSnapshot} from "../../src/lib/arena/snapshot";
 import {stepScript} from "../../src/lib/arena/vm/script";
 import {vmHost} from "../../src/lib/arena/vm/host";
@@ -233,5 +234,21 @@ for(const owner of ["p1","p2"] as const)for(const id of ["BT13-055","BT17-050"])
  for(const payer of [...s.sides[owner].zones.hand])assert.ok(moveCard(s,game,payer,"deck",{owner}).ok);
  const ev:GameEvent[]=[];assert.equal(stepCounterCost(ctx,game,s,ev,frame),"done");
  assert.ok(s.sides[owner].zones.drop.includes(source));assert.ok(!s.effects.some(e=>e.target===source));assert.equal(ev.filter(e=>e.type==="skill"&&e.card===source).length,0);cases++;
+}
+// Native gate fault: ownership must be checked before an unaffordable tax can cancel queued work.
+for(const owner of ["p1","p2"] as const)for(const id of ["BT13-055","BT17-050","BT17-055"]){
+ let s=fresh(owner);const first=other(owner),source=stage(s,owner,id,"energy");stage(s,first,"TAX","battle");
+ if(id==="BT17-055"){
+  stage(s,owner,"F","energy");const trigger=stage(s,first,"SOURCE","battle");stage(s,first,"F","hand");
+  s=take(s,{type:"activate",player:first,card:trigger,skill:0});
+ }else s=take(s,{type:"attack",player:first,attacker:s.sides[first].zones.leader[0],target:s.sides[owner].zones.leader[0]});
+ s=take(s,{type:"counter",player:owner,card:source});
+ if(id!=="BT17-055")s=take(s,{type:"choose",player:owner,cards:[s.sides[owner].zones.hand[0]]});
+ const at=s.programs.findIndex(f=>f.taxGate?.from==="energy");assert.ok(at>=0);
+ const gate=s.programs[at];s.programs.splice(0,at+1);gate.taxGate!.paid=[];gate.taxGate!.guards=99;
+ for(const card of [...s.sides[owner].zones.hand])assert.ok(moveCard(s,game,card,"deck",{owner}).ok);
+ const before=JSON.stringify(s);
+ assert.throws(()=>stepTaxGate(ctx,game,s,[],gate),/rebuild/,"invalid guard count refuses before failure cleanup");
+ assert.equal(JSON.stringify(s),before,"invalid tax ownership changes neither source nor unrelated queued work");cases++;
 }
 console.log(`energy-counter-native-5: ${cases} native cases passed`);
