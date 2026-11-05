@@ -45,7 +45,9 @@ function suppressedGrants(state: VmState, history: History) {
 /** Read assertion: also catches a new resolved grant written under suppression
  * even when that grant does not change the source/target observation identity. */
 export function assertStandingNegationSettled(ctx: EngineContext, state: VmState): void {
-  const { history } = current(ctx, state);
+  assertGrantInvariant(state, current(ctx, state).history);
+}
+function assertGrantInvariant(state: VmState, history: History): void {
   for (const grant of suppressedGrants(state, history)) if (!resolvedGrantDeleted(state, grant.target, grant.id)) refuse("settle newly granted text under standing whole-negation before reading");
 }
 
@@ -53,8 +55,8 @@ export function assertStandingNegationSettled(ctx: EngineContext, state: VmState
  * intentionally not serializable; saved choices must begin a new native slice.
  * It is bound to the current working state, never a replacement state object. */
 export function captureStandingNegationMutation(ctx: EngineContext, state: VmState): StandingNegationMutation {
-  assertStandingNegationSettled(ctx, state);
   const { observation, history, before } = current(ctx, state);
+  assertGrantInvariant(state, history);
   const token = Object.freeze({}) as StandingNegationMutation;
   captures.set(token, { ctx, state, before, previous: structuredClone(observation), history: structuredClone(history), historyIdentity: canonical(state.standingNegationHistory ?? null) });
   return token;
