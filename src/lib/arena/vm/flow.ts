@@ -1,4 +1,5 @@
 import { chooseFramePools, primeFramePools } from "./pooled-costs";
+import { requireCounterAdmission } from "./counter-admission";
 import { completeRetainedResume, settleRetainedCounter, requireRetainedCounter } from "./retained-counter";
 import { hasDropBottomRoute } from "./fusion-materials";
 import { containsPotaraPlay, isPotaraSkill, potaraPrintedSelector, POTARA_REBUILD } from "./potara-materials";
@@ -1362,6 +1363,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    requireCounterAdmission(frame, sourceScript);
     requireReplacementOrigin(frame, sourceScript);
     requireMovementResults(frame, sourceScript);
     requireDelayedMovementResults(frame, frame.skillIndex === undefined && state.cards[frame.card] ? Object.values(skillsShowing(ctx, state, frame.card).scripts.bySkill) : []);

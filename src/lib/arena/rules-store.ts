@@ -1,3 +1,4 @@
+import { storedPaidAdmission } from "./vm/paid-admission";
 import { legacyMovementHinge } from "./vm/movement-result";
 import { isPotaraSkill } from "./vm/potara-materials";
 import { isAbsorbSkill } from "./vm/absorb-procedure";
@@ -440,7 +441,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
-      : { kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
+      : { paidAdmission: storedPaidAdmission(row.cond, price?.condition), kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
     base.unsupported.push(...support.unsupported);
     base.complete = base.unsupported.length === 0;
     out[key] = base;

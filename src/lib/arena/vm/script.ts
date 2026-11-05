@@ -1654,6 +1654,8 @@ export function costSentence(cost: CostRecord | null): string | null {
 }
 
 export interface Script {
+  /** Loader provenance for a condition reconstructed from row.cond (R433). */
+  paidAdmission?: import("./paid-admission").PaidAdmission;
   /** Compilation-only: retain a relocated resolution condition inside DO when drafting. */
   keepResolutionCondition?: true;
   /** Existing card_rules.kind, persisted into executable contexts; required for typed Fusion. */
@@ -1707,6 +1709,8 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** The typed admission gate was satisfied before this Counter activated. */
+  counterAdmission?: import("./paid-admission").PaidAdmission;
   counterSource?: { version: 1; card: string; epoch: number };
   retainedCounter?: { version: 1; owner: number; child: number };
   retainedResume?: import("./retained-counter").RetainedResume;
