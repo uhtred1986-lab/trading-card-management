@@ -1,14 +1,6 @@
-/** R473: a declared Drop combo keeps its original source and payment choices. */
+/** R473: standing Drop permission and native combo payment occurrences. */
 import type { PlayerId } from "../types";
 import type { CardFilter } from "../text/filters";
-
-export interface ComboDeclaration {
-  version: 1;
-  player: PlayerId;
-  source: { card: string; cardId: string; epoch: number; area: "hand" | "battle" | "drop" };
-  permissions?: { card: string; epoch: number; flipped: boolean; filter?: CardFilter }[];
-  energy: { card: string; epoch: number }[];
-}
 
 import type { EngineContext } from "../types";
 import type { GameDefinition } from "../rulesets";
@@ -19,6 +11,15 @@ import { IllegalAction } from "./illegal-action";
 import { filterProblem } from "./script-schema";
 import { findCard } from "./zones";
 import { rebuildScope } from "./skill-play-scope";
+
+export interface ComboDeclaration {
+  version: 1;
+  player: PlayerId;
+  source: { card: string; cardId: string; epoch: number; area: "hand" | "battle" | "drop" };
+  permissions?: { card: string; epoch: number; flipped: boolean; filter?: CardFilter }[];
+  energy: { card: string; epoch: number }[];
+}
+
 
 function dropComboPermissions(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string) {
   if (!state.sides[player].zones.drop.includes(card) || state.cards[card]?.owner !== player || ctx.defs[state.cards[card]?.cardId]?.type !== "BATTLE") return [];
@@ -46,6 +47,7 @@ export function captureComboDeclaration(ctx: EngineContext, game: GameDefinition
  * Unselected energy is not spent and need not retain its old occurrence. */
 export function requireComboDeclaration(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, declaration: ComboDeclaration | undefined, selectedEnergy?: readonly string[]): void {
   const epoch = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
+  if (selectedEnergy !== undefined && (!Array.isArray(selectedEnergy) || selectedEnergy.some(id => typeof id !== "string") || new Set(selectedEnergy).size !== selectedEnergy.length)) rebuildScope("rebuild this saved native combo energy selection");
   if (!declaration || declaration.version !== 1 || declaration.player !== player || declaration.source?.card !== card ||
     typeof declaration.source.cardId !== "string" || !epoch(declaration.source.epoch) || !["hand", "battle", "drop"].includes(declaration.source.area) ||
     (declaration.source.area === "drop" ? !Array.isArray(declaration.permissions) || !declaration.permissions.length || declaration.permissions.some(grant => !grant || typeof grant.card !== "string" || !epoch(grant.epoch) || typeof grant.flipped !== "boolean" || grant.filter !== undefined && filterProblem(grant.filter) !== null) : declaration.permissions !== undefined) ||

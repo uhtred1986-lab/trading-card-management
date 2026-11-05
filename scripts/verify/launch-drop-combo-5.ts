@@ -61,13 +61,14 @@ function finish(state: VmState): VmState {
   }
   assert.equal(state.prompt.kind, "main"); return state;
 }
-function setup(player: PlayerId, candidate: string, area = "drop") {
-  let state = fresh(player);
+function setup(player: PlayerId, candidate: string, area = "drop", defense = false) {
+  const turn = defense ? other(player) : player;
+  let state = fresh(turn);
   const leader = state.sides[player].zones.leader[0]; state.cards[leader].cardId = "BT31-055"; state.cards[leader].flipped = true;
   const source = stage(state, player, candidate, area);
-  const attacker = stage(state, player, "ATTACKER", "battle"), guard = stage(state, other(player), "GUARD", "battle");
+  const attacker = stage(state, turn, "ATTACKER", "battle"), guard = stage(state, other(turn), "GUARD", "battle");
   state.cards[guard].mode = "rest";
-  state = take(state, { type: "attack", player, attacker, target: guard }); state = promptFor(state, player);
+  state = take(state, { type: "attack", player: turn, attacker, target: guard }); state = promptFor(state, player);
   return { state, leader, source };
 }
 const snapshot = (state: VmState, viewer: PlayerId) => buildSnapshot({ id: 473, revision: 1, mode: "versus", status: "playing", p1Name: "One", p2Name: "Two", ctx, state, legal: [], log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} });
@@ -117,8 +118,8 @@ for (const player of ["p1", "p2"] as const) {
   assert.ok(RULES.legalActions(ctx, state).some(item => item.action.type === "combo" && item.action.card === source));
   cases++;
 }
-for (const player of ["p1", "p2"] as const) for (const area of ["hand", "battle", "drop"]) for (const fault of ["none", "missing", "sourceABA", "sourceHandMissing", "payerABA"] as const) {
-  const prepared = setup(player, "PAID", area); let state = prepared.state; const source = prepared.source;
+for (const player of ["p1", "p2"] as const) for (const area of ["hand", "battle", "drop"]) for (const defense of [false, true]) for (const fault of ["none", "missing", "sourceABA", "sourceHandMissing", "payerABA"] as const) {
+  const prepared = setup(player, "PAID", area, defense); let state = prepared.state; const source = prepared.source;
   if (area !== "drop") state.cards[prepared.leader].flipped = false; // Ordinary-route controls exclude Launch's separate Battle-departure replacement.
   assert.ok(!RULES.legalActions(ctx, state).some(item => item.action.type === "combo" && item.action.card === source), "normal combo cost is not waived");
   const e1 = stage(state, player, "ENERGY", "energy"), e2 = stage(state, player, "ENERGYBLUE", "energy");
@@ -154,6 +155,51 @@ for (const player of ["p1", "p2"] as const) for (const area of ["hand", "battle"
 for (const player of ["p1", "p2"] as const) {
   const { state, source, leader } = setup(player, "BT31-064");
   assert.equal(stepScript(vmHost(ctx, game, state, []), { ops: [{ op: "forbid", what: "combo", side: "you", until: "battle" }], ip: 0, vars: {}, card: leader, master: player }), "done");
+  assert.ok(!RULES.legalActions(ctx, state).some(item => item.action.type === "combo" && item.action.card === source));
+  assert.throws(() => take(state, { type: "combo", player, card: source }), /can't combo/); cases++;
+}
+// Typed extra grants and saved-state faults exercise permission ownership.
+// They do not claim a player can interrupt an atomic payment with a new skill.
+for (const player of ["p1", "p2"] as const) for (const fault of ["negated", "removed", "grantABA", "secondSurvives", "badFilter"] as const) {
+  const prepared = setup(player, "PAID"); let state = prepared.state; const { source, leader } = prepared;
+  const permit = skillRecords(defs["BT31-055"]).find(row => row.side === "back" && row.skillIndex === 20)!.ops[0];
+  assert.equal(permit.op, "permit"); if (permit.op !== "permit") throw new Error("Launch permission");
+  let grant = leader;
+  if (fault !== "negated" && fault !== "badFilter") {
+    state.cards[leader].flipped = false;
+    grant = stage(state, player, "GUARD", "battle");
+    const grants = fault === "secondSurvives" ? [grant, stage(state, player, "GUARD", "battle")] : [grant];
+    for (const id of grants) assert.equal(stepScript(vmHost(ctx, game, state, []), { ops: [{ ...permit, target: { var: "grant" } }], ip: 0, vars: { grant: [id] }, card: id, master: player }), "done");
+  }
+  const e1 = stage(state, player, "ENERGY", "energy"), e2 = stage(state, player, "ENERGYBLUE", "energy");
+  state = take(state, { type: "combo", player, card: source });
+  assert.equal(state.prompt.kind, "payCost"); if (state.prompt.kind !== "payCost") throw new Error("grant payment");
+  assert.equal(state.prompt.comboDeclaration?.permissions?.length, fault === "secondSurvives" ? 2 : 1);
+  const option = state.prompt.options.findIndex(payment => payment.rest.includes(e1)); assert.ok(option >= 0);
+  if (fault === "negated") assert.equal(stepScript(vmHost(ctx, game, state, []), { ops: [{ op: "negateSkills", target: { var: "grant" }, until: "battle" }], ip: 0, vars: { grant: [grant] }, card: leader, master: player }), "done");
+  else if (fault === "badFilter") state.prompt.comboDeclaration!.permissions![0].filter = { colors: "bad" } as never;
+  else {
+    assert.ok(moveCard(state, game, grant, "warp", { owner: player }).ok);
+    if (fault === "grantABA") assert.ok(moveCard(state, game, grant, "battle", { owner: player }).ok);
+  }
+  state = copy(state);
+  if (fault === "secondSurvives") {
+    state = take(state, { type: "payCost", player, option });
+    assert.ok(state.sides[player].zones.combo.includes(source)); assert.equal(state.cards[e1].mode, "rest"); assert.equal(state.cards[e2].mode, "active");
+  } else {
+    assert.throws(() => RULES.apply(ctx, copy(state), { type: "payCost", player, option }), /rebuild.*combo|original Drop combo permission/);
+    assert.equal(state.cards[e1].mode, "active"); assert.equal(state.cards[e2].mode, "active"); assert.ok(state.sides[player].zones.drop.includes(source));
+  }
+  cases++;
+}
+for (const player of ["p1", "p2"] as const) for (const foreign of ["card", "permission"] as const) {
+  const prepared = setup(player, "BT31-064"); const state = prepared.state;
+  let source = prepared.source;
+  if (foreign === "card") source = stage(state, other(player), "BT31-064", "drop");
+  else {
+    state.cards[prepared.leader].flipped = false;
+    const leader = state.sides[other(player)].zones.leader[0]; state.cards[leader].cardId = "BT31-055"; state.cards[leader].flipped = true;
+  }
   assert.ok(!RULES.legalActions(ctx, state).some(item => item.action.type === "combo" && item.action.card === source));
   assert.throws(() => take(state, { type: "combo", player, card: source }), /can't combo/); cases++;
 }
