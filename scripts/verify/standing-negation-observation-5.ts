@@ -28,10 +28,12 @@ function board(master: PlayerId) {
     state.sides[owner].zones.battle.push(card);
     return { card, cardId, epoch: 0, hiddenCount: 0, side: "front", master: owner };
   };
-  let transaction: Transaction = { previous: { version: 1, policy: "otherBattleWholeV1", candidates: [] }, history: empty(), arrivals: [] };
+  let transaction: Transaction = { previous: { version: 1, policy: "otherBattleWholeV1", candidates: [] }, history: empty(), arrivals: [], before: [] };
   const advance = (arrivals: Card[] = []) => {
     const current = observe(ctx, state, { ...transaction, arrivals });
-    transaction = { previous: current, history: settle(transaction.history, current), arrivals: [] };
+    const before: Card[] = (["p1", "p2"] as PlayerId[]).flatMap(owner => state.sides[owner].zones.battle.map(card => ({ card, cardId: state.cards[card].cardId,
+      epoch: state.cards[card].zoneEpoch ?? 0, hiddenCount: state.cards[card].hiddenCount ?? 0, side: state.cards[card].flipped ? "back" : "front", master: owner })));
+    transaction = { previous: current, history: settle(transaction.history, current), arrivals: [], before };
     return transaction;
   };
   return { state, put, advance, transaction: () => transaction };
@@ -109,7 +111,7 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
     const g = b.put("goku", "TB1-097", other);
     b.state.effects.push({ id: 90, target: g.card, kind: "negateSkills", value: 0, until: "turn", createdTurn: 1, ownerTurn: master, master });
     b.advance([g]); b.state.effects = [];
-    assert.throws(() => b.advance([g]), /reuses a suppressed occurrence/);
+    assert.throws(() => b.advance([g]), /existing occurrence as arriving/);
   });
   test(`${master}: missing current Permanent record refuses`, () => {
     const b = board(master); b.put("king", "DB1-066");
@@ -134,6 +136,35 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
     const b = board(master), a = b.put("king", "DB1-066");
     b.state.effects.push({ id: 90, target: a.card, kind: "copiedSkills", value: 0, until: "turn", createdTurn: 1, ownerTurn: master, master });
     assert.throws(() => b.advance([a]), /reviewed grant identities/);
+  });
+  test(`${master}: existing unsuppressed protector cannot forge fresh arrival`, () => {
+    const b = board(master), a = b.put("king", "DB1-066"); b.advance([a]);
+    const g = b.put("goku", "TB1-097", other); b.advance([g]);
+    assert.throws(() => b.advance([g]), /existing occurrence as arriving/);
+    const serialized = JSON.parse(JSON.stringify(b.transaction())) as Transaction;
+    assert.doesNotThrow(() => observe(ctx, b.state, serialized));
+  });
+  test(`${master}: same id new epoch arrival differs from prior occurrence`, () => {
+    const b = board(master), a = b.put("king", "DB1-066"); b.advance([a]);
+    b.state.cards[a.card].zoneEpoch = 1;
+    const t = b.advance([{ ...a, epoch: 1 }]);
+    assert.equal(t.history.active[0].serial, 2);
+  });
+  test(`${master}: malformed serialized transaction witnesses typed-refuse`, () => {
+    const b = board(master), a = b.put("king", "DB1-066"); b.advance([a]);
+    const tx = b.transaction();
+    for (const bad of [undefined, {}, { ...tx, arrivals: null }, { ...tx, arrivals: [null] }, { ...tx, arrivals: [{}] },
+      { ...tx, before: {} }, { ...tx, before: [null] }, { ...tx, before: [{ ...a, hiddenCount: -1 }] },
+      { ...tx, before: [a, a] }, { ...tx, before: [] }, { ...tx, before: [{ ...a, epoch: 99 }] }]) {
+      assert.throws(() => observe(ctx, b.state, bad as Transaction), error => error instanceof Error && error.name === "NotYet");
+    }
+    assert.throws(() => observe(ctx, b.state, { ...tx, history: undefined } as unknown as Transaction), /rebuild standing-negation generation history/);
+  });
+  test(`${master}: every prior target must match Battle snapshot`, () => {
+    const b = board(master), a = b.put("king", "DB1-066"); b.advance([a]);
+    const target = b.put("ordinary", "V1"); b.advance([target]);
+    const tx = b.transaction();
+    assert.throws(() => observe(ctx, b.state, { ...tx, before: [a] }), /prior observation disagrees/);
   });
   test(`${master}: empty prior observation still validates history`, () => {
     const b = board(master); const transaction = b.transaction(); transaction.history.observation = "corrupt";

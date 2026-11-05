@@ -17,6 +17,10 @@ export interface StandingNegationTransaction {
   history: History;
   /** Actual arrivals supplied by the native transaction, not board traversal. */
   arrivals: Card[];
+  /** Native pre-mutation provenance, including protected/noncandidate cards.
+   * Serialized contents alone never authorize an arrival. A future writer
+   * must bind this to the original transaction and its parent receipts. */
+  before: Card[];
 }
 const refuse = (message: string): never => { throw new NotYet(message, "R477"); };
 const same = (a: Card, b: Card) => canonical(a) === canonical(b);
@@ -40,6 +44,20 @@ function unconditional(script: Script): boolean {
  * attrsNow, keyword queries or a compiler. Existing unsupported records refuse;
  * tests may supply complete reviewed programs without admitting a live row. */
 export function observeStandingNegation(ctx: EngineContext, state: VmState, transaction: StandingNegationTransaction): Observation {
+  if (!transaction || typeof transaction !== "object" || !Array.isArray(transaction.arrivals) || !Array.isArray(transaction.before)) return refuse("rebuild standing-negation transaction witness");
+  const validCard = (card: Card) => !!card && typeof card === "object" && !Array.isArray(card)
+    && Object.keys(card).sort().join(",") === "card,cardId,epoch,hiddenCount,master,side"
+    && typeof card.card === "string" && !!card.card && typeof card.cardId === "string" && !!card.cardId
+    && Number.isSafeInteger(card.epoch) && card.epoch >= 0 && Number.isSafeInteger(card.hiddenCount) && card.hiddenCount >= 0
+    && ["front", "back"].includes(card.side) && ["p1", "p2"].includes(card.master);
+  for (const cards of [transaction.before, transaction.arrivals]) {
+    if (cards.some(card => !validCard(card)) || new Set(cards.map(card => card.card)).size !== cards.length) return refuse("rebuild standing-negation transaction occurrence witness");
+  }
+  validateStandingNegationObservation(transaction.history, transaction.previous);
+  for (const candidate of transaction.previous.candidates) {
+    if (![cardOf(candidate.source), ...candidate.targets].every(card => transaction.before.some(prior => same(prior, card)))) return refuse("standing-negation prior observation disagrees with transaction Battle snapshot");
+  }
+  if (transaction.arrivals.some(arrival => transaction.before.some(prior => same(prior, arrival)))) return refuse("standing-negation transaction cannot mark an existing occurrence as arriving");
   const board: Card[] = [];
   for (const master of ["p1", "p2"] as PlayerId[]) for (const id of state.sides[master].zones.battle ?? []) {
     const instance = state.cards[id], def = instance && ctx.defs[instance.cardId];
@@ -51,7 +69,6 @@ export function observeStandingNegation(ctx: EngineContext, state: VmState, tran
   if (transaction.arrivals.some(arrival => !board.some(card => same(card, arrival))) || new Set(transaction.arrivals.map(card => card.card)).size !== transaction.arrivals.length) refuse("rebuild standing-negation transaction arrivals");
   // Validation is read-only and checks the PRE-mutation observation. A stale
   // current observation is deliberately not substituted to recover history.
-  validateStandingNegationObservation(transaction.history, transaction.previous);
   if (state.effects.some(effect => effect.kind === "forbid" && effect.forbid?.what === "beNegated")) refuse("observe timed beNegated protection with reviewed source qualification");
   // The bounded observer has no cross-area protection pass. Refuse a possible
   // external aura instead of silently assuming it cannot protect Battle cards.
