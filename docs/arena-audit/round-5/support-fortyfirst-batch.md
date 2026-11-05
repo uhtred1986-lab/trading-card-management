@@ -28,7 +28,7 @@ Every printed field and every unrelated complete record is identical. Full snaps
 
 Typecheck and integration-file lint pass. Direct language fixtures match the combined source; lang/Teach, 247 rulings, 42 capability scenarios / 134 VM sites, attack previews and the 177-module browser boundary pass. Browser replay completes 121 steps with privacy, immutability and replay checks. Fusion fuzz completes 40/40 with zero crashes, interruptions or action limits. All parent execution sessions are closed.
 
-Broader legacy reds remain explicit: worker `vm.ts` reaches an old resolvingPlay expectation at 1463 lacking existing negatedBy attribution; `wordings.ts` stops at its Super Combo removed-area expectation 67. The earlier missing-zAwakens inventory failure was independently reproduced on unchanged checkpoint 40 and exact inventory/snapshot expectations were corrected. No assertion was weakened. These red legacy suites are not included in the passing-case claim. Full gate/build is still reserved for complete integration under the batch process.
+Follow-up commit `9a8e1320` repairs the legacy verification defects: `vm.ts` now expects the existing negation-source attribution and R399 Z-Energy pool order; `wordings.ts` defines its Ultimate fixture locally instead of depending on another suite. Both complete standalone suites pass. The earlier missing-zAwakens inventory failure was independently reproduced on unchanged checkpoint 40 and exact inventory/snapshot expectations were corrected. No assertion was weakened, and these follow-up suites are not added to the 1,288-case claim. Full gate/build is still reserved for complete integration under the batch process.
 
 ## Continuing work
 
