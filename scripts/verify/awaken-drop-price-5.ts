@@ -38,7 +38,7 @@ function life(s:VmState,owner:PlayerId,n:number){for(const id of s.sides[owner].
 const offer=(s:VmState,leader:string)=>RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==="activate"&&a.card===leader&&a.skill===10);
 let cases=1;
 for(const owner of ["p1","p2"] as const)for(const mode of ["five","six","life2","life5","four","wrong-trait","hand","opponent","forbidden"] as const){
- let {s,leader}=fresh(owner);life(s,owner,mode==="life2"?2:mode==="life5"?5:4);
+ const prepared=fresh(owner),leader=prepared.leader;let s=prepared.s;life(s,owner,mode==="life2"?2:mode==="life5"?5:4);
  const payers=Array.from({length:mode==="six"?6:mode==="four"?4:5},(_,i)=>stage(s,mode==="opponent"?other(owner):owner,mode==="wrong-trait"&&i===4?"R470_WRONG":"R470_S",mode==="hand"?"hand":"drop"));
  if(mode==="forbidden")addEffect(s,[],{target:leader,kind:"forbid",value:0,until:"game",forbid:{what:"placeUnder",player:owner}});
  const a=offer(s,leader),yes=["five","six","life2"].includes(mode);assert.equal(!!a,yes,`${owner} ${mode}`);
@@ -52,7 +52,7 @@ for(const owner of ["p1","p2"] as const)for(const mode of ["five","six","life2",
  cases++;
 }
 for(const owner of ["p1","p2"] as const)for(const fault of ["payer-left","payer-returned","host-returned","forbidden-after-choice","missing-payer-stamp"] as const){
- let {s,leader}=fresh(owner);life(s,owner,4);const payers=Array.from({length:6},()=>stage(s,owner,"R470_S","drop"));s=take(s,offer(s,leader)!);assert.equal(s.prompt.kind,"chooseCards");
+ const prepared=fresh(owner),leader=prepared.leader;let s=prepared.s;life(s,owner,4);const payers=Array.from({length:6},()=>stage(s,owner,"R470_S","drop"));s=take(s,offer(s,leader)!);assert.equal(s.prompt.kind,"chooseCards");
  s=take(s,{type:"choose",player:owner,cards:[payers[0]]});
  assert.equal(s.cards[leader].under.length,0,"selected payer has not yet been moved");
  if(fault==="missing-payer-stamp"){const frame=s.programs.find(f=>f.awakenPayment)!;delete frame.awakenPayment!.chosenEpochs[payers[0]];assert.throws(()=>take(s,{type:"choose",player:owner,cards:[payers[1]]}),/rebuild this saved Awaken choice/);cases++;continue;}
