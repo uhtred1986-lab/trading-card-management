@@ -253,7 +253,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
           state.resolving?.card === id && (result.completed || result.toEpoch !== result.fromEpoch)) state.resolving.replaced = true;
       };
-      moveTo(ctx, game, state, ev, id, to, owner, { onResult, energyMode: opts?.energyMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      moveTo(ctx, game, state, ev, id, to, owner, { onResult, requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -1022,7 +1022,7 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { energyMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
+  opts: { requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
@@ -1058,7 +1058,7 @@ function moveTo(
   const held = (zone: string | null) => !!zone && (inPlayZones(game).includes(zone) || game.zones[zone]?.host === true);
   const carry = !!opts.carry || (held(from) && held(to));
   // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
-  const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.energyMode === "rest" ? "rest" : opts.energyMode).mode : route.mode;
+  const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode).mode : route.mode;
   const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });

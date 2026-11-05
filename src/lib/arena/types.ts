@@ -1976,8 +1976,8 @@ export interface ActionCost {
 }
 
 export interface MoveOptions {
-  /** Requested Energy entry mode; Energy-Exhaust still makes the arrival Rest. */
-  energyMode?: "active" | "rest";
+  /** Requested move mode; resolved Energy entries settle it before observation. */
+  requestedMode?: "active" | "rest";
   /** Internal synchronous result reporting; never stored in a card operation. */
   onResult?: (result: import("./vm/movement-result").MovementOutcome) => void;
   /** "top" is the default: new cards go on top of Drop/Warp/Life (3-4-3, 3-9-2, 3-10-2). Deck bottom is used by some skills. */

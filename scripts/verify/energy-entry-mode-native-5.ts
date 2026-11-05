@@ -64,4 +64,12 @@ for(const player of ["p1","p2"] as const)for(const mode of ["active","rest"] as 
  assert.equal(stepScript(vmHost(ctx,game,state,[],frame),frame),"done");assert.equal(state.cards[id].mode,mode);
  assert.equal(captureEnergyEntryMode(ctx,game,state,id).exhausted,true,"old occurrence negation is cleared without changing entry mode");cases++;
 }
+for(const player of ["p1","p2"] as const)for(const destination of ["energy","drop"] as const)for(const kind of ["E","F"] as const)for(const mode of ["active","rest"] as const){
+ const state=fresh(),id=stage(state,player,kind,"hand"),redirect=destination==="energy"?"battle":"energy";
+ const expected=redirect==="energy"&&kind==="E"?"rest":mode;
+ const frame:ScriptFrame={card:id,master:player,ops:[{op:"moveTo",target:{sel:{special:"self"}},to:destination,mode}],ip:0,vars:{}};
+ const host=vmHost(ctx,game,state,[],frame),move=host.move;
+ host.move=(card,to,owner,opts)=>move(card,to,owner,{...opts,replaced:{to:redirect}});
+ assert.equal(stepScript(host,frame),"done");assert.ok(state.sides[player].zones[redirect].includes(id));assert.equal(state.cards[id].mode,expected,`${destination} redirected to ${redirect}`);cases++;
+}
 console.log(`energy-entry-mode-native-5: ${cases} script/native arrival mode checks passed`);

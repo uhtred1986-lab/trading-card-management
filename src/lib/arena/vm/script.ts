@@ -3476,7 +3476,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // deck or the life is revealed the same way.
           const picked = !!frame.specifiedPicks?.includes(id);
           const shown = op.reveal || (picked && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp))) || (picked && h.areaOf(id) === "hand" && (dest === "deck" || (dest === "life" && !op.faceUp)));
-          h.move(id, dest, owner, { ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(dest === "energy" && op.mode ? { energyMode: op.mode } : {}), position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          const movedTo = h.move(id, dest, owner, { ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(op.mode ? { requestedMode: op.mode } : {}), position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
           // question inside it is asked rather than lost. Nothing below is
@@ -3538,7 +3538,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // hands on the card that rested it.
           if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
           if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal, ...(negatedThere?.length ? { negated: negatedThere } : {}) });
-          if (op.mode && dest !== "energy") h.setMode(id, op.mode);
+          if (op.mode && movedTo !== "energy") h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only
           // "when this card is placed in a Battle Area".
