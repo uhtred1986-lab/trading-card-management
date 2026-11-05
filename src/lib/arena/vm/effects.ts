@@ -596,6 +596,22 @@ export function negatedSkillsOf(state: VmState, id: string): "all" | number[] {
 
 // ── [Permanent] statics (9-5, 9-9) ──────────────────────────────────────────
 
+/** R478: source-area qualification is stored only on a standing self negation. */
+function selfKeywordInAllAreas(op: Op): boolean {
+  return op.op === "negateKeyword" && op.allAreas === true && !op.until &&
+    (!op.target || ("sel" in op.target && op.target.sel.special === "self" && Object.keys(op.target.sel).length === 1));
+}
+
+function allAreaKeywordOps(ops: readonly Op[]): Op[] {
+  return ops.flatMap((op): Op[] => {
+    if (op.op === "if") {
+      const then = allAreaKeywordOps(op.then), other = allAreaKeywordOps(op.else ?? []);
+      return then.length || other.length ? [{ ...op, then, else: other }] : [];
+    }
+    return selfKeywordInAllAreas(op) ? [op] : [];
+  });
+}
+
 /** A change to a card's identity (traits, characters, colours, names) printed "in all areas" (TB1-095, #936). */
 function identityInAllAreas(op: Op): boolean {
   if (op.op === "gains") return op.allAreas === true;
@@ -808,10 +824,11 @@ export function permanents(
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
           if (!sparkingIsValid(state, p, sk.validity)) continue;
           if (sk.bond != null && !bondValid(src, p, sk)) continue;
-          const ops = extra ? [...program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy")), ...(zone === "drop" && areaFlags(printed).drop ? dropSelfOps(program.ops) : [])]
+          const areaOps = extra ? [...program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy")), ...(zone === "drop" && areaFlags(printed).drop ? dropSelfOps(program.ops) : [])]
             : zone === "life" ? lifeSelfOps(program.ops)
             : zone === "warp" ? [...program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op)), ...warpSelfOps(program.ops)]
             : zone === "combo" ? comboDepartures(program.ops) : program.ops;
+          const ops = extra || zone === "life" || zone === "warp" || zone === "combo" ? [...areaOps, ...allAreaKeywordOps(program.ops)] : areaOps;
           if (!ops.length) continue;
           collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, inPlay.has(zone), targets, holds, measure);
         }
@@ -998,7 +1015,7 @@ function collect(
     // hand raised every Battle Card (#459, `verify/compiler.ts`'s AURA case).
     if (
       !inPlayNow &&
-      (op.op === "power" || op.op === "comboPower" || op.op === "grant" || op.op === "negateKeyword" ||
+      (op.op === "power" || op.op === "comboPower" || op.op === "grant" || (op.op === "negateKeyword" && !selfKeywordInAllAreas(op)) ||
         (op.op === "modifyAttr" && (op.attr === "power" || op.attr === "comboPower" || op.attr === "keywords" || ((op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames") && !op.allAreas))) ||
         (op.op === "gains" && !op.allAreas))
     ) continue;

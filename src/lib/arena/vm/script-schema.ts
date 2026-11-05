@@ -334,6 +334,7 @@ const NEGATE_SCOPES = ["skills", "kind", "keyword", "own"] as const satisfies re
 /** `negate`'s fields, named so its `sentence` can hand the spelling it stands for to `describeScript`. */
 const NEGATE_FIELDS: OpField[] = [
   SELF,
+  { name: "allAreas", type: "boolean" },
   { name: "what", type: { enum: NEGATE_SCOPES }, required: true },
   { name: "kind", type: { enum: NEGATED_KINDS } },
   { name: "keyword", type: { enum: KEYWORD_NAMES } },
@@ -829,7 +830,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     },
     doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card, and "onto" scopes an "evolve" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. "uses" (with "skill"/"evolve" and a duration) is how many activations the change reaches before it ends — "the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}" (BT31-096) is uses 1, until "turn"; the activation that pays a line it reaches spends one, and "until" still ends it unused. "tag" (with "skill"/"evolve") narrows the change to one keyword\'s line, lower-case — "z-awaken", "arrival", "swap", "union", "successor", "ex-evolve", "xeno-evolve" (a bare [Evolve] is all three variants, 22-5-2-2, and needs none); "skillKind" does the same for [Activate]/[Auto]/[Counter]. A skill-cost change said in a colour does nothing to a {1} orb and one said as {1} does nothing to a coloured orb (5-8-2-4). "uses" is also read on an energy cost ("what" absent) and on "specified": "the next time you play X, reduce its energy cost by {r}" is spent by the play or Extra activation that pays the card\'s price. The effects one op puts in force share its uses (a "group"): paying any one ends them all. An energy cost reduced by a plain number comes off the total alone, floored at the specified orbs that remain (FAQ Skills Q24, 1-2-2-1); one reduced "by {r}" takes that colour off the specified cost as well, as many as the card demands (20-21-2, 20-21-2-1).',
   },
-  negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF, { name: "until", type: "duration" }], sentence: "negate the [{keyword}] skill of {target}{until}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker". With "until" (phrasing batch 6, owner\'s ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — "choose up to 1 of your opponent\'s Battle Cards, negate [Indestructible], and KO it" (BT23-081) is "turn"; without, it is standing (a [Permanent]\'s)' },
+  negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, { name: "allAreas", type: "boolean" }, SELF, { name: "until", type: "duration" }], sentence: (raw, r) => renderTemplate(`negate the [{keyword}] skill of {target}${(raw as OpOf<"negateKeyword">).allAreas ? " in all areas" : ""}{until}`, raw as unknown as Record<string, unknown>, [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF, { name: "until", type: "duration" }], r), doc: 'With allAreas:true, only a standing self named-keyword negation is valid outside play; the qualifier does not widen an aura source or a timed effect. Take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker". With "until" (phrasing batch 6, owner\'s ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — "choose up to 1 of your opponent\'s Battle Cards, negate [Indestructible], and KO it" (BT23-081) is "turn"; without, it is standing (a [Permanent]\'s)' },
   gains: {
     fields: [
       { name: "traits", type: { list: "string" } },
@@ -1996,7 +1997,7 @@ export function negateAs(op: Op): Op {
       // master's pick at resolution, so the call names none. Naming one *and*
       // saying chosen is two answers to one question, and reads as neither.
       if (op.chosen) return op.keyword ? { op: "note", text: "negate: a chosen keyword names none" } : { op: "negateChosenKeyword", target, until, ...(op.mandatory === undefined ? {} : { mandatory: op.mandatory }) };
-      return op.keyword ? { op: "negateKeyword", keyword: op.keyword, ...(op.target ? { target: op.target } : {}), ...(op.until && op.until !== "game" ? { until: op.until } : {}) } : { op: "note", text: "negate: no keyword named" };
+      return op.keyword ? { op: "negateKeyword", keyword: op.keyword, ...(op.allAreas ? { allAreas: true } : {}), ...(op.target ? { target: op.target } : {}), ...(op.until && op.until !== "game" ? { until: op.until } : {}) } : { op: "note", text: "negate: no keyword named" };
     case "own":
       if (until === "turn" || until === "battle") return { op: "negateOwnSkill", until };
       return until === "game" ? { op: "negateOwnSkill" } : { op: "note", text: `negate: this skill cannot be negated ${DURATION_IN_WORDS[until].trim()}` };
@@ -2251,6 +2252,10 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     for (const f of spec.fields) {
       const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
       if (bad) return bad;
+    }
+    if ((o.op === "negateKeyword" || o.op === "negate") && o.allAreas !== undefined) {
+      const self = o.target === undefined || (isRecord(o.target) && Object.keys(o.target).length === 1 && isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self");
+      if (o.allAreas !== true || !self || o.until !== undefined || (o.op === "negate" && (o.what !== "keyword" || o.chosen !== undefined || typeof o.keyword !== "string"))) return `${step}: allAreas requires a standing self named-keyword negation`;
     }
     if (o.op === "switchMode" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.mode !== "rest" || !isRecord(o.target) || typeof o.target.var !== "string")) return `${step}: switch completion needs a bound variable switched to Rest Mode`;
     if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || !(typeof o.target.var === "string" || isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self" && o.to !== "under") || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary move or under placement`;

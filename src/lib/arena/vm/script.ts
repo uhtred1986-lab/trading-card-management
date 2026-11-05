@@ -978,7 +978,7 @@ export type Op =
    * keyword skills `target` has in force as the step resolves — that is
    * `negateChosenKeyword`.
    */
-  | { op: "negate"; target?: Ref; what: NegateScope; kind?: NegatedSkillKind; keyword?: KeywordSkill["name"]; chosen?: boolean; mandatory?: boolean; until?: Duration }
+  | { op: "negate"; target?: Ref; what: NegateScope; kind?: NegatedSkillKind; keyword?: KeywordSkill["name"]; allAreas?: boolean; chosen?: boolean; mandatory?: boolean; until?: Duration }
   /**
    * "Choose up to 1 keyword skill on your opponent's Battle Cards and negate
    * that skill for the turn" (9-1-5, BT31-138): the master picks one keyword
@@ -1154,6 +1154,8 @@ export type Op =
    */
   | {
       op: "negateKeyword";
+      /** Qualified self Permanent remains valid outside play (9-1-3-2). */
+      allAreas?: boolean;
       keyword: KeywordSkill["name"];
       target?: Ref;
       /**
