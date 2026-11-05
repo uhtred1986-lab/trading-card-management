@@ -57,6 +57,7 @@ The verifier parses every VM TypeScript file, checks exact coverage of every `ne
 
 | Stable ID | Classification | Source | Rule/source citation | Live owner / history | Exact behavior or guard |
 |---|---|---|---|---|---|
+| `arena-vm-notyet-r474-awaken-alternative` | Untested / guard | `src/lib/arena/vm/awaken-alternative-costs.ts` (not-yet #1) | R-474; RM 5-8-2; 22-2; 23-2 | — | Saved alternative Awaken source, one-host pile, offered and selected payer occurrences, and paid continuation must retain their typed contracts; obsolete or malformed saves require rebuilding. |
 | `arena-vm-notyet-r457-field-costs-1` | Untested / guard | `src/lib/arena/vm/field-costs.ts` (not-yet #1) | R-457/R-469; RM 12-2; 22-3; 3-1-4 | — | Saved Field payment/source/tax/cleanup provenance must match the current typed phase and original occurrence; malformed or obsolete data requires rebuilding. |
 | `arena-vm-notyet-r457-field-costs-2` | Unsupported | `src/lib/arena/vm/field-costs.ts` (not-yet #2) | R-457/R-469; RM 12-2; 22-3; 3-1-4 | [#1249](https://github.com/uhtred1986-lab/trading-card-management/issues/1249) | Only empty or exact draw-one Field action prices are admitted; the eighty-descriptor census contains no other action price. |
 | `arena-vm-notyet-r457-field-costs-3` | Untested / guard | `src/lib/arena/vm/field-costs.ts` (not-yet #3) | R-457/R-469; RM 12-2; 22-3; 3-1-4 | — | Saved Field payment/source/tax/cleanup provenance must match the current typed phase and original occurrence; malformed or obsolete data requires rebuilding. |

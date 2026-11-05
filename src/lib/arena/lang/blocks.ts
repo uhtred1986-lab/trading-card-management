@@ -227,6 +227,11 @@ const ORB_COLORS = ["any", ...COLORS] as const;
 const PAY_AS = (OP_SCHEMA.payWith.fields.find((f) => f.name === "as")!.type as { enum: readonly string[] }).enum;
 
 export const COST_ITEM_SPECS: Record<CostSyntax, CostItemSpec> = {
+  AWAKENALT: {
+    fields: [{ name: "json", type: "string", required: true }], blank: () => ({ json: "{}" }),
+    read: c => c.awakenAlternative === undefined ? [] : [{ path: "cost.awakenAlternative", values: { json: JSON.stringify(c.awakenAlternative) } }],
+    write: (c, v) => { try { c.awakenAlternative = JSON.parse(String(v.json)); } catch { c.awakenAlternative = {} as NonNullable<CostRecord["awakenAlternative"]>; } },
+  },
   SPIRITPAYER: {
     fields: [{ name: "json", type: "string", required: true }], blank: () => ({ json: "{}" }),
     read: c => c.spiritBoostPayer === undefined ? [] : [{ path: "cost.spiritBoostPayer", values: { json: JSON.stringify(c.spiritBoostPayer) } }],

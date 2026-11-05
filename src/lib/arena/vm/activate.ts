@@ -1,3 +1,4 @@
+import { canPayAwakenAlternative, hasAwakenAlternative } from "./awaken-alternative-costs";
 import { fieldAction, fieldPaymentRefusals, isFieldPayment, queueFieldCost } from "./field-costs";
 import { sameCounterUnderDeclaration, sameCounterUnderSource, validCounterUnderOrigin, resetUnderCounterOccurrence } from "./counter-under";
 import { resetEnergyCounterOccurrence } from "./counter-energy";
@@ -656,6 +657,7 @@ export function activationRefusals(
   // 4-3-3: an action price that cannot be paid on this board, asked where the
   // legacy `whyNotActivate` asks it — after the condition, before the energy —
   // and in its words (#458).
+  if (hasAwakenAlternative(line) && !canPayAwakenAlternative(ctx, game, state, player, line)) before.push({ kind: "other", detail: `cannot pay either alternative: ${sk.cost}` });
   const priceOps = actionPriceOf(line);
   if (priceOps && !canPayPriceProgram(ctx, game, state, player, card, priceOps, payment.orbs)) before.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
 
@@ -686,13 +688,13 @@ export function activationRefusals(
  * Phrasing batch 6: the highest life ceiling an `awakenLife` permission of this player's gives this Leader's [Awaken]
  * ("…even if your life is at 6 or less": 6; "…even if you have 5 or more life": 99, none), or null for none in force.
  */
-function awakenCeiling(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): number | null {
+export function awakenCeiling(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): number | null {
   const lifted = permissions(ctx, game, state, "awakenLife").filter((p) => p.master === player && p.target === card);
   return lifted.length ? Math.max(...lifted.map((p) => p.n ?? 99)) : null;
 }
 
 /** The condition with every ceiling on your own life raised to `n` (dropped at 99), and nothing else changed. */
-function raiseLifeCeiling(c: Cond, n: number): Cond {
+export function raiseLifeCeiling(c: Cond, n: number): Cond {
   if (c.kind === "all" || c.kind === "any") return { ...c, conds: c.conds.map((x) => raiseLifeCeiling(x, n)) };
   if (c.kind !== "life" || (c.side ?? "you") !== "you" || c.atMost === undefined) return c;
   if (n >= 99) {

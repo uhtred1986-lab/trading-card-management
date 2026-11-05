@@ -633,7 +633,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       if (took === "asked") return { state, events };
       // R457: queued Field payments spend counted activation allowance only
       // after every original cost and activation tax has completed.
-      if (!state.programs.some(frame => frame.fieldCost && frame.card === action.card && frame.master === action.player)) spendUses(ctx, game, state, action);
+      if (!state.programs.some(frame => (frame.fieldCost || frame.awakenAlternativeCost) && frame.card === action.card && frame.master === action.player)) spendUses(ctx, game, state, action);
       break;
     }
     default: {

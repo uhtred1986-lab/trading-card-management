@@ -1,3 +1,4 @@
+import { compileAwakenAlternative } from "./compile/awaken-alternative";
 import { counterArrivalRecordGap } from "./vm/counter-arrival-policy";
 import { counterSpiritBoostX } from "./vm/counter-x";
 import { EXTRA_SELF_REBUILD, selfExtraActivationWording, extraActivationContractGap } from "./vm/extra-activation";
@@ -238,8 +239,20 @@ function couponScopeContractGap(row: { printed: string; ops: unknown }): string 
   return printsScopedEnergyCoupon(row.printed) && unscopedEnergyCoupon(row.ops) ? "rebuild the card-energy coupon's explicit activation scope" : null;
 }
 
+/** R474: old conjunction/pool programs cannot stand in for one paid alternative. */
+function awakenAlternativeContractGap(row: { printed: string; cost: unknown; cond?: unknown }): string | null {
+  if (!/\[Awaken\]/i.test(row.printed) || !/\bor you choose \d+ cards from under\b/i.test(row.printed)) return null;
+  const expected = parseSkills(row.printed).map(compileAwakenAlternative).find(Boolean);
+  if (!expected) return null;
+  const cost = row.cost as CostRecord | null;
+  return !cost || !deepEqual(cost.awakenAlternative, expected) || cost.condition != null || !!cost.program?.length || row.cond != null
+    ? "rebuild the single-pile alternative Awaken payment contract" : null;
+}
+
 export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown; cond?: unknown }): string[] {
   const gaps: string[] = [];
+  const awakenGap = awakenAlternativeContractGap(row);
+  if (awakenGap) gaps.push(awakenGap);
   const historyGap = markerHistoryContractGap(row);
   if (historyGap) gaps.push(historyGap);
   const couponGap = couponScopeContractGap(row);
@@ -471,7 +484,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!counterArrivalRecordGap(row) || !!extraActivationContractGap(row) || !!markerHistoryContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!counterArrivalRecordGap(row) || !!extraActivationContractGap(row) || !!markerHistoryContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || !!awakenAlternativeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
 
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
