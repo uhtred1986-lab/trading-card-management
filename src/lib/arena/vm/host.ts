@@ -1,3 +1,4 @@
+import { retainCounter, nextRetainedCounter, resumeRetainedCounter } from "./retained-counter";
 /**
  * The rules engine as a `ScriptHost` — the other implementation of the
  * interface `stepScript` runs on (`vm/script-host.ts`, #142 step 1).
@@ -58,7 +59,7 @@
  * Pure and client-safe: no database, no network, no `fs`.
  */
 import { prepareReplacementAuto } from "./replacement-auto";
-import { applyArrivalBindings, deferArrivalOperation } from "./skill-play-binding";
+import { applyArrivalBindings, deferArrivalOperation, retainedCounterShape, freezeOp } from "./skill-play-binding";
 import { rebuildScope, witnessArrivalAutos } from "./skill-play-scope";
 import type { EngineContext, GameEvent } from "../types";
 import { other as otherPlayer } from "../types";
@@ -98,7 +99,7 @@ import { shuffle as shuffleItems } from "./rng";
  * reading needs: the catalog, the definition, the state being changed and the
  * log being appended to.
  */
-export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): ScriptHost {
+export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], retainedFrame?: ScriptFrame): ScriptHost {
   const card = (id: string) => state.cards[id];
   const zoneList = (p: PlayerId, area: Area): string[] => (state.sides[p].zones[area] ?? []).slice();
   const counterProtected = (frame: ScriptFrame, id: string): boolean => !!frame.counterPlay && frame.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter");
@@ -108,6 +109,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       if (!frame.counterPlay || frame.counterAnswerScope === undefined) return false;
       const scope = state.skillPlayScopes?.find(s => s.id === frame.counterAnswerScope);
       if (!scope || scope.phase !== "before") rebuildScope("rebuild this saved Counter arrival binding");
+      if (!frame.retainedCounter && frame.ip === 0 && retainedCounterShape(frame.ops) && scope.profile.arrivals === 1 && !scope.profile.tokens && !scope.profile.explicitWindow) {
+        frame.ops = [freezeOp(vmHost(ctx, game, state, ev), frame, op)];
+        retainCounter(state, scope, frame);
+        return "retained";
+      }
       return deferArrivalOperation(vmHost(ctx, game, state, ev), scope, frame, op);
     },
     // ── what the program can find out ────────────────────────────────────
@@ -551,7 +557,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // when a [Counter: Play] could answer it (#150). Null outside that window,
     // and null again once a counter has replaced the play, the legacy
     // `s.resolving = null` in its own `replaceResolvingPlay`.
-    resolvingCard: () => (state.resolving && !state.resolving.replaced && !state.resolving.landed ? state.resolving.card : null),
+    resolvingCard: () => (state.resolving && !state.resolving.replaced && !state.resolving.landed && !(retainedFrame && state.resolving.card && counterProtected(retainedFrame, state.resolving.card)) ? state.resolving.card : null),
     // 5-5: the manner of the arrival, read by `playThen` below as the card
     // lands — the legacy `continuations.playRest`/`playNegated`, kept on the
     // one record the window opened.
@@ -578,6 +584,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     replaceResolvingPlay: (ops) => {
       const r = state.resolving;
       if (!r?.card || r.replaced || r.landed) return;
+      if (retainedFrame && counterProtected(retainedFrame, r.card)) return;
       const only = ops.length === 1 ? ops[0] : null;
       if (!only || only.op !== "moveTo") return;
       const id = r.card;
@@ -808,6 +815,39 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       if (opts.counterWindow && frame.skillEffectOrigin?.scope === undefined && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
       const landedSwitches: ScriptFrame[] = [];
       for (const id of cards) {
+        const retainedScope = frame.skillEffectOrigin?.scope === undefined ? undefined : state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin!.scope);
+        if (retainedScope?.retainedCounters?.length) {
+          if (cards.length !== 1 || retainedScope.profile.arrivals !== 1 || retainedScope.profile.tokens || retainedScope.profile.explicitWindow) rebuildScope("rebuild this single-arrival retained Counter play");
+          if (!frame.pendingArrival) {
+            frame.pendingArrival = { version: 1, owner: retainedScope.id, card: id, epoch: state.cards[id]?.zoneEpoch ?? 0, cursor: 0, previous: structuredClone(state.resolving ?? null) };
+            state.resolving = { card: id, player: opts.player };
+          }
+          const pending = frame.pendingArrival;
+          if (pending.version !== 1 || pending.owner !== retainedScope.id || pending.card !== id || !Number.isSafeInteger(pending.epoch) || pending.epoch < 0 || !Number.isSafeInteger(pending.cursor) || pending.cursor < 0 || pending.cursor > (retainedScope.bindings?.length ?? 0) || state.resolving?.card !== id || state.resolving.landed) rebuildScope("rebuild this saved retained arrival occurrence");
+          if ((state.cards[id]?.zoneEpoch ?? 0) !== pending.epoch && !state.resolving.replaced) state.resolving.replaced = true;
+          const entry = nextRetainedCounter(retainedScope);
+          if (retainedScope.retainedCounters.some(item => item.state === "running") || pending.complete !== undefined && pending.complete !== true || pending.complete && (entry || pending.cursor !== (retainedScope.bindings?.length ?? 0))) rebuildScope("rebuild this retained arrival completion cursor");
+          if (!pending.complete) {
+            if (entry && entry.at < pending.cursor) rebuildScope("rebuild this retained arrival ordering");
+            const stop = entry?.at ?? retainedScope.bindings?.length ?? 0;
+            applyArrivalBindings(vmHost(ctx, game, state, ev), retainedScope, binding => counterProtected(binding, id), pending.cursor, stop);
+            pending.cursor = stop;
+            if (entry) {
+              resumeRetainedCounter(state, retainedScope, entry, { version: 1, kind: "play", owner: retainedScope.id, cards: cards.slice(), options: structuredClone(opts), frame });
+              return;
+            }
+            pending.complete = true;
+          }
+          const permission = opts.playPermission;
+          if (!permission || permission.player !== frame.master || permission.source !== frame.card || typeof permission.bySkill !== "boolean" || typeof permission.evolution !== "boolean") rebuildScope("rebuild this retained parent play permission");
+          // Permission may change while the answering Counter resolves. The
+          // original script already paid the play's taxes; check permission only.
+          const blocked = forbids(ctx, game, state, "play", { ...permission, card: id });
+          if (state.resolving.replaced || blocked) {
+            state.resolving = pending.previous; delete frame.pendingArrival;
+            state.programs.unshift(frame); return;
+          }
+        }
         // 22-45-3 (#157): a `markerCarry` keyword ([Empower]) on a card
         // replacing one that carries markers asks how many come across —
         // before the old one leaves, since leaving clears them (5-13-3) — and
@@ -816,14 +856,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         const carry = carryFor(ctx, game, state, id, opts.player);
         const answered = state.carried?.card === id ? state.carried.n : undefined;
         if (carry && carry.max > 0 && answered === undefined) {
-          state.programs.unshift({ ...frame, ip: frame.ip - 1 });
+          if (frame.pendingArrival) state.programs.unshift({ ops: [], ip: 0, vars: {}, card: frame.card, master: frame.master, retainedResume: { version: 1, kind: "play", owner: frame.pendingArrival.owner, cards: cards.slice(), options: structuredClone(opts), frame } });
+          else state.programs.unshift({ ...frame, ip: frame.ip - 1 });
           state.prompt = { kind: "empowerCarry", player: opts.player, card: id, from: carry.from, max: carry.max, ...(opts.markers !== undefined ? { markers: opts.markers } : {}) };
           return "wait";
         }
         if (answered !== undefined) state.carried = null;
         const scope = frame.skillEffectOrigin?.scope === undefined ? undefined : state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin!.scope);
-        const previousResolving = state.resolving;
-        if (scope) {
+        const previousResolving = frame.pendingArrival ? frame.pendingArrival.previous : state.resolving;
+        if (scope && !frame.pendingArrival) {
           state.resolving = { card: id, player: opts.player };
           applyArrivalBindings(vmHost(ctx, game, state, ev), scope, binding => binding.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter"));
           if (state.resolving.replaced) { state.resolving = previousResolving; continue; }
@@ -875,7 +916,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (played && union === "Union-Potara") for (const m of [opts.onto, ...(opts.under ?? [])]) if (m) clearAutoReveal(state, m);
         frame.evolutionBase = undefined;
         frame.unionBound = undefined;
-        if (scope) state.resolving = previousResolving;
+        if (scope) { state.resolving = previousResolving; delete frame.pendingArrival; }
         else if (r) state.resolving = null;
         // FAQ BT1-107/BT1-110: the second counter timing, once the card is on the table.
         if (played && union && !scope && cards.length === 1 && !state.resolving && openLandedPlayWindow(ctx, game, state, id, opts.player, frame)) {

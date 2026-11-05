@@ -84,7 +84,7 @@ export interface ReplacementLookup {
  */
 export interface ScriptHost {
   /** VM-only: retain a pure Counter transformation until its actual arrival. */
-  deferCounterOperation?(frame: ScriptFrame, op: Op): boolean;
+  deferCounterOperation?(frame: ScriptFrame, op: Op): boolean | "retained";
   // ── what the program can find out ────────────────────────────────────────
 
   /** Is there a card with this instance id at all? A selector can name one that has since gone. */
@@ -350,5 +350,5 @@ export interface ScriptHost {
    * keyword whose own move this play is ([Over Realm], 22-15), carried onto
    * the arrival so `playedUsingOverRealm` can tell it from an ordinary play.
    */
-  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; under?: string[]; negated?: "turn" | "game"; negatedKinds?: NegatedSkillKind[]; negatedUntil?: Duration; counterWindow?: true; markers?: number; using?: string; toOwners?: true; toOpponent?: true }, frame: ScriptFrame): "wait" | void;
+  playThen(cards: string[], opts: { playPermission?: NonNullable<Parameters<ScriptHost["forbids"]>[1]>; player: PlayerId; mode?: Mode; onto?: string; under?: string[]; negated?: "turn" | "game"; negatedKinds?: NegatedSkillKind[]; negatedUntil?: Duration; counterWindow?: true; markers?: number; using?: string; toOwners?: true; toOpponent?: true }, frame: ScriptFrame): "wait" | void;
 }

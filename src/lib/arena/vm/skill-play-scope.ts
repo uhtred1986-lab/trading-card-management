@@ -26,6 +26,7 @@ export interface SkillPlayScope {
   played: { card: string; epoch: number }[];
   canceled?: true;
   bindings?: ScriptFrame[];
+  retainedCounters?: import("./retained-counter").RetainedCounter[];
   window?: { programs: ScriptFrame[]; resolving: VmResolving | null };
 }
 

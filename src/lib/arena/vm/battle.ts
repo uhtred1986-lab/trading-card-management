@@ -993,7 +993,8 @@ function counterBindingIdentity(state: VmState, sk: Skill): Pick<ScriptFrame, "c
   return sk.kind === "counter:play" ? { counterPlay: true, ...(window?.boundary === "before" ? { counterAnswerScope: window.scope } : {}), ...(window?.boundary === "after" ? { resolvedPlayCards: structuredClone(state.skillPlayScopes?.find(s => s.id === window.scope)?.played ?? []) } : {}) } : {};
 }
 function futureCounterProblem(state: VmState, sk: Skill, ops: Op[]): string | null {
-  return sk.kind === "counter:play" && state.resolving?.scopeWindow?.boundary === "before" ? counterBindingProblem(ops, state.skillPlayScopes?.find(s => s.id === state.resolving!.scopeWindow!.scope)?.profile.tokens) : null;
+  const profile = state.skillPlayScopes?.find(s => s.id === state.resolving?.scopeWindow?.scope)?.profile;
+  return sk.kind === "counter:play" && state.resolving?.scopeWindow?.boundary === "before" ? counterBindingProblem(ops, profile?.tokens, profile?.arrivals === 1 && !profile.explicitWindow) : null;
 }
 
 /**
@@ -1021,7 +1022,7 @@ function activateCounterSkill(
   // 9-7-2, 22-10-4 (#552): the activation is a counter motion, queued even
   // with no effect to run, so the opponent's [Counter: Counter] window
   // (9-7-3-3) opens over it once it reaches the front (`vm/flow.ts`).
-  state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterMotion: { by: player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill, ...(x === undefined ? {} : { x }) });
+  state.programs.unshift({ ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterSource: { version: 1, card, epoch: state.cards[card].zoneEpoch ?? 0 }, counterMotion: { by: player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill, ...(x === undefined ? {} : { x }) });
 }
 
 /**
@@ -1403,7 +1404,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
     fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
     const key = counterVarsKey(card, sk.index);
-    state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", pricedBy: { key, text: sk.raw }, counterMotion: { by: action.player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill });
+    state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", saveVarsAs: key }, { ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", pricedBy: { key, text: sk.raw }, counterSource: { version: 1, card, epoch: state.cards[card].zoneEpoch ?? 0 }, counterMotion: { by: action.player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill });
     return "done";
   }
   activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords);

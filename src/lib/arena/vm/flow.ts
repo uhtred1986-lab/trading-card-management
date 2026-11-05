@@ -1,4 +1,5 @@
 import { chooseFramePools, primeFramePools } from "./pooled-costs";
+import { completeRetainedResume, settleRetainedCounter, requireRetainedCounter } from "./retained-counter";
 import { hasDropBottomRoute } from "./fusion-materials";
 import { containsPotaraPlay, isPotaraSkill, potaraPrintedSelector, POTARA_REBUILD } from "./potara-materials";
 import { containsAbsorbPlay, isAbsorbSkill } from "./absorb-procedure";
@@ -1346,11 +1347,19 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       }
       queueAutomatic(ctx, game, state, ev, frame, skill, program, tax);
     })) return "done";
+    if (frame.retainedResume) {
+      const resume = frame.retainedResume;
+      completeRetainedResume(state, resume);
+      if (resume.kind === "finish") { state.resolving = resume.previous ?? null; state.programs.unshift(resume.frame); return "done"; }
+      return vmHost(ctx, game, state, ev).playThen(resume.cards, resume.options, resume.frame) === "wait" ? "wait" : "done";
+    }
     if (frame.skillPlayFinish) {
       const scope = scopeForFinish(state, frame);
+      if (settleRetainedCounter(state, scope, frame)) return "done";
       if (scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";
       finishSkillPlayScope(state, frame); return "done";
     }
+    requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     requireReplacementOrigin(frame, sourceScript);
@@ -1485,7 +1494,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     const ownCleanupSubstitute = !!substitute && frame.replacing === substitute.card;
     if (ownCleanupSubstitute) substitute.active = true;
     try {
-      return stepScript(vmHost(ctx, game, state, ev), frame);
+      return stepScript(vmHost(ctx, game, state, ev, frame.retainedCounter ? frame : undefined), frame);
     } finally {
       if (ownCleanupSubstitute) delete substitute!.active;
     }

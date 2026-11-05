@@ -25,7 +25,15 @@ function pureArrival(op: Op): boolean {
   if (op.op === "if") return op.then.every(pureArrival) && (op.else ?? []).every(pureArrival);
   return false;
 }
-export function counterBindingProblem(ops: readonly Op[], tokens = false): string | null {
+export function retainedCounterShape(ops: readonly Op[]): boolean {
+  if (ops.length !== 1) return false;
+  const root = ops[0];
+  if (root.op !== "if" || root.else || root.cond.kind !== "count" || root.cond.sel.special !== "resolving" || root.then.length !== 3) return false;
+  const [transform, choice, play] = root.then;
+  return pureArrival(transform) && choice.op === "choose" && choice.sel.special === "self" && Object.keys(choice.sel).length === 1 && play.op === "play" && !play.activating && "var" in play.target && play.target.var === choice.as && Object.keys(play).every(key => ["op", "target"].includes(key));
+}
+export function counterBindingProblem(ops: readonly Op[], tokens = false, retainSingle = false): string | null {
+  if (retainSingle && !tokens && retainedCounterShape(ops)) return null;
   for (const original of ops) {
     const op = normalize(original);
     if (op.op === "delay") {
@@ -56,7 +64,7 @@ function freezeCond(h: ScriptHost, frame: ScriptFrame, cond: Cond): Cond {
   if (cond.kind === "not") return { ...cond, cond: freezeCond(h, frame, cond.cond) };
   return structuredClone(cond);
 }
-function freezeOp(h: ScriptHost, frame: ScriptFrame, op: Op): Op {
+export function freezeOp(h: ScriptHost, frame: ScriptFrame, op: Op): Op {
   op = normalize(op);
   if (op.op === "if") return { ...op, cond: freezeCond(h, frame, op.cond), then: op.then.map(o => freezeOp(h, frame, o)), ...(op.else ? { else: op.else.map(o => freezeOp(h, frame, o)) } : {}) };
   // Direct preentry negation must survive the area change (FAQ BT1-107).
@@ -75,8 +83,8 @@ export function deferArrivalOperation(h: ScriptHost, scope: SkillPlayScope, fram
 
 /** All admitted bindings are choice-free transformations. Their conditions
  * observe the actual incoming card, even if Deflect protects it from acting. */
-export function applyArrivalBindings(h: ScriptHost, scope: SkillPlayScope, protectedCard: (binding: ScriptFrame) => boolean): void {
-  for (const stored of scope.bindings ?? []) {
+export function applyArrivalBindings(h: ScriptHost, scope: SkillPlayScope, protectedCard: (binding: ScriptFrame) => boolean, from = 0, to = scope.bindings?.length ?? 0): void {
+  for (const stored of (scope.bindings ?? []).slice(from, to)) {
     if (stored.skillPlayInternal?.version !== 1 || stored.skillPlayInternal.kind !== "arrivalBinding" || stored.counterPlay !== true || stored.ip !== 0 || !stored.ops.length || !stored.ops.every(pureArrival) || stored.skillEffectOrigin || stored.counterAnswerScope !== undefined) rebuildScope("rebuild this saved arrival transformation");
     const host: ScriptHost = protectedCard(stored) ? { ...h, resolvingCard: () => null, resolveRef: () => [], replaceResolvingPlay: () => undefined } : h;
     const result = stepScript(host, structuredClone(stored));

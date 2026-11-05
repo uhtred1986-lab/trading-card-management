@@ -1707,6 +1707,10 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  counterSource?: { version: 1; card: string; epoch: number };
+  retainedCounter?: { version: 1; owner: number; child: number };
+  retainedResume?: import("./retained-counter").RetainedResume;
+  pendingArrival?: import("./retained-counter").PendingArrival;
   /**
    * The keyword whose own program this is ([Revive] …): a play it makes is
    * that keyword's play, which "…with skills other than [Revive Blue/Green]"
@@ -2417,7 +2421,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
     // None of them ever reads an op another produces, so the order of the
     // composition is immaterial.
     const op = revealAs(moveAs(replaceAs(costModifierAs(negateAs(modifyAttrAs(frame.ops[frame.ip]))))));
-    if (h.deferCounterOperation?.(frame, op)) { frame.ip++; continue; }
+    const deferredCounter = h.deferCounterOperation?.(frame, op);
+    if (deferredCounter === "retained") return "done";
+    if (deferredCounter) { frame.ip++; continue; }
 
     switch (op.op) {
       case "note":
@@ -4308,7 +4314,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
         // 20-14: a skill doing the playing, which is the half fifteen cards ban.
-        const candidates = h.resolveRef(frame, op.target);
+        const candidates = h.resolveRef(frame, op.target).filter(id => !frame.retainedCounter || id !== frame.card || !!frame.counterSource && frame.counterSource.epoch === h.zoneEpoch(id) && h.areaOf(id) === "drop");
         // #933: whether it is an evolution is the play's own `using`, never the
         // keyword tag on the skill making it — P-336's [Activate: Main] evolves.
         const evolution = op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve";
@@ -4345,7 +4351,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // #930: which [Union] variant the play is, again the play's own `using`
         // ("you can only play Battle Cards by using [Union-Fusion]", P-069).
         const union = unionVariantOf(op.using);
-        let targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(op.ignoreOwnPermanent ? { ignoreOwnPermanent: true } : {}) }));        // 22-5-7: a paid keyword evolution that fails to play and has not
+        const playPermission = { player: master, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(op.ignoreOwnPermanent ? { ignoreOwnPermanent: true } : {}) };
+        let targets = candidates.filter((id) => !h.forbids("play", { ...playPermission, card: id }));        // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand (or, #917, the Z-Energy it was activated from) is put in Drop. A printed Drop evolution already is there.
         // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card
         // that fails to enter play (Fusion/Potara: the card that activated it,
@@ -4424,7 +4431,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negatedKinds: op.negatedKinds, negatedUntil: op.negatedUntil, negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.toOpponent ? { toOpponent: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { playPermission, player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negatedKinds: op.negatedKinds, negatedUntil: op.negatedUntil, negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.toOpponent ? { toOpponent: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":
