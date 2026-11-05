@@ -91,7 +91,7 @@ import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFr
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
 import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, paidPoolVar, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
-import { activationPriceProblem, isFixedUnderHost, taxPowerOnSelf } from "./activation-price-support";
+import { supportedZAwakenActionPrice, activationPriceProblem, isFixedUnderHost, taxPowerOnSelf } from "./activation-price-support";
 import { keywordSkillsNegated, skillNegated, skillsNegated, type VmAltCost } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { log } from "./events";
@@ -1222,6 +1222,10 @@ export function keywordActionPrice(line: Pick<ActivationLine, "keyword" | "scrip
   const name = line.keyword?.name;
   const printed = line.skill.keyword;
   const variant = printed && printed.name === name && "variant" in printed ? printed.variant : undefined;
+  if (name === "Z-Awaken") {
+    const ops = line.script?.price?.ops;
+    return ops?.length && supportedZAwakenActionPrice(ops) ? ops : null;
+  }
   if (name !== "Evolve" && !(name === "Union" && (variant === "Fusion" || variant === "Potara" || variant === "Absorb"))) return null;
   const ops = line.script?.price?.ops;
   return ops?.length ? ops : null;

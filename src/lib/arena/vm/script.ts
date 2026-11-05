@@ -2840,6 +2840,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             return;
           }
           frame.vars[op.as] = picked;
+          // R-396: a Z-Awaken payment may pause for a movement replacement.
+          // Bind the selected occurrence so resuming cannot pay with a reentry.
+          if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
           if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] = h.zoneEpoch(id);
           // Mechanism batch 2 (3-1-7): a card picked out of a secret area by a description is shown if it goes on to
           // another secret area; remembered here, while it is still where it was chosen from.

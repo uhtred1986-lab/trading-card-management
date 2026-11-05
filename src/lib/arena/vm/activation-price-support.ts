@@ -100,3 +100,17 @@ export function activationPriceProblem(ops: Op[]): string | null {
   }
   return null;
 }
+
+/** R-396: fixed, single-card Z-Awaken prices that do not compete for Z-Energy. */
+export function supportedZAwakenActionPrice(ops: Op[]): boolean {
+  const keys = (value: object): string[] => Object.entries(value).filter(([, v]) => v !== undefined).map(([k]) => k);
+  const [pick, move, ...rest] = ops;
+  if (rest.length || pick?.op !== "choose" || move?.op !== "moveTo" || !("var" in move.target) || move.target.var !== pick.as || keys(move.target).length !== 1) return false;
+  if (keys(pick).some(k => !["op", "sel", "as", "reason"].includes(k)) || keys(move).some(k => !["op", "target", "to", "under", "reveal"].includes(k))) return false;
+  const sel = pick.sel;
+  if (sel.side !== "you" || sel.count !== 1 || sel.upTo || keys(sel).some(k => !["side", "area", "areas", "filter", "count", "upTo"].includes(k))) return false;
+  const areas = sel.areas ?? [sel.area];
+  if (move.to === "under") return areas.length > 0 && areas.every(a => a === "hand" || a === "drop") && !!move.under && "sel" in move.under && keys(move.under).length === 1 && move.under.sel.special === "leader" && keys(move.under.sel).length === 1;
+  if (move.under || areas.length !== 1) return false;
+  return (areas[0] === "drop" && move.to === "warp") || (areas[0] === "battle" && sel.filter?.type === "BATTLE" && move.to === "drop");
+}

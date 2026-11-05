@@ -1,3 +1,4 @@
+import { supportedZAwakenActionPrice } from "../vm/activation-price-support";
 import { compilePotaraMaterials } from "./potara-materials";
 import { isAbsorbSkill, absorbPriceProblem, absorbEffectProblem } from "../vm/absorb-procedure";
 import { compileEvolutionBase } from "./evolution-base";
@@ -176,7 +177,7 @@ export function compileCostProgram(skill: Skill): Script | null {
 const costPrograms = new Map<string, Script | null>();
 
 /** The keyword moves whose printed action price (before the colon) is compiled as a price program: [Swap] (#729), [Union] (Fusion, Potara) and the [Evolve] family (#926), and Awaken (R-387). */
-const PRICED_KEYWORD_MOVES = new Set<string>(["Swap", "Union", "Evolve", "Awaken"]);
+const PRICED_KEYWORD_MOVES = new Set<string>(["Swap", "Union", "Evolve", "Awaken", "Z-Awaken"]);
 
 /**
  * Compile one piece of price text as a program. Memoised on the text and the
@@ -201,6 +202,7 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // (BT13-024). Only those tags come off: the other keywords that own their
   // line keep their prices unread until their own moves can charge one. R-387 adds
   // Awaken, whose native activation pays its printed action before effects and flipping.
+  // R-396 adds only the verified single-card Z-Awaken price shapes below.
   const owner = skill.keyword && PRICED_KEYWORD_MOVES.has(skill.keyword.name) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
   const tags = owner ? skill.tags.filter((t) => keywordOf(t)?.name !== owner) : skill.tags;
   const read = (text: string) => compileSkill({ ...skill, kind: "activate:main", keyword: null, tags, cost: "", effect: text });
@@ -213,6 +215,8 @@ export function compileAction(said: string, skill: Skill): Script | null {
   const bare = dropTheSubject(said);
   if ((sc.unsupported.length || !sc.ops.length) && bare !== said) sc = read(bare);
   sc = paidWithYourOwn(sc);
+  // R-396: other Z-Awaken payments await their own complete procedure.
+  if (skill.keyword?.name === "Z-Awaken" && !supportedZAwakenActionPrice(sc.ops)) { costPrograms.set(key, null); return null; }
   // #970: disjoint choices are charged on an [Activate] line's own price only —
   // an [Auto], a [Counter] and a keyword's move have their own payment
   // planners, and none of them matches cards across slots. R-387 admits Awaken

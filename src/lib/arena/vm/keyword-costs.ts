@@ -1,3 +1,4 @@
+import { resolveSelector, attrsNow } from "./program";
 import { hasDropBottomRoute } from "./fusion-materials";
 import { fusionLineProblem, evolutionLineProblem, absorbLineProblem, potaraLineProblem } from "./skill-identity";
 /**
@@ -156,7 +157,7 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
   const ops = keywordActionPrice(cost.line);
   if (!ops && !cost.fusion) throw new RulesetBroken(state.game, `${cost.line.card}'s keyword move carries a price its record no longer has`);
   cost.queued = true;
-  state.programs.unshift({ ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.fusionSourceEpoch !== undefined ? { fusionSourceEpoch: frame.fusionSourceEpoch } : {}), ...(frame.fusionDropBottom ? { fusionDropBottom: true as const } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
+  state.programs.unshift({ ...(frame.viaKeyword === "Z-Awaken" ? { viaKeyword: frame.viaKeyword } : {}), ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.fusionSourceEpoch !== undefined ? { fusionSourceEpoch: frame.fusionSourceEpoch } : {}), ...(frame.fusionDropBottom ? { fusionDropBottom: true as const } : {}), ...(frame.viaKeyword === "Z-Awaken" ? { vars: structuredClone(frame.vars) } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
 }
 
 /**
@@ -169,6 +170,17 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
 export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.keywordCost!;
   assertCurrentFusion(cost, !!frame.evolutionIdentity);
+  // R-396: payment is still for the originally chosen Z-Deck card and Leader.
+  // Failed/replaced source or base occurrences cancel the activation, not a new card.
+  if (cost.line.keyword?.name === "Z-Awaken") {
+    const source = resolveSelector(ctx, game, state, frame, { fromVar: "zAwakenSource", side: "you", area: "zDeck" });
+    const base = resolveSelector(ctx, game, state, frame, { fromVar: "zAwakenBase", side: "you", area: "leader", printed: true });
+    if (source.length !== 1 || state.cards[source[0]].faceUp || base.length !== 1 || !state.cards[base[0]].flipped || String(attrsNow(ctx, game, state, base[0]).type).startsWith("Z-")) return fail(state, ev, cost);
+    for (const op of frame.ops) if (op.op === "choose" && frame.vars[op.as]) {
+      const ids = frame.vars[op.as], epochs = frame.vars[`${op.as}@epoch`];
+      if (!epochs || ids.length !== epochs.length || ids.some((id, index) => epochs[index] !== `${id}@${state.cards[id]?.zoneEpoch ?? 0}`)) return fail(state, ev, cost);
+    }
+  }
   if (frame.fusionDropBottom && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.fusionSourceEpoch)) return fail(state, ev, cost);
   if (frame.potaraIdentity && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.potaraSourceEpoch)) return fail(state, ev, cost);
   if (frame.absorbIdentity && (findCard(state, frame.card)?.zone !== "battle" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.absorbSourceEpoch)) return fail(state, ev, cost);

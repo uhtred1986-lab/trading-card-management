@@ -845,6 +845,7 @@ DEFINE KEYWORD "Z-Awaken"
   REFUSE target(reason: "your Leader is not {line}") UNLESS count(IN you.leader asPrinted) >= 1
   label: "Z-Awaken: {card} on your Leader"
   DO {
+    payActionPrice()
     setPlayerAttr(name: "zAwakens", add: 1)
     if(cond: all([leaderFlipped(), NOT count("Z-card" IN you.leader) >= 1, NOT count(FROM $zAwakenSource (faceUp = true) IN you.zDeck) >= 1]), then: {
       placeOnTop(target: FROM $zAwakenSource IN you.zDeck, onto: FROM $zAwakenBase IN you.leader asPrinted)
