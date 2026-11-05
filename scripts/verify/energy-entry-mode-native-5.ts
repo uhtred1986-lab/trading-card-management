@@ -38,7 +38,9 @@ let cases=0;
 for(const player of ["p1","p2"] as const)for(const kind of ["E","F","BT8-120","EX18-05"] as const)for(const explicit of [undefined,"active","rest"] as const)for(const prior of [false,true]){
  const state=fresh(); if(prior) {stage(state,player,"BG","energy");stage(state,player,"BO","energy");}
  const id=stage(state,player,kind,"hand");
- const expected=captureEnergyEntryMode(ctx,game,state,id,explicit).mode;
+ const exhausts=kind==="E" || ((kind==="BT8-120" || kind==="EX18-05") && !prior);
+ const expected=explicit==="rest" || exhausts ? "rest" : "active";
+ assert.equal(captureEnergyEntryMode(ctx,game,state,id,explicit).mode,expected);
  const frame:ScriptFrame={card:id,master:player,ops:[{op:"moveTo",target:{sel:{special:"self"}},to:"energy",...(explicit?{mode:explicit}:{})}],ip:0,vars:{}};
  const events:GameEvent[]=[];const host=vmHost(ctx,game,state,events,frame),move=host.move;
  host.move=(card,to,owner,opts)=>move(card,to,owner,{...opts,onResult:outcome=>{assert.equal(state.cards[id].mode,expected,"completion observer sees final mode");opts?.onResult?.(outcome);}});
@@ -49,7 +51,7 @@ for(const player of ["p1","p2"] as const)for(const kind of ["E","F","BT8-120","E
  let state=fresh();const other=player==="p1"?"p2":"p1";
  for(const action of [{type:"chooseFirst",player:state.chooser,first:player},{type:"mulligan",player,redraw:false},{type:"mulligan",player:other,redraw:false}] as Action[]) state=RULES.apply(ctx,state,action).state as VmState;
  if(prior){stage(state,player,"BG","energy");stage(state,player,"BO","energy");}
- const id=stage(state,player,kind,"hand"),expected=captureEnergyEntryMode(ctx,game,state,id).mode;
+ const id=stage(state,player,kind,"hand"),expected=kind==="E" || ((kind==="BT8-120" || kind==="EX18-05") && !prior) ? "rest" : "active";
  state=RULES.apply(ctx,JSON.parse(JSON.stringify(state)),{type:"charge",player,card:id}).state as VmState;
  assert.ok(state.sides[player].zones.energy.includes(id));assert.equal(state.cards[id].mode,expected);cases++;
 }
@@ -71,5 +73,16 @@ for(const player of ["p1","p2"] as const)for(const destination of ["energy","dro
  const host=vmHost(ctx,game,state,[],frame),move=host.move;
  host.move=(card,to,owner,opts)=>move(card,to,owner,{...opts,replaced:{to:redirect}});
  assert.equal(stepScript(host,frame),"done");assert.ok(state.sides[player].zones[redirect].includes(id));assert.equal(state.cards[id].mode,expected,`${destination} redirected to ${redirect}`);cases++;
+}
+for(const player of ["p1","p2"] as const)for(const count of [2,3])for(const mode of [undefined,"active","rest"] as const){
+ const state=fresh(),id=stage(state,player,"BT14-151","drop");
+ for(let i=1;i<count;i++)stage(state,player,"AND","drop");
+ const expected=count<3 || mode==="rest" ? "rest" : "active";
+ const frame:ScriptFrame={card:id,master:player,ops:[{op:"moveTo",target:{sel:{special:"self"}},to:"energy",...(mode?{mode}:{})}],ip:0,vars:{}};
+ const host=vmHost(ctx,game,state,[],frame),move=host.move;
+ host.move=(card,to,owner,opts)=>move(card,to,owner,{...opts,onResult:outcome=>{assert.equal(state.cards[id].mode,expected,"Drop threshold is observed before the incoming Android leaves");opts?.onResult?.(outcome);}});
+ assert.equal(stepScript(host,frame),"done");assert.equal(state.cards[id].mode,expected);assert.ok(state.sides[player].zones.energy.includes(id));
+ assert.equal(state.sides[player].zones.drop.filter(card=>state.cards[card].cardId==="AND").length,count-1);
+ assert.equal(captureEnergyEntryMode(ctx,game,state,id).exhausted,true,"post-entry Drop count is below three in both cases");cases++;
 }
 console.log(`energy-entry-mode-native-5: ${cases} script/native arrival mode checks passed`);
