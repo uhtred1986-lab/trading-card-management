@@ -1,5 +1,5 @@
 import { requireStandingNegationBounds } from "./standing-negation-bounds";
-/** R477 bounded native observation prototype; no gameplay caller yet. */
+/** R477 bounded native observation prototype; bounded native fixture callers; no product admission. */
 import type { EngineContext, PlayerId } from "../types";
 import { parseSkills } from "../text/cards";
 import { emptyFilter } from "../text/filters";
