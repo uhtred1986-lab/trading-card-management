@@ -1,0 +1,11 @@
+# Support checkpoint 44 — all-area self negation and standing history prerequisite
+
+Combined source `0a483a00` in draft PR #1249 preserves the printed all-area source validity of 45 self Energy-Exhaust negation clauses (R478). Conditional wrappers remain intact; unrelated sibling effects and target-wide auras gain no source validity. Typed records, DSL and macro lowering retain the qualifier, and affected stale records require rebuilding across review statuses. See [R478 evidence](self-keyword-all-areas.md).
+
+R477 adds a pure standing-negation history prototype with occurrence-bound active generations, read-only queries, explicit enabling order and stale-history refusal. It has no gameplay callers and admits no cards. Native observation/protection and mutation integration remain work. See [prototype boundaries](standing-negation-history-prototype.md).
+
+All 6,597 cards / 13,964 complete records were regenerated. Exactly **45 records** change, each only in `ops` and `reads`; all unrelated complete records and printed fields remain identical. Snapshot SHA-256: `98bc981cac3d09802add79611ef5a1590feb6cc03a50815b721604491b5f65e7`. Counts remain **12,999 readable / 965 unread**, **12 readable runtime gaps**, **322 additional blocked records**, **2,559 contextual unknowns**. These are not fully verified card counts.
+
+Combined validation passes **212 counted cases**: 48 all-area qualification, 32 history prototype, 52 negation-area, 30 resolved-grant mechanism and 50 resolved-grant native cases. Static-layer compatibility also passes. Typecheck, worker touched-file lint, language/lang/Teach, 252 rulings, capability inventory (42 scenarios / 143 VM sites), and browser privacy/immutability/replay (182 modules / 121 steps) pass. Fusion fuzz completes 40/40 with zero crashes, interruptions or action limits. Evidence: `/workspace/shared/arena-support5/recovery/fortyfourth-*`.
+
+Energy entry mode ordering and optional payments continue. Review also found three catalog cards with adjacent skill tags lacking a separating space, including Whis; that parser boundary is next. All remaining card support stays in scope. No database write/refresh, migration, dependency change, deployment or merge occurred. Full gate/build remains reserved for complete integration.
