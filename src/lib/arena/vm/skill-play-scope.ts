@@ -189,7 +189,7 @@ export function arrivalAutoWasActive(pending: VmPending): boolean {
   return true;
 }
 
-function validateScopeStack(state: VmState): void {
+export function validateScopeStack(state: VmState): void {
   const scopes = state.skillPlayScopes ?? [];
   if (state.nextSkillPlayScope !== undefined && (!Number.isSafeInteger(state.nextSkillPlayScope) || state.nextSkillPlayScope < 0)) rebuildScope("rebuild this saved skill-play sequence");
   for (let i = 0; i < scopes.length; i++) {

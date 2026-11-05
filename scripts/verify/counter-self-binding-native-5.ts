@@ -142,7 +142,7 @@ for (const owner of ["p1", "p2"] as const) for (const fault of [false, true]) fo
   cases++;
 }
 // This price is a typed test tax, not a claim about an additional printed card.
-for (const owner of ["p1", "p2"] as const) for (const fault of ["unchanged", "offer", "child", "partial", "missing", "malformed", "missing-parent", "missing-parent-tail"] as const) {
+for (const owner of ["p1", "p2"] as const) for (const fault of ["unchanged", "offer", "child", "partial", "missing", "malformed", "missing-parent", "missing-parent-tail", "scope-missing", "scope-malformed", "scope-phase", "cursor-without-stamp"] as const) {
   const first = other(owner);
   let state = fresh(first);
   const parent = stage(state, first, "SOURCE", "battle");
@@ -192,8 +192,17 @@ for (const owner of ["p1", "p2"] as const) for (const fault of ["unchanged", "of
         savedParent.ip = 0;
       }
     }
+    if (fault === "cursor-without-stamp") {
+      const savedParent = state.programs.find(frame => frame.card === counter && frame.skillKind === "counter")!;
+      savedParent.ip++;
+      delete child.counterSelfTax;
+    }
+    if (fault === "scope-missing") delete state.skillPlayScopes;
+    if (fault === "scope-malformed") state.skillPlayScopes!.at(-1)!.version = 1 as 2;
+    if (fault === "scope-phase") state.skillPlayScopes!.at(-1)!.phase = "after";
     state = take(state, { type: "choose", player: owner, cards: [fault === "partial" ? secondPayer : payer] });
-    if (fault === "missing" || fault === "malformed" || fault === "missing-parent" || fault === "missing-parent-tail") {
+    if (fault === "missing" || fault === "malformed" || fault === "missing-parent" || fault === "missing-parent-tail" || fault === "cursor-without-stamp" || fault === "scope-missing" || fault === "scope-malformed" || fault === "scope-phase") {
+      assert.ok(state.sides[owner].zones.hand.includes(payer), `${fault}: invalid tax ownership must refuse before moving a payer`);
       assert.match(JSON.stringify(state.outcome), /rebuild/);
       assert.ok(state.sides[owner].zones.hand.includes(payer));
       cases++;

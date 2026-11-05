@@ -1,6 +1,6 @@
 /** R465: explicit Counter self-play references retain their original occurrence. */
 import type { Op, Ref, Script, ScriptFrame } from "./script";
-import { rebuildScope } from "./skill-play-scope";
+import { rebuildScope, validateScopeStack } from "./skill-play-scope";
 import type { VmState } from "./state";
 import { findCard } from "./zones";
 
@@ -149,7 +149,8 @@ export function guardCounterSelfTaxPayment(
   const owners = parents.flatMap(parent => {
     requireCounterSelfBinding(parent, sourceScript(parent));
     const op = parent.ops[parent.ip];
-    const expected = op?.op === "play" ? counterSelfTaxBinding(parent, op.target) : undefined;
+    if (op?.op !== "play") rebuildScope("rebuild this saved Counter self-play tax cursor");
+    const expected = counterSelfTaxBinding(parent, op.target);
     return expected ? [{ parent, expected }] : [];
   });
   const stamp = frame.counterSelfTax;
@@ -158,7 +159,18 @@ export function guardCounterSelfTaxPayment(
     return true;
   }
   if (owners.length !== 1) rebuildScope("rebuild this ambiguous Counter self-play tax owner");
-  const expected = owners[0].expected;
+  const { parent, expected } = owners[0];
+  const scopes = state.skillPlayScopes;
+  if (!Array.isArray(scopes) || scopes.some(scope => !scope || typeof scope !== "object" ||
+    !Array.isArray(scope.played) || scope.played.some(card => !card || typeof card !== "object"))) {
+    rebuildScope("rebuild this saved Counter self-play tax scope");
+  }
+  validateScopeStack(state);
+  const owner = scopes.at(-1);
+  if (!owner || owner.id !== expected.parentScope || owner.source !== parent.card || owner.master !== parent.master ||
+    owner.skillIndex !== expected.skillIndex || owner.phase !== "effect" || owner.window || owner.canceled || owner.profile.arrivals === 0) {
+    rebuildScope("rebuild this saved Counter self-play tax scope owner");
+  }
   if (!stamp || stamp.version !== 1 || stamp.card !== expected.card || stamp.epoch !== expected.epoch ||
     stamp.parentScope !== expected.parentScope || stamp.skillIndex !== expected.skillIndex) {
     rebuildScope("rebuild this saved Counter self-play tax source");

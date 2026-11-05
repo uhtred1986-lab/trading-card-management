@@ -115,6 +115,9 @@ for (const fault of ["none", "source", "missing", "owner", "parent-binding", "ma
   };
   const state = {
     programs: [parent], cards: { source: { id: "source", zoneEpoch: fault === "source" ? 9 : 7 } },
+    nextSkillPlayScope: 7,
+    skillPlayScopes: [{ version: 2, id: 7, source: "source", master: "p1", skillIndex: 0,
+      phase: "effect", profile: { arrivals: 1, tokens: false, explicitWindow: false }, played: [], }],
     sides: { p1: { zones: { drop: ["source"] } } }, lastChoice: ["payer"], lastMode: 0,
   } as unknown as VmState;
   if (fault === "missing") delete child.counterSelfTax;
