@@ -612,4 +612,7 @@ export const RULINGS: Ruling[] = [
 
 
 
+  { id: "R-479", date: "2026-11-05", cards: ["BT1-043", "BT3-026", "BT18-043"], basis: ["manual"], refs: ["RM 9-1", "BT1-043 official printed image", "BT3-026 official printed image", "BT18-043 official printed image"], confidence: "official", status: "active",
+    ruling: "A missing catalog space between a sentence-ending period and the next skill type tag does not combine separately printed skills. Preserve each skill's type, cost, trigger and body. Reminder parentheses and within-sentence keyword references do not create boundaries. Previously fused stored records require rebuilding in every status. Whis's extra-turn Auto remains a separate unsupported procedure; this parsing correction does not admit it." },
+
 ];

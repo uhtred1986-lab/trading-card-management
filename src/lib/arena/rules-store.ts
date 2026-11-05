@@ -260,8 +260,16 @@ function awakenAlternativeContractGap(row: { printed: string; cost: unknown; con
     ? "rebuild the single-pile alternative Awaken payment contract" : null;
 }
 
+/** R479: an old fused record cannot stand in for independently typed skills. */
+function fusedSkillBoundaryGap(row: { printed: string }): string | null {
+  return /\.\[(?:auto|permanent|activate\s*:|counter\s*:)/i.test(row.printed) && skillLines(row.printed).length > 1
+    ? "rebuild adjacent printed skill boundaries" : null;
+}
+
 export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown; cond?: unknown }): string[] {
   const gaps: string[] = [];
+  const boundaryGap = fusedSkillBoundaryGap(row);
+  if (boundaryGap) gaps.push(boundaryGap);
   const awakenGap = awakenAlternativeContractGap(row);
   if (awakenGap) gaps.push(awakenGap);
   const historyGap = markerHistoryContractGap(row);
@@ -497,7 +505,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!counterArrivalRecordGap(row) || !!dropComboRecordGap(row) || !!extraActivationContractGap(row) || !!markerHistoryContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || !!awakenAlternativeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!fusedSkillBoundaryGap(row) || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!counterArrivalRecordGap(row) || !!dropComboRecordGap(row) || !!extraActivationContractGap(row) || !!markerHistoryContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || !!awakenAlternativeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
 
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
