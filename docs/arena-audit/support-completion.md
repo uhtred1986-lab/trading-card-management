@@ -63,6 +63,8 @@ BT26-031’s public-feed Awaken text says “you have or more Z-Energy.” Banda
 
 - **Bounded Z-Awaken action payments**, source `463a7c96`: [receipt and full-record evidence](round-4/support-eleventh-batch.md). Four cost-only records restored; totals **12,980 readable / 984 unread**, additional readable runtime gaps **31**. Combined 540 counted scenarios plus existing keyword-action checks, typecheck, lint, language/rulings and 40/40 fuzz pass. Four Z-Awaken action prices and replacement timing continue.
 
+- **Combo replacement Auto timing**, source `791280bc`, ruling-order repair `27f7666e`: [receipt](round-4/support-twelfth-batch.md). Full corpus is byte-identical to checkpoint 11: **12,980 readable / 984 unread**, additional readable runtime gaps **31**. Combined 576 counted scenarios plus cleanup/Universe 3/preview/language checks, typecheck, lint, capability inventory and 40/40 fuzz pass. Native Counter windows, original-departure fallback, occurrence-aware arbitration and parent action witnesses are supported; external activation-tax payment continues.
+
 ## Open owner decision
 
 An asynchronous owner question is pending: whether Cell Games effects waive a Battle Card’s printed skill cost when invoking its Activate: Main from Drop. The manual explicitly waives Extra-card invocation costs; no corresponding Battle-card answer was found in the manual, local official FAQs or ledger. BT26-115 and BT26-116 are concrete partners whose self-to-Drop/rest costs cannot be paid from Drop. Recommended intent reading: waive the printed cost while retaining conditions, usage limits and activation taxes. Do not treat elapsed time as an owner ruling; continue independent Extra invocation and payment work.
