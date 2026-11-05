@@ -1011,6 +1011,7 @@ export interface TaxGate {
   counter?: true;
   /** R438: a Drop Counter has already removed this exact source as payment. */
   counterDropPaidEpoch?: number;
+  counterExtraSource?: import("./counter-extra-cost").ExtraCounterSource;
 }
 
 /**
@@ -1031,9 +1032,39 @@ export function queueTaxGate(state: VmState, gate: Omit<TaxGate, "guards">, guar
   state.programs.unshift({ ops: [], ip: 0, vars: {}, card: gate.card, master: gate.player, taxGate: { ...gate, guards, ...(counter ? { counter: true as const } : {}) } });
 }
 
+/** Validate a saved Extra tax choice before its operation can move a payer. */
+export function guardExtraCounterTaxPayment(ctx: EngineContext, state: VmState, ev: GameEvent[], frame: ScriptFrame): boolean {
+  if (frame.taxGate || frame.counterCost) return true;
+  const at = state.programs.findIndex(f => f.taxGate?.counter && f.taxGate.card === frame.card && f.taxGate.player === frame.master && (f.taxGate.counterExtraSource || f.taxGate.from === "hand" && ctx.defs[state.cards[f.card]?.cardId]?.type === "EXTRA" || state.programs.some(g => g.card === frame.card && g.counterCost?.extra)));
+  if (at < 0) {
+    if (frame.extraCounterTax) rebuildScope("rebuild the saved Extra Counter tax continuation");
+    return true;
+  }
+  const gate = state.programs[at].taxGate!, stamp = frame.extraCounterTax;
+  const source = gate.counterExtraSource;
+  if (!stamp || stamp.version !== 1 || !stamp.source || !source || stamp.source.card !== frame.card || source.card !== frame.card || stamp.source.cardId !== source.cardId || stamp.source.area !== source.area || stamp.source.epoch !== source.epoch || !Number.isSafeInteger(source.epoch) || source.epoch < 0) rebuildScope("rebuild the saved Extra Counter tax payment source");
+  const now = findCard(state, frame.card);
+  if (now?.owner === frame.master && now.zone === source.area && state.cards[frame.card]?.cardId === source.cardId && (state.cards[frame.card]?.zoneEpoch ?? 0) === source.epoch) return true;
+  state.programs.splice(0, at + 1 + gate.guards);
+  state.lastChoice = null; state.lastMode = null;
+  log(ev, { type: "note", text: "[Counter] activation failed: the original Extra source left before its tax payment" });
+  return false;
+}
+
 /** One look of the gate at the front of the queue (`vm/flow.ts`'s runner); the frame is already off the queue. */
 export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" {
   const gate = frame.taxGate!;
+  if (gate.counter && gate.from === "hand" && (ctx.defs[state.cards[gate.card]?.cardId]?.type === "EXTRA" || state.programs.slice(0, gate.guards).some(f => f.card === gate.card && f.counterCost?.extra)) && !gate.counterExtraSource) rebuildScope("rebuild the saved hand-Extra Counter tax source");
+  if (gate.counterExtraSource) {
+    const source = gate.counterExtraSource;
+    if (source.card !== gate.card || !Number.isSafeInteger(source.epoch) || source.epoch < 0 || typeof source.area !== "string" || typeof source.cardId !== "string") rebuildScope("rebuild the saved Extra Counter tax source");
+    const now = findCard(state, gate.card);
+    if (now?.owner !== gate.player || now.zone !== source.area || state.cards[gate.card]?.cardId !== source.cardId || (state.cards[gate.card]?.zoneEpoch ?? 0) !== source.epoch) {
+      state.programs.splice(0, gate.guards);
+      log(ev, { type: "note", text: "[Counter] activation failed: the original paid Extra source left before its tax completed" });
+      return "done";
+    }
+  }
   if (gate.counter && gate.from === "drop") {
     if (!Number.isSafeInteger(gate.counterDropPaidEpoch) || gate.counterDropPaidEpoch! < 0) rebuildScope("rebuild the saved Drop Counter tax source");
     if (!state.sides[gate.player].zones.removed.includes(gate.card) || (state.cards[gate.card]?.zoneEpoch ?? 0) !== gate.counterDropPaidEpoch) {
@@ -1051,7 +1082,7 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
     return "done";
   }
   gate.paid.push(owed[0].key);
-  state.programs.unshift({ ops: owed[0].ops, ip: 0, vars: {}, card: gate.card, master: gate.player }, frame);
+  state.programs.unshift({ ops: owed[0].ops, ip: 0, vars: {}, card: gate.card, master: gate.player, ...(gate.counterExtraSource ? { extraCounterTax: { version: 1 as const, source: structuredClone(gate.counterExtraSource) } } : {}) }, frame);
   return "done";
 }
 

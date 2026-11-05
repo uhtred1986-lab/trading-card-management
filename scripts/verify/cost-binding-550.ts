@@ -222,7 +222,7 @@ const activation = (s: VmState, id: string) => legal(s).find((l) => l.action.typ
   let d = declared.state;
   assert.equal(d.prompt.kind, "chooseCards", "the price asks which hand cards pay");
   assert.ok(d.programs[0].counterCost, "paid on the strict host's stored continuation");
-  assert.ok(d.sides.p1.zones.hand.includes(counterCard), "the [Counter] stays in hand while its price is paid (22-10-7)");
+  assert.ok(d.sides.p1.zones.drop.includes(counterCard), "12-2-2: the Extra enters Drop before its skill price");
   assert.ok(!candidates(d).includes(counterCard), "and cannot pay for itself");
   assert.ok(view(d, "p1").includes("SECRET550") && !view(d, "p2").includes("SECRET550"), "the payer sees the candidates; the attacker does not");
   d = choose(reload(d), [paying[0]], "p1").state;

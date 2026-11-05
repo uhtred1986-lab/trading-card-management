@@ -1784,6 +1784,10 @@ export interface ScriptFrame {
   poolPayment?: import("./pooled-costs").FramePoolPayment;
   /** #677: the 20-14 prices on an activation, charged one at a time and re-read live in front of what it guards. Additive: older states never carry one. */
   taxGate?: import("./activate").TaxGate;
+  /** R453: source authority while a queued Extra Counter tax is being paid. */
+  extraCounterTax?: { version: 1; source: import("./counter-extra-cost").ExtraCounterSource };
+  /** The Extra skill declared in hand survives source placement and self-costs. */
+  counterDeclaredScript?: Script;
   /** #716: a [Counter]'s printed action price, paid on the strict host before the skill activates. Additive: older states never carry one. */
   counterCost?: import("./battle").CounterCost;
   /** #552: this frame is an activated [Counter]'s counter motion (9-7-2), answered by a [Counter: Counter] window before it resolves. Additive: older states never carry one. */

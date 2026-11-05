@@ -184,7 +184,7 @@ function attack(s: VmState): VmState {
   const d = declared.state;
   assert.equal(d.prompt.kind, "chooseCards", "the price asks which hand card pays");
   assert.equal(d.programs[0].counterCost?.skill.index, 0, "the stored continuation is on the paying frame");
-  assert.ok(d.sides.p1.zones.hand.includes(a.cards[0]), "the [Counter] is still in hand while its price is paid");
+  assert.ok(d.sides.p1.zones.drop.includes(a.cards[0]), "12-2-2: the Extra reaches Drop before its skill price");
   assert.equal(d.cards[a.energy[0]].mode, "rest", "the energy half is paid first");
   assert.equal(declared.events.filter((e) => e.type === "skill").length, 0, "nothing is activated yet");
   const candidates = d.prompt.kind === "chooseCards" ? d.prompt.choice.candidates : [];
@@ -209,9 +209,9 @@ function attack(s: VmState): VmState {
   const p = paid.state;
   assert.ok(p.sides.p1.zones.drop.includes(a.cards[1]) && p.sides.p1.zones.hand.includes(a.cards[2]), "one card paid, the other kept");
   const priceAt = at(paid.events, (e) => e.type === "move" && e.card === a.cards[1] && e.to === "drop");
-  const dropAt = at(paid.events, (e) => e.type === "move" && e.card === a.cards[0] && e.to === "drop");
+  const dropAt = at(declared.events, (e) => e.type === "move" && e.card === a.cards[0] && e.to === "drop");
   const skillAt = at(paid.events, (e) => e.type === "skill" && e.card === a.cards[0]);
-  assert.ok(priceAt >= 0 && priceAt < dropAt && dropAt < skillAt, "price, then the card to the Drop, then the skill (5-8-1, 22-10-7)");
+  assert.ok(dropAt >= 0 && priceAt >= 0 && priceAt < skillAt, "12-2-2: source Drop in declaration, then skill price and activation on resume");
   assert.equal(paid.events.filter((e) => e.type === "skill" && e.card === a.cards[0]).length, 1);
   assert.ok(at(paid.events, (e) => e.type === "attackNegated") > skillAt, "the effect resolved after the activation");
   assert.equal(p.sides.p1.zones.life.length, d.sides.p1.zones.life.length, "no damage: the attack was negated");

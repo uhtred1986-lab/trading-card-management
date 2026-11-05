@@ -92,7 +92,7 @@ import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { emptyUnisons } from "./unison-zero";
 import { queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticResourcesFinish, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
-import { requireZAwakenBindings, activationTaxGate, activationTaxes, stepTaxGate, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
+import { requireZAwakenBindings, activationTaxGate, activationTaxes, stepTaxGate, guardExtraCounterTaxPayment, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
 import { describeScript } from "./script-schema";
 import { IllegalAction } from "./common";
 import { spendUse, usesLeft } from "./limits";
@@ -1346,6 +1346,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (!guardExtraCounterTaxPayment(ctx, state, ev, frame)) return "done";
     if (frame.replacementFallback) return stepReplacementFallback(ctx, game, state, ev, frame);
     if (frame.replacementAuto && !beginReplacementAuto(ctx, game, state, frame, (skill, program) => {
       const tax = activationTaxGate(ctx, game, state, frame.master, frame.card, "auto");
@@ -1369,7 +1370,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     }
     requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
-    const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    const sourceScript = frame.counterCost?.extra?.declaredScript ?? frame.counterDeclaredScript ?? (frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined);
     if ((frame.counterChoice || state.skillPlayScopes?.some(scope => scope.id === frame.skillEffectOrigin?.scope && scope.purpose === "counterContinuation")) && (sourceScript?.kind !== "counter:play" || !counterChoiceTail(sourceScript.ops))) rebuildScope("rebuild this Counter continuation against its current stored rule");
     if (frame.counterPlay && sourceScript?.kind === "counter:play" && counterChoiceTail(sourceScript.ops)) {
       const origin = frame.skillEffectOrigin;

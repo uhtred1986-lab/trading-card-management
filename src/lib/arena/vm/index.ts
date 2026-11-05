@@ -50,7 +50,7 @@ import { PLAYERS, type PlayerId, type Requirement } from "../types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { burstNegated, ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { abilityAvailability as declaredAbilityAvailability, applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBattleActivation, applyBlock, applyCombo, applyCounter, applyZEnergyFromCombo, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterAbilityAvailability, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
+import { applyBattleActivation, applyBlock, applyCombo, applyCounter, requireExtraCounterBinding, applyZEnergyFromCombo, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterAbilityAvailability, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
 import { forbiddenBy, hasKeyword, immunityRefusing, readingBoard, spendProhibitionUse } from "./program";
 import { whoseSkills } from "./script";
 import { requireMarkerPayers, chargesOf, describePayment } from "./costs";
@@ -484,8 +484,16 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       if (pr.kind !== "payCost") throw new IllegalAction("no payment is being asked for");
       if (action.player !== pr.player) throw new IllegalAction("that payment belongs to another player");
       if (pr.action.type === "counter" && pr.action.card) requireCounterDropOccurrence(state, pr.action.card, pr.dropOccurrences);
+      if (pr.action.type === "counter" && pr.action.card && (pr.extraCounter || state.sides[pr.player].zones.hand.includes(pr.action.card) && ctx.defs[state.cards[pr.action.card]?.cardId]?.type === "EXTRA")) requireExtraCounterBinding(state, pr.player, pr.action.card, pr.extraCounter);
+      if (pr.extraCounter) {
+        if (pr.action.type !== "counter" || !pr.action.card || pr.action.skill !== pr.extraCounter.skillIndex || (pr.action.x ?? null) !== pr.extraCounter.selectedX) throw new IllegalAction("rebuild the saved Extra Counter skill and selected X");
+        const skillIndex = pr.action.skill;
+        const selected = skillsShowing(ctx, state, pr.action.card).skills.find(sk => sk.index === skillIndex);
+        if (!selected || selected.kind !== pr.extraCounter.skillKind) throw new IllegalAction("rebuild the saved Extra Counter declaration");
+        counterXValue(pr.action, pr.extraCounter.declaredScript.price?.x);
+      }
       if (pr.markerPayers !== undefined) requireMarkerPayers(ctx, game, state, pr.player, pr.markerPayers);
-      if (pr.action.type === "activate" || pr.action.type === "counter") {
+      if (pr.action.type === "activate" || pr.action.type === "counter" && !pr.extraCounter) {
         const original = pr.action;
         if (original.card) {
           const showing = skillsShowing(ctx, state, original.card);
@@ -505,7 +513,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       // says why running the flow on a native prompt's frame cannot do this,
       // the way it can for a declared move's `again:`-left `top.asking`.
       const native = restoreNativePrompt(ctx, game, restored, pr.action);
-      if (native) restored.prompt = native;
+      if (native) { if (native.kind === "counter" && pr.extraCounter) native.extraCounter = structuredClone(pr.extraCounter); restored.prompt = native; }
       else run(ctx, game, restored, events);
       const inner = { ...pr.action, pay: option.rest } as Action;
       const again = apply(ctx, restored, inner);

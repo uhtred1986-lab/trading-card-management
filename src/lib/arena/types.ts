@@ -1474,7 +1474,7 @@ export type Prompt =
   | { kind: "main"; player: PlayerId }
   | { kind: "combo"; player: PlayerId; side: "offense" | "defense" }
   | { kind: "blocker"; player: PlayerId; candidates: string[] }
-  | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[]; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences }
+  | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[]; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
   | { kind: "chooseCards"; player: PlayerId; choice: CardChoice; pooledPayment?: { action: Action; cost: string; n: number; source: CardOccurrence | null; candidates: CardOccurrence[] } }
   /** "Choose one— ・A ・B" (20-2): which printed option is taken. */
@@ -1492,7 +1492,7 @@ export type Prompt =
    * Which energy to rest. Only asked when the choice can matter: when the
    * colours left active afterwards would differ (3-8-2).
    */
-  | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; markerPayers?: import("./vm/costs").PooledMarkers[] }
+  | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; markerPayers?: import("./vm/costs").PooledMarkers[]; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
   | { kind: "offering"; player: PlayerId; card: string }
   /**
    * 22-45-3: [Empower]'s "may carry up to Y markers" — a choice, not the

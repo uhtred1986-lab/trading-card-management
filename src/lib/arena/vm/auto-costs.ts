@@ -42,7 +42,7 @@ export interface AutomaticCost {
 }
 
 /** A supported action-price must complete every instruction (5-8-2-2). */
-export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): ScriptHost {
+export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], payingFrame?: ScriptFrame): ScriptHost {
   const host = vmHost(ctx, game, state, ev);
   const unpaid = () => { throw new IllegalAction("the Auto skill cost cannot be paid in its entirety"); };
   /** The interpreter's KO skips these cards silently (`stepScript`'s `ko`,
@@ -79,9 +79,10 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     replacementsFor: (id, reason, opts) => host.replacementsFor(id, reason === "ko" ? "ko" : "cost", { ...opts, actor: undefined }),
     resolveSelector: (f, sel) => {
       let found = host.resolveSelector(f, sel);
-      // #716: a [Counter] declared from the hand is the card being activated;
-      // it cannot also be one of the cards its own price picks out.
-      if (f.counterCost && !sel.special) found = found.filter((id) => id !== f.card);
+      // R462 excludes the activating Extra from its energy alternative.
+      // R453 permits post-Drop skill costs to choose it unless printed otherwise;
+      // other Counter origins retain their existing exclusion.
+      if (f.counterCost && f.counterCost.extra?.phase !== "skillAction" && !sel.special) found = found.filter((id) => id !== f.card);
       const op = f.ops[f.ip];
       if (op?.op === "choose" && op.sel === sel) {
         const following = f.ops.slice(f.ip + 1).find((o) => (o.op === "switchMode" || o.op === "hidden" || o.op === "ko" || o.op === "comboFrom") && "var" in o.target && o.target.var === op.as);
@@ -175,6 +176,8 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
       }
+      const extra = payingFrame?.counterCost?.extra;
+      if (extra?.phase === "skillAction" && id === payingFrame!.card) extra.source = { card: id, cardId: state.cards[id].cardId, epoch: state.cards[id].zoneEpoch ?? 0, area: host.areaOf(id) ?? "" };
       return actual;
     },
     // 5-12-1 / 5-8-2-2-1-1: a KO price is paid only when the Battle Card
@@ -532,7 +535,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
     if (failed.has(key)) return false;
     s.programs = [];
     try {
-      const result = stepScript(automaticPriceHost(ctx, game, s, []), f);
+      const result = stepScript(automaticPriceHost(ctx, game, s, [], f), f);
       if (result === "done") return complete ? complete(s, f) : true;
       if (s.programs[0] !== f) return false;
       const prompt = s.prompt;

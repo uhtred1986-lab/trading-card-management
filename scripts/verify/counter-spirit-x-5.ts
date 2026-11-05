@@ -134,14 +134,14 @@ for (const p of ["p1", "p2"] as const)
             assert.ok(action);
             s = take(copy(s), action);
             assert.equal(s.prompt.kind, "chooseCards");
-            assert.equal(s.cards[payer].markers, markers - x);
+            assert.equal(s.cards[payer].markers, markers, "card-energy alternative precedes Spirit Boost");
             assert.ok(s.sides[p].zones.hand.includes(source));
             assert.equal(s.pending.length, 0, "strict discard precedes activation");
             if (s.prompt.kind !== "chooseCards")
                 throw new Error("discard prompt");
             assert.ok(!s.prompt.choice.candidates.includes(source), "activating Extra cannot discard itself");
             const discard = s.prompt.choice.candidates[0];
-            for (const damage of ["missingX", "changedX", "missingReceipt"]) {
+            for (const damage of ["missingX", "changedX", "missingPhase"]) {
                 const stale = copy(s);
                 const frame = stale.programs.find(f => f.counterCost)!;
                 if (damage === "missingX")
@@ -149,7 +149,7 @@ for (const p of ["p1", "p2"] as const)
                 else if (damage === "changedX")
                     frame.x = x + 1;
                 else
-                    delete frame.paidMarkers;
+                    delete frame.counterCost!.extra;
                 let result = stale;
                 try {
                     result = RULES.apply(ctx, stale, { type: "choose", player: p, cards: [discard] }).state as VmState;
@@ -182,7 +182,7 @@ for (const p of ["p1", "p2"] as const)
         if (s.prompt.kind !== "payCost")
             throw new Error("energy prompt");
         if (variant === "missing")
-            delete s.prompt.markerPayers;
+            delete s.prompt.extraCounter;
         if (variant === "changedX" && s.prompt.action.type === "counter")
             s.prompt.action.x = 1;
         const before = copy(s);
@@ -197,8 +197,7 @@ for (const p of ["p1", "p2"] as const)
         }
         cases++;
     }
-// A payer departure after native marker payment prevents completing the
-// ordinary discard. The already-paid markers remain paid; no effect runs.
+// An invalid energy-alternative discard cannot charge later Spirit Boost.
 for (const p of ["p1", "p2"] as const) {
     let s = fresh(other(p));
     const source = stage(s, p, "BT14-090", "hand"), payer = stage(s, p, "GREEN3", "unison");
@@ -211,7 +210,7 @@ for (const p of ["p1", "p2"] as const) {
     const cards = [...s.prompt.choice.candidates];
     for (const id of cards) assert.ok(moveCard(s, game, id, "warp", { owner: p }).ok);
     assert.throws(() => take(copy(s), { type: "choose", player: p, cards: [cards[0]] }));
-    assert.equal(s.cards[payer].markers, 1);
+    assert.equal(s.cards[payer].markers, 3);
     assert.ok(s.sides[p].zones.hand.includes(source));
     assert.equal(s.pending.length, 0);
     assert.equal(s.sides[p].zones.battle.length, 0);
