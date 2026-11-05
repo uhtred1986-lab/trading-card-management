@@ -1165,7 +1165,7 @@
     {
       "name": "negate",
       "class": "primitive",
-      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\"|\"keyword\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"mandatory\"?:true|false,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"allAreas\"?:true|false,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\"|\"keyword\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"mandatory\"?:true|false,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "target",
@@ -1173,6 +1173,12 @@
           "nullable": false,
           "defaultText": "{\"sel\":{\"special\":\"self\"}}",
           "type": "ref"
+        },
+        {
+          "name": "allAreas",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         },
         {
           "name": "what",
@@ -1888,7 +1894,7 @@
     {
       "name": "negateKeyword",
       "class": "macro over `negate`",
-      "signature": "{\"op\":\"negateKeyword\",\"keyword\":\"Awaken\"|\"Wish\"|\"Field\"|…,\"target\"?:TARGET,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"negateKeyword\",\"keyword\":\"Awaken\"|\"Wish\"|\"Field\"|…,\"allAreas\"?:true|false,\"target\"?:TARGET,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "keyword",
@@ -1938,6 +1944,12 @@
           ]
         },
         {
+          "name": "allAreas",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
           "name": "target",
           "required": false,
           "nullable": false,
@@ -1952,7 +1964,7 @@
         }
       ],
       "sentence": "negate the [Awaken] skill of this card",
-      "doc": "take one named keyword away (\"negate this card's [Energy-Exhaust] skill in all areas\", 9-1-5); the keyword is its printed name, e.g. \"Blocker\". With \"until\" (phrasing batch 6, owner's ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — \"choose up to 1 of your opponent's Battle Cards, negate [Indestructible], and KO it\" (BT23-081) is \"turn\"; without, it is standing (a [Permanent]'s)"
+      "doc": "With allAreas:true, only a standing self named-keyword negation is valid outside play; the qualifier does not widen an aura source or a timed effect. Take one named keyword away (\"negate this card's [Energy-Exhaust] skill in all areas\", 9-1-5); the keyword is its printed name, e.g. \"Blocker\". With \"until\" (phrasing batch 6, owner's ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — \"choose up to 1 of your opponent's Battle Cards, negate [Indestructible], and KO it\" (BT23-081) is \"turn\"; without, it is standing (a [Permanent]'s)"
     },
     {
       "name": "gains",
