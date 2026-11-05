@@ -37,4 +37,4 @@ for (const player of ["p1", "p2"] as const) for (const area of ["hand", "deck", 
   const other: PlayerId = player === "p1" ? "p2" : "p1";
   assert.throws(() => captureEnergyEntryWitness(host, 1, frame, incoming, { ...destination, player: other }), /another player's Energy/); cases++;
 }
-console.log(`energy-entry-witness-5: ${cases} isolated movement-owner cases passed; native entry remains unwired`);
+console.log(`energy-entry-witness-5: ${cases} isolated movement-owner cases passed; card admission remains blocked`);

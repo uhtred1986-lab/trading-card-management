@@ -82,4 +82,4 @@ for(const player of ["p1","p2"] as const)for(const afterFirst of [false,true]){
  assert.throws(()=>requireEnergyEntryContinuation(vmHost(ctx,game,state,events),parent,parent.energyEntry!,10,policy,destination),/original Drop card|no longer available/);
  assert.equal(JSON.stringify(state),before,"stale offered/selected occurrence fails before payer mutation");cases++;
 }
-console.log(`energy-entry-continuation-5: ${cases} original-parent continuation checks passed; placement remains unwired`);
+console.log(`energy-entry-continuation-5: ${cases} original-parent continuation checks passed; isolated continuation proof only`);

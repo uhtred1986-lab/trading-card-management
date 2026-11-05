@@ -60,4 +60,4 @@ for (const player of ["p1", "p2"] as const) for (const origin of ["hand", "deck"
   if (mode === "decline" || mode === "oneMulti") assert.ok(state.sides[player].zones.drop.includes(first));
   cases++;
 }
-console.log(`energy-entry-effect-5: ${cases} ordinary-effect mechanism cases passed; native entry remains unwired`);
+console.log(`energy-entry-effect-5: ${cases} ordinary-effect mechanism cases passed; card admission remains blocked`);

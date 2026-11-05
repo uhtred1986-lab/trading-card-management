@@ -1,3 +1,5 @@
+import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
+import { guardUnownedEnergyEntry } from "./energy-entry-runtime";
 import { requireStandingNegationBounds } from "./standing-negation-bounds";
 import { initializeStandingNegation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { requireCounterUnderOccurrence } from "./counter-under";
@@ -401,10 +403,12 @@ function apply(ctx: EngineContext, prev: VmState, action: Action, offeredAttack 
 }
 
 function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAttack = false, previewBlock = false): { state: VmState; events: GameEvent[] } {
+  guardEnergyEntryLifetimes(prev);
   const game = definitionFor(prev.game, ctx);
   const state = structuredClone(prev);
   validateStandingNegationRead(ctx, state);
   if (["play", "playZ", "playUnison", "activate", "counter"].includes(action.type) && "card" in action && typeof action.card === "string") requireStandingNegationBounds(ctx, state, ["play", "playZ"].includes(action.type) && ctx.defs[state.cards[action.card]?.cardId]?.type === "BATTLE" ? action.card : undefined);
+  if (action.type === "charge" && action.card) guardUnownedEnergyEntry(ctx,state,action.card);
   const events: GameEvent[] = [{ type: "action", action }];
   // A completed declaration remains visible for its response snapshot. Only
   // the exact suspended frame may carry it through a further answer/reload.
@@ -750,6 +754,7 @@ function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, even
  * deleted legacy engine did with it.
  */
 function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
+  guardEnergyEntryLifetimes(state);
   const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => [...declaredLegalActions(ctx, game, state), ...promptAnswers(ctx, state)]);
 }
@@ -973,6 +978,7 @@ function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: 
 
 /** The board, drawn from the declarations for one side of the table. */
 function boardView(ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>, availability: AbilityAvailability[] = []): BoardView {
+  guardEnergyEntryLifetimes(state);
   const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => vmBoardView(ctx, game, state, viewer, images, availability));
 }

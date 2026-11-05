@@ -74,12 +74,13 @@ export function guardCostEnergyEntry(ctx: EngineContext, state: VmState, h: Scri
 export function guardEnergyEntryBatch(ctx: EngineContext, state: VmState, h: ScriptHost, frame: ScriptFrame, ids: string[]): void {
   const op=frame.ops[frame.ip];
   if(op?.op!=="moveTo" || op.to!=="energy")return;
+  if(ids.some(id=>h.isHidden(id)&&possibleEnergyEntrySource(ctx,state,id)))throw new NotYet("Hidden optional Energy entry", "R476");
   const sources=ids.filter(id=>energyEntrySource(ctx,state,id));
   if(!sources.length)return;
   if(ids.length!==1 || sources.length!==1)throw new NotYet("owner ordering for a multi-card Energy entry", "R476");
   const id=sources[0],area=h.areaOf(id),owner=op.owner===undefined||op.owner==="you"?frame.master:frame.master==="p1"?"p2":"p1";
   const destination=op.owner===undefined?h.ownerOf(id):owner;
-  if((area!=="hand"&&area!=="deck") || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
+  if((area!=="hand"&&area!=="deck") || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
   if(op.cause==="cost" || frame.saveVarsAs || frame.keywordPrice || frame.keywordCost || frame.counterCost || frame.autoCost)throw new NotYet("optional Energy entry inside a payment program", "R476");
   if(h.replacementsFor(id,op.cause??"effect",{actor:frame.master,requestedTo:"energy"}).length)throw new NotYet("optional Energy entry with an incoming movement replacement", "R476");
 }

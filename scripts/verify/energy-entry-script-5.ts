@@ -35,7 +35,7 @@ for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck"] as 
  const events:GameEvent[]=[],order:string[]=[];
  let attempts=0,questions=0;
  for(;;){
-  const base=vmHost(ctx,game,state,events,parent);
+  const base=vmHost(ctx,game,state,events);
   const host={...base,
    forbids:(...args:Parameters<typeof base.forbids>)=>args[0]==="energyCap"&&blockAfterPayer&&state.sides[player].zones.warp.length>0 || base.forbids(...args),
    guardEnergyEntryFrame:()=>{order.push("frame");},
@@ -84,4 +84,4 @@ for(const player of ["p1","p2"] as const){
  assert.throws(()=>stepScript({...vmHost(ctx,game,state,[]),guardEnergyEntryBatch:(_frame,ids)=>{assert.deepEqual(ids,[ordinary,incoming]);throw new Error("unsupported entire batch");}},frame),/unsupported entire batch/);
  assert.equal(JSON.stringify({state,frame}),before,"batch guard precedes RNG, receipts and first ordinary movement");cases++;
 }
-console.log(`energy-entry-script-5: ${cases} isolated native-host wrapper ordering checks passed; native optional admission remains unwired`);
+console.log(`energy-entry-script-5: ${cases} isolated native-host wrapper ordering checks passed; card admission remains blocked`);

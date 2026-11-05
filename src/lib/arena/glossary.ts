@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Optional Energy-entry native boundary",
+    body: "The typed optional Energy-Exhaust descriptor has a bounded native original-script movement bridge for one own Hand or Deck card. Its ordinary Drop-to-Warp child keeps the original parent through questions and reloads; final mode is captured after payer effects, and any earned, unprotected negation is installed on the new Energy occurrence before arrival. A dedicated epoch stamp ends only this negation on native host or flow departure. Source and projected arrival protection must agree, including both candidate modes; differing protection is an explicit unresolved timing boundary. Focused synthetic programs include real engine activation/answer and both-viewer Deck privacy controls, but the descriptor remains uncollected by Permanent loading and the compiler does not emit it. The six printed from-any-area cards retain their complete runtime gaps: Drop self-payment, other origins/controllers, multi-card ordering and non-script native entry are not admitted.",
+  },
+  {
     title: "Adjacent printed skill boundaries (R-479)",
     body: "A sentence-ending period followed immediately by a skill opening tag separates skills even when the catalog omits whitespace. BT1-043, BT3-026 and BT18-043 retain independent types, triggers, costs and effects. Parenthesized reminders and tags within a sentence remain attached. Old fused records require rebuilding across review statuses; separating an unread sibling does not implement it.",
   },

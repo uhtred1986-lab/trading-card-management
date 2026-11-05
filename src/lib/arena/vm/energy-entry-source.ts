@@ -8,13 +8,13 @@ import { requireValidity } from "./validity";
 import { NotYet } from "./errors";
 import { containsEnergyEntryDescriptor, energyEntryDescriptor, type EnergyEntryExhaustPolicy } from "./energy-entry-policy";
 
-export function energyEntrySource(ctx: EngineContext, state: VmState, id: string): { skillIndex: number; policy: EnergyEntryExhaustPolicy } | undefined {
+export function energyEntrySource(ctx: EngineContext, state: VmState, id: string, resolving = false): { skillIndex: number; policy: EnergyEntryExhaustPolicy } | undefined {
   const card=state.cards[id];
-  if(!card || card.hidden || skillsNegated(state,id))return;
+  if(!card || card.hidden || !resolving && skillsNegated(state,id))return;
   const showing=skillsShowing(ctx,state,id);
   let found: { skillIndex: number; policy: EnergyEntryExhaustPolicy } | undefined;
   for(const skill of showing.skills) {
-    if(skill.kind!=="permanent" || skillNegated(state,id,skill.index,skill.kind))continue;
+    if(skill.kind!=="permanent" || !resolving && skillNegated(state,id,skill.index,skill.kind))continue;
     const program=showing.scripts.bySkill[skill.index];
     if(!program || !containsEnergyEntryDescriptor(program.ops))continue;
     const policy=energyEntryDescriptor(program.ops);

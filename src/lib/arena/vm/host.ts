@@ -1,3 +1,6 @@
+import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
+import { guardOptionalEnergyFrame, prepareOptionalEnergyEntry, optionalEnergyArrival, guardUnownedEnergyEntry, type OptionalEnergyArrival } from "./energy-entry-runtime";
+import { guardEnergyEntryBatch } from "./energy-entry-preflight";
 import { beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureEnergyEntryMode } from "./energy-entry-mode";
 import { queueFieldCleanup, takeFieldCleanup } from "./field-rules";
@@ -115,6 +118,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
   const counterProtected = (frame: ScriptFrame, id: string): boolean => !!frame.counterPlay && frame.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter");
 
   return {
+    guardEnergyEntryFrame: frame => guardOptionalEnergyFrame(ctx,state,vmHost(ctx,game,state,ev,frame),frame),
+    guardEnergyEntryBatch: (frame,ids) => { if (!frame.energyEntry) guardEnergyEntryBatch(ctx,state,vmHost(ctx,game,state,ev,frame),frame,ids); },
+    prepareEnergyEntry: (frame,id,destination) => prepareOptionalEnergyEntry(ctx,state,vmHost(ctx,game,state,ev,frame),child => {
+      const childHost=vmHost(ctx,game,state,ev,child);
+      return {...childHost,move:(card,to,owner,opts)=>childHost.move(card,to,owner,{...opts,source:child.card,actor:child.master})};
+    },frame,id,destination),
     deferCounterOperation: (frame, op) => {
       if (!frame.counterPlay || frame.counterAnswerScope === undefined) return false;
       const scope = state.skillPlayScopes?.find(s => s.id === frame.counterAnswerScope);
@@ -250,12 +259,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     canReplaceCounterArrival: (frame) => !!frame.arrivalDecision && !counterProtected(frame, frame.arrivalDecision.arrival.card) && canReplaceCounterArrival(ctx, game, state, frame),
     move: (id, to, owner, opts) => {
       const arrival = retainedFrame?.arrivalDecision;
+      const energyEntry=to === "energy" ? optionalEnergyArrival(ctx,game,state,vmHost(ctx,game,state,ev,retainedFrame),retainedFrame,id,owner,opts?.requestedMode) : undefined;
       const onResult: NonNullable<typeof opts>["onResult"] = result => {
         opts?.onResult?.(result);
         if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
           state.resolving?.card === id && (result.completed || result.toEpoch !== result.fromEpoch)) state.resolving.replaced = true;
       };
-      moveTo(ctx, game, state, ev, id, to, owner, { onResult, requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      moveTo(ctx, game, state, ev, id, to, owner, { onResult, energyEntry, actor: opts?.actor, requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -1043,10 +1053,12 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
+  opts: { energyEntry?: OptionalEnergyArrival; requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
+  guardEnergyEntryLifetimes(state);
+  if (to === "energy" && !opts.energyEntry) guardUnownedEnergyEntry(ctx,state,id);
   const from = zoneOf(state, id);
   const fromEpoch = state.cards[id]?.zoneEpoch ?? 0, asked = to;
   const report = (completed: boolean, actual = zoneOf(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
@@ -1062,6 +1074,8 @@ function moveTo(
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
   if (route.stays) { report(false); return; }
   to = route.to;
+  if (to === "energy" && !opts.energyEntry) guardUnownedEnergyEntry(ctx,state,id);
+  if (opts.energyEntry && (route.replacementApplied || to !== "energy" || opts.energyEntry.card !== id || opts.energyEntry.epoch !== fromEpoch || opts.energyEntry.player !== owner)) throw new NotYet("optional Energy entry changed its final native route", "R476");
   if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source, id)) { report(false); return; }
   const fromOwner = from ? ownerOfZone(state, id) : null;
   // 23-2-2-2: a card under another is in the area of the card on top, and
@@ -1079,7 +1093,7 @@ function moveTo(
   const held = (zone: string | null) => !!zone && (inPlayZones(game).includes(zone) || game.zones[zone]?.host === true);
   const carry = !!opts.carry || (held(from) && held(to));
   // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
-  const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode).mode : route.mode;
+  const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode, opts.energyEntry?.negate).mode : route.mode;
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
   const transaction = beginStandingNegationMutation(ctx, state, to === "battle" ? id : undefined);
   const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
@@ -1104,6 +1118,10 @@ function moveTo(
   if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
   // 5-5-4: arriving in a Battle Area is remembered for the turn (`placedThisTurn`).
   if (to === "battle" && from !== "battle") state.cards[id].placedThisTurn = true;
+  if (opts.energyEntry?.negate) {
+    if (to !== "energy" || state.cards[id].zoneEpoch !== opts.energyEntry.epoch + 1) throw new NotYet("optional Energy negation lost its new occurrence", "R476");
+    addEffect(state,ev,{target:id,source:id,master:opts.energyEntry.player,kind:"negateKeyword",value:"Energy-Exhaust",until:"game",energyEntryEpoch:state.cards[id].zoneEpoch});
+  }
   finishStandingNegationMutation(ctx, state, transaction, to === "battle" && from !== "battle" ? id : undefined);
   report(!route.replacementApplied && placed.move.to === asked, placed.move.to);
   if (from && fromOwner) {

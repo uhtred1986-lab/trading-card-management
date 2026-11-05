@@ -1,3 +1,4 @@
+import { guardCostEnergyEntry } from "./energy-entry-preflight";
 import { captureTaxPayers, taxPayerProblem, taxPayerProgramProblem, markTaxPayerPaid, type TaxPayers } from "./tax-payers";
 import { bindPaidMarkers } from "./paid-markers";
 import { pooledPaymentVariants } from "./pooled-costs";
@@ -97,6 +98,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
   const poweredPrice = (id: string): boolean => !!state.cards[id] && ["battle", "leader"].includes(host.areaOf(id) ?? "");
   return {
     ...host,
+    guardEnergyEntryFrame: frame => { guardCostEnergyEntry(ctx,state,host,frame); host.guardEnergyEntryFrame?.(frame); },
     forbids: (what, opts) => {
       if (host.forbids(what, opts)) unpaid();
       return false;

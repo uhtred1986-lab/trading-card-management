@@ -110,7 +110,7 @@ Thirty primitives carry every row below — twenty-three operations and seven co
 | `copySkills` | `copySkills` | One card takes on another's printed skills, as they stood when the copy was made (20-18). |
 | `play` | `play` | The game's own play action is invoked for a card (5-5). |
 | `invokeSkill` | `invokeSkill` | A selected card's declared skill is activated through its own legality, declaration, nested resolution and return to the parent (12-2-4). |
-| `energyEntryExhaust` | `energyEntryExhaust` | A descriptor for an optional procedure owned by the original Energy movement; ordinary sequential effects cannot interpose before that arrival. Preparation only: compiler and native entry remain unwired. |
+| `energyEntryExhaust` | `energyEntryExhaust` | A descriptor for an optional procedure owned by the original Energy movement; ordinary sequential effects cannot interpose before that arrival. Bounded native tests use synthetic stored descriptors; compiler and card admission remain blocked. |
 | `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
 | `permit` | `permit` | A rule of the game is lifted for one card (8-1-1). |
 | `immune` | `immune` | A card no skill may touch (9-1-4). |

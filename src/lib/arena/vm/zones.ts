@@ -1,3 +1,4 @@
+import { refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 /**
  * Where a card *is*, read off the `ZONE` declarations rather than off a field
  * name.
@@ -263,6 +264,8 @@ export interface Replacement {
 }
 
 export interface MoveOptions {
+  /** Internal synchronous cleanup ownership: only host.moveTo/flow.moved set it. */
+  energyEntryCleanup?: true;
   /** Whose copy of the zone: an opponent's Battle Area is a different area (3-1-1). Defaults to the card's owner. */
   owner?: PlayerId;
   /** Which end of the pile the card arrives at. `"bottom"` (append) by default; the rule being played says when it is the top. */
@@ -309,6 +312,7 @@ export interface At {
 
 /** The board `moveCard` works on — the part of `VmState` that is cards and zones, so the mover needs no whole state. */
 export interface Board {
+  effects?: readonly { target: string; energyEntryEpoch?: number }[];
   sides: Record<PlayerId, { zones: Zones }>;
   cards: Record<string, VmCard>;
 }
@@ -348,6 +352,7 @@ export function removedInsteadOfUnder(board: Board, game: GameDefinition, id: st
  * a rule that can say why it did not happen.
  */
 export function moveCard(board: Board, game: GameDefinition, id: string, to: string, opts: MoveOptions = {}): MoveResult {
+  if (!opts.energyEntryCleanup || opts.under !== undefined || opts.onto !== undefined) refuseEnergyEntryProcedure(board,[id,opts.under,opts.onto]);
   const card = board.cards[id];
   if (!card) return { ok: false, refused: `there is no card ${id} in this game` };
 
