@@ -313,6 +313,8 @@ export interface VmFrame {
 }
 
 export interface VmState {
+  /** R477 prototype only: no gameplay writer or card admission yet. */
+  standingNegationHistory?: import("./standing-negation-history").StandingNegationHistory;
   /** Resolved skill grants deleted by negation; standing grants are separate. */
   resolvedGrantDeletions?: import("./resolved-grant-deletion").ResolvedGrantDeletion[];
   /** Which interpreter wrote this. The one field `legacyState` reads. */
