@@ -178,6 +178,13 @@ export interface ScriptHost {
   /** 5-4: draw, and say how many really came. */
   draw(p: PlayerId, n: number): number;
   /** 3-1-4: move a card to an area, with everything that entails. Returns where it really ended. */
+  /** Optional Energy-entry preparation: validate saved ownership/payment routes
+   * before this frame executes, and a whole batch before its first mutation. */
+  guardEnergyEntryFrame?(frame: ScriptFrame): void;
+  guardEnergyEntryBatch?(frame: ScriptFrame, ids: string[]): void;
+  /** Run the original movement's optional child before the native mover captures
+   * final mode. A waiting child must requeue this parent, never itself. */
+  prepareEnergyEntry?(frame: ScriptFrame, id: string, destination: { player: PlayerId; area: "energy"; mode?: "active" | "rest" }): "ready" | "wait";
   reportsMovement?: true;
   move(id: string, to: Area, owner: PlayerId, opts?: MoveOptions): Area;
   /** 5-9: KO a card, by this source. */

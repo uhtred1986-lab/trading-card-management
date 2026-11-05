@@ -2433,6 +2433,7 @@ function rememberLook(frame: ScriptFrame, player: PlayerId, areas: ("deck" | "li
  * ended or a sub-flow (playing a card) took over.
  */
 export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
+  h.guardEnergyEntryFrame?.(frame);
   if (frame.viaKeyword === "Over Realm" && (!frame.overRealmSource || frame.overRealmSource.version !== 1)) throw new NotYet("rebuild this saved Over Realm source/payment continuation", "R456");
   if (frame.viaKeyword === "Over Realm" && !frame.keywordPrice && (!Array.isArray(frame.overRealmPaidTaxes) || frame.overRealmPaidTaxes.some(key => typeof key !== "string"))) throw new NotYet("rebuild this saved Over Realm completed-payment receipt", "R456");
   requireCounterSelfBinding(frame, undefined);
@@ -3302,6 +3303,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
 
       case "moveTo": {
+        // Refuse unsupported optional entries before receipts, RNG, or any card
+        // in the batch changes. Existing hosts retain their normal resolution.
+        if (op.to === "energy" && h.guardEnergyEntryBatch) h.guardEnergyEntryBatch(frame, frame.moveLoop?.ids ?? h.resolveRef(frame, op.target));
         // 23-2: under a card is not an area of its own, so it is its own move.
         // #1123: a host named by a selector is taken only when it matches one card. Several matches
         // are a choice the record never asked (the compiler makes a counted host a `choose`), and
@@ -3456,6 +3460,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             }
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
+          if (dest === "energy" && h.prepareEnergyEntry?.(frame, id, { player: owner, area: "energy", ...(op.mode ? { mode: op.mode } : {}) }) === "wait") return "wait";
           const deferred = defers(replaced);
           const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
           if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: op.cause ?? "effect", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
@@ -3483,6 +3488,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const picked = !!frame.specifiedPicks?.includes(id);
           const shown = op.reveal || (picked && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp))) || (picked && h.areaOf(id) === "hand" && (dest === "deck" || (dest === "life" && !op.faceUp)));
           const movedTo = h.move(id, dest, owner, { ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(op.mode ? { requestedMode: op.mode } : {}), position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          // The original movement owns this child only until its one native
+          // movement attempt returns (including a refused movement).
+          if (dest === "energy" && h.prepareEnergyEntry) frame.energyEntry = undefined;
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
           // question inside it is asked rather than lost. Nothing below is
