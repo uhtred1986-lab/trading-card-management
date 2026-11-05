@@ -1,6 +1,7 @@
 /** Exact stored policy fixtures observed without admitting their gameplay. */
 import assert from "node:assert/strict";
 import fixtures from "./fixtures/standing-negation-observation-5.json";
+import currentWhis from "./fixtures/standing-negation-whis-r479.json";
 import { CTX, fifty } from "./harness";
 import { RULES } from "../../src/lib/arena/vm";
 import type { EngineContext, PlayerId } from "../../src/lib/arena/types";
@@ -19,6 +20,9 @@ for (const [id, fixture] of Object.entries(fixtures)) {
   for (const row of fixture.records) records[id].bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage } as Script;
 }
 const ctx: EngineContext = { ...CTX, defs, scripts: { ...CTX.scripts, ...records } };
+const whisScripts = structuredClone(records["BT1-043"]);
+for (const row of currentWhis) whisScripts.bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage } as Script;
+const whisCtx: EngineContext = { ...ctx, scripts: { ...ctx.scripts, "BT1-043": whisScripts } };
 let cases = 0;
 const test = (name: string, fn: () => void) => { fn(); cases++; console.log(`PASS ${name}`); };
 function board(master: PlayerId) {
@@ -29,8 +33,8 @@ function board(master: PlayerId) {
     return { card, cardId, epoch: 0, hiddenCount: 0, side: "front", master: owner };
   };
   let transaction: Transaction = { previous: { version: 1, policy: "otherBattleWholeV1", candidates: [] }, history: empty(), arrivals: [], before: [] };
-  const advance = (arrivals: Card[] = []) => {
-    const current = observe(ctx, state, { ...transaction, arrivals });
+  const advance = (arrivals: Card[] = [], context = ctx) => {
+    const current = observe(context, state, { ...transaction, arrivals });
     const before: Card[] = (["p1", "p2"] as PlayerId[]).flatMap(owner => state.sides[owner].zones.battle.map(card => ({ card, cardId: state.cards[card].cardId,
       epoch: state.cards[card].zoneEpoch ?? 0, hiddenCount: state.cards[card].hiddenCount ?? 0, side: state.cards[card].flipped ? "back" : "front", master: owner })));
     transaction = { previous: current, history: settle(transaction.history, current), arrivals: [], before };
@@ -63,6 +67,15 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
     const t = b.advance([g]); assert.equal(affects(t.history, t.previous, g), true);
     b.state.effects = []; const expired = b.advance(); assert.equal(affects(expired.history, expired.previous, g), true);
     b.state.sides[master].zones.battle = [];
+    const gone = b.advance(); assert.equal(gone.history.active.length, 0); assert.equal(affects(gone.history, gone.previous, g), false);
+  });
+  test(`${master}: suppressor-ending protection handoff stays explicit with another candidate`, () => {
+    const b = board(master), a = b.put("king", "DB1-066"); b.advance([a]);
+    const g = b.put("goku", "TB1-097", other);
+    b.state.effects.push({ id: 90, target: g.card, kind: "negateSkills", value: 0, until: "turn", createdTurn: 1, ownerTurn: master, master });
+    b.advance([g]); b.state.effects = []; b.advance();
+    const second = b.put("gotenks", "BT10-153"); b.advance([second]);
+    b.state.sides[master].zones.battle = [second.card];
     assert.throws(() => b.advance(), /review self-protection reactivation/);
   });
   test(`${master}: per-index protection negation is externally observed`, () => {
@@ -74,6 +87,20 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
   test(`${master}: partial Whis stored record refuses instead of borrowing readable prefix`, () => {
     const b = board(master), a = b.put("king", "DB1-066"); b.advance([a]); b.put("whis", "BT1-043");
     assert.throws(() => b.advance(), /complete unconditional/);
+  });
+  test(`${master}: current R479 Whis stored Permanent protects arrival`, () => {
+    const b = board(master), a = b.put("king", "DB1-066"); b.advance([a], whisCtx);
+    const whis = b.put("whis", "BT1-043", other), t = b.advance([whis], whisCtx);
+    assert.equal(affects(t.history, t.previous, whis), false);
+    assert.ok(whisScripts.bySkill[20].unsupported.length, "unread Auto sibling remains unread");
+  });
+  test(`${master}: current R479 Whis pre-entry negation defeats protection`, () => {
+    const b = board(master), a = b.put("king", "DB1-066"); b.advance([a], whisCtx);
+    const whis = b.put("whis", "BT1-043", other);
+    b.state.effects.push({ id: 90, target: whis.card, kind: "negateSkills", value: 0, until: "turn", createdTurn: 1, ownerTurn: master, master });
+    const t = b.advance([whis], whisCtx); assert.equal(affects(t.history, t.previous, whis), true);
+    b.state.effects = [];
+    const expired = b.advance([], whisCtx); assert.equal(affects(expired.history, expired.previous, whis), true);
   });
   test(`${master}: hidden source and non-Battle location do not emit candidate`, () => {
     const b = board(master), a = b.put("king", "DB1-066"); b.state.cards[a.card].hidden = true;

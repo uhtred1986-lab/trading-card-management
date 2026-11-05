@@ -40,6 +40,19 @@ function unconditional(script: Script): boolean {
     && !script.price?.condition && !script.paidAdmission;
 }
 
+/** Capture exact native Battle occurrences before a synchronous mutation. */
+export function standingNegationBattleOccurrences(ctx: EngineContext, state: VmState): Card[] {
+  const board: Card[] = [];
+  for (const master of ["p1", "p2"] as PlayerId[]) for (const id of state.sides[master].zones.battle ?? []) {
+    const instance = state.cards[id], def = instance && ctx.defs[instance.cardId];
+    if (!instance || !def) return refuse("rebuild standing-negation Battle occurrence definition");
+    if (def.type !== "BATTLE" && def.type !== "TOKEN") continue;
+    board.push({ card: id, cardId: instance.cardId, epoch: instance.zoneEpoch ?? 0, hiddenCount: instance.hiddenCount ?? 0, side: instance.flipped ? "back" : "front", master });
+  }
+  if (new Set(board.map(card => card.card)).size !== board.length) refuse("duplicate standing-negation Battle occurrence");
+  return board;
+}
+
 /** Reads exact stored programs and raw printed skill identities, never statics,
  * attrsNow, keyword queries or a compiler. Existing unsupported records refuse;
  * tests may supply complete reviewed programs without admitting a live row. */
@@ -58,53 +71,51 @@ export function observeStandingNegation(ctx: EngineContext, state: VmState, tran
     if (![cardOf(candidate.source), ...candidate.targets].every(card => transaction.before.some(prior => same(prior, card)))) return refuse("standing-negation prior observation disagrees with transaction Battle snapshot");
   }
   if (transaction.arrivals.some(arrival => transaction.before.some(prior => same(prior, arrival)))) return refuse("standing-negation transaction cannot mark an existing occurrence as arriving");
-  const board: Card[] = [];
-  for (const master of ["p1", "p2"] as PlayerId[]) for (const id of state.sides[master].zones.battle ?? []) {
-    const instance = state.cards[id], def = instance && ctx.defs[instance.cardId];
-    if (!instance || !def) return refuse("rebuild standing-negation Battle occurrence definition");
-    if (def.type !== "BATTLE" && def.type !== "TOKEN") continue;
-    board.push({ card: id, cardId: instance.cardId, epoch: instance.zoneEpoch ?? 0, hiddenCount: instance.hiddenCount ?? 0, side: instance.flipped ? "back" : "front", master });
-  }
-  if (new Set(board.map(card => card.card)).size !== board.length) refuse("duplicate standing-negation Battle occurrence");
+  const board = standingNegationBattleOccurrences(ctx, state);
   if (transaction.arrivals.some(arrival => !board.some(card => same(card, arrival))) || new Set(transaction.arrivals.map(card => card.card)).size !== transaction.arrivals.length) refuse("rebuild standing-negation transaction arrivals");
-  // Validation is read-only and checks the PRE-mutation observation. A stale
-  // current observation is deliberately not substituted to recover history.
+  const lines = board.flatMap(occurrence => {
+    const instance = state.cards[occurrence.card], def = ctx.defs[occurrence.cardId];
+    if (instance.hidden) return [];
+    const scripts = programsOf(ctx, def, occurrence.side);
+    return parseSkills((occurrence.side === "back" ? def.back?.skill : def.skill) ?? null)
+      .filter(skill => skill.kind === "permanent").map(skill => ({ occurrence, skill, script: scripts.bySkill[skill.index] }));
+  });
+  const sources: { source: Source; enabled: boolean }[] = [];
+  for (const { occurrence, skill, script } of lines) {
+    // Exact reviewed wording is a missing-record refusal guard only. Execution
+    // still requires the exact complete stored operation below, never text.
+    const intent = skill.effect.trim().toLowerCase() === "negate the skills of all other battle cards.";
+    if (!intent && !(script && contains(script.ops, "whole"))) continue;
+    if (!script || !unconditional(script) || skill.bond !== null || skill.sparking !== null || skill.granted) return refuse("observe only complete unconditional standing-negation and self-protection records");
+    if (canonical(script.ops) !== canonical([wholeOperation])) refuse("observe only all-other-Battle whole-negation policy");
+    sources.push({ source: { ...occurrence, skillIndex: skill.index, skillIdentity: canonical(script) }, enabled: !externallyNegatedSkill(state, occurrence.card, skill.index, skill.kind) });
+  }
+  for (const effect of state.effects) {
+    if (effect.kind !== "copiedSkills" || !effect.copied || !board.some(card => card.card === effect.target && !state.cards[card.card].hidden)) continue;
+    const def = ctx.defs[effect.copied.cardId];
+    if (def && effect.copied.skills.some(index => contains(programsOf(ctx, def, effect.copied!.side).bySkill[index]?.ops ?? [], "whole"))) refuse("observe copied standing negators with reviewed grant identities");
+  }
+  // Unaffected boards need no protection analysis or new history requirement.
+  // Prior history was already validated, so removal of the final source still
+  // produces an explicit empty observation for the mutation owner to settle.
+  if (!sources.length) return { version: 1, policy: "otherBattleWholeV1", candidates: [] };
   if (state.effects.some(effect => effect.kind === "forbid" && effect.forbid?.what === "beNegated")) refuse("observe timed beNegated protection with reviewed source qualification");
-  // The bounded observer has no cross-area protection pass. Refuse a possible
-  // external aura instead of silently assuming it cannot protect Battle cards.
   for (const instance of Object.values(state.cards)) {
     if (board.some(card => card.card === instance.id)) continue;
     const def = ctx.defs[instance.cardId];
     if (!def) continue;
-    const side = instance.flipped ? "back" : "front";
-    const scripts = programsOf(ctx, def, side);
+    const scripts = programsOf(ctx, def, instance.flipped ? "back" : "front");
     for (const script of Object.values(scripts.bySkill)) if (contains(script.ops, "protection")
       && canonical(script.ops) !== canonical([protectionOperation]) && canonical(script.ops) !== canonical([attackProtection, protectionOperation])) refuse("observe external-area beNegated protection with reviewed validity");
   }
-  const sources: { source: Source; enabled: boolean }[] = [];
+  if (state.effects.some(effect => effect.kind === "copiedSkills" && board.some(card => card.card === effect.target && !state.cards[card.card].hidden))) refuse("observe copied standing negators or protectors with reviewed grant identities");
   const protectors = new Set<string>();
-  for (const occurrence of board) {
-    const instance = state.cards[occurrence.card], def = ctx.defs[occurrence.cardId];
-    if (instance.hidden) continue;
-    const scripts = programsOf(ctx, def, occurrence.side);
-    const skills = parseSkills((occurrence.side === "back" ? def.back?.skill : def.skill) ?? null);
-    if (state.effects.some(effect => effect.target === occurrence.card && effect.kind === "copiedSkills")) refuse("observe copied standing negators or protectors with reviewed grant identities");
-    for (const skill of skills) {
-      const script = scripts.bySkill[skill.index];
-      if (skill.kind !== "permanent") continue;
-      if (!script || script.unsupported.length) return refuse("observe only complete unconditional standing-negation and self-protection records");
-      const whole = contains(script.ops, "whole"), protection = contains(script.ops, "protection");
-      if (!whole && !protection) continue;
-      if (!unconditional(script) || skill.bond !== null || skill.sparking !== null || skill.granted) refuse("observe only complete unconditional standing-negation and self-protection records");
-      if (whole) {
-        if (canonical(script.ops) !== canonical([wholeOperation])) refuse("observe only all-other-Battle whole-negation policy");
-        sources.push({ source: { ...occurrence, skillIndex: skill.index, skillIdentity: canonical(script) }, enabled: !externallyNegatedSkill(state, occurrence.card, skill.index, skill.kind) });
-      }
-      if (protection) {
-        if (canonical(script.ops) !== canonical([protectionOperation]) && canonical(script.ops) !== canonical([attackProtection, protectionOperation])) refuse("observe only unconditional self beNegated protection");
-        if (!externallyNegatedSkill(state, occurrence.card, skill.index, skill.kind)) protectors.add(occurrence.card);
-      }
-    }
+  for (const { occurrence, skill, script } of lines) {
+    if (!script || script.unsupported.length) return refuse("observe only complete unconditional standing-negation and self-protection records");
+    if (!contains(script.ops, "protection")) continue;
+    if (!unconditional(script) || skill.bond !== null || skill.sparking !== null || skill.granted) refuse("observe only complete unconditional standing-negation and self-protection records");
+    if (canonical(script.ops) !== canonical([protectionOperation]) && canonical(script.ops) !== canonical([attackProtection, protectionOperation])) refuse("observe only unconditional self beNegated protection");
+    if (!externallyNegatedSkill(state, occurrence.card, skill.index, skill.kind)) protectors.add(occurrence.card);
   }
   const candidateKeys = new Map(sources.map(candidate => [standingNegationSourceKey(candidate.source), candidate]));
   for (const target of board.filter(card => protectors.has(card.card))) {
