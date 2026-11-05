@@ -707,6 +707,10 @@ export const READING_RULES: ReadingRule[] = [
     body: "A real face-down-to-face-up transition in Life emits one existing faceUpTurned event. The flipped card’s own Auto and its controller’s watchers answer; an explicit play-this-card-from-hand Auto also answers from hand. A this-card-in-Life Auto cannot answer another Life card’s transition. By one of your red card skills requires both red and the skill’s captured master, even if its source changed control or left play. Already face-up cards and face changes outside Life emit no Life transition. An own-Life Auto stamps its original area occurrence: a self selection in Life requires that same occurrence still face up, while its independent effects and legitimate later references outside Life remain valid. The obsolete stored-record rejection is removed after testing all eight printed Auto records through stored programs, including paid Life-to-Battle actions and EX19-01’s hand watcher.",
   },
   {
+    title: "Combo replacement Auto timing (R-424)",
+    body: "Turles's own Combo-to-Drop self-play replacement Auto activates with Counter:Play timing before and after its effect. A failed substitute resumes the original departure and any other unused replacement choices, bound to the original Combo occurrence. Saved affected legacy continuations require rebuilding. Activation prices/taxes and more complex substitute bodies remain explicitly unsupported; Permanent replacements are not new Auto activations.",
+  },
+  {
     title: "Negation protection before entry (R-423)",
     body: "Playing a card with full or partial skills negated checks protection where the card is before entry. A Battle-only Permanent cannot protect that arrival; an explicitly any/all-area self Permanent can. Its stored fromArea:any qualification retains opponent-only and source-description limits. Other Permanents keep their normal areas. A rule protecting original skills only is not immunity for acquired skills, and a rule protecting this skill only is not immunity for the whole card; those narrower contracts remain unread. Old records missing the area or widening original-only protection must be rebuilt.",
   },

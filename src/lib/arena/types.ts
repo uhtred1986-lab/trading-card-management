@@ -227,6 +227,8 @@ export type MoveReason = "ko" | "effect" | "powerZero" | "rule" | "cost" | "play
  */
 export interface ReplacementChoice {
   source: string;
+  /** Standing source occurrence or installed timed-effect identity (RM 9-10-2-3). */
+  occurrence?: string;
   to?: Area;
   position?: "top" | "bottom";
   mode?: Mode;

@@ -1719,6 +1719,11 @@ export interface ScriptFrame {
   /** Internal end-of-effect boundary, after nested invocations and before
    * the runner permits a checkpoint. Never a card-text operation. */
   skillPlayFinish?: { version: 1; scope: number };
+  replacementAuto?: import("./replacement-auto").ReplacementAuto;
+  replacementFallback?: import("./replacement-auto").ReplacementAuto;
+  /** Original Combo departure waiting beneath a replacement scope; only its
+   * completed original move credits this parent's may/did witness. */
+  replacementMove?: { card: string; epoch: number };
   /** Exact Counter kind and the unknown-target window it answered. */
   counterPlay?: true;
   counterAnswerScope?: number;
@@ -3289,6 +3294,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
           const deferred = defers(replaced);
+          const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
+          if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: op.cause ?? "effect", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
+          if (substitute?.replacementAuto) frame.replacementMove = { card: id, epoch: substitute.replacementAuto.epoch };
           // 3-10: "when this card is sent from your deck to your Warp by your
           // <Heles> card's skill" (BT30-106) asks where it came from, which is
           // gone once it has moved.
@@ -3319,7 +3327,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (deferred) {
             frame.moveLoop.leftBattle = undefined;
             frame.moveLoop.index++;
-            h.interrupt(substituteFrame(h, id, replaced!), frame);
+            h.interrupt(substitute!, frame);
             return "done";
           }
           // 3-1: "when this card is removed from a Battle Area by a skill",
@@ -4102,7 +4110,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
                 source: frame.card,
                 target: id,
                 kind: "replaceLeave",
-                value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target: bound, vars: capturedVars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
+                value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional, target: bound, vars: capturedVars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
                 until: op.until,
               });
             }
@@ -4112,7 +4120,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               source: frame.card,
               target: "",
               kind: "replaceLeave",
-              value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
+              value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional, target, vars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
               until: op.until,
             });
           }

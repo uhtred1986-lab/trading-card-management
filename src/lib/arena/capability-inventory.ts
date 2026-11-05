@@ -465,6 +465,8 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-replacement-auto-guard", file: "src/lib/arena/vm/replacement-auto.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-424", detail: "Affected legacy replacement frames and malformed saved occurrence identities require rebuilding before replacement Auto Counter timing." },
+  { id: "arena-vm-notyet-replacement-auto-gap", file: "src/lib/arena/vm/replacement-auto.ts", ordinal: 2, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-424", detail: "Replacement Auto activation prices/taxes and bodies beyond the bounded own Combo-to-Drop self-play require a suspendable replacement activation continuation; refused before original movement." },
   { id: "arena-vm-notyet-skill-play-scope", file: "src/lib/arena/vm/skill-play-scope.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-421/R-422; persisted immediate-effect lifetimes", detail: "Missing affected legacy provenance, invalid versions, malformed scope phase/profile/arrival occurrences, ancestry or window ownership, and invalid saved arrival bindings require rebuilding the match. Unrelated saved effects remain usable." },
   { id: "arena-vm-notyet-z-awaken-bindings", file: "src/lib/arena/vm/activate.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-395; RM 22-46-3, 22-46-6", detail: "An old saved Z-Awaken continuation without its original source and selected Leader occurrence bindings interrupts instead of replaying the obsolete ordinary-play procedure." },
   { id: "arena-vm-notyet-fusion-identity", file: "src/lib/arena/vm/flow.ts", ordinal: 2, kind: "not-yet", classification: "validated-guard", citation: "persisted typed records (#907)", detail: "A saved Fusion skill whose typed material identity is missing or inconsistent interrupts before effect or payment; rebuild the rule record (#907)." },
@@ -546,6 +548,8 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-replacement-auto-guard": "replacementGuard|-|-",
+  "arena-vm-notyet-replacement-auto-gap": "replacementGap|-|-",
   "arena-vm-notyet-skill-play-scope": "rebuildScope|-|-",
   "arena-vm-notyet-z-awaken-bindings": "requireZAwakenBindings|-|!valid",
   "arena-vm-notyet-fusion-identity": "stepProgram|-|frame.fusionIdentity || sourceScript?.price?.fusion !== undefined > gap",

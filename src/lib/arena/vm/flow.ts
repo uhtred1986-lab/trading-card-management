@@ -61,8 +61,9 @@ import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEff
 import { pendStandingPower, returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { openSkillPlayWindow } from "./battle";
+import { beginReplacementAuto, prepareReplacementAuto, requireReplacementOrigin, sameReplacementOccurrence } from "./replacement-auto";
 import { arrivalAutoWasActive, finishSkillPlayScope, releaseSkillPlayWindow, requireSkillEffectOrigin, scopeForFinish, startSkillPlayScope } from "./skill-play-scope";
-import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
+import { replacementPrompt, routeOf, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
 import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
@@ -1280,10 +1281,57 @@ function zoneOfCard(state: VmState, id: string): string | null {
  * The fixed opening words retained for older interrupted states and decision
  * rows. New outcomes use the typed `outcome` field.
  */
+function stepReplacementFallback(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
+  const original = frame.replacementFallback!;
+  const finishParentMove = (completed: boolean) => {
+    const parent = state.programs.find(item => item.replacementMove?.card === original.card && item.replacementMove.epoch === original.epoch);
+    if (parent) { if (completed) parent.acted = (parent.acted ?? 0) + 1; delete parent.replacementMove; }
+  };
+  if (!sameReplacementOccurrence(state, original)) { finishParentMove(false); return "done"; }
+  let selected: import("../types").ReplacementChoice | undefined;
+  if (original.awaiting) {
+    const { choices, allowNone } = original.awaiting;
+    const index = state.lastMode;
+    if (index === null || (!choices[index] && !(allowNone && index === choices.length))) throw new IllegalAction("choose an offered original-departure replacement");
+    selected = choices[index]; state.lastMode = null; delete original.awaiting;
+  } else {
+    const choices = replacementChoices(ctx, game, state, original.card, original.move.reason, { actor: original.move.actor, requestedTo: "drop", ...(original.move.cleanupDeparture ? { comboCleanup: true } : {}) })
+      .filter(choice => !original.used.some(used => used.source === choice.source && used.skillIndex === choice.skillIndex && used.occurrence === choice.occurrence));
+    const allowNone = choices.length > 0 && choices.every(choice => choice.optional);
+    if (choices.length > 1 || allowNone) {
+      original.awaiting = { choices, allowNone };
+      state.programs.unshift(frame);
+      const prompt = replacementPrompt(state.cards[original.card].cardId, "drop", choices, allowNone);
+      state.prompt = { kind: "replaceMove", player: masterOf(game, state, original.card), card: original.card, ...prompt };
+      return "wait";
+    }
+    selected = choices[0];
+  }
+  const route = selected ? routeOf(selected) : null;
+  const deferred = !!route?.ops?.length;
+  let substitute: ScriptFrame | undefined;
+  if (deferred && route) {
+    substitute = { ops: route.ops!, ip: 0, vars: structuredClone((selected as typeof selected & { vars?: ScriptFrame["vars"] })?.vars ?? {}), card: route.source ?? original.card, master: route.master ?? frame.master, subject: original.card, replacing: original.card, skillIndex: route.skillIndex, ...(route.optional ? { offered: true } : {}) };
+    prepareReplacementAuto(ctx, game, state, substitute, original.card, "drop", original.move);
+    const used = [...original.used, { source: substitute.card, skillIndex: substitute.skillIndex, occurrence: selected!.occurrence! }];
+    if (substitute.replacementAuto) substitute.replacementAuto.used = used;
+    else { original.used = used; state.programs.unshift(frame); }
+  }
+  const cleanup = state.battle?.endCombo?.substituteDeparture;
+  if (cleanup && original.move.cleanupDeparture) cleanup.active = true;
+  try { moved(ctx, game, state, ev, original.card, "drop", { ...original.move, replaced: deferred ? { ...route!, deferred: true } : route }); }
+  finally { if (cleanup) delete cleanup.active; }
+  if (substitute) state.programs.unshift(substitute);
+  else finishParentMove(route === null && findCard(state, original.card)?.zone === "drop");
+  return "done";
+}
+
 function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "done" | "wait" {
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (frame.replacementFallback) return stepReplacementFallback(ctx, game, state, ev, frame);
+    if (frame.replacementAuto && !beginReplacementAuto(ctx, game, state, ev, frame)) return "done";
     if (frame.skillPlayFinish) {
       const scope = scopeForFinish(state, frame);
       if (scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";
@@ -1291,6 +1339,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     }
     requireZAwakenBindings(frame);
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    requireReplacementOrigin(frame, sourceScript);
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
     }

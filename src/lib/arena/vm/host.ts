@@ -57,6 +57,7 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
+import { prepareReplacementAuto } from "./replacement-auto";
 import { applyArrivalBindings, deferArrivalOperation } from "./skill-play-binding";
 import { rebuildScope, witnessArrivalAutos } from "./skill-play-scope";
 import type { EngineContext, GameEvent } from "../types";
@@ -513,6 +514,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // Every [Permanent] replacement standing in front of this departure, for
     // the interpreter's two loops that can ask 9-10-2/9-10-3's question
     // (`vm/replace.ts`, the legacy `replacementChoicesFor`).
+    prepareReplacement: (frame, id, to, cause) => prepareReplacementAuto(ctx, game, state, frame, id, to, cause),
     replacementsFor: (id, reason, opts) => replacementChoices(ctx, game, state, id, reason, opts ?? {}),
     // 9-6: a play *being resolved* — declared and paid for, not landed — is
     // `state.resolving`, which `vm/battle.ts`'s `openPlayCounterWindow` writes

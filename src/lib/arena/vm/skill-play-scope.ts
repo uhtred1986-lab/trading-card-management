@@ -11,7 +11,7 @@ export type ArrivalBound = 0 | 1 | "many";
 export interface ImmediatePlayProfile { arrivals: ArrivalBound; tokens: boolean; explicitWindow: boolean }
 export interface SkillEffectOrigin {
   version: 1 | 2;
-  kind: "activate" | "auto" | "counter" | "delayed" | "hook";
+  kind: "activate" | "auto" | "counter" | "delayed" | "hook" | "replacement";
   scope?: number;
 }
 export interface SkillPlayScope {
@@ -80,7 +80,7 @@ export function immediatePlayProfile(ops: readonly Op[], initial: Bindings = {})
 export function startSkillPlayScope(state: VmState, frame: ScriptFrame): SkillPlayScope | null {
   const origin = frame.skillEffectOrigin;
   if (!origin) return null;
-  if (![1, 2].includes(origin.version) || !["activate", "auto", "counter", "delayed", "hook"].includes(origin.kind)) rebuildScope("rebuild this saved skill-effect provenance");
+  if (![1, 2].includes(origin.version) || !["activate", "auto", "counter", "delayed", "hook", "replacement"].includes(origin.kind)) rebuildScope("rebuild this saved skill-effect provenance");
   const profile = immediatePlayProfile(frame.ops);
   // Version 1 certified lifetime ancestry only, before shared timing existed.
   // A non-play effect needs no new timing; an affected active root must rebuild.

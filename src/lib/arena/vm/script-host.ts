@@ -270,6 +270,7 @@ export interface ScriptHost {
   // ── replacements and the play being resolved (9-10, 9-6) ─────────────────
 
   /** The replacements standing in front of this card's departure, most-specific order. */
+  prepareReplacement?(frame: ScriptFrame, id: string, to: string, cause: import("./replacement-auto").ReplacementMove): void;
   replacementsFor(id: string, reason: MoveReason | undefined, opts?: ReplacementLookup): ReplacementChoice[];
   /** The card whose play is being resolved, for a [Counter: Play] (9-6). */
   resolvingCard(): string | null;

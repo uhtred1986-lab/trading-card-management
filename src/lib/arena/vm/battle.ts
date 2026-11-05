@@ -66,6 +66,7 @@
  *
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
+import { prepareReplacementAuto } from "./replacement-auto";
 import type { SkillPlayScope } from "./skill-play-scope";
 import { counterBindingProblem } from "./skill-play-binding";
 import { battleIntact, damageRule } from "./battle-damage";
@@ -462,12 +463,16 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
               // Combo-to-Drop, and a substitute's own Drop move is tagged as
               // cleanup); a subject that does not reach Drop supplies no
               // 8-5-10-1 special occurrence.
-              end.departureCursor = (end.departureCursor ?? 0) + 1;
               const origin = b.comboOrigins?.[id];
               const hidden = state.cards[id]?.hidden;
               // Every substitute uses the same saved script interpreter, so
               // captured variables and questions have one continuation path.
               const deferred = !!replaced?.ops?.length;
+              const substituteFrame: ScriptFrame | undefined = deferred && replaced ? { ops: replaced.ops!, ip: 0, vars: structuredClone(substituteVars), card: replaced.source ?? id,
+                master: replaced.master ?? masterOf(game, state, id), subject: id, replacing: id,
+                ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) } : undefined;
+              if (substituteFrame) prepareReplacementAuto(ctx, game, state, substituteFrame, id, "drop", { owner: state.cards[id].owner, cleanupDeparture: true });
+              end.departureCursor = (end.departureCursor ?? 0) + 1;
               const chosen = replaced && deferred ? { ...replaced, deferred: true } : replaced;
               moved(ctx, game, state, ev, id, "drop", { owner: state.cards[id].owner, cleanupDeparture: true,
                 replaced: chosen, replacementEvent: eventKey });
@@ -477,9 +482,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
               if (deferred && replaced?.ops?.length) {
                 end.substituteDeparture = { card: id,
                   ...(origin ? { origin } : {}), ...(hidden ? { hidden: true } : {}) };
-                state.programs.unshift({ ops: replaced.ops, ip: 0, vars: structuredClone(substituteVars), card: replaced.source ?? id,
-                  master: replaced.master ?? masterOf(game, state, id), subject: id, replacing: id,
-                  ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
+                state.programs.unshift(substituteFrame!);
                 if (top) top.reask = true;
                 return;
               }

@@ -58,10 +58,10 @@ let applyingReplacement = false;
 const LIFE_ZONE = "life";
 
 /** Every replacement standing in front of this card's departures, in the order the statics are read (the legacy order). */
-function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { source: string; master: PlayerId; skillIndex?: number; r: Replacement }[] {
+function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { source: string; master: PlayerId; skillIndex?: number; occurrence: string; r: Replacement }[] {
   const out = staticsNow(ctx, game, state)
     .filter((e) => e.kind === "replaceLeave" && e.target === id)
-    .map((e) => ({ source: e.source, master: e.master, ...(e.skillIndex === undefined ? {} : { skillIndex: e.skillIndex }), r: e.value as Replacement }));
+    .map((e) => ({ source: e.source, master: e.master, occurrence: `standing:${state.cards[e.source]?.zoneEpoch ?? 0}`, ...(e.skillIndex === undefined ? {} : { skillIndex: e.skillIndex }), r: e.value as Replacement }));
   // Timed replacements retain their selector and re-evaluate it at each
   // departure, including cards that enter the Battle Area after activation.
   for (const e of state.effects) {
@@ -70,7 +70,7 @@ function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
     const r: Replacement = { ...stored, source: stored.source ?? e.source, master: stored.master ?? e.master };
     const target = r.target ?? { special: "self" as const };
     const frame: ScriptFrame = { ops: [], ip: 0, vars: r.vars ?? {}, card: e.source, master: e.master };
-    if (resolveSelector(ctx, game, state, frame, target).includes(id)) out.push({ source: e.source, master: e.master, ...(r.skillIndex === undefined ? {} : { skillIndex: r.skillIndex }), r });
+    if (resolveSelector(ctx, game, state, frame, target).includes(id)) out.push({ source: e.source, master: e.master, occurrence: `timed:${e.id}`, ...(r.skillIndex === undefined ? {} : { skillIndex: r.skillIndex }), r });
   }
   return out;
 }
@@ -127,7 +127,7 @@ export function replacementChoices(
   const out: ReplacementChoice[] = [];
   const from = findCard(state, id)?.zone;
   const heldDestination = !!opts.requestedTo && (inPlayZones(game).includes(opts.requestedTo) || game.zones[opts.requestedTo]?.host === true);
-  for (const { source, master, skillIndex, r } of standing(ctx, game, state, id)) {
+  for (const { source, master, skillIndex, occurrence, r } of standing(ctx, game, state, id)) {
     // Existing unscoped replacements still answer only departures out of
     // play. The native cleanup explicitly owns its older Combo exception.
     if (!r.from && !opts.comboCleanup && (from === "combo" || heldDestination)) continue;
@@ -135,7 +135,7 @@ export function replacementChoices(
     if (!causeMatches(game, state, id, r, reason, opts.actor, opts.requestedTo)) continue;
     // A timed substitute may refer to variables captured when installed.
     // Keep them on the frozen choice through a replacement prompt/reload.
-    out.push({ source, ...(r.to ? { to: r.to } : {}), ...(r.position ? { position: r.position } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.vars ? { vars: r.vars } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
+    out.push({ source, occurrence, ...(r.to ? { to: r.to } : {}), ...(r.position ? { position: r.position } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.vars ? { vars: r.vars } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
   }
   return offerable(ctx, game, state, id, out);
 }
