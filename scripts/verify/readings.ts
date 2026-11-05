@@ -1202,8 +1202,10 @@ import type { VmState } from "../../src/lib/arena/vm/state";
   assert.ok(!fires("[Auto] When you play this card, draw 1 card.", "placed"));
   assert.ok(!fires("[Auto] When you play this card, draw 1 card.", "evolvedInto"));
 
-  // 12-2: activating an Extra is playing it.
-  assert.ok(fires("[Auto] When you activate this card, draw 1 card.", "played"));
+  assert.ok(fires("[Auto] When you play this card, draw 1 card.", "played"));
+  // R460 / 12-1-3: Extra card activation is its own event, not a play arrival.
+  assert.ok(fires("[Auto] When you activate this card, draw 1 card.", "selfExtraActivated"));
+  assert.ok(!fires("[Auto] When you activate this card, draw 1 card.", "played"));
   // One sentence naming two moments belongs to both triggers; only one of
   // them ever happens to a given copy.
   assert.ok(fires("[Auto] When you play or combo with this card, draw 1 card.", "played"));
