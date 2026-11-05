@@ -15,8 +15,9 @@ import { policyTurn, applyDecision } from "../../src/lib/arena/policy/boundary";
 import { answerFor, resolveAnswer } from "../../src/lib/arena/policy/contract";
 import { promptView } from "../../src/lib/arena/vm/view";
 import type { PinnedMatch } from "../../src/lib/arena/browser";
-import { automaticPriceHost } from "../../src/lib/arena/vm/auto-costs";
+import { automaticPriceHost, automaticResourcesFinish } from "../../src/lib/arena/vm/auto-costs";
 import { stepScript } from "../../src/lib/arena/vm/script";
+import { skillsOf } from "../../src/lib/arena/text/cards";
 import { emptyFilter } from "../../src/lib/arena/text/filters";
 import type { ScriptFrame } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
@@ -53,6 +54,8 @@ for(const p of ["p1","p2"] as const){
  // Resource-frame protocol: a forced pool is bound before a resource-mode
  // suspension, even though it needs no card-choice UI of its own.
  for(const fault of ["payer","source"]){const s=fresh(p),z=s.sides[p].zones.zDeck[0],pool=s.sides[p].zones.zEnergy.slice(),price={...freePrice(),pooled:[{cost:"zEnergy",side:"you",area:"zEnergy",n:4}]},plan=planCost(ctx,game,s,p,price,z);assert.ok(plan.ok);const f:ScriptFrame={card:z,master:p,ops:[],ip:0,vars:{}};primeFramePools(game,s,f,price);assert.equal(f.poolPayment?.selection.pools[0].cards.length,4);const saved=copy(f);const target=fault==="payer"?pool[0]:z;s.cards[target].zoneEpoch=(s.cards[target].zoneEpoch??0)+2;assert.throws(()=>chooseFramePools(ctx,game,s,saved,price,copy(plan.payment)));assert.throws(()=>requirePoolOccurrence(s,saved,"zEnergy",pool[0]));cases++;}
+ // A saved pool proof uses selected X, before the live frame commits it.
+ for(const staleX of [undefined,0,5]){const s=fresh(p),z=s.sides[p].zones.zDeck[0],price={...freePrice(),pooled:[{cost:"zEnergy",side:"you",area:"zEnergy",n:2}]},plan=planCost(ctx,game,s,p,price,z);assert.ok(plan.ok);while(s.sides[p].zones.deck.length>2)moveCard(s,game,s.sides[p].zones.deck.at(-1)!,"hand",{owner:p});const f:ScriptFrame={card:z,master:p,ops:[{op:"draw",n:{x:true}}],ip:0,vars:{},...(staleX!==undefined?{x:staleX}:{}),autoCost:{skill:skillsOf(defs.AUTO)[0],effect:[],costs:["zEnergy"],stage:"pools",selectedChoice:0,choices:[{price,payment:plan.payment,label:"X=2",x:2}]}};const before=copy(s);assert.equal(automaticResourcesFinish(ctx,game,s,copy(f),plan.payment),true);f.autoCost!.choices[0].x=3;assert.equal(automaticResourcesFinish(ctx,game,s,copy(f),plan.payment),false);assert.deepEqual(s,before);assert.equal(f.x,staleX);cases++;}
  // Distinct physical state or a positional reader prevents class folding.
  for(const distinct of [false,true]){const s=fresh(p),z=s.sides[p].zones.zDeck[0],pool=s.sides[p].zones.zEnergy.slice(),price={...freePrice(),pooled:[{cost:"zEnergy",side:"you",area:"zEnergy",n:2}]},plan=planCost(ctx,game,s,p,price,z);assert.ok(plan.ok);if(distinct)pool.forEach((id,i)=>s.cards[id].zoneEpoch=i+20);const f:ScriptFrame={card:z,master:p,ops:distinct?[]:[{op:"choose",sel:{side:"you",area:"zEnergy",take:1,count:1},as:"first"}],ip:0,vars:{}};assert.equal([...pooledPaymentVariants(ctx,game,s,f,price,plan.payment)].length,6);cases++;}
  // A declared mode restriction applies to the default witness and forced

@@ -819,9 +819,14 @@ function sameAutomaticPayment(a: VmPayment, b: VmPayment): boolean {
 /** Exact selected resources must leave the following action price payable. */
 export function automaticResourcesFinish(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, payment: VmPayment): boolean {
   const clone = structuredClone(state);
-  try { chargeAutomaticPayment(ctx, game, clone, [], frame, payment, frame.autoCost!.costs); }
+  const cost = frame.autoCost!;
+  const choice = cost.choices[cost.selectedChoice!];
+  // The pool question precedes beginAutomaticCost, which commits X to the
+  // live frame. Its isolated completion proof must already use that choice.
+  const paying = { ...frame, ...(choice?.x !== undefined ? { x: choice.x } : {}) };
+  try { chargeAutomaticPayment(ctx, game, clone, [], paying, payment, cost.costs); }
   catch (err) { if (err instanceof IllegalAction && !(err instanceof NotYet)) return false; throw err; }
-  return canFinishAutomaticPrice(ctx, game, clone, frame);
+  return canFinishAutomaticPrice(ctx, game, clone, paying);
 }
 
 /** Set the paid cursor before running any action price; reload cannot charge
