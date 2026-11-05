@@ -1,3 +1,4 @@
+import { isOverRealmPayment, overRealmPaymentRefusals, retainOverRealmSelection } from "./over-realm-cost";
 /**
  * A move, as a declaration — and the refusal that comes with it.
  *
@@ -263,7 +264,9 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
     return out.length ? out : [{ card: line.card, skill: line.skillIndex, why: short, price: priceFor(ctx, game, state, def, line.card, bound) }];
   }
   const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
-  if (!why.length && isOrderedZAwaken(line)) {
+  if (!why.length && isOverRealmPayment(line)) {
+    if (!gates.after.length) why.push(...overRealmPaymentRefusals(ctx, game, state, player, line));
+  } else if (!why.length && isOrderedZAwaken(line)) {
     if (!gates.after.length) why.push(...orderedZAwakenRefusals(ctx, game, state, player, line));
   } else if (!why.length && isFusionPayment(line)) {
     if (!gates.after.length) why.push(...fusionPaymentRefusals(ctx, game, state, player, line));
@@ -508,7 +511,7 @@ export function legalActionsOf(ctx: EngineContext, game: GameDefinition, state: 
     const line = c.card !== null && c.skill !== undefined ? lineOf(ctx, game, state, def, c.card, c.skill) : undefined;
     const actionPrice = !c.alt && line && !line.keyword ? line.script?.price?.ops : undefined;
     // Fusion has no determined resource amount until its materials move.
-    const cost = line && isFusionPayment(line) ? undefined : actionCostOf(c.price, actionPrice) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
+    const cost = line && (isFusionPayment(line) || isOverRealmPayment(line)) ? undefined : actionCostOf(c.price, actionPrice) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
     const paymentPreview = paymentPreviewFor(ctx, game, state, player, c);
     out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, game, state, def, c, true), ...(cost ? { cost } : {}), ...(paymentPreview ? { paymentPreview } : {}) });
   }
@@ -936,11 +939,14 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (def.again !== true) answered(state);
     return "done";
   }
-  if (line && (isFusionPayment(line) || isOrderedZAwaken(line))) {
+  if (line && (isFusionPayment(line) || isOrderedZAwaken(line) || isOverRealmPayment(line))) {
+    if (isOverRealmPayment(line) && overRealmPaymentRefusals(ctx, game, state, player, line, action).length) throw new IllegalAction("the Over Realm costs cannot be completed");
     if (isOrderedZAwaken(line) && orderedZAwakenRefusals(ctx, game, state, player, line, action).length) throw new IllegalAction("the Z-Awaken costs cannot be completed");
     resolveActivation(ctx, game, state, ev, player, line, chosen.x);
     const saved = state.programs.find(f => f.card === line.card && f.keywordPrice?.zAwaken)?.keywordPrice?.zAwaken;
     if (saved) retainZAwakenSelection(state, saved, action);
+    const overRealm = state.programs.find(f => f.card === line.card && f.keywordPrice?.overRealm)?.keywordPrice?.overRealm;
+    if (overRealm) retainOverRealmSelection(state, overRealm, action);
     if (def.again !== true) answered(state);
     return "done";
   }

@@ -1,6 +1,7 @@
 import { guardCounterNonhandTaxPayment } from "./counter-nonhand-tax";
 import { validCounterEnergyOrigin } from "./counter-energy";
 import { requireCounterActivationOrigin } from "./counter-activation-origin";
+import { overRealmReturnCurrent, stepOverRealmLateTax } from "./over-realm-cost";
 import { validCounterDropOrigin } from "./counter-drop";
 import { requireMarkerHistoryFrame, markerHistoryContract } from "./paid-markers";
 import { counterChoiceTail } from "./counter-continuation";
@@ -1360,6 +1361,8 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   if (!frame) return "done";
   try {
     if (!guardCounterNonhandTaxPayment(ctx, state, ev, frame)) return "done";
+    if (frame.overRealmReturn !== undefined && !overRealmReturnCurrent(state, frame)) return "done";
+    if (frame.overRealmLateTax) return stepOverRealmLateTax(ctx, game, state, ev, frame);
     if (!guardExtraCounterTaxPayment(ctx, state, ev, frame)) return "done";
     if (!guardCounterSelfTaxPayment(state, frame, parent => programSourceScript(ctx, state, parent))) return "done";
     if (frame.replacementFallback) return stepReplacementFallback(ctx, game, state, ev, frame);

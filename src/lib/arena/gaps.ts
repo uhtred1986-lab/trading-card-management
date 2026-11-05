@@ -221,6 +221,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   extraActivatedFromHand: "when you activate an Extra Card from your hand",
   extraActivated: "when you activate an Extra Card",
   playedUsingOverRealm: "when this card is played using [Over Realm]",
+  playedUsingDarkOverRealm: "when this card is played using [Dark Over Realm]",
   spiritBoostPaid: "when you pay a [Spirit Boost] cost from this card",
   flippedFaceUp: "when a card in your life is flipped face up",
   offenseStart: "at the start of the offense step",

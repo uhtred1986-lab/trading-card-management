@@ -1,4 +1,5 @@
 import { counterActivationFrom } from "./counter-activation-origin";
+import { taxReceiptIdentity } from "./tax-receipt";
 import { requirePaidMarkers } from "./paid-markers";
 import { requireEnergyCouponEffects } from "./energy-coupon-saves";
 import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
@@ -1483,6 +1484,8 @@ export function keywordPlayTaxes(
 
 /** One price a rule in force charges for an action (20-14-1), with the words a refusal names it by. */
 export interface TaxInForce {
+  /** Optional immutable identity for a native declaration that prepays this tax. */
+  identity?: string;
   ops: Op[];
   by: string | null;
   until: EffectUntil;
@@ -1507,7 +1510,7 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; counted?: boolean } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; counted?: boolean; withIdentity?: boolean } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
     // `counted` asks the other half (#677): the priced rules whose free uses
@@ -1516,7 +1519,7 @@ export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState
     if (!rule.forbid.pay?.length || ((rule.forbid.uses ?? 0) > 0) !== !!opts.counted) continue;
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
     const defender = !!(rule.forbid.attackTarget || rule.forbid.against || rule.forbid.attackOnly);
-    out.push({ ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until, key: rule.key, ...(defender ? { defender: true as const } : {}) });
+    out.push({ ...(opts.withIdentity ? { identity: taxReceiptIdentity(rule.key, { forbid: rule.forbid, target: rule.target, master: rule.master }, rule.source && state.cards[rule.source] ? { card: rule.source, cardId: state.cards[rule.source].cardId, epoch: state.cards[rule.source].zoneEpoch ?? 0 } : null) } : {}), ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until, key: rule.key, ...(defender ? { defender: true as const } : {}) });
   }
   return out;
 }

@@ -1,3 +1,4 @@
+import { overRealmSourceProblem } from "./over-realm-cost";
 import { retainCounter, nextRetainedCounter, resumeRetainedCounter } from "./retained-counter";
 /**
  * The rules engine as a `ScriptHost` — the other implementation of the
@@ -205,7 +206,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     comboFree: () => comboPriceOf(game) === null,
     forbids: (what, opts) => forbids(ctx, game, state, what, opts ?? {}),
     permits: (what, card) => permissions(ctx, game, state, what).some((p) => p.target === card),
-    taxesOn: (what, opts) => taxesOn(ctx, game, state, what, opts).map((t) => t.ops),
+    taxesOn: (what, opts) => taxesOn(ctx, game, state, what, { ...opts, ...(opts.excludePaidTaxes ? { withIdentity: true } : {}) }).filter(t => !t.identity || !opts.excludePaidTaxes?.includes(t.identity)).map((t) => t.ops),
     canPayTax: (player, card, ops) => canPayTaxProgram(ctx, game, state, player, card, ops),
 
     // ── the language's own readings ──────────────────────────────────────
@@ -734,6 +735,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // keyword's own play opens (#155) and [Empower]'s "how many markers to
     // carry" (#157, the `markerCarry` hook).
     playThen: (cards, opts, frame) => {
+      if (frame.viaKeyword === "Over Realm") {
+        const problem = overRealmSourceProblem(state, frame.overRealmSource, frame.card);
+        if (problem?.includes("rebuild")) throw new NotYet(problem, "R456");
+        if (problem) { if (state.resolving?.card === frame.card) state.resolving = null; state.programs.unshift(frame); return; }
+      }
       const evolution = opts.using === "Evolve" || opts.using === "EX-Evolve" || opts.using === "Xeno-Evolve";
       if (frame.evolutionIdentity) {
         if (!Number.isSafeInteger(frame.evolutionSourceEpoch)) throw new NotYet("rebuild this saved EX-Evolve source occurrence (#907)", "#907");
@@ -905,6 +911,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(frame.declaredPlay ? {} : { by: "skill" as const, byOpponent: frame.master !== opts.player, byCard: frame.card }),
         }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
         if (played) { (frame.did ??= {}).play = true; frame.acted = (frame.acted ?? 0) + 1; }
+        // 22-15-6 / 3-1-4: only the original successful OR arrival returns.
+        // A failed play, or a later fresh occurrence, creates no such departure.
+        if (played && frame.viaKeyword === "Over Realm" && opts.using === "Over Realm" && frame.overRealmSource?.card === id) {
+          const witness = { version: 1 as const, card: id, token: state.nextEffect };
+          state.cards[id].overRealmReturn = witness;
+          schedule(state, ev, { at: "turnCleanup", scope: "thisTurn", card: id, master: frame.master,
+            overRealmReturn: { ...witness }, vars: {},
+            ops: [{ op: "moveTo", target: { sel: { special: "self", side: "both", area: "battle" } }, to: "warp" }],
+            label: "back to the Warp as the turn ends" });
+        }
         if (played && scope) { scope.played.push({ card: id, epoch: state.cards[id].zoneEpoch ?? 0 }); witnessArrivalAutos(state, scope, id, beforeArrival); }
         // Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126/EX12-07): the [Counter: Play]'s switch of this card,
         // held while it was being played, is made now that it has landed — a frame of the counter's, run before the

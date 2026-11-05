@@ -991,7 +991,11 @@ export type DelayScope = "thisTurn" | "nextTurn" | "yourNextTurn" | "opponentNex
  * it keeps `master`, because the delayed part is still that player's effect
  * however many turns later it fires.
  */
+export interface OverRealmReturn { version: 1; card: string; token: number }
+
 export interface DelayedEffect {
+  /** R456: one successful native ordinary OR arrival, retained through carrying moves. */
+  overRealmReturn?: OverRealmReturn;
   id: number;
   at: DelayTiming;
   scope: DelayScope;
@@ -1426,6 +1430,7 @@ export type Trigger =
    * `overRealmPlayed` is the watcher on *other* cards.
    */
   | "playedUsingOverRealm"
+  | "playedUsingDarkOverRealm"
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**

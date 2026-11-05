@@ -516,7 +516,7 @@ export function dueDelays(state: VmState, at: DelayTiming): ScriptFrame[] {
   if (!ready.length) return [];
   const ids = new Set(ready.map((d) => d.id));
   state.delayed = state.delayed.filter((d) => !ids.has(d.id));
-  return ready.map((d) => ({ energyCouponContract: energyCouponContract(d.ops), ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject, skillEffectOrigin: { version: 2, kind: "delayed" } }));
+  return ready.map((d) => ({ ...(d.overRealmReturn || d.label === "back to the Warp as the turn ends" ? { overRealmReturn: d.overRealmReturn ?? null } : {}), energyCouponContract: energyCouponContract(d.ops), ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject, skillEffectOrigin: { version: 2, kind: "delayed" } }));
 }
 
 /** An effect scheduled for "this turn" whose moment has gone never happens. Keeps the list from growing over a long game. */

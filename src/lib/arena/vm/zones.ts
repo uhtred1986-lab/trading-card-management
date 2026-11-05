@@ -89,6 +89,8 @@ export interface VmCard {
   cardId: string;
   /** Whose card it is. A card in an opponent's area still belongs to its owner (3-1-6). */
   owner: PlayerId;
+  /** R456: only native ordinary OR arrival cleanup; not a general effect lifetime. */
+  overRealmReturn?: import("../types").OverRealmReturn;
   /** The mode it is in, when its zone declares any; null when the zone has none (1-10). */
   mode: string | null;
   /** Markers on the card (1-11). Only a zone declared `markers: true` keeps them. */
@@ -363,6 +365,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     if (game.zones[at.zone]?.host !== true && !(opts.underProcedure === "Z-Awaken" && at.zone === "zDeck" && onTop.zCard && card.owner === onTop.owner)) return { ok: false, refused: `the ${at.zone} does not hold cards under cards (23-2)` };
     if (removedInsteadOfUnder(board, game, id, onTop.id, opts.underProcedure === "Z-Awaken") && game.zones[TOKEN_EXIT]) return moveCard(board, game, id, TOKEN_EXIT, { ...opts, under: undefined });
     lift(board, id, host);
+    delete card.overRealmReturn; // becoming an under-card ends this arrival
     // 23-2-2-2: the cards under a card are in the area of the card on top.
     // 3-1-4 resets a card that changes area; a Leader going under a Z-Leader
     // stays in its Leader Area under 22-46-6, so its awakened face, position
@@ -465,6 +468,10 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
       if (out.ok) released.push({ ...out.move, from: from.zone, fromOwner: from.owner });
     }
   }
+  // R456 follows only the rule's effect-carrying paths, even where legacy
+  // native movement still increments its general area epoch (R454 separate).
+  const keepsOverRealm = !!from && ((from.zone === to && from.owner === toOwner) || (["battle", "unison"].includes(from.zone) && ["battle", "unison", "combo"].includes(to)) || from.zone === "combo" && to === "battle");
+  if (!keepsOverRealm) delete card.overRealmReturn;
   if (!opts.carry) {
     if (from?.zone !== to || from.owner !== toOwner) {
       card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;

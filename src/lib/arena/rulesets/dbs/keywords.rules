@@ -564,15 +564,11 @@ DEFINE KEYWORD "Over Realm"
   -- turn, two while a card with [Wormhole] is in play (22-24) — a counted
   -- player fact (`overRealms`, attributes.rules) — and want X or more cards
   -- in the Drop, black ones for the dark variant (`flag(value: $dark)`).
-  -- The price is the line's printed orbs. Taken, the use is counted, the
-  -- whole Drop goes to the Warp as the cost, the card is scheduled back to
-  -- the Warp as the turn ends (for the dark variant too, which 22-23 does not
-  -- ask for — the legacy engine's approximation, kept so the two agree), and
-  -- it is played through the [Counter: Play] window. "when you play a card
-  -- using [Over Realm]" is the move's `keywordActivated`; "when this card is
-  -- played using [Over Realm]" is the play's own `moved`, which `using:` marks
-  -- as this keyword's (`playedUsingOverRealm`). One difference,
-  -- recorded: the refusal for too few cards does not add "(N there)".
+  -- R456 / 1-6-3, 22-15-4, 22-23-4: pay the whole Drop first,
+  -- then determine/pay the printed resources and any admitted action price.
+  -- Only complete payment announces activation and spends the shared use.
+  -- Dark Over Realm has no end-turn departure (22-23-6); retain exact
+  -- variant identity on arrival, independent of the shared usage counter.
   -- From the Warp as well (owner-approved 2 Oct 2026) while the card's own
   -- [Permanent] says "This card's [Over Realm] skill can be activated from
   -- its owner's Warp under the same conditions as if it were in your hand"
@@ -591,12 +587,14 @@ DEFINE KEYWORD "Over Realm"
   REFUSE forbidden() UNLESS NOT forbidden(what: dropToWarp, from: drop)
   label: "{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"
   DO {
+    payActionPrice()
     setPlayerAttr(name: "overRealms", add: 1)
-    moveTo(target: IN you.drop, to: warp, cause: cost)
-    delay(at: turnCleanup, ops: {
-      moveTo(target: [self] IN you.battle, to: warp)
-    }, label: "back to the Warp as the turn ends")
-    play(target: [self], counterWindow: true, using: "Over Realm")
+    if(flag(value: $dark), then: {
+      play(target: [self], counterWindow: true, using: "Dark Over Realm")
+    }, else: {
+      -- The successful native arrival schedules occurrence-bound cleanup.
+      play(target: [self], counterWindow: true, using: "Over Realm")
+    })
   }
 
 -- 22-22

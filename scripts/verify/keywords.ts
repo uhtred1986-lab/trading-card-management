@@ -368,8 +368,8 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   r = step(o, { type: "activate", player: "p1", card: orx, skill: 0 });
   assert.deepEqual(
     r.beats,
-    ["skill ORX", "mode V1 rest", "move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "delayed ORX", "move ORX hand>battle", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
-    "the orbs, the whole Drop to the Warp, the return scheduled, the play, and the watcher",
+    ["move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "mode V1 rest", "skill ORX", "move ORX hand>battle", "delayed ORX", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
+    "1-6-3: whole Drop then orbs, complete activation, successful arrival/cleanup, then watcher",
   );
   assert.deepEqual([...zoneOf(r.s, "p1", "warp")].sort(), [...drop].sort(), "22-15-4: every card of the Drop");
   r = step(r.s, { type: "endMain", player: "p1" });
@@ -553,7 +553,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   r = step(wp.g, { type: "activate", player: "p1", card: wp.w, skill: 0 });
   assert.deepEqual(
     r.beats,
-    ["skill ORWARP", "mode V1 rest", "move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "delayed ORWARP", "move ORWARP warp>battle", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
+    ["move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "mode V1 rest", "skill ORWARP", "move ORWARP warp>battle", "delayed ORWARP", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
     "the same beats as from the hand, the play from the Warp",
   );
   assert.ok(wpDrop.every((id) => zoneOf(r.s, "p1", "warp").includes(id)), "22-15-4: every card of the Drop to the Warp");
@@ -660,10 +660,10 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
 }
 
 {
-  // Skill-cost modifiers: a red-scoped reduction lowers a red [Counter] skill's
-  // orbs, does not lower a blue one, and ends at its printed `until`.
-  DEFS.COUNTER_RR = { ...DEFS["E-NEGATE"], id: "COUNTER_RR", name: "COUNTER_RR", colors: ["Red"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };
-  DEFS.COUNTER_UU = { ...DEFS["E-NEGATE"], id: "COUNTER_UU", name: "COUNTER_UU", colors: ["Blue"], energyCost: 0, skill: "[Counter: Attack]{u}{u}: Negate the attack." };
+  // A Battle Counter retains its hand source during skill payment, so this
+  // timed hand reduction applies. R453 Extra placement is tested separately.
+  DEFS.COUNTER_RR = { ...DEFS["E-NEGATE"], id: "COUNTER_RR", name: "COUNTER_RR", type: "BATTLE", colors: ["Red"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };
+  DEFS.COUNTER_UU = { ...DEFS["E-NEGATE"], id: "COUNTER_UU", name: "COUNTER_UU", type: "BATTLE", colors: ["Blue"], energyCost: 0, skill: "[Counter: Attack]{u}{u}: Negate the attack." };
   DEFS.SKILLCHEAP = {
     ...DEFS.V1,
     id: "SKILLCHEAP",
@@ -671,6 +671,11 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     energyCost: 1,
     skill: "[Auto] When you play this card, reduce the skill cost of your red cards in your hand by {r} until the start of your next turn.",
   };
+  DEFS.COUNTER_EXTRA_RR = { ...DEFS.COUNTER_RR, id: "COUNTER_EXTRA_RR", name: "COUNTER_EXTRA_RR", type: "EXTRA" };
+  let extra = arenaG({ hand: ["SKILLCHEAP", "COUNTER_EXTRA_RR"], energy: ["V1", "V1"] });
+  extra = playG(extra, { type: "play", player: "p1", card: findG(extra, "p1", "hand", "SKILLCHEAP") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, { type: "attack", player: "p2", attacker: leaderOf(extra, "p2"), target: leaderOf(extra, "p1") });
+  assert.equal(extra.prompt.kind, "combo", "R453: a targeted hand modifier ends before the Extra's post-Drop skill orbs");
+  delete DEFS.COUNTER_EXTRA_RR;
   let s = arenaG({ hand: ["SKILLCHEAP", "COUNTER_RR", "COUNTER_UU"], energy: ["V1", "V1"] });
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "SKILLCHEAP") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, {
     type: "attack",
