@@ -301,7 +301,7 @@ export function stepFieldCost(ctx: EngineContext, game: GameDefinition, state: V
     const key = "§fieldSource";
     const vars = { [key]: [frame.card], [`${key}@epoch`]: [`${frame.card}@${cost.source.epoch}`] };
     const ops: Op[] = [{ op: "moveTo", target: { sel: { fromVar: key, area: cost.source.area as import("./script").ScriptArea } }, to: "battle", mode: "active" }, ...(cost.line.script?.ops ?? [])];
-    if (cost.coupons) consumeActivationEnergyUses(state, ev, cost.coupons);
+    if (cost.coupons) consumeActivationEnergyUses(ctx, state, ev, cost.coupons);
     spendProhibitionUse(ctx, game, state, "activateSkill", { player: frame.master, card: frame.card, from: cost.originalArea, skillKind: cost.line.kind, keyword: "Field" });
     resolveActivation(ctx, game, state, ev, frame.master, cost.line, undefined, undefined, { ops, vars }, true);
     if (!cost.waived) spendSkillCostUses(ctx, game, state, ev, frame.card, cost.line.skill);

@@ -69,7 +69,7 @@ export function stepDropCost(ctx: EngineContext, game: GameDefinition, state: Vm
     }
   } catch (err) { if (err instanceof AutoPaymentFailed) return fail(); throw err; }
   const { line, moment } = frame.dropCost!;
-  if (frame.activationEnergyPayment) consumeActivationEnergyUses(state, ev, frame.activationEnergyPayment);
+  if (frame.activationEnergyPayment) consumeActivationEnergyUses(ctx, state, ev, frame.activationEnergyPayment);
   // The action price was paid here, so resolve once with that price waived.
   // This boundary spends Once/Limit only now and hands cost choices to effects.
   resolveActivation(ctx, game, state, ev, frame.master, line, frame.x, undefined, { ops: hasMarkerActionPrice(line.script?.price?.ops ?? []) ? paidAdmissionBody(line.script) : line.script!.ops, vars: frame.vars, paidCardInfo: frame.paidCardInfo, paidMarkers: frame.paidMarkers }, true);
