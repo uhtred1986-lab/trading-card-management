@@ -13,7 +13,7 @@ import { baseType, canCombo, identityKey, keywordName, skillsOf, sumReachable } 
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
-import { recordMovementResult, startMovementResult, validateMovementResult, movementRebuild } from "./movement-result";
+import { recordMovementResult, startMovementResult, validateMovementResult, prepareUnderSource, underSelfMove, movementDestination, movementRebuild } from "./movement-result";
 import { completablePicks, disjointGroups, disjointPayable, laterSlots } from "./disjoint";
 import type { ScriptHost } from "./script-host";
 import type { AltCost, Area, Color, CounterKind, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, NegatedSkillKind, SkipWhat, Trigger } from "../types";
@@ -1727,6 +1727,7 @@ export interface ScriptFrame {
    * completed original move credits this parent's may/did witness. */
   replacementMove?: { card: string; epoch: number; completedAs?: string };
   movementResults?: Record<string, import("./movement-result").MovementResult>;
+  underSource?: { version: 1; card: string; epoch: number };
   /** Exact Counter kind and the unknown-target window it answered. */
   counterPlay?: true;
   counterAnswerScope?: number;
@@ -2348,6 +2349,7 @@ function rememberLook(frame: ScriptFrame, player: PlayerId, areas: ("deck" | "li
  * ended or a sub-flow (playing a card) took over.
  */
 export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
+  prepareUnderSource(frame, h.zoneEpoch(frame.card));
   const master = frame.master;
 
   for (let guard = 0; guard < 200; guard++) {
@@ -2797,6 +2799,16 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "choose": {
+        const placement = frame.ops[frame.ip + 1];
+        if (placement?.op === "moveTo" && placement.to === "under" && placement.completedAs === op.as) {
+          if (frame.awaiting === op.as) movementDestination(frame, op.as);
+          else {
+            const hosts = placement.under ? h.resolveRef(frame, placement.under) : [frame.card];
+            const sourceStillCurrent = !underSelfMove(placement) || frame.underSource?.epoch === h.zoneEpoch(frame.card);
+            const destination = hosts.length === 1 && sourceStillCurrent ? { card: hosts[0], epoch: h.zoneEpoch(hosts[0]) } : null;
+            startMovementResult(frame, op.as, [], destination);
+          }
+        }
         // A search over several closed areas exposes their joint pool to the
         // chooser. Record the areas on the frame only when this step is run,
         // so an unchosen branch cannot cause a later conditional shuffle.
@@ -3186,7 +3198,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // takes, named for a later clause (which also asks where they are by then).
         // Several moves under one name add up: "send up to 1 <Vegeta> card and 1 <Nappa> card … to your Warp … play all
         // the cards sent to the Warp by this skill" (BT7-051) is both cards.
-        if (op.completedAs && (!("var" in op.target) || op.to === "under" || op.to === "play")) movementRebuild("rebuild the original-movement target contract");
+        if (op.completedAs && (!("var" in op.target) || op.to === "play")) movementRebuild("rebuild the original-movement target contract");
         if (op.completedAs && !h.reportsMovement) movementRebuild("this host cannot report original movement completion");
         if (op.completedAs && frame.moveLoop) validateMovementResult(frame, op.completedAs);
         if (op.completedAs && !frame.moveLoop && "var" in op.target) {
@@ -3196,7 +3208,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const stamp = stamps?.find(item => item.startsWith(`${card}@`));
             return { card, epoch: stamp ? Number(stamp.slice(card.length + 1)) : h.zoneEpoch(card) };
           });
-          startMovementResult(frame, op.completedAs, selected);
+          const destination = op.to === "under" ? movementDestination(frame, op.completedAs) : undefined;
+          startMovementResult(frame, op.completedAs, selected, destination);
         }
         if (op.as && !frame.moveLoop) frame.vars[op.as] = [...new Set([...(frame.vars[op.as] ?? []), ...h.resolveRef(frame, op.target)])];
         frame.moveLoop ??= {
@@ -3262,6 +3275,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             continue;
           }
           if (op.to === "under") {
+            if (op.completedAs) {
+              const destination = movementDestination(frame, op.completedAs);
+              if (!destination || destination.card !== host || h.zoneEpoch(destination.card) !== destination.epoch) { frame.moveLoop.index++; continue; }
+            }
             // 20-14: "you can't place cards under this card, except with this
             // card's skill" (BT25-008, BT7-022) — asked of the host.
             if (host && h.forbids("placeUnder", { card: host, player: master, moving: id, ...(frame.card ? { source: frame.card } : {}) })) {
@@ -3270,8 +3287,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               continue;
             }
             if (host) {
-              const placed = h.placeUnder(id, host, frame);
-              if (placed || !frame.awakenPayment) frame.acted = (frame.acted ?? 0) + 1;
+              const placed = h.placeUnder(id, host, frame, op.completedAs ? result => recordMovementResult(frame, op.completedAs!, result) : undefined);
+              if (placed) frame.acted = (frame.acted ?? 0) + 1;
               if (frame.awakenPayment) {
                 if (placed) frame.awakenPayment.chosenEpochs[id] = h.zoneEpoch(id);
                 else frame.priceUnpaid ??= "an Awaken payment card could not be placed under its Leader";

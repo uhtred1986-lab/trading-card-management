@@ -75,7 +75,7 @@ import { answered, endGame, gameEndForbidden } from "./flow";
 import { emit, fire, log } from "./events";
 import { fireHook, queryHookStatics } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
-import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
+import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard, removedInsteadOfUnder } from "./zones";
 import { wordsFromRuleset } from "../board-words";
 import { untilWords } from "../effects";
 import { attrsNow, amount, condHolds, staticsNow, forbiddenForCard, forbids, hasKeyword, keywordInstancesInForce, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
@@ -255,9 +255,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // moment fires (23-2 declares none, and the legacy engine's own
     // `placeUnder` fires none either — only the client-visible picture),
     // which is why this is `log`, not `emit`.
-    placeUnder: (id, host, frame) => {
+    placeUnder: (id, host, frame, onResult) => {
       // Audit triggers 3: where it came from, read before it joins the pile (which is in no area, 23-2).
-      const from = zoneOf(state, id);
+      const from = zoneOf(state, id), fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
+      const destination = { card: host, epoch: state.cards[host]?.zoneEpoch ?? 0 };
+      const report = (completed: boolean) => onResult?.({ card: id, from, fromEpoch, to: completed ? "under" : zoneOf(state, id), toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed, ...(completed ? { host: destination } : {}) });
       // R-398 / 0-2-2: a printed Z-Awaken self-payment may put its card
       // under the activating Z-Leader before it leaves the Z-Deck.
       const at = findCard(state, host);
@@ -265,8 +267,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         && at?.zone === "zDeck" && at.owner === frame.master && findCard(state, id)?.owner === frame.master
         && attrsNow(ctx, game, state, host).type === "Z-LEADER"
         && frame.vars.zAwakenSource?.[0] === host && frame.vars["zAwakenSource@epoch"]?.[0] === `${host}@${state.cards[host].zoneEpoch ?? 0}`;
+      if (removedInsteadOfUnder(state, game, id, host, zAwaken)) {
+        const paying = frame && (frame.saveVarsAs || frame.autoCost || frame.keywordCost || frame.keywordPrice || frame.counterCost || frame.swapCost || frame.aegisCost || frame.reviveCost || frame.dropCost);
+        moveTo(ctx, game, state, ev, id, "removed", state.cards[id].owner, { reason: paying ? "cost" : "effect", ...(frame ? { actor: frame.master, source: frame.card } : {}) });
+        report(false);
+        return false;
+      }
       const result = moveCard(state, game, id, "drop", { under: host, ...(zAwaken ? { underProcedure: "Z-Awaken" as const } : {}) });
-      if (!result.ok) return false;
+      if (!result.ok) { report(false); return false; }
+      report(result.move.to === "under" && result.move.under === host);
       clearAutoReveal(state, id);
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
       // 23-2: going into the pile is a moment for the card itself — "when

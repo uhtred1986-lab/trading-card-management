@@ -2212,7 +2212,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
       if (bad) return bad;
     }
-    if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || typeof o.target.var !== "string" || o.to === "under" || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary area move`;
+    if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || typeof o.target.var !== "string" || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary move or under placement`;
     if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
       if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
     }

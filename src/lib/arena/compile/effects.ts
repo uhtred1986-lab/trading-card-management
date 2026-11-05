@@ -1033,7 +1033,7 @@ function retainAdjacentMovementHinges(ops: Op[]): void {
 /** R-426: only an adjacent optional one-card choice followed by one ordinary move. */
 export function bindCompletedChoice(ops: Op[], name: string): Cond | null {
   const move = ops[ops.length - 1], choice = ops[ops.length - 2];
-  if (move?.op !== "moveTo" || move.to === "under" || move.to === "play" || !("var" in move.target) || move.target.var !== name
+  if (move?.op !== "moveTo" || move.to === "play" || !("var" in move.target) || move.target.var !== name
     || choice?.op !== "choose" || choice.as !== name || choice.sel.count !== 1 || !choice.sel.upTo) return null;
   move.completedAs = name;
   return { kind: "moved", var: name, all: true };

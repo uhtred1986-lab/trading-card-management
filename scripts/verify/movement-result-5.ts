@@ -97,7 +97,7 @@ for(const hinge of ["If you don’t", "If you didn't", "If you didn’t", "If yo
 }
 for(const to of ["under","play"] as const){
  const state=fresh("p1"),id=state.sides.p1.zones.hand[0],f=frame(state,"p1",[id]);f.ops=[{op:"moveTo",target:{var:"pick"},to,completedAs:"pick"}];
- assert.ok(programProblem(f.ops));assert.throws(()=>stepScript(vmHost(ctx,game,state,[]),f),NotYet);assert.ok(state.sides.p1.zones.hand.includes(id));cases++;
+ assert.equal(!!programProblem(f.ops),to==="play");assert.throws(()=>stepScript(vmHost(ctx,game,state,[]),f),NotYet);assert.ok(state.sides.p1.zones.hand.includes(id));cases++;
 }
 const broken=frame(fresh("p1"),"p1",[]);broken.movementResults={pick:{version:1,selected:[],outcomes:[]}};(broken.movementResults.pick as unknown as {version:number}).version=0;
 assert.throws(()=>completedMovement(broken,"pick"),NotYet);cases++;

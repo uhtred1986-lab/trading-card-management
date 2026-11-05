@@ -329,6 +329,15 @@ export function hostOf(board: Board, id: string): string | null {
   return null;
 }
 
+/** R-428: an under-card's area is its destination host's area (23-2-2-2). */
+export function removedInsteadOfUnder(board: Board, game: GameDefinition, id: string, top: string, zAwaken = false): boolean {
+  const card = board.cards[id], to = findCard(board, top), from = findCard(board, id);
+  if (!card || !from || !to || id === top || hostOf(board, id) === top) return false;
+  if (game.zones[to.zone]?.host !== true && !(zAwaken && to.zone === "zDeck" && board.cards[top].zCard && card.owner === board.cards[top].owner)) return false;
+  if (isTokenCard(card.cardId) && (from.zone === "battle" || from.zone === "combo") && to.zone !== "battle" && to.zone !== "combo") return true;
+  return card.zCard === true && Z_CARD_DEPARTURE_AREAS.has(from.zone) && (from.zone !== to.zone || from.owner !== to.owner);
+}
+
 /**
  * Move one card, honouring what the zone's declaration says about it.
  *
@@ -348,9 +357,11 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     const onTop = board.cards[opts.under];
     if (!onTop) return { ok: false, refused: `there is no card ${opts.under} to go under` };
     if (onTop.id === id) return { ok: false, refused: `a card cannot go under itself` };
+    if (host === onTop.id) return { ok: false, refused: `the card is already under that host (23-2-2-1)` };
     const at = findCard(board, onTop.id);
     if (!at) return { ok: false, refused: `${opts.under} is in no zone, so nothing can go under it` };
     if (game.zones[at.zone]?.host !== true && !(opts.underProcedure === "Z-Awaken" && at.zone === "zDeck" && onTop.zCard && card.owner === onTop.owner)) return { ok: false, refused: `the ${at.zone} does not hold cards under cards (23-2)` };
+    if (removedInsteadOfUnder(board, game, id, onTop.id, opts.underProcedure === "Z-Awaken") && game.zones[TOKEN_EXIT]) return moveCard(board, game, id, TOKEN_EXIT, { ...opts, under: undefined });
     lift(board, id, host);
     // 23-2-2-2: the cards under a card are in the area of the card on top.
     // 3-1-4 resets a card that changes area; a Leader going under a Z-Leader
@@ -374,7 +385,8 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     // stripped one from every card once it went under another.
     const carried = card.under.splice(0);
     const follows = from === null || from.zone === at.zone;
-    onTop.under.unshift(id, ...(follows ? carried : []));
+    // 23-2-4: new cards go at the bottom; the existing stack does not reorder.
+    onTop.under.push(id, ...(follows ? carried : []));
     if (!follows) for (const u of carried) moveCard(board, game, u, "drop", {});
     return { ok: true, move: record(id, from, "under", onTop.owner, opts, opts.under) };
   }
