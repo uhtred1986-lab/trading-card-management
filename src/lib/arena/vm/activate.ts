@@ -1117,13 +1117,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   if (keywordPrice && !saysWhereItPays(program)) throw new RulesetBroken(state.game, `DEFINE KEYWORD ${line.keyword?.name} has an action price to pay and no payActionPrice to pay it at`);
   // R-395 / 22-46-3, -6: retain the chosen Leader and Z-Deck occurrences
   // across saved continuations. `asPrinted` still checks their current traits.
-  const zAwakenVars: Record<string, string[]> = {};
-  if (line.keyword?.name === "Z-Awaken") {
-    for (const [name, id] of [["zAwakenSource", card], ["zAwakenBase", state.sides[player].zones.leader[0]]] as const) {
-      zAwakenVars[name] = id ? [id] : [];
-      zAwakenVars[`${name}@epoch`] = id ? [`${id}@${state.cards[id].zoneEpoch ?? 0}`] : [];
-    }
-  }
+  const zAwakenVars = line.keyword?.name === "Z-Awaken" ? zAwakenBindings(state, player, card) : {};
   const effect: ScriptFrame = { ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...zAwakenVars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
@@ -1136,6 +1130,16 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     return;
   }
   if (program.length || afterSkillKeywords.length) state.programs.unshift(effect);
+}
+
+/** R-398: the same occurrence contract on the real and cloned payment boards. */
+export function zAwakenBindings(state: VmState, player: PlayerId, card: string): Record<string, string[]> {
+  const vars: Record<string, string[]> = {};
+  for (const [name, id] of [["zAwakenSource", card], ["zAwakenBase", state.sides[player].zones.leader[0]]] as const) {
+    vars[name] = id ? [id] : [];
+    vars[`${name}@epoch`] = id ? [`${id}@${state.cards[id].zoneEpoch ?? 0}`] : [];
+  }
+  return vars;
 }
 
 /** R-395: old saves contain an ordinary play DO and no selected occurrences. */

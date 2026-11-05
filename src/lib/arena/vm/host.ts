@@ -254,10 +254,17 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // moment fires (23-2 declares none, and the legacy engine's own
     // `placeUnder` fires none either — only the client-visible picture),
     // which is why this is `log`, not `emit`.
-    placeUnder: (id, host) => {
+    placeUnder: (id, host, frame) => {
       // Audit triggers 3: where it came from, read before it joins the pile (which is in no area, 23-2).
       const from = zoneOf(state, id);
-      const result = moveCard(state, game, id, "drop", { under: host });
+      // R-398 / 0-2-2: a printed Z-Awaken self-payment may put its card
+      // under the activating Z-Leader before it leaves the Z-Deck.
+      const at = findCard(state, host);
+      const zAwaken = frame?.keywordCost?.line.keyword?.name === "Z-Awaken" && host === frame.card
+        && at?.zone === "zDeck" && at.owner === frame.master && findCard(state, id)?.owner === frame.master
+        && attrsNow(ctx, game, state, host).type === "Z-LEADER"
+        && frame.vars.zAwakenSource?.[0] === host && frame.vars["zAwakenSource@epoch"]?.[0] === `${host}@${state.cards[host].zoneEpoch ?? 0}`;
+      const result = moveCard(state, game, id, "drop", { under: host, ...(zAwaken ? { underProcedure: "Z-Awaken" as const } : {}) });
       if (!result.ok) return false;
       clearAutoReveal(state, id);
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
@@ -293,11 +300,24 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const fromZDeck = !fromPile && leaderStack && leaderCard && seat?.zone === SETUP_ZONES.zDeck && seat.owner === at?.owner;
       if (!top || !state.cards[id] || !(fromPile || fromZDeck) || !at || (leaderStack ? !leaderCard : game.zones[at.zone]?.host !== true)) return false;
       const mode = top.mode;
+      const incomingPile = state.cards[id].under.slice();
+      const incomingBase = state.cards[id].leaderBase;
       // A single-card area (the Leader Area) takes the new top card beside the old one only as a card placed onto it.
       const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: fromPile, ...(leaderStack ? { onto: host } : {}) });
       if (!up.ok) return false;
       const down = moveCard(state, game, host, at.zone, { under: id });
       if (!down.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${id}: ${down.refused}`);
+      if (leaderStack && state.cards[id].zCard) {
+        // The incoming paid pile precedes the old Leader and its own pile.
+        // Capture the actual post-stack occurrence, not the pre-move epoch.
+        state.cards[id].under = [...incomingPile, ...state.cards[id].under.filter(x => !incomingPile.includes(x))];
+        if (top.leaderBase?.card === id) {
+          if (incomingBase && incomingBase.card !== host) top.leaderBase = incomingBase;
+          else { delete top.leaderBase; delete top.leaderStackVersion; }
+        }
+        state.cards[id].leaderBase = { card: host, epoch: state.cards[host].zoneEpoch ?? 0 };
+        state.cards[id].leaderStackVersion = 1;
+      }
       const list = state.sides[at.owner].zones[at.zone];
       list.splice(list.indexOf(id), 1);
       list.splice(Math.min(at.index, list.length), 0, id);

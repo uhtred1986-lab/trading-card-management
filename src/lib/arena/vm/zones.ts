@@ -95,6 +95,10 @@ export interface VmCard {
   markers: number;
   /** The cards under this one, topmost first (23-2). They are in no zone of their own. */
   under: string[];
+  /** R-398: the selected Leader occurrence under a placed Z-Leader; absence is the legacy base-first stack. */
+  leaderBase?: { card: string; epoch: number };
+  /** New explicit-base stack format; an absent identity here is an invalid save, not a legacy base-first pile. */
+  leaderStackVersion?: 1;
   /** 3-9-2-1: turned face up in a closed area, and still in it. */
   faceUp: boolean;
   /** Turned to its back side — a Leader's awakened face (1-9). */
@@ -267,6 +271,8 @@ export interface MoveOptions {
   carry?: boolean;
   /** Put it under this card instead of into a zone (23-2). The host's zone must be declared `host: true`. */
   under?: string;
+  /** R-398: only the strict printed Z-Awaken self-payment authorizes a Z-Deck pile host. */
+  underProcedure?: "Z-Awaken";
   /** It arrives on top of this card, which goes under it next (23-2): a zone that holds one card is not full for it — the Leader Area at [Z-Awaken] (22-46-6, #155). */
   onto?: string;
   /** A replacement the caller has already decided on. Recorded, never applied (see `Replacement`). */
@@ -344,7 +350,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     if (onTop.id === id) return { ok: false, refused: `a card cannot go under itself` };
     const at = findCard(board, onTop.id);
     if (!at) return { ok: false, refused: `${opts.under} is in no zone, so nothing can go under it` };
-    if (game.zones[at.zone]?.host !== true) return { ok: false, refused: `the ${at.zone} does not hold cards under cards (23-2)` };
+    if (game.zones[at.zone]?.host !== true && !(opts.underProcedure === "Z-Awaken" && at.zone === "zDeck" && onTop.zCard && card.owner === onTop.owner)) return { ok: false, refused: `the ${at.zone} does not hold cards under cards (23-2)` };
     lift(board, id, host);
     // 23-2-2-2: the cards under a card are in the area of the card on top.
     // 3-1-4 resets a card that changes area; a Leader going under a Z-Leader
@@ -408,6 +414,15 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   // all, which is a board no rule can describe.
   if (opts.mode !== undefined && !zone.modes?.includes(opts.mode)) return { ok: false, refused: `a card in the ${to} is never ${opts.mode}` };
 
+  // Invalid explicit identity must never fall back to an unrelated first card.
+  const leavingZLeader = card.zCard === true && from?.zone === "leader" && (to !== "leader" || from.owner !== toOwner);
+  if (leavingZLeader && card.leaderStackVersion !== undefined && (card.leaderStackVersion !== 1 || !card.leaderBase))
+    return { ok: false, refused: "the Z-Leader stack is missing its recorded original Leader" };
+  if (leavingZLeader && card.leaderBase !== undefined) {
+    const base = card.leaderBase, original = board.cards[base.card];
+    if (!Number.isSafeInteger(base.epoch) || !original || !card.under.includes(base.card) || (original.zoneEpoch ?? 0) !== base.epoch)
+      return { ok: false, refused: "the Z-Leader's recorded original Leader occurrence is no longer under it" };
+  }
   lift(board, id, host);
   // 15-1-5: when the top Z-Leader leaves its Leader Area, that top card is
   // removed and the underlying Leader stays in the same Area. A Z-Awakened
@@ -415,7 +430,9 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   // the Z-Leader, so restore that pile to its original top card before the
   // ordinary 23-2-5 release handling below.
   if (card.zCard === true && from?.zone === "leader" && (to !== "leader" || from.owner !== toOwner) && card.under.length) {
-    const [leader, ...carried] = card.under.splice(0);
+    const pile = card.under.splice(0);
+    const leader = card.leaderBase?.card ?? pile[0];
+    const carried = pile.filter(x => x !== leader);
     const underneath = board.cards[leader];
     if (underneath) {
       underneath.mode = card.mode;
@@ -503,4 +520,6 @@ function reset(card: VmCard, zone: ZoneDef | null): void {
   delete card.placedThisTurn;
   delete card.playedThisTurn;
   delete card.playedFrom;
+  delete card.leaderBase;
+  delete card.leaderStackVersion;
 }

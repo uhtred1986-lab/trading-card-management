@@ -182,7 +182,7 @@ export interface ScriptHost {
   /** 5-9: KO a card, by this source. */
   ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced">): void;
   /** 23-2: put a card under another. */
-  placeUnder(id: string, host: string): boolean;
+  placeUnder(id: string, host: string, frame?: ScriptFrame): boolean;
   /** 23-2, 21-5-2: a card from `host`'s pile becomes the top card in its place, and `host` goes directly under it. Returns whether it happened. */
   placeOnTop(id: string, host: string): boolean;
   /**

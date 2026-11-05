@@ -49,7 +49,7 @@ import { fusionLineProblem, evolutionLineProblem, absorbLineProblem, potaraLineP
  */
 import { other, type Area, type EngineContext, type GameEvent, type PlayerId, type Requirement } from "../types";
 import type { GameDefinition } from "../rulesets";
-import { announce, boundFor, isFusionPayment, keywordActionPrice, scopedPayersSpent, type ActivationLine } from "./activate";
+import { zAwakenBindings, announce, boundFor, isFusionPayment, keywordActionPrice, scopedPayersSpent, type ActivationLine } from "./activate";
 import { AutoPaymentFailed, automaticPriceHost, canFinishAutomaticPrice, readableAutomaticPrice } from "./auto-costs";
 import { IllegalAction } from "./common";
 import { findCard } from "./zones";
@@ -126,7 +126,9 @@ function finishes(ctx: EngineContext, game: GameDefinition, state: VmState, play
     if (err instanceof IllegalAction && !(err instanceof NotYet)) return false;
     throw err;
   }
-  return canFinishAutomaticPrice(ctx, game, clone, { ...priceFrame(line, player, ops), ...(x === undefined ? {} : { x }) });
+  const frame = priceFrame(line, player, ops, line.keyword?.name === "Z-Awaken" ? { key: `${line.card}:${line.skillIndex}`, line, moments: [] } : undefined);
+  if (line.keyword?.name === "Z-Awaken") frame.vars = zAwakenBindings(clone, player, line.card);
+  return canFinishAutomaticPrice(ctx, game, clone, { ...frame, ...(x === undefined ? {} : { x }) });
 }
 
 /**

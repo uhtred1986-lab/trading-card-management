@@ -3248,7 +3248,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               continue;
             }
             if (host) {
-              const placed = h.placeUnder(id, host);
+              const placed = h.placeUnder(id, host, frame);
               if (placed || !frame.awakenPayment) frame.acted = (frame.acted ?? 0) + 1;
               if (frame.awakenPayment) {
                 if (placed) frame.awakenPayment.chosenEpochs[id] = h.zoneEpoch(id);

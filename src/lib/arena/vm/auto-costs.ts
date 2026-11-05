@@ -183,8 +183,8 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
       }
     },
-    placeUnder: (id, top) => {
-      if (id === top || !state.cards[id] || !state.cards[top] || state.cards[top].under.includes(id) || !host.placeUnder(id, top)
+    placeUnder: (id, top, frame) => {
+      if (id === top || !state.cards[id] || !state.cards[top] || state.cards[top].under.includes(id) || !host.placeUnder(id, top, frame)
         || !state.cards[top].under.includes(id)) unpaid();
       return true;
     },

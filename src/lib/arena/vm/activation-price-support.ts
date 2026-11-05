@@ -117,6 +117,7 @@ export function supportedZAwakenActionPrice(ops: Op[]): boolean {
   const sel = pick.sel;
   if (sel.side !== "you" || sel.count !== 1 || sel.upTo || keys(sel).some(k => !["side", "area", "areas", "filter", "count", "upTo"].includes(k))) return false;
   const areas = sel.areas ?? [sel.area];
+  if (move.to === "under" && areas.length === 1 && areas[0] === "drop" && (!move.under || ("sel" in move.under && keys(move.under).length === 1 && move.under.sel.special === "self" && keys(move.under.sel).length === 1))) return true;
   if (move.to === "under") return areas.length > 0 && areas.every(a => a === "hand" || a === "drop") && !!move.under && "sel" in move.under && keys(move.under).length === 1 && move.under.sel.special === "leader" && keys(move.under.sel).length === 1;
   if (move.under || areas.length !== 1) return false;
   return (areas[0] === "drop" && move.to === "warp") || (areas[0] === "battle" && sel.filter?.type === "BATTLE" && move.to === "drop");
