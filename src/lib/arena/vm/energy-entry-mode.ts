@@ -12,9 +12,10 @@ export interface EnergyEntryMode {
   mode: "active" | "rest";
 }
 
-export function captureEnergyEntryMode(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, explicit?: "active" | "rest"): EnergyEntryMode {
+export function captureEnergyEntryMode(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, explicit?: "active" | "rest", negateExhaust = false): EnergyEntryMode {
   let restRequired = false;
   for (const body of hookBodiesFor(ctx, game, state, card, "chargeLimit")) {
+    if (negateExhaust && body.keyword.name === "Energy-Exhaust") continue;
     // Only the shipped immediate self Rest modifier has a placement-time
     // interpretation. Refuse a changed body before moving, never silently
     // discard instructions or execute a generic effect after observation.

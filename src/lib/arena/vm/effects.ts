@@ -1,3 +1,4 @@
+import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { standingSkillsNegated } from "./standing-negation-read";
 import { capturedResolvedGrant, captureResolvedGrantDeletions, prepareResolvedGrantChange, resolvedGrantDeleted } from "./resolved-grant-deletion";
 import { energyCouponContract } from "./energy-coupon-saves";
@@ -380,6 +381,7 @@ export function addEffect(state: VmState, ev: GameEvent[], spec: EffectSpec): Co
 
 /** Every effect in force on one card of one kind, in the order they were made (9-9-2). */
 export function effectsOn(state: VmState, id: string, kind: ContinuousEffect["kind"]): ContinuousEffect[] {
+  guardEnergyEntryLifetimes(state);
   return state.effects.filter((e) => e.kind === kind && e.target === id);
 }
 
@@ -548,6 +550,7 @@ export function expireDelayed(state: VmState): void {
  * [Auto]s correctly did not.
  */
 export function skillsNegated(state: VmState, id: string): boolean {
+  guardEnergyEntryLifetimes(state);
   return standingSkillsNegated(state, id) || state.effects.some((e) => e.kind === "negateSkills" && e.target === id);
 }
 

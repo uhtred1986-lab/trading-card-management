@@ -1,3 +1,4 @@
+import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureCopiedSkill } from "./triggers";
 import { counterActivationFrom } from "./counter-activation-origin";
@@ -412,6 +413,7 @@ function namesNow(attrs: Attrs): string[] {
  * engine's `matches`.
  */
 export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, suppliedStanding?: VmStatic[], payment?: EnergyPaymentContext): Attrs {
+  guardEnergyEntryLifetimes(state);
   validateStandingNegationRead(ctx, state);
   requireEnergyCouponEffects(ctx, state);
   const card = state.cards[id];
@@ -851,6 +853,7 @@ export function permitted(ctx: EngineContext, game: GameDefinition, state: VmSta
  * (#153); this is only whether the card has it, which [Barrier] needs here.
  */
 export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"]): boolean {
+  guardEnergyEntryLifetimes(state);
   validateStandingNegationRead(ctx, state);
   const card = state.cards[id];
   // 23-5-2-1: a skill a Hidden Mode card gains is ignored, so a granted
@@ -910,6 +913,7 @@ export interface KeywordInstance {
 
 /** Every in-force keyword instance retains its original source identity. */
 export function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordInstance[] {
+  guardEnergyEntryLifetimes(state);
   validateStandingNegationRead(ctx, state);
   const card = state.cards[id];
   // 23-5-2-1, as in `hasKeyword`.

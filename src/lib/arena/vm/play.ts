@@ -1,3 +1,4 @@
+import { refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 import { refuseStandingNegationMutation } from "./standing-negation-runtime";
 /**
  * A card being played, and what that comes to on the board (5-5, 8-3-2).
@@ -390,6 +391,7 @@ export function resolvePlay(
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
 function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; beforeTriggers?: () => void } = {}): void {
+  refuseEnergyEntryProcedure(state, [card, host, ...extra]);
   refuseStandingNegationMutation(state, "stack play", ctx, to === "battle" ? card : undefined);
   const slot = state.sides[player].zones[to].indexOf(host);
   const mode = state.cards[host].mode;

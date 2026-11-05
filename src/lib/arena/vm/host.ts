@@ -1,3 +1,6 @@
+import { guardEnergyEntryLifetimes, refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
+import { guardOptionalEnergyFrame, prepareOptionalEnergyEntry, optionalEnergyArrival, guardUnownedEnergyEntry, type OptionalEnergyArrival } from "./energy-entry-runtime";
+import { guardEnergyEntryBatch } from "./energy-entry-preflight";
 import { beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureEnergyEntryMode } from "./energy-entry-mode";
 import { queueFieldCleanup, takeFieldCleanup } from "./field-rules";
@@ -115,6 +118,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
   const counterProtected = (frame: ScriptFrame, id: string): boolean => !!frame.counterPlay && frame.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter");
 
   return {
+    guardEnergyEntryFrame: frame => guardOptionalEnergyFrame(ctx,state,vmHost(ctx,game,state,ev,frame),frame),
+    guardEnergyEntryBatch: (frame,ids) => { if (!frame.energyEntry) guardEnergyEntryBatch(ctx,state,vmHost(ctx,game,state,ev,frame),frame,ids); },
+    prepareEnergyEntry: (frame,id,destination) => prepareOptionalEnergyEntry(ctx,state,vmHost(ctx,game,state,ev,frame),child => {
+      const childHost=vmHost(ctx,game,state,ev,child);
+      return {...childHost,move:(card,to,owner,opts)=>childHost.move(card,to,owner,{...opts,source:child.card,actor:child.master})};
+    },frame,id,destination),
     deferCounterOperation: (frame, op) => {
       if (!frame.counterPlay || frame.counterAnswerScope === undefined) return false;
       const scope = state.skillPlayScopes?.find(s => s.id === frame.counterAnswerScope);
@@ -250,12 +259,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     canReplaceCounterArrival: (frame) => !!frame.arrivalDecision && !counterProtected(frame, frame.arrivalDecision.arrival.card) && canReplaceCounterArrival(ctx, game, state, frame),
     move: (id, to, owner, opts) => {
       const arrival = retainedFrame?.arrivalDecision;
+      const energyEntry=to === "energy" ? optionalEnergyArrival(ctx,game,state,vmHost(ctx,game,state,ev,retainedFrame),retainedFrame,id,owner,opts?.requestedMode) : undefined;
+      const actor=opts?.actor ?? (energyEntry ? retainedFrame?.master : undefined);
+      const source=opts?.source ?? (energyEntry ? retainedFrame?.card : undefined);
       const onResult: NonNullable<typeof opts>["onResult"] = result => {
         opts?.onResult?.(result);
         if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
           state.resolving?.card === id && (result.completed || result.toEpoch !== result.fromEpoch)) state.resolving.replaced = true;
       };
-      moveTo(ctx, game, state, ev, id, to, owner, { onResult, requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      moveTo(ctx, game, state, ev, id, to, owner, { onResult, energyEntry, actor, requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(source ? { source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -277,6 +289,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `placeUnder` fires none either — only the client-visible picture),
     // which is why this is `log`, not `emit`.
     placeUnder: (id, host, frame, onResult) => {
+      refuseEnergyEntryProcedure(state,[id,host]);
       refuseStandingNegationMutation(state, "under placement", ctx);
       // Audit triggers 3: where it came from, read before it joins the pile (which is in no area, 23-2).
       const from = zoneOf(state, id), fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
@@ -318,6 +331,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // pile under it in its order (23-2-2-1, 23-2-6). Not in a Leader Area: a
     // Leader is the only card that stands there (3-1-2, 17-1-1).
     placeOnTop: (id, host) => {
+      refuseEnergyEntryProcedure(state,[id,host]);
       refuseStandingNegationMutation(state, "stack placement", ctx, zoneOf(state, host) === "battle" ? id : undefined);
       const top = state.cards[host];
       const at = findCard(state, host);
@@ -407,6 +421,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       card(id).faceUp = faceUp;
     },
     setHidden: (id, hidden, by) => {
+      refuseEnergyEntryProcedure(state,[id]);
       refuseStandingNegationMutation(state, "Hidden switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
       clearAutoReveal(state, id);
       card(id).hidden = hidden;
@@ -427,6 +442,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       emit(ctx, game, state, ev, { event: "hiddenSwitched", card: id, controller, args: { hidden, in: zoneOf(state, id) ?? "", ...cause } }, null);
     },
     flip: (id, toBack = true) => {
+      refuseEnergyEntryProcedure(state,[id]);
       refuseStandingNegationMutation(state, "face switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
       card(id).flipped = toBack;
       log(ev, { type: "flip", card: id, flipped: toBack });
@@ -561,9 +577,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // The moment, in the words `triggers.rules` is written in. A program that
     // pends is naming a legacy trigger, and `pendByName` is the one translation
     // — see its note.
-    pend: (trigger, cardId, subject, sourceNegated) => {
+    pend: (trigger, cardId, subject, sourceNegated, sourceMaster) => {
       const before = new Set(state.pending);
-      pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated);
+      pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated, sourceMaster);
       const scope = state.skillPlayScopes?.at(-1);
       if (trigger === "played" && scope?.played.some(item => item.card === cardId && item.epoch === (state.cards[cardId]?.zoneEpoch ?? 0))) witnessArrivalAutos(state, scope, cardId, before);
     },
@@ -1043,10 +1059,12 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
+  opts: { energyEntry?: OptionalEnergyArrival; requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
+  guardEnergyEntryLifetimes(state);
+  if (to === "energy" && !opts.energyEntry) guardUnownedEnergyEntry(ctx,state,id);
   const from = zoneOf(state, id);
   const fromEpoch = state.cards[id]?.zoneEpoch ?? 0, asked = to;
   const report = (completed: boolean, actual = zoneOf(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
@@ -1062,6 +1080,8 @@ function moveTo(
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
   if (route.stays) { report(false); return; }
   to = route.to;
+  if (to === "energy" && !opts.energyEntry) guardUnownedEnergyEntry(ctx,state,id);
+  if (opts.energyEntry && (route.replacementApplied || to !== "energy" || opts.energyEntry.card !== id || opts.energyEntry.epoch !== fromEpoch || opts.energyEntry.player !== owner)) throw new NotYet("optional Energy entry changed its final native route", "R476");
   if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source, id)) { report(false); return; }
   const fromOwner = from ? ownerOfZone(state, id) : null;
   // 23-2-2-2: a card under another is in the area of the card on top, and
@@ -1079,10 +1099,10 @@ function moveTo(
   const held = (zone: string | null) => !!zone && (inPlayZones(game).includes(zone) || game.zones[zone]?.host === true);
   const carry = !!opts.carry || (held(from) && held(to));
   // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
-  const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode).mode : route.mode;
+  const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode, opts.energyEntry?.negate).mode : route.mode;
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
   const transaction = beginStandingNegationMutation(ctx, state, to === "battle" ? id : undefined);
-  const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
+  const placed = moveCard(state, game, id, to, { energyEntryCleanup: true, owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     finishStandingNegationMutation(ctx, state, transaction);
@@ -1104,6 +1124,10 @@ function moveTo(
   if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
   // 5-5-4: arriving in a Battle Area is remembered for the turn (`placedThisTurn`).
   if (to === "battle" && from !== "battle") state.cards[id].placedThisTurn = true;
+  if (opts.energyEntry?.negate) {
+    if (to !== "energy" || state.cards[id].zoneEpoch !== opts.energyEntry.epoch + 1) throw new NotYet("optional Energy negation lost its new occurrence", "R476");
+    addEffect(state,ev,{target:id,source:id,master:opts.energyEntry.player,kind:"negateKeyword",value:"Energy-Exhaust",until:"game",energyEntryEpoch:state.cards[id].zoneEpoch});
+  }
   finishStandingNegationMutation(ctx, state, transaction, to === "battle" && from !== "battle" ? id : undefined);
   report(!route.replacementApplied && placed.move.to === asked, placed.move.to);
   if (from && fromOwner) {
@@ -1190,7 +1214,7 @@ function clearAutoReveal(state: VmState, card: string): void {
  * covers only the names a program says outright, and a name with no moment of
  * its own is a note rather than a silent miss.
  */
-function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string, sourceNegated?: number[]): void {
+function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string, sourceNegated?: number[], sourceMaster?: PlayerId): void {
   // A switch to Rest Mode by a skill is `setMode`'s own moment, fired as the
   // card switched and saying what switched it (#157); the name the program
   // also says is that same happening, already answered.
@@ -1198,7 +1222,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // R-362: one face-up transition is broadcast about the actual Life card. Its source is separate;
   // explicit hand watchers and the Life card itself join the controller's ordinary watchers.
   const eventCard = trigger === "flippedFaceUp" ? id : (WATCHED_MOVE.has(trigger) && subject) ? subject : id;
-  const master = state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer;
+  const master = sourceMaster ?? (state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer);
   // Phrasing batch 8: "when your opponent takes damage from a skill" is pended on each of the dealer's cards, and the
   // moment is about the damaged player (`watcher: opponent` asks the other side of it), so its side is the other one.
   const controller = ABOUT_THE_OTHER_SIDE.has(trigger) ? otherPlayer(master) : master;
@@ -1222,7 +1246,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A watched move (phrasing batch 5) is pended once, about the moved card: every watcher the declaration names
   // answers — in play, and in a hand when its skill plays itself from there (DB2-174, `matchTriggers`' hand watchers).
   const watched = WATCHED_MOVE.has(trigger) || trigger === "flippedFaceUp";
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: { ...moment.args, ...(sourceMaster && moment.args.from === "battle" ? { fromHolder: sourceMaster } : {}) }, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 

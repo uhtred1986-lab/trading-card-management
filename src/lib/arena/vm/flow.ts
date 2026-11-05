@@ -1,3 +1,5 @@
+import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
+import { guardUnownedEnergyEntry } from "./energy-entry-runtime";
 import { expireStandingNegationBatch, beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { capturedGrantedSkillNegated } from "./effects";
 import { capturedSkillShowing } from "./triggers";
@@ -1609,7 +1611,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     const ownCleanupSubstitute = !!substitute && frame.replacing === substitute.card;
     if (ownCleanupSubstitute) substitute.active = true;
     try {
-      return stepScript(vmHost(ctx, game, state, ev, frame.retainedCounter || frame.arrivalDecision ? frame : undefined), frame);
+      return stepScript(vmHost(ctx, game, state, ev, frame), frame);
     } finally {
       if (ownCleanupSubstitute) delete substitute!.active;
     }
@@ -1787,6 +1789,8 @@ export interface MoveCause {
  * zone a board cannot animate, and still a place a card arrived in.
  */
 export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
+  guardEnergyEntryLifetimes(state);
+  if (asked === "energy") guardUnownedEnergyEntry(ctx,state,id);
   validateStandingNegationRead(ctx, state);
   const from = fromZone(state, id);
   const fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
@@ -1810,12 +1814,13 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     ...(opts.usedReplacements ? { usedReplacements: opts.usedReplacements } : {}),
     ...(opts.replacementEvent ? { event: opts.replacementEvent } : {}),
   });
+  if (!route.stays && route.to === "energy") guardUnownedEnergyEntry(ctx,state,id);
   if (route.replacement) opts.usedReplacements?.add(route.replacement);
   if (route.stays) { report(false); return; }
   if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { report(false); return; }
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || from === null || (from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, route.to === "battle" ? id : undefined);
   const transaction = beginStandingNegationMutation(ctx, state, route.to === "battle" ? id : undefined);
-  const result = moveCard(state, game, id, route.to, { ...opts, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
+  const result = moveCard(state, game, id, route.to, { ...opts, energyEntryCleanup: true, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
   if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== id && !(result.move.released ?? []).some((released) => released.card === item.card));
   // Where it really went: a rule about what the card *is* may send it
@@ -1828,6 +1833,8 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // borrowed card's loan standing, so it outlived the card (#459,
   // `verify/keywords.ts`'s TAKER2 case).
   if (from !== to) state.effects = state.effects.filter((e) => !(e.target === id && e.kind === "control"));
+  // R476 owns only its stamped arrival negation, not the broader R454 cleanup.
+  if (from !== to) state.effects = state.effects.filter(e => !(e.target === id && e.energyEntryEpoch !== undefined));
   // 5-5-4: a card arriving in a Battle Area remembers it for the turn —
   // played or placed alike (5-5-1). Not a move from one Battle Area to another.
   if (to === "battle" && from !== "battle" && state.cards[id]) state.cards[id].placedThisTurn = true;

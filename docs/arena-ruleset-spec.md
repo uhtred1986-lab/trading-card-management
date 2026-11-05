@@ -91,7 +91,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 
 ### 2.2 The primitive vocabulary
 
-Twenty-nine primitives carry every row below — twenty-two operations and seven conditions.
+Thirty primitives carry every row below — twenty-three operations and seven conditions.
 
 | Primitive | Today | What it says |
 |---|---|---|
@@ -110,6 +110,7 @@ Twenty-nine primitives carry every row below — twenty-two operations and seven
 | `copySkills` | `copySkills` | One card takes on another's printed skills, as they stood when the copy was made (20-18). |
 | `play` | `play` | The game's own play action is invoked for a card (5-5). |
 | `invokeSkill` | `invokeSkill` | A selected card's declared skill is activated through its own legality, declaration, nested resolution and return to the parent (12-2-4). |
+| `energyEntryExhaust` | `energyEntryExhaust` | A descriptor for an optional procedure owned by the original Energy movement; ordinary sequential effects cannot interpose before that arrival. Bounded native tests use synthetic stored descriptors; compiler and card admission remain blocked. |
 | `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
 | `permit` | `permit` | A rule of the game is lifted for one card (8-1-1). |
 | `immune` | `immune` | A card no skill may touch (9-1-4). |
@@ -158,6 +159,7 @@ disagree or if a row is missing from either.
 | `moveTo` | primitive | This **is** `move`. |
 | `play` | primitive | The play action, not a destination (5-5); see §2.2 for why this row is provisional. |
 | `invokeSkill` | primitive | SD7-01 selects a qualifying ≪Desire≫ Extra from hand and invokes its actual [Activate: Main] line (12-2-4): the Extra moves to Drop before the nested skill and the parent resumes afterward. No sequence of `moveTo` and the nested effect body performs the legality, once/prohibition checks, skill announcement and saved parent continuation. The printed original energy and skill prices are waived, but external activation taxes remain a separate open gap (#677). |
+| `energyEntryExhaust` | primitive | Records two distinct colored Drop-to-Warp slots for the optional Energy-Exhaust entry procedure. Its parent movement must own suspension, occurrence identity and resumption before arrival; a detached `may` plus `negate` cannot express that timing. This descriptor is currently uncollected by Permanent loading and refused as an ordinary executable step; it grants no card admission. |
 | `switchMode` | macro over `modifyAttr` | Active or Rest is an attribute of the card; "switched to Rest Mode by one of your skills" (1-10) is a trigger on the change and its cause. |
 | `modifyAttr` | primitive | One attribute of one card, by a delta (`amount`) or by the values it also counts as (`values`), for a duration or — printed as a [Permanent] — for as long as the rule holds. The row the three below lower to, and the reason they are one mechanism rather than three. |
 | `power` | macro over `modifyAttr` | Attribute `power`, by a delta, for a duration. |
