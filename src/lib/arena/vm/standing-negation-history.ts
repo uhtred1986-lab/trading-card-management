@@ -154,13 +154,21 @@ export function settleStandingNegation(history: StandingNegationHistory | undefi
 
 /** Read only from a history settled against this exact observed board. */
 export function standingNegationAffects(history: StandingNegationHistory | undefined, observation: StandingNegationObservation, target: StandingNegationCard): boolean {
-  const observed = observationKey(observation);
+  observationKey(observation);
   if (!history) {
     if (observation.candidates.length) rebuild("rebuild affected standing-negation history");
     return false;
   }
+  if (!cardValid(target)) rebuild("rebuild the standing-negation target occurrence");
+  validateStandingNegationObservation(history, observation);
+  return history.suppressed.some(edge => cardKey(edge.target) === cardKey(target));
+}
+
+/** Validate a captured pre-mutation observation, including an empty board. */
+export function validateStandingNegationObservation(history: StandingNegationHistory, observation: StandingNegationObservation): void {
+  const observed = observationKey(observation);
   validateHistory(history);
-  if (!cardValid(target) || history.observation !== observed) rebuild("standing-negation mutation has not been settled");
+  if (history.observation !== observed) rebuild("standing-negation mutation has not been settled");
   const expected: StandingNegationHistory["suppressed"] = [];
   for (const generation of history.active) {
     const candidate = observation.candidates.find(item => standingNegationSourceKey(item.source) === standingNegationSourceKey(generation.source));
@@ -174,5 +182,4 @@ export function standingNegationAffects(history: StandingNegationHistory | undef
     && !expected.some(edge => cardKey(edge.target) === cardKey(candidate.source)))) rebuild("standing-negation enabled source has no settled generation");
   const edgeKeys = (edges: StandingNegationHistory["suppressed"]) => edges.map(edge => canonical(edge)).sort();
   if (canonical(edgeKeys(expected)) !== canonical(edgeKeys(history.suppressed))) rebuild("inconsistent standing-negation suppression history");
-  return history.suppressed.some(edge => cardKey(edge.target) === cardKey(target));
 }
