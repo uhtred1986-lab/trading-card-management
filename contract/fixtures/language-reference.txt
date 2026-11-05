@@ -2437,7 +2437,7 @@
     {
       "name": "forbid",
       "class": "primitive",
-      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"attackTarget\"?:FILTER,\"attackOnly\"?:TARGET,\"against\"?:TARGET,\"attacker\"?:TARGET,\"fromArea\"?:\"hand\"|\"battle\"|\"drop\"|…,\"fromOwnArea\"?:true|false,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"exceptEvolve\"?:true|false,\"exceptUnion\"?:[\"Fusion\"|\"Potara\"|\"Absorb\"],\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false,\"skillKinds\"?:[\"…\"],\"exceptOwnSkills\"?:true|false,\"exceptSourceName\"?:\"…\",\"toArea\"?:\"hand\"|\"deck\"|\"drop\"|\"warp\"|\"energy\"|\"life\",\"toBottom\"?:true|false,\"byFilter\"?:FILTER,\"cardsOf\"?:\"you\"|\"opponent\",\"exceptKeyword\"?:\"…\",\"costVsEnergy\"?:\"above\"|\"atLeast\",\"keywordSkill\"?:\"…\",\"sameCharacterUnder\"?:true|false,\"exceptFilter\"?:FILTER,\"exceptByFilter\"?:FILTER,\"exceptCards\"?:TARGET}",
+      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"attackTarget\"?:FILTER,\"attackOnly\"?:TARGET,\"against\"?:TARGET,\"attacker\"?:TARGET,\"fromArea\"?:\"hand\"|\"battle\"|\"drop\"|…,\"fromOwnArea\"?:true|false,\"sameNameAsSelf\"?:true|false,\"copiesOf\"?:SELECTOR,\"bySkill\"?:true|false,\"exceptEvolve\"?:true|false,\"exceptUnion\"?:[\"Fusion\"|\"Potara\"|\"Absorb\"],\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false,\"skillKinds\"?:[\"…\"],\"exceptOwnSkills\"?:true|false,\"exceptSourceName\"?:\"…\",\"toArea\"?:\"hand\"|\"deck\"|\"drop\"|\"warp\"|\"energy\"|\"life\",\"toBottom\"?:true|false,\"byFilter\"?:FILTER,\"cardsOf\"?:\"you\"|\"opponent\",\"exceptKeyword\"?:\"…\",\"costVsEnergy\"?:\"above\"|\"atLeast\",\"keywordSkill\"?:\"…\",\"sameCharacterUnder\"?:true|false,\"exceptFilter\"?:FILTER,\"exceptByFilter\"?:FILTER,\"exceptCards\"?:TARGET}",
       "fields": [
         {
           "name": "what",
@@ -2556,6 +2556,12 @@
           "required": false,
           "nullable": false,
           "type": "boolean"
+        },
+        {
+          "name": "copiesOf",
+          "required": false,
+          "nullable": false,
+          "type": "selector"
         },
         {
           "name": "bySkill",
@@ -2791,6 +2797,7 @@
             "attackActive",
             "comboRest",
             "fieldBattle",
+            "fieldKeepOthers",
             "overRealmFromWarp",
             "unionFusionAreas",
             "unionFusionWarp",

@@ -1583,7 +1583,7 @@ export function chargeSwitchForbidden(ctx: EngineContext, game: GameDefinition, 
  * whose budget is still unspent, so the action that spends the last use is the
  * one that turns the rule on.
  */
-export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string } = {}): void {
+export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; from?: string; skillKind?: string; keyword?: string } = {}): void {
   for (const e of state.effects) {
     if (e.kind !== "forbid" || !e.forbid || (e.forbid.uses ?? 0) <= 0) continue;
     if (!ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid, key: `effect:${e.id}` }, opts)) continue;

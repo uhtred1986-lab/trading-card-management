@@ -10,7 +10,7 @@ import { replacementChoices } from "./replace";
 import { fieldRuleHost } from "./field-rules";
 import { completedMovement } from "./movement-result";
 import { vmHost } from "./host";
-import { forbiddenBy, taxesOn } from "./program";
+import { forbiddenBy, spendProhibitionUse, taxesOn } from "./program";
 import { canonicalTaxValue as canonical } from "./tax-receipt";
 import { cardPrice, captureActivationEnergyUses, consumeActivationEnergyUses, chargeCost, freePrice, payAltCost, planCost, priceFor, spendSkillCostUses, type CapturedEnergyCouponUses, type Price, type VmPayment } from "./costs";
 import { IllegalAction } from "./common";
@@ -246,7 +246,9 @@ function stepFieldTaxes(ctx: EngineContext, game: GameDefinition, state: VmState
 
 export function stepFieldCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.fieldCost;
-  if (!frame.vars || typeof frame.vars !== "object" || !cost || cost.version !== 1 || !cost.line?.skill || !cost.line.script?.price || cost.line.skill.keyword?.name !== "Field" || !isFieldPayment(cost.line) || cost.line.card !== frame.card || cost.line.skillIndex !== frame.skillIndex || cost.line.skill.index !== frame.skillIndex || typeof cost.waived !== "boolean" || !["cardResources", "stageSource", "skillResources", "skillAction", "taxes", "activate"].includes(cost.stage) || !Array.isArray(cost.paidTaxes) || cost.paidTaxes.some(key => typeof key !== "string") || new Set(cost.paidTaxes).size !== cost.paidTaxes.length || typeof cost.originalArea !== "string" || !game.zones[cost.originalArea] || !cost.moment || cost.moment.card !== frame.card || cost.moment.controller !== frame.master || cost.moment.event !== "skillActivated" || cost.moment.args?.from !== cost.originalArea) throw new NotYet("rebuild this saved Field payment declaration", "R457");
+  if (!Array.isArray(frame.ops) || !Number.isSafeInteger(frame.ip) || frame.ip < 0 || frame.ip > frame.ops.length || !frame.vars || typeof frame.vars !== "object" || Array.isArray(frame.vars) || !cost || cost.version !== 1 || !cost.line?.skill || !cost.line.script?.price || cost.line.skill.keyword?.name !== "Field" || !isFieldPayment(cost.line) || cost.line.card !== frame.card || cost.line.skillIndex !== frame.skillIndex || cost.line.skill.index !== frame.skillIndex || typeof cost.waived !== "boolean" || !["cardResources", "stageSource", "skillResources", "skillAction", "taxes", "activate"].includes(cost.stage) || !Array.isArray(cost.paidTaxes) || cost.paidTaxes.some(key => typeof key !== "string") || new Set(cost.paidTaxes).size !== cost.paidTaxes.length || typeof cost.originalArea !== "string" || !game.zones[cost.originalArea] || !cost.moment || cost.moment.card !== frame.card || cost.moment.controller !== frame.master || cost.moment.event !== "skillActivated" || cost.moment.args?.from !== cost.originalArea) throw new NotYet("rebuild this saved Field payment declaration", "R457");
+  if ((cost.choices !== undefined && (!Array.isArray(cost.choices) || cost.choices.some(choice => !choice || typeof choice.label !== "string" || !choice.price || !choice.payment || !Array.isArray(choice.payers))))
+    || (cost.requestedEnergy !== undefined && (!Array.isArray(cost.requestedEnergy) || cost.requestedEnergy.some(payer => !payer || typeof payer.card !== "string" || !Number.isSafeInteger(payer.epoch) || payer.epoch < 0) || new Set(cost.requestedEnergy.map(payer => payer.card)).size !== cost.requestedEnergy.length))) throw new NotYet("rebuild the saved Field resource choices", "R457");
   try {
     const problem = fieldSourceProblem(state, cost.source, frame.card, frame.master);
     if (!game.zones[cost.source.area]) throw new NotYet("rebuild the saved Field source area", "R457");
@@ -300,6 +302,7 @@ export function stepFieldCost(ctx: EngineContext, game: GameDefinition, state: V
     const vars = { [key]: [frame.card], [`${key}@epoch`]: [`${frame.card}@${cost.source.epoch}`] };
     const ops: Op[] = [{ op: "moveTo", target: { sel: { fromVar: key, area: cost.source.area as import("./script").ScriptArea } }, to: "battle", mode: "active" }, ...(cost.line.script?.ops ?? [])];
     if (cost.coupons) consumeActivationEnergyUses(state, ev, cost.coupons);
+    spendProhibitionUse(ctx, game, state, "activateSkill", { player: frame.master, card: frame.card, from: cost.originalArea, skillKind: cost.line.kind, keyword: "Field" });
     resolveActivation(ctx, game, state, ev, frame.master, cost.line, undefined, undefined, { ops, vars }, true);
     if (!cost.waived) spendSkillCostUses(ctx, game, state, ev, frame.card, cost.line.skill);
     fire(ctx, game, state, cost.moment);

@@ -1200,9 +1200,9 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
   // R-420 / P-119 Q&A: an effect invoking a deck Extra also places it in Drop before activation.
-  // Not for a keyword's own move: its `DO` says where the card goes, and
-  // [Field]'s puts it in the Battle Area instead (22-3-2), as the legacy
-  // engine's `Field` case moves it straight there.
+  // Keyword procedures own their staging. R457 FieldCost has already bound
+  // the original hand→Drop occurrence and paid the Field skill before this
+  // successful continuation places it in Battle (22-3-2).
   if (!line.keyword && (findCard(state, card)?.zone === ACTIVATION_ZONES.hand || (invokedFrom === "deck" && findCard(state, card)?.zone === "deck")) && isExtra(ctx, game, state, card)) {
     moved(ctx, game, state, ev, card, ACTIVATION_ZONES.drop, { owner: player, reveal: true });
   }

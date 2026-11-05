@@ -44,6 +44,11 @@ for (const player of ["p1", "p2"] as const) {
     const { state, put } = fresh(player); const source = put("BT13-084"), old = put("FR1469"), arriving = put(target);
     assert.deepEqual(otherFieldsToDrop(ctx, game, state, arriving), target === "FR2469" ? [] : [source, old]); cases++;
   }
+  for (const [definition, reduction, keeps] of [["FR2469", -3, true], ["FR2469", 1, true], ["FR1469", -1, false]] as const) {
+    const { state, put } = fresh(player); const source = put("BT13-084"), old = put("FRM469"), arriving = put(definition);
+    addEffect(state, [], { target: arriving, kind: "cost", value: reduction, until: "game" });
+    assert.deepEqual(otherFieldsToDrop(ctx, game, state, arriving), keeps ? [] : [source, old]); cases++;
+  }
   {
     const { state, put } = fresh(player); const source = put("BT13-084"), arriving = put("FR2469");
     addEffect(state, [], { target: source, kind: "negateSkillKind", value: "permanent", until: "game" });

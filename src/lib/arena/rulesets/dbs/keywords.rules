@@ -86,22 +86,16 @@ DEFINE KEYWORD Wish
 -- 22-3
 DEFINE KEYWORD Field
   TAKES ()
-  text: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out."
-  -- A move (2 Oct 2026), offered as an [Activate: Main] from the hand
-  -- (22-3-2) — and at [Activate: Battle] timings as well while a [Permanent]
-  -- permits it for this card (`permit(what: fieldBattle)`, BT29-041/-042),
-  -- which `vm/activate.ts`'s `activationsOf` reads as widening the line's
-  -- kind to `activate:main/battle`. The price is the Extra's own energy cost
-  -- (12-2-2, `boundFor`), and the Extra is not put in the Drop as an Extra
-  -- used from the hand otherwise is: the `DO` plays it into the Battle Area in
-  -- Active Mode, and the onEnter hook below drops the [Field] Extra already
-  -- out (22-3-5). One difference from the legacy engine, recorded: the label
-  -- does not add the cost in brackets.
+  text: "An Extra Card placed in the Battle Area in Active Mode after its Field skill is activated. Other Field cards are placed in their owners' Drop Areas unless a card explicitly permits otherwise."
+  --12-2: native hand activation pays card energy, stages the original card
+  --in Drop, then pays the Field skill price. Invoked skills waive that price.
+  --R457 captures the authorized source occurrence and performs this placement
+  --without Battle Card play timing. fieldBattle can widen activation timing.
   offer: "activate:main"
   REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
   label: "Field: place {card}"
   DO {
-    play(target: [self])
+    moveTo(target: [self], to: battle, mode: active)
   }
   --22-3-5 cleanup is mandatory rule processing (R469), including replacements.
 
