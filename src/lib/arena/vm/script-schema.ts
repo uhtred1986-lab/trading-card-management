@@ -1,3 +1,4 @@
+import { energyEntryPolicyProblem } from "./energy-entry-policy";
 import { counterArrivalPolicyProblem } from "./counter-arrival-policy";
 import { counterUnderPermitProblem } from "./counter-under-contract";
 import { counterEnergyPermitProblem } from "./counter-energy-contract";
@@ -830,6 +831,11 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     },
     doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card, and "onto" scopes an "evolve" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. "uses" (with "skill"/"evolve" and a duration) is how many activations the change reaches before it ends — "the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}" (BT31-096) is uses 1, until "turn"; the activation that pays a line it reaches spends one, and "until" still ends it unused. "tag" (with "skill"/"evolve") narrows the change to one keyword\'s line, lower-case — "z-awaken", "arrival", "swap", "union", "successor", "ex-evolve", "xeno-evolve" (a bare [Evolve] is all three variants, 22-5-2-2, and needs none); "skillKind" does the same for [Activate]/[Auto]/[Counter]. A skill-cost change said in a colour does nothing to a {1} orb and one said as {1} does nothing to a coloured orb (5-8-2-4). "uses" is also read on an energy cost ("what" absent) and on "specified": "the next time you play X, reduce its energy cost by {r}" is spent by the play or Extra activation that pays the card\'s price. The effects one op puts in force share its uses (a "group"): paying any one ends them all. An energy cost reduced by a plain number comes off the total alone, floored at the specified orbs that remain (FAQ Skills Q24, 1-2-2-1); one reduced "by {r}" takes that colour off the specified cost as well, as many as the card demands (20-21-2, 20-21-2-1).',
   },
+  energyEntryExhaust: {
+    fields: [{ name: "colors", type: { list: { enum: ["Red", "Blue", "Green", "Yellow"] } }, required: true }],
+    sentence: raw => { const [a, b] = (raw as OpOf<"energyEntryExhaust">).colors; return `when entering Energy, optionally send 1 ${a} card and 1 ${b} card, two distinct cards from your Drop, to Warp to negate this card’s Energy-Exhaust`; },
+    doc: 'R476 stored pre-entry procedure descriptor, consumed only by the original Energy movement owner. Exactly two distinct color slots; ordinary effect choices and movement completion, never an action-price host. It is not an executable effect step.',
+  },
   negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, { name: "allAreas", type: "boolean" }, SELF, { name: "until", type: "duration" }], sentence: (raw, r) => renderTemplate(`negate the [{keyword}] skill of {target}${(raw as OpOf<"negateKeyword">).allAreas ? " in all areas" : ""}{until}`, raw as unknown as Record<string, unknown>, [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF, { name: "until", type: "duration" }], r), doc: 'With allAreas:true, only a standing self named-keyword negation is valid outside play; the qualifier does not widen an aura source or a timed effect. Take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker". With "until" (phrasing batch 6, owner\'s ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — "choose up to 1 of your opponent\'s Battle Cards, negate [Indestructible], and KO it" (BT23-081) is "turn"; without, it is standing (a [Permanent]\'s)' },
   gains: {
     fields: [
@@ -1364,6 +1370,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   token:              "primitive",
   costReduction:      "macro over `costModifier`",
   negateKeyword:      "macro over `negate`",
+  energyEntryExhaust: "primitive",
   gains:              "macro over `modifyAttr`",
   replace:            "primitive",
   control:            "primitive",
@@ -2257,6 +2264,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       const self = o.target === undefined || (isRecord(o.target) && Object.keys(o.target).length === 1 && isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self");
       if (o.allAreas !== true || !self || o.until !== undefined || (o.op === "negate" && (o.what !== "keyword" || o.chosen !== undefined || typeof o.keyword !== "string"))) return `${step}: allAreas requires a standing self named-keyword negation`;
     }
+    if (o.op === "energyEntryExhaust" && energyEntryPolicyProblem({ version: 1, colors: o.colors })) return `${step}: requires exactly two distinct supported color slots`;
     if (o.op === "switchMode" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.mode !== "rest" || !isRecord(o.target) || typeof o.target.var !== "string")) return `${step}: switch completion needs a bound variable switched to Rest Mode`;
     if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || !(typeof o.target.var === "string" || isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self" && o.to !== "under") || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary move or under placement`;
     if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {

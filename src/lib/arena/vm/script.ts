@@ -1171,6 +1171,7 @@ export type Op =
    * read by every rule that looks at what a card *is*, not by the ones that
    * look at what it does.
    */
+  | { op: "energyEntryExhaust"; colors: [Color, Color] }
   | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; names?: string[]; target?: Ref; allAreas?: boolean }
   /**
    * 9-10: where this card goes instead, when it would leave the Battle Area.
@@ -1985,6 +1986,9 @@ export interface ScriptFrame {
    * "you may" also made "up to" is owed in full (`owedInFull`, #720).
    */
   offered?: true;
+  /** R476: original movement owns its optional pre-entry effect through suspension. */
+  energyEntry?: import("./energy-entry-continuation").EnergyEntryContinuation;
+  energyEntrySequence?: number;
   /** A `moveTo`/`ko` loop suspended for a replacement choice. */
   moveLoop?: {
     kind: "moveTo" | "ko";
@@ -2429,6 +2433,7 @@ function rememberLook(frame: ScriptFrame, player: PlayerId, areas: ("deck" | "li
  * ended or a sub-flow (playing a card) took over.
  */
 export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
+  h.guardEnergyEntryFrame?.(frame);
   if (frame.viaKeyword === "Over Realm" && (!frame.overRealmSource || frame.overRealmSource.version !== 1)) throw new NotYet("rebuild this saved Over Realm source/payment continuation", "R456");
   if (frame.viaKeyword === "Over Realm" && !frame.keywordPrice && (!Array.isArray(frame.overRealmPaidTaxes) || frame.overRealmPaidTaxes.some(key => typeof key !== "string"))) throw new NotYet("rebuild this saved Over Realm completed-payment receipt", "R456");
   requireCounterSelfBinding(frame, undefined);
@@ -2492,6 +2497,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
     if (deferredCounter) { frame.ip++; continue; }
 
     switch (op.op) {
+      case "energyEntryExhaust":
+        throw new NotYet("an Energy entry descriptor outside its original movement", "R476");
       case "note":
         h.note(op.text);
         break;
@@ -3296,6 +3303,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         break;
 
       case "moveTo": {
+        // Refuse unsupported optional entries before receipts, RNG, or any card
+        // in the batch changes. Existing hosts retain their normal resolution.
+        if (op.to === "energy" && h.guardEnergyEntryBatch) h.guardEnergyEntryBatch(frame, frame.moveLoop?.ids ?? h.resolveRef(frame, op.target));
         // 23-2: under a card is not an area of its own, so it is its own move.
         // #1123: a host named by a selector is taken only when it matches one card. Several matches
         // are a choice the record never asked (the compiler makes a counted host a `choose`), and
@@ -3340,6 +3350,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         };
         while (frame.moveLoop && frame.moveLoop.kind === "moveTo" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
+          // A suspended optional effect finishes before any newly active
+          // prohibition can skip its original incoming card. Its final payer
+          // movement may change those rules, so completion reruns them below.
+          if (frame.energyEntry && h.prepareEnergyEntry) {
+            const entry = h.prepareEnergyEntry(frame, id, frame.energyEntry.witness.destination);
+            if (entry === "wait") return "wait";
+            if (entry === "recheck") continue;
+          }
           if (op.completedAs && !frame.movementResults![op.completedAs].selected.some(item => item.card === id && item.epoch === h.zoneEpoch(id))) {
             if (frame.awaiting === "replaceMove") { h.clearLastMode(); frame.awaiting = undefined; }
             frame.moveLoop.index++;
@@ -3450,6 +3468,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             }
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
+          if (dest === "energy" && h.prepareEnergyEntry) {
+            const entry = h.prepareEnergyEntry(frame, id, { player: owner, area: "energy", ...(op.mode ? { mode: op.mode } : {}) });
+            if (entry === "wait") return "wait";
+            if (entry === "recheck") continue;
+          }
           const deferred = defers(replaced);
           const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
           if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: op.cause ?? "effect", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
@@ -3477,6 +3500,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const picked = !!frame.specifiedPicks?.includes(id);
           const shown = op.reveal || (picked && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp))) || (picked && h.areaOf(id) === "hand" && (dest === "deck" || (dest === "life" && !op.faceUp)));
           const movedTo = h.move(id, dest, owner, { ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(op.mode ? { requestedMode: op.mode } : {}), position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          // The original movement owns this child only until its one native
+          // movement attempt returns (including a refused movement).
+          if (dest === "energy" && h.prepareEnergyEntry) frame.energyEntry = undefined;
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
           // question inside it is asked rather than lost. Nothing below is
@@ -3553,6 +3579,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           frame.moveLoop.leftBattle = undefined;
           frame.moveLoop.index++;
         }
+        if (h.prepareEnergyEntry) frame.energyEntry = undefined;
         frame.moveLoop = undefined;
         // Phrasing batch 9 (owner's ruling of 27 Oct 2026 on BT10-054, 3-1-4): the cards a named move took are the cards
         // as they arrived. One that leaves that area and comes back is a new card, and no longer the one "you placed in
