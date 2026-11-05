@@ -10,7 +10,7 @@ import { stepScript, type Op, type ScriptFrame } from "./script";
 import type { VmState } from "./state";
 import { attrsNow, taxesOn, type TaxInForce } from "./program";
 import { findCard } from "./zones";
-import { canonicalTaxValue as canonical } from "./tax-receipt";
+import { canonicalTaxValue as canonical, mergeTaxPayers } from "./tax-receipt";
 export interface OverRealmSource { version: 1; card: string; cardId: string; epoch: number; area: "hand" | "warp"; player: PlayerId }
 type Choice = { price: Price; payment: VmPayment; label: string; payers: CardOccurrence[] };
 export interface OverRealmCost {
@@ -104,6 +104,7 @@ function stepTaxes(ctx:EngineContext,game:GameDefinition,state:VmState,ev:GameEv
       state.prompt={kind:"chooseMode",player:frame.master,reason:"Pay the additional Over Realm play cost",options:["Pay the additional cost","Do not activate"]};return "wait";
     }
     const tax=cost.tax;
+    tax.payers=mergeTaxPayers(tax.payers);
     if(!tax.accepted){const answer=state.lastMode;if(answer!==0&&answer!==1)throw new IllegalAction("answer the additional Over Realm cost");state.lastMode=null;delete frame.awaiting;if(answer===1)throw new AutoPaymentFailed("the additional Over Realm cost was declined");tax.accepted=true;frame.ops=structuredClone(tax.ops);frame.ip=0;frame.vars={};}
     for(const payer of tax.payers)if(!payer.paid&&(state.cards[payer.card]?.zoneEpoch??0)!==payer.epoch)throw new AutoPaymentFailed("an unpaid additional-cost card left its occurrence");
     const host=automaticPriceHost(ctx,game,state,ev);
@@ -159,6 +160,7 @@ export function stepOverRealmLateTax(ctx: EngineContext, game: GameDefinition, s
   if (tax.version !== 1 || !Number.isSafeInteger(tax.ownerIp) || tax.ownerIp < 0 || !Array.isArray(tax.payers) || tax.payers.some(p => !p || typeof p.card !== "string" || !Number.isSafeInteger(p.epoch) || p.epoch < 0)) throw new NotYet("rebuild malformed late Over Realm tax payment", "R456");
   const owner = state.programs.find(f => f.viaKeyword === "Over Realm" && f.card === frame.card && f.ip === tax.ownerIp && canonical(f.overRealmSource) === canonical(tax.source));
   if (!owner || owner.master !== frame.master || frame.master !== tax.source?.player || !Array.isArray(owner.overRealmPaidTaxes)) throw new NotYet("rebuild late Over Realm tax owner", "R456");
+  tax.payers = mergeTaxPayers(tax.payers);
   const fail = () => {
     state.lastChoice = null;
     state.lastMode = null;

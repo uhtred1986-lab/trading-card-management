@@ -50,3 +50,9 @@ Final successful logs (all exit 0; `verification.json` records the paths):
 - `rulings.log`: 238 rulings; `cap-final.log`: 41 narrow scenarios / 98 VM source sites.
 
 Ruleset generation and whitespace checks passed. No full gate, build, database write, paid service, dependency change, or live draft refresh was run. Parent integration must retain the later R463 Counter tax guard ordering and rerun its Energy/Drop native suites against the combined hotfiles.
+
+## Parent follow-up: incremental tax payer receipts
+
+A native BT31-093 tax reproduced duplicate payer receipts: each incremental choice re-appended all earlier picks, and final choice appended them again. After the first payer moved, a replacement pause on the second payer made stale duplicate entries look unpaid, incorrectly canceling Over Realm. Captures now merge by card and original epoch. Saved duplicate receipts preserve an existing completed-payment marker when coalesced; distinct occurrences remain distinct. Eight added both-seat cases cover early actual BT31-093 issuance, typed late-tax setup at a real Counter window, and old duplicate saved receipts. The focused suite now passes 119 cases. Reproduction and fixed logs are `recovery/or-tax-duplicate-repro.log`, `or-tax-duplicate-fixed.log` and `or-tax-occurrences-final.log`. This is an implementation correction to R456, with no new printed reading or rule interpretation.
+
+Follow-up validation: typecheck and changed-file lint passed, together with the 33-case Awaken regression suite, browser boundary, language emission, capability check (42 scenarios / 98 VM sites), and 40 completed Fusion fuzz games with no crashes or interruptions. Compiler records are unchanged from checkpoint 38.

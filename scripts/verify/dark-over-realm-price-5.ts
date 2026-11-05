@@ -323,4 +323,26 @@ for(const p of ["p1","p2"] as const) {
  s=take(s,{type:"chooseMode",player:p,index:0});assert.equal(s.prompt.kind,"chooseCards");s=take(s,{type:"choose",player:p,cards:[second]});s=finish(s);
  assert.ok(s.sides[p].zones.battle.includes(source));assert.ok(s.sides[p].zones.drop.includes(payer));assert.ok(s.sides[p].zones.drop.includes(second));checks++;
 }
+// R456 follow-up: incremental picks do not create duplicate unpaid receipts.
+// The early case issues the actual BT31-093 tax; late taxes/replacements are
+// typed protocol fixtures at a real Counter window, not printed card claims.
+for(const p of ["p1","p2"] as const)for(const late of [false,true])for(const legacy of [false,true]){
+ let s=fresh(late?p:other(p));
+ if(!late){const taxer=stage(s,other(p),"BT31-093","hand");for(let i=0;i<3;i++)stage(s,other(p),"F","energy");s=finish(take(s,RULES.legalActions(ctx,s).find(l=>l.action.type==="activate"&&l.action.card===taxer&&l.action.skill===30)!.action));s=take(s,{type:"endMain",player:other(p)});s=take(s,{type:"charge",player:p,card:null});}
+ const source=stage(s,p,"OR","hand");stage(s,p,"F","energy");const drop=Array.from({length:late?4:7},()=>stage(s,p,"F","drop"));
+ const payers=late?Array.from({length:3},()=>stage(s,p,"RED","hand")):drop.slice(0,3);
+ if(late)stage(s,other(p),"C","hand");
+ addEffect(s,[],{target:payers[1],kind:"replaceLeave",value:{to:late?"warp":"hand",optional:true,target:{special:"self"}},until:"turn",source:payers[1],master:p});
+ s=take(s,RULES.legalActions(ctx,s).find(l=>l.action.type==="activate"&&l.action.card===source)!.action);
+ if(late){assert.equal(s.prompt.kind,"counter");assert.equal(stepScript(vmHost(ctx,game,s,[]),{card:s.sides[other(p)].zones.leader[0],master:other(p),ip:0,vars:{},ops:[{op:"forbid",what:"play",side:"opponent",until:"turn",unlessPay:[{op:"choose",sel:{side:"you",area:"hand",count:3,upTo:false},as:"three"},{op:"moveTo",target:{var:"three"},to:"drop"}]}]}),"done");s=take(s,{type:"counter",player:other(p),card:null});}
+ assert.equal(s.prompt.kind,"chooseMode");s=take(s,{type:"chooseMode",player:p,index:0});
+ for(let i=0;i<6&&s.prompt.kind==="chooseCards";i++){const q=s.prompt;const ids=payers.filter(id=>q.choice.candidates.includes(id));s=take(s,{type:"choose",player:p,cards:ids.slice(0,q.choice.max)});}
+ assert.equal(s.prompt.kind,"replaceMove");
+ const frame=s.programs.find(f=>late?f.overRealmLateTax:f.keywordCost?.overRealm?.tax)!;
+ const tax=late?frame.overRealmLateTax!:frame.keywordCost!.overRealm!.tax!;
+ assert.equal(tax.payers.length,3,"one receipt per selected original occurrence");assert.equal(tax.payers[0].paid,true);
+ if(legacy){const first={...tax.payers[0]};delete first.paid;tax.payers.push(first);}
+ s=take(s,{type:"chooseMode",player:p,index:1});s=finish(s);
+ assert.ok(s.sides[p].zones.battle.includes(source),"declined replacement preserves complete payment after a pause");assert.equal(s.sides[p].attrs.overRealms,1);checks++;
+}
 console.log(`Dark Over Realm prices: ${checks} native both-seat cases passed`);
