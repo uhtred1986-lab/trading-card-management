@@ -553,31 +553,31 @@ export function interchangeablePoolCandidates(ctx: EngineContext, game: GameDefi
  * source/event/X bindings. No cost, trigger or prompt escapes this simulation.
  * Choices are single-card interpreter answers, so every branch is replayable;
  * an interchangeable candidate is represented by the first of its class. */
-export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, { symmetry = true, complete }: { symmetry?: boolean; complete?: (state: VmState, frame: ScriptFrame) => boolean } = {}): boolean {
+export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, { symmetry = true, complete, hostForProof }: { symmetry?: boolean; complete?: (state: VmState, frame: ScriptFrame) => boolean; hostForProof?: (state: VmState, frame: ScriptFrame) => ScriptHost } = {}): boolean {
   // Other price grammars can have order-dependent choices and replacements.
   // Keep an explicit unknown when their search is too large; never equate an
   // unfinished proof with an unaffordable price.
   let budget = 2000;
   const failed = new Set<string>();
   // An opaque remaining-cost proof may distinguish otherwise equivalent cards.
-  const fixedPositional = symmetry && !complete ? staticPositionalAreas(ctx, game, state) : null;
+  const fixedPositional = symmetry && !complete && !hostForProof ? staticPositionalAreas(ctx, game, state) : null;
   const visit = (s: VmState, f: ScriptFrame): boolean => {
     if (--budget < 0) throw new NotYet("plan this Auto action price within the bounded choice search", "#549");
-    if (cannotRestSourceAfterHandPrice(ctx, game, s, f)) return false;
+    if (!hostForProof && cannotRestSourceAfterHandPrice(ctx, game, s, f)) return false;
     // The same exact board, stored aliases and answer cursor has the same
     // continuations. This caches only proven failures; chosen order is kept.
     const key = JSON.stringify([s, f]);
     if (failed.has(key)) return false;
     s.programs = [];
     try {
-      const result = stepScript(automaticPriceHost(ctx, game, s, [], f), f);
+      const result = stepScript(hostForProof ? hostForProof(s, f) : automaticPriceHost(ctx, game, s, [], f), f);
       if (result === "done") return complete ? complete(s, f) : true;
       if (s.programs[0] !== f) return false;
       const prompt = s.prompt;
       const same = prompt.kind === "chooseCards" && fixedPositional ? interchangeableCandidates(ctx, game, s, f, prompt.choice.candidates, fixedPositional) : new Map<string, string>();
       const choices = prompt.kind === "chooseCards" ? [ ...(prompt.choice.min === 0 ? [[]] : []), ...prompt.choice.candidates.filter((id) => !same.has(id)).map((id) => [id]) ] : [];
       const modes = prompt.kind === "replaceMove" || prompt.kind === "chooseMode" ? prompt.options.map((_, index) => index) : [];
-      const transfer = prompt.kind === "chooseCards" ? directNamedTransfer(ctx, game, s, f, prompt.choice.candidates) : null;
+      const transfer = !hostForProof && prompt.kind === "chooseCards" ? directNamedTransfer(ctx, game, s, f, prompt.choice.candidates) : null;
       if (transfer && !transfer.enough) return false;
       const ordered = transfer ? choices.sort((a, b) => Number(transfer.favored.has(b[0])) - Number(transfer.favored.has(a[0]))) : choices;
       for (const answer of [...ordered.map((cards) => ({ cards })), ...modes.map((index) => ({ index }))]) {

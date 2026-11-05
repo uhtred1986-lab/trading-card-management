@@ -1,3 +1,4 @@
+import { counterArrivalParentProblem } from "../../src/lib/arena/vm/counter-arrival-parent";
 /** R435 typed policy contract only; native multiple-arrival proof is separate. */
 import assert from "node:assert/strict";
 import { card } from "./harness";
@@ -6,7 +7,7 @@ import { programProblem } from "../../src/lib/arena/vm/script-schema";
 import { printRule, parseRule, deepEqual, type Rule } from "../../src/lib/arena/lang";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { compileCounterArrival } from "../../src/lib/arena/compile/counter-arrival";
-import type { ScriptFrame } from "../../src/lib/arena/vm/script";
+import type { Op, ScriptFrame } from "../../src/lib/arena/vm/script";
 import { captureCounterArrivalTemplate, counterArrivalExecutionFrame, counterArrivalTemplateProblem } from "../../src/lib/arena/vm/counter-arrival-template";
 import { captureCounterArrivalBatch, counterArrivalBatchProblem, currentCounterArrival } from "../../src/lib/arena/vm/counter-arrival-batch";
 import { counterArrivalDescriptor, counterArrivalPolicyProblem, hasCounterArrivalPolicy, ultrasonicArrivalProgram } from "../../src/lib/arena/vm/counter-arrival-policy";
@@ -51,7 +52,7 @@ assert.equal(counterArrivalDescriptor(ordinary), undefined);
 assert.equal(counterArrivalPolicyProblem(ordinary), null);
 cases++;
 const cards = { first: { zoneEpoch: 3 }, second: { zoneEpoch: 8 } };
-const batch = captureCounterArrivalBatch(4, ["first", "second"], cards);
+const batch = captureCounterArrivalBatch(4, ["first", "second"], cards, { source: "parent", master: "p1", operation: { op: "play", target: { var: "picked" } }, options: { player: "p1" } });
 assert.equal(counterArrivalBatchProblem(copy(batch), 4), null);
 assert.deepEqual(currentCounterArrival(batch, cards), { card: "first", epoch: 3, current: true });
 cards.first.zoneEpoch++;
@@ -128,4 +129,21 @@ assert.deepEqual(stored.unread, []);
 assert.ok(counterArrivalDescriptor(stored.ops));
 assert.match(stored.printed, /You can activate this skill if your opponent declares/);
 cases++;
+const parentChoose: Op = { op: "choose", sel: { side: "you", area: "hand", count: 8, upTo: true, differentNames: true }, as: "incoming" };
+const parentPlay: Op = { op: "play", target: { var: "incoming" } };
+assert.equal(counterArrivalParentProblem([parentChoose, parentPlay]), null);
+assert.equal(counterArrivalParentProblem([{ op: "play", target: { sel: { special: "self" } } }]), null);
+assert.equal(counterArrivalParentProblem([{ op: "delay", at: "turnEnd", ops: [parentPlay] }]), null, "future bodies own their later scope");
+cases += 3;
+for (const body of [
+  [{ op: "play", target: { sel: { side: "you", area: "hand", count: 1 } } }],
+  [{ ...parentChoose, sel: { side: "you", area: "hand", count: 8 } }, parentPlay],
+  [{ ...parentChoose, sel: { side: "you", area: "hand", count: 8, upTo: true, take: 8 } }, parentPlay],
+  [parentChoose, { op: "mill", n: 2, as: "incoming" }, parentPlay],
+  [parentChoose, { op: "may", ops: [{ ...parentChoose, sel: { side: "you", area: "drop", count: 8 } }] }, parentPlay],
+  [parentChoose, { ...parentPlay, onto: { sel: { special: "self" } } }],
+] as Op[][]) {
+  assert.ok(counterArrivalParentProblem(body));
+  cases++;
+}
 console.log(`counter-arrival-contract-5: ${cases} isolated reader/policy/batch/template cases passed`);

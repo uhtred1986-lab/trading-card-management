@@ -1,5 +1,7 @@
 /** R435 native modal arrivals. SOURCE is a labeled mechanism fixture. */
 import assert from "node:assert/strict";
+import { vmHost } from "../../src/lib/arena/vm/host";
+import { stepScript } from "../../src/lib/arena/vm/script";
 import { card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
@@ -14,6 +16,10 @@ const defs: Record<string, CardDef> = {
   ENERGY: card("ENERGY", { colors: ["Red"] }),
   SOURCE: card("SOURCE", { skill: "[Activate: Main] Choose up to 2 Battle Cards from your hand and play them." }),
   SOURCEEMPTY: card("SOURCEEMPTY", { skill: "[Activate: Main] Place this card in its owner's Drop Area, then choose up to 2 Battle Cards from your hand and play them." }),
+  DEFLECT: card("DEFLECT", { skill: "[Deflect]", power: 10000 }),
+  BARRIER: card("BARRIER", { skill: "[Barrier]", power: 10000 }),
+  HIGH: card("HIGH", { power: 25000, energyCost: 0, specifiedCost: {} }),
+  UNISON: card("UNISON", { type: "UNISON", power: 10000, energyCost: 1, specifiedCost: {} }),
   LOW1: card("LOW1", { name: "First low", power: 10000 }),
   LOW2: card("LOW2", { name: "Second low", power: 20000 }),
   "DB2-030": card("DB2-030", { name: "Ultrasonic Exchange", type: "EXTRA", colors: ["Red"], energyCost: 2, specifiedCost: { Red: 1 },
@@ -26,7 +32,6 @@ defs["P-162"].specifiedCost = {}; // Official image: seven generic, no specified
 defs.L.traits = ["World Tournament"];
 const rows = Object.values(defs).flatMap(skillRecords).map((row, id) => ({ ...row, id, source: "compiler", status: "confirmed" }) as unknown as RuleRow);
 const ctx: EngineContext = { defs, scripts: rulesFromRows(copy(rows), defs) };
-if (process.env.R435_DEBUG) console.log(JSON.stringify(ctx.scripts?.["DB2-030"], null, 2));
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok); const game = loaded.definition;
 const other = (player: PlayerId): PlayerId => player === "p1" ? "p2" : "p1";
 function take(state: VmState, action: Action): VmState {
@@ -66,6 +71,7 @@ for (const player of ["p1", "p2"] as const) for (const empty of [true, false]) f
   assert.ok(RULES.legalActions(ctx, state).some(item => item.action.type === "counter" && item.action.card === counter));
   state = take(state, { type: "counter", player: other(player), card: counter });
   state = passTo(state, "chooseCards");
+  assert.equal(state.prompt.kind, "chooseCards");
   assert.equal(state.prompt.player, player);
   state = take(state, { type: "choose", player, cards: [first] });
   state = take(state, { type: "choose", player, cards: [second] });
@@ -116,6 +122,122 @@ for (const player of ["p1", "p2"] as const) for (const lowFirst of [true, false]
   assert.ok(state.sides[player].zones.battle.includes(high));
   assert.ok(state.sides[player].zones.drop.includes(low));
   assert.ok(state.sides[player].zones.battle.includes(source));
+  assert.equal(state.skillPlayScopes, undefined);
+  cases++;
+}
+for (const player of ["p1", "p2"] as const) for (const incomingDeflect of [false, true]) for (const protection of ["LOW1", "DEFLECT", "BARRIER"]) {
+  let state = fresh(player);
+  const source = stage(state, player, "SOURCEEMPTY", "battle"), incoming = stage(state, player, incomingDeflect ? "DEFLECT" : "LOW2", "hand");
+  const existing = stage(state, player, protection, "battle"), otherExisting = stage(state, player, "LOW1", "battle");
+  const counter = stage(state, other(player), "DB2-030", "hand");
+  for (let n = 0; n < 2; n++) stage(state, other(player), "ENERGY", "energy");
+  const activate = RULES.legalActions(ctx, state).map(item => item.action).find(item => item.type === "activate" && item.card === source);
+  assert.ok(activate); state = take(state, activate); state = passTo(state, "counter");
+  state = take(state, { type: "counter", player: other(player), card: counter }); state = passTo(state, "chooseCards");
+  state = take(state, { type: "choose", player, cards: [incoming] });
+  state = take(state, { type: "choose", player, cards: [] });
+  if (!incomingDeflect) { assert.equal(state.prompt.kind, "chooseMode"); state = take(state, { type: "chooseMode", player, index: 1 }); }
+  // The opponent's skill cannot choose Barrier. Deflect is selectable but
+  // remains unaffected when that Counter subsequently tries to move it.
+  if (protection !== "BARRIER") {
+    assert.equal(state.prompt.kind, "chooseCards");
+    if (state.prompt.kind !== "chooseCards") throw new Error("fallback chooser");
+    assert.ok(state.prompt.choice.candidates.includes(existing));
+    assert.ok(!state.prompt.choice.candidates.includes(incoming));
+    state = take(state, { type: "choose", player, cards: [existing] });
+  }
+  state = passTo(state, "main");
+  assert.ok(state.sides[player].zones.battle.includes(incoming));
+  assert.equal(state.sides[player].zones.drop.includes(existing), protection === "LOW1");
+  assert.equal(state.sides[player].zones.drop.includes(otherExisting), protection === "BARRIER");
+  cases++;
+}
+for (const player of ["p1", "p2"] as const) for (const route of ["mandatory", "declineReplacement", "acceptReplacement"] as const) {
+  let state = fresh(player);
+  const source = stage(state, player, "SOURCEEMPTY", "battle"), incoming = stage(state, player, "LOW2", "hand");
+  const existing = stage(state, player, "LOW1", "battle"), counter = stage(state, other(player), "DB2-030", "hand");
+  for (let n = 0; n < 2; n++) stage(state, other(player), "ENERGY", "energy");
+  // Typed mechanism fixture: only a skill/effect departure controlled by the
+  // opponent, never a payment. This catches using the strict cost host as proof.
+  assert.equal(stepScript(vmHost(ctx, game, state, []), { ops: [{ op: "replaceLeave", requestedTo: "drop", to: "warp", by: "skill", bySide: "opponent", optional: route !== "mandatory", until: "turn", target: { var: "incoming" } }],
+    ip: 0, vars: { incoming: [incoming] }, card: state.sides[player].zones.leader[0], master: player }), "done");
+  const activate = RULES.legalActions(ctx, state).map(item => item.action).find(item => item.type === "activate" && item.card === source);
+  assert.ok(activate); state = take(state, activate); state = passTo(state, "counter");
+  state = take(state, { type: "counter", player: other(player), card: counter }); state = passTo(state, "chooseCards");
+  state = take(state, { type: "choose", player, cards: [incoming] }); state = take(state, { type: "choose", player, cards: [] });
+  if (route !== "mandatory") {
+    assert.equal(state.prompt.kind, "chooseMode");
+    state = take(state, { type: "chooseMode", player, index: 0 });
+    assert.equal(state.prompt.kind, "replaceMove");
+    if (state.prompt.kind !== "replaceMove") throw new Error("effect replacement");
+    state = take(state, { type: "chooseMode", player, index: route === "declineReplacement" ? state.prompt.options.length - 1 : 0 });
+  }
+  state = passTo(state, "main");
+  assert.equal(state.sides[player].zones.battle.includes(incoming), route === "mandatory");
+  assert.equal(state.sides[player].zones.drop.includes(incoming), route === "declineReplacement");
+  assert.equal(state.sides[player].zones.warp.includes(incoming), route === "acceptReplacement");
+  assert.equal(state.sides[player].zones.drop.includes(existing), route !== "declineReplacement");
+  cases++;
+}
+// Known high declarations still allow activation; qualification is not an
+// admission gate. No decision or fallback can occur for this arrival.
+for (const player of ["p1", "p2"] as const) for (const type of ["HIGH", "UNISON"]) {
+  let state = fresh(player);
+  const incoming = stage(state, player, type, "hand");
+  stage(state, player, "ENERGY", "energy");
+  const existing = stage(state, player, "LOW1", "battle");
+  const counter = stage(state, other(player), "DB2-030", "hand");
+  for (let n = 0; n < 2; n++) stage(state, other(player), "ENERGY", "energy");
+  const play = RULES.legalActions(ctx, state).map(item => item.action).find(item => (item.type === "play" || item.type === "playUnison") && item.card === incoming);
+  assert.ok(play); state = take(state, play); state = passTo(state, "counter");
+  assert.ok(RULES.legalActions(ctx, state).some(item => item.action.type === "counter" && item.action.card === counter));
+  state = take(state, { type: "counter", player: other(player), card: counter });
+  state = passTo(state, "main");
+  assert.ok(state.sides[player].zones[type === "UNISON" ? "unison" : "battle"].includes(incoming));
+  assert.ok(state.sides[player].zones.battle.includes(existing));
+  assert.ok(state.sides[other(player)].zones.drop.includes(counter));
+  assert.equal(state.skillPlayScopes, undefined);
+  cases++;
+}
+// A before-window template with no selected arrivals expires without offering
+// a mode or sacrificing an already-present Battle Card.
+for (const player of ["p1", "p2"] as const) {
+  let state = fresh(player);
+  const source = stage(state, player, "SOURCE", "battle");
+  stage(state, player, "LOW1", "hand");
+  const counter = stage(state, other(player), "DB2-030", "hand");
+  for (let n = 0; n < 2; n++) stage(state, other(player), "ENERGY", "energy");
+  const activate = RULES.legalActions(ctx, state).map(item => item.action).find(item => item.type === "activate" && item.card === source);
+  assert.ok(activate); state = take(state, activate); state = passTo(state, "counter");
+  state = take(state, { type: "counter", player: other(player), card: counter });
+  state = passTo(state, "chooseCards");
+  state = take(state, { type: "choose", player, cards: [] });
+  state = passTo(state, "main");
+  assert.ok(state.sides[player].zones.battle.includes(source));
+  assert.equal(state.skillPlayScopes, undefined);
+  cases++;
+}
+// An after-window activation has no future arrival. Existing and just-played
+// cards must remain untouched even though the Counter is paid and activated.
+for (const player of ["p1", "p2"] as const) {
+  let state = fresh(player);
+  const source = stage(state, player, "SOURCE", "battle");
+  const incoming = stage(state, player, "LOW1", "hand");
+  const counter = stage(state, other(player), "DB2-030", "hand");
+  for (let n = 0; n < 2; n++) stage(state, other(player), "ENERGY", "energy");
+  const activate = RULES.legalActions(ctx, state).map(item => item.action).find(item => item.type === "activate" && item.card === source);
+  assert.ok(activate); state = take(state, activate); state = passTo(state, "counter");
+  state = take(state, { type: "counter", player: other(player), card: null });
+  state = passTo(state, "chooseCards");
+  state = take(state, { type: "choose", player, cards: [incoming] });
+  if (state.prompt.kind === "chooseCards") state = take(state, { type: "choose", player, cards: [] });
+  state = passTo(state, "counter");
+  assert.equal(state.resolving?.scopeWindow?.boundary, "after");
+  state = take(state, { type: "counter", player: other(player), card: counter });
+  state = passTo(state, "main");
+  assert.ok(state.sides[player].zones.battle.includes(source));
+  assert.ok(state.sides[player].zones.battle.includes(incoming));
+  assert.ok(state.sides[other(player)].zones.drop.includes(counter));
   assert.equal(state.skillPlayScopes, undefined);
   cases++;
 }

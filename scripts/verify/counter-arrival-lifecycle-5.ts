@@ -28,10 +28,10 @@ for (const master of ["p1", "p2"] as const) {
   assert.equal(state.programs.length, 0);
   const template = owner.arrivalCounters![0];
   assert.equal(template.state, "ready");
-  const parent: ScriptFrame = { ops: [], ip: 0, vars: {}, card: "parent", master: player,
-    skillEffectOrigin: { version: 2, kind: "activate", scope: 1 },
-    arrivalBatch: captureCounterArrivalBatch(1, ["first", "second"], state.cards) };
   const options = { player, playPermission: { source: "parent", player, bySkill: true, evolution: false } };
+  const parent: ScriptFrame = { ops: [{ op: "play", target: { var: "picked" } }], ip: 1, vars: {}, card: "parent", master: player,
+    skillEffectOrigin: { version: 2, kind: "activate", scope: 1 } };
+  parent.arrivalBatch = captureCounterArrivalBatch(1, ["first", "second"], state.cards, { source: "parent", master: player, operation: parent.ops[0], options });
   for (const [index, card] of ["first", "second"].entries()) {
     parent.arrivalBatch!.cursor = index;
     state.resolving = { card, player };

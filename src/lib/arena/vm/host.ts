@@ -1,4 +1,4 @@
-import { captureCounterArrivalBatch, counterArrivalBatchProblem, currentCounterArrival } from "./counter-arrival-batch";
+import { captureCounterArrivalBatch, counterArrivalBatchFrameProblem, currentCounterArrival } from "./counter-arrival-batch";
 import { counterArrivalDescriptor } from "./counter-arrival-policy";
 import { checkedCounterArrivalTemplates, retainCounterArrivalTemplate, beginCounterArrivalDecision } from "./counter-arrival-runtime";
 import { canReplaceCounterArrival } from "./counter-arrival-offer";
@@ -837,9 +837,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // no counter they could use, nothing is asked and the play lands now.
       if (opts.counterWindow && frame.skillEffectOrigin?.scope === undefined && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
       const batchOwner = state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin?.scope);
-      if (batchOwner?.arrivalCounters?.length && !frame.arrivalBatch) frame.arrivalBatch = captureCounterArrivalBatch(batchOwner.id, cards, state.cards);
+      if (batchOwner?.arrivalCounters?.length && !frame.arrivalBatch) frame.arrivalBatch = captureCounterArrivalBatch(batchOwner.id, cards, state.cards, { source: frame.card, master: frame.master, skillIndex: frame.skillIndex, operation: frame.ops[frame.ip - 1], options: opts });
       const batch = frame.arrivalBatch;
-      if (batch && (!batchOwner || counterArrivalBatchProblem(batch, batchOwner.id) || JSON.stringify(cards) !== JSON.stringify(batch.cards.map(item => item.card)))) rebuildScope("rebuild this original Counter arrival batch");
+      if (batch && (!batchOwner || counterArrivalBatchFrameProblem(batch, frame, batchOwner, opts) || JSON.stringify(cards) !== JSON.stringify(batch.cards.map(item => item.card)))) rebuildScope("rebuild this original Counter arrival batch");
       const landedSwitches: ScriptFrame[] = [];
       for (const id of batch ? cards.slice(batch.cursor) : cards) {
         if (batch && !frame.pendingArrival && !currentCounterArrival(batch, state.cards)?.current) { batch.cursor++; continue; }

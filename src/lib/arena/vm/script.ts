@@ -4620,6 +4620,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const witness = frame.arrivalDecision;
           if (op.counterArrivalPolicy !== "eachQualifyingPlayV1" || !witness || witness.version !== 1 || !h.canReplaceCounterArrival) movementRebuild("rebuild this per-arrival Counter decision");
           if (!h.exists(witness.arrival.card) || h.zoneEpoch(witness.arrival.card) !== witness.arrival.epoch) {
+            h.clearLastMode();
+            frame.awaiting = undefined;
+            frame.offeredModes = undefined;
             frame.ip++;
             continue;
           }

@@ -4,7 +4,7 @@ import type { VmState } from "./state";
 import type { ScriptHost } from "./script-host";
 import { rebuildScope, validateScopeStack, type SkillPlayScope } from "./skill-play-scope";
 import { captureCounterArrivalTemplate, counterArrivalExecutionFrame, counterArrivalTemplateProblem, type CounterArrivalTemplate } from "./counter-arrival-template";
-import { counterArrivalBatchProblem } from "./counter-arrival-batch";
+import { counterArrivalBatchFrameProblem } from "./counter-arrival-batch";
 import { counterArrivalDescriptor } from "./counter-arrival-policy";
 import { canonicalTaxValue } from "./tax-receipt";
 
@@ -121,7 +121,7 @@ export function completeCounterArrivalDecision(state: VmState, resume: CounterAr
   const template = checkedCounterArrivalTemplates(owner).find(item => item.id === resume.binding);
   if (!template || template.state !== "running" || template.active?.scope !== resume.child) rebuildScope("rebuild this per-arrival Counter resume cursor");
   const batch = resume.frame.arrivalBatch, permission = resume.options.playPermission;
-  if (counterArrivalBatchProblem(batch, owner.id) || !batch ||
+  if (counterArrivalBatchFrameProblem(batch, resume.frame, owner, resume.options) || !batch ||
     canonicalTaxValue(resume.cards) !== canonicalTaxValue(batch.cards.map(item => item.card)) ||
     canonicalTaxValue(batch.cards[batch.cursor]) !== canonicalTaxValue(template.active.arrival) ||
     resume.frame.card !== owner.source || resume.frame.master !== owner.master ||
@@ -178,7 +178,7 @@ export function requireCounterArrivalBatchResume(state: VmState, resume: Counter
   validateScopeStack(state);
   const owner = state.skillPlayScopes?.at(-1), batch = resume?.frame?.arrivalBatch;
   if (!resume || resume.version !== 1 || !owner || owner.id !== resume.owner ||
-    resume.frame?.skillEffectOrigin?.scope !== owner.id || counterArrivalBatchProblem(batch, owner.id) || !batch ||
+    resume.frame?.skillEffectOrigin?.scope !== owner.id || counterArrivalBatchFrameProblem(batch, resume.frame, owner, resume.options) || !batch ||
     canonicalTaxValue(resume.cards) !== canonicalTaxValue(batch.cards.map(item => item.card)) || !resume.options ||
     resume.options.playPermission?.source !== resume.frame.card || resume.options.playPermission?.player !== resume.frame.master) {
     rebuildScope("rebuild this serialized Counter arrival batch resume");
