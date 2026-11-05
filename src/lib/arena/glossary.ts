@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Adjacent printed skill boundaries (R-479)",
+    body: "A sentence-ending period followed immediately by a skill opening tag separates skills even when the catalog omits whitespace. BT1-043, BT3-026 and BT18-043 retain independent types, triggers, costs and effects. Parenthesized reminders and tags within a sentence remain attached. Old fused records require rebuilding across review statuses; separating an unread sibling does not implement it.",
+  },
+  {
     title: "Launch permits ordinary combos from Drop (R-473)",
     body: "BT31-055's back Permanent permits its player to declare combos with mono-yellow Earthling Battle Cards with exactly 5000 combo power from their own Drop. It does not automatically combo those cards or waive combo cost. Normal combo prohibitions apply, and negating the granting skill removes the permission. Saved energy choices preserve the source and payer occurrences plus the original qualifying grants; old in-flight combo payments without that contract rebuild. R055's separate removal replacement remains active unless Launch's skills are negated, including at end-of-battle cleanup.",
   },
