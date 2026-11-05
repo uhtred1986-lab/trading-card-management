@@ -5,6 +5,7 @@ import { requirePlayReplacement } from "./short-play-replacement";
 import { energyCouponContract, requireEnergyCouponFrame } from "./energy-coupon-saves";
 import { chooseFramePools, primeFramePools } from "./pooled-costs";
 import { requireCounterAdmission } from "./counter-admission";
+import { requireCounterSelfBinding, guardCounterSelfTaxPayment } from "./counter-self-binding";
 import { completeRetainedResume, settleRetainedCounter, requireRetainedCounter } from "./retained-counter";
 import { hasDropBottomRoute } from "./fusion-materials";
 import { containsPotaraPlay, isPotaraSkill, potaraPrintedSelector, POTARA_REBUILD } from "./potara-materials";
@@ -1342,11 +1343,21 @@ function stepReplacementFallback(ctx: EngineContext, game: GameDefinition, state
   return "done";
 }
 
+function programSourceScript(ctx: EngineContext, state: VmState, frame: ScriptFrame): Script | undefined {
+  const declaration = frame.counterDeclaredScript;
+  if (declaration && (declaration.version !== 1 || declaration.card !== frame.card || !Number.isSafeInteger(declaration.skillIndex) || declaration.skillIndex < 0 || declaration.skillIndex !== frame.skillIndex || !declaration.script || (declaration.script.kind !== undefined && declaration.script.kind !== declaration.kind) || !counterKindOf(declaration.kind))) {
+    rebuildScope("rebuild this Counter continuation against its current stored rule: mismatched declared skill identity");
+  }
+  if (frame.counterCost?.extra && frame.counterCost.extra.skillIndex !== frame.skillIndex) rebuildScope("rebuild this saved Extra Counter selected skill");
+  return frame.counterCost?.extra?.declaredScript ?? declaration?.script ?? (frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined);
+}
+
 function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "done" | "wait" {
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
     if (!guardExtraCounterTaxPayment(ctx, state, ev, frame)) return "done";
+    if (!guardCounterSelfTaxPayment(state, frame, parent => programSourceScript(ctx, state, parent))) return "done";
     if (frame.replacementFallback) return stepReplacementFallback(ctx, game, state, ev, frame);
     if (frame.replacementAuto && !beginReplacementAuto(ctx, game, state, frame, (skill, program) => {
       const tax = activationTaxGate(ctx, game, state, frame.master, frame.card, "auto");
@@ -1370,12 +1381,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     }
     requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
-    const declaration = frame.counterDeclaredScript;
-    if (declaration && (declaration.version !== 1 || declaration.card !== frame.card || !Number.isSafeInteger(declaration.skillIndex) || declaration.skillIndex < 0 || declaration.skillIndex !== frame.skillIndex || !declaration.script || (declaration.script.kind !== undefined && declaration.script.kind !== declaration.kind) || !counterKindOf(declaration.kind))) {
-      rebuildScope("rebuild this Counter continuation against its current stored rule: mismatched declared skill identity");
-    }
-    if (frame.counterCost?.extra && frame.counterCost.extra.skillIndex !== frame.skillIndex) rebuildScope("rebuild this saved Extra Counter selected skill");
-    const sourceScript = frame.counterCost?.extra?.declaredScript ?? declaration?.script ?? (frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined);
+    const sourceScript = programSourceScript(ctx, state, frame);
     if ((frame.counterChoice || state.skillPlayScopes?.some(scope => scope.id === frame.skillEffectOrigin?.scope && scope.purpose === "counterContinuation")) && (sourceScript?.kind !== "counter:play" || !counterChoiceTail(sourceScript.ops))) rebuildScope("rebuild this Counter continuation against its current stored rule");
     if (frame.counterPlay && sourceScript?.kind === "counter:play" && counterChoiceTail(sourceScript.ops)) {
       const origin = frame.skillEffectOrigin;
@@ -1387,6 +1393,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requirePlayReplacement(frame, sourceScript);
     requireMarkerHistoryFrame(frame, sourceScript);
     requireCounterAdmission(frame, sourceScript);
+    requireCounterSelfBinding(frame, sourceScript);
     if (frame.skillKind === "counter" && frame.saveVarsAs === `costvars:${frame.card}:${frame.skillIndex}`) rebuildScope("rebuild this saved alternative Counter payment before activation");
     if (frame.counterCost && frame.ops.length && !sourceScript?.price?.ops?.length && !frame.counterCost.alternative && !validCounterDropOrigin(ctx, state, frame)) rebuildScope("rebuild the saved alternative Counter source");
     requireEnergyCouponFrame(ctx, state, frame);

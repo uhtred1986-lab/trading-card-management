@@ -1,3 +1,4 @@
+import { newCounterSelfChoices } from "./counter-self-binding";
 import type { ExtraCounterBinding, ExtraCounterCost, ExtraCounterSource } from "./counter-extra-cost";
 import { counterSpiritBoostX, counterXValue } from "./counter-x";
 import { counterDropPermission, validCounterDropOrigin, counterDropOccurrences, requireCounterDropOccurrence, counterDropOccurrenceProblem } from "./counter-drop";
@@ -1317,7 +1318,7 @@ function activateCounterSkill(
   // 9-7-2, 22-10-4 (#552): the activation is a counter motion, queued even
   // with no effect to run, so the opponent's [Counter: Counter] window
   // (9-7-3-3) opens over it once it reaches the front (`vm/flow.ts`).
-  state.programs.unshift({ ...(declaredScript ? { counterDeclaredScript: { version: 1 as const, card, skillIndex: sk.index, kind: sk.kind, script: structuredClone(declaredScript) } } : {}), markerHistoryContract: markerHistoryContract(program, (declaredScript ?? skillsShowing(ctx, state, card).scripts.bySkill[sk.index])?.price), ...(paidMarkers ? { paidMarkers } : {}), counterAdmission: admission, ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterSource: { version: 1, card, epoch: state.cards[card].zoneEpoch ?? 0 }, counterMotion: { by: player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill, ...(x === undefined ? {} : { x }) });
+  state.programs.unshift({ ...(declaredScript ? { counterDeclaredScript: { version: 1 as const, card, skillIndex: sk.index, kind: sk.kind, script: structuredClone(declaredScript) } } : {}), markerHistoryContract: markerHistoryContract(program, (declaredScript ?? skillsShowing(ctx, state, card).scripts.bySkill[sk.index])?.price), ...(paidMarkers ? { paidMarkers } : {}), counterAdmission: admission, counterSelfChoices: newCounterSelfChoices(program), ops: program, ip: 0, vars, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterSource: { version: 1, card, epoch: state.cards[card].zoneEpoch ?? 0 }, counterMotion: { by: player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill, ...(x === undefined ? {} : { x }) });
 }
 
 /**

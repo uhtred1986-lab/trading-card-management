@@ -13,6 +13,7 @@ import { baseType, canCombo, identityKey, keywordName, skillsOf, sumReachable } 
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
+import { counterSelfPlayAllowed, prepareCounterSelfBinding, requireCounterSelfBinding, counterSelfTaxBinding } from "./counter-self-binding";
 import { recordMovementResult, startMovementResult, validateMovementResult, prepareUnderSource, prepareCompletionSource, selfCompletionMove, underSelfMove, movementDestination, movementRebuild } from "./movement-result";
 import { completablePicks, disjointGroups, disjointPayable, laterSlots } from "./disjoint";
 import type { ScriptHost } from "./script-host";
@@ -1729,6 +1730,10 @@ export interface ScriptFrame {
   counterAdmission?: import("./paid-admission").PaidAdmission;
   counterChoice?: { version: 1; candidates?: { card: string; epoch: number }[] };
   counterSource?: { version: 1; card: string; epoch: number };
+  /** R465: only explicit self references retain the captured Counter occurrence. */
+  counterSelfChoices?: import("./counter-self-binding").CounterSelfChoices;
+  /** An outstanding price for this Counter's original self-play occurrence. */
+  counterSelfTax?: import("./counter-self-binding").CounterSelfTax;
   retainedCounter?: { version: 1; owner: number; child: number };
   retainedResume?: import("./retained-counter").RetainedResume;
   pendingArrival?: import("./retained-counter").PendingArrival;
@@ -2394,6 +2399,7 @@ function rememberLook(frame: ScriptFrame, player: PlayerId, areas: ("deck" | "li
  * ended or a sub-flow (playing a card) took over.
  */
 export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
+  requireCounterSelfBinding(frame, undefined);
   prepareUnderSource(frame, h.zoneEpoch(frame.card));
   prepareCompletionSource(frame, h.zoneEpoch(frame.card));
   const master = frame.master;
@@ -2448,6 +2454,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
     // None of them ever reads an op another produces, so the order of the
     // composition is immaterial.
     const op = revealAs(moveAs(replaceAs(costModifierAs(negateAs(modifyAttrAs(frame.ops[frame.ip]))))));
+    prepareCounterSelfBinding(frame, op);
     const deferredCounter = h.deferCounterOperation?.(frame, op);
     if (deferredCounter === "retained") return "done";
     if (deferredCounter) { frame.ip++; continue; }
@@ -4353,7 +4360,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
         // 20-14: a skill doing the playing, which is the half fifteen cards ban.
-        const candidates = h.resolveRef(frame, op.target).filter(id => !frame.retainedCounter || id !== frame.card || !!frame.counterSource && frame.counterSource.epoch === h.zoneEpoch(id) && h.areaOf(id) === "drop");
+        const candidates = h.resolveRef(frame, op.target).filter(id => counterSelfPlayAllowed(frame, op.target, id, h.zoneEpoch(id), h.areaOf(id)));
         // #933: whether it is an evolution is the play's own `using`, never the
         // keyword tag on the skill making it — P-336's [Activate: Main] evolves.
         const evolution = op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve";
@@ -4409,6 +4416,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // being played (a price from the hand never offers it). A price that
         // can't be paid, or one declined, leaves that card where it is. The
         // play the player declares has paid at its declaration already.
+        // R465: a saved tax offer cannot authorize a fresh self occurrence.
+        // Consume only this abandoned offer's answer; independent tail choices
+        // must not inherit it, and already completed tax payments stay spent.
+        if (!targets.length) {
+          if (frame.awaiting === "playTax") {
+            if (h.lastMode() != null) h.clearLastMode();
+            frame.awaiting = undefined;
+          }
+          delete frame.vars[PLAY_TAX_ASKED];
+          delete frame.vars[PLAY_TAX_PAID];
+          delete frame.vars[PLAY_TAX_SKIPPED];
+        }
         if (!frame.declaredPlay && targets.length) {
           const ask = (id: string) => ({ player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}) });
           if (frame.awaiting === "playTax" && h.lastMode() != null) {
@@ -4419,7 +4438,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             delete frame.vars[PLAY_TAX_ASKED];
             if (asked && yes) {
               frame.vars[PLAY_TAX_PAID] = [...(frame.vars[PLAY_TAX_PAID] ?? []), asked];
-              h.interrupt({ ops: h.taxesOn("play", ask(asked)).flat(), ip: 0, vars: {}, card: asked, master }, frame);
+              h.interrupt({ ops: h.taxesOn("play", ask(asked)).flat(), ip: 0, vars: {}, card: asked, master, counterSelfTax: counterSelfTaxBinding(frame, op.target) }, frame);
               return "done";
             }
             if (asked) frame.vars[PLAY_TAX_SKIPPED] = [...(frame.vars[PLAY_TAX_SKIPPED] ?? []), asked];
@@ -4528,6 +4547,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (minimum < 99 && h.resolveSelector(frame, first.sel).length < minimum) {
             (frame.did ??= {}).may = false;
             frame.vars[first.as] = [];
+            if (frame.counterSelfChoices) delete frame.counterSelfChoices.vars[first.as];
             frame.ip++;
             continue;
           }
@@ -4538,7 +4558,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // its own (#970), is declined for you like the single choice above.
         if (disjointGroups(op.ops).length && !disjointPayable(op.ops, (slot) => h.resolveSelector(frame, { ...slot.sel, notIn: undefined }))) {
           (frame.did ??= {}).may = false;
-          for (const o of op.ops) if (o.op === "choose") frame.vars[o.as] = [];
+          for (const o of op.ops) if (o.op === "choose") {
+            frame.vars[o.as] = [];
+            if (frame.counterSelfChoices) delete frame.counterSelfChoices.vars[o.as];
+          }
           frame.ip++;
           continue;
         }
