@@ -213,6 +213,10 @@ export function compileAction(said: string, skill: Skill): Script | null {
   const read = (text: string) => compileSkill({ ...skill, kind: "activate:main", keyword: null, tags, cost: "", effect: text });
   // R-443: Z-Energy is the named area; the omitted noun means its cards.
   if (skill.keyword?.name === "Z-Awaken") said = said.replace(/^place up to 3 of your z-energy under your leader(?: card)?$/i, "place up to 3 cards from your Z-Energy under your Leader");
+  // R-470: the destination before the source is the same exact under-card
+  // payment (BT16-020's erratum), never an alternative to its life gate.
+  if (skill.keyword?.name === "Awaken") said = said.replace(/^(?:you )?place ([1-9]\d*) (≪[^≫]+≫) cards? under this card from your drop(?: area)?\.?$/i,
+    "place $1 $2 cards from your Drop Area under this card");
   let sc = read(said);
   // A printed price is written in the second person and every action pattern
   // in the compiler is written in the imperative, so one the compiler cannot

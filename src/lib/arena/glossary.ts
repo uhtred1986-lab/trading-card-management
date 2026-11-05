@@ -1748,7 +1748,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Awaken:Surge pays distinct cards before its effects (4 Nov 2026)",
-    body: "**Two colors still require two cards** (R-387; RM 22-2-3, 5-8-2-2). Surge's color slots use the same matching as other distinct-card payments, so a multicolor card can fill either slot but never both. Both selected hand cards go under the Leader before its draw, energy switch and flip. Saved mid-payment choices retain the same Leader and material occurrences; changed or failed payments do not release the effects. Regular Awaken conditions and other activation prices keep their established behavior.",
+    body: "**Two colors still require two cards** (R-387; RM 22-2-3, 5-8-2-2). Surge's color slots use the same matching as other distinct-card payments, so a multicolor card can fill either slot but never both. Both selected hand cards go under the Leader before its draw, energy switch and flip. Saved mid-payment choices retain the same Leader and material occurrences; changed or failed payments do not release the effects. Regular Awaken conditions and other activation prices keep their established behavior. R-470 reads BT16-020's erratum as life at four or less AND five Saiyan cards from Drop placed under the Leader. Each selected payer is captured before further picks; fixed-host prohibitions are checked for the whole payment.",
   },
   {
     title: "Absorb hosts and partial skill negation on entry (4 Nov 2026)",
