@@ -57,6 +57,8 @@ The verifier parses every VM TypeScript file, checks exact coverage of every `ne
 
 | Stable ID | Classification | Source | Rule/source citation | Live owner / history | Exact behavior or guard |
 |---|---|---|---|---|---|
+| `arena-vm-notyet-r480-entry-mode-1` | Untested / guard | `src/lib/arena/vm/energy-entry-mode.ts` (not-yet #1) | R-480; chargeLimit hook contract | — | Only immediate self-Rest chargeLimit bodies have placement-time semantics; empty or altered bodies refuse before movement. |
+| `arena-vm-notyet-r480-entry-mode-2` | Untested / guard | `src/lib/arena/vm/energy-entry-mode.ts` (not-yet #2) | R-480; chargeLimit hook contract | — | Only immediate self-Rest chargeLimit bodies have placement-time semantics; empty or altered bodies refuse before movement. |
 | `arena-vm-notyet-r477-standing-observation` | Untested / guard | `src/lib/arena/vm/standing-negation-observation.ts` (not-yet #1) | R-477 prototype | — | Bounded observer refuses malformed transaction provenance and unreviewed protection, source or occurrence policies. No gameplay writer or card admission exists yet. |
 | `arena-vm-notyet-r477-standing-history` | Untested / guard | `src/lib/arena/vm/standing-negation-history.ts` (not-yet #1) | R-477 prototype | — | Pure prototype refuses stale or malformed history, ambiguous enabling order and unreviewed protection transitions. No gameplay caller or card admission exists yet. |
 | `arena-vm-notyet-r475-copied-capture-1` | Untested / guard | `src/lib/arena/vm/triggers.ts` (not-yet #7) | R-475; RM9-1-2-2-1 | — | Missing, malformed or mismatched resolved-grant occurrence history requires rebuilding before a current or captured skill can be read. |
