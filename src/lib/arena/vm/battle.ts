@@ -1,3 +1,4 @@
+import { counterSpiritBoostX, counterXValue } from "./counter-x";
 import { counterDropPermission, validCounterDropOrigin, counterDropOccurrences, requireCounterDropOccurrence, counterDropOccurrenceProblem } from "./counter-drop";
 import { staleExtraSelfActivation } from "./extra-activation";
 import { bindPaidMarkers, markerHistoryContract, type PaidMarkers } from "./paid-markers";
@@ -87,14 +88,14 @@ import { costIsOnlyOrbs, costText } from "../compile";
 import { AutoPaymentFailed, automaticPriceHost, canFinishAutomaticPrice, readableAutomaticPrice } from "./auto-costs";
 import { vmHost } from "./host";
 import { actionCostOf, altCostFor, programAltsFor, cardPrice, chargeCost, payAltCost, planCost, priceFor, restingFor, skillOrbs, spendSkillCostUses, type BoundAmounts, type PaidResources } from "./costs";
-import { dueDelays, type VmAltCost } from "./effects";
+import { dueDelays, skillsNegated, skillNegated, type VmAltCost } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, gameEndForbidden, moved, other, requirePrompt, type Work } from "./flow";
 import { supplementaryPaymentAmounts, activationTaxGate, activationTaxes, canPayPriceProgram, canPayTaxProgram, queueTaxGate, unpaidActivationTaxAfter, type TaxGate } from "./activate";
 import { fireHook } from "./hooks";
 import { leaveRoute, lifeReplacementChoices, markerReplacementChoices, replacementChoices } from "./replace";
-import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
+import { attrsNow, standingKindNegated, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
 import { masterOf, pendAutos, skillsShowing } from "./triggers";
 import { spendUse, usesLeft } from "./limits";
 import { stepSkippedByPermanent, takeSkip } from "./skips";
@@ -668,6 +669,11 @@ type OpenWindow = "attack" | "play" | "counter";
 /** The prompt's window word read as one this engine opens. */
 export const openWindowOf = (window: Extract<Prompt, { kind: "counter" }>["window"]): OpenWindow => (window === "play" || window === "counter" ? window : "attack");
 
+/** Skill negation is checked before declaring a Counter, not after payment. */
+function counterSkillNegated(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill): boolean {
+  return skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || standingKindNegated(ctx, game, state, card, sk.kind);
+}
+
 /** Is this printed line one the window offers? The legacy `counterCandidates`' own `want`. */
 function wantsLine(ctx: EngineContext, state: VmState, window: OpenWindow, sk: Skill): boolean {
   if (window === "play") return sk.kind === "counter:play";
@@ -747,7 +753,7 @@ export function counterAbilityAvailability(
           if (offer.cost || action.type !== "counter" || action.alt || counterDropPermission(ctx, game, state, player, card)
             || counterPriceOps(skillsShowing(ctx, state, card).scripts.bySkill[skill.index])
             || (!costIsOnlyOrbs(skill.cost) && !skillsShowing(ctx, state, card).scripts.bySkill[skill.index]?.price?.condition)) return offer;
-          const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, skill));
+          const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, skill, action.x));
           return { ...offer, cost: actionCostOf(price) ?? { energy: 0, describe: "free" } };
         });
         rows.push({ card, skill: skill.index, state: "offered", offers: pricedOffers });
@@ -811,6 +817,7 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
     if (baseTypeOf(ctx, state, card) === "EXTRA" && staleExtraSelfActivation(showing.scripts)) continue;
     for (const sk of showing.skills) {
       if (!wantsLine(ctx, state, window, sk)) continue;
+      if (counterSkillNegated(ctx, game, state, card, sk)) continue;
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
       if (!includeBindingGaps && futureCounterProblem(state, sk, counterEffectOps(showing.scripts.bySkill[sk.index]))) continue;
       if (forbids(ctx, game, state, "activateCounter", { player: responder, card, skillKind: sk.kind })) continue;
@@ -863,7 +870,7 @@ function readCounterPrice(ctx: EngineContext, game: GameDefinition, state: VmSta
   const ops = price?.ops?.length ? price.ops : null;
   // No record of the price, or an X / pay-with price this window has no way
   // to name: unread, as before.
-  if (!price || (!price.condition && !ops && !bondDescriptorOnly(sk) && !price.payment.spiritBoostPayer) || price.x || price.payWith?.length) return { ok: false, why: { kind: "unread", card } };
+  if (!price || (!price.condition && !ops && !bondDescriptorOnly(sk) && !price.payment.spiritBoostPayer && !counterSpiritBoostX(price.x)) || (price.x && !counterSpiritBoostX(price.x)) || price.payWith?.length) return { ok: false, why: { kind: "unread", card } };
   if (price.condition && !vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, price.condition)) {
     return { ok: false, why: { kind: "condition", text: costText(sk.cost) } };
   }
@@ -889,36 +896,48 @@ interface CounterRoutes {
  * printed action price is a combination no card is known to print; it is a
  * typed gap.
  */
-function counterRoutes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, sk: Skill): CounterRoutes {
+function counterXChoices(ctx: EngineContext, state: VmState, player: PlayerId, card: string, sk: Skill): (number | undefined)[] {
+  if (!counterSpiritBoostX(skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price?.x)) return [undefined];
+  const maximum = Math.max(0, ...state.sides[player].zones.unison.map(id => state.cards[id]?.markers ?? 0));
+  return Array.from({ length: maximum + 1 }, (_, x) => x);
+}
+
+function counterRoutes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, sk: Skill, x?: number): CounterRoutes {
+  if (counterSkillNegated(ctx, game, state, card, sk)) return { paid: false, alt: null, why: [{ kind: "other", detail: "the Counter skill is negated" }] };
+  if (x === undefined && counterSpiritBoostX(skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price?.x)) {
+    const routes = counterXChoices(ctx, state, player, card, sk).map(n => counterRoutes(ctx, game, state, player, card, sk, n));
+    return { paid: routes.some(r => r.paid), alt: routes.find(r => r.alt)?.alt ?? null, why: routes.find(r => r.paid)?.why ?? routes[0]?.why ?? [] };
+  }
   const occurrenceProblem = state.prompt.kind === "counter" && state.prompt.player === player && state.prompt.candidates.includes(card) ? counterDropOccurrenceProblem(state, card, state.prompt.dropOccurrences) : null;
   if (occurrenceProblem) return { paid: false, alt: null, why: [{ kind: "other", detail: occurrenceProblem }] };
   if (!state.sides[player].zones.hand.includes(card) && !counterDropPermission(ctx, game, state, player, card)) return { paid: false, alt: null, why: [{ kind: "other", detail: "no Counter permission from this area" }] };
   const reading = readCounterPrice(ctx, game, state, player, card, sk);
   if (!reading.ok) return { paid: false, alt: null, why: [reading.why] };
-  const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, sk));
+  const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, sk, x));
   const plan = planCost(ctx, game, state, player, price, card);
   const drop = counterDropPermission(ctx, game, state, player, card);
   const alt = drop ? null : counterAlt(ctx, game, state, card, player);
   const ops = drop ? [...drop.price.ops!, ...(reading.ops ?? [])] : reading.ops;
-  if (alt?.pay === "program" && (ops || price.markersOff.length || price.pooled.some(p => p.n > 0))) programAltBesideAction();
-  const paid = plan.ok && (!ops || counterActionFinishes(ctx, game, state, player, card, sk, ops, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, counterPaymentAction(game).cost)));
-  const altOk = !!alt && counterActionFinishes(ctx, game, state, player, card, sk, alt.pay === "program" ? alt.ops ?? [] : ops ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], player, card, sk, alt));
+  if (alt?.pay === "program" && (ops || (price.markersOff.length && x === undefined) || price.pooled.some(p => p.n > 0))) programAltBesideAction();
+  const paid = plan.ok && (!ops || counterActionFinishes(ctx, game, state, player, card, sk, ops, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, counterPaymentAction(game).cost), x));
+  const altOk = !!alt && counterActionFinishes(ctx, game, state, player, card, sk, alt.pay === "program" ? alt.ops ?? [] : ops ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], player, card, sk, alt, x), x);
   return { paid, alt: altOk ? alt : null, why: paid ? [] : plan.ok ? [{ kind: "other", detail: "its skill cost cannot be paid in full" }] : plan.why };
 }
 
 /** Alternative payment replaces energy, not supplementary keyword resources. */
-function chargeCounterAlternative(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, card: string, sk: Skill, alt: VmAltCost): PaidResources | undefined {
-  if (alt.pay === "program") return;
-  payAltCost(ctx, game, state, ev, player, alt);
-  const bound = { ...counterPrice(ctx, game, state, card, sk), energy: { total: 0, orbs: {}, either: [] } };
+function chargeCounterAlternative(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, card: string, sk: Skill, alt: VmAltCost, x?: number): PaidResources | undefined {
+  if (alt.pay === "program" && x === undefined) return;
+  if (alt.pay !== "program") payAltCost(ctx, game, state, ev, player, alt);
+  const bound = { ...counterPrice(ctx, game, state, card, sk, x), energy: { total: 0, orbs: {}, either: [] } };
   const price = priceFor(ctx, game, state, counterPaymentAction(game), card, bound);
+  if (alt.pay === "program" && (price.pooled.some(p => p.n > 0) || price.markersOff.some(p => p.by !== "Spirit Boost"))) programAltBesideAction();
   const plan = planCost(ctx, game, state, player, price, card);
   if (!plan.ok) throw new IllegalAction("the Counter's supplementary price cannot be paid");
   return chargeCost(ctx, game, state, ev, player, plan.payment, card, counterPaymentAction(game).cost);
 }
 
 /** Run the action half of a [Counter]'s price to the end on a copy of the board, after `charge` has paid the energy half there. */
-function counterActionFinishes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, sk: Skill, ops: Op[], charge: (s: VmState) => void): boolean {
+function counterActionFinishes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, sk: Skill, ops: Op[], charge: (s: VmState) => void, x?: number): boolean {
   const clone = structuredClone(state);
   try {
     charge(clone);
@@ -926,7 +945,7 @@ function counterActionFinishes(ctx: EngineContext, game: GameDefinition, state: 
     if (err instanceof IllegalAction && !(err instanceof NotYet)) return false;
     throw err;
   }
-  return canFinishAutomaticPrice(ctx, game, clone, { ops, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, counterCost: { skill: sk, effect: [], free: false, afterSkillKeywords: [] } });
+  return canFinishAutomaticPrice(ctx, game, clone, { ops, ip: 0, vars: {}, card, master: player, ...(x === undefined ? {} : { x }), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, counterCost: { skill: sk, effect: [], free: false, afterSkillKeywords: [] } });
 }
 
 /** A typed gap, said as a refusal: the price can be neither offered nor called unaffordable yet. */
@@ -964,6 +983,12 @@ export interface CounterCost {
  */
 export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.counterCost!;
+  const xPrice = skillsShowing(ctx, state, frame.card).scripts.bySkill[cost.skill.index]?.price?.x;
+  const selectedX = counterSpiritBoostX(xPrice) ? counterXValue({ type: "counter", player: frame.master, card: frame.card, x: frame.x }, xPrice) : undefined;
+  if (selectedX !== undefined) {
+    if (!frame.paidMarkers?.spiritBoost) throw new IllegalAction("rebuild the saved Counter X marker payment");
+    bindPaidMarkers(frame.paidMarkers, frame.card, cost.skill.index, { fixed: cost.skill.spiritBoost, x: selectedX });
+  }
   if (cost.alternative) {
     if (cost.alternative.version !== 1 || !Number.isSafeInteger(cost.alternative.sourceEpoch) || cost.alternative.sourceEpoch < 0) rebuildScope("rebuild the saved alternative Counter source");
     if (!state.sides[frame.master].zones.hand.includes(frame.card) || (state.cards[frame.card]?.zoneEpoch ?? 0) !== cost.alternative.sourceEpoch) {
@@ -1051,7 +1076,7 @@ function activateCounterSkill(
   ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, card: string, sk: Skill, program: Op[], free: boolean,
   afterSkillKeywords: ("Heroic" | "Villainous")[], vars: ScriptFrame["vars"] = {}, x?: number, paidMarkers?: PaidMarkers, dropOrigin?: CounterCost["dropOrigin"],
 ): void {
-  paidMarkers = bindPaidMarkers(paidMarkers, card, sk.index, { fixed: sk.spiritBoost, x: null });
+  paidMarkers = bindPaidMarkers(paidMarkers, card, sk.index, { fixed: sk.spiritBoost, x: counterSpiritBoostX(skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price?.x) ? x ?? 0 : null });
   const admission = paidCounterAdmission(skillsShowing(ctx, state, card).scripts.bySkill[sk.index], program);
   // 22-10-7: the battle writes the counter down before it is lost in the
   // Drop (staging spec §3.1) — the battle's own record, so a [Counter: Play]
@@ -1153,24 +1178,26 @@ export function counterLegalActions(ctx: EngineContext, game: GameDefinition, st
   for (const card of new Set(pr.candidates)) {
     const choices = mixed ? matching.filter(c => c.card === card).map(c => c.skill) : [selectedCounterSkill(ctx, state, card, window)].filter((s): s is Skill => !!s);
     for (const sk of choices) {
-    // #716: both rows are offered only while the whole price — the energy or
-    // its alternative, then any printed condition and action — can be paid.
-    let routes: CounterRoutes;
-    try {
-      routes = counterRoutes(ctx, game, state, pr.player, card, sk);
-    } catch (err) {
-      if (err instanceof NotYet) continue;
-      throw err;
-    }
-    if (routes.paid) out.push({ action: { type: "counter", player: pr.player, card, ...(mixed ? { skill: sk.index } : {}) }, label: `Counter with ${nameOf(ctx, state, card)}${mixed ? ` (${sk.kind})` : ""}` });
-    const alt = routes.alt;
-    if (!alt) continue;
-    const resting = restingFor(alt);
-    const orbs = (alt.orbs ?? []).map((o) => `{${o}}`).join("");
-    const how = alt.pay === "none" ? "for no energy" : alt.pay === "program" ? `instead of energy: ${describeScript(alt.ops ?? [])}` : alt.pay === "life" ? `by adding ${alt.n} from your life to your hand` : resting.length ? `by resting ${resting.map((id) => nameOf(ctx, state, id)).join(" and ")}` : `for ${orbs}`;
-    const energy = alt.pay === "energy" ? (alt.orbs ?? []).length || 1 : 0;
-    const cost = alt.pay === "none" ? { energy: 0, describe: "free" } : alt.pay === "energy" ? { energy, describe: orbs || "free" } : { energy: 0, describe: "alternative cost" };
-    out.push({ action: { type: "counter", player: pr.player, card, ...(sk ? { skill: sk.index } : {}), alt: true }, label: `Counter with ${nameOf(ctx, state, card)} (${how})`, cost });
+      for (const x of counterXChoices(ctx, state, pr.player, card, sk)) {
+        // #716: both rows are offered only while the whole price — the energy or
+        // its alternative, then any printed condition and action — can be paid.
+        let routes: CounterRoutes;
+        try {
+          routes = counterRoutes(ctx, game, state, pr.player, card, sk, x);
+        } catch (err) {
+          if (err instanceof NotYet) continue;
+          throw err;
+        }
+        if (routes.paid) out.push({ action: { type: "counter", player: pr.player, card, ...(x === undefined ? {} : { x }), ...((mixed || x !== undefined) ? { skill: sk.index } : {}) }, label: `Counter with ${nameOf(ctx, state, card)}${x === undefined ? "" : ` (X = ${ x })`}${mixed ? ` (${sk.kind})` : ""}` });
+        const alt = routes.alt;
+        if (!alt) continue;
+        const resting = restingFor(alt);
+        const orbs = (alt.orbs ?? []).map((o) => `{${o}}`).join("");
+        const how = alt.pay === "none" ? "for no energy" : alt.pay === "program" ? `instead of energy: ${describeScript(alt.ops ?? [])}` : alt.pay === "life" ? `by adding ${alt.n} from your life to your hand` : resting.length ? `by resting ${resting.map((id) => nameOf(ctx, state, id)).join(" and ")}` : `for ${orbs}`;
+        const energy = alt.pay === "energy" ? (alt.orbs ?? []).length || 1 : 0;
+        const cost = alt.pay === "none" ? { energy: 0, describe: "free" } : alt.pay === "energy" ? { energy, describe: orbs || "free" } : { energy: 0, describe: "alternative cost" };
+        out.push({ action: { type: "counter", player: pr.player, card, ...(x === undefined ? {} : { x }), ...(sk ? { skill: sk.index } : {}), alt: true }, label: `Counter with ${nameOf(ctx, state, card)}${x === undefined ? "" : ` (X = ${ x })`} (${how})`, cost });
+      }
     }
   }
   return out;
@@ -1331,7 +1358,7 @@ function counterPaymentAction(game: GameDefinition) {
   return { ...game.actions.play!, cost: [...new Set([...(game.actions.play?.cost ?? []), ...native])] };
 }
 
-function counterPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill): BoundAmounts {
+function counterPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill, x?: number): BoundAmounts {
   const play = cardPrice(ctx, game, state, card);
   // 20-21: the line's own orbs through their reduction layer — "reduce the
   // skill cost of your red cards in your hand by {r}" reaches a [Counter]'s
@@ -1339,7 +1366,7 @@ function counterPrice(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // window), the legacy `orbTotals` every counter price is read through.
   const own = skillOrbs(ctx, game, state, card, sk);
   const payment = requireSkillPayment(skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price);
-  const supplementary = supplementaryPaymentAmounts(ctx, game, state, card, payment);
+  const supplementary = supplementaryPaymentAmounts(ctx, game, state, card, x === undefined ? payment : { ...payment, spiritBoost: x });
   return { ...supplementary, energy: { total: Math.max(play.total, Object.values(play.orbs).reduce((n, count) => n + (count ?? 0), 0)) + own.total, orbs: mergeOrbs(play.orbs, own.orbs), either: own.either }, markers: 0, unreadable: null };
 }
 
@@ -1365,6 +1392,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // 9-7-3-4 (#552): doing nothing at a [Counter: Counter] window ends that
   // counter timing, and the motion under it resolves (9-7-3-5).
   if (!action.card) {
+    counterXValue(action, undefined);
     delete askingMotion(state)?.counterMotion?.asking;
     return "done";
   }
@@ -1381,6 +1409,8 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   if (baseTypeOf(ctx, state, card) === "EXTRA" && staleExtra) throw new IllegalAction(staleExtra);
   const sk = selectedCounterSkill(ctx, state, card, window, action.skill);
   if (!sk) throw new IllegalAction("no counter skill on that card");
+  if (counterSkillNegated(ctx, game, state, card, sk)) throw new IllegalAction("the Counter skill is negated");
+  const x = counterXValue(action, showing.scripts.bySkill[sk.index]?.price?.x);
   if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) throw new IllegalAction("unsupported Counter skill: rebuild its stored rule before payment");
   const bindingGap = futureCounterProblem(state, sk, counterEffectOps(showing.scripts.bySkill[sk.index]));
   if (bindingGap) throw new IllegalAction(`unsupported before payment: ${bindingGap}`);
@@ -1395,7 +1425,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // one that can is charged after the printed price, before the skill
   // activates, re-read live (`vm/activate.ts`'s `TaxGate`).
   const taxGate = activationTaxGate(ctx, game, state, action.player, card, sk.kind);
-  if (taxGate && unpaidActivationTaxAfter(ctx, game, state, action.player, card, activationTaxes(ctx, game, state, action.player, card, sk.kind), action.alt ? 0 : (counterPrice(ctx, game, state, card, sk).energy?.total ?? 0))) throw new IllegalAction("can't activate that counter: a price a rule puts on it can't be paid");
+  if (taxGate && unpaidActivationTaxAfter(ctx, game, state, action.player, card, activationTaxes(ctx, game, state, action.player, card, sk.kind), action.alt ? 0 : (counterPrice(ctx, game, state, card, sk, x).energy?.total ?? 0))) throw new IllegalAction("can't activate that counter: a price a rule puts on it can't be paid");
   // 5-8-3 (#716): the printed price beyond orbs is read and checked before
   // anything is paid — a condition that no longer holds is refused, and an
   // action outside the strict host is a typed gap raised here, while the
@@ -1417,12 +1447,12 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // price program in front of the effect, below.
   let paidResources: PaidResources | undefined;
   if (alt) {
-    if (!counterActionFinishes(ctx, game, state, action.player, card, sk, alt.pay === "program" ? alt.ops ?? [] : actionPrice ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], action.player, card, sk, alt))) {
+    if (!counterActionFinishes(ctx, game, state, action.player, card, sk, alt.pay === "program" ? alt.ops ?? [] : actionPrice ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], action.player, card, sk, alt, x), x)) {
       throw new IllegalAction("can't pay the counter's cost: its skill cost cannot be paid in full");
     }
-    if (alt.pay !== "program") paidResources = chargeCounterAlternative(ctx, game, state, ev, action.player, card, sk, alt);
+    paidResources = chargeCounterAlternative(ctx, game, state, ev, action.player, card, sk, alt, x);
   } else {
-    const combined = counterPrice(ctx, game, state, card, sk);
+    const combined = counterPrice(ctx, game, state, card, sk, x);
     const price = priceFor(ctx, game, state, counterPaymentAction(game), card, combined);
     const plan = planCost(ctx, game, state, action.player, price, card, action.pay);
     if (!plan.ok) throw new IllegalAction(`can't pay the counter's cost: ${plan.why[0]?.kind}`);
@@ -1433,7 +1463,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     }
     // 5-8-2: the energy chosen must leave the whole action price payable;
     // proven on a copy, so a refusal changes nothing.
-    if (actionPrice && !counterActionFinishes(ctx, game, state, action.player, card, sk, actionPrice, (s) => chargeCost(ctx, game, s, [], action.player, plan.payment, card, counterPaymentAction(game).cost))) {
+    if (actionPrice && !counterActionFinishes(ctx, game, state, action.player, card, sk, actionPrice, (s) => chargeCost(ctx, game, s, [], action.player, plan.payment, card, counterPaymentAction(game).cost), x)) {
       throw new IllegalAction("can't pay the counter's cost: its skill cost cannot be paid in full");
     }
     paidResources = chargeCost(ctx, game, state, ev, action.player, plan.payment, card, counterPaymentAction(game).cost);
@@ -1451,11 +1481,12 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // activate, with what the price chose handed to the effect ("the card that
   // was switched to Hidden Mode by this skill", BT28-121).
   const strictPrice = alt?.pay === "program" ? alt.ops ?? [] : actionPrice;
+  if (x !== undefined && paidResources?.paidMarkers) paidResources.paidMarkers = bindPaidMarkers(paidResources.paidMarkers, card, sk.index, { fixed: sk.spiritBoost, x });
   if (strictPrice || taxGate) {
-    state.programs.unshift({ markerHistoryContract: markerHistoryContract(program, skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price), ...paidResources, ops: strictPrice ?? [], ip: 0, vars: paidResources?.vars ?? {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterCost: { ...(dropPermit ? { dropOrigin: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0, permissionSkill: dropPermit.skillIndex } } : {}), skill: sk, effect: program, free: alt?.pay === "none", ...(alt?.pay === "program" ? { alternative: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0 } } : {}), afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
+    state.programs.unshift({ markerHistoryContract: markerHistoryContract(program, skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price), ...paidResources, ...(x === undefined ? {} : { x }), ops: strictPrice ?? [], ip: 0, vars: paidResources?.vars ?? {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterCost: { ...(dropPermit ? { dropOrigin: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0, permissionSkill: dropPermit.skillIndex } } : {}), skill: sk, effect: program, free: alt?.pay === "none", ...(alt?.pay === "program" ? { alternative: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0 } } : {}), afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
     return "done";
   }
-  activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords, paidResources?.vars, undefined, paidResources?.paidMarkers);
+  activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords, paidResources?.vars, x, paidResources?.paidMarkers);
   return "done";
 }
 

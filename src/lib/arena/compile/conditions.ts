@@ -1194,6 +1194,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   // "If one of your yellow Battle Cards **is being attacked**" (BT4-085), "if
   // this card is attacking": one end of the battle rather than either (8-1).
+  // R450: present "is attacked" names the same current guard (BT14-090).
   // "One of" is the article, not a count — the condition asks whether any of
   // them is there.
   // Audit conditions 3: the same with what is attacked — "**during a battle in which** your <Broly> card is attacking **a
@@ -1201,7 +1202,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Battle Card**" (BT16-043): the guard card of the battle too, as "attacks a Battle Card" is read below. Any other
   // object is not read here. And "if **your opponent's card** is attacking" (BT31-140): any card of theirs in play.
   // "…card**―both green and with an energy cost of 4―**is attacking" (BT22-067): the aside closes the subject.
-  if ((m = /^(?:if )?(?:(?:a|the) )?(?:battles? (?:in which|where|when) )?(.+?)\s*(?:[—―–]|--)?\s*(is|isn't|is not) (being attacked|attacking)(?: (.+))?$/.exec(t))) {
+  if ((m = /^(?:if )?(?:(?:a|the) )?(?:battles? (?:in which|where|when) )?(.+?)\s*(?:[—―–]|--)?\s*(is|isn't|is not) (being attacked|attacked|attacking)(?: (.+))?$/.exec(t))) {
     const guardOf = (said: string | undefined): Selector | null | undefined =>
       said === undefined
         ? undefined
@@ -1221,7 +1222,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     if (sel && guard !== null && !(guard && (m[3] !== "attacking" || m[2] !== "is"))) {
       delete sel.count;
       delete sel.upTo;
-      const role = m[3] === "being attacked" ? "guard" : "attacker";
+      const role = m[3] === "attacking" ? "attacker" : "guard";
       const own: Cond = { kind: "inBattle", sel, role, ...(m[2] === "is" ? {} : { not: true }) };
       return { cond: guard ? { kind: "all", conds: [own, { kind: "inBattle", sel: guard, role: "guard" }] } : own, subject: { sel } };
     }

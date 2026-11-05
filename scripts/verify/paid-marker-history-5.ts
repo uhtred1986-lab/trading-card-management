@@ -211,7 +211,11 @@ for (const p of ["p1", "p2"] as const)
     }
 for (const id of ["BT14-029", "BT14-030", "BT14-090"]) {
     const row = records.find(r => r.cardId === id && r.skillIndex === 0)!;
-    assert.ok(runtimeSupportOfRow(row as unknown as RuleRow).unsupported.some(x => x.includes("X payment")), "Counter X remains an explicit gap");
+    assert.ok(!runtimeSupportOfRow(row as unknown as RuleRow).unsupported.some(x => x.includes("X payment")), "R450 supplies the native Spirit Boost X contract");
+    for (const x of [{ min: 0 }, { spiritBoost: true, min: 1 }, { spiritBoost: true, max: 3 }]) {
+        const unsupported = copy(row); unsupported.cost!.x = x as NonNullable<typeof unsupported.cost>["x"];
+        assert.ok(runtimeSupportOfRow(unsupported as unknown as RuleRow).unsupported.some(x => x.includes("X payment")), "other Counter X contracts remain unsupported");
+    }
 }
 const both = records.find(r => r.cardId === "BT14-029" && r.skillIndex === 0)!;
 for (const missing of ["condition", "amount"]) {

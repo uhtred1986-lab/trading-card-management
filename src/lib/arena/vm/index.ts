@@ -1,4 +1,5 @@
 import { requireCounterDropOccurrence } from "./counter-drop";
+import { counterXValue } from "./counter-x";
 /**
  * The rules engine, as far as it is built.
  *
@@ -490,7 +491,8 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
           const showing = skillsShowing(ctx, state, original.card);
           if (original.skill === undefined && Object.values(showing.scripts.bySkill).some(script => script?.price?.payment.spiritBoost || script?.price?.x?.spiritBoost)) throw new IllegalAction("rebuild the ambiguous saved Spirit Boost skill payment");
           const price = original.skill === undefined ? undefined : showing.scripts.bySkill[original.skill]?.price;
-          const expected = burstNegated(ctx, game, state, original.card) ? 0 : (price?.x?.spiritBoost ? (original.type === "activate" ? original.x ?? 0 : 0) : price?.payment.spiritBoost ?? 0);
+          const selectedX = original.type === "counter" ? counterXValue(original, price?.x) : original.x;
+          const expected = burstNegated(ctx, game, state, original.card) ? 0 : (price?.x?.spiritBoost ? selectedX ?? 0 : price?.payment.spiritBoost ?? 0);
           const saved = pr.markerPayers?.filter(payer => payer.by === "Spirit Boost").reduce((n,payer) => n - payer.n, 0) ?? 0;
           if (expected !== saved || (expected > 0 && pr.markerPayers === undefined)) throw new IllegalAction("rebuild the saved Spirit Boost payment menu");
         }

@@ -2000,7 +2000,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     case "inBattle": {
       const b = state.battle;
       const inBattle =
-        !!b && resolveSelector(ctx, game, state, frame, c.sel).some((id) => (c.role === "attacker" ? b.attacker === id : c.role === "guard" ? b.guard === id : b.attacker === id || b.guard === id));
+        !!b && resolveSelector(ctx, game, state, frame, c.sel, true).some((id) => (c.role === "attacker" ? b.attacker === id : c.role === "guard" ? b.guard === id : b.attacker === id || b.guard === id));
       return c.not ? !inBattle : inBattle;
     }
     // BT3-103's "if this card participated in a battle during your opponent's

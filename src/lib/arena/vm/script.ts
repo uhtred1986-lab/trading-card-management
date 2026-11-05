@@ -1558,8 +1558,8 @@ export interface XCost {
   max?: number;
   /**
    * Phrasing batch 10 (22-43): "[Spirit Boost X]" — X is the number of markers the price removes from your Unison Card,
-   * not energy (BT14-029, BT14-030, BT14-090). The effect reads it back as X ("if you removed a marker … using this
-   * skill" is X ≥ 1, "for each marker you removed using this skill" is X).
+   * not energy (BT14-029, BT14-030, BT14-090). R449 effects read the actual successful marker receipt;
+   * choosing X alone does not prove those markers were removed.
    */
   spiritBoost?: true;
 }

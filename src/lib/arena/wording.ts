@@ -175,7 +175,8 @@ export function priceOf(action: Action, card: CardView, label: string, cost?: Ac
   // demands (owner's ruling on BT19-039, issue #96) — so the orbs arrive on
   // `cost` and the sentence is still assembled here.
   const orbs = PLAY_ACTIONS.has(action.type) ? orbSuffix(cost) : "";
-  if (cost && !PLAY_ACTIONS.has(action.type)) return cost.describe;
+  const markerSuffix = action.type === "counter" && action.x !== undefined ? ` + ${action.x} Spirit Boost marker${action.x === 1 ? "" : "s"}` : "";
+  if (cost && !PLAY_ACTIONS.has(action.type)) return cost.describe + markerSuffix;
   switch (action.type) {
     case "play":
       if (action.alt) return "alternative cost";
@@ -194,8 +195,10 @@ export function priceOf(action: Action, card: CardView, label: string, cost?: Ac
       return "+1 energy";
     case "growUnison":
       return "+1 marker";
-    case "counter":
-      return action.alt ? "alternative cost" : card.cost ? `${card.cost} energy` : "free";
+    case "counter": {
+      const energy = action.alt ? "alternative cost" : card.cost ? `${card.cost} energy` : "free";
+      return energy + markerSuffix;
+    }
     case "block":
       return "rests it";
     case "activate": {

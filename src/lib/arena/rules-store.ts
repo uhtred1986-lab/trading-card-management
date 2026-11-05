@@ -1,3 +1,4 @@
+import { counterSpiritBoostX } from "./vm/counter-x";
 import { EXTRA_SELF_REBUILD, selfExtraActivationWording, extraActivationContractGap } from "./vm/extra-activation";
 import { markerHistoryContractGap } from "./vm/paid-markers";
 import { playReplacementDescriptor, shortPlayReplacementGap } from "./vm/short-play-replacement";
@@ -304,7 +305,7 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0) && !supportedComboReplacement(row)) {
     unsupported.push("the Auto rule has no readable WHEN trigger");
   }
-  if (kind.startsWith("counter:") && cost?.x) unsupported.push("the Counter window has no supported X payment choice contract");
+  if (kind.startsWith("counter:") && cost?.x && !counterSpiritBoostX(cost.x)) unsupported.push("the Counter window has no supported X payment choice contract");
   // Counter: Counter uses the native counter-motion chain (#552). Its
   // affordability is checked on the live board, like the other Counters.
 

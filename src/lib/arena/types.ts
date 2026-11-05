@@ -1577,8 +1577,8 @@ export type Action =
   | { type: "combo"; player: PlayerId; card: string; pay?: string[] }
   | { type: "pass"; player: PlayerId }
   | { type: "block"; player: PlayerId; card: string | null }
-  /** `alt` pays the other cost the card prints instead of its energy cost (5-3). */
-  | { type: "counter"; player: PlayerId; card: string | null; skill?: number; pay?: string[]; alt?: boolean }
+  /** `alt` pays the other cost instead of energy (5-3); `x` selects Spirit Boost markers only (R-450). */
+  | { type: "counter"; player: PlayerId; card: string | null; skill?: number; pay?: string[]; alt?: boolean; x?: number }
   | { type: "orderPending"; player: PlayerId; index: number; decline?: true }
   | { type: "optionalCost"; player: PlayerId; pay: boolean }
   | { type: "payCost"; player: PlayerId; option: number }
