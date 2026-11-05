@@ -80,7 +80,7 @@ export function legacyMovementHinge(ops: readonly Op[]): boolean {
     if (index >= 2 && op.op === "if") {
       const choice = ops[index - 2], move = ops[index - 1];
       const cond = op.cond.kind === "not" ? op.cond.cond : op.cond;
-      if (choice.op === "choose" && choice.sel.count === 1 && choice.sel.upTo && move.op === "moveTo" && move.to !== "play" && "var" in move.target && move.target.var === choice.as && cond.kind === "chose" && cond.var === choice.as) return true;
+      if (choice.op === "choose" && choice.sel.count === 1 && choice.sel.upTo && move.op === "moveTo" && !move.completedAs && move.to !== "play" && "var" in move.target && move.target.var === choice.as && cond.kind === "chose" && cond.var === choice.as) return true;
     }
     return op.op === "if" ? legacyMovementHinge(op.then) || legacyMovementHinge(op.else ?? []) : op.op === "may" || op.op === "delay" ? legacyMovementHinge(op.ops) : op.op === "chooseMode" ? op.modes.some(mode => legacyMovementHinge(mode.ops)) : false;
   });
@@ -95,11 +95,54 @@ function visitMoves(ops: readonly Op[], accept: (op: Extract<Op, { op: "moveTo" 
 }
 export function requireMovementResults(frame: ScriptFrame, source: Script | undefined): void {
   if (source) {
-    const expected: { name: string; to: string }[] = [];
-    visitMoves(source.ops, op => { if (op.completedAs && "var" in op.target) expected.push({ name: op.target.var, to: op.to }); });
+    const expectedSwitches = new Set<string>();
+    const visitSwitches = (ops: readonly Op[], check: boolean): void => {
+      for (const op of ops) {
+        if (op.op === "switchMode") {
+          if (!check && op.completedAs) expectedSwitches.add(JSON.stringify(op.target));
+          if (check && !op.completedAs && expectedSwitches.has(JSON.stringify(op.target))) movementRebuild("rebuild this saved original switch completion contract");
+        } else if (op.op === "if") { visitSwitches(op.then, check); visitSwitches(op.else ?? [], check); }
+        else if (op.op === "may" || op.op === "delay") visitSwitches(op.ops, check);
+      }
+    };
+    visitSwitches(source.ops, false); visitSwitches(frame.ops, true);
+    if (expectedSwitches.size) {
+      const hasSwitch = (cond: import("./script").Cond): boolean => cond.kind === "switched" || cond.kind === "all" && cond.conds.some(hasSwitch);
+      const checkHinges = (ops: readonly Op[]): void => {
+        for (const op of ops) if (op.op === "if") {
+          if (op.then.some(child => child.op === "negateAttack") && !hasSwitch(op.cond)) movementRebuild("rebuild this saved composite completion hinge");
+          checkHinges(op.then); checkHinges(op.else ?? []);
+        }
+      };
+      checkHinges(frame.ops);
+    }
+    const expected: { target: string; to: string }[] = [];
+    visitMoves(source.ops, op => { if (op.completedAs) expected.push({ target: JSON.stringify(op.target), to: op.to }); });
     visitMoves(frame.ops, op => {
-      if (!op.completedAs && "var" in op.target && expected.some(item => item.name === (op.target as { var: string }).var && item.to === op.to)) movementRebuild("rebuild this saved skill's original-movement completion contract");
+      if (!op.completedAs && expected.some(item => item.target === JSON.stringify(op.target) && item.to === op.to)) movementRebuild("rebuild this saved skill's original-movement completion contract");
     });
   }
   for (const op of frame.ops.slice(0, frame.ip)) if (op.op === "moveTo" && op.completedAs) validateMovementResult(frame, op.completedAs);
+}
+
+/** R-429: exact self departure in a composite offer retains its original occurrence. */
+export function selfCompletionMove(op: Op): boolean {
+  return op.op === "moveTo" && !!op.completedAs && op.to !== "under" && op.to !== "play" && "sel" in op.target && Object.keys(op.target.sel).length === 1 && op.target.sel.special === "self";
+}
+export function prepareCompletionSource(frame: ScriptFrame, epoch: number): void {
+  let required = false;
+  visitMoves(frame.ops, op => { if (selfCompletionMove(op)) required = true; });
+  if (!required) return;
+  const saved = frame.completionSource;
+  if (saved) {
+    if (saved.version !== 1 || saved.card !== frame.card || !Number.isSafeInteger(saved.epoch) || saved.epoch < 0) movementRebuild("rebuild this composite source occurrence");
+    return;
+  }
+  if (frame.ip > 0 || frame.awaiting || frame.skillEffectOrigin?.scope !== undefined || !Number.isSafeInteger(epoch) || epoch < 0) movementRebuild("rebuild this saved composite source before the offer");
+  frame.completionSource = { version: 1, card: frame.card, epoch };
+}
+export function completedSwitch(frame: ScriptFrame, name: string): boolean {
+  const result = frame.switchResults?.[name];
+  if (!result || result.version !== 1 || typeof result.completed !== "boolean") movementRebuild("rebuild this saved original switch completion");
+  return result.completed;
 }

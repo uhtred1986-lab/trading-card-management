@@ -1,4 +1,4 @@
-import { completedMovement } from "./movement-result";
+import { completedMovement, completedSwitch } from "./movement-result";
 import { isPotaraSkill, requirePotaraMaterials } from "./potara-materials";
 import { requireUsage } from "./usage";
 import { requireValidity } from "./validity";
@@ -2012,6 +2012,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const l = leaderOf(c.side);
       return !!l && state.cards[l].flipped === (c.flipped ?? true);
     }
+    case "switched":
+      return completedSwitch(frame, c.var);
     case "moved":
       return completedMovement(frame, c.var, c.atLeast, c.all);
     case "did":

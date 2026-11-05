@@ -627,6 +627,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   switchMode: {
     fields: [
       TARGET,
+      { name: "completedAs", type: "string" },
       { name: "mode", type: MODE, required: true },
       {
         name: "by",
@@ -1670,6 +1671,11 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: 'whether an earlier step of this same skill did that — {"what":"may"} reads the answer to a "you may"',
   },
   not: { fields: [{ name: "cond", type: "cond", required: true }], sentence: (raw) => `not (${describeCond((raw as CondOf<"not">).cond)})` },
+  switched: {
+    fields: [{ name: "var", type: "string", required: true }],
+    sentence: () => "the chosen energy was switched to Rest Mode",
+    doc: "R-429: original Active-to-Rest completion, excluding prevented switches and already-Rest no-ops",
+  },
   moved: {
     fields: [{ name: "var", type: "string", required: true }, AT_LEAST, { name: "all", type: "boolean" }],
     sentence: (raw) => (raw as CondOf<"moved">).all ? "the chosen movement was completed in full" : `at least ${(raw as CondOf<"moved">).atLeast ?? 1} chosen original moves completed`,
@@ -1876,6 +1882,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   did:            "primitive",
   not:            "primitive",
   moved:          "primitive",
+  switched:       "primitive",
   chose:          "macro over `count`",
   choseFrom:      "primitive",
   varMatches:     "primitive",
@@ -2212,7 +2219,8 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
       if (bad) return bad;
     }
-    if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || typeof o.target.var !== "string" || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary move or under placement`;
+    if (o.op === "switchMode" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.mode !== "rest" || !isRecord(o.target) || typeof o.target.var !== "string")) return `${step}: switch completion needs a bound variable switched to Rest Mode`;
+    if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || !(typeof o.target.var === "string" || isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self" && o.to !== "under") || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary move or under placement`;
     if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
       if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
     }

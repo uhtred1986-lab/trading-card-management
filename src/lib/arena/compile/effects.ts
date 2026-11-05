@@ -1030,6 +1030,25 @@ function retainAdjacentMovementHinges(ops: Op[]): void {
   for (const op of ops) if (op.op === "moveTo" && op.completedAs && !used.has(op.completedAs)) delete op.completedAs;
 }
 
+/** R-429: one composite offer, with original completion of each instructed action. */
+function bindCompositeOffer(ops: Op[]): void {
+  if (ops.length !== 4) return;
+  const [choice, move, offer, hinge] = ops;
+  if (choice.op !== "choose" || choice.sel.count !== 1 || !choice.sel.upTo || choice.sel.area !== "hand"
+    || move.op !== "moveTo" || move.to !== "drop" || !("var" in move.target) || move.target.var !== choice.as
+    || offer.op !== "if" || offer.cond.kind !== "chose" || offer.cond.var !== choice.as || offer.else || offer.then.length !== 3
+    || hinge.op !== "if" || hinge.cond.kind !== "chose" || hinge.else || hinge.then.length !== 1 || hinge.then[0].op !== "negateAttack") return;
+  const [energy, rest, self] = offer.then;
+  if (energy.op !== "choose" || energy.sel.count !== 1 || energy.sel.upTo || energy.sel.area !== "energy"
+    || rest.op !== "switchMode" || rest.mode !== "rest" || !("var" in rest.target) || rest.target.var !== energy.as
+    || self.op !== "moveTo" || self.to !== "drop" || !("sel" in self.target) || Object.keys(self.target.sel).length !== 1 || self.target.sel.special !== "self"
+    || hinge.cond.var !== energy.as) return;
+  move.completedAs = choice.as;
+  rest.completedAs = energy.as;
+  self.completedAs = `${choice.as}:self`;
+  hinge.cond = { kind: "all", conds: [{ kind: "chose", var: choice.as }, { kind: "moved", var: choice.as, all: true }, { kind: "switched", var: energy.as }, { kind: "moved", var: self.completedAs, all: true }] };
+}
+
 /** R-426: only an adjacent optional one-card choice followed by one ordinary move. */
 export function bindCompletedChoice(ops: Op[], name: string): Cond | null {
   const move = ops[ops.length - 1], choice = ops[ops.length - 2];
@@ -9022,5 +9041,6 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     ops.push(...body);
   }
   retainAdjacentMovementHinges(ops);
+  bindCompositeOffer(ops);
   return ops;
 }

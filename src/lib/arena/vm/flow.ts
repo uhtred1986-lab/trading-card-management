@@ -62,7 +62,7 @@ import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEff
 import { pendStandingPower, returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { openSkillPlayWindow } from "./battle";
-import { recordMovementResult, requireMovementResults, prepareUnderSource, type MovementOutcome } from "./movement-result";
+import { recordMovementResult, requireMovementResults, prepareUnderSource, prepareCompletionSource, type MovementOutcome } from "./movement-result";
 import { beginReplacementAuto, prepareReplacementAuto, requireReplacementOrigin, sameReplacementOccurrence } from "./replacement-auto";
 import { arrivalAutoWasActive, finishSkillPlayScope, releaseSkillPlayWindow, requireSkillEffectOrigin, scopeForFinish, startSkillPlayScope } from "./skill-play-scope";
 import { replacementPrompt, routeOf, stepScript, type ScriptFrame } from "./script";
@@ -1356,6 +1356,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireReplacementOrigin(frame, sourceScript);
     requireMovementResults(frame, sourceScript);
     prepareUnderSource(frame, state.cards[frame.card]?.zoneEpoch ?? 0);
+    prepareCompletionSource(frame, state.cards[frame.card]?.zoneEpoch ?? 0);
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
     }

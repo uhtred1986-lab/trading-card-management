@@ -13,7 +13,7 @@ import { baseType, canCombo, identityKey, keywordName, skillsOf, sumReachable } 
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
-import { recordMovementResult, startMovementResult, validateMovementResult, prepareUnderSource, underSelfMove, movementDestination, movementRebuild } from "./movement-result";
+import { recordMovementResult, startMovementResult, validateMovementResult, prepareUnderSource, prepareCompletionSource, selfCompletionMove, underSelfMove, movementDestination, movementRebuild } from "./movement-result";
 import { completablePicks, disjointGroups, disjointPayable, laterSlots } from "./disjoint";
 import type { ScriptHost } from "./script-host";
 import type { AltCost, Area, Color, CounterKind, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, NegatedSkillKind, SkipWhat, Trigger } from "../types";
@@ -585,6 +585,7 @@ export type Cond =
    * paid by giving one, and an “up to” choice is the only way to decline, so
    * the two readings have to be told apart. Defaults to 1.
    */
+  | { kind: "switched"; var: string }
   | { kind: "moved"; var: string; atLeast?: number; all?: boolean }
   | { kind: "chose"; var: string; atLeast?: number }
   /**
@@ -837,7 +838,7 @@ export type Op =
    * a different moment from "…by one of your skills" (1-10). No card says it;
    * a keyword body does.
    */
-  | { op: "switchMode"; target: Ref; mode: "active" | "rest"; by?: KeywordSkill["name"] }
+  | { op: "switchMode"; target: Ref; mode: "active" | "rest"; by?: KeywordSkill["name"]; completedAs?: string }
   /**
    * 20-9: gaining control of a card is moving it into your own area and
    * becoming its master (20-9-1), which is why this is one move and not a flag
@@ -1726,6 +1727,9 @@ export interface ScriptFrame {
   /** Original Combo departure waiting beneath a replacement scope; only its
    * completed original move credits this parent's may/did witness. */
   replacementMove?: { card: string; epoch: number; completedAs?: string };
+  switchCandidates?: Record<string, { card: string; epoch: number }[]>;
+  switchResults?: Record<string, { version: 1; completed: boolean }>;
+  completionSource?: { version: 1; card: string; epoch: number };
   movementResults?: Record<string, import("./movement-result").MovementResult>;
   underSource?: { version: 1; card: string; epoch: number };
   /** Exact Counter kind and the unknown-target window it answered. */
@@ -2212,13 +2216,21 @@ const PLAY_TAX_ASKED = "§playTaxAsked";
 
 /** `switchMode` on these cards, with the moments a switch to Rest Mode pends (1-10). */
 function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "switchMode" }>, ids: string[], master: PlayerId): void {
+  if (op.completedAs) {
+    if (ids.length > 1) movementRebuild("original switch completion requires at most one selected card");
+    const candidates = frame.switchCandidates?.[op.completedAs];
+    if (!Array.isArray(candidates) || new Set(candidates.map(item => item?.card)).size !== candidates.length || candidates.some(item => !item || typeof item.card !== "string" || !Number.isSafeInteger(item.epoch) || item.epoch < 0)) movementRebuild("rebuild this saved switch chooser occurrence");
+    ids = ids.filter(id => candidates.some(item => item.card === id && item.epoch === h.zoneEpoch(id)));
+    (frame.switchResults ??= {})[op.completedAs] = { version: 1, completed: false };
+  }
   for (const id of ids) {
     const was = h.modeOf(id);
     // The switch says what caused it — this skill, and the keyword whose
     // skill it is when a keyword body names one (#157) — so a host that
     // fires the moment itself can tell "by one of your skills" from "by
     // an [Alliance] skill" (the rules engine's `modeSwitched(by: …)`).
-    h.setMode(id, op.mode, { card: frame.card, master, ...(op.by ? { keyword: op.by } : {}), ...(frame.skillKind ? { kind: frame.skillKind } : {}) });
+    const completed = h.setMode(id, op.mode, { card: frame.card, master, ...(op.by ? { keyword: op.by } : {}), ...(frame.skillKind ? { kind: frame.skillKind } : {}) });
+    if (op.completedAs && completed && was === "active" && op.mode === "rest") frame.switchResults![op.completedAs].completed = true;
     // "When this card is switched to Rest Mode by one of your skills"
     // (1-10): the card and the skill both have to be yours, which is what
     // "your" says — an opponent resting it is not this moment.
@@ -2350,6 +2362,7 @@ function rememberLook(frame: ScriptFrame, player: PlayerId, areas: ("deck" | "li
  */
 export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
   prepareUnderSource(frame, h.zoneEpoch(frame.card));
+  prepareCompletionSource(frame, h.zoneEpoch(frame.card));
   const master = frame.master;
 
   for (let guard = 0; guard < 200; guard++) {
@@ -2800,6 +2813,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
 
       case "choose": {
         const placement = frame.ops[frame.ip + 1];
+        if (placement?.op === "switchMode" && placement.completedAs) {
+          if (op.sel.count !== 1 || placement.completedAs !== op.as) movementRebuild("switch completion requires a one-card bound chooser");
+          if (frame.awaiting === op.as) {
+            if (!frame.switchCandidates?.[op.as]) movementRebuild("rebuild this saved switch chooser occurrence");
+          } else (frame.switchCandidates ??= {})[op.as] = h.resolveSelector(frame, op.sel).map(card => ({ card, epoch: h.zoneEpoch(card) }));
+        }
         if (placement?.op === "moveTo" && placement.to === "under" && placement.completedAs === op.as) {
           if (frame.awaiting === op.as) movementDestination(frame, op.as);
           else {
@@ -3198,9 +3217,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // takes, named for a later clause (which also asks where they are by then).
         // Several moves under one name add up: "send up to 1 <Vegeta> card and 1 <Nappa> card … to your Warp … play all
         // the cards sent to the Warp by this skill" (BT7-051) is both cards.
-        if (op.completedAs && (!("var" in op.target) || op.to === "play")) movementRebuild("rebuild the original-movement target contract");
+        if (op.completedAs && (!("var" in op.target) && !selfCompletionMove(op) || op.to === "play")) movementRebuild("rebuild the original-movement target contract");
         if (op.completedAs && !h.reportsMovement) movementRebuild("this host cannot report original movement completion");
         if (op.completedAs && frame.moveLoop) validateMovementResult(frame, op.completedAs);
+        if (op.completedAs && !frame.moveLoop && selfCompletionMove(op)) startMovementResult(frame, op.completedAs, [{ card: frame.card, epoch: frame.completionSource!.epoch }]);
         if (op.completedAs && !frame.moveLoop && "var" in op.target) {
           const name = op.target.var;
           const stamps = frame.vars[epochVar(name)];

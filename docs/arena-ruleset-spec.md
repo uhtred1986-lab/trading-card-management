@@ -230,6 +230,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `all` | macro over `any` + `not` | De Morgan. The interpreter may keep the case for legibility; the language does not need it. |
 | `leaderFlipped` | macro over `count` | "Has awakened" is the `flipped` attribute of a Leader (§2.5). |
 | `power` | macro over `count` | Filters already carry `powerMin` and `powerMax`, so this is a count of the cards the filter finds. |
+| `switched` | primitive | Original one-card Active-to-Rest completion bound by `switchMode.completedAs`; saved candidate occurrences prevent switching a fresh card, and prevented or already-Rest actions do not fulfill the offer (R-429; 0-2-4-1, 20-16). |
 | `moved` | primitive | Original movement results bound by `moveTo.completedAs`, including saved selected occurrences and replacement continuations (R-426; 20-16/17). A replacement or a merely chosen card does not complete the original action. |
 | `did` | primitive | The resolution's own record (20-16). No amount of counting the board says whether *this skill* drew a card. |
 | `not` | primitive | Negation. |

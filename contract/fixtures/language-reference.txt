@@ -763,13 +763,19 @@
     {
       "name": "switchMode",
       "class": "macro over `modifyAttr`",
-      "signature": "{\"op\":\"switchMode\",\"target\":TARGET,\"mode\":\"active\"|\"rest\"}",
+      "signature": "{\"op\":\"switchMode\",\"target\":TARGET,\"completedAs\"?:\"…\",\"mode\":\"active\"|\"rest\"}",
       "fields": [
         {
           "name": "target",
           "required": true,
           "nullable": false,
           "type": "ref"
+        },
+        {
+          "name": "completedAs",
+          "required": false,
+          "nullable": false,
+          "type": "string"
         },
         {
           "name": "mode",
@@ -3562,6 +3568,21 @@
         }
       ],
       "sentence": "not (it is your turn)"
+    },
+    {
+      "kind": "switched",
+      "class": "primitive",
+      "signature": "{\"kind\":\"switched\",\"var\":\"…\"}",
+      "fields": [
+        {
+          "name": "var",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        }
+      ],
+      "sentence": "the chosen energy was switched to Rest Mode",
+      "doc": "R-429: original Active-to-Rest completion, excluding prevented switches and already-Rest no-ops"
     },
     {
       "kind": "moved",
