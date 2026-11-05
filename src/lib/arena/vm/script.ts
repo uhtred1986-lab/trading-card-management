@@ -1734,6 +1734,10 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** The DO queued by the Charge action; its movement is not a skill. */
+  declaredCharge?: true;
+  /** R482 original Charge action; never a skill activation. */
+  energyCharge?: import("./energy-entry-charge").EnergyChargeScope;
   /** R475: exact copied source retained after deletion/expiry of its grant. */
   copiedSkillCapture?: import("./triggers").CopiedSkillCapture;
   arrivalDecision?: import("./counter-arrival-runtime").CounterArrivalDecision;
@@ -3346,7 +3350,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           reveal: op.reveal,
           mode: op.mode,
           faceUp: op.faceUp,
-          reason: op.cause ?? "effect",
+          reason: frame.declaredCharge ? "charge" : op.cause ?? "effect",
         };
         while (frame.moveLoop && frame.moveLoop.kind === "moveTo" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
@@ -3394,7 +3398,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // "You can't use non-≪Red Ribbon Army≫ card skills to place cards in
           // your energy" (BT17-032, `fromArea: "any"`): a card from any area —
           // a rule naming no area is still about the Battle Area alone.
-          if (leaving && h.forbids("beMovedBySkill", { card: id, player: master, from: leaving, to: op.to, toBottom: op.position === "bottom", ...(frame.card ? { source: frame.card } : {}) })) {
+          if (!frame.declaredCharge && leaving && h.forbids("beMovedBySkill", { card: id, player: master, from: leaving, to: op.to, toBottom: op.position === "bottom", ...(frame.card ? { source: frame.card } : {}) })) {
             if (frame.saveVarsAs) frame.priceUnpaid ??= leaving === "battle" ? `${h.nameOf(id)} can't be removed from the Battle Area` : `${h.nameOf(id)} can't be moved from the ${leaving}`;
             frame.moveLoop.index++;
             continue;
@@ -3452,7 +3456,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.clearLastMode();
             frame.awaiting = undefined;
           } else {
-            const choices = h.replacementsFor(id, op.cause ?? "effect", { actor: master, inSubstitute: !!frame.replacing, requestedTo: dest });
+            const choices = h.replacementsFor(id, frame.declaredCharge ? "charge" : op.cause ?? "effect", { actor: frame.declaredCharge ? undefined : master, inSubstitute: !!frame.replacing, requestedTo: dest });
+            if (frame.energyCharge && choices.length) throw new NotYet("ordinary Charge incoming replacement", "R482");
             const allowNone = choices.length > 0 && choices.every((c) => c.optional);
             if (choices.length > 1 || allowNone) {
               frame.awaiting = "replaceMove";
@@ -3475,7 +3480,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           }
           const deferred = defers(replaced);
           const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
-          if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: op.cause ?? "effect", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
+          if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: frame.declaredCharge ? "charge" : op.cause ?? "effect", ...(frame.declaredCharge ? {} : { actor: master, by: "skill" as const, byCard: frame.card, byOpponent: h.masterOf(id) !== master }) });
           if (substitute?.replacementAuto) frame.replacementMove = { card: id, epoch: substitute.replacementAuto.epoch, ...(op.completedAs ? { completedAs: op.completedAs } : {}) };
           // 3-10: "when this card is sent from your deck to your Warp by your
           // <Heles> card's skill" (BT30-106) asks where it came from, which is
@@ -3499,7 +3504,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // deck or the life is revealed the same way.
           const picked = !!frame.specifiedPicks?.includes(id);
           const shown = op.reveal || (picked && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp))) || (picked && h.areaOf(id) === "hand" && (dest === "deck" || (dest === "life" && !op.faceUp)));
-          const movedTo = h.move(id, dest, owner, { ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(op.mode ? { requestedMode: op.mode } : {}), position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          const movedTo = h.move(id, dest, owner, { ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(op.mode ? { requestedMode: op.mode } : {}), position: op.position, reveal: shown, reason: frame.declaredCharge ? "charge" : op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // The original movement owns this child only until its one native
           // movement attempt returns (including a refused movement).
           if (dest === "energy" && h.prepareEnergyEntry) frame.energyEntry = undefined;
@@ -3563,7 +3568,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // a condition the rule asks of it — the same way `restedBySkill`
           // hands on the card that rested it.
           if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
-          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal, ...(negatedThere?.length ? { negated: negatedThere } : {}) });
+          if (!frame.declaredCharge && fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal, ...(negatedThere?.length ? { negated: negatedThere } : {}) });
           if (op.mode && movedTo !== "energy") h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only

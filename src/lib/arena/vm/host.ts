@@ -1,3 +1,4 @@
+import { requireDeclaredCharge, requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes, refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 import { guardOptionalEnergyFrame, prepareOptionalEnergyEntry, optionalEnergyArrival, guardUnownedEnergyEntry, type OptionalEnergyArrival } from "./energy-entry-runtime";
 import { guardEnergyEntryBatch } from "./energy-entry-preflight";
@@ -118,7 +119,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
   const counterProtected = (frame: ScriptFrame, id: string): boolean => !!frame.counterPlay && frame.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter");
 
   return {
-    guardEnergyEntryFrame: frame => guardOptionalEnergyFrame(ctx,state,vmHost(ctx,game,state,ev,frame),frame),
+    guardEnergyEntryFrame: frame => {
+      requireDeclaredCharge(game,state,frame);
+      if (frame.energyCharge) requireEnergyCharge(game,state,frame);
+      guardOptionalEnergyFrame(ctx,state,vmHost(ctx,game,state,ev,frame),frame);
+    },
     guardEnergyEntryBatch: (frame,ids) => { if (!frame.energyEntry) guardEnergyEntryBatch(ctx,state,vmHost(ctx,game,state,ev,frame),frame,ids); },
     prepareEnergyEntry: (frame,id,destination) => prepareOptionalEnergyEntry(ctx,state,vmHost(ctx,game,state,ev,frame),child => {
       const childHost=vmHost(ctx,game,state,ev,child);
@@ -260,8 +265,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     move: (id, to, owner, opts) => {
       const arrival = retainedFrame?.arrivalDecision;
       const energyEntry=to === "energy" ? optionalEnergyArrival(ctx,game,state,vmHost(ctx,game,state,ev,retainedFrame),retainedFrame,id,owner,opts?.requestedMode) : undefined;
-      const actor=opts?.actor ?? (energyEntry ? retainedFrame?.master : undefined);
-      const source=opts?.source ?? (energyEntry ? retainedFrame?.card : undefined);
+      const actor=opts?.actor ?? (energyEntry && !retainedFrame?.declaredCharge ? retainedFrame?.master : undefined);
+      const source=opts?.source ?? (energyEntry && !retainedFrame?.declaredCharge ? retainedFrame?.card : undefined);
       const onResult: NonNullable<typeof opts>["onResult"] = result => {
         opts?.onResult?.(result);
         if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
