@@ -441,7 +441,7 @@ const BATCH1_GATED = new Set<string>(["droppedFromHandByOpponent", "activeBySkil
   // asked only as the Auto resolved — so "[Once per turn] When one of your yellow <Son Goku> cards with an energy cost
   // of 2 is played" (BT21-115) was spent by the first card of any kind you played, and "{1}: When an opponent's Battle
   // Card with an energy cost of 4 or less attacks" (DB2-148) asked its price for a Leader's attack.
-  "youPlayed", "eitherCardPlayed", "yourCardPlayedFromHand", "yourCardPlayedFromDrop", "yourCardAttacks", "opponentAttacks",
+  "yourOtherBattlePlayedUsingDarkOverRealm", "youPlayed", "eitherCardPlayed", "yourCardPlayedFromHand", "yourCardPlayedFromDrop", "yourCardAttacks", "opponentAttacks",
   "evolveActivated",
   // Audit triggers 3: a keyword's move, watched — the card whose move it is, described ("When your yellow <Garlic Jr.>
   // activates an [Overlord] skill", P-568; "When you activate the [Blocker] skill on one of your yellow Battle Cards",
