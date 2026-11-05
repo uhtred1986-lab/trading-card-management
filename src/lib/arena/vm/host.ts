@@ -713,7 +713,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     saveVars: (key, vars, paidCardInfo) => {
       const effect = state.programs.find((f) => f.pricedBy?.key === key);
       if (!effect) throw new RulesetBroken(state.game, `a price finished with no effect waiting for what it chose (${key})`);
-      if (effect.activationEnergyPayment) consumeActivationEnergyUses(state, ev, effect.activationEnergyPayment);
+      if (effect.activationEnergyPayment) consumeActivationEnergyUses(ctx, state, ev, effect.activationEnergyPayment);
       effect.vars = { ...vars, ...effect.vars };
       if (paidCardInfo) effect.paidCardInfo = { ...paidCardInfo, ...effect.paidCardInfo };
       log(ev, { type: "skill", card: effect.card, skill: effect.skillIndex ?? 0, master: effect.master, text: effect.pricedBy!.text, inBattle: !!state.battle });
