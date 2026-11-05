@@ -294,7 +294,8 @@ for (const [id, text, rules] of [
   assert.ok(ex19.some((r) => r.unread.length) && !ex19.some((r) => opsDeep(r.ops).some((o) => o.op === "power")), `G: EX19-21 — the [-X] tally is unread, not "for each of this card" (${ex19.map((r) => r.reads).join(" | ")})`);
   // The readers it must not take: the cards a price removed from the game (XD3-07) and a [Spirit Boost X]'s markers (BT14-029).
   const bt14 = record("BT14-029", "[Counter: Attack][Spirit Boost X] If your Leader Card is mono-red: Choose up to 1 of your opponent's cards and it gets -5000 power for the turn. If you removed a marker from one of your red Unison Cards using this skill, choose up to 1 of your opponent's cards and it gets -5000 power for the turn for each marker you removed using this skill.");
-  assert.ok(opOf(bt14, "power").some((o) => typeof o.amount === "object" && "x" in o.amount), `G: BT14-029 — still X markers (${bt14.reads})`);
+  assert.ok(opOf(bt14, "power").some((o) => typeof o.amount === "object" && "paidMarkers" in o.amount && o.amount.paidMarkers === "spiritBoost" && o.amount.times === -5000), `G: BT14-029 — actual paid Spirit Boost markers (${bt14.reads})`);
+  assert.ok(!opOf(bt14, "power").some((o) => typeof o.amount === "object" && "x" in o.amount), "selected X alone is not a paid-marker count");
   for (const id of ["BT2-102"]) {
     const front = record(id, "[Auto] When this card attacks, play 1 Chilled's Army token. (Chilled's Army token has 10000 power)");
     assert.equal(opOf(front, "token")[0]?.power, 10000, `G: ${id} — "token has 10000 power" (${front.reads})`);
