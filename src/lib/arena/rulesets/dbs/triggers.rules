@@ -84,6 +84,12 @@ DEFINE TRIGGER playedUsingOverRealm
   BIND "self"
   text: "when this card is played using [Over Realm]"
 
+-- R456 / 22-23: exact Dark Over Realm arrival, distinct from normal Over Realm.
+DEFINE TRIGGER playedUsingDarkOverRealm
+  ON moved(asPlay: true, to: battle, using: "Dark Over Realm")
+  BIND "self"
+  text: "when this card is played using [Dark Over Realm]"
+
 -- §5-5 — when you play a card
 DEFINE TRIGGER youPlayed
   ON moved(asPlay: true, to: [battle, unison], watcher: controller)

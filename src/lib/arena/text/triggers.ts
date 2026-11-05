@@ -585,7 +585,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "playedFromDrop":
       return new RegExp(PLAYED_FROM_DROP.source).test(t);
     case "playedUsingOverRealm":
-      return new RegExp(PLAYED_USING_OVER_REALM.source).test(t);
+      return /when (?:you play this card|this card is played) (?:using|with) \[over realm[^\]]*\]/.test(t);
+    case "playedUsingDarkOverRealm":
+      return /when (?:you play this card|this card is played) (?:using|with) (?:\[over realm[^\]]*\] or )?\[dark over realm[^\]]*\]/.test(t);
     case "attacks":
       // "When this card attacks and KOs an opponent's Battle Card" is the KO, not the attack.
       // "When you attack or combo with this card" is this trigger and the

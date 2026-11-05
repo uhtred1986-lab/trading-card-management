@@ -1,3 +1,5 @@
+import { canonicalTaxValue } from "./tax-receipt";
+import { isOverRealmPayment, stepOverRealmCost, type OverRealmCost } from "./over-realm-cost";
 import { chooseFramePools, primeFramePools, requirePoolOccurrence, resourceActionFinishes } from "./pooled-costs";
 import { isZAwakenChargeSkipPrice } from "./activation-price-support";
 import { resolveSelector, attrsNow } from "./program";
@@ -75,6 +77,7 @@ export interface KeywordCost {
   queued?: true;
   /** #907: all Fusion resource payment follows material payment, including orb-only lines. */
   zAwaken?: ZAwakenCost;
+  overRealm?: OverRealmCost;
   fusion?: { stage: "resources" | "native" | "action"; selectedChoice?: number; choices?: { price: Price; payment: VmPayment; label: string }[]; payment?: VmPayment; nativeIndex?: number; poolIndex?: number };
 }
 
@@ -164,9 +167,9 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
   const cost = frame.keywordPrice;
   if (!cost || cost.queued) return;
   const ops = keywordActionPrice(cost.line);
-  if (!ops && !cost.fusion) throw new RulesetBroken(state.game, `${cost.line.card}'s keyword move carries a price its record no longer has`);
+  if (!ops && !cost.fusion && !cost.overRealm) throw new RulesetBroken(state.game, `${cost.line.card}'s keyword move carries a price its record no longer has`);
   cost.queued = true;
-  state.programs.unshift({ ...(frame.viaKeyword === "Z-Awaken" ? { viaKeyword: frame.viaKeyword } : {}), ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}), ...(cost.zAwaken ? { zAwaken: cost.zAwaken } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.fusionSourceEpoch !== undefined ? { fusionSourceEpoch: frame.fusionSourceEpoch } : {}), ...(frame.fusionDropBottom ? { fusionDropBottom: true as const } : {}), ...(frame.viaKeyword === "Z-Awaken" ? { vars: structuredClone(frame.vars) } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
+  state.programs.unshift({ ...(frame.viaKeyword === "Z-Awaken" ? { viaKeyword: frame.viaKeyword } : {}), ...priceFrame(cost.line, frame.master, cost.overRealm ? [] : ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.overRealm ? { overRealm: cost.overRealm } : {}), ...(cost.fusion ? { fusion: cost.fusion } : {}), ...(cost.zAwaken ? { zAwaken: cost.zAwaken } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.fusionSourceEpoch !== undefined ? { fusionSourceEpoch: frame.fusionSourceEpoch } : {}), ...(frame.fusionDropBottom ? { fusionDropBottom: true as const } : {}), ...(frame.viaKeyword === "Z-Awaken" ? { vars: structuredClone(frame.vars) } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
 }
 
 /**
@@ -180,6 +183,11 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
   const cost = frame.keywordCost!;
   if (isOrderedZAwaken(cost.line) && !cost.zAwaken) throw new IllegalAction("rebuild this saved Z-Awaken payment with its cost-order continuation");
   assertCurrentFusion(cost, !!frame.evolutionIdentity);
+  if (isOverRealmPayment(cost.line) && !cost.overRealm) throw new NotYet("rebuild this saved Over Realm payment", "R456");
+  if (cost.overRealm) {
+    const owner = state.programs.find(f => f.keywordPrice?.key === cost.key);
+    if (!owner || owner.card !== frame.card || owner.master !== frame.master || cost.line.card !== frame.card || cost.line.skillIndex !== frame.skillIndex || frame.master !== cost.overRealm.source?.player || canonicalTaxValue(owner.overRealmSource) !== canonicalTaxValue(cost.overRealm.source)) throw new NotYet("rebuild the saved Over Realm owner/source binding", "R456");
+  }
   // R-396: payment is still for the originally chosen Z-Deck card and Leader.
   // Failed/replaced source or base occurrences cancel the activation, not a new card.
   if (cost.line.keyword?.name === "Z-Awaken") {
@@ -195,6 +203,7 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
   if (frame.potaraIdentity && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.potaraSourceEpoch)) return fail(state, ev, cost);
   if (frame.absorbIdentity && (findCard(state, frame.card)?.zone !== "battle" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.absorbSourceEpoch)) return fail(state, ev, cost);
   try {
+    if (cost.overRealm && stepOverRealmCost(ctx, game, state, ev, frame, cost.overRealm, cost.line) === "wait") return "wait";
     if (cost.zAwaken) {
       if (stepZAwakenCost(ctx, game, state, ev, frame) === "wait") return "wait";
     }
@@ -223,14 +232,14 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
     throw err;
   }
   const owner = state.programs.find((f) => f.keywordPrice?.key === cost.key);
-  if (owner) owner.keywordPrice = undefined;
+  if (owner) { owner.keywordPrice = undefined; if (cost.overRealm) owner.overRealmPaidTaxes = cost.overRealm.paidTaxes.slice(); }
   // 20-5-3, 22-13-6-1 (#930): what an Absorb's cost chose is its effect's —
   // BT4-018's "the card you placed under this card" is the price's `c0`. The
   // `DO` frame runs the printed effect, so it is handed on there, as an
   // [Activate]'s price hands its names on through `saveVars`; names the frame
   // already holds win.
   if (owner && frame.absorbIdentity) owner.vars = { ...frame.vars, ...owner.vars };
-  if (cost.fusion || cost.zAwaken) {
+  if (cost.fusion || cost.zAwaken || cost.overRealm) {
     if (cost.line.script?.price?.payment.marker != null) state.cards[frame.card].usedMarkerSkill = true;
     spendUse(state, frame.master, frame.card, cost.line.skill);
     spendSkillCostUses(ctx, game, state, ev, frame.card, cost.line.skill);
@@ -242,6 +251,7 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
 
 /** 5-8-4: the price could not be paid in full. What was paid stays paid; no skill, no moment, no play. */
 function fail(state: VmState, ev: GameEvent[], cost: KeywordCost): "done" {
+  if (cost.overRealm) { state.lastChoice = null; state.lastMode = null; }
   const at = state.programs.findIndex((f) => f.keywordPrice?.key === cost.key);
   if (at >= 0) state.programs.splice(at, 1);
   log(ev, { type: "note", text: `${labelOf(cost.line)} activation failed: its skill cost could not be paid in full` });

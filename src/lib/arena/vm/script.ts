@@ -1,3 +1,5 @@
+import { NotYet } from "./errors";
+import type { OverRealmSource } from "./over-realm-cost";
 /**
  * The effect language and its interpreter.
  *
@@ -1905,6 +1907,11 @@ export interface ScriptFrame {
    */
   saveVarsAs?: string;
   /** R-387: an Awaken action payment keeps the Leader and its chosen material occurrences across reloads. */
+  overRealmSource?: OverRealmSource;
+  overRealmPaidTaxes?: string[];
+  overRealmReturn?: import("../types").OverRealmReturn | null;
+  /** R456: strict payment of a newly appearing tax on this native OR play. */
+  overRealmLateTax?: import("./over-realm-cost").OverRealmLateTax;
   awakenPayment?: { sourceEpoch: number; chosenEpochs: Record<string, number> };
   /**
    * #1117 (4-3-3, 5-8-2-2): set on a price's frame when a step of the price did
@@ -2399,6 +2406,8 @@ function rememberLook(frame: ScriptFrame, player: PlayerId, areas: ("deck" | "li
  * ended or a sub-flow (playing a card) took over.
  */
 export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
+  if (frame.viaKeyword === "Over Realm" && (!frame.overRealmSource || frame.overRealmSource.version !== 1)) throw new NotYet("rebuild this saved Over Realm source/payment continuation", "R456");
+  if (frame.viaKeyword === "Over Realm" && !frame.keywordPrice && (!Array.isArray(frame.overRealmPaidTaxes) || frame.overRealmPaidTaxes.some(key => typeof key !== "string"))) throw new NotYet("rebuild this saved Over Realm completed-payment receipt", "R456");
   requireCounterSelfBinding(frame, undefined);
   prepareUnderSource(frame, h.zoneEpoch(frame.card));
   prepareCompletionSource(frame, h.zoneEpoch(frame.card));
@@ -2934,6 +2943,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // R-396: a Z-Awaken payment may pause for a movement replacement.
           // Bind the selected occurrence so resuming cannot pay with a reentry.
           if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
+          if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          if (frame.overRealmLateTax) frame.overRealmLateTax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
           if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] = h.zoneEpoch(id);
           // Mechanism batch 2 (3-1-7): a card picked out of a secret area by a description is shown if it goes on to
           // another secret area; remembered here, while it is still where it was chosen from.
@@ -3138,6 +3149,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           frame.vars[op.as] = picked;
           // R-443: optional Z-Awaken payments can pause between picks too.
           if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
+          if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          if (frame.overRealmLateTax) frame.overRealmLateTax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
           if (done) {
             frame.awaiting = undefined;
             take(picked);
@@ -4360,7 +4373,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
         // 20-14: a skill doing the playing, which is the half fifteen cards ban.
-        const candidates = h.resolveRef(frame, op.target).filter(id => counterSelfPlayAllowed(frame, op.target, id, h.zoneEpoch(id), h.areaOf(id)));
+        const candidates = h.resolveRef(frame, op.target).filter(id => counterSelfPlayAllowed(frame, op.target, id, h.zoneEpoch(id), h.areaOf(id))).filter(id => frame.viaKeyword !== "Over Realm" || !!frame.overRealmSource && frame.overRealmSource.card === id && frame.overRealmSource.cardId === h.defOf(id).id && frame.overRealmSource.epoch === h.zoneEpoch(id) && frame.overRealmSource.area === h.areaOf(id));
         // #933: whether it is an evolution is the play's own `using`, never the
         // keyword tag on the skill making it — P-336's [Activate: Main] evolves.
         const evolution = op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve";
@@ -4429,7 +4442,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           delete frame.vars[PLAY_TAX_SKIPPED];
         }
         if (!frame.declaredPlay && targets.length) {
-          const ask = (id: string) => ({ player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}) });
+          const ask = (id: string) => ({ player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(frame.viaKeyword === "Over Realm" && id === frame.overRealmSource?.card && frame.overRealmSource.epoch === h.zoneEpoch(id) && frame.overRealmPaidTaxes ? { excludePaidTaxes: frame.overRealmPaidTaxes } : {}) });
           if (frame.awaiting === "playTax" && h.lastMode() != null) {
             const yes = h.lastMode() === 0;
             h.clearLastMode();
@@ -4438,7 +4451,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             delete frame.vars[PLAY_TAX_ASKED];
             if (asked && yes) {
               frame.vars[PLAY_TAX_PAID] = [...(frame.vars[PLAY_TAX_PAID] ?? []), asked];
-              h.interrupt({ ops: h.taxesOn("play", ask(asked)).flat(), ip: 0, vars: {}, card: asked, master, counterSelfTax: counterSelfTaxBinding(frame, op.target) }, frame);
+              h.interrupt({ ops: h.taxesOn("play", ask(asked)).flat(), ip: 0, vars: {}, card: asked, master, counterSelfTax: counterSelfTaxBinding(frame, op.target), ...(frame.viaKeyword === "Over Realm" && frame.overRealmSource ? { overRealmLateTax: { version: 1 as const, source: structuredClone(frame.overRealmSource), ownerIp: frame.ip, payers: [] } } : {}) }, frame);
               return "done";
             }
             if (asked) frame.vars[PLAY_TAX_SKIPPED] = [...(frame.vars[PLAY_TAX_SKIPPED] ?? []), asked];

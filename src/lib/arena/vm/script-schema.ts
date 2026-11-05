@@ -585,7 +585,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       },
       {
         name: "using",
-        type: { enum: ["Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve", "Union-Fusion", "Union-Potara", "Union-Absorb", "Swap", "Arrival", "Successor"] },
+        type: { enum: ["Over Realm", "Dark Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve", "Union-Fusion", "Union-Potara", "Union-Absorb", "Swap", "Arrival", "Successor"] },
       },
       {
         name: "toOwners",
@@ -626,7 +626,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       const on = op.markers === undefined ? "" : ` with ${describeAmount(op.markers)} marker${op.markers === 1 ? "" : "s"} on it`;
       return played + on + kinds;
     },
-    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "negatedKinds" and "negatedUntil" are a nonempty exact kind list and its duration: those skills are negated on successful entry before played triggers and the landed counter window (R-388), respecting negation protection and the acting skill master/source. Use neither field for a later separate negation. "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15). "using: Union-Fusion/Union-Potara/Union-Absorb" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; "alsoUnder" puts [Union-Potara]\'s second material under the card as part of the play.',
+    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "negatedKinds" and "negatedUntil" are a nonempty exact kind list and its duration: those skills are negated on successful entry before played triggers and the landed counter window (R-388), respecting negation protection and the acting skill master/source. Use neither field for a later separate negation. "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15); "using: Dark Over Realm" retains the distinct dark procedure (22-23), without the normal end-turn departure. "using: Union-Fusion/Union-Potara/Union-Absorb" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; "alsoUnder" puts [Union-Potara]\'s second material under the card as part of the play.',
   },
   switchMode: {
     fields: [

@@ -204,7 +204,11 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // line keep their prices unread until their own moves can charge one. R-387 adds
   // Awaken, whose native activation pays its printed action before effects and flipping.
   // R-396 adds only the verified single-card Z-Awaken price shapes below.
-  const owner = skill.keyword && PRICED_KEYWORD_MOVES.has(skill.keyword.name) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
+  // R-456: the native Dark Over Realm procedure can pay this exact draw
+  // after its whole-Drop cost and printed energy. Other action prices remain gaps.
+  const darkDraw = skill.keyword?.name === "Over Realm" && skill.keyword.dark
+    && /^(?:you )?draw 1 card\.?$/i.test(said.trim());
+  const owner = skill.keyword && (darkDraw || PRICED_KEYWORD_MOVES.has(skill.keyword.name)) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
   const tags = owner ? skill.tags.filter((t) => keywordOf(t)?.name !== owner) : skill.tags;
   const read = (text: string) => compileSkill({ ...skill, kind: "activate:main", keyword: null, tags, cost: "", effect: text });
   // R-443: Z-Energy is the named area; the omitted noun means its cards.

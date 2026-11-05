@@ -1,3 +1,4 @@
+import { isOverRealmPayment, overRealmAction, overRealmCost } from "./over-realm-cost";
 import { rebuildScope } from "./skill-play-scope";
 import { bindPaidMarkers, markerHistoryContract } from "./paid-markers";
 import { energyCouponContract } from "./energy-coupon-saves";
@@ -582,7 +583,7 @@ export function activationRefusals(
   // Owner ruling 26 Oct 2026 (the batch 5 follow-up): on the board the move's
   // whole own price leaves — its energy and the cards it takes ([Union-Fusion]'s
   // materials, [Over Realm]'s Drop Area), `unpaidKeywordPlayTax`.
-  const unpaidPlay = playTaxes.length ? unpaidKeywordPlayTax(ctx, game, state, player, card, sk, playTaxes, boundFor(ctx, game, state, player, line).energy?.total ?? 0) : null;
+  const unpaidPlay = playTaxes.length && !isOverRealmPayment(line) ? unpaidKeywordPlayTax(ctx, game, state, player, card, sk, playTaxes, boundFor(ctx, game, state, player, line).energy?.total ?? 0) : null;
   if (unpaidPlay) before.push({ kind: "forbidden", by: unpaidPlay.by, until: unpaidPlay.until, unless: `you pay, each time: ${describeScript(unpaidPlay.ops).replace(/ other than this card\b/g, " other than the card being played")}` });
   // 20-14-1 (#677): a price on activating that cannot be paid is a ban, named
   // with the price — the legacy `whyNotActivate` asks it at the same place.
@@ -1137,13 +1138,14 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     : [];
   const priceOps = waived ? null : actionPriceOf(line);
   const activationEnergyPayment = !waived && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card) ? captureActivationEnergyUses(ctx, game, state, card, sk) : undefined;
+  const deferredOverRealm = !waived && isOverRealmPayment(line);
   const deferredFusion = !waived && isFusionPayment(line);
   const deferredZAwaken = !waived && isOrderedZAwaken(line);
-  if (!deferredFusion && !deferredZAwaken) spendUse(state, player, card, sk);
-  if (!deferredFusion && !deferredZAwaken && (payment.marker != null || (line.keyword && isMarkerSkill(line.keyword)))) inst.usedMarkerSkill = true;
+  if (!deferredFusion && !deferredZAwaken && !deferredOverRealm) spendUse(state, player, card, sk);
+  if (!deferredFusion && !deferredZAwaken && !deferredOverRealm && (payment.marker != null || (line.keyword && isMarkerSkill(line.keyword)))) inst.usedMarkerSkill = true;
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
-  if (!waived && !deferredFusion && !deferredZAwaken) {
+  if (!waived && !deferredFusion && !deferredZAwaken && !deferredOverRealm) {
     spendSkillCostUses(ctx, game, state, ev, card, sk);
     if (!priceOps && activationEnergyPayment) consumeActivationEnergyUses(state, ev, activationEnergyPayment);
     // An Extra used from the hand pays its energy cost with the line (12-2-2):
@@ -1167,8 +1169,8 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // #926: a [Union]/[Evolve] move with an action price is announced, and its
   // moments fired, once its `DO` has paid it (`vm/keyword-costs.ts`) — read
   // now, while "from: hand" is still true.
-  const keywordPrice: KeywordCost | null = !waived && (keywordActionPrice(line) || deferredFusion)
-    ? { ...(deferredZAwaken ? { zAwaken: zAwakenCost(ctx, game, state, player, line) } : {}), ...(deferredFusion ? { fusion: { stage: "resources" as const } } : {}), key: `${card}:${sk.index}`, line, moments: [activationMoment(ctx, game, state, player, line), ...keywordActivationMoments(state, player, line)] }
+  const keywordPrice: KeywordCost | null = !waived && (keywordActionPrice(line) || deferredFusion || deferredOverRealm)
+    ? { ...(deferredOverRealm ? { overRealm: overRealmCost(state, player, line) } : {}), ...(deferredZAwaken ? { zAwaken: zAwakenCost(ctx, game, state, player, line) } : {}), ...(deferredFusion ? { fusion: { stage: "resources" as const } } : {}), key: `${card}:${sk.index}`, line, moments: [activationMoment(ctx, game, state, player, line), ...keywordActivationMoments(state, player, line)] }
     : null;
   if (!announcesBeforePrice(line) && !priceOps && !keywordPrice) announce(state, ev, player, line);
   // A keyword's own move runs the keyword's `DO` — the keyword's rules are the
@@ -1186,7 +1188,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // R-395 / 22-46-3, -6: retain the chosen Leader and Z-Deck occurrences
   // across saved continuations. `asPrinted` still checks their current traits.
   const zAwakenVars = line.keyword?.name === "Z-Awaken" ? zAwakenBindings(state, player, card) : {};
-  const effect: ScriptFrame = { markerHistoryContract: markerHistoryContract(program, line.script?.price), ...(priceOps && activationEnergyPayment ? { activationEnergyPayment } : {}), energyCouponContract: energyCouponContract(program), ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(paidMarkers ? { paidMarkers } : {}), ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...zAwakenVars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  const effect: ScriptFrame = { ...(keywordPrice?.overRealm ? { overRealmSource: structuredClone(keywordPrice.overRealm.source) } : {}), markerHistoryContract: markerHistoryContract(program, line.script?.price), ...(priceOps && activationEnergyPayment ? { activationEnergyPayment } : {}), energyCouponContract: energyCouponContract(program), ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(paidMarkers ? { paidMarkers } : {}), ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...zAwakenVars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -1292,6 +1294,7 @@ export function swapActionPrice(line: Pick<ActivationLine, "keyword" | "script">
  */
 export function keywordActionPrice(line: Pick<ActivationLine, "keyword" | "script" | "skill">): Op[] | null {
   const name = line.keyword?.name;
+  if (name === "Over Realm") { const ops = overRealmAction(line); return ops.length ? ops : null; }
   const printed = line.skill.keyword;
   const variant = printed && printed.name === name && "variant" in printed ? printed.variant : undefined;
   if (name === "Z-Awaken") {
@@ -1527,7 +1530,7 @@ function isMarkerSkill(def: KeywordDef): boolean {
  * fails (5-8-4) leaves no skill announced.
  */
 export function announcesBeforePrice(line: ActivationLine): boolean {
-  return !isFusionPayment(line) && !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length && !swapActionPrice(line) && !keywordActionPrice(line);
+  return !isFusionPayment(line) && !isOverRealmPayment(line) && !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length && !swapActionPrice(line) && !keywordActionPrice(line);
 }
 
 /** The `skill` event for a line being used (9-6). */
