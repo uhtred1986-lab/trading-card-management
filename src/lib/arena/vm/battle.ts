@@ -1255,6 +1255,7 @@ export function openSkillPlayWindow(ctx: EngineContext, game: GameDefinition, st
     return false;
   }
   if (counterMotion) frame.counterMotion!.asking = true;
+  scope.phase = boundary;
   scope.window = { programs: [frame, ...state.programs], resolving: previous };
   state.programs = [];
   state.prompt = { kind: "counter", player: other(scope.master), window: counterMotion ? "counter" : "play", candidates: [...new Set(candidates.map(c => c.card))] };
