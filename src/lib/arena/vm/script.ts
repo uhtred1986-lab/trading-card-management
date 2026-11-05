@@ -1654,6 +1654,8 @@ export function costSentence(cost: CostRecord | null): string | null {
 }
 
 export interface Script {
+  /** Compilation-only: retain a relocated resolution condition inside DO when drafting. */
+  keepResolutionCondition?: true;
   /** Existing card_rules.kind, persisted into executable contexts; required for typed Fusion. */
   kind?: Skill["kind"];
   usage?: import("./usage").UsageRecord;

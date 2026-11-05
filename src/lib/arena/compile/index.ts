@@ -1649,7 +1649,7 @@ function compileSkillText(skill: Skill): Script {
     return { ops: [], unsupported: [skill.cost, ...unsupported] };
   }
   if (ops.length && effectTriggerCond) return { ops: [{ op: "if", cond: effectTriggerCond, then: ops }], unsupported };
-  return { ops, unsupported };
+  return { ops, unsupported, ...(ops.length === 1 && c.resolutionCondition === ops[0] ? { keepResolutionCondition: true as const } : {}) };
 }
 
 /**

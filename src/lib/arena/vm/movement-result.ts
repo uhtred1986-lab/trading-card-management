@@ -76,7 +76,20 @@ export function movementDestination(frame: ScriptFrame, name: string): NonNullab
 }
 /** Exact former one-card choice/move hinge; under-placement is a separate path. */
 export function legacyMovementHinge(ops: readonly Op[]): boolean {
+  const terminal = (op: Op): readonly Op[] | null => {
+    const body = op.op === "if" && !op.else ? op.then : op.op === "delay" ? op.ops : null;
+    if (!body?.length) return null;
+    if (body.length >= 2 && body[body.length - 2].op === "choose" && body[body.length - 1].op === "moveTo") return body;
+    return terminal(body[body.length - 1]);
+  };
   return ops.some((op, index) => {
+    if (index && op.op === "if" && !op.else && op.cond.kind === "chose" && (op.cond.atLeast ?? 1) === 1) {
+      const body = terminal(ops[index - 1]);
+      if (body) {
+        const choice = body[body.length - 2], move = body[body.length - 1];
+        if (choice.op === "choose" && choice.sel.count === 1 && choice.sel.upTo && choice.as === op.cond.var && move.op === "moveTo" && move.to !== "play" && move.to !== "under" && "var" in move.target && move.target.var === choice.as) return true;
+      }
+    }
     if (index >= 2 && op.op === "if") {
       const choice = ops[index - 2], move = ops[index - 1];
       const cond = op.cond.kind === "not" ? op.cond.cond : op.cond;
@@ -116,6 +129,20 @@ export function requireMovementResults(frame: ScriptFrame, source: Script | unde
       };
       checkHinges(frame.ops);
     }
+    const resultNames = new Set<string>(), allowedChoices = new Set<string>();
+    const scanConditions = (ops: readonly Op[], check: boolean): void => {
+      for (const op of ops) {
+        if (op.op === "moveTo" && !check && op.completedAs) resultNames.add(op.completedAs);
+        if (op.op === "if") {
+          if (op.cond.kind === "chose") {
+            if (!check) allowedChoices.add(op.cond.var);
+            else if (resultNames.has(op.cond.var) && !allowedChoices.has(op.cond.var)) movementRebuild("rebuild this saved movement completion hinge");
+          }
+          scanConditions(op.then, check); scanConditions(op.else ?? [], check);
+        } else if (op.op === "delay" || op.op === "may") scanConditions(op.ops, check);
+      }
+    };
+    scanConditions(source.ops, false); scanConditions(frame.ops, true);
     const expected: { target: string; to: string }[] = [];
     visitMoves(source.ops, op => { if (op.completedAs) expected.push({ target: JSON.stringify(op.target), to: op.to }); });
     visitMoves(frame.ops, op => {
@@ -145,4 +172,30 @@ export function completedSwitch(frame: ScriptFrame, name: string): boolean {
   const result = frame.switchResults?.[name];
   if (!result || result.version !== 1 || typeof result.completed !== "boolean") movementRebuild("rebuild this saved original switch completion");
   return result.completed;
+}
+
+/** R-430: old queued delayed bodies omitted their terminal follow-up entirely. */
+function canonicalMovementBody(value: unknown): string {
+  const ordered = (item: unknown): unknown => Array.isArray(item) ? item.map(ordered) : item && typeof item === "object" ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => [key, ordered(child)])) : item;
+  return JSON.stringify(ordered(value));
+}
+export function requireDelayedMovementResults(frame: ScriptFrame, sources: readonly Script[]): void {
+  if (frame.skillIndex !== undefined || frame.saveVarsAs || frame.replacing || frame.declaredPlay) return;
+  const current = canonicalMovementBody(frame.ops);
+  const visit = (ops: readonly Op[]): void => {
+    for (const op of ops) {
+      if (op.op === "delay") {
+        const body = op.ops, hinge = body[body.length - 1], move = body[body.length - 2], choice = body[body.length - 3];
+        if (hinge?.op === "if" && !hinge.else && hinge.cond.kind === "moved" && move?.op === "moveTo" && move.completedAs === hinge.cond.var && choice?.op === "choose" && choice.as === hinge.cond.var) {
+          const { completedAs: ignored, ...oldMove } = move;
+          void ignored;
+          if (canonicalMovementBody([...body.slice(0, -2), oldMove]) === current) movementRebuild("rebuild this saved delayed movement and its missing follow-up");
+        }
+        visit(op.ops);
+      } else if (op.op === "if") { visit(op.then); visit(op.else ?? []); }
+      else if (op.op === "may") visit(op.ops);
+      else if (op.op === "chooseMode") for (const mode of op.modes) visit(mode.ops);
+    }
+  };
+  for (const source of sources) visit(source.ops);
 }

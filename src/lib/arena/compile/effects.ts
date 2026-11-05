@@ -1030,6 +1030,33 @@ function retainAdjacentMovementHinges(ops: Op[]): void {
   for (const op of ops) if (op.op === "moveTo" && op.completedAs && !used.has(op.completedAs)) delete op.completedAs;
 }
 
+/** R-430: a positive hinge follows the action inside its conditional/delayed body. */
+function nestTerminalMovementHinges(ops: Op[]): void {
+  const terminal = (op: Op): Op[] | null => {
+    const body = op.op === "if" && !op.else ? op.then : op.op === "delay" ? op.ops : null;
+    if (!body?.length) return null;
+    if (body.length >= 2 && body[body.length - 2].op === "choose" && body[body.length - 1].op === "moveTo") return body;
+    return terminal(body[body.length - 1]);
+  };
+  for (let index = 0; index < ops.length; index++) {
+    const op = ops[index];
+    if (op.op === "if") {
+      nestTerminalMovementHinges(op.then); nestTerminalMovementHinges(op.else ?? []);
+      if (index && !op.else && (op.cond.kind === "chose" || op.cond.kind === "moved") && (op.cond.atLeast ?? 1) === 1) {
+        const body = terminal(ops[index - 1]);
+        if (body) {
+          const move = body[body.length - 1];
+          if (move.op === "moveTo" && move.to !== "under") {
+            const condition = bindCompletedChoice(body, op.cond.var);
+            if (condition) { op.cond = condition; body.push(op); ops.splice(index--, 1); }
+          }
+        }
+      }
+    } else if (op.op === "delay" || op.op === "may") nestTerminalMovementHinges(op.ops);
+    else if (op.op === "chooseMode") for (const mode of op.modes) nestTerminalMovementHinges(mode.ops);
+  }
+}
+
 /** R-429: one composite offer, with original completion of each instructed action. */
 function bindCompositeOffer(ops: Op[]): void {
   if (ops.length !== 4) return;
@@ -9040,6 +9067,9 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     for (const cond of [...g.conds].reverse()) body = [{ op: "if", cond, then: body }];
     ops.push(...body);
   }
+  const formerOuter = ops.length > 1 && ops[0].op === "if" ? ops[0] : null;
+  nestTerminalMovementHinges(ops);
+  if (formerOuter && ops.length === 1 && ops[0] === formerOuter) c.resolutionCondition = formerOuter;
   retainAdjacentMovementHinges(ops);
   bindCompositeOffer(ops);
   return ops;

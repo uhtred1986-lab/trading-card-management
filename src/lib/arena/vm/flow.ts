@@ -62,7 +62,7 @@ import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEff
 import { pendStandingPower, returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { openSkillPlayWindow } from "./battle";
-import { recordMovementResult, requireMovementResults, prepareUnderSource, prepareCompletionSource, type MovementOutcome } from "./movement-result";
+import { recordMovementResult, requireMovementResults, requireDelayedMovementResults, prepareUnderSource, prepareCompletionSource, type MovementOutcome } from "./movement-result";
 import { beginReplacementAuto, prepareReplacementAuto, requireReplacementOrigin, sameReplacementOccurrence } from "./replacement-auto";
 import { arrivalAutoWasActive, finishSkillPlayScope, releaseSkillPlayWindow, requireSkillEffectOrigin, scopeForFinish, startSkillPlayScope } from "./skill-play-scope";
 import { replacementPrompt, routeOf, stepScript, type ScriptFrame } from "./script";
@@ -1355,6 +1355,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
     requireReplacementOrigin(frame, sourceScript);
     requireMovementResults(frame, sourceScript);
+    requireDelayedMovementResults(frame, frame.skillIndex === undefined && state.cards[frame.card] ? Object.values(skillsShowing(ctx, state, frame.card).scripts.bySkill) : []);
     prepareUnderSource(frame, state.cards[frame.card]?.zoneEpoch ?? 0);
     prepareCompletionSource(frame, state.cards[frame.card]?.zoneEpoch ?? 0);
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {

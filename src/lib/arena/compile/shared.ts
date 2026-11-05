@@ -25,6 +25,8 @@ export const PLACED_IN_ENERGY = "placedInEnergy";
 export const SAME_NAME_AS_CHOSEN = /\s*,?\s*with the same (?:card )?name as the chosen card\b/i;
 
 export interface Ctx {
+  /** R430: the exact outer operation made sole by terminal hinge relocation. */
+  resolutionCondition?: Op;
   /** The variable the last `choose` bound. */
   last: string | null;
   /**

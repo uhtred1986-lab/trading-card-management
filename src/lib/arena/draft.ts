@@ -76,7 +76,7 @@ export function skillRecords(def: CardDef): SkillRecord[] {
       const granted = parsed.granted;
       const sk = aegisPriceLine(granted ? granted.skill : parsed);
       const script = compileSkill(granted ? parsed : sk);
-      const { cond, ops } = hoist(script.ops);
+      const { cond, ops } = script.keepResolutionCondition ? { cond: null, ops: script.ops } : hoist(script.ops);
       const permanent = sk.kind === "permanent";
       // The quoted line runs only through its grant: while the granting line
       // is not wholly read (BT22-080's [Permanent], BT23-077's duration,

@@ -54,8 +54,8 @@ for (const [id, text] of Object.entries(PRINTED)) assert.deepEqual(read(text).un
   const permit = flat(ops(PRINTED["BT22-133"])).find((o) => o.op === "permit");
   assert.equal(permit?.what, "attackActive");
   assert.equal(permit?.until, "turn");
-  const gate = ops(PRINTED["BT22-133"]).find((o) => o.op === "if" && (o.then as AnyOp[]).some((t) => t.op === "permit"));
-  assert.deepEqual((gate?.cond as { kind: string }).kind, "chose", "\"If you do\" hangs the permission on the Paragus actually placed");
+  const gate = flat(ops(PRINTED["BT22-133"])).find((o) => o.op === "if" && (o.then as AnyOp[]).some((t) => t.op === "permit"));
+  assert.deepEqual((gate?.cond as { kind: string }).kind, "moved", "\"If you do\" hangs the permission on the Paragus actually placed");
   // And as a [Permanent] (DB3-011, EX03-03, P-063, EX16-06): a permission standing, not "if this card attacks".
   const standing = ops("[Permanent] If your Leader Card is red, this card can attack Battle Cards in Active Mode.");
   assert.equal(flat(standing).find((o) => o.op === "permit")?.what, "attackActive");

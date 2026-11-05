@@ -39,7 +39,7 @@ for(const owner of ["p1","p2"] as const)for(const accept of [false,true]){
  if(accept){
   const legacyState=copy(s),waiting=legacyState.programs.find(f=>f.card===source)!;assert.ok(waiting);
   for(const op of waiting.ops){if(op.op==="moveTo")delete op.completedAs;if(op.op==="if")op.cond={kind:"chose",var:"c0"};}
-  const refused=take(legacyState,{type:"choose",player:owner,cards:[selected]});assert.match(JSON.stringify(refused.outcome),/original-movement completion contract/);assert.equal(refused.sides[owner].zones.hand.length,before);cases++;
+  const refused=take(legacyState,{type:"choose",player:owner,cards:[selected]});assert.match(JSON.stringify(refused.outcome),/(?:original-movement completion contract|movement completion hinge)/);assert.equal(refused.sides[owner].zones.hand.length,before);cases++;
  }
  s=take(copy(s),{type:"choose",player:owner,cards:accept?[selected]:[]});
  assert.equal(s.sides[owner].zones.hand.length,before+Number(accept));
@@ -103,7 +103,7 @@ const broken=frame(fresh("p1"),"p1",[]);broken.movementResults={pick:{version:1,
 assert.throws(()=>completedMovement(broken,"pick"),NotYet);cases++;
 const contract:Op[]=[{op:"moveTo",target:{var:"pick"},to:"drop",completedAs:"pick"},{op:"if",cond:{kind:"moved",var:"pick",all:true},then:[]}];
 assert.equal(programProblem(contract),null);const parsed=parseRule(`WHEN [Activate: Main]\nTHEN\n${printOps(contract)}`);assert.ok(parsed.ok);assert.equal(validateRule(parsed.value,parsed.value.kind),null);assert.deepEqual(parsed.value.ops,contract);cases++;
-// Adjacent modal hinges are covered; cross-body delayed/conditional hinges stay outside this batch.
+// Adjacent modal hinges and R430 terminal conditional/delayed hinges retain original movement outcomes.
 for(const [id,skill] of [
  ["BT7-036", "[Auto] When you combo with this card and your Leader Card is blue, you may choose 1 card from your hand and place it in your Drop Area. If you do, choose oneー ・Choose up to 3 Battle Cards with an energy cost of 3 or more and power of 35000 or less in your Drop Area and place them at the bottom of your deck in any order. ・Choose 1 Battle Card in your opponent's Drop Area, return it to your opponent's deck, then your opponent shuffles their deck."],
  ["BT11-030", "[Counter: Attack] If your Leader Card is red: Negate the attack. You may choose 1 card in your hand and discard it. If you do, choose one— ・Your opponent can't attack with Battle Cards with 30000 power or more for the turn. ・Your opponent can't attack with Unison Cards with 30000 power or more for the turn."]
@@ -111,7 +111,7 @@ for(const [id,skill] of [
 for(const [id,skill] of [
  ["BT8-033", "[Auto] When you play this card, activate this skill. At the end of the turn, you may choose 1 Blue/Green multicolor card in your energy, and return it to your hand. If you do, choose 1 card in your hand and place it in your energy in Rest Mode."],
  ["TB3-033", "[Counter: Attack] Negate the attack, and if your Leader Card is a ≪Bardock's Crew≫ card, you may choose 1 blue card in your hand and place it in your Drop Area. If you do, add this card to your hand."]
-]){const row=skillRecords(card(id,{skill}))[0];assert.doesNotMatch(JSON.stringify(row.ops),/"kind":"moved"|"completedAs"/);
+]){const row=skillRecords(card(id,{skill}))[0];assert.match(JSON.stringify(row.ops),/"kind":"moved"/);
  if(id==="TB3-033")for(const owner of ["p1","p2"] as const){const state=fresh(owner),f=frame(state,owner,[]);f.ops=copy(row.ops as Op[]);assert.equal(stepScript(vmHost(ctx,game,state,[]),f),"done");assert.equal(f.movementResults,undefined);cases++;}cases++;}
 // R429 supplies all three original-action witnesses for P129.
 const composite=card("P-129",{colors:["Yellow"],energyCost:1,power:4000,characters:["Zamasu"],traits:["God"],skill:"[Auto] When you play this card, draw 1 card.<br>[Auto] When your opponent attacks with a card, you may choose 1 yellow card in your hand and place it in your Drop Area, choose 1 of your yellow energy and switch it to Rest Mode, and place this card in its owner's Drop Area. If you do, negate the attack."});
