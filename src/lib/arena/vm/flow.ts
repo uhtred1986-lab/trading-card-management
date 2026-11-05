@@ -1,5 +1,6 @@
 import { queueFieldCleanup, stepFieldCleanup } from "./field-rules";
 import { requireFieldFrame, stepFieldCost } from "./field-costs";
+import { completeCounterArrivalDecision, requireCounterArrivalBatchResume, prepareDirectCounterArrival, requireCounterArrivalContract, requireCounterArrivalDecision, retireCounterArrivalTemplates } from "./counter-arrival-runtime";
 import { stepCounterNonhandTax } from "./counter-tax";
 import { validCounterUnderOrigin } from "./counter-under";
 import { guardCounterNonhandTaxPayment } from "./counter-nonhand-tax";
@@ -1389,6 +1390,16 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       }
       queueAutomatic(ctx, game, state, ev, frame, skill, program, tax);
     })) return "done";
+    if (frame.arrivalBatchResume) {
+      const resume = frame.arrivalBatchResume;
+      requireCounterArrivalBatchResume(state, resume);
+      return vmHost(ctx, game, state, ev).playThen(resume.cards, resume.options, resume.frame) === "wait" ? "wait" : "done";
+    }
+    if (frame.arrivalResume) {
+      const resume = frame.arrivalResume;
+      completeCounterArrivalDecision(state, resume);
+      return vmHost(ctx, game, state, ev).playThen(resume.cards, resume.options, resume.frame) === "wait" ? "wait" : "done";
+    }
     if (frame.retainedResume) {
       const resume = frame.retainedResume;
       completeRetainedResume(state, resume);
@@ -1398,13 +1409,16 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.skillPlayFinish) {
       const scope = scopeForFinish(state, frame);
       if (settleRetainedCounter(state, scope, frame)) return "done";
-      if (scope.purpose !== "counterContinuation" && scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";
+      retireCounterArrivalTemplates(scope);
+      if (!scope.purpose && scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";
       finishSkillPlayScope(state, frame); return "done";
     }
     requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
     requireReviveFrame(state, frame);
     const sourceScript = programSourceScript(ctx, state, frame);
+    requireCounterArrivalContract(frame, sourceScript);
+    requireCounterArrivalDecision(state, frame);
     if ((frame.counterChoice || state.skillPlayScopes?.some(scope => scope.id === frame.skillEffectOrigin?.scope && scope.purpose === "counterContinuation")) && (sourceScript?.kind !== "counter:play" || !counterChoiceTail(sourceScript.ops))) rebuildScope("rebuild this Counter continuation against its current stored rule");
     if (frame.counterPlay && sourceScript?.kind === "counter:play" && counterChoiceTail(sourceScript.ops)) {
       const origin = frame.skillEffectOrigin;
@@ -1552,11 +1566,12 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       state.programs.unshift(frame);
       return "wait";
     }
+    prepareDirectCounterArrival(state, frame);
     const substitute = state.battle?.endCombo?.stage === "departures" ? state.battle.endCombo.substituteDeparture : undefined;
     const ownCleanupSubstitute = !!substitute && frame.replacing === substitute.card;
     if (ownCleanupSubstitute) substitute.active = true;
     try {
-      return stepScript(vmHost(ctx, game, state, ev, frame.retainedCounter ? frame : undefined), frame);
+      return stepScript(vmHost(ctx, game, state, ev, frame.retainedCounter || frame.arrivalDecision ? frame : undefined), frame);
     } finally {
       if (ownCleanupSubstitute) delete substitute!.active;
     }

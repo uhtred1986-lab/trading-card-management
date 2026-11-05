@@ -1426,7 +1426,7 @@ export type Op =
    * `may` reads, since `may` is this op with the second option empty
    * (`docs/arena-ruleset-spec.md` §2.3).
    */
-  | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string; chooser?: Side }
+  | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string; chooser?: Side; counterArrivalPolicy?: "eachQualifyingPlayV1" }
   /**
    * "You may draw 1 card" (20-16): the master decides whether the rest of this
    * clause happens. Taking it silently is not the rule — and "if you don't"
@@ -1729,6 +1729,10 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  arrivalDecision?: import("./counter-arrival-runtime").CounterArrivalDecision;
+  arrivalResume?: import("./counter-arrival-runtime").CounterArrivalResume;
+  arrivalBatch?: import("./counter-arrival-batch").CounterArrivalBatch;
+  arrivalBatchResume?: import("./counter-arrival-runtime").CounterArrivalBatchResume;
   /** Expected scoped coupon operations captured by a fresh effect activation. */
   energyCouponContract?: import("./energy-coupon-saves").EnergyCouponContract;
   activationEnergyPayment?: import("./costs").CapturedEnergyCouponUses;
@@ -2874,8 +2878,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "choose": {
-        if (frame.counterChoice) {
-          const witness = frame.counterChoice;
+        if (frame.counterChoice || frame.arrivalDecision) {
+          const witness = frame.counterChoice ?? frame.arrivalDecision!;
           if (witness.version !== 1) movementRebuild("rebuild this saved Counter chooser witness");
           if (frame.awaiting === op.as) {
             if (!Array.isArray(witness.candidates) || new Set(witness.candidates.map(item => item?.card)).size !== witness.candidates.length || witness.candidates.some(item => !item || typeof item.card !== "string" || !Number.isSafeInteger(item.epoch) || item.epoch < 0)) movementRebuild("rebuild this saved Counter chooser occurrences");
@@ -4619,9 +4623,21 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "chooseMode": {
+        if (op.counterArrivalPolicy) {
+          const witness = frame.arrivalDecision;
+          if (op.counterArrivalPolicy !== "eachQualifyingPlayV1" || !witness || witness.version !== 1 || !h.canReplaceCounterArrival) movementRebuild("rebuild this per-arrival Counter decision");
+          if (!h.exists(witness.arrival.card) || h.zoneEpoch(witness.arrival.card) !== witness.arrival.epoch) {
+            h.clearLastMode();
+            frame.awaiting = undefined;
+            frame.offeredModes = undefined;
+            frame.ip++;
+            continue;
+          }
+        }
         // A nested invocation can only be chosen when at least one hand card
         // has a legal line. The other printed modes retain their own choices.
-        const available = op.modes.map((mode, index) => ({ mode, index })).filter(({ mode }) => {
+        const available = op.modes.map((mode, index) => ({ mode, index })).filter(({ mode, index }) => {
+          if (op.counterArrivalPolicy && index === 0 && !h.canReplaceCounterArrival!(frame)) return false;
           // Earlier operations may make an Extra eligible. Only a mode whose
           // entire effect is this invocation can be excluded in advance.
           const only = mode.ops.length === 1 ? mode.ops[0] : null;
@@ -4633,7 +4649,17 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (h.lastMode() != null && frame.awaiting === "mode") {
           const index = h.lastMode()!;
           const original = frame.offeredModes?.[index] ?? (frame.offeredModes ? undefined : index);
-          const picked = available.find((candidate) => candidate.index === original)?.mode;
+          let picked = available.find((candidate) => candidate.index === original)?.mode;
+          if (picked && op.counterArrivalPolicy && original === 0) {
+            const witness = frame.arrivalDecision!, name = "§arrivalIncoming";
+            witness.accepting = true;
+            frame.vars[name] = [witness.arrival.card];
+            frame.vars[epochVar(name)] = [`${witness.arrival.card}@${witness.arrival.epoch}`];
+            picked = { ...picked, ops: [
+              { op: "moveTo", target: { var: name }, to: "drop", completedAs: name },
+              { op: "if", cond: { kind: "not", cond: { kind: "moved", var: name, atLeast: 1 } }, then: structuredClone(op.modes[1].ops) },
+            ] };
+          }
           if (!picked) throw new IllegalAction("that mode is no longer available");
           h.clearLastMode();
           frame.awaiting = undefined;

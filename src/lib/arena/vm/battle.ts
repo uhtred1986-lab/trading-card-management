@@ -1,3 +1,5 @@
+import { counterArrivalParentProblem } from "./counter-arrival-parent";
+import { counterArrivalDescriptor } from "./counter-arrival-policy";
 import { canFinishCounterTaxes } from "./counter-tax";
 import { counterUnderPermission, counterUnderAdmissionProblem, counterUnderOccurrenceProblem, requireCounterUnderOccurrence, sameCounterUnderSource, validCounterUnderOrigin, resetUnderCounterOccurrence } from "./counter-under";
 import { underCounterCardPrice } from "./counter-under-price";
@@ -1023,7 +1025,11 @@ function counterRoutes(ctx: EngineContext, game: GameDefinition, state: VmState,
   const reading = readCounterPrice(ctx, game, state, player, card, sk);
   if (!reading.ok) return { paid: false, alt: null, why: [reading.why] };
   if (handExtraCounter(ctx, state, player, card)) {
-    const binding = state.prompt.kind === "counter" && state.prompt.extraCounter ? state.prompt.extraCounter : extraBinding(ctx, state, player, card, sk, x);
+    // Candidate discovery may run while the previous Extra's payment prompt
+    // is still installed. Only the exact resumed declaration owns that stamp.
+    const pending = state.prompt.kind === "counter" && state.prompt.player === player ? state.prompt.extraCounter : undefined;
+    const binding = pending?.source?.card === card && pending.skillIndex === sk.index && pending.skillKind === sk.kind && pending.selectedX === (x ?? null)
+      ? pending : extraBinding(ctx, state, player, card, sk, x);
     const ops = reading.ops ?? [];
     const options = extraCardOptions(ctx, game, state, player, card, sk, ops, binding, x);
     const alt = counterAlt(ctx, game, state, card, player);
@@ -1321,8 +1327,15 @@ function counterBindingIdentity(state: VmState, sk: Skill): Pick<ScriptFrame, "c
   const window = state.resolving?.scopeWindow;
   return sk.kind === "counter:play" ? { counterPlay: true, ...(window?.boundary === "before" ? { counterAnswerScope: window.scope } : {}), ...(window?.boundary === "after" ? { resolvedPlayCards: structuredClone(state.skillPlayScopes?.find(s => s.id === window.scope)?.played ?? []) } : {}) } : {};
 }
-function futureCounterProblem(state: VmState, sk: Skill, ops: Op[]): string | null {
-  const profile = state.skillPlayScopes?.find(s => s.id === state.resolving?.scopeWindow?.scope)?.profile;
+function futureCounterProblem(state: VmState, sk: Skill, ops: Op[], parentOps?: Op[]): string | null {
+  const scope = state.skillPlayScopes?.find(s => s.id === state.resolving?.scopeWindow?.scope);
+  const profile = scope?.profile;
+  if (sk.kind === "counter:play" && counterArrivalDescriptor(ops)) {
+    if (state.resolving?.scopeWindow?.boundary !== "before") return null;
+    if (profile?.tokens || profile?.explicitWindow) return "a per-arrival optional Counter over token or explicit evolution plays";
+    const original = parentOps ?? scope?.window?.programs[0]?.ops;
+    return original ? counterArrivalParentProblem(original) : "a per-arrival Counter without its original parent program";
+  }
   return sk.kind === "counter:play" && state.resolving?.scopeWindow?.boundary === "before" ? counterBindingProblem(ops, profile?.tokens, profile?.arrivals === 1 && !profile.explicitWindow) : null;
 }
 
@@ -1593,7 +1606,7 @@ export function openSkillPlayWindow(ctx: EngineContext, game: GameDefinition, st
   state.resolving = { card: null, player: scope.master, scopeWindow: { scope: scope.id, boundary, ...(counterMotion ? { counterMotion: true } : {}) }, ...(boundary === "after" ? { landed: true } : {}) };
   if (counterMotion) frame.counterMotion!.opened = true;
   const available = counterCandidates(ctx, game, state, other(scope.master), counterMotion ? "counter" : "play", true);
-  const candidates = available.filter(c => !futureCounterProblem(state, c.skill, counterEffectOps(skillsShowing(ctx, state, c.card).scripts.bySkill[c.skill.index])));
+  const candidates = available.filter(c => !futureCounterProblem(state, c.skill, counterEffectOps(skillsShowing(ctx, state, c.card).scripts.bySkill[c.skill.index]), frame.ops));
   if (!available.length) {
     state.resolving = previous;
     scope.phase = boundary === "before" ? "effect" : "after";
@@ -1763,7 +1776,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     state.programs.unshift({ counterActivation, ...(energyPermit || underPermit ? { counterDeclaredScript: { version: 1 as const, card, skillIndex: sk.index, kind: sk.kind, script: structuredClone(showing.scripts.bySkill[sk.index]!) } } : {}), markerHistoryContract: markerHistoryContract(program, skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price), ...paidResources, ...(x === undefined ? {} : { x }), ops: strictPrice ?? [], ip: 0, vars: paidResources?.vars ?? {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterCost: { ...(underPermit ? { underOrigin: {version:1 as const,permissionSkill:underPermit.skillIndex,policy:underPermit.policy,source:structuredClone(underPermit.source)} } : {}), ...(energyPermit ? { energyOrigin: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0, permissionSkill: energyPermit.skillIndex } } : {}), ...(dropPermit ? { dropOrigin: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0, permissionSkill: dropPermit.skillIndex } } : {}), skill: sk, effect: program, free: alt?.pay === "none", ...(alt?.pay === "program" ? { alternative: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0 } } : {}), afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
     return "done";
   }
-  activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords, paidResources?.vars, x, paidResources?.paidMarkers, undefined, undefined, undefined, counterActivation);
+  activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords, paidResources?.vars, x, paidResources?.paidMarkers, undefined, undefined, counterArrivalDescriptor(program) ? showing.scripts.bySkill[sk.index] : undefined, counterActivation);
   return "done";
 }
 

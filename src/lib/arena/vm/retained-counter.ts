@@ -23,6 +23,8 @@ export interface PendingArrival {
   cursor: number;
   previous: VmResolving | null;
   complete?: true;
+  /** R435 templates already resolved for this particular incoming occurrence. */
+  decisions?: number[];
 }
 export type RetainedResume = {
   version: 1; owner: number; child?: number; previous?: VmResolving | null;

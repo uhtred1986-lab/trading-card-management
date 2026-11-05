@@ -1,3 +1,4 @@
+import { counterArrivalPolicyProblem } from "./counter-arrival-policy";
 import { counterUnderPermitProblem } from "./counter-under-contract";
 import { counterEnergyPermitProblem } from "./counter-energy-contract";
 import { counterDropPermitProblem } from "./counter-drop-contract";
@@ -1221,9 +1222,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   },
   if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
   chooseMode: {
-    fields: [{ name: "modes", type: "modes", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }],
+    fields: [{ name: "modes", type: "modes", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }, { name: "counterArrivalPolicy", type: { enum: ["eachQualifyingPlayV1"] } }],
     sentence: "choose one — {modes}",
-    doc: '"Choose one— ・A ・B" (20-2): the master picks one printed option, or "chooser" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty',
+    doc: '"Choose one— ・A ・B" (20-2): the master picks one printed option, or "chooser" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty. R435 counterArrivalPolicy is restricted to the exact Ultrasonic Exchange whole-program contract: independently resolve this choice for each qualifying incoming Battle Card, under its original Counter controller',
   },
   may: {
     fields: [{ name: "ops", type: "ops", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }],
@@ -2222,6 +2223,10 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
 export function programProblem(ops: unknown, depth = 0, xBound = false, at = "ops"): string | null {
   if (!Array.isArray(ops)) return `${at} is not a list of steps`;
   if (depth > 4) return `${at} is nested too deeply`;
+  if (depth === 0) {
+    const arrivalProblem = counterArrivalPolicyProblem(ops);
+    if (arrivalProblem) return `${at}: ${arrivalProblem}`;
+  }
   // 20-5: X is legal only once something has bound it — the price, said by
   // `CostRecord.x` and passed in as `xBound`, or a `choose` earlier in this
   // same program carrying `bindX`. A step is checked against what is bound
