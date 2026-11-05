@@ -1,3 +1,4 @@
+import { compileAwakenAlternative } from "./awaken-alternative";
 import { spiritBoostDescriptor } from "../text/spirit-boost";
 import { isCompetingZAwakenPrice, supportedZAwakenActionPrice } from "../vm/activation-price-support";
 import { compilePotaraMaterials } from "./potara-materials";
@@ -172,7 +173,7 @@ export function costText(cost: string): string {
  * price the player can pay.
  */
 export function compileCostProgram(skill: Skill): Script | null {
-  return splitPrice(skill).program;
+  return compileAwakenAlternative(skill) ? null : splitPrice(skill).program;
 }
 
 const costPrograms = new Map<string, Script | null>();
@@ -366,6 +367,7 @@ export function aegisPriceLine<T extends Pick<Skill, "keyword" | "cost" | "effec
  * that direction would hand the player a free skill.
  */
 export function priceCondition(skill: Skill): { cond: Cond; subject?: Ref } | null {
+  if (compileAwakenAlternative(skill)) return null;
   const conds = splitPrice(skill).conds;
   if (!conds.length) return null;
   if (conds.length === 1) return conds[0];
@@ -618,6 +620,7 @@ export function joints(said: string): { at: number; len: number }[] {
 export function compileCostRecord(skill: Skill): CostRecord {
   if (skill.kind === "permanent") return zeroCostRecord();
   const spirit = skill.spiritBoost != null || skill.tags.some(tag => /^spirit boost x$/i.test(tag)) ? spiritBoostDescriptor(costText(skill.cost)) : { kind: "none" as const };
+  const awakenAlternative = compileAwakenAlternative(skill);
   const condition = priceCondition(skill)?.cond ?? null;
   const program = compileCostProgram(skill)?.ops ?? null;
   const x = priceX(skill);
@@ -628,10 +631,10 @@ export function compileCostRecord(skill: Skill): CostRecord {
   const absorb = absorbEffect && !absorbEffect.unsupported.length && !absorbPriceProblem(program, condition) && !absorbEffectProblem(absorbEffect.ops) ? { version: 1 as const, variant: "Absorb" as const, area: "battle" as const } : undefined;
   return {
     version: 1,
-    readable: spirit.kind !== "unknown" && (costIsOnlyOrbs(skill.cost) || bondDescriptorOnly(skill) || (spirit.kind === "filter" && !spirit.rest) || condition !== null || !!program?.length || (x !== null && !x.spiritBoost)),
+    readable: spirit.kind !== "unknown" && (!!awakenAlternative || costIsOnlyOrbs(skill.cost) || bondDescriptorOnly(skill) || (spirit.kind === "filter" && !spirit.rest) || condition !== null || !!program?.length || (x !== null && !x.spiritBoost)),
     text: costText(skill.cost), orbs: { ...skill.energyCost }, either: skill.energyEither.map((group) => [...group]),
     marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost, ...(spirit.kind === "filter" ? { spiritBoostPayer: spirit.filter } : {}),
-    condition, program, ...(fusion ? { fusion } : {}), ...(potara ? { potara } : {}), ...(evolution ? { evolution } : {}), ...(absorb ? { absorb } : {}), ...(x ? { x } : {}),
+    condition, program, ...(awakenAlternative ? { awakenAlternative } : {}), ...(fusion ? { fusion } : {}), ...(potara ? { potara } : {}), ...(evolution ? { evolution } : {}), ...(absorb ? { absorb } : {}), ...(x ? { x } : {}),
   };
 }
 

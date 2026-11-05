@@ -475,6 +475,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  {id:"arena-vm-notyet-r474-awaken-alternative",file:"src/lib/arena/vm/awaken-alternative-costs.ts",ordinal:1,kind:"not-yet",classification:"validated-guard",citation:"R-474; RM 5-8-2; 22-2; 23-2",detail:"Saved alternative Awaken source, one-host pile, offered and selected payer occurrences, and paid continuation must retain their typed contracts; obsolete or malformed saves require rebuilding."},
   {"id":"arena-vm-notyet-r457-field-costs-1","file":"src/lib/arena/vm/field-costs.ts","ordinal":1,"kind":"not-yet","classification":"validated-guard","citation":"R-457/R-469; RM 12-2; 22-3; 3-1-4","detail":"Saved Field payment/source/tax/cleanup provenance must match the current typed phase and original occurrence; malformed or obsolete data requires rebuilding."},
   {"id":"arena-vm-notyet-r457-field-costs-2","file":"src/lib/arena/vm/field-costs.ts","ordinal":2,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"R-457/R-469; RM 12-2; 22-3; 3-1-4","ownerIssue":1249,"detail":"Only empty or exact draw-one Field action prices are admitted; the eighty-descriptor census contains no other action price."},
   {"id":"arena-vm-notyet-r457-field-costs-3","file":"src/lib/arena/vm/field-costs.ts","ordinal":3,"kind":"not-yet","classification":"validated-guard","citation":"R-457/R-469; RM 12-2; 22-3; 3-1-4","detail":"Saved Field payment/source/tax/cleanup provenance must match the current typed phase and original occurrence; malformed or obsolete data requires rebuilding."},
@@ -615,6 +616,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-r474-awaken-alternative": "rebuild|-|-",
   "arena-vm-notyet-r457-field-costs-1": "fieldSourceProblem|-|!source || source.version !== 1 || source.card !== card || source.master !== master || ![\"p1\", \"p2\"].includes(source.owner) || ![\"p1\", \"p2\"].includes(source.master)\n    || ![\"p1\", \"p2\"].includes(source.holder) || typeof source.cardId !== \"string\" || typeof source.area !== \"string\" || !source.area || !Number.isSafeInteger(source.epoch) || source.epoch < 0",
   "arena-vm-notyet-r457-field-costs-2": "fieldAction|-|-",
   "arena-vm-notyet-r457-field-costs-3": "createFieldCost|-|!isFieldPayment(line) || line.skill.keyword?.name !== \"Field\" || !line.script?.price",

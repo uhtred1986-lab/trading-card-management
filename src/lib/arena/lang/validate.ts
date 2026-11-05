@@ -75,6 +75,8 @@ export function validateRule(rule: unknown, kind: string): Invalid | null {
     if (kind !== "keyword") return { field: "kind", message: "a typed Potara price requires recorded keyword kind (#907)" };
     if (potaraPrintedSelector(rule.ops) || potaraPrintedSelector(rule.cond)) return {field: "ops", message: POTARA_REBUILD};
   }
+  if (isObject(rule.cost) && rule.cost.awakenAlternative !== undefined && kind !== "keyword")
+    return { field: "kind", message: "an alternative Awaken price requires recorded keyword kind (R474)" };
   if (isObject(rule.cost) && rule.cost.evolution !== undefined && kind !== "keyword")
     return { field: "kind", message: "a typed EX-Evolve price requires recorded keyword kind (#907)" };
   if (isObject(rule.cost) && rule.cost.fusion !== undefined && kind !== "keyword")

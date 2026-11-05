@@ -1533,6 +1533,7 @@ export interface PayWith {
 }
 
 export interface SkillPrice {
+  awakenAlternative?: import("./awaken-alternative").AwakenAlternative;
   /** #907: compiled Fusion material authority; catalog wording is display only. */
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
@@ -1580,6 +1581,7 @@ export interface XCost {
  * reaches the database) to know what a price looks like.
  */
 export interface CostRecord {
+  awakenAlternative?: import("./awaken-alternative").AwakenAlternative;
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
   absorb?: AbsorbProcedure;
@@ -1799,6 +1801,8 @@ export interface ScriptFrame {
   autoCost?: import("./auto-costs").AutomaticCost;
   /** R457: original Field declaration and ordered Extra payment continuation. */
   fieldCost?: import("./field-costs").FieldCost;
+  awakenAlternativePaid?: import("./awaken-alternative-costs").AwakenAlternativePaid;
+  awakenAlternativeCost?: import("./awaken-alternative-costs").AwakenAlternativeCost;
   /** R469: mandatory other-Field cleanup, with suspendable replacements. */
   fieldCleanup?: import("./field-rules").FieldCleanup;
   /** R-399: an exact, saved selection for freely chosen resource pools. */
@@ -3127,7 +3131,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // find"). Only the candidates in open areas still have to be taken. Never a price's (5-8-2-2 is paid in full).
         // Phrasing batch 9: the hand's cards only on an effect — a price run on a frame of its own ([Aegis]'s hand colours,
         // a [Revive], a keyword's action price, …) is paid in full (5-8-2-2), as a `saveVarsAs` price is.
-        const paying = !!(frame.saveVarsAs || frame.aegisCost || frame.fieldCost || frame.reviveCost || frame.dropCost || frame.autoCost || frame.counterCost || frame.swapCost || frame.keywordCost || frame.keywordPrice);
+        const paying = !!(frame.saveVarsAs || frame.aegisCost || frame.fieldCost || frame.awakenAlternativeCost || frame.reviveCost || frame.dropCost || frame.autoCost || frame.counterCost || frame.swapCost || frame.keywordCost || frame.keywordPrice);
         const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => (paying ? inSecretPile(h, id) : declinablePick(h, id))).length : 0;
         const floor = secretCands ? Math.min(minimum, sofar.length + cands.length - secretCands) : minimum;
 

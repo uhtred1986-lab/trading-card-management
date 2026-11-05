@@ -248,6 +248,11 @@ class Parser {
   }
 
   private costItem(cost: CostRecord): void {
+    if (this.eatKw("AWAKENALT")) {
+      const text = this.string("a single-pile alternative Awaken contract as JSON");
+      try { cost.awakenAlternative = JSON.parse(text); } catch { this.fail("an alternative Awaken contract must be valid JSON"); }
+      return;
+    }
     if (this.eatKw("SPIRITPAYER")) {
       const text = this.string("a specified Spirit Boost payer filter as JSON");
       try { cost.spiritBoostPayer = JSON.parse(text); } catch { this.fail("a Spirit Boost payer filter must be valid JSON"); }

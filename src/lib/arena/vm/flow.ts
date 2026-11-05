@@ -1,3 +1,4 @@
+import { requireAwakenAlternativeFrame, stepAwakenAlternative } from "./awaken-alternative-costs";
 import { queueFieldCleanup, stepFieldCleanup } from "./field-rules";
 import { requireFieldFrame, stepFieldCost } from "./field-costs";
 import { completeCounterArrivalDecision, requireCounterArrivalBatchResume, prepareDirectCounterArrival, requireCounterArrivalContract, requireCounterArrivalDecision, retireCounterArrivalTemplates } from "./counter-arrival-runtime";
@@ -1374,6 +1375,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   if (!frame) return "done";
   try {
     if (frame.fieldCleanup) return stepFieldCleanup(ctx, game, state, ev, frame);
+    if (frame.awakenAlternativeCost) return stepAwakenAlternative(ctx, game, state, ev, frame);
     if (frame.fieldCost) return stepFieldCost(ctx, game, state, ev, frame);
     requireFieldFrame(frame);
     if (!guardCounterNonhandTaxPayment(ctx, state, ev, frame)) return "done";
@@ -1428,6 +1430,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       }
     }
     requirePlayReplacement(frame, sourceScript);
+    requireAwakenAlternativeFrame(frame, sourceScript);
     requireMarkerHistoryFrame(frame, sourceScript);
     requireCounterAdmission(frame, sourceScript);
     requireCounterSelfBinding(frame, sourceScript);

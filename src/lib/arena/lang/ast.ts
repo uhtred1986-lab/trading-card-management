@@ -223,6 +223,7 @@ void _everyAttrWritten;
  * same list.
  */
 export const COST_ITEMS = [
+  { syntax: "AWAKENALT", doc: "the versioned life-or-single-pile Awaken payment contract as quoted JSON" },
   { syntax: "EVOLUTION", doc: "the versioned EX-Evolve Battle-base contract as a quoted JSON object" },
   { syntax: "SPIRITPAYER", doc: "the specified Spirit Boost Unison filter as quoted JSON" },
   { syntax: "FUSION", doc: "the versioned Fusion material contract as a quoted JSON object" },
@@ -245,7 +246,7 @@ export const COST_ITEMS = [
  * kind names, and the words that introduce a declaration's clauses.
  */
 export const RESERVED = new Set([
-  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "SPIRITPAYER", "FUSION", "EVOLUTION", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ALSO", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
+  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "SPIRITPAYER", "AWAKENALT", "FUSION", "EVOLUTION", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ALSO", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
   "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "WORDS", "PROMPT", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT", "AFTER",
 ]);
 

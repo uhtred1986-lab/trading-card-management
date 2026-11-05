@@ -1,3 +1,4 @@
+import { canPayAwakenAlternative, hasAwakenAlternative, queueAwakenAlternative } from "./awaken-alternative-costs";
 import { fieldPaymentRefusals, isFieldPayment, queueFieldCost } from "./field-costs";
 import { isOverRealmPayment, overRealmPaymentRefusals, retainOverRealmSelection } from "./over-realm-cost";
 /**
@@ -935,6 +936,12 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   }
   const gate = line ? activationTaxGate(ctx, game, state, player, line.card, line.kind) : null;
   if (line?.keyword && gate) throw new NotYet(`charge a 20-14 activation tax on a keyword's own [${line.keyword.name}] move`, "#677");
+  if (line && hasAwakenAlternative(line)) {
+    if (!canPayAwakenAlternative(ctx, game, state, player, line)) throw new IllegalAction("neither Awaken alternative can be paid");
+    queueAwakenAlternative(state, player, line);
+    if (def.again !== true) answered(state);
+    return "done";
+  }
   // A keyword move that is the keyword's alone is announced as it is paid for
   // and ahead of the payment, the legacy order (`announcesBeforePrice`) — but
   // never before a `payCost` question below, which pays and announces nothing.
