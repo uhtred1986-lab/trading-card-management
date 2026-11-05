@@ -13,7 +13,7 @@ import {moveCard} from "../../src/lib/arena/vm/zones";
 import type {Action,CardDef,EngineContext,PlayerId} from "../../src/lib/arena/types";
 import type {VmState} from "../../src/lib/arena/vm/state";
 const copy=<T,>(x:T):T=>JSON.parse(JSON.stringify(x));
-const defs:Record<string,CardDef>={F:card("F",{}),L:card("L",{type:"LEADER",colors:["Green"],characters:["Son Goku"]}),ZBLUE:card("ZBLUE",{type:"Z-BATTLE",colors:["Blue"],zEnergyCost:1}),HIGH:card("HIGH",{energyCost:6,power:40000}),DEFLECT:card("DEFLECT",{skill:"[Deflect]"}),UNISON:card("UNISON",{type:"UNISON"}),SOURCE:card("SOURCE",{skill:"[Activate: Main] Choose up to 1 Battle Card from your hand and play it."}),SOURCEANY:card("SOURCEANY",{skill:"[Activate: Main] Choose up to 1 Unison Card from your hand and play it with 2 markers on it."})};
+const defs:Record<string,CardDef>={F:card("F",{}),L:card("L",{type:"LEADER",colors:["Green"],characters:["Son Goku"]}),HIGH:card("HIGH",{energyCost:6,power:40000}),DEFLECT:card("DEFLECT",{skill:"[Deflect]"}),UNISON:card("UNISON",{type:"UNISON"}),SOURCE:card("SOURCE",{skill:"[Activate: Main] Choose up to 1 Battle Card from your hand and play it."}),SOURCEANY:card("SOURCEANY",{skill:"[Activate: Main] Choose up to 1 Unison Card from your hand and play it with 2 markers on it."})};
 defs.AUTO=card("AUTO",{skill:"[Auto] When this card is played, draw 1 card."});
 defs.NEG=card("NEG",{type:"EXTRA",skill:"[Counter: Counter] Negate the [Counter]."});
 for(const color of ["Red","Green","Blue","Yellow","Black","White"] as const)defs[color]=card(color,{colors:[color]});
@@ -41,7 +41,7 @@ function finish(s:VmState):VmState{
 let cases=0;
 const names=["P-337","BT15-036","BT17-055"];
 function prepared(owner:PlayerId,name:string,targetDef="F",useCtx=ctx){
- let s=fresh(owner);const source=stage(s,owner,targetDef==="UNISON"?"SOURCEANY":"SOURCE","battle"),target=stage(s,owner,targetDef,"hand"),counter=stage(s,other(owner),name,"hand");if(name==="BT19-065")stage(s,other(owner),"ZBLUE","battle");
+ let s=fresh(owner);const source=stage(s,owner,targetDef==="UNISON"?"SOURCEANY":"SOURCE","battle"),target=stage(s,owner,targetDef,"hand"),counter=stage(s,other(owner),name,"hand");
  for(const color of ["Red","Green","Blue","Yellow","Black","White","Green","Blue"])stage(s,other(owner),color,"energy");
  const action=RULES.legalActions(useCtx,s).map(x=>x.action).find(a=>a.type==="activate"&&a.card===source);assert.ok(action);s=RULES.apply(useCtx,copy(s),action).state as VmState;return {s,source,target,counter};
 }
@@ -51,11 +51,11 @@ for(const owner of ["p1","p2"] as const)for(const name of names)for(const target
  const ownerDeck=s.sides[owner].zones.deck.length,ownerHand=s.sides[owner].zones.hand.length;
  const spent=s.sides[other(owner)].zones.energy.filter(id=>s.cards[id].mode==="rest").length;
  s=take(s,{type:"choose",player:owner,cards:targetDef?[p.target]:[]});s=finish(s);
- const replaced=targetDef==="F"||targetDef==="AUTO",bottom=false;assert.equal(s.sides[owner].zones.battle.includes(p.target),!!targetDef&&targetDef!=="UNISON"&&!replaced,`${name} ${targetDef}`);
- if(replaced){assert.ok(s.sides[owner].zones[bottom?"deck":"hand"].includes(p.target));if(bottom)assert.equal(s.sides[owner].zones.deck.at(-1),p.target);}
- if(targetDef==="AUTO"){assert.equal(s.sides[owner].zones.hand.length,ownerHand);assert.equal(s.sides[owner].zones.deck.length,ownerDeck+(bottom?1:0));}
+ const replaced=targetDef==="F"||targetDef==="AUTO";assert.equal(s.sides[owner].zones.battle.includes(p.target),!!targetDef&&targetDef!=="UNISON"&&!replaced,`${name} ${targetDef}`);
+ if(replaced)assert.ok(s.sides[owner].zones.hand.includes(p.target));
+ if(targetDef==="AUTO"){assert.equal(s.sides[owner].zones.hand.length,ownerHand);assert.equal(s.sides[owner].zones.deck.length,ownerDeck);}
  if(targetDef==="UNISON")assert.ok(s.sides[owner].zones.unison.includes(p.target));
- const selfPlayed=true;assert.equal(s.sides[other(owner)].zones.battle.includes(p.counter),selfPlayed,`${name} self-play ${targetDef}`);
+ assert.equal(s.sides[other(owner)].zones.battle.includes(p.counter),true,`${name} self-play ${targetDef}`);
  assert.equal(s.sides[other(owner)].zones.energy.filter(id=>s.cards[id].mode==="rest").length,spent);assert.equal(s.skillPlayScopes,undefined);if(name==="P-337"){assert.equal(s.sides[other(owner)].zones.deck.length,ownDeck-1);assert.equal(s.sides[other(owner)].zones.hand.length,ownHand,"own arrival draw resolves exactly once after Counter source leaves hand");}cases++;
 }
 function downgrade(value:unknown):unknown{
