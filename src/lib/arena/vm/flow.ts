@@ -1371,7 +1371,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireRetainedCounter(state, frame);
     requireZAwakenBindings(frame);
     const declaration = frame.counterDeclaredScript;
-    if (declaration && (declaration.version !== 1 || declaration.card !== frame.card || !Number.isSafeInteger(declaration.skillIndex) || declaration.skillIndex < 0 || declaration.skillIndex !== frame.skillIndex || !declaration.script || declaration.script.kind !== declaration.kind || !counterKindOf(declaration.kind))) {
+    if (declaration && (declaration.version !== 1 || declaration.card !== frame.card || !Number.isSafeInteger(declaration.skillIndex) || declaration.skillIndex < 0 || declaration.skillIndex !== frame.skillIndex || !declaration.script || (declaration.script.kind !== undefined && declaration.script.kind !== declaration.kind) || !counterKindOf(declaration.kind))) {
       rebuildScope("rebuild this Counter continuation against its current stored rule: mismatched declared skill identity");
     }
     if (frame.counterCost?.extra && frame.counterCost.extra.skillIndex !== frame.skillIndex) rebuildScope("rebuild this saved Extra Counter selected skill");
