@@ -1412,6 +1412,7 @@ export type Trigger =
   /** "When this card's [Union-Absorb] is activated" (22-13): the keyword activation itself. */
   | "unionAbsorbActivated"
   | "overlordActivated"
+  | "reviveActivated"
   | "overRealmPlayed"
   /**
    * Extra card activation (12-1-3), including Field, has explicit provenance.

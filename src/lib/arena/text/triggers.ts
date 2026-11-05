@@ -1678,6 +1678,7 @@ const KEYWORD_MOVE: Readonly<Record<string, { you?: Trigger; opponent?: Trigger 
   "over realm": { you: "overRealmPlayed" },
   "dark over realm": { you: "darkOverRealmActivated" },
   overlord: { you: "overlordActivated" },
+  revive: { you: "reviveActivated" },
   rejuvenate: { you: "rejuvenateActivated" },
   blocker: { you: "yourCardBlockerUsed", opponent: "opponentBlockerUsed" },
   counter: { you: "youCounter", opponent: "opponentCounter" },
