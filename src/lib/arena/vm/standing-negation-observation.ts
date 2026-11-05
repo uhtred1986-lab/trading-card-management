@@ -91,9 +91,21 @@ export function observeStandingNegation(ctx: EngineContext, state: VmState, tran
     sources.push({ source: { ...occurrence, skillIndex: skill.index, skillIdentity: canonical(script) }, enabled: !externallyNegatedSkill(state, occurrence.card, skill.index, skill.kind) });
   }
   for (const effect of state.effects) {
-    if (effect.kind !== "copiedSkills" || !effect.copied || !board.some(card => card.card === effect.target && !state.cards[card.card].hidden)) continue;
-    const def = ctx.defs[effect.copied.cardId];
-    if (def && effect.copied.skills.some(index => contains(programsOf(ctx, def, effect.copied!.side).bySkill[index]?.ops ?? [], "whole"))) refuse("observe copied standing negators with reviewed grant identities");
+    if (effect.kind !== "copiedSkills" || !board.some(card => card.card === effect.target && !state.cards[card.card].hidden)) continue;
+    const copy = effect.copied;
+    if (!copy || !["front", "back"].includes(copy.side) || !Array.isArray(copy.skills) || copy.skills.some(index => !Number.isSafeInteger(index) || index < 0)
+      || (copy.quoted !== undefined && typeof copy.quoted !== "boolean")) return refuse("observe copied standing negators with reviewed grant identities");
+    const def = ctx.defs[copy.cardId];
+    if (!def || copy.side === "back" && !def.back) return refuse("rebuild copied standing-negation source definition and side");
+    const printed = parseSkills((copy.side === "back" ? def.back?.skill : def.skill) ?? null);
+    const scripts = programsOf(ctx, def, copy.side);
+    for (const index of copy.skills) {
+      const original = printed.find(skill => skill.index === index);
+      if (!original || !!original.granted !== !!copy.quoted) return refuse("rebuild copied standing-negation source skill identity");
+      const skill = copy.quoted ? original.granted!.skill : original;
+      const intent = skill.kind === "permanent" && skill.effect.trim().toLowerCase() === "negate the skills of all other battle cards.";
+      if (skill.kind === "permanent" && (intent || contains(scripts.bySkill[index]?.ops ?? [], "whole"))) refuse("observe copied standing negators with reviewed grant identities");
+    }
   }
   // Unaffected boards need no protection analysis or new history requirement.
   // Prior history was already validated, so removal of the final source still
