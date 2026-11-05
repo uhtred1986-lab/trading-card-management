@@ -1,0 +1,64 @@
+[
+  {
+    "id": "BT27-048#20",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "version": 1,
+      "readable": false,
+      "text": "Green Battle Card",
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": null,
+      "program": null
+    },
+    "after": {
+      "version": 1,
+      "readable": true,
+      "text": "Green Battle Card",
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": null,
+      "program": null
+    },
+    "allOtherFieldsIdentical": true
+  },
+  {
+    "id": "P-470#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "version": 1,
+      "readable": false,
+      "text": "Card with <Xeno> in its character name",
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": null,
+      "program": null
+    },
+    "after": {
+      "version": 1,
+      "readable": true,
+      "text": "Card with <Xeno> in its character name",
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": null,
+      "program": null
+    },
+    "allOtherFieldsIdentical": true
+  }
+]
