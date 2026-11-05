@@ -568,15 +568,16 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     if (TURN_END_WHERE_PLAYED.test(momentClause(printed)) && (trigger === "turnEnd" || trigger === "opponentTurnEnd")) return true;
   }
   switch (trigger) {
+    case "selfExtraActivated":
+      return /when (?:you activate this card(?!['’]s)|this card is activated)(?=\s*(?:,|:|\.|$))/.test(t);
     case "played":
-      // 12-2: activating an Extra *is* playing it, and the sets print both.
+      // Arrival wording stays distinct from activating an Extra Card (R460).
       // "When you play or combo with this card" and "when this card in your
       // hand is played or used in a combo" are this trigger and the self
       // combo entry trigger (`comboUsed`; `comboed` is its stored alias).
       // Each fires at its own moment, and only one of them happens.
       // "…using [Over Realm]" is `playedUsingOverRealm`'s and is not this.
-      // Phrasing batch 7: "When this card is activated" (BT10-058, a [Field] Extra) is the same moment said passively.
-      return /when (?:you play this card|this card is played)|when you activate this card(?!['’]s \[)|when this card is activated(?=\s*(?:,|:|\.|$))|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
+      return /when (?:you play this card|this card is played)|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
         t.replace(PLAYED_USING_OVER_REALM, "").replace(PLAYED_FROM_HAND_G, "").replace(PLAYED_FROM_DROP, ""),
       );
     case "playedFromHand":
@@ -841,9 +842,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // "…with an original energy cost of 2 **and the [Field] skill**", "…from
     // your hand **by paying the cost**", "the [Activate: Battle] skill on a red
     // Extra … in your hand **or Drop Area**" are left as gaps.
+    case "extraActivatedFromHand":
     case "extraActivated": {
       const m = /^when you activate (?:an?|1) ([^,:]{0,90}?\bextra(?: cards?)?\b[^,:]{0,90}?)(?:,|$)/.exec(head);
       if (!m) return false;
+      if ((trigger === "extraActivatedFromHand") !== /\s+from your hand$/.test(m[1])) return false;
       const said = m[1].replace(/\s+from your hand$/, "");
       // "An energy cost of 1 **or** more" is one bound, not two kinds.
       const kinds = said.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, "");

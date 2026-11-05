@@ -186,7 +186,7 @@ for (const [text, what] of [
 // BT10-058: a [Field]'s "When this card is activated" is its play (12-2).
 {
   const rec = record("[Field]<br>[Auto] When this card is activated, choose all of your opponent's Battle Cards, ignoring [Barrier], and place them in their owners' energy in Rest Mode.", "BT10-058", { type: "EXTRA" }, 10);
-  assert.deepEqual(rec.trigger, ["played"], "C: BT10-058 answers its own activation");
+  assert.deepEqual(rec.trigger, ["selfExtraActivated"], "C: BT10-058 answers its own activation");
   records++;
 }
 // (Phrasing batch 8 reads P-464's printed ceiling — `capped` — `phrasing-batch-8.ts`.)

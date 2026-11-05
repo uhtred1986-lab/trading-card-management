@@ -1,3 +1,4 @@
+import { staleExtraSelfActivation } from "./extra-activation";
 import { counterEffectOps, paidCounterAdmission } from "./counter-admission";
 import { requireSkillPayment } from "./skill-payment";
 /**
@@ -805,6 +806,7 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
   const out: CounterCandidate[] = [];
   for (const card of state.sides[responder].zones.hand ?? []) {
     const showing = skillsShowing(ctx, state, card);
+    if (baseTypeOf(ctx, state, card) === "EXTRA" && staleExtraSelfActivation(showing.scripts)) continue;
     for (const sk of showing.skills) {
       if (!wantsLine(ctx, state, window, sk)) continue;
       if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) continue;
@@ -1030,7 +1032,7 @@ function activateCounterSkill(
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
   // Audit triggers 1: which [Counter] it is ("[Counter: Play]", "[Counter: Attack]"), for the moments that name one (EX13-19).
-  fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
+  fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA", cardActivation: baseTypeOf(ctx, state, card) === "EXTRA" } });
   log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: !!b });
   // 9-7-2, 22-10-4 (#552): the activation is a counter motion, queued even
   // with no effect to run, so the opponent's [Counter: Counter] window
@@ -1340,6 +1342,8 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   const card = action.card;
   const window = openWindowOf(pr.window);
   const showing = skillsShowing(ctx, state, card);
+  const staleExtra = staleExtraSelfActivation(showing.scripts);
+  if (baseTypeOf(ctx, state, card) === "EXTRA" && staleExtra) throw new IllegalAction(staleExtra);
   const sk = selectedCounterSkill(ctx, state, card, window, action.skill);
   if (!sk) throw new IllegalAction("no counter skill on that card");
   if (!canResolveLine(sk, showing.scripts.bySkill[sk.index])) throw new IllegalAction("unsupported Counter skill: rebuild its stored rule before payment");
@@ -1423,7 +1427,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     const afterSkill = afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {};
     spendUse(state, action.player, card, sk);
     moved(ctx, game, state, ev, card, "drop", { owner: action.player, reveal: true });
-    fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA" } });
+    fire(ctx, game, state, { event: "skillActivated", card, controller: action.player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: true, extra: baseTypeOf(ctx, state, card) === "EXTRA", cardActivation: baseTypeOf(ctx, state, card) === "EXTRA" } });
     const key = counterVarsKey(card, sk.index);
     state.programs.unshift({ ops: alt.ops, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", saveVarsAs: key }, { counterAdmission: paidCounterAdmission(showing.scripts.bySkill[sk.index], program), ops: program, ip: 0, vars: {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", pricedBy: { key, text: sk.raw }, counterSource: { version: 1, card, epoch: state.cards[card].zoneEpoch ?? 0 }, counterMotion: { by: action.player }, skillEffectOrigin: { version: 2, kind: "counter" }, ...counterBindingIdentity(state, sk), ...afterSkill });
     return "done";
@@ -2091,6 +2095,8 @@ function counterWhy(ctx: EngineContext, game: GameDefinition, state: VmState, pl
   const showing = skillsShowing(ctx, state, card);
   const counters = showing.skills.filter((sk) => sk.kind.startsWith("counter:"));
   if (!counters.length) return null;
+  const staleExtra = staleExtraSelfActivation(showing.scripts);
+  if (baseTypeOf(ctx, state, card) === "EXTRA" && staleExtra) return [{ kind: "other", detail: staleExtra }];
   // #716: the whole price — energy, then any printed condition and action —
   // the same reading `counterCandidates` and the menu make (`counterRoutes`).
   const priceOf = (sk: Skill): Requirement[] => {

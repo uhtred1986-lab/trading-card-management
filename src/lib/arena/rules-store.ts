@@ -1,3 +1,4 @@
+import { EXTRA_SELF_REBUILD, selfExtraActivationWording, extraActivationContractGap } from "./vm/extra-activation";
 import { playReplacementDescriptor, shortPlayReplacementGap } from "./vm/short-play-replacement";
 import { printsScopedEnergyCoupon } from "./vm/energy-coupons";
 import { unscopedEnergyCoupon } from "./vm/energy-coupon-saves";
@@ -244,6 +245,8 @@ export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | 
   if (movementGap) gaps.push(movementGap);
   const negationAreaGap = negationAreaContractGap(row);
   if (negationAreaGap) gaps.push(negationAreaGap);
+  const extraActivationGap = extraActivationContractGap(row);
+  if (extraActivationGap) gaps.push(extraActivationGap);
   const shortReplacementGap = shortPlayReplacementGap(row);
   if (shortReplacementGap) gaps.push(shortReplacementGap);
   const playedTypeGap = resolvingPlayContractGap(row);
@@ -461,7 +464,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!extraActivationContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
 
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
@@ -474,7 +477,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     if (seen.has(expectedKey)) continue;
     const key = scriptsKey(skill.cardId, skill.side);
     const base = out[key] ?? { bySkill: {}, complete: false, unsupported: [] };
-    base.bySkill[skill.skillIndex] = { ops: [], unsupported: ["no current rule record; regenerate rules and rebuild the match"], price: zeroSkillPrice(false), trigger: [] };
+    base.bySkill[skill.skillIndex] = { ops: [], unsupported: ["no current rule record; regenerate rules and rebuild the match", ...(defs[skill.cardId]?.type === "EXTRA" && selfExtraActivationWording(skill.printed) ? [EXTRA_SELF_REBUILD] : [])], price: zeroSkillPrice(false), trigger: [] };
     base.complete = false;
     base.unsupported.push(`no current rule record for printed skill ${skill.skillIndex}: ${skill.effect}`);
     out[key] = base;

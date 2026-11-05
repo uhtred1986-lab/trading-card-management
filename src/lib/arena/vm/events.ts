@@ -1,3 +1,6 @@
+import { staleExtraSelfActivation } from "./extra-activation";
+import { rebuildScope } from "./skill-play-scope";
+import { skillsShowing } from "./triggers";
 /**
  * The log, and the moment.
  *
@@ -102,6 +105,13 @@ export function log(ev: GameEvent[], event: GameEvent): number {
  * be silent — so the two are separate names and not a flag.
  */
 export function fire(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment): VmPending[] {
+  if (moment.event === "skillActivated" && moment.args.extra === true) {
+    if (moment.args.from === "hand" && typeof moment.args.cardActivation !== "boolean") rebuildScope("rebuild this saved Extra activation moment");
+    if (moment.args.cardActivation === true && moment.card) {
+      const gap = staleExtraSelfActivation(skillsShowing(ctx, state, moment.card).scripts);
+      if (gap) rebuildScope(gap);
+    }
+  }
   return pendAutos(ctx, game, state, moment, undefined, moment.subjectInfo);
 }
 

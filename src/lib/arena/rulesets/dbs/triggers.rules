@@ -816,10 +816,20 @@ DEFINE TRIGGER opponentCounterAttack
 -- whole of it; `extra: true` is the card's type, read before it went to the
 -- Drop (12-2-2-2). The Extra is the subject, and what the card says about it
 -- ("a blue Extra", BT29-029) is a condition on that subject.
-DEFINE TRIGGER extraActivated
-  ON skillActivated(extra: true, from: hand, watcher: controller)
+DEFINE TRIGGER selfExtraActivated
+  ON skillActivated(extra: true, cardActivation: true, from: [hand, drop])
+  BIND "self"
+  text: "when you activate this Extra Card"
+
+DEFINE TRIGGER extraActivatedFromHand
+  ON skillActivated(extra: true, cardActivation: true, from: hand, watcher: controller)
   BIND "subject"
   text: "when you activate an Extra Card from your hand"
+
+DEFINE TRIGGER extraActivated
+  ON skillActivated(extra: true, cardActivation: true, watcher: controller)
+  BIND "subject"
+  text: "when you activate an Extra Card"
 
 -- §22-10 — when you activate this card's [Counter] from your hand without paying its energy cost
 DEFINE TRIGGER counterFreeFromHand
@@ -1490,13 +1500,11 @@ DEFINE TRIGGER yourDeckToDrop
   text: "when a card goes from your deck to your Drop"
 
 -- §12-1-3 — "When your opponent activates an Extra Card" (BT10-092, BT10-095):
--- their side of `extraActivated`, an Extra's skill used from the hand.
--- Their Q&A: activating {The Final Guardian} (BT7-024) from the Drop through
--- its own [Permanent] counts too; an Extra's [Activate: Main] used in the Drop
--- (BT9-109) does not. Those Drop activations are unread today; the one that
--- teaches them adds that origin here and to `extraActivated`.
+-- Their Q&A: a card activation includes hand activation and the specified
+-- BT7-024 Drop permission; an ordinary Drop Activate (BT9-109) does not.
+-- Only a native procedure which establishes that fact sets cardActivation.
 DEFINE TRIGGER opponentExtraActivated
-  ON skillActivated(extra: true, from: hand, watcher: opponent)
+  ON skillActivated(extra: true, cardActivation: true, watcher: opponent)
   BIND "subject"
   text: "when your opponent activates an Extra"
 

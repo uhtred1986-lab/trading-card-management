@@ -5562,8 +5562,16 @@
       "words": "when your opponent activates a [Counter: Attack] skill"
     },
     {
-      "name": "extraActivated",
+      "name": "selfExtraActivated",
+      "words": "when you activate this Extra Card"
+    },
+    {
+      "name": "extraActivatedFromHand",
       "words": "when you activate an Extra Card from your hand"
+    },
+    {
+      "name": "extraActivated",
+      "words": "when you activate an Extra Card"
     },
     {
       "name": "counterFreeFromHand",

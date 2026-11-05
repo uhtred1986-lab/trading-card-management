@@ -1,4 +1,5 @@
 import { energyCouponContract } from "./energy-coupon-saves";
+import { isExtraCardActivation, staleExtraSelfActivation } from "./extra-activation";
 import { sparkingIsValid } from "./validity";
 import { requireSkillPayment } from "./skill-payment";
 import { fusionIdentityProblem } from "./skill-identity";
@@ -540,6 +541,8 @@ export function activationRefusals(
 ): { before: Requirement[]; after: Requirement[] } {
   const before: Requirement[] = [];
   const after: Requirement[] = [];
+  const staleExtra = staleExtraSelfActivation(skillsShowing(ctx, state, line.card).scripts);
+  if (staleExtra && isExtraCardActivation(isExtra(ctx, game, state, line.card), findCard(state, line.card)?.zone ?? "", line.skill.kind, line.keyword?.name)) before.push({ kind: "other", detail: staleExtra });
   const { card, skill: sk } = line;
   const payment = requireSkillPayment(line.script?.price);
   const inst = state.cards[card];
@@ -798,6 +801,7 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
   const inst = state.cards[card];
   if (!inst || inst.owner !== player || inst.hidden || !isExtra(ctx, game, state, card)) return null;
   const showing = skillsShowing(ctx, state, card);
+  if (findCard(state, card)?.zone === "hand" && staleExtraSelfActivation(showing.scripts)) return "blocked";
   for (const skill of showing.skills) {
     const keyword = keywordMoveOf(game, skill);
     if (keyword?.name !== "Field") continue;
@@ -813,6 +817,7 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
 
 /** R-420 / SD7-01: choose an Extra's real Activate line, retaining every non-price activation gate. */
 export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): ActivationLine[] {
+  if (op.from === "hand" && staleExtraSelfActivation(skillsShowing(ctx, state, card).scripts)) return [];
   if (findCard(state, card)?.zone !== op.from || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
   if ("sel" in op) {
     // Audit effects 2: a selector over a name the program bound (the `activating` play of a hand Extra, EB1-59) was
@@ -1499,14 +1504,16 @@ export function activationMoment(
   player: PlayerId,
   line: ActivationLine,
 ): { event: string; card: string; controller: PlayerId; args: Record<string, string | boolean> } {
+  const from = findCard(state, line.card)?.zone ?? "";
+  const extra = isExtra(ctx, game, state, line.card);
+  const cardActivation = isExtraCardActivation(extra, from, line.skill.kind, line.keyword?.name);
   return {
     event: "skillActivated",
     card: line.card,
     controller: player,
-    // `extra` is 12-1-3's "activating an Extra Card" (`extraActivated`): the
-    // card's type, read here for the same reason as `from` — once it is in
-    // the Drop it is still an Extra, but nothing else about the moment is.
-    args: { kind: familyOf(line.skill.kind), from: findCard(state, line.card)?.zone ?? "", paid: true, extra: isExtra(ctx, game, state, line.card) },
+    // Preserve type and origin before payment moves the source. R460
+    // distinguishes actual card activation from an Extra's other skill uses.
+    args: { kind: familyOf(line.skill.kind), from, paid: true, extra, cardActivation },
   };
 }
 

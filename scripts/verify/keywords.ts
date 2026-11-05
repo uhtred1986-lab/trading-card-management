@@ -1314,14 +1314,14 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
 
 {
   // 12-1-3: "activating an Extra Card" is using its [Activate] or [Counter]
-  // skill from the hand — `extraActivated`, watched by that player's cards in
+  // skill from the hand — explicitly hand-qualified when printed, watched by that player's cards in
   // play, with the Extra as the subject (BT29-029 "Cooler").
   const COOLER = "[auto] If you have 2 or more energy: When you activate a blue Extra from your hand, draw 2 cards, add cards from your life to your hand until you have 6 life left, then flip this card to its back side.";
-  const trig = (text: string) => autoTriggerMatches(parseSkills(text)[0], "extraActivated");
+  const trig = (text: string) => autoTriggerMatches(parseSkills(text)[0], /from your hand[,]/i.test(text) ? "extraActivatedFromHand" : "extraActivated");
   assert.ok(trig(COOLER), "BT29-029's wording");
   assert.ok(trig("[auto][once per turn] When you activate a red Extra from your hand, draw 1 card."), "BT29-001b");
   assert.ok(trig("[Auto] When you activate a Red/Blue multicolor Extra, draw 1 card."), "12-1-3: from the hand unless it says otherwise");
-  assert.ok(!trig("[Auto] When you activate this card, draw 1 card."), "this card's own activation is `played`");
+  assert.ok(!trig("[Auto] When you activate this card, draw 1 card."), "this card's own activation is `selfExtraActivated`");
   // Audit triggers 3: the filter reads "…and the [Field] skill" (a keyword) and the original cost whole, so BT13-061 answers.
   assert.ok(trig("[Auto][Once per turn] When you activate a green Extra Card with an original energy cost of 2 and the [Field] skill, draw 1 card."), "BT13-061: a [Field] Extra the filter reads whole");
   assert.ok(!trig("[Auto] When you activate a green Extra Card with the [Union] skill, draw 1 card."), "a bracket the filter does not read here does not fire at all");

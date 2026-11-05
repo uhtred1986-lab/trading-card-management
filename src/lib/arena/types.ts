@@ -1415,6 +1415,8 @@ export type Trigger =
    * [Field] included — watched by that player's cards in play. The Extra is
    * the `subject`, so what the clause says about it is a condition on it.
    */
+  | "selfExtraActivated"
+  | "extraActivatedFromHand"
   | "extraActivated"
   /**
    * "When you play this card using [Over Realm]", "when this card is played
