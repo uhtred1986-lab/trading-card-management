@@ -3517,26 +3517,26 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // and the commoner narrowing to the *opponent's* skills. A card that
           // went nowhere — a replacement sent it back — was not removed.
           if (leftBattle && h.areaOf(id) !== "battle") {
-            h.pend("removedFromBattle", id, undefined, negatedThere);
-            if (h.masterOf(id) !== master) {
-              h.pend("removedByOpponent", id, undefined, negatedThere);
+            h.pend("removedFromBattle", id, undefined, negatedThere, movedMaster);
+            if (movedMaster !== master) {
+              h.pend("removedByOpponent", id, undefined, negatedThere, movedMaster);
               // Phrasing batch 5 (DB2-174, BT15-062, EX16-01): the same moment, watched by the removed card's master's
               // cards — "When one of your … Battle Cards is removed from your Battle Area by an opponent's skill". The
               // removed card is the subject.
-              h.pend("yourCardRemovedByOpponent", id, id);
+              h.pend("yourCardRemovedByOpponent", id, id, undefined, movedMaster);
             }
             // Audit triggers 2: the same move by any skill, watched by either side's cards — "When one of your
             // ≪Red Ribbon Army≫ cards is removed from your Battle Area by a skill" (BT17-038), "When one of your
             // opponent's Battle Cards is removed from their Battle Area by a skill" (DB3-103). The removed card is the subject.
-            h.pend("yourCardRemovedBySkill", id, id);
-            h.pend("opponentCardRemovedBySkill", id, id);
+            h.pend("yourCardRemovedBySkill", id, id, undefined, movedMaster);
+            h.pend("opponentCardRemovedBySkill", id, id, undefined, movedMaster);
             // The narrower wording, which names where it ended up as well —
             // and the one that names no cause, which covers this too.
             if (h.areaOf(id) === "drop") {
-              h.pend("droppedFromBattle", id, undefined, negatedThere);
+              h.pend("droppedFromBattle", id, undefined, negatedThere, movedMaster);
               // …and by an opponent's skill (SD15-03, #728).
-              if (h.masterOf(id) !== master) h.pend("droppedByOpponent", id, undefined, negatedThere);
-              h.pend("leftBattleToDrop", id);
+              if (movedMaster !== master) h.pend("droppedByOpponent", id, undefined, negatedThere, movedMaster);
+              h.pend("leftBattleToDrop", id, undefined, negatedThere, movedMaster);
             }
           }
           // "When this card is placed in your Drop Area from your hand by a

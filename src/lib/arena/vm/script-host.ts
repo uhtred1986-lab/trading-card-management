@@ -268,7 +268,7 @@ export interface ScriptHost {
   /** How many [Auto]s are waiting (9-6-2) — the mark a `dropPendsOfOtherColours` measures from. */
   pendingCount(): number;
   /** 9-6: this moment happened to this card; whatever answers to it waits for the next checkpoint. */
-  pend(trigger: Trigger, card: string, subject?: string, sourceNegated?: number[]): void;
+  pend(trigger: Trigger, card: string, subject?: string, sourceNegated?: number[], sourceMaster?: PlayerId): void;
   /** 9-6-9-2: the [Auto] skills of this card that are negated right now, read before a move ends the effects on it. */
   autosNegatedNow(card: string): number[];
   /**
