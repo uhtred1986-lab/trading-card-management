@@ -1714,7 +1714,12 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
   xAtLeast: {
     fields: [{ name: "n", type: "number", required: true }],
     sentence: (raw) => `X is ${(raw as CondOf<"xAtLeast">).n} or more`,
-    doc: 'phrasing batch 10 (22-43): "if you removed a marker from one of your red Unison Cards using this skill" on a [Spirit Boost X] line (BT14-029) — the X its price was paid at is at least n. False when nothing bound X',
+    doc: 'the selected X is at least n; false when nothing bound X. Actual Spirit Boost payment conditions use paidMarkers instead (R-449), because chosen X is not proof that markers were removed.',
+  },
+  paidMarkers: {
+    fields: [{ name: "cost", type: { enum: ["spiritBoost"] }, required: true }, { name: "filter", type: "filter" }, { name: "atLeast", type: "number" }],
+    sentence: raw => { const c = raw as CondOf<"paidMarkers">; return `${c.atLeast ?? 1} or more markers were paid for this skill${c.filter ? ` from ${describeFilter(c.filter)}` : ""}`; },
+    doc: "R-449: actual successful marker payment and payer characteristics captured before removal; never chosen X or a current Unison. Missing history requires rebuilding the saved match.",
   },
   varMatches: {
     fields: [
@@ -1889,6 +1894,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   switched:       "primitive",
   chose:          "macro over `count`",
   choseFrom:      "primitive",
+  paidMarkers:    "primitive",
   varMatches:     "primitive",
   varAttrIsX:     "primitive",
   xAtLeast:       "primitive",
@@ -2587,7 +2593,7 @@ function refProblem(v: unknown, at: string): string | null {
   return selectorProblem(v.sel, `${at}.sel`);
 }
 
-const AMOUNT_KEYS = ["var", "count", "per", "times", "sumPower", "handUpTo", "markers", "x", "life", "attr", "name", "sumOf", "plus", "capped"];
+const AMOUNT_KEYS = ["paidMarkers", "var", "count", "per", "times", "sumPower", "handUpTo", "markers", "x", "life", "attr", "name", "sumOf", "plus", "capped"];
 
 function amountProblem(v: unknown, xBound: boolean, at: string): string | null {
   if (typeof v === "number") return Number.isFinite(v) ? null : `${at} is not a number`;
@@ -2596,6 +2602,7 @@ function amountProblem(v: unknown, xBound: boolean, at: string): string | null {
   const stray = unknownKey(v, AMOUNT_KEYS);
   if (stray) return `${at} has no field ${JSON.stringify(stray)}${hintFor(stray, AMOUNT_KEYS)}`;
   if (readsUnboundX(v, xBound)) return `${at} says X, and nothing before it binds one — X may only be used when the price charges an X or its own choice binds one`;
+  if (v.paidMarkers !== undefined && (v.paidMarkers !== "spiritBoost" || (v.times !== undefined && (typeof v.times !== "number" || !Number.isFinite(v.times))) || Object.keys(v).some(key => !["paidMarkers", "times"].includes(key)))) return `${at}.paidMarkers names one declared marker cost`;
   if (!perHolds(v)) return `${at}.per is a whole number of at least 2, on a count, markers or life`;
   for (const k of ["count", "markers", "sumOf"]) {
     if (v[k] === undefined) continue;
@@ -3258,6 +3265,7 @@ function describeAmount(a: Amount, noun?: string): string {
   if (typeof a === "number") return `${a}`;
   if ("plus" in a) return a.plus[1] < 0 ? `${describeAmount(a.plus[0])} less ${-a.plus[1]}` : `${describeAmount(a.plus[0])} and ${a.plus[1]} more`;
   if ("capped" in a) return `${describeAmount(a.capped[0])} (up to ${a.capped[1]})`;
+  if ("paidMarkers" in a) return `${a.times ?? 1} for each marker actually paid for this skill`;
   if ("var" in a) return "that many";
   if ("sumPower" in a) return "the total power of the cards rested";
   if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;

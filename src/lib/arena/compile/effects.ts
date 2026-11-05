@@ -1214,12 +1214,12 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
     return [swapped, ...rest];
   }
   // Phrasing batch 10 (22-43): "…-5000 power for the turn **for each marker you removed using this skill**" on a [Spirit
-  // Boost X] line (BT14-029): X, the markers its price removed.
+  // Boost X] line (BT14-029): the actual payment, not merely selected X.
   if (step === 1 && c.spiritBoostX && /^markers? (?:that )?you (?:removed?|remove)(?: from (?:your|the) unison(?: card)?)? (?:with|using|by) this skill$/.test(counted)) {
     const head = compileClause(`${headSrc}${tail}`, c);
     if (!head?.length) return null;
     const [op, ...rest] = head;
-    const swapped = swapForEachAmount(op, (printed) => (printed === 1 ? { x: true } : { x: true, times: printed }));
+    const swapped = swapForEachAmount(op, (printed) => (printed === 1 ? { paidMarkers: "spiritBoost" } : { paidMarkers: "spiritBoost", times: printed }));
     return swapped ? [swapped, ...rest] : null;
   }
   // Audit lane E review: any other tally of what this skill (or its price) did — "+3000 power … for each card placed into
@@ -6980,17 +6980,13 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     const filter = described(`card with ${m[1]} power or more`);
     return filter ? { kind: "count", sel: { special: "self", filter }, atLeast: 1 } : null;
   }
-  // Phrasing batch 9: "[Spirit Boost 1] … and **if you removed a marker from a red Unison Card with a specified cost of 3
-  // or more using this skill**, …" (BT15-001b): the price took its markers off your Unison — the one card in your Unison
-  // Area (22-43) — so the question is that Unison's description. Only with a printed number of at least 1: a [Spirit
-  // Boost X] may have removed none, which this cannot tell.
-  // Phrasing batch 10: on a [Spirit Boost X] line (BT14-029, BT14-030, BT14-090) the price may have removed none, so the
-  // question is also whether X — the markers it removed — is at least 1 (`xAtLeast`).
+  if (c.spiritBoostX && (m = /^if you removed (\d+) or more markers$/.exec(t))) return { kind: "paidMarkers", cost: "spiritBoost", atLeast: Number(m[1]) };
+  // R-449: inspect the actual marker payment and its payer before removal,
+  // including a last-marker departure. Current Unison/X is not history.
   if ((m = /^(?:and )?if you removed (?:a|1) markers? from (?:an? |your |one of your )?(.+?) using this skill$/.exec(t)) && ((c.spiritBoost && c.spiritBoost >= 1) || c.spiritBoostX)) {
     const filter = described(m[1]);
     if (!filter || !(filter.type === "UNISON" || /\bunison\b/.test(m[1]))) return null;
-    const unison: Cond = { kind: "count", sel: { side: "you", area: "unison", filter }, atLeast: 1 };
-    return c.spiritBoostX ? { kind: "all", conds: [{ kind: "xAtLeast", n: 1 }, unison] } : unison;
+    return { kind: "paidMarkers", cost: "spiritBoost", filter, atLeast: 1 };
   }
   if ((m = /^if that card has (\d+) power or (less|more)$/.exec(t)) && c.attacksBattleCard && !c.last && !(c.lastTarget && !("sel" in c.lastTarget && c.lastTarget.sel.special === "self"))) {
     const filter = described(`card with ${m[1]} power or ${m[2]}`);

@@ -1,3 +1,4 @@
+import { requirePaidMarkers } from "./paid-markers";
 import { requireEnergyCouponEffects } from "./energy-coupon-saves";
 import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
 import { completedMovement, completedSwitch } from "./movement-result";
@@ -1901,6 +1902,7 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
   if ("plus" in a) return amount(ctx, game, state, frame, a.plus[0]) + a.plus[1];
   // Phrasing batch 8: "(Up to 2)" (P-464) — the amount, never above the printed ceiling.
   if ("capped" in a) return Math.min(amount(ctx, game, state, frame, a.capped[0]), a.capped[1]);
+  if ("paidMarkers" in a) return requirePaidMarkers(frame, a.paidMarkers).amount * (a.times ?? 1);
   if ("var" in a) return (frame.vars[a.var] ?? []).length;
   if ("sumPower" in a) return (frame.vars[a.sumPower.var] ?? []).reduce((t, id) => t + measureOf(ctx, game, state, id, "power"), 0);
   if ("handUpTo" in a) return Math.max(0, a.handUpTo - (state.sides[frame.master].zones[SETUP_ZONES.hand]?.length ?? 0));
@@ -2079,6 +2081,10 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // Phrasing batch 6 (EX16-02): a card of that choice was taken from one of these areas.
     case "choseFrom":
       return (frame.chosenFrom?.[c.var] ?? []).some((area) => (c.areas as string[]).includes(area));
+    case "paidMarkers": {
+      const paid = requirePaidMarkers(frame, c.cost);
+      return paid.payers.filter(payer => !c.filter || predicateOf(c.filter, game)(payer.info)).reduce((n, payer) => n + payer.amount, 0) >= (c.atLeast ?? 1);
+    }
     case "varMatches":
       if (c.paid) {
         if (!frame.paidCardInfo?.[c.var]) throw new NotYet("read paid-card history missing from a saved frame; rebuild the saved match", "R-389");
@@ -2086,7 +2092,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       }
       return (frame.vars[c.var] ?? []).some((id) => state.cards[id] && predicateOf(c.filter, game)(attrsNow(ctx, game, state, id)));
     // "If the revealed card's energy cost is the same as the declared number" (BT22-090).
-    // Phrasing batch 10 (22-43): the X a [Spirit Boost X] price was paid at.
+    // A selected-number condition; actual marker history uses paidMarkers.
     case "xAtLeast":
       return frame.x !== undefined && frame.x >= c.n;
     case "varAttrIsX":

@@ -56,6 +56,7 @@ The verifier parses every VM TypeScript file, checks exact coverage of every `ne
 
 | Stable ID | Classification | Source | Rule/source citation | Live owner / history | Exact behavior or guard |
 |---|---|---|---|---|---|
+| `arena-vm-notyet-paid-marker-history` | Untested / guard | `src/lib/arena/vm/paid-markers.ts` (not-yet #1) | R-449; RM 22-43-3 | — | Historical Spirit Boost reads require an actual successful payment receipt, exact declared price and source/skill binding. Missing, malformed or stale saved receipts and effect programs require rebuilding instead of substituting live Unison characteristics or chosen X. |
 | `arena-vm-notyet-movement-result` | Untested / guard | `src/lib/arena/vm/movement-result.ts` (not-yet #1) | R-426 | — | Legacy or malformed original-movement witnesses require rebuilding before an if-you-do continuation; unsupported host/target paths refuse before moving. |
 | `arena-vm-notyet-replacement-auto-guard` | Untested / guard | `src/lib/arena/vm/replacement-auto.ts` (not-yet #1) | R-424 | — | Affected legacy replacement frames and malformed saved occurrence identities require rebuilding before replacement Auto Counter timing. |
 | `arena-vm-notyet-replacement-auto-gap` | Unsupported | `src/lib/arena/vm/replacement-auto.ts` (not-yet #2) | R-424/R-425 | [#1249](https://github.com/uhtred1986-lab/trading-card-management/issues/1249) | Replacement Auto printed action prices and bodies beyond the bounded own Combo-to-Drop self-play require a suspendable replacement activation continuation; refused before original movement. |

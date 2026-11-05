@@ -124,6 +124,7 @@ function printOperand(v: unknown): string {
 
 function printExprArg(kind: ExprArg, v: unknown): string {
   switch (kind) {
+    case "markerCost": return String(v);
     case "selector":
       return printSelector(v as Selector);
     case "var":

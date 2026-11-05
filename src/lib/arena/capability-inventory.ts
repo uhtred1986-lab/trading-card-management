@@ -465,6 +465,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-notyet-paid-marker-history", file: "src/lib/arena/vm/paid-markers.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-449; RM 22-43-3", detail: "Historical Spirit Boost reads require an actual successful payment receipt, exact declared price and source/skill binding. Missing, malformed or stale saved receipts and effect programs require rebuilding instead of substituting live Unison characteristics or chosen X." },
   { id: "arena-vm-notyet-movement-result", file: "src/lib/arena/vm/movement-result.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-426", detail: "Legacy or malformed original-movement witnesses require rebuilding before an if-you-do continuation; unsupported host/target paths refuse before moving." },
   { id: "arena-vm-notyet-replacement-auto-guard", file: "src/lib/arena/vm/replacement-auto.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-424", detail: "Affected legacy replacement frames and malformed saved occurrence identities require rebuilding before replacement Auto Counter timing." },
   { id: "arena-vm-notyet-replacement-auto-gap", file: "src/lib/arena/vm/replacement-auto.ts", ordinal: 2, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-424/R-425", detail: "Replacement Auto printed action prices and bodies beyond the bounded own Combo-to-Drop self-play require a suspendable replacement activation continuation; refused before original movement." },
@@ -551,6 +552,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-notyet-paid-marker-history": "rebuild|-|-",
   "arena-vm-notyet-movement-result": "movementRebuild|-|-",
   "arena-vm-notyet-replacement-auto-guard": "replacementGuard|-|-",
   "arena-vm-notyet-replacement-auto-gap": "replacementGap|-|-",

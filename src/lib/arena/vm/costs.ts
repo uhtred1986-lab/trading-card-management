@@ -971,7 +971,7 @@ export function describePayment(ctx: EngineContext, game: GameDefinition, state:
  * `arena:diff` compares: a `mode` per card rested, one `energyMarker` for the
  * markers spent, a `markers` for the card's own, and a `move` per life card.
  */
-export type PaidResources = Pick<ScriptFrame, "vars" | "paidCardInfo">;
+export type PaidResources = Pick<ScriptFrame, "vars" | "paidCardInfo" | "paidMarkers">;
 /** Reserved effect variable for a declared pooled cost; not a card-specific binding. */
 export const paidPoolVar = (cost: string): string => `paid_${cost}`;
 
@@ -1008,7 +1008,7 @@ export function chargeCost(
   onRest?: (id: string) => void,
 ): PaidResources {
   requireMarkerPayers(ctx, game, state, player, payment.markersOff);
-  const paid: PaidResources = { vars: {}, paidCardInfo: {} };
+  const paid: PaidResources = { vars: {}, paidCardInfo: {}, paidMarkers: {} };
   const charges = chargesOf(game);
   const payMove = move ?? ((id: string, to: string, opts: MoveCause) => moved(ctx, game, state, ev, id, to, opts));
   const processEmptyUnisons = () => {
@@ -1071,11 +1071,20 @@ export function chargeCost(
         // of its own — `markerRemoved` with the keyword it was paid under
         // (`spiritBoostPaid` in `triggers.rules`), the legacy `payKeywordCosts`.
         if (charge.from) {
+          const receipt = card && name === "spiritBoost" ? { version: 1 as const, cost: name, source: card, sourceEpoch: state.cards[card]?.zoneEpoch ?? 0, requested: 0, amount: 0, status: "paid" as const, payers: [] as import("./paid-markers").PaidMarkerReceipt["payers"] } : undefined;
+          if (receipt) paid.paidMarkers![name] = receipt;
           for (const off of payment.markersOff.filter((x) => x.cost === name)) {
             const id = holderOf(state, player, off);
             if (!id) continue;
             const inst = state.cards[id];
+            const info = receipt ? structuredClone(attrsNow(ctx, game, state, id)) : undefined;
+            const before = inst.markers;
             inst.markers = Math.max(0, inst.markers + off.n);
+            if (receipt && info) {
+              receipt.requested -= off.n;
+              receipt.amount += before - inst.markers;
+              receipt.payers.push({ card: id, epoch: inst.zoneEpoch ?? 0, amount: before - inst.markers, info });
+            }
             log(ev, { type: "markers", card: id, delta: off.n, total: inst.markers });
             if (off.n < 0) {
               fire(ctx, game, state, { event: "markerRemoved", card: id, controller: player, args: off.by ? { by: off.by } : {} });

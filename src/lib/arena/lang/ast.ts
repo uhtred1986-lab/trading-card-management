@@ -147,7 +147,7 @@ export function filterSlot(kind: FilterFieldType): FieldType {
 // ── expressions ─────────────────────────────────────────────────────────────
 
 /** What one argument of an expression call is. */
-export type ExprArg = "selector" | "var" | "number" | "side" | "ref" | "attr";
+export type ExprArg = "markerCost" | "selector" | "var" | "number" | "side" | "ref" | "attr";
 
 /**
  * One shape an `Amount` may take, as the language writes it.
@@ -186,6 +186,7 @@ export interface ExprSpec {
  * so a shape added to `Amount` is one row here and no new parsing.
  */
 export const EXPR_SCHEMA: ExprSpec[] = [
+  { key: "paidMarkers", call: "paidMarkers", args: ["markerCost"], times: true, example: "paidMarkers(spiritBoost)", maxExample: "paidMarkers(spiritBoost) * 5000" },
   { key: "count", call: "count", args: ["selector"], times: true, per: true, example: "count(SELECTOR)", maxExample: "count(SELECTOR) / 2 * 5000" },
   { key: "markers", call: "markers", args: ["selector"], times: true, per: true, example: "markers(SELECTOR)", maxExample: "markers(SELECTOR) / 2 * 5000" },
   { key: "sumPower", call: "sumPower", args: ["var"], example: "sumPower($rested)" },

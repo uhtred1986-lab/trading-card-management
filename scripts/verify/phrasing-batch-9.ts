@@ -153,8 +153,8 @@ for (const [text, what, second] of [
 // BT15-001b: the Unison [Spirit Boost 1] took its marker from.
 {
   const rec = backRecord("[Activate: Main][Once per turn][Spirit Boost 1] This card gets +10000 power until the end of a battle or the end of the turn, whichever comes first, and if you removed a marker from a red Unison Card with a specified cost of 3 or more using this skill, choose up to 1 of your opponent's Battle Cards with 15000 power or less and KO it.", "BT15-001");
-  const asked = condsDeep(rec).find((x): x is Extract<Cond, { kind: "count" }> => x.kind === "count" && "area" in x.sel && x.sel.area === "unison");
-  assert.ok(asked && asked.sel.side === "you" && asked.sel.filter?.colors.join() === "Red" && asked.sel.filter.specifiedCostMin === 3, `C: BT15-001b — your red Unison with a specified cost of 3 or more (${JSON.stringify(asked)?.slice(0, 200)})`);
+  const asked = condsDeep(rec).find((x): x is Extract<Cond, { kind: "paidMarkers" }> => x.kind === "paidMarkers");
+  assert.ok(asked && asked.cost === "spiritBoost" && asked.filter?.colors.join() === "Red" && asked.filter.specifiedCostMin === 3, `C: BT15-001b — your red Unison with a specified cost of 3 or more (${JSON.stringify(asked)?.slice(0, 200)})`);
   records++;
 }
 // BT14-090 ([Spirit Boost X]) is read since phrasing batch 10, which records X on the cost (scripts/verify/phrasing-batch-10.ts).

@@ -1022,7 +1022,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     const keywordMoments = keywordActivationMoments(state, player, line);
     const queued = state.programs.length;
     const strictDrop = hasDropActionPrice(state, line);
-    if (strictDrop) queueDropCost(ctx, game, state, player, line, chosen.x);
+    if (strictDrop) queueDropCost(ctx, game, state, player, line, chosen.x, paidResources);
     else resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto, paidResources);
     // #677: the prices are charged in front of everything the activation
     // queued, re-read live after each one (`vm/activate.ts`'s `TaxGate`).

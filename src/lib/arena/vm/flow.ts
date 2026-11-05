@@ -1,3 +1,4 @@
+import { requireMarkerHistoryFrame, markerHistoryContract } from "./paid-markers";
 import { counterChoiceTail } from "./counter-continuation";
 import { requirePlayReplacement } from "./short-play-replacement";
 import { energyCouponContract, requireEnergyCouponFrame } from "./energy-coupon-saves";
@@ -915,6 +916,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   }
   const frame: ScriptFrame & { autoRevealEpoch?: number } = {
     ...(skill?.kind === "auto" ? { skillEffectOrigin: { version: 2 as const, kind: "auto" as const } } : {}),
+    markerHistoryContract: markerHistoryContract(program?.ops ?? [], program?.price),
     energyCouponContract: energyCouponContract(program?.ops ?? []),
     ops: program?.ops ?? [],
     ip: 0,
@@ -1376,6 +1378,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       }
     }
     requirePlayReplacement(frame, sourceScript);
+    requireMarkerHistoryFrame(frame, sourceScript);
     requireCounterAdmission(frame, sourceScript);
     if (frame.skillKind === "counter" && frame.saveVarsAs === `costvars:${frame.card}:${frame.skillIndex}`) rebuildScope("rebuild this saved alternative Counter payment before activation");
     if (frame.counterCost && frame.ops.length && !sourceScript?.price?.ops?.length && !frame.counterCost.alternative) rebuildScope("rebuild the saved alternative Counter source");

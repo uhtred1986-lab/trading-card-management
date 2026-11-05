@@ -421,6 +421,7 @@ export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost" | "
 export type Amount =
   | number
   | { var: string }
+  | { paidMarkers: string; times?: number }
   | { count: Selector; per?: number; times?: number }
   /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). The special case of `sumOf` that predates it, kept because rows spell it this way. */
   | { sumPower: { var: string } }
@@ -596,6 +597,7 @@ export type Cond =
    */
   | { kind: "choseFrom"; var: string; areas: ScriptArea[] }
   /** "If that card is a Battle Card": what a reveal or a look turned up (20-11). */
+  | { kind: "paidMarkers"; cost: string; filter?: CardFilter; atLeast?: number }
   | { kind: "varMatches"; var: string; filter: CardFilter; paid?: true }
   /** "If the revealed card's energy cost is the same as the declared number" (BT22-090): a card a reveal or a look bound has this measure equal to the X a `declare` bound. */
   | { kind: "varAttrIsX"; var: string; attr: AmountAttr }
@@ -1828,6 +1830,8 @@ export interface ScriptFrame {
   subjectInfo?: import("./cards").Attrs;
   /** R-389: historical characteristics of successfully paid pooled cards, separate from live epoch-bound refs. */
   paidCardInfo?: Record<string, Record<string, import("./cards").Attrs>>;
+  paidMarkers?: import("./paid-markers").PaidMarkers;
+  markerHistoryContract?: import("./paid-markers").MarkerHistoryContract;
   /** #930: the source's [Union] entry memory (`VmCard.enteredUsing`) as the skill was activated (`vm/activate.ts`) — "this card" after it left as the cost — or, for an [Auto], as it was triggered (`VmPending.selfEnteredUsing`, `vm/flow.ts`): a copy that left before resolving keeps it. Additive: older frames carry none. */
   selfEnteredUsing?: string;
   /** R-362: the original face-up Life occurrence; only self selections explicitly in Life use this guard. */

@@ -1,3 +1,4 @@
+import { bindPaidMarkers, markerHistoryContract } from "./paid-markers";
 import { energyCouponContract } from "./energy-coupon-saves";
 import { isExtraCardActivation, staleExtraSelfActivation } from "./extra-activation";
 import { sparkingIsValid } from "./validity";
@@ -1067,9 +1068,13 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
  * counter window around it is not opened: the legacy engine opens it with no
  * candidates at all, so there is nothing to answer it with.
  */
-export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Partial<Pick<ScriptFrame, "ops" | "vars" | "paidCardInfo">>, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
+export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Partial<Pick<ScriptFrame, "ops" | "vars" | "paidCardInfo" | "paidMarkers">>, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
   const { card, skill: sk } = line;
   const payment = requireSkillPayment(line.script?.price);
+  if (waived && (payment.spiritBoost != null || line.script?.price?.x?.spiritBoost) && !resolved?.paidMarkers?.spiritBoost) {
+    resolved = { ...resolved, paidMarkers: { ...resolved?.paidMarkers, spiritBoost: { version: 1, cost: "spiritBoost", source: card, sourceEpoch: state.cards[card]?.zoneEpoch ?? 0, requested: line.script?.price?.x?.spiritBoost ? x ?? 0 : payment.spiritBoost ?? 0, amount: 0, status: "waived", payers: [] } } };
+  }
+  const paidMarkers = bindPaidMarkers(resolved?.paidMarkers, card, sk.index, { fixed: payment.spiritBoost ?? null, x: line.script?.price?.x?.spiritBoost ? x ?? 0 : null });
   // R-391/R-420: a waived or negated Burst paid no cards. Empty history must
   // not look like an obsolete saved frame, nor match unrelated Drop cards.
   if (payment.burst && (waived || burstNegated(ctx, game, state, card)) && !resolved?.paidCardInfo?.paid_burst) {
@@ -1139,7 +1144,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // R-395 / 22-46-3, -6: retain the chosen Leader and Z-Deck occurrences
   // across saved continuations. `asPrinted` still checks their current traits.
   const zAwakenVars = line.keyword?.name === "Z-Awaken" ? zAwakenBindings(state, player, card) : {};
-  const effect: ScriptFrame = { ...(priceOps && activationEnergyPayment ? { activationEnergyPayment } : {}), energyCouponContract: energyCouponContract(program), ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...zAwakenVars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  const effect: ScriptFrame = { markerHistoryContract: markerHistoryContract(program, line.script?.price), ...(priceOps && activationEnergyPayment ? { activationEnergyPayment } : {}), energyCouponContract: energyCouponContract(program), ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(paidMarkers ? { paidMarkers } : {}), ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...zAwakenVars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -1147,7 +1152,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     // frame is queued even when it does nothing, because it is what is
     // announced when the price is paid.
     const key = costVarsKey(card, sk.index);
-    state.programs.unshift({ ...(line.keyword?.name === "Awaken" ? { awakenPayment: { sourceEpoch: state.cards[card].zoneEpoch ?? 0, chosenEpochs: {} } } : {}), ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
+    state.programs.unshift({ markerHistoryContract: markerHistoryContract(program, line.script?.price), ...(line.keyword?.name === "Awaken" ? { awakenPayment: { sourceEpoch: state.cards[card].zoneEpoch ?? 0, chosenEpochs: {} } } : {}), ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
     return;
   }
   if (program.length || afterSkillKeywords.length) state.programs.unshift(effect);

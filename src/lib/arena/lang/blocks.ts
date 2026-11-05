@@ -577,6 +577,7 @@ export const exprFields = (spec: ExprSpec): string[] => spec.fields ?? [spec.key
 /** One argument of an expression call, empty. */
 export function blankArg(arg: ExprArg, bound: readonly string[]): unknown {
   switch (arg) {
+    case "markerCost": return "spiritBoost";
     case "selector":
       return {};
     case "var":

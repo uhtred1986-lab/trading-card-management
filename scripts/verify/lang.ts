@@ -144,6 +144,8 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   // whole expression tree of 20-5 is written out here, because the sampler
   // never reaches any of it.
   const AMOUNTS: Amount[] = [
+    { paidMarkers: "spiritBoost" },
+    { paidMarkers: "spiritBoost", times: 5000 },
     1,
     { var: "n" },
     { count: { side: "you", area: "battle", count: 99 } },

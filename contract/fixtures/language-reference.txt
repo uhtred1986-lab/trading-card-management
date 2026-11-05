@@ -3737,7 +3737,37 @@
         }
       ],
       "sentence": "X is 1 or more",
-      "doc": "phrasing batch 10 (22-43): \"if you removed a marker from one of your red Unison Cards using this skill\" on a [Spirit Boost X] line (BT14-029) — the X its price was paid at is at least n. False when nothing bound X"
+      "doc": "the selected X is at least n; false when nothing bound X. Actual Spirit Boost payment conditions use paidMarkers instead (R-449), because chosen X is not proof that markers were removed."
+    },
+    {
+      "kind": "paidMarkers",
+      "class": "primitive",
+      "signature": "{\"kind\":\"paidMarkers\",\"cost\":\"spiritBoost\",\"filter\"?:FILTER,\"atLeast\"?:N}",
+      "fields": [
+        {
+          "name": "cost",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "spiritBoost"
+          ]
+        },
+        {
+          "name": "filter",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
+        },
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "1 or more markers were paid for this skill",
+      "doc": "R-449: actual successful marker payment and payer characteristics captured before removal; never chosen X or a current Unison. Missing history requires rebuilding the saved match."
     },
     {
       "kind": "varMatches",
@@ -5004,6 +5034,15 @@
     }
   ],
   "expressions": [
+    {
+      "key": "paidMarkers",
+      "call": "paidMarkers",
+      "args": [
+        "markerCost"
+      ],
+      "example": "paidMarkers(spiritBoost)",
+      "maxExample": "paidMarkers(spiritBoost) * 5000"
+    },
     {
       "key": "count",
       "call": "count",

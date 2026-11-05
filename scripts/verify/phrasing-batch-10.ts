@@ -149,7 +149,7 @@ for (const [text, what, trigger] of [
   records++;
 }
 
-// C. [Spirit Boost X]: X on the cost; "if you removed a marker … using this skill" is X ≥ 1 and that Unison; "for each
+// C. R449: X on the cost; historical conditions and per-marker effects read the actual payment; "for each
 // marker you removed using this skill" is X.
 for (const [text, what, kind] of [
   ["[Counter: Attack][Spirit Boost X] If your Leader Card is mono-red: Choose up to 1 of your opponent's cards and it gets -5000 power for the turn. If you removed a marker from one of your red Unison Cards using this skill, choose up to 1 of your opponent's cards and it gets -5000 power for the turn for each marker you removed using this skill.", "BT14-029", "Red"],
@@ -159,14 +159,14 @@ for (const [text, what, kind] of [
   const rec = record(text, what);
   assert.deepEqual(rec.cost?.x, { spiritBoost: true }, `C: ${what} — X markers on the cost`);
   assert.equal(rec.cost?.spiritBoost, null, `C: ${what} — no fixed [Spirit Boost N]`);
-  const gate = opOf(rec, "if").map((o) => flat(o.cond)).find((cs) => cs.some((x) => x.kind === "xAtLeast"));
-  assert.ok(gate, `C: ${what} — "if you removed a marker" asks X`);
-  assert.ok(gate.some((x) => x.kind === "xAtLeast" && x.n === 1) && gate.some((x) => x.kind === "count" && "area" in x.sel && x.sel.area === "unison" && x.sel.filter?.colors.join() === kind), `C: ${what} — X ≥ 1 and a ${kind.toLowerCase()} Unison (${JSON.stringify(gate).slice(0, 300)})`);
+  const gate = opOf(rec, "if").map((o) => flat(o.cond)).find((cs) => cs.some((x) => x.kind === "paidMarkers"));
+  assert.ok(gate, `C: ${what} — "if you removed a marker" asks actual payment`);
+  assert.ok(gate.some((x) => x.kind === "paidMarkers" && x.cost === "spiritBoost" && x.atLeast === 1 && x.filter?.colors.join() === kind), `C: ${what} — X ≥ 1 and a ${kind.toLowerCase()} Unison (${JSON.stringify(gate).slice(0, 300)})`);
   records++;
 }
 {
   const rec = record("[Counter: Attack][Spirit Boost X] If your Leader Card is mono-red: Choose up to 1 of your opponent's cards and it gets -5000 power for the turn. If you removed a marker from one of your red Unison Cards using this skill, choose up to 1 of your opponent's cards and it gets -5000 power for the turn for each marker you removed using this skill.", "BT14-029");
-  assert.deepEqual(opOf(rec, "power").map((o) => o.amount), [-5000, { x: true, times: -5000 }], "C: BT14-029 — -5000, then -5000 for each marker removed");
+  assert.deepEqual(opOf(rec, "power").map((o) => o.amount), [-5000, { paidMarkers: "spiritBoost", times: -5000 }], "C: BT14-029 — -5000, then -5000 for each marker removed");
   assert.equal(rec.cond?.kind, "leaderMatches", "C: BT14-029 — the mono-red Leader gates the whole skill");
   records++;
 }

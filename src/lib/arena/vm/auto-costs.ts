@@ -1,3 +1,4 @@
+import { bindPaidMarkers } from "./paid-markers";
 import { pooledPaymentVariants } from "./pooled-costs";
 import { skillPriceProblem } from "./skill-payment";
 /** Auto payment planning and its stored checkpoint continuation (#549). */
@@ -848,6 +849,7 @@ export function beginAutomaticCost(ctx: EngineContext, game: GameDefinition, sta
     paid.vars = { ...paid.vars, paid_burst: [], "paid_burst@epoch": [] };
     paid.paidCardInfo = { ...paid.paidCardInfo, paid_burst: {} };
   }
+  frame.paidMarkers = bindPaidMarkers(paid.paidMarkers, frame.card, cost.skill.index, { fixed: cost.skill.spiritBoost, x: null });
   frame.vars = { ...frame.vars, ...paid.vars };
   frame.paidCardInfo = { ...frame.paidCardInfo, ...paid.paidCardInfo };
   spent(choice.payment.rest);

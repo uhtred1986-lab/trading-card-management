@@ -624,6 +624,7 @@ class Parser {
 
   private amountArg(kind: ExprArg): unknown {
     switch (kind) {
+      case "markerCost": return this.enumValue(["spiritBoost"]);
       case "selector":
         return this.selector();
       case "var":

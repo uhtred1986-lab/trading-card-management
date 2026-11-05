@@ -75,6 +75,7 @@ expr   := term ( ( "+" | "-" ) number )* ( "atMost" number )*   left-associative
 term   := number | "$" name | call ( "/" number )? ( "*" number )?   "/" on count, markers, life
 call   := "count" "(" SEL ")" | "markers" "(" SEL ")" | "sumPower" "(" "$" name ")"
         | "handUpTo" "(" number ")" | "X" | "life" "(" side ")"
+        | "paidMarkers" "(" "spiritBoost" ")"
         | "attr" "(" REF "," attr ")" | "sumOf" "(" SEL "," attr ")"
 attr   := "power" | "originalPower" | "comboPower" | "energyCost" | "comboCost" | "specifiedCost" | "zEnergyCost"
 REF    := "$" name ( "MINUS" "$" name )? | SEL
