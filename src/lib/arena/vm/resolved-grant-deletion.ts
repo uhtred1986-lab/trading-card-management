@@ -1,5 +1,6 @@
-import type { ContinuousEffect } from "../types";
+import type { ContinuousEffect, CopiedSkills } from "../types";
 import type { VmState } from "./state";
+import { canonicalTaxValue } from "./tax-receipt";
 import { NotYet } from "./errors";
 
 /** RM9-1-2-2-1: a resolved grant is not restored when its negation expires.
@@ -14,6 +15,7 @@ export interface ResolvedGrantDeletion {
   deleted: boolean;
   /** Original indices within the copied effect, not printed target indices. */
   skills?: number[];
+  copied?: CopiedSkills;
 }
 
 function receiptsOf(state: VmState): ResolvedGrantDeletion[] {
@@ -29,8 +31,8 @@ function receiptsOf(state: VmState): ResolvedGrantDeletion[] {
       || typeof receipt.deleted !== "boolean") return fail();
     if (receipt.kind === "copiedSkills") {
       if (!Array.isArray(receipt.skills) || receipt.skills.some(index => !Number.isSafeInteger(index) || index < 0)
-        || new Set(receipt.skills).size !== receipt.skills.length) return fail();
-    } else if (receipt.kind !== "keyword" || receipt.skills !== undefined) return fail();
+        || new Set(receipt.skills).size !== receipt.skills.length || !receipt.copied || typeof receipt.copied.cardId !== "string" || !["front", "back"].includes(receipt.copied.side) || !Array.isArray(receipt.copied.skills) || JSON.stringify(receipt.copied.skills) !== JSON.stringify(receipt.skills) || (receipt.copied.quoted !== undefined && typeof receipt.copied.quoted !== "boolean") || (receipt.copied.from !== undefined && typeof receipt.copied.from !== "string") || (receipt.copied.name !== undefined && typeof receipt.copied.name !== "string")) return fail();
+    } else if (receipt.kind !== "keyword" || receipt.skills !== undefined || receipt.copied !== undefined) return fail();
     const key = JSON.stringify([receipt.card, receipt.epoch, receipt.grant]);
     if (seen.has(key)) return fail();
     seen.add(key);
@@ -64,7 +66,7 @@ export function captureResolvedGrantDeletions(state: VmState, changed: Continuou
     const existing = receipts.find(receipt => receipt.card === card && receipt.epoch === epoch && receipt.grant === grant.id);
     if (existing) { existing.deleted ||= deleted; continue; }
     receipts.push({ version: 1, card, epoch, grant: grant.id, kind: grant.kind, deleted,
-      ...(grant.kind === "copiedSkills" ? { skills: [...(grant.copied?.skills ?? [])] } : {}) });
+      ...(grant.kind === "copiedSkills" ? { skills: [...(grant.copied?.skills ?? [])], copied: structuredClone(grant.copied!) } : {}) });
   }
 }
 
@@ -77,6 +79,7 @@ export function resolvedGrantDeleted(state: VmState, card: string, grant: number
   if (!receipt || receipt.version !== 1 || typeof receipt.deleted !== "boolean") {
     throw new NotYet("rebuild resolved skill-grant deletion history", "R475");
   }
+  requireLiveGrantIdentity(state, receipt);
   return receipt.deleted && (skill === undefined || receipt.kind === "copiedSkills" && !!receipt.skills?.includes(skill));
 }
 
@@ -87,4 +90,29 @@ export function requireResolvedGrantHistory(state: VmState, card: string): void 
       resolvedGrantDeleted(state, card, effect.id);
     }
   }
+}
+
+/** A caller can inspect an old observed occurrence without substituting the
+ * card's current occurrence. Used only for captured pending/active programs. */
+export function resolvedGrantReceipt(state: VmState, card: string, epoch: number, grant: number): ResolvedGrantDeletion {
+  const receipt = receiptsOf(state).find(value => value.card === card && value.epoch === epoch && value.grant === grant);
+  if (!receipt) throw new NotYet("rebuild captured resolved skill-grant history", "R475");
+  requireLiveGrantIdentity(state, receipt);
+  return receipt;
+}
+
+function requireLiveGrantIdentity(state: VmState, receipt: ResolvedGrantDeletion): void {
+  const effect = state.effects.find(effect => effect.id === receipt.grant && effect.target === receipt.card);
+  if (effect && (effect.kind !== receipt.kind || (effect.kind === "copiedSkills" && canonicalTaxValue(effect.copied) !== canonicalTaxValue(receipt.copied)))) {
+    throw new NotYet("rebuild mismatched resolved skill-grant history", "R475");
+  }
+}
+
+/** Existing captured hooks retain the old occurrence. This is not a current
+ * permission read, and never authorizes a fresh source occurrence. */
+export function capturedResolvedGrant(state: VmState, card: string, grant: number): ResolvedGrantDeletion {
+  const matches = receiptsOf(state).filter(receipt => receipt.card === card && receipt.grant === grant);
+  if (matches.length !== 1) throw new NotYet("rebuild captured resolved skill-grant history", "R475");
+  requireLiveGrantIdentity(state, matches[0]);
+  return matches[0];
 }

@@ -1731,6 +1731,8 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** R475: exact copied source retained after deletion/expiry of its grant. */
+  copiedSkillCapture?: import("./triggers").CopiedSkillCapture;
   arrivalDecision?: import("./counter-arrival-runtime").CounterArrivalDecision;
   arrivalResume?: import("./counter-arrival-runtime").CounterArrivalResume;
   arrivalBatch?: import("./counter-arrival-batch").CounterArrivalBatch;

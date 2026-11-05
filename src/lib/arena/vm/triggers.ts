@@ -1,3 +1,5 @@
+import { resolvedGrantDeleted, resolvedGrantReceipt } from "./resolved-grant-deletion";
+import { canonicalTaxValue } from "./tax-receipt";
 import { recordedSkillIdentity } from "./skill-identity";
 import { noSparking, withValidity, sparkingIsValid, validityProblem } from "./validity";
 import { unlimitedUsage, withUsage, requireUsage } from "./usage";
@@ -61,7 +63,7 @@ import { needsPaymentRecord } from "./skill-payment";
 import { autoTriggerMatches, triggeredPermanent, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import { comboQualificationProblem, comboScriptProblem } from "./combo-qualification";
 import { parseSkills } from "../text/cards";
-import { copiedSkillIndex, programsOf } from "./common";
+import { COPIED_SKILL_BASE, GRANTED_LINE_BASE, copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts, type Cond, type Op, type Script } from "./script";
 import type { CardFilter } from "../text/filters";
 import { PLAYERS, other, type PlayerId, type Skill, type Trigger } from "../types";
@@ -91,7 +93,19 @@ import { predicateOf } from "./filters";
  * one difference is `trigger`, a declared name rather than a union member —
  * which is the whole point, since a second game declares its own.
  */
+export interface CopiedSkillCapture {
+  version: 1;
+  card: string;
+  epoch: number;
+  grant: number;
+  index: number;
+  sourceIndex: number;
+  record: string;
+}
+
 export interface VmPending {
+  /** Exact copied declaration captured before deletion/expiry of its grant. */
+  copiedSkillCapture?: CopiedSkillCapture;
   /** R-422: this exact Auto was active during a successful scoped arrival,
    * before its after-effect Counter timing (RM 9-6-11). */
   arrivalWitness?: { version: 1; scope: number; skillIndex: number; arrival: { card: string; epoch: number }; source: { card: string; epoch: number } };
@@ -731,7 +745,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // way the subject's event information is frozen before another Auto can
       // move it again at the checkpoint.
       const movementInfo = subjectInfo ?? (match.trigger === "comboToDrop" && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
+      const copiedSkillCapture = captureCopiedSkill(state, match.card, sk, script);
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
+        ...(copiedSkillCapture ? { copiedSkillCapture } : {}),
         ...(ownFaceUpLife ? { faceUpLifeEpoch: state.cards[match.card]?.zoneEpoch ?? 0 } : {}),
         ...(movementInfo && match.subject ? { subjectInfo: movementInfo } : {}),
         ...(cleanupOccurrence && match.trigger === "comboToDrop" ? { cleanupOccurrence } : {}),
@@ -781,6 +797,18 @@ const isMoment = (name: string): name is Trigger => (TRIGGERS as readonly string
  * own and the attribute adapter reads the front — noted in §3 of the ruleset
  * spec as one of the five things the grammar could not say.
  */
+function executableSkill(sk: Skill, scripts: CardScripts): Skill {
+    const script = scripts.bySkill[sk.index];
+    sk = recordedSkillIdentity(sk, script);
+    const native = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk) && !sk.oncePerTurn && sk.limit === null;
+    const bareKeyword = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk);
+    if (bareKeyword && script && validityProblem(script.validity)) throw new NotYet(validityProblem(script.validity)!, "#907");
+    if (bareKeyword && (sk.sparking !== null || script?.validity?.sparking != null))
+      throw new NotYet("apply Sparking to native keyword identity; this qualified keyword remains unsupported", "#907");
+    return withValidity(withUsage(sk, script ? script.usage : (native ? unlimitedUsage() : undefined)),
+      script ? script.validity : (native && sk.sparking === null ? noSparking() : undefined));
+}
+
 export function skillsShowing(ctx: EngineContext, state: VmState, id: string): { skills: Skill[]; scripts: CardScripts } {
   const inst = state.cards[id];
   const def = inst ? ctx.defs[inst.cardId] : undefined;
@@ -794,22 +822,12 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
   // on it, every reader of this function at once (#439). A copied pure
   // keyword line is not here: it is granted as a `keyword` effect.
   const copies = state.effects.filter((e) => e.kind === "copiedSkills" && e.target === id && e.copied);
-  const executable = (sk: Skill, scripts: CardScripts): Skill => {
-    const script = scripts.bySkill[sk.index];
-    sk = recordedSkillIdentity(sk, script);
-    const native = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk) && !sk.oncePerTurn && sk.limit === null;
-    const bareKeyword = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk);
-    if (bareKeyword && script && validityProblem(script.validity)) throw new NotYet(validityProblem(script.validity)!, "#907");
-    if (bareKeyword && (sk.sparking !== null || script?.validity?.sparking != null))
-      throw new NotYet("apply Sparking to native keyword identity; this qualified keyword remains unsupported", "#907");
-    return withValidity(withUsage(sk, script ? script.usage : (native ? unlimitedUsage() : undefined)),
-      script ? script.validity : (native && sk.sparking === null ? noSparking() : undefined));
-  };
+
   // #1166: a line printed in quotation marks is a skill this card grants
   // ("…your Leader gains the following skill for the turn- "[auto] …""),
   // never one it has — it runs only as the copy a quoted grant makes.
   const mine = own.skills.some((sk) => sk.granted) ? own.skills.filter((sk) => !sk.granted) : own.skills;
-  if (!copies.length) return { ...own, skills: mine.map((sk) => executable(sk, own.scripts)) };
+  if (!copies.length) return { ...own, skills: mine.map((sk) => executableSkill(sk, own.scripts)) };
   const skills = mine.slice();
   const bySkill = { ...own.scripts.bySkill };
   for (const e of copies) {
@@ -818,7 +836,7 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
     if (!src) continue;
     const scripts = programsOf(ctx, src, c.side);
     for (const sk of parseSkills((c.side === "back" ? src.back?.skill : src.skill) ?? null)) {
-      if (!c.skills.includes(sk.index)) continue;
+      if (!c.skills.includes(sk.index) || resolvedGrantDeleted(state, id, e.id, sk.index)) continue;
       // #1166: a quoted grant runs the quoted skill; no other copy takes one.
       if (!sk.granted !== !c.quoted) continue;
       const index = copiedSkillIndex(e.id, sk.index);
@@ -830,7 +848,7 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
       }
     }
   }
-  return { skills: skills.map((sk) => executable(sk, { ...own.scripts, bySkill })), scripts: { ...own.scripts, bySkill } };
+  return { skills: skills.map((sk) => executableSkill(sk, { ...own.scripts, bySkill })), scripts: { ...own.scripts, bySkill } };
 }
 
 // ── the checkpoint's queue (4-2-2, 9-6-6) ───────────────────────────────────
@@ -851,4 +869,40 @@ export function nextPending(state: VmState): VmPendingRecord | null {
     return i >= 0 ? state.pending.splice(i, 1)[0] : null;
   };
   return pick(state.turnPlayer) ?? pick(other(state.turnPlayer));
+}
+
+/** Capture existing identity only; this never grants or compiles a skill. */
+export function captureCopiedSkill(state: VmState, card: string, skill: Skill, script: Script | undefined): CopiedSkillCapture | undefined {
+  for (const effect of state.effects) {
+    if (effect.kind !== "copiedSkills" || effect.target !== card || !effect.copied) continue;
+    const sourceIndex = effect.copied.skills.find(index => copiedSkillIndex(effect.id, index) === skill.index);
+    if (sourceIndex === undefined) continue;
+    const epoch = state.cards[card]?.zoneEpoch ?? 0;
+    resolvedGrantReceipt(state, card, epoch, effect.id);
+    return { version: 1, card, epoch, grant: effect.id, index: skill.index, sourceIndex, record: canonicalTaxValue({ skill, script }) };
+  }
+  return undefined;
+}
+
+/** Exact metadata for one captured declaration; never a list offered to new
+ * activations. The original compiled rule must still match its captured record. */
+export function capturedSkillShowing(ctx: EngineContext, state: VmState, card: string, index: number, capture?: CopiedSkillCapture): { skill?: Skill; script?: Script; deleted: boolean } {
+  if (!capture) {
+    if (index >= COPIED_SKILL_BASE && index < GRANTED_LINE_BASE) throw new NotYet("rebuild the captured copied-skill declaration", "R475");
+    const showing = skillsShowing(ctx, state, card);
+    return { skill: showing.skills.find(skill => skill.index === index), script: showing.scripts.bySkill[index], deleted: false };
+  }
+  const fail = (): never => { throw new NotYet("rebuild the captured copied-skill declaration", "R475"); };
+  if (capture.version !== 1 || capture.card !== card || capture.index !== index || !Number.isSafeInteger(capture.epoch) || capture.epoch < 0 || !Number.isSafeInteger(capture.grant) || capture.grant < 0 || !Number.isSafeInteger(capture.sourceIndex) || capture.sourceIndex < 0 || copiedSkillIndex(capture.grant, capture.sourceIndex) !== index || typeof capture.record !== "string") return fail();
+  const receipt = resolvedGrantReceipt(state, card, capture.epoch, capture.grant), copied = receipt.copied;
+  if (receipt.kind !== "copiedSkills" || !copied || !copied.skills.includes(capture.sourceIndex)) return fail();
+  const source = ctx.defs[copied.cardId];
+  if (!source) return fail();
+  const printed = parseSkills((copied.side === "back" ? source.back?.skill : source.skill) ?? null).find(skill => skill.index === capture.sourceIndex);
+  if (!printed || !printed.granted !== !copied.quoted) return fail();
+  const scripts = programsOf(ctx, source, copied.side), original = scripts.bySkill[capture.sourceIndex];
+  const script = original?.usage?.limit != null ? { ...original, usage: undefined, unsupported: [...original.unsupported, "copied Limit ceilings require a canonical shared same-skill identity; unsupported (#907)"] } : original;
+  const skill = executableSkill({ ...(printed.granted ? printed.granted.skill : printed), index }, { ...scripts, bySkill: { [index]: script! } });
+  if (canonicalTaxValue({ skill, script }) !== capture.record) return fail();
+  return { skill, script, deleted: receipt.deleted };
 }

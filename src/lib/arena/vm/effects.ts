@@ -1,4 +1,4 @@
-import { captureResolvedGrantDeletions, prepareResolvedGrantChange, resolvedGrantDeleted } from "./resolved-grant-deletion";
+import { capturedResolvedGrant, captureResolvedGrantDeletions, prepareResolvedGrantChange, resolvedGrantDeleted } from "./resolved-grant-deletion";
 import { energyCouponContract } from "./energy-coupon-saves";
 import { sparkingIsValid } from "./validity";
 /**
@@ -578,6 +578,14 @@ export function keywordSkillsNegated(state: VmState, id: string): boolean {
 export function grantedSkillNegated(state: VmState, id: string, grantId: number | string): boolean {
   if (typeof grantId === "number" && resolvedGrantDeleted(state, id, grantId)) return true;
   return skillsNegated(state, id) || state.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === id && (typeof grantId === "number" ? e.value === grantId : typeof e.value === "object" && e.value !== null && "standingGrantId" in e.value && e.value.standingGrantId === grantId && (e.value.sourceHiddenCount === undefined || (state.cards[e.value.source ?? ""]?.hiddenCount ?? 0) === e.value.sourceHiddenCount)));
+}
+
+/** Pending numeric hooks refer to one observed grant, not a reentered card. */
+export function capturedGrantedSkillNegated(state: VmState, id: string, grantId: number, skillIndex?: number): boolean {
+  const receipt = capturedResolvedGrant(state, id, grantId);
+  if (receipt.deleted) return true;
+  if ((state.cards[id]?.zoneEpoch ?? 0) !== receipt.epoch) return false;
+  return keywordSkillsNegated(state, id) || (skillIndex !== undefined && skillNegated(state, id, skillIndex, "keyword")) || state.effects.some(effect => effect.kind === "negateGrantedSkill" && effect.target === id && effect.value === grantId);
 }
 
 /** The skills of this card that are off, as `stepScript` reads them: `"all"`, or the indexes. */
