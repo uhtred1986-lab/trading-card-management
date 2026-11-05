@@ -61,6 +61,7 @@ import { chargeCost, chargesOf, planCost, priceFor, spendSkillCostUses, type Pri
 import { keywordProgram } from "./keyword-do";
 import { spendUse } from "./limits";
 import type { VmState } from "./state";
+import { isOrderedZAwaken, stepZAwakenCost, type ZAwakenCost } from "./z-awaken-costs";
 
 /** The price a keyword move still owes: on its `DO` frame until `payActionPrice`, then on the strict frame paying it. */
 export interface KeywordCost {
@@ -73,6 +74,7 @@ export interface KeywordCost {
   /** Set on the `DO` frame once its strict frame is queued, so the price is never queued twice. */
   queued?: true;
   /** #907: all Fusion resource payment follows material payment, including orb-only lines. */
+  zAwaken?: ZAwakenCost;
   fusion?: { stage: "resources" | "native" | "action"; selectedChoice?: number; choices?: { price: Price; payment: VmPayment; label: string }[]; payment?: VmPayment; nativeIndex?: number; poolIndex?: number };
 }
 
@@ -164,7 +166,7 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
   const ops = keywordActionPrice(cost.line);
   if (!ops && !cost.fusion) throw new RulesetBroken(state.game, `${cost.line.card}'s keyword move carries a price its record no longer has`);
   cost.queued = true;
-  state.programs.unshift({ ...(frame.viaKeyword === "Z-Awaken" ? { viaKeyword: frame.viaKeyword } : {}), ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.fusionSourceEpoch !== undefined ? { fusionSourceEpoch: frame.fusionSourceEpoch } : {}), ...(frame.fusionDropBottom ? { fusionDropBottom: true as const } : {}), ...(frame.viaKeyword === "Z-Awaken" ? { vars: structuredClone(frame.vars) } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
+  state.programs.unshift({ ...(frame.viaKeyword === "Z-Awaken" ? { viaKeyword: frame.viaKeyword } : {}), ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}), ...(cost.zAwaken ? { zAwaken: cost.zAwaken } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.fusionSourceEpoch !== undefined ? { fusionSourceEpoch: frame.fusionSourceEpoch } : {}), ...(frame.fusionDropBottom ? { fusionDropBottom: true as const } : {}), ...(frame.viaKeyword === "Z-Awaken" ? { vars: structuredClone(frame.vars) } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
 }
 
 /**
@@ -176,6 +178,7 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
  */
 export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.keywordCost!;
+  if (isOrderedZAwaken(cost.line) && !cost.zAwaken) throw new IllegalAction("rebuild this saved Z-Awaken payment with its cost-order continuation");
   assertCurrentFusion(cost, !!frame.evolutionIdentity);
   // R-396: payment is still for the originally chosen Z-Deck card and Leader.
   // Failed/replaced source or base occurrences cancel the activation, not a new card.
@@ -183,15 +186,18 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
     const source = resolveSelector(ctx, game, state, frame, { fromVar: "zAwakenSource", side: "you", area: "zDeck" });
     const base = resolveSelector(ctx, game, state, frame, { fromVar: "zAwakenBase", side: "you", area: "leader", printed: true });
     if (source.length !== 1 || state.cards[source[0]].faceUp || base.length !== 1 || !state.cards[base[0]].flipped || String(attrsNow(ctx, game, state, base[0]).type).startsWith("Z-")) return fail(state, ev, cost);
-    for (const op of frame.ops) if (op.op === "choose" && frame.vars[op.as]) {
+    for (const op of frame.ops) if (op.op === "choose" && frame.vars[op.as] && (!cost.zAwaken || frame.ops.slice(frame.ip).some(next => next.op === "moveTo" && "var" in next.target && next.target.var === op.as))) {
       const ids = frame.vars[op.as], epochs = frame.vars[`${op.as}@epoch`];
-      if (!epochs || ids.length !== epochs.length || ids.some((id, index) => epochs[index] !== `${id}@${state.cards[id]?.zoneEpoch ?? 0}`)) return fail(state, ev, cost);
+      if (ids.length && (!epochs || ids.length !== epochs.length || ids.some((id, index) => epochs[index] !== `${id}@${state.cards[id]?.zoneEpoch ?? 0}`))) return fail(state, ev, cost);
     }
   }
   if (frame.fusionDropBottom && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.fusionSourceEpoch)) return fail(state, ev, cost);
   if (frame.potaraIdentity && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.potaraSourceEpoch)) return fail(state, ev, cost);
   if (frame.absorbIdentity && (findCard(state, frame.card)?.zone !== "battle" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.absorbSourceEpoch)) return fail(state, ev, cost);
   try {
+    if (cost.zAwaken) {
+      if (stepZAwakenCost(ctx, game, state, ev, frame) === "wait") return "wait";
+    }
     if (cost.fusion && cost.fusion.stage !== "action") {
       const result = payFusionResources(ctx, game, state, ev, frame);
       if (result !== "paid") return result;
@@ -224,7 +230,7 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
   // [Activate]'s price hands its names on through `saveVars`; names the frame
   // already holds win.
   if (owner && frame.absorbIdentity) owner.vars = { ...frame.vars, ...owner.vars };
-  if (cost.fusion) {
+  if (cost.fusion || cost.zAwaken) {
     if (cost.line.script?.price?.payment.marker != null) state.cards[frame.card].usedMarkerSkill = true;
     spendUse(state, frame.master, frame.card, cost.line.skill);
     spendSkillCostUses(ctx, game, state, ev, frame.card, cost.line.skill);

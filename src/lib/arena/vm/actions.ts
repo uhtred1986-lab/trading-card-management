@@ -59,6 +59,7 @@ import { keywordRefusalCond, keywordWords } from "./keyword-do";
 import { attrsNow, forbiddenBy, readingBoard, taxesOn, type TaxInForce } from "./program";
 import { SETUP_ZONES, findCard } from "./zones";
 import type { VmState } from "./state";
+import { isOrderedZAwaken, orderedZAwakenRefusals, retainZAwakenSelection } from "./z-awaken-costs";
 
 /**
  * One candidate of one action: the card it is about, or null for a move that is
@@ -260,7 +261,9 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
     return out.length ? out : [{ card: line.card, skill: line.skillIndex, why: short, price: priceFor(ctx, game, state, def, line.card, bound) }];
   }
   const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
-  if (!why.length && isFusionPayment(line)) {
+  if (!why.length && isOrderedZAwaken(line)) {
+    if (!gates.after.length) why.push(...orderedZAwakenRefusals(ctx, game, state, player, line));
+  } else if (!why.length && isFusionPayment(line)) {
     if (!gates.after.length) why.push(...fusionPaymentRefusals(ctx, game, state, player, line));
   } else if (!why.length && def.cost?.length) {
     const plan = planCost(ctx, game, state, player, price, line.card);
@@ -931,8 +934,11 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (def.again !== true) answered(state);
     return "done";
   }
-  if (line && isFusionPayment(line)) {
+  if (line && (isFusionPayment(line) || isOrderedZAwaken(line))) {
+    if (isOrderedZAwaken(line) && orderedZAwakenRefusals(ctx, game, state, player, line, action).length) throw new IllegalAction("the Z-Awaken costs cannot be completed");
     resolveActivation(ctx, game, state, ev, player, line, chosen.x);
+    const saved = state.programs.find(f => f.card === line.card && f.keywordPrice?.zAwaken)?.keywordPrice?.zAwaken;
+    if (saved) retainZAwakenSelection(state, saved, action);
     if (def.again !== true) answered(state);
     return "done";
   }

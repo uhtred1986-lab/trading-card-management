@@ -514,13 +514,14 @@ export function interchangeablePoolCandidates(ctx: EngineContext, game: GameDefi
  * source/event/X bindings. No cost, trigger or prompt escapes this simulation.
  * Choices are single-card interpreter answers, so every branch is replayable;
  * an interchangeable candidate is represented by the first of its class. */
-export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, { symmetry = true }: { symmetry?: boolean } = {}): boolean {
+export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, { symmetry = true, complete }: { symmetry?: boolean; complete?: (state: VmState, frame: ScriptFrame) => boolean } = {}): boolean {
   // Other price grammars can have order-dependent choices and replacements.
   // Keep an explicit unknown when their search is too large; never equate an
   // unfinished proof with an unaffordable price.
   let budget = 2000;
   const failed = new Set<string>();
-  const fixedPositional = symmetry ? staticPositionalAreas(ctx, game, state) : null;
+  // An opaque remaining-cost proof may distinguish otherwise equivalent cards.
+  const fixedPositional = symmetry && !complete ? staticPositionalAreas(ctx, game, state) : null;
   const visit = (s: VmState, f: ScriptFrame): boolean => {
     if (--budget < 0) throw new NotYet("plan this Auto action price within the bounded choice search", "#549");
     if (cannotRestSourceAfterHandPrice(ctx, game, s, f)) return false;
@@ -531,7 +532,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
     s.programs = [];
     try {
       const result = stepScript(automaticPriceHost(ctx, game, s, []), f);
-      if (result === "done") return true;
+      if (result === "done") return complete ? complete(s, f) : true;
       if (s.programs[0] !== f) return false;
       const prompt = s.prompt;
       const same = prompt.kind === "chooseCards" && fixedPositional ? interchangeableCandidates(ctx, game, s, f, prompt.choice.candidates, fixedPositional) : new Map<string, string>();

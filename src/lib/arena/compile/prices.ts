@@ -1,4 +1,4 @@
-import { supportedZAwakenActionPrice } from "../vm/activation-price-support";
+import { isCompetingZAwakenPrice, supportedZAwakenActionPrice } from "../vm/activation-price-support";
 import { compilePotaraMaterials } from "./potara-materials";
 import { isAbsorbSkill, absorbPriceProblem, absorbEffectProblem } from "../vm/absorb-procedure";
 import { compileEvolutionBase } from "./evolution-base";
@@ -206,6 +206,8 @@ export function compileAction(said: string, skill: Skill): Script | null {
   const owner = skill.keyword && PRICED_KEYWORD_MOVES.has(skill.keyword.name) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
   const tags = owner ? skill.tags.filter((t) => keywordOf(t)?.name !== owner) : skill.tags;
   const read = (text: string) => compileSkill({ ...skill, kind: "activate:main", keyword: null, tags, cost: "", effect: text });
+  // R-443: Z-Energy is the named area; the omitted noun means its cards.
+  if (skill.keyword?.name === "Z-Awaken") said = said.replace(/^place up to 3 of your z-energy under your leader(?: card)?$/i, "place up to 3 cards from your Z-Energy under your Leader");
   let sc = read(said);
   // A printed price is written in the second person and every action pattern
   // in the compiler is written in the imperative, so one the compiler cannot
@@ -225,7 +227,7 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // Phrasing batch 3: the effect's "send up to 1 <A> and 1 <B> from your deck to your Warp" (BT20-054, `named-set.ts`)
   // is not a price: an "up to" send slot is one a price could pay with nothing (#970 keeps it unread there).
   const upToSend = sc.ops.some((op) => op.op === "choose" && op.sel.notIn && op.sel.upTo && sc.ops.some((m) => m.op === "moveTo" && m.to === "warp" && "var" in m.target && m.target.var === op.as));
-  const out = sc.unsupported.length || !sc.ops.length || upToSend || (disjoint && skill.keyword?.name !== "Awaken" && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
+  const out = sc.unsupported.length || !sc.ops.length || upToSend || (disjoint && !(skill.keyword?.name === "Z-Awaken" && isCompetingZAwakenPrice(sc.ops)) && skill.keyword?.name !== "Awaken" && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
   costPrograms.set(key, out);
   return out;
 }

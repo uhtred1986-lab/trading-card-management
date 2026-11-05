@@ -110,6 +110,7 @@ import { findCard, moveCard } from "./zones";
 import { lifeToHandForbidden } from "./life-movement";
 import { spendUse, usesLeft } from "./limits";
 import type { KeywordCost } from "./keyword-costs";
+import { isOrderedZAwaken, zAwakenCost } from "./z-awaken-costs";
 
 /**
  * One candidate of an activation: the copy on the table, the printed line, and
@@ -1071,11 +1072,12 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
     : [];
   const deferredFusion = !waived && isFusionPayment(line);
-  if (!deferredFusion) spendUse(state, player, card, sk);
-  if (!deferredFusion && (payment.marker != null || (line.keyword && isMarkerSkill(line.keyword)))) inst.usedMarkerSkill = true;
+  const deferredZAwaken = !waived && isOrderedZAwaken(line);
+  if (!deferredFusion && !deferredZAwaken) spendUse(state, player, card, sk);
+  if (!deferredFusion && !deferredZAwaken && (payment.marker != null || (line.keyword && isMarkerSkill(line.keyword)))) inst.usedMarkerSkill = true;
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
-  if (!waived && !deferredFusion) {
+  if (!waived && !deferredFusion && !deferredZAwaken) {
     spendSkillCostUses(ctx, game, state, ev, card, sk);
     // An Extra used from the hand pays its energy cost with the line (12-2-2):
     // "the next time you activate it, reduce the energy cost by {g}" is spent here.
@@ -1100,7 +1102,7 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // moments fired, once its `DO` has paid it (`vm/keyword-costs.ts`) — read
   // now, while "from: hand" is still true.
   const keywordPrice: KeywordCost | null = !waived && (keywordActionPrice(line) || deferredFusion)
-    ? { ...(deferredFusion ? { fusion: { stage: "resources" as const } } : {}), key: `${card}:${sk.index}`, line, moments: [activationMoment(ctx, game, state, player, line), ...keywordActivationMoments(state, player, line)] }
+    ? { ...(deferredZAwaken ? { zAwaken: zAwakenCost(ctx, game, state, player, line) } : {}), ...(deferredFusion ? { fusion: { stage: "resources" as const } } : {}), key: `${card}:${sk.index}`, line, moments: [activationMoment(ctx, game, state, player, line), ...keywordActivationMoments(state, player, line)] }
     : null;
   if (!announcesBeforePrice(line) && !priceOps && !keywordPrice) announce(state, ev, player, line);
   // A keyword's own move runs the keyword's `DO` — the keyword's rules are the

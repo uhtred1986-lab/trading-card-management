@@ -109,7 +109,7 @@ export function isZAwakenChargeSkipPrice(ops: Op[]): boolean {
 
 /** R-396: fixed, single-card Z-Awaken prices that do not compete for Z-Energy. */
 export function supportedZAwakenActionPrice(ops: Op[]): boolean {
-  if (isZAwakenChargeSkipPrice(ops)) return true;
+  if (isZAwakenChargeSkipPrice(ops) || isCompetingZAwakenPrice(ops)) return true;
   const keys = (value: object): string[] => Object.entries(value).filter(([, v]) => v !== undefined).map(([k]) => k);
   const [pick, move, ...rest] = ops;
   if (rest.length || pick?.op !== "choose" || move?.op !== "moveTo" || !("var" in move.target) || move.target.var !== pick.as || keys(move.target).length !== 1) return false;
@@ -121,4 +121,19 @@ export function supportedZAwakenActionPrice(ops: Op[]): boolean {
   if (move.to === "under") return areas.length > 0 && areas.every(a => a === "hand" || a === "drop") && !!move.under && "sel" in move.under && keys(move.under).length === 1 && move.under.sel.special === "leader" && keys(move.under.sel).length === 1;
   if (move.under || areas.length !== 1) return false;
   return (areas[0] === "drop" && move.to === "warp") || (areas[0] === "battle" && sel.filter?.type === "BATTLE" && move.to === "drop");
+}
+
+/** R-443: the two bounded Z-Energy action shapes with selectable cost order. */
+export function isCompetingZAwakenPrice(ops: Op[]): boolean {
+  const keys = (o: object, allowed: string[]) => Object.entries(o).every(([k,v]) => v === undefined || allowed.includes(k));
+  const pick = (op: Op | undefined, optional: boolean, prior?: string): op is Extract<Op,{op:"choose"}> => !!op && op.op === "choose"
+    && keys(op,["op","sel","as","reason"]) && keys(op.sel,["side","area","count","upTo","filter","notIn"])
+    && op.sel.side === "you" && op.sel.area === "zEnergy" && op.sel.count === (optional ? 3 : 1) && !!op.sel.upTo === optional
+    && (prior ? op.sel.notIn?.length === 1 && op.sel.notIn[0] === prior : !op.sel.notIn);
+  const move = (op: Op | undefined, name: string, to: "warp"|"under") => !!op && op.op === "moveTo"
+    && keys(op,["op","target","to","under"]) && "var" in op.target && keys(op.target,["var"]) && op.target.var === name && op.to === to
+    && (to === "warp" ? !op.under : !!op.under && "sel" in op.under && keys(op.under,["sel"]) && keys(op.under.sel,["special"]) && op.under.sel.special === "leader");
+  if (ops.length === 2 && pick(ops[0],true)) return move(ops[1],ops[0].as,"under");
+  return ops.length === 4 && pick(ops[0],false) && pick(ops[1],false,ops[0].as) && ops[0].as !== ops[1].as
+    && move(ops[2],ops[0].as,"warp") && move(ops[3],ops[1].as,"warp");
 }

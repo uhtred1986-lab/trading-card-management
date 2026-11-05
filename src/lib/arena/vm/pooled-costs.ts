@@ -41,7 +41,7 @@ export function primeFramePools(game: GameDefinition, state: VmState, frame: Scr
     if (pool.n > 0 && ids.length === pool.n) saved.selection.pools.push({ cost: pool.cost, n: pool.n, cards: ids.map(id => occurrence(state, id)) });
   }
 }
-function nextPool(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, price: Price, payment: VmPayment, selection: PoolPaymentSelection, complete?: (payment: VmPayment) => boolean) {
+function nextPool(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, price: Price, payment: VmPayment, selection: PoolPaymentSelection, complete?: (payment: VmPayment) => boolean, symmetry = true) {
   const problem = explicitPoolProblem(game, state, frame.master, price, frame.card, selection, true);
   if (problem) throw new IllegalAction(problem);
   const charges = chargesOf(game);
@@ -59,7 +59,7 @@ function nextPool(ctx: EngineContext, game: GameDefinition, state: VmState, fram
     const candidates = complete ? available.filter(id => {
       const trial = structuredClone(selection);
       append(trial, { cost: pool.cost, n: pool.n, cards: [occurrence(state, id)] });
-      for (const variant of pooledPaymentVariants(ctx, game, state, frame, price, payment, trial)) if (complete(variant)) return true;
+      for (const variant of pooledPaymentVariants(ctx, game, state, frame, price, payment, trial, { symmetry })) if (complete(variant)) return true;
       return false;
     }) : available;
     if (!candidates.length) throw new IllegalAction("no selection can pay the complete skill cost");
@@ -83,7 +83,7 @@ export function askActionPool(ctx: EngineContext, game: GameDefinition, state: V
   return true;
 }
 /** Auto/Aegis/Fusion use the same prefix and full-price proof as native actions. */
-export function chooseFramePools(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, price: Price, payment: VmPayment, complete?: (payment: VmPayment) => boolean): "wait" | "done" {
+export function chooseFramePools(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, price: Price, payment: VmPayment, complete?: (payment: VmPayment) => boolean, { symmetry = true }: { symmetry?: boolean } = {}): "wait" | "done" {
   primeFramePools(game, state, frame, price);
   if (!frame.poolPayment) return "done";
   const saved = frame.poolPayment;
@@ -93,7 +93,7 @@ export function chooseFramePools(ctx: EngineContext, game: GameDefinition, state
     state.lastChoice = null;
     delete saved.pending;
   }
-  const next = nextPool(ctx, game, state, frame, price, payment, saved.selection, complete);
+  const next = nextPool(ctx, game, state, frame, price, payment, saved.selection, complete, symmetry);
   if (!next) return "done";
   saved.pending = { cost: next.cost, n: next.n, candidates: next.candidates };
   state.programs.unshift(frame);
@@ -110,14 +110,14 @@ export function requirePoolOccurrence(state: VmState, frame: ScriptFrame, cost?:
 
 /** Exact, lazy class-count search. The UI still exposes every physical card.
  * Call only for a following identity-sensitive price, never ordinary Z play. */
-export function* pooledPaymentVariants(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, price: Price, payment: VmPayment, prefix?: PoolPaymentSelection): Generator<VmPayment> {
+export function* pooledPaymentVariants(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, price: Price, payment: VmPayment, prefix?: PoolPaymentSelection, { symmetry = true }: { symmetry?: boolean } = {}): Generator<VmPayment> {
   const charges = chargesOf(game);
   const pools = price.pooled.filter(p => p.n > 0 && charges[p.cost]?.asks === "choice");
   function* subsets(pool: typeof pools[number]): Generator<string[]> {
     const picked = prefix?.pools.find(p => p.cost === pool.cost)?.cards.map(x => x.card) ?? [];
     const candidates = choicePoolCards(game, state, frame.master, pool).filter(id => !picked.includes(id));
     const destination = (charges[pool.cost]?.does as { to?: string } | null)?.to ?? "";
-    const classes = interchangeablePoolCandidates(ctx, game, state, frame, candidates, pool.area, destination);
+    const classes = symmetry ? interchangeablePoolCandidates(ctx, game, state, frame, candidates, pool.area, destination) : new Map<string, string>();
     const groups = new Map<string, string[]>();
     for (const id of candidates) { const key = classes.get(id) ?? id; groups.set(key, [...(groups.get(key) ?? []), id]); }
     const grouped = [...groups.values()], suffix = Array(grouped.length + 1).fill(0) as number[];

@@ -3086,6 +3086,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // card ends an "up to" choice early, as 5-2-4 allows.
           const done = picked.length >= want || picked.length === sofar.length || picked.length >= sofar.length + cands.length;
           frame.vars[op.as] = picked;
+          // R-443: optional Z-Awaken payments can pause between picks too.
+          if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
           if (done) {
             frame.awaiting = undefined;
             take(picked);
