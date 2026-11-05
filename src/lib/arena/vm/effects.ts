@@ -559,7 +559,12 @@ export function skillsNegated(state: VmState, id: string): boolean {
  * stored value is a prefix of the skill kind rather than the whole of it.
  */
 export function skillNegated(state: VmState, id: string, index: number, kind?: string): boolean {
-  if (skillsNegated(state, id)) return true;
+  return externallyNegatedSkill(state, id, index, kind);
+}
+
+/** R477 observation gate: only resolved negation, independent of standing generations. */
+export function externallyNegatedSkill(state: VmState, id: string, index: number, kind?: string): boolean {
+  if (state.effects.some(e => e.kind === "negateSkills" && e.target === id)) return true;
   if (state.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index && (!e.skillSide || e.skillSide === (state.cards[id]?.flipped ? "back" : "front")))) return true;
   return !!kind && state.effects.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as string));
 }

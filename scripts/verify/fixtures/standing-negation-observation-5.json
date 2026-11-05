@@ -1,0 +1,747 @@
+{
+  "DB1-066": {
+    "skill": "[Permanent] Negate the skills of all other Battle Cards.",
+    "records": [
+      {
+        "cardId": "DB1-066",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] Negate the skills of all other Battle Cards.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "negateSkills",
+            "target": {
+              "sel": {
+                "side": "both",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 99,
+                "upTo": false,
+                "notSelf": "card"
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "negateSkills",
+        "reads": "negate the skills of all Battle Cards in each player's Battle Area other than this card"
+      }
+    ]
+  },
+  "BT10-153": {
+    "skill": "[Ultimate][Double Strike]<br>[Permanent] Reduce the energy cost of this card by 1 for each Battle Card with 15000 power in your Drop Area.<br>[Permanent] Negate the skills of all other Battle Cards.<br>[Auto] When this card is removed from your Battle Area by an opponent's skill, choose all of your opponent's Battle Cards and energy in Rest Mode, ignoring [Barrier], and place them in their owners' Drop Areas.",
+    "records": [
+      {
+        "cardId": "BT10-153",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Permanent] Reduce the energy cost of this card in your hand by 1 for each Battle Card with 15000 power in your Drop Area.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              }
+            },
+            "amount": {
+              "count": {
+                "side": "you",
+                "area": "drop",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": 15000,
+                  "powerMax": 15000,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "costReduction",
+        "reads": "this card costs 1 for each of Battle Cards with 15000 power in your Drop Area less"
+      },
+      {
+        "cardId": "BT10-153",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Permanent] Negate the skills of all other Battle Cards.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "negateSkills",
+            "target": {
+              "sel": {
+                "side": "both",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 99,
+                "upTo": false,
+                "notSelf": "card"
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "negateSkills",
+        "reads": "negate the skills of all Battle Cards in each player's Battle Area other than this card"
+      },
+      {
+        "cardId": "BT10-153",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[Auto] When this card is removed from your Battle Area by an opponent's skill, choose all of your opponent's Battle Cards and energy in Rest Mode, ignoring [Barrier], and place them in their owners' Drop Areas.",
+        "kind": "auto",
+        "trigger": [
+          "removedByOpponent"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 99,
+              "upTo": false,
+              "mode": "rest",
+              "alsoFrom": [
+                {
+                  "side": "opponent",
+                  "area": "energy",
+                  "mode": "rest"
+                }
+              ],
+              "ignoreBarrier": true
+            },
+            "as": "c0",
+            "reason": "choose all of your opponent's Battle Cards and energy in Rest Mode"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop",
+            "reveal": true
+          }
+        ],
+        "unread": [],
+        "pattern": "choose\u2192moveTo",
+        "reads": "choose all Battle Cards in your opponent's Battle Area in rest mode, and all cards in your opponent's Energy Area in rest mode ignoring [Barrier], move the chosen cards to drop"
+      }
+    ]
+  },
+  "BT1-043": {
+    "skill": "[Quadruple Strike] (This card inflicts 4 damage instead of 1 when attacking)<br>[Permanent] This card's attack and skill cannot be negated.[Auto] When you play this card, if your Leader Card is &lt;Beerus&gt;, after your current turn ends, take another turn.",
+    "records": [
+      {
+        "cardId": "BT1-043",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Quadruple Strike] (This card inflicts 4 damage instead of 1 when attacking)",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Strike",
+        "reads": ""
+      },
+      {
+        "cardId": "BT1-043",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Permanent] This card's attack and skill cannot be negated.[Auto] When you play this card, if your Leader Card is <Beerus>, after your current turn ends, take another turn.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "permit",
+            "what": "attackUnnegatable",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "until": "game"
+          },
+          {
+            "op": "forbid",
+            "what": "beNegated",
+            "until": "game",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ],
+        "unread": [
+          "after your current turn ends",
+          "take another turn"
+        ],
+        "pattern": "after your current turn ends",
+        "reads": "this card's attacks can't be negated, this card can't have their skills negated"
+      }
+    ]
+  },
+  "TB1-097": {
+    "skill": "[ex-evolve] {1}, place 1 \u226aUniverse 7\u226b from your hand in the Drop Area: \u226aUniverse 7\u226b <Son Goku> with an energy cost of 6 or more.<br>[ultimate] <br>[victory strike](When you deal life damage by attacking with this card, you win the game)<br>[permanent] This card's attack and skill cannot be negated.",
+    "records": [
+      {
+        "cardId": "TB1-097",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[ex-evolve] {1}, place 1 \u226aUniverse 7\u226b from your hand in the Drop Area: \u226aUniverse 7\u226b <Son Goku> with an energy cost of 6 or more.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "place 1 \u226aUniverse 7\u226b from your hand in the Drop Area",
+          "orbs": {
+            "any": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "universe 7"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "place 1 \u226aUniverse 7\u226b from your hand in the Drop Area"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Evolve",
+        "reads": ""
+      },
+      {
+        "cardId": "TB1-097",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[victory strike](When you deal life damage by attacking with this card, you win the game)",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Victory Strike",
+        "reads": ""
+      },
+      {
+        "cardId": "TB1-097",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[permanent] This card's attack and skill cannot be negated.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "permit",
+            "what": "attackUnnegatable",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "until": "game"
+          },
+          {
+            "op": "forbid",
+            "what": "beNegated",
+            "until": "game",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "permit\u2192forbid:beNegated",
+        "reads": "this card's attacks can't be negated, this card can't have their skills negated"
+      }
+    ]
+  }
+}
