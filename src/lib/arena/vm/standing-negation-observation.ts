@@ -1,3 +1,4 @@
+import { requireStandingNegationBounds } from "./standing-negation-bounds";
 /** R477 bounded native observation prototype; no gameplay caller yet. */
 import type { EngineContext, PlayerId } from "../types";
 import { parseSkills } from "../text/cards";
@@ -111,6 +112,7 @@ export function observeStandingNegation(ctx: EngineContext, state: VmState, tran
   // Prior history was already validated, so removal of the final source still
   // produces an explicit empty observation for the mutation owner to settle.
   if (!sources.length) return { version: 1, policy: "otherBattleWholeV1", candidates: [] };
+  requireStandingNegationBounds(ctx, state, undefined, true);
   if (state.effects.some(effect => effect.kind === "forbid" && effect.forbid?.what === "beNegated")) refuse("observe timed beNegated protection with reviewed source qualification");
   for (const instance of Object.values(state.cards)) {
     if (board.some(card => card.card === instance.id)) continue;

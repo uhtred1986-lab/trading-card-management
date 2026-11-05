@@ -1,3 +1,4 @@
+import { validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureCopiedSkill } from "./triggers";
 import { counterActivationFrom } from "./counter-activation-origin";
 import { taxReceiptIdentity } from "./tax-receipt";
@@ -183,6 +184,7 @@ let staticsScope: StaticsScope | null = null;
 
 /** Run one read-only question about `state` with its statics read once. The state must not be changed in place while `read` runs. */
 export function readingBoard<T>(ctx: EngineContext, game: GameDefinition, state: VmState, read: () => T): T {
+  validateStandingNegationRead(ctx, state);
   const outer = staticsScope;
   // Already inside a reading of this very board: its statics are this one's.
   if (outer && outer.state === state && outer.ctx === ctx && outer.game === game) return read();
@@ -196,6 +198,7 @@ export function readingBoard<T>(ctx: EngineContext, game: GameDefinition, state:
 
 /** Every [Permanent] standing right now — and every keyword's `altPayment` body — or nothing while one is being read (see `readingStatics`). */
 function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
+  validateStandingNegationRead(ctx, state);
   if (readingStatics) return [];
   const scope = staticsScope && !readingImmunities && staticsScope.state === state && staticsScope.ctx === ctx && staticsScope.game === game ? staticsScope : null;
   if (scope?.standing) return scope.standing;
@@ -409,6 +412,7 @@ function namesNow(attrs: Attrs): string[] {
  * engine's `matches`.
  */
 export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, suppliedStanding?: VmStatic[], payment?: EnergyPaymentContext): Attrs {
+  validateStandingNegationRead(ctx, state);
   requireEnergyCouponEffects(ctx, state);
   const card = state.cards[id];
   const def = card ? ctx.defs[card.cardId] : undefined;
@@ -847,6 +851,7 @@ export function permitted(ctx: EngineContext, game: GameDefinition, state: VmSta
  * (#153); this is only whether the card has it, which [Barrier] needs here.
  */
 export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"]): boolean {
+  validateStandingNegationRead(ctx, state);
   const card = state.cards[id];
   // 23-5-2-1: a skill a Hidden Mode card gains is ignored, so a granted
   // [Blocker] or [Barrier] is no more in force than a printed one.
@@ -905,6 +910,7 @@ export interface KeywordInstance {
 
 /** Every in-force keyword instance retains its original source identity. */
 export function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordInstance[] {
+  validateStandingNegationRead(ctx, state);
   const card = state.cards[id];
   // 23-5-2-1, as in `hasKeyword`.
   if (!card || card.hidden || keywordSkillsNegated(state, id)) return [];

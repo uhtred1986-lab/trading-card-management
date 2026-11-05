@@ -1,3 +1,4 @@
+import { standingSkillsNegated } from "./standing-negation-read";
 import { capturedResolvedGrant, captureResolvedGrantDeletions, prepareResolvedGrantChange, resolvedGrantDeleted } from "./resolved-grant-deletion";
 import { energyCouponContract } from "./energy-coupon-saves";
 import { sparkingIsValid } from "./validity";
@@ -547,7 +548,7 @@ export function expireDelayed(state: VmState): void {
  * [Auto]s correctly did not.
  */
 export function skillsNegated(state: VmState, id: string): boolean {
-  return state.effects.some((e) => e.kind === "negateSkills" && e.target === id);
+  return standingSkillsNegated(state, id) || state.effects.some((e) => e.kind === "negateSkills" && e.target === id);
 }
 
 /**
@@ -559,7 +560,7 @@ export function skillsNegated(state: VmState, id: string): boolean {
  * stored value is a prefix of the skill kind rather than the whole of it.
  */
 export function skillNegated(state: VmState, id: string, index: number, kind?: string): boolean {
-  return externallyNegatedSkill(state, id, index, kind);
+  return standingSkillsNegated(state, id) || externallyNegatedSkill(state, id, index, kind);
 }
 
 /** R477 observation gate: only resolved negation, independent of standing generations. */

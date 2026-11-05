@@ -1,3 +1,5 @@
+import { requireStandingNegationBounds } from "./standing-negation-bounds";
+import { initializeStandingNegation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { requireCounterUnderOccurrence } from "./counter-under";
 import { requireCounterEnergyOccurrence } from "./counter-energy";
 import { requireCounterDropOccurrence } from "./counter-drop";
@@ -326,6 +328,7 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   // question — which is 6-2-1-4's, so a freshly made game is a game waiting to
   // be told who goes first.
   state.flow = [];
+  initializeStandingNegation(ctx, state);
   enterPhase(ctx, game, state, events, rules.setupPhase);
   run(ctx, game, state, events);
   return { state, events };
@@ -400,6 +403,8 @@ function apply(ctx: EngineContext, prev: VmState, action: Action, offeredAttack 
 function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAttack = false, previewBlock = false): { state: VmState; events: GameEvent[] } {
   const game = definitionFor(prev.game, ctx);
   const state = structuredClone(prev);
+  validateStandingNegationRead(ctx, state);
+  if (["play", "playZ", "playUnison", "activate", "counter"].includes(action.type) && "card" in action && typeof action.card === "string") requireStandingNegationBounds(ctx, state, action.card);
   const events: GameEvent[] = [{ type: "action", action }];
   // A completed declaration remains visible for its response snapshot. Only
   // the exact suspended frame may carry it through a further answer/reload.

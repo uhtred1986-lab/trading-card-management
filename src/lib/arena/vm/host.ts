@@ -1,3 +1,4 @@
+import { beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureEnergyEntryMode } from "./energy-entry-mode";
 import { queueFieldCleanup, takeFieldCleanup } from "./field-rules";
 import { queueFieldCost } from "./field-costs";
@@ -108,6 +109,7 @@ import { shuffle as shuffleItems } from "./rng";
  * log being appended to.
  */
 export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], retainedFrame?: ScriptFrame): ScriptHost {
+  validateStandingNegationRead(ctx, state);
   const card = (id: string) => state.cards[id];
   const zoneList = (p: PlayerId, area: Area): string[] => (state.sides[p].zones[area] ?? []).slice();
   const counterProtected = (frame: ScriptFrame, id: string): boolean => !!frame.counterPlay && frame.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter");
@@ -275,6 +277,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `placeUnder` fires none either — only the client-visible picture),
     // which is why this is `log`, not `emit`.
     placeUnder: (id, host, frame, onResult) => {
+      refuseStandingNegationMutation(state, "under placement", ctx, id);
       // Audit triggers 3: where it came from, read before it joins the pile (which is in no area, 23-2).
       const from = zoneOf(state, id), fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
       const destination = { card: host, epoch: state.cards[host]?.zoneEpoch ?? 0 };
@@ -315,6 +318,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // pile under it in its order (23-2-2-1, 23-2-6). Not in a Leader Area: a
     // Leader is the only card that stands there (3-1-2, 17-1-1).
     placeOnTop: (id, host) => {
+      refuseStandingNegationMutation(state, "stack placement", ctx, id);
       const top = state.cards[host];
       const at = findCard(state, host);
       // Mechanism batch 3 (3-1-2, 22-46-6 by analogy): a Leader Area takes a card on top only when it is a Leader
@@ -403,6 +407,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       card(id).faceUp = faceUp;
     },
     setHidden: (id, hidden, by) => {
+      refuseStandingNegationMutation(state, "Hidden switch", ctx, id);
       clearAutoReveal(state, id);
       card(id).hidden = hidden;
       if (hidden) card(id).hiddenCount = (card(id).hiddenCount ?? 0) + 1;
@@ -422,6 +427,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       emit(ctx, game, state, ev, { event: "hiddenSwitched", card: id, controller, args: { hidden, in: zoneOf(state, id) ?? "", ...cause } }, null);
     },
     flip: (id, toBack = true) => {
+      refuseStandingNegationMutation(state, "face switch", ctx, id);
       card(id).flipped = toBack;
       log(ev, { type: "flip", card: id, flipped: toBack });
     },
@@ -469,16 +475,23 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     },
     setEnteredTurn: () => {},
     negateAll: (id) => {
+      const transaction = beginStandingNegationMutation(ctx, state);
       addEffect(state, ev, { target: id, kind: "negateSkills", value: 0, until: "game", source: id });
+      finishStandingNegationMutation(ctx, state, transaction);
     },
     negateSkillIndex: (id, index) => {
+      const transaction = beginStandingNegationMutation(ctx, state);
       addEffect(state, ev, { target: id, kind: "negateSkill", value: index, until: "game", source: id });
+      finishStandingNegationMutation(ctx, state, transaction);
     },
     addEffect: (e) => {
       // "…while this card is in a Battle Area": a source already gone by the
       // time the effect resolves gives it no period to last for at all.
       if (e.until === "whileSourceInPlay" && (!e.source || zoneOf(state, e.source) !== "battle")) return undefined;
-      return addEffect(state, ev, e);
+      const transaction = beginStandingNegationMutation(ctx, state);
+      const added = addEffect(state, ev, e);
+      finishStandingNegationMutation(ctx, state, transaction);
+      return added;
     },
     schedule: (d) => {
       schedule(state, ev, d);
@@ -508,6 +521,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // own `played` next (`stepScript`'s `token` case), exactly as it does
     // for the legacy host.
     createToken: (p, name, power, comboCost, comboPower, colors, mode, frame) => {
+      refuseStandingNegationMutation(state, "token creation", ctx);
       const id = `${p}#token${Object.keys(state.cards).length}`;
       state.cards[id] = newCard(id, tokenCardId(name, power, comboCost, comboPower, colors), p);
       const scope = frame?.skillEffectOrigin?.scope === undefined ? undefined : state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin!.scope);
@@ -1059,13 +1073,15 @@ function moveTo(
   const carry = !!opts.carry || (held(from) && held(to));
   // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
   const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode).mode : route.mode;
+  if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, id);
+  const transaction = beginStandingNegationMutation(ctx, state, id);
   const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
+    finishStandingNegationMutation(ctx, state, transaction);
     report(false);
     return;
   }
-  report(!route.replacementApplied && placed.move.to === asked, placed.move.to);
   clearAutoReveal(state, id);
   for (const released of placed.move.released ?? []) clearAutoReveal(state, released.card);
   // Where it really went, which a rule about what the card *is* may change
@@ -1081,6 +1097,8 @@ function moveTo(
   if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
   // 5-5-4: arriving in a Battle Area is remembered for the turn (`placedThisTurn`).
   if (to === "battle" && from !== "battle") state.cards[id].placedThisTurn = true;
+  finishStandingNegationMutation(ctx, state, transaction, to === "battle" && from !== "battle" ? id : undefined);
+  report(!route.replacementApplied && placed.move.to === asked, placed.move.to);
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}), ...(from === "drop" && to === "deck" && (route.position ?? opts.position) === "bottom" && opts.reason === "cost" ? { privateOrder: true as const } : {}) });
   } else if (host && hostZone) {
