@@ -43,7 +43,7 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { isFusionPayment, activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, keywordActionPrice, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
+import { burstNegated, isFusionPayment, activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, keywordActionPrice, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
 import { queueAegisCost } from "./aegis-costs";
 import { assertDropPricePayable, dropPriceRefusals, hasDropActionPrice, queueDropCost } from "./drop-costs";
 import { assertSwapPricePayable, queueSwapCost, swapPriceRefusals } from "./swap-costs";
@@ -238,11 +238,11 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
     let short: Requirement[] = [];
     // Phrasing batch 10 (22-43): "[Spirit Boost X]" — X markers off the Unison Card (`DEFINE COST spiritBoost`'s place),
     // one candidate per number of markers it holds, the energy unchanged.
-    const unisonMarkers = xPrice.spiritBoost ? state.cards[state.sides[player].zones.unison?.[0] ?? ""]?.markers ?? 0 : 0;
+    const unisonMarkers = xPrice.spiritBoost && !burstNegated(ctx, game, state, line.card) ? state.cards[state.sides[player].zones.unison?.[0] ?? ""]?.markers ?? 0 : 0;
     for (let n = xPrice.min ?? 0; n <= (xPrice.spiritBoost ? Math.min(unisonMarkers, xPrice.max ?? Infinity) : (xPrice.max ?? Infinity)); n++) {
       const energy = bound.energy ?? { total: 0, orbs: {}, either: [] };
       const withX: BoundAmounts = xPrice.spiritBoost
-        ? { ...bound, markersFrom: { ...(bound.markersFrom ?? {}), unison: { n: -n, by: "Spirit Boost" } } }
+        ? { ...bound, markersFrom: { ...(bound.markersFrom ?? {}), unison: { ...bound.markersFrom?.unison, n: -n, by: "Spirit Boost" } } }
         : { ...bound, energy: { ...energy, total: (energy.total ?? 0) + n } };
       const price = priceFor(ctx, game, state, def, line.card, withX);
       if (isFusionPayment(line)) {
@@ -256,6 +256,8 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
         short = plan.why;
         break;
       }
+      const strict = dropPriceRefusals(ctx, game, state, player, line, s => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!), n);
+      if (strict.length) { short = strict; continue; }
       out.push({ card: line.card, skill: line.skillIndex, why: [], price, x: n });
     }
     return out.length ? out : [{ card: line.card, skill: line.skillIndex, why: short, price: priceFor(ctx, game, state, def, line.card, bound) }];
@@ -978,7 +980,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       // "play Son Goku" — the legacy engine's own wording for this prompt, which
       // is the move's label with its first letter lowered.
       const label = labelFor(ctx, game, state, def, chosen, true);
-      state.prompt = { kind: "payCost", player, action, options: plan.options, describe: label.charAt(0).toLowerCase() + label.slice(1) };
+      state.prompt = { kind: "payCost", player, action: line && action.type === "activate" ? { ...action, skill: line.skillIndex } : action, options: plan.options, ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe: label.charAt(0).toLowerCase() + label.slice(1) };
       return "asked";
     }
     const poolOps = line?.script?.price?.ops ?? [];
@@ -986,14 +988,14 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       const charge = (s: VmState) => chargeCost(ctx, game, s, [], player, payment, card, def.cost!);
       return !swapPriceRefusals(ctx, game, state, player, line, charge).length
         && !keywordPriceRefusals(ctx, game, state, player, line, charge).length
-        && !dropPriceRefusals(ctx, game, state, player, line, charge).length;
+        && !dropPriceRefusals(ctx, game, state, player, line, charge, chosen.x).length;
     } : undefined;
     if (card !== null && askActionPool(ctx, game, state, player, action, chosen.price, card, plan.payment, poolOps, completePool)) return "asked";
     // #729 (5-8-3): the energy chosen must leave a [Swap]'s whole action price
     // payable; refused here, on a copy, while nothing is paid.
     if (line) assertSwapPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
     if (line) assertKeywordPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
-    if (line) assertDropPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
+    if (line) assertDropPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!), chosen.x);
     if (early) announce(state, ev, player, early);
     // BT28-106: a once-per-turn grant whose card paid this line is spent.
     const spent = line ? scopedPayersSpent(ctx, game, state, player, line) : null;

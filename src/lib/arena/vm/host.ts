@@ -712,13 +712,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // paid as one unit, so it is not cut; the runner's own look takes the
     // violation the moment the price frame hands back control.
     ruleInterrupt: (frame) => {
-      if (frame.autoCost || frame.swapCost || frame.keywordCost || frame.aegisCost || frame.counterCost || frame.reviveCost) return null;
       // 21-9-2 (#759): a Unison the instruction just left without markers
       // goes to the Drop Area before the next instruction.
       for (const [id, owner] of emptyUnisons(state)) {
         log(ev, { type: "note", text: `${state.cards[id].cardId} has no markers left (21-9): it is placed in its owner's Drop Area` });
         moveTo(ctx, game, state, ev, id, "drop", owner, { reason: "rule" });
       }
+      // 21-9 is interruptive even during costs (EX19-06 own FAQ).
+      if (frame.autoCost || frame.swapCost || frame.keywordCost || frame.aegisCost || frame.counterCost || frame.reviveCost || frame.dropCost) return null;
       return uniqueFrame(ctx, game, state);
     },
     // 5-5-3: the `play` op, and therefore **every** play on this engine — an

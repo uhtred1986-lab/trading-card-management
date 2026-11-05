@@ -813,7 +813,7 @@ function sameAutomaticPayment(a: VmPayment, b: VmPayment): boolean {
     && a.pooled.length === b.pooled.length && a.pooled.every((p, i) => p.cost === b.pooled[i].cost && ids(p.cards, b.pooled[i].cards))
     && a.markersOff.length === b.markersOff.length && a.markersOff.every((p, i) => {
       const q = b.markersOff[i];
-      return p.cost === q.cost && p.side === q.side && p.area === q.area && p.n === q.n && p.by === q.by;
+      return p.cost === q.cost && p.side === q.side && p.area === q.area && p.n === q.n && p.by === q.by && JSON.stringify(p.filter) === JSON.stringify(q.filter) && JSON.stringify(p.payer) === JSON.stringify(q.payer);
     });
 }
 

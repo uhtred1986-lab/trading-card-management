@@ -1,3 +1,7 @@
+import { emptyUnisons } from "./unison-zero";
+import type { CardFilter } from "../text/filters";
+import { predicateOf } from "./filters";
+import { selectorProblem } from "./script-schema";
 /**
  * What a move costs, and what paying it takes — one planner over the **declared**
  * prices.
@@ -242,6 +246,8 @@ export interface PooledPrice {
 
 /** Markers paid off the card in a declared place (22-43): which price, where, how many (signed, like 13-4's), and the keyword that printed it. */
 export interface PooledMarkers {
+  filter?: CardFilter;
+  payer?: { card: string; epoch: number };
   cost: string;
   side: string;
   area: string;
@@ -283,7 +289,7 @@ export interface BoundAmounts {
    * `DO` targets, never by its name; `by` is the keyword the line prints it
    * under. A place left out is a price with nothing bound to it.
    */
-  markersFrom?: Partial<Record<string, { n: number; by?: string }>>;
+  markersFrom?: Partial<Record<string, { n: number; by?: string; filter?: CardFilter }>>;
   /** `consumes: life` — 21-3. */
   life?: number;
   /**
@@ -386,7 +392,7 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
         if (charge.from) {
           const bind = bound?.markersFrom?.[charge.from.area];
           if (bind === undefined) throw new NotYet(`charge the price ${name}, whose amount is on the skill line asking for it and has nothing to bind it to`, "#157");
-          if (bind.n) price.markersOff.push({ cost: charge.name, side: charge.from.side, area: charge.from.area, n: bind.n, ...(bind.by ? { by: bind.by } : {}) });
+          if (bind.n) price.markersOff.push({ cost: charge.name, side: charge.from.side, area: charge.from.area, n: bind.n, ...(bind.by ? { by: bind.by } : {}), ...(bind.filter ? { filter: bind.filter } : {}) });
           break;
         }
         if (bound?.markers === undefined) throw new NotYet(`charge the price ${name}, whose amount is on the card's own record and has nothing to bind it to`, "#149");
@@ -616,7 +622,10 @@ export function planCost(ctx: EngineContext, game: GameDefinition, state: VmStat
     rest: energy.rest,
     energyMarkers: energy.markers,
     markers: price.markers,
-    markersOff: price.markersOff,
+    markersOff: price.markersOff.map(off => {
+      const id = holderOf(state, player, off);
+      return { ...off, ...(id ? { payer: { card: id, epoch: state.cards[id].zoneEpoch ?? 0 } } : {}) };
+    }),
     // 3-9-4: any card in life may be chosen when one leaves, and the topmost is
     // the one damage takes — the same end the legacy engine deals from.
     life: price.life ? lifeZone.slice(0, price.life) : [],
@@ -721,6 +730,7 @@ function whyNot(ctx: EngineContext, game: GameDefinition, state: VmState, player
   // the legacy `whyNotActivate`'s, which asks it among the gates.
   for (const off of price.markersOff) {
     const holder = holderOf(state, player, off);
+    if (off.filter && (!holder || !predicateOf(off.filter, game)(attrsNow(ctx, game, state, holder)))) why.push({ kind: "other", detail: "Spirit Boost needs the specified Unison payer" });
     const on = holder ? state.cards[holder].markers : 0;
     if (on + off.n < 0) why.push({ kind: "other", detail: off.by ? `[${off.by}] needs the markers` : `needs ${-off.n} markers (${on} on it)` });
   }
@@ -964,6 +974,26 @@ export type PaidResources = Pick<ScriptFrame, "vars" | "paidCardInfo">;
 /** Reserved effect variable for a declared pooled cost; not a card-specific binding. */
 export const paidPoolVar = (cost: string): string => `paid_${cost}`;
 
+/** Validate resource provenance before any energy/card/marker mutation. */
+export function requireMarkerPayers(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, payers: PooledMarkers[]): void {
+  if (!Array.isArray(payers)) throw new IllegalAction("malformed saved marker payment");
+  for (const off of payers) {
+    const declared = off && chargesOf(game)[off.cost];
+    if (!off || !declared || declared.consumes !== "markers" || declared.from?.area !== off.area || declared.from?.side !== off.side || !Number.isSafeInteger(off.n) || off.n >= 0 || (off.payer && (typeof off.payer.card !== "string" || (!Number.isSafeInteger(off.payer.epoch) || off.payer.epoch < 0)))) throw new IllegalAction("malformed saved marker payer");
+  }
+  const totals = new Map<string, number>();
+  for (const off of payers) {
+    const id = holderOf(state, player, off);
+    if (off.filter !== undefined && selectorProblem({ filter: off.filter }, "marker payer")) throw new IllegalAction("malformed saved marker payer filter");
+    if (off.by === "Spirit Boost" && !off.payer) throw new IllegalAction("rebuild the saved Spirit Boost payer occurrence");
+    if (off.filter && (!id || !off.payer || off.payer.card !== id || off.payer.epoch !== (state.cards[id].zoneEpoch ?? 0) || !predicateOf(off.filter, game)(attrsNow(ctx, game, state, id)))) throw new IllegalAction("the specified Spirit Boost payer changed; rebuild this payment");
+    if (off.payer && (!id || off.payer.card !== id || off.payer.epoch !== (state.cards[id].zoneEpoch ?? 0))) throw new IllegalAction("the marker payer occurrence changed");
+    const total = (id ? totals.get(id) ?? 0 : 0) - off.n;
+    if (!Number.isSafeInteger(total) || !id || state.cards[id].markers < total) throw new IllegalAction("the marker payment can no longer be completed");
+    totals.set(id, total);
+  }
+}
+
 export function chargeCost(
   ctx: EngineContext,
   game: GameDefinition,
@@ -976,9 +1006,14 @@ export function chargeCost(
   move?: (id: string, to: string, opts: MoveCause) => void,
   onRest?: (id: string) => void,
 ): PaidResources {
+  requireMarkerPayers(ctx, game, state, player, payment.markersOff);
   const paid: PaidResources = { vars: {}, paidCardInfo: {} };
   const charges = chargesOf(game);
   const payMove = move ?? ((id: string, to: string, opts: MoveCause) => moved(ctx, game, state, ev, id, to, opts));
+  const processEmptyUnisons = () => {
+    // 21-9-1: interruptive rule processing, not an Auto/checkpoint window.
+    for (const [id, owner] of emptyUnisons(state)) moved(ctx, game, state, ev, id, "drop", { owner, reason: "rule" });
+  };
   const payMode = (id: string, mode: string) => {
     const wasActive = state.cards[id]?.mode === "active";
     setMode(state, ev, id, mode);
@@ -1041,7 +1076,10 @@ export function chargeCost(
             const inst = state.cards[id];
             inst.markers = Math.max(0, inst.markers + off.n);
             log(ev, { type: "markers", card: id, delta: off.n, total: inst.markers });
-            if (off.n < 0) fire(ctx, game, state, { event: "markerRemoved", card: id, controller: player, args: off.by ? { by: off.by } : {} });
+            if (off.n < 0) {
+              fire(ctx, game, state, { event: "markerRemoved", card: id, controller: player, args: off.by ? { by: off.by } : {} });
+              processEmptyUnisons();
+            }
           }
           break;
         }
@@ -1049,6 +1087,7 @@ export function chargeCost(
         const inst = state.cards[card];
         inst.markers = Math.max(0, inst.markers + payment.markers);
         log(ev, { type: "markers", card, delta: payment.markers, total: inst.markers });
+        if (payment.markers < 0) processEmptyUnisons();
         break;
       }
       case "life": {

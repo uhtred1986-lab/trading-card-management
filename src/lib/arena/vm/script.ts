@@ -1580,6 +1580,8 @@ export interface CostRecord {
   marker: number | null;
   burst: number | null;
   spiritBoost: number | null;
+  /** The specified Unison paying Spirit Boost markers (22-43-3-1). */
+  spiritBoostPayer?: CardFilter;
   /** "If your Leader is red" — a condition the price states. */
   condition: Cond | null;
   /** "Switch this card to Rest Mode" — an action the price charges. */
@@ -1598,6 +1600,8 @@ export interface SkillPayment {
   marker: number | null;
   burst: number | null;
   spiritBoost: number | null;
+  /** The specified Unison paying Spirit Boost markers (22-43-3-1). */
+  spiritBoostPayer?: CardFilter;
 }
 
 /** The supported §22-13-4 procedure. Extensions are typed standing permissions,
@@ -1642,6 +1646,7 @@ export function costSentence(cost: CostRecord | null): string | null {
   if (cost.burst != null) parts.push(`Burst ${cost.burst}`);
   if (cost.spiritBoost != null) parts.push(`Spirit Boost ${cost.spiritBoost}`);
   if (cost.x?.spiritBoost) parts.push("Spirit Boost X");
+  if (cost.spiritBoostPayer) parts.push(`Spirit Boost payer: your ${describeFilter(cost.spiritBoostPayer)}`);
   // 20-19: the alternative payers are named before the conditions, because
   // they are part of what the price *is* — "pay 2 energy or use this card as
   // energy" — rather than something it also requires.

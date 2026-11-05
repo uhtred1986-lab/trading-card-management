@@ -46,12 +46,12 @@ import type { BoardView, CardArt } from "../view";
 import { isZ } from "../text/cards";
 import { PLAYERS, type PlayerId, type Requirement } from "../types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
-import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
+import { burstNegated, ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { abilityAvailability as declaredAbilityAvailability, applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
 import { applyBattleActivation, applyBlock, applyCombo, applyCounter, applyZEnergyFromCombo, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterAbilityAvailability, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
 import { forbiddenBy, hasKeyword, immunityRefusing, readingBoard, spendProhibitionUse } from "./program";
 import { whoseSkills } from "./script";
-import { chargesOf, describePayment } from "./costs";
+import { requireMarkerPayers, chargesOf, describePayment } from "./costs";
 import { skillsShowing } from "./triggers";
 import { attributeGaps, attrsForDefs, playerAttributes, withTokens, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";
@@ -481,6 +481,18 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       const pr = prev.prompt;
       if (pr.kind !== "payCost") throw new IllegalAction("no payment is being asked for");
       if (action.player !== pr.player) throw new IllegalAction("that payment belongs to another player");
+      if (pr.markerPayers !== undefined) requireMarkerPayers(ctx, game, state, pr.player, pr.markerPayers);
+      if (pr.action.type === "activate" || pr.action.type === "counter") {
+        const original = pr.action;
+        if (original.card) {
+          const showing = skillsShowing(ctx, state, original.card);
+          if (original.skill === undefined && Object.values(showing.scripts.bySkill).some(script => script?.price?.payment.spiritBoost || script?.price?.x?.spiritBoost)) throw new IllegalAction("rebuild the ambiguous saved Spirit Boost skill payment");
+          const price = original.skill === undefined ? undefined : showing.scripts.bySkill[original.skill]?.price;
+          const expected = burstNegated(ctx, game, state, original.card) ? 0 : (price?.x?.spiritBoost ? (original.type === "activate" ? original.x ?? 0 : 0) : price?.payment.spiritBoost ?? 0);
+          const saved = pr.markerPayers?.filter(payer => payer.by === "Spirit Boost").reduce((n,payer) => n - payer.n, 0) ?? 0;
+          if (expected !== saved || (expected > 0 && pr.markerPayers === undefined)) throw new IllegalAction("rebuild the saved Spirit Boost payment menu");
+        }
+      }
       const option = pr.options[action.option];
       if (!option) throw new IllegalAction("no such payment");
       const restored = structuredClone(prev);

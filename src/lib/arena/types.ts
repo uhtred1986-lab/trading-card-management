@@ -1486,7 +1486,7 @@ export type Prompt =
    * Which energy to rest. Only asked when the choice can matter: when the
    * colours left active afterwards would differ (3-8-2).
    */
-  | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string }
+  | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string; markerPayers?: import("./vm/costs").PooledMarkers[] }
   | { kind: "offering"; player: PlayerId; card: string }
   /**
    * 22-45-3: [Empower]'s "may carry up to Y markers" — a choice, not the

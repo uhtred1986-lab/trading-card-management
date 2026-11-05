@@ -1,3 +1,4 @@
+import { spiritBoostDescriptor } from "../text/spirit-boost";
 import { isCompetingZAwakenPrice, supportedZAwakenActionPrice } from "../vm/activation-price-support";
 import { compilePotaraMaterials } from "./potara-materials";
 import { isAbsorbSkill, absorbPriceProblem, absorbEffectProblem } from "../vm/absorb-procedure";
@@ -185,7 +186,7 @@ const PRICED_KEYWORD_MOVES = new Set<string>(["Swap", "Union", "Evolve", "Awaken
  * compiler.
  */
 export function compileAction(said: string, skill: Skill): Script | null {
-  const key = `${skill.tags.join("|")} ${said}`;
+  const key = `${skill.tags.join("|")}\0${said}`;
   const hit = costPrograms.get(key);
   if (hit !== undefined) return hit;
   // Compiled as an [Activate] so that a leading "when" is not mistaken for a
@@ -382,7 +383,10 @@ function priceText(skill: Skill): string {
   // "[Bond 2] If your Leader Card is a ≪Slug's Army≫ card:" (BT12-060) is the
   // price's condition whole, and cutting it as a descriptor lost it.
   if (skill.bond != null && !/^(?:if|when|while|during)\b/i.test(said)) return said.replace(/^[^,(]*(?:\([^)]*\))?\.?\s*,?\s*/, "");
-  if (skill.spiritBoost != null) return said.replace(/^(?:[a-z-]+ )?(?:z-)?unison cards?\b[^,]*(?:,\s*|$)/i, "");
+  if (skill.spiritBoost != null || skill.tags.some(tag => /^spirit boost x$/i.test(tag))) {
+    const descriptor = spiritBoostDescriptor(said);
+    if (descriptor.kind === "filter") return descriptor.rest;
+  }
   return said;
 }
 
@@ -604,6 +608,7 @@ export function joints(said: string): { at: number; len: number }[] {
 /** Compile the complete price once, including an explicit zero payment. */
 export function compileCostRecord(skill: Skill): CostRecord {
   if (skill.kind === "permanent") return zeroCostRecord();
+  const spirit = skill.spiritBoost != null || skill.tags.some(tag => /^spirit boost x$/i.test(tag)) ? spiritBoostDescriptor(costText(skill.cost)) : { kind: "none" as const };
   const condition = priceCondition(skill)?.cond ?? null;
   const program = compileCostProgram(skill)?.ops ?? null;
   const x = priceX(skill);
@@ -614,9 +619,9 @@ export function compileCostRecord(skill: Skill): CostRecord {
   const absorb = absorbEffect && !absorbEffect.unsupported.length && !absorbPriceProblem(program, condition) && !absorbEffectProblem(absorbEffect.ops) ? { version: 1 as const, variant: "Absorb" as const, area: "battle" as const } : undefined;
   return {
     version: 1,
-    readable: costIsOnlyOrbs(skill.cost) || bondDescriptorOnly(skill) || condition !== null || !!program?.length || (x !== null && !x.spiritBoost),
+    readable: spirit.kind !== "unknown" && (costIsOnlyOrbs(skill.cost) || bondDescriptorOnly(skill) || (spirit.kind === "filter" && !spirit.rest) || condition !== null || !!program?.length || (x !== null && !x.spiritBoost)),
     text: costText(skill.cost), orbs: { ...skill.energyCost }, either: skill.energyEither.map((group) => [...group]),
-    marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost,
+    marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost, ...(spirit.kind === "filter" ? { spiritBoostPayer: spirit.filter } : {}),
     condition, program, ...(fusion ? { fusion } : {}), ...(potara ? { potara } : {}), ...(evolution ? { evolution } : {}), ...(absorb ? { absorb } : {}), ...(x ? { x } : {}),
   };
 }

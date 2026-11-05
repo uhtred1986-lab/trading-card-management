@@ -1,4 +1,5 @@
 import { storedPaidAdmission } from "./vm/paid-admission";
+import { printedSpiritBoostDescriptor } from "./text/spirit-boost";
 import { legacyMovementHinge } from "./vm/movement-result";
 import { isPotaraSkill } from "./vm/potara-materials";
 import { isAbsorbSkill } from "./vm/absorb-procedure";
@@ -211,6 +212,13 @@ function movementResultContractGap(row: { printed: string; ops: unknown }): stri
     ? "rebuild the original movement completion required by if-you-do" : null;
 }
 
+/** A specified payer must survive stored-row loading, including draft rows. */
+function spiritBoostContractGap(row: Pick<RuleRow, "printed" | "cost">): string | null {
+  const descriptor = parseSkills(row.printed).map(printedSpiritBoostDescriptor).find(d => d.kind !== "none");
+  if (descriptor?.kind === "filter" && !(row.cost as CostRecord | null)?.spiritBoostPayer) return "rebuild the specified Spirit Boost payer contract";
+  return null;
+}
+
 /**
  * The typed records a row must carry before the engine will run it — Sparking
  * validity, skill usage, combo qualification, payment (#1066) and Fusion/Union
@@ -236,6 +244,8 @@ export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | 
   const gaps: string[] = [];
   const couponGap = couponScopeContractGap(row);
   if (couponGap) gaps.push(couponGap);
+  const spiritGap = spiritBoostContractGap(row);
+  if (spiritGap) gaps.push(spiritGap);
   const movementGap = movementResultContractGap(row);
   if (movementGap) gaps.push(movementGap);
   const negationAreaGap = negationAreaContractGap(row);
@@ -292,6 +302,7 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0) && !supportedComboReplacement(row)) {
     unsupported.push("the Auto rule has no readable WHEN trigger");
   }
+  if (kind.startsWith("counter:") && cost?.x) unsupported.push("the Counter window has no supported X payment choice contract");
   // Counter: Counter uses the native counter-motion chain (#552). Its
   // affordability is checked on the live board, like the other Counters.
 
@@ -454,7 +465,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
       : { paidAdmission: storedPaidAdmission(row.cond, price?.condition), kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };

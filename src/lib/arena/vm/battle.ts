@@ -1,4 +1,5 @@
 import { counterEffectOps, paidCounterAdmission } from "./counter-admission";
+import { requireSkillPayment } from "./skill-payment";
 /**
  * The battle (8-1 … 8-5), as a sub-flow nested inside the Main Phase.
  *
@@ -87,7 +88,7 @@ import { dueDelays, type VmAltCost } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { emit, fire, log } from "./events";
 import { endGame, enterPhase, gameEndForbidden, moved, other, requirePrompt, type Work } from "./flow";
-import { activationTaxGate, activationTaxes, canPayPriceProgram, canPayTaxProgram, queueTaxGate, unpaidActivationTaxAfter, type TaxGate } from "./activate";
+import { supplementaryPaymentAmounts, activationTaxGate, activationTaxes, canPayPriceProgram, canPayTaxProgram, queueTaxGate, unpaidActivationTaxAfter, type TaxGate } from "./activate";
 import { fireHook } from "./hooks";
 import { leaveRoute, lifeReplacementChoices, markerReplacementChoices, replacementChoices } from "./replace";
 import { attrsNow, forbiddenBy, forbiddenForCard, forbids, hasKeyword, permissions, permitted, queryHookStatics, readingBoard, taxesOn } from "./program";
@@ -743,7 +744,7 @@ export function counterAbilityAvailability(
           if (offer.cost || action.type !== "counter" || action.alt
             || counterPriceOps(skillsShowing(ctx, state, card).scripts.bySkill[skill.index])
             || (!costIsOnlyOrbs(skill.cost) && !skillsShowing(ctx, state, card).scripts.bySkill[skill.index]?.price?.condition)) return offer;
-          const price = priceFor(ctx, game, state, game.actions.play!, card, counterPrice(ctx, game, state, card, skill));
+          const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, skill));
           return { ...offer, cost: actionCostOf(price) ?? { energy: 0, describe: "free" } };
         });
         rows.push({ card, skill: skill.index, state: "offered", offers: pricedOffers });
@@ -861,7 +862,7 @@ function readCounterPrice(ctx: EngineContext, game: GameDefinition, state: VmSta
   const ops = price?.ops?.length ? price.ops : null;
   // No record of the price, or an X / pay-with price this window has no way
   // to name: unread, as before.
-  if (!price || (!price.condition && !ops && !bondDescriptorOnly(sk)) || price.x || price.payWith?.length) return { ok: false, why: { kind: "unread", card } };
+  if (!price || (!price.condition && !ops && !bondDescriptorOnly(sk) && !price.payment.spiritBoostPayer) || price.x || price.payWith?.length) return { ok: false, why: { kind: "unread", card } };
   if (price.condition && !vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, price.condition)) {
     return { ok: false, why: { kind: "condition", text: costText(sk.cost) } };
   }
@@ -890,15 +891,25 @@ interface CounterRoutes {
 function counterRoutes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, sk: Skill): CounterRoutes {
   const reading = readCounterPrice(ctx, game, state, player, card, sk);
   if (!reading.ok) return { paid: false, alt: null, why: [reading.why] };
-  const price = priceFor(ctx, game, state, game.actions.play!, card, counterPrice(ctx, game, state, card, sk));
+  const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, sk));
   const plan = planCost(ctx, game, state, player, price, card);
   const alt = counterAlt(ctx, game, state, card, player);
   const ops = reading.ops;
-  if (!ops) return { paid: plan.ok, alt, why: plan.ok ? [] : plan.why };
-  if (alt?.pay === "program") programAltBesideAction();
-  const paid = plan.ok && counterActionFinishes(ctx, game, state, player, card, sk, ops, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, ["energy"]));
-  const altOk = !!alt && counterActionFinishes(ctx, game, state, player, card, sk, ops, (s) => payAltCost(ctx, game, s, [], player, alt));
+  if (alt?.pay === "program" && (ops || price.markersOff.length || price.pooled.some(p => p.n > 0))) programAltBesideAction();
+  const paid = plan.ok && (!ops || counterActionFinishes(ctx, game, state, player, card, sk, ops, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, counterPaymentAction(game).cost)));
+  const altOk = !!alt && counterActionFinishes(ctx, game, state, player, card, sk, ops ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], player, card, sk, alt));
   return { paid, alt: altOk ? alt : null, why: paid ? [] : plan.ok ? [{ kind: "other", detail: "its skill cost cannot be paid in full" }] : plan.why };
+}
+
+/** Alternative payment replaces energy, not supplementary keyword resources. */
+function chargeCounterAlternative(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, card: string, sk: Skill, alt: VmAltCost): void {
+  if (alt.pay === "program") return;
+  payAltCost(ctx, game, state, ev, player, alt);
+  const bound = { ...counterPrice(ctx, game, state, card, sk), energy: { total: 0, orbs: {}, either: [] } };
+  const price = priceFor(ctx, game, state, counterPaymentAction(game), card, bound);
+  const plan = planCost(ctx, game, state, player, price, card);
+  if (!plan.ok) throw new IllegalAction("the Counter's supplementary price cannot be paid");
+  chargeCost(ctx, game, state, ev, player, plan.payment, card, counterPaymentAction(game).cost);
 }
 
 /** Run the action half of a [Counter]'s price to the end on a copy of the board, after `charge` has paid the energy half there. */
@@ -1280,6 +1291,12 @@ function mergeOrbs(a: Partial<Record<string, number>>, b: Partial<Record<string,
 }
 
 /** A [Counter]'s price: the card's own play price plus whatever orbs are printed in front of the skill line itself (5-3, legacy `playCost(id) + orbTotals(id, sk)`). */
+/** Counter pays native supplementary resources as well as its energy price. */
+function counterPaymentAction(game: GameDefinition) {
+  const native = (game.actions.activate?.cost ?? []).filter(name => name === "burst" || name === "spiritBoost");
+  return { ...game.actions.play!, cost: [...new Set([...(game.actions.play?.cost ?? []), ...native])] };
+}
+
 function counterPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, sk: Skill): BoundAmounts {
   const play = cardPrice(ctx, game, state, card);
   // 20-21: the line's own orbs through their reduction layer — "reduce the
@@ -1287,7 +1304,9 @@ function counterPrice(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // orbs as it reaches an [Activate]'s (`skillOrbs`, #148; #439 for this
   // window), the legacy `orbTotals` every counter price is read through.
   const own = skillOrbs(ctx, game, state, card, sk);
-  return { energy: { total: play.total + own.total, orbs: mergeOrbs(play.orbs, own.orbs), either: own.either }, markers: 0, unreadable: null };
+  const payment = requireSkillPayment(skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price);
+  const supplementary = supplementaryPaymentAmounts(ctx, game, state, card, payment);
+  return { ...supplementary, energy: { total: Math.max(play.total, Object.values(play.orbs).reduce((n, count) => n + (count ?? 0), 0)) + own.total, orbs: mergeOrbs(play.orbs, own.orbs), either: own.either }, markers: 0, unreadable: null };
 }
 
 /** The base printed type, Z- stripped — the same reading `vm/play.ts`'s `PLAY_ZONES` and `vm/filters.ts` make of the `type` attribute. */
@@ -1358,26 +1377,26 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // An action alternative (`pay: "program"`) is not paid here: it runs as a
   // price program in front of the effect, below.
   if (alt) {
-    if (actionPrice && !counterActionFinishes(ctx, game, state, action.player, card, sk, actionPrice, (s) => payAltCost(ctx, game, s, [], action.player, alt))) {
+    if (!counterActionFinishes(ctx, game, state, action.player, card, sk, actionPrice ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], action.player, card, sk, alt))) {
       throw new IllegalAction("can't pay the counter's cost: its skill cost cannot be paid in full");
     }
-    if (alt.pay !== "program") payAltCost(ctx, game, state, ev, action.player, alt);
+    if (alt.pay !== "program") chargeCounterAlternative(ctx, game, state, ev, action.player, card, sk, alt);
   } else {
     const combined = counterPrice(ctx, game, state, card, sk);
-    const price = priceFor(ctx, game, state, game.actions.play!, card, combined);
+    const price = priceFor(ctx, game, state, counterPaymentAction(game), card, combined);
     const plan = planCost(ctx, game, state, action.player, price, card, action.pay);
     if (!plan.ok) throw new IllegalAction(`can't pay the counter's cost: ${plan.why[0]?.kind}`);
     if (action.pay === undefined && plan.asks && plan.options.length > 1) {
       const describe = `activate ${nameOf(ctx, state, card)}'s counter`;
-      state.prompt = { kind: "payCost", player: action.player, action, options: plan.options, describe };
+      state.prompt = { kind: "payCost", player: action.player, action: { ...action, skill: sk.index }, options: plan.options, ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe };
       return "asked";
     }
     // 5-8-2: the energy chosen must leave the whole action price payable;
     // proven on a copy, so a refusal changes nothing.
-    if (actionPrice && !counterActionFinishes(ctx, game, state, action.player, card, sk, actionPrice, (s) => chargeCost(ctx, game, s, [], action.player, plan.payment, card, ["energy"]))) {
+    if (actionPrice && !counterActionFinishes(ctx, game, state, action.player, card, sk, actionPrice, (s) => chargeCost(ctx, game, s, [], action.player, plan.payment, card, counterPaymentAction(game).cost))) {
       throw new IllegalAction("can't pay the counter's cost: its skill cost cannot be paid in full");
     }
-    chargeCost(ctx, game, state, ev, action.player, plan.payment, card, ["energy"]);
+    chargeCost(ctx, game, state, ev, action.player, plan.payment, card, counterPaymentAction(game).cost);
     spendSkillCostUses(ctx, game, state, ev, card, sk);
   }
   // #552: the price is settled (the 3-8-2 question above is behind us), so

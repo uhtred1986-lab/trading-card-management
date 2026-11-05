@@ -307,6 +307,15 @@ export function burstNegated(ctx: EngineContext, game: GameDefinition, state: Vm
   return keywordSkillsNegated(state, card) || standingKeywordsNegated(ctx, game, state, card);
 }
 
+/** Supplementary fixed resources shared by Activate/Auto and Counter prices. */
+export function supplementaryPaymentAmounts(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, payment: import("./script").SkillPayment): Pick<BoundAmounts, "pooled" | "markersFrom"> {
+  const suppressed = !!(payment.burst || payment.spiritBoost) && burstNegated(ctx, game, state, card);
+  return {
+    pooled: { [ACTIVATION_ZONES.burst]: suppressed ? 0 : (payment.burst ?? 0) },
+    markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: suppressed ? 0 : -(payment.spiritBoost ?? 0), by: "Spirit Boost", ...(payment.spiritBoostPayer ? { filter: payment.spiritBoostPayer } : {}) } },
+  };
+}
+
 /**
  * The amounts this line binds to the prices the action names (#147).
  *
@@ -330,6 +339,7 @@ export function burstNegated(ctx: EngineContext, game: GameDefinition, state: Vm
 export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, withCardPrice = true, onto?: string): BoundAmounts {
   const sk = line.skill;
   const payment = requireSkillPayment(line.script?.price);
+  const supplementary = supplementaryPaymentAmounts(ctx, game, state, line.card, payment);
   const own = skillOrbs(ctx, game, state, line.card, sk, onto, payment);
   const orbs: Partial<Record<Color, number>> = { ...own.orbs };
   let total = own.total;
@@ -346,10 +356,10 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     // 22-46-3: a line used from the Z-Deck pays its card's Z-Energy cost, read
     // off the card as a Z-card played from there pays it (16-2) — [Z-Awaken]
     // (#155); bound to 0 everywhere else, so no line in play pays it again.
-    pooled: { [ACTIVATION_ZONES.burst]: payment.burst && !burstNegated(ctx, game, state, line.card) ? payment.burst : 0, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
+    pooled: { ...supplementary.pooled, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
     // 22-43: [Spirit Boost X]'s markers come off the Unison Card, the place
     // `DEFINE COST spiritBoost` names; bound to 0 on a line with no tag.
-    markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(payment.spiritBoost ?? 0), by: "Spirit Boost" } },
+    markersFrom: supplementary.markersFrom,
     payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : "the stored skill payment is unreadable",
   };
@@ -595,7 +605,7 @@ export function activationRefusals(
   // 22-43-2: the same for [Spirit Boost X] — a Unison Card with X markers on it
   // — asked here for the same reason, in the legacy words (#157). The price is
   // `DEFINE COST spiritBoost`'s.
-  if (payment.spiritBoost != null) {
+  if (payment.spiritBoost != null && !burstNegated(ctx, game, state, line.card)) {
     const unison = zone(state, player, ACTIVATION_ZONES.spiritBoost)[0];
     if (!unison || (state.cards[unison]?.markers ?? 0) < payment.spiritBoost) before.push({ kind: "other", detail: "[Spirit Boost] needs the markers" });
   }
