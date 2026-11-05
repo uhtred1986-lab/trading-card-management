@@ -53,17 +53,17 @@ function find<T extends Op["op"]>(node: unknown, kind: T, out: Extract<Op, { op:
 
 // ── [Counter: Play] about "the Battle Card played" ───────────────────────────
 {
-  assert.deepEqual(compile("[Counter: Play] The Battle Card played is played in Rest Mode.").ops, [{ op: "resolvingPlay", mode: "rest" }], "BT1-110");
+  assert.deepEqual(compile("[Counter: Play] The Battle Card played is played in Rest Mode.").ops, [{ op: "resolvingPlay", cardType: "BATTLE", mode: "rest" }], "BT1-110");
   const bt1107 = compile("[Counter: Play] If your Leader Card is ≪Frieza's Army≫, the Battle Card played has its skill negated for the duration of the turn.");
   assert.deepEqual(bt1107.unsupported, []);
-  assert.deepEqual(find(bt1107.ops, "resolvingPlay"), [{ op: "resolvingPlay", negated: true }], "BT1-107");
+  assert.deepEqual(find(bt1107.ops, "resolvingPlay"), [{ op: "resolvingPlay", cardType: "BATTLE", negated: true }], "BT1-107");
   const db2128 = compile("[Counter: Play] If your Leader Card has ≪Universe≫ in its special trait: If the Battle Card being played has an energy cost of 4 or less, it's played in Rest Mode with its skills negated for the turn.");
   assert.deepEqual(find(db2128.ops, "resolvingPlay"), [{ op: "resolvingPlay", mode: "rest", negated: true }], "DB2-128: both, in one op");
   const bt10121 = compile("[Counter: Play] If you have a yellow Unison Card in play: If the Battle Card being played has an energy cost of 4 or less, it has its skills negated for the turn and is played in Rest Mode.");
   assert.deepEqual(find(bt10121.ops, "resolvingPlay"), [{ op: "resolvingPlay", mode: "rest", negated: true }], "BT10-121: said in two halves, read as one");
   assert.deepEqual(bt10121.unsupported, []);
   const xd110 = compile("[Counter: Play] The Battle Card your opponent is playing is played in Rest Mode with its skills negated for the duration of the turn, then draw 1 card.");
-  assert.deepEqual(find(xd110.ops, "resolvingPlay"), [{ op: "resolvingPlay", mode: "rest", negated: true }], "XD1-10");
+  assert.deepEqual(find(xd110.ops, "resolvingPlay"), [{ op: "resolvingPlay", cardType: "BATTLE", mode: "rest", negated: true }], "XD1-10");
 }
 
 // …in a game: BT1-110 answers a play, and the card arrives rested; BT1-107 negates what it says.

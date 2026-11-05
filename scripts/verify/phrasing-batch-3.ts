@@ -110,7 +110,7 @@ const BT15_125 = "[Permanent] If it's your opponent's turn and they have a skill
 const BT14_154 = "[Counter: Play] Play this card, then choose up to 1 of your opponent's Battle Cards in Rest Mode, ignoring [Barrier], and place it under this card. The played Battle Card has its skills negated for the turn.";
 {
   const ops = record(BT14_154, "BT14-154").ops;
-  assert.deepEqual(ops[ops.length - 1], { op: "resolvingPlay", negated: true }, "A4: the card being played arrives with its skills negated");
+  assert.deepEqual(ops[ops.length - 1], { op: "resolvingPlay", cardType: "BATTLE", negated: true }, "A4: the card being played arrives with its skills negated");
   assert.ok(!ops.some((o) => o.op === "negateSkills"), "A4: …and this card, which the skill played, is not negated");
   records++;
 }

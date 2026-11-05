@@ -113,4 +113,8 @@ for(const [id,skill] of [
  ["TB3-033", "[Counter: Attack] Negate the attack, and if your Leader Card is a ≪Bardock's Crew≫ card, you may choose 1 blue card in your hand and place it in your Drop Area. If you do, add this card to your hand."]
 ]){const row=skillRecords(card(id,{skill}))[0];assert.doesNotMatch(JSON.stringify(row.ops),/"kind":"moved"|"completedAs"/);
  if(id==="TB3-033")for(const owner of ["p1","p2"] as const){const state=fresh(owner),f=frame(state,owner,[]);f.ops=copy(row.ops as Op[]);assert.equal(stepScript(vmHost(ctx,game,state,[]),f),"done");assert.equal(f.movementResults,undefined);cases++;}cases++;}
+// P-129 has three actions, so a one-card witness alone cannot certify its entire price-like offer.
+const composite=card("P-129",{colors:["Yellow"],energyCost:1,power:4000,characters:["Zamasu"],traits:["God"],skill:"[Auto] When you play this card, draw 1 card.<br>[Auto] When your opponent attacks with a card, you may choose 1 yellow card in your hand and place it in your Drop Area, choose 1 of your yellow energy and switch it to Rest Mode, and place this card in its owner's Drop Area. If you do, negate the attack."});
+const compositeRecord=skillRecords(composite).find(row=>row.skillIndex===10)!;
+for(const status of ["draft","confirmed","corrected"] as const){const row={...compositeRecord,id:426,status,source:"compiler"} as unknown as RuleRow;assert.ok(runtimeSupportOfRow(row).unsupported.some(reason=>reason.includes("movement completion")));assert.ok(rulesFromRows([row],{[composite.id]:composite})[composite.id].bySkill[10].unsupported.length);cases++;}
 console.log(`movement-result-5: ${cases} cases passed`);
