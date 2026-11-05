@@ -163,6 +163,8 @@ const DISCARDED_BY_UNION = /^when this card(?: in your hand)? is (?:discarded fr
 const DISCARDED_BY_FUSION = /^when this card(?: in your hand)? is (?:discarded from (?:your|a) hand|placed from (?:your|a) hand (?:in|into) (?:your|its owner'?s) drop(?: area)?|placed (?:in|into) (?:your|its owner'?s) drop(?: area)? from (?:your|a) hand) (?:by an? |by |as a result of )\[union-fusion\](?: skill)?(?:,|$)/;
 /** Phrasing batch 6: "When one of your ≪Namekian≫ cards activates [Union Absorb]" (BT17-089): the card is the subject. */
 const YOUR_CARD_ABSORBS = /^when (?:one of your|your) ((?!opponent)[^,]{1,120}?) activates? (?:an? |the )?\[union[- ]absorb\](?: skill)?(?:,|$)/;
+/** R472: the named procedure is a successful other-card arrival, not activation. */
+export const YOUR_OTHER_BATTLE_DARK_PLAYED = /^when your battle card other than this card is played by a \[dark over realm\] skill(?:,|$)/i;
 /** Phrasing batch 6: "When {X} is played from your hand" (TB2-045), "When a <Son Goku: GT> card is played from your Drop" (BT26-001b). */
 const YOUR_CARD_PLAYED_FROM = /^when (?:an? |1 |one of your |your )?((?!this card\b|it\b|your opponent|an? opponent)[^,]{1,120}?) (?:is|are) played from your (hand|drop)(?: area)?(?:,|$)/;
 /**
@@ -715,6 +717,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     }
     case "yourEnergyToDeck":
       return /^when your energy is placed (?:at|on) the bottom of (?:its owner'?s|your) deck(?:,|$)/.test(head.toLowerCase());
+    case "yourOtherBattlePlayedUsingDarkOverRealm":
+      return YOUR_OTHER_BATTLE_DARK_PLAYED.test(head);
     case "yourCardPlayedFromHand":
     case "yourCardPlayedFromDrop": {
       const m = YOUR_CARD_PLAYED_FROM.exec(head.toLowerCase());

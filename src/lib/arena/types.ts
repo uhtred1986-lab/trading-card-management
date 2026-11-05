@@ -1144,6 +1144,8 @@ export type Trigger =
   | "opponentCardPlayedBySkill"
   /** Phrasing batch 6: "When your energy is placed at the bottom of its owner's deck" (BT30-030). */
   | "yourEnergyToDeck"
+  /** R472: another own Battle Card successfully arrives using Dark Over Realm. */
+  | "yourOtherBattlePlayedUsingDarkOverRealm"
   /** Phrasing batch 6: "When {Destined Conclusion Piccolo Jr.} is played from your hand" (TB2-045). */
   | "yourCardPlayedFromHand"
   /** Phrasing batch 6: "When a <Son Goku: GT> card is played from your Drop" (BT26-001b). */

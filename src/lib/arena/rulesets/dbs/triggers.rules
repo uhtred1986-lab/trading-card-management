@@ -90,6 +90,12 @@ DEFINE TRIGGER playedUsingDarkOverRealm
   BIND "self"
   text: "when this card is played using [Dark Over Realm]"
 
+-- R472: Putine watches the controller's other Battle Card's successful arrival.
+DEFINE TRIGGER yourOtherBattlePlayedUsingDarkOverRealm
+  ON moved(asPlay: true, to: battle, using: "Dark Over Realm", watcher: controller)
+  BIND "subject"
+  text: "when another of your Battle Cards is played using [Dark Over Realm]"
+
 -- §5-5 — when you play a card
 DEFINE TRIGGER youPlayed
   ON moved(asPlay: true, to: [battle, unison], watcher: controller)

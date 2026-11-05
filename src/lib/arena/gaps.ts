@@ -139,6 +139,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   battleCardReturnedToHand: "when a card in a Battle Area is returned to its owner's hand",
   opponentCardPlayedBySkill: "when one of your opponent's cards is played by a skill",
   yourEnergyToDeck: "when your energy is placed in its owner's deck",
+  yourOtherBattlePlayedUsingDarkOverRealm: "when another of your Battle Cards is played using [Dark Over Realm]",
   yourCardPlayedFromHand: "when one of your cards is played from your hand",
   yourCardPlayedFromDrop: "when one of your cards is played from your Drop",
   opponentCardToZEnergy: "when one of your opponent's cards is added to their Z-Energy",

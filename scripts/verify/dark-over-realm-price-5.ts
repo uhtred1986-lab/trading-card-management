@@ -130,7 +130,7 @@ const defs:Record<string,CardDef>={
 for(const c of actual)defs[c.id]=card(c.id,{type:c.type as CardDef["type"],name:c.name,characters:c.characters,traits:c.traits,colors:c.colors as CardDef["colors"],energyCost:Number(c.cost),power:c.power,skill:c.skill});
 const rows=Object.values(defs).flatMap(skillRecords).map(r=>({...r,source:"compiler",status:"confirmed"}) as RuleRow);
 for(const id of ["BT27-100","BT27-102"]){const r=rows.find(r=>r.cardId===id&&r.kind==="keyword")!;assert.equal((r.cost as {readable:boolean}).readable,true);}
-assert.ok(rows.find(r=>r.cardId==="BT27-102"&&r.skillIndex===10)!.unread!.length,"Putine sibling remains unread");
+assert.deepEqual(rows.find(r=>r.cardId==="BT27-102"&&r.skillIndex===10)!.unread,[],"R472 supports Putine’s separate arrival watcher");
 const ctx:EngineContext={defs,scripts:rulesFromRows(rows,defs)};
 const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
 const clone=<T,>(x:T):T=>JSON.parse(JSON.stringify(x));

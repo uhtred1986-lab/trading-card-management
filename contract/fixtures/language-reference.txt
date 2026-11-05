@@ -5259,6 +5259,10 @@
       "words": "when this card is played using [Dark Over Realm]"
     },
     {
+      "name": "yourOtherBattlePlayedUsingDarkOverRealm",
+      "words": "when another of your Battle Cards is played using [Dark Over Realm]"
+    },
+    {
       "name": "youPlayed",
       "words": "when you play a card"
     },

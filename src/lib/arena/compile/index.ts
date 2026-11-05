@@ -9,7 +9,7 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { readsMomentsOneByOne, triggersOf, unreadMoments } from "../gaps";
 import { effectHead, keywordOf, maskNames, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, yourCardPlayedUsingArrival, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, TURN_END_WHERE_PLAYED, type MomentCause } from "../text/triggers";
+import { autoTriggerMatches, YOUR_OTHER_BATTLE_DARK_PLAYED, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, yourCardPlayedUsingArrival, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, TURN_END_WHERE_PLAYED, type MomentCause } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, Selector } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
@@ -277,7 +277,7 @@ export function momentClauseOf(skill: Pick<Skill, "effect">): string | null {
 }
 
 /** Audit triggers 3: the moments whose subject is a card just played into a Battle or Unison Area (5-5). */
-const PLAY_MOMENTS = new Set<string>(["youPlayed", "eitherCardPlayed", "opponentPlayed", "opponentPlayedBySkill", "opponentCardPlayedBySkill", "yourCardPlayedFromHand",
+const PLAY_MOMENTS = new Set<string>(["yourOtherBattlePlayedUsingDarkOverRealm", "youPlayed", "eitherCardPlayed", "opponentPlayed", "opponentPlayedBySkill", "opponentCardPlayedBySkill", "yourCardPlayedFromHand",
   "yourCardPlayedFromDrop", "yourCardPlayedFromWarp", "yourCardPlayedFromEnergy", "yourCardPlayedFromLife", "youPlayedByThisCard"]);
 
 /** Audit triggers 3: a `play` of the cards a choice of the moment's subject bound (`special: "subject"`). */
@@ -1485,6 +1485,13 @@ function compileSkillText(skill: Skill): Script {
         const how: Cond = { kind: "playedUsing", sel: { special: "subject" }, what: byUnion.what };
         triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, how] } : how;
       }
+    }
+    // R472: "other than this card" qualifies the arrived subject, not the
+    // watcher. The moved trigger supplies controller and exact Dark procedure.
+    if (skill.kind === "auto" && YOUR_OTHER_BATTLE_DARK_PLAYED.test(trigger.trim())) {
+      const otherBattle: Cond = { kind: "count", sel: { special: "subject", notSelf: "card", filter: { ...emptyFilter(), type: "BATTLE" } }, atLeast: 1 };
+      triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, otherBattle] } : otherBattle;
+      c.lastTarget = { sel: { special: "subject" } };
     }
     // Audit conditions 3: "When you combo with 1 of your cards **during your turn**" (BT6-080 both sides): a watched combo
     // (`youCombo`) only on your own turn — a defender combos too. ("When you combo with this card during your turn" is the
