@@ -1,3 +1,4 @@
+import { captureEnergyEntryMode } from "./energy-entry-mode";
 import { queueFieldCleanup, takeFieldCleanup } from "./field-rules";
 import { queueFieldCost } from "./field-costs";
 import { captureCounterArrivalBatch, counterArrivalBatchFrameProblem, currentCounterArrival } from "./counter-arrival-batch";
@@ -81,7 +82,7 @@ import { RulesetBroken, NotYet } from "./errors";
 import { savedXKey, type ScriptFrame } from "./script";
 import { answered, endGame, gameEndForbidden } from "./flow";
 import { emit, fire, log } from "./events";
-import { fireHook, queryHookStatics } from "./hooks";
+import { queryHookStatics } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard, removedInsteadOfUnder } from "./zones";
 import { wordsFromRuleset } from "../board-words";
@@ -252,7 +253,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
           state.resolving?.card === id && (result.completed || result.toEpoch !== result.fromEpoch)) state.resolving.replaced = true;
       };
-      moveTo(ctx, game, state, ev, id, to, owner, { onResult, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      moveTo(ctx, game, state, ev, id, to, owner, { onResult, requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -1021,7 +1022,7 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
+  opts: { requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
@@ -1056,7 +1057,9 @@ function moveTo(
   // `verify/compiler.ts`'s STEALER case).
   const held = (zone: string | null) => !!zone && (inPlayZones(game).includes(zone) || game.zones[zone]?.host === true);
   const carry = !!opts.carry || (held(from) && held(to));
-  const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
+  // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
+  const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode).mode : route.mode;
+  const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     report(false);
@@ -1097,17 +1100,8 @@ function moveTo(
     ...(returnInfo && (to === "hand" || from === "unison") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
     args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   queueFieldCleanup(ctx, game, state, id, from, fromOwner);
-  // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
-  // this is the one script-level mover every DO program's own `moveTo` op
-  // runs through (the charge action's own `DO { moveTo(..., to: energy) }`
-  // included), so wiring it here reaches "any source" the way the contract's
-  // own doc asks for, without a special case per action. `flow.ts`'s `moved()`
-  // is a *different* mover (native moves — KO, combo-to-drop, battle) and
-  // fires its own `onEnter`/`onLeave`/`afterSkill` (#155); neither wraps the
-  // other, so a card reaching an Energy Area through *that* path still would
-  // not answer here, which is the same edge the legacy site's own comment
-  // about a granted (not printed) [Energy-Exhaust] already names.
-  if (to === "energy") fireHook(ctx, game, state, id, "chargeLimit");
+  // Energy-Exhaust was captured before entry; a post-entry query could let the arrival count itself.
+
 }
 
 /**
