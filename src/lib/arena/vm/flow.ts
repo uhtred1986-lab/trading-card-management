@@ -1,3 +1,4 @@
+import { validCounterDropOrigin } from "./counter-drop";
 import { requireMarkerHistoryFrame, markerHistoryContract } from "./paid-markers";
 import { counterChoiceTail } from "./counter-continuation";
 import { requirePlayReplacement } from "./short-play-replacement";
@@ -1381,7 +1382,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireMarkerHistoryFrame(frame, sourceScript);
     requireCounterAdmission(frame, sourceScript);
     if (frame.skillKind === "counter" && frame.saveVarsAs === `costvars:${frame.card}:${frame.skillIndex}`) rebuildScope("rebuild this saved alternative Counter payment before activation");
-    if (frame.counterCost && frame.ops.length && !sourceScript?.price?.ops?.length && !frame.counterCost.alternative) rebuildScope("rebuild the saved alternative Counter source");
+    if (frame.counterCost && frame.ops.length && !sourceScript?.price?.ops?.length && !frame.counterCost.alternative && !validCounterDropOrigin(ctx, state, frame)) rebuildScope("rebuild the saved alternative Counter source");
     requireEnergyCouponFrame(ctx, state, frame);
     requireReplacementOrigin(frame, sourceScript);
     requireMovementResults(frame, sourceScript);

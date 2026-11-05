@@ -1,3 +1,4 @@
+import { rebuildScope } from "./skill-play-scope";
 import { bindPaidMarkers, markerHistoryContract } from "./paid-markers";
 import { energyCouponContract } from "./energy-coupon-saves";
 import { isExtraCardActivation, staleExtraSelfActivation } from "./extra-activation";
@@ -1008,6 +1009,8 @@ export interface TaxGate {
   guards: number;
   /** A [Counter]: failing sends the card from the hand to the Drop. */
   counter?: true;
+  /** R438: a Drop Counter has already removed this exact source as payment. */
+  counterDropPaidEpoch?: number;
 }
 
 /**
@@ -1031,6 +1034,14 @@ export function queueTaxGate(state: VmState, gate: Omit<TaxGate, "guards">, guar
 /** One look of the gate at the front of the queue (`vm/flow.ts`'s runner); the frame is already off the queue. */
 export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" {
   const gate = frame.taxGate!;
+  if (gate.counter && gate.from === "drop") {
+    if (!Number.isSafeInteger(gate.counterDropPaidEpoch) || gate.counterDropPaidEpoch! < 0) rebuildScope("rebuild the saved Drop Counter tax source");
+    if (!state.sides[gate.player].zones.removed.includes(gate.card) || (state.cards[gate.card]?.zoneEpoch ?? 0) !== gate.counterDropPaidEpoch) {
+      state.programs.splice(0, gate.guards);
+      log(ev, { type: "note", text: "[Counter] activation failed: the original paid Drop source left before its tax completed" });
+      return "done";
+    }
+  }
   const owed = activationTaxes(ctx, game, state, gate.player, gate.card, gate.skillKind, gate.from).filter((t) => !gate.paid.includes(t.key) && !gate.free.includes(t.key));
   if (!owed.length) return "done";
   if (unpaidActivationTax(ctx, game, state, gate.player, gate.card, owed)) {

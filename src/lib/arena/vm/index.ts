@@ -1,3 +1,4 @@
+import { requireCounterDropOccurrence } from "./counter-drop";
 /**
  * The rules engine, as far as it is built.
  *
@@ -481,6 +482,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       const pr = prev.prompt;
       if (pr.kind !== "payCost") throw new IllegalAction("no payment is being asked for");
       if (action.player !== pr.player) throw new IllegalAction("that payment belongs to another player");
+      if (pr.action.type === "counter" && pr.action.card) requireCounterDropOccurrence(state, pr.action.card, pr.dropOccurrences);
       if (pr.markerPayers !== undefined) requireMarkerPayers(ctx, game, state, pr.player, pr.markerPayers);
       if (pr.action.type === "activate" || pr.action.type === "counter") {
         const original = pr.action;

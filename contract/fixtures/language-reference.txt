@@ -2798,6 +2798,7 @@
             "unionLine",
             "evolveEnergyBases",
             "evolveFromZEnergy",
+            "counterFromDrop",
             "aegisAltDrop",
             "aegisAltOpponentHand",
             "attackUnnegatable",

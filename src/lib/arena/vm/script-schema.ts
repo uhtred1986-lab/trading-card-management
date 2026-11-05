@@ -1,3 +1,4 @@
+import { counterDropPermitProblem } from "./counter-drop-contract";
 import { ENERGY_ACTIVATIONS } from "./energy-coupons";
 import { potaraMaterialsProblem } from "./potara-materials";
 import { fusionMaterialsProblem } from "./fusion-materials";
@@ -353,7 +354,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "counterFromDrop", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -1193,6 +1194,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "unionEnergy") return `this card’s [Union] skill from hand may choose Battle Cards in your energy`;
       if (op.what === "unionFusionAreas") return `${op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards"}' [Union-Fusion] can choose its specified cards in your Battle Area or Drop, those going to their owner's Warp${forThe(op.until, r)}`;
       if (op.what === "evolveEnergyBases") return `${describeRef(op.target)}'s [Evolve] skill used from hand may choose its specified Battle Card from your energy; that energy-base evolution plays this card in Active Mode`;
+      if (op.what === "counterFromDrop") {
+        const choice = op.price?.ops?.find(item => item.op === "choose");
+        return `this card's [Counter] may be activated from your Drop by paying its energy cost and removing this card and 1 ${(choice?.op === "choose" ? choice.sel.filter?.colors ?? [] : []).join("/").toLowerCase()} card from your hand from the game`;
+      }
       if (op.what === "evolveFromZEnergy") return `${describeRef(op.target)}'s [Evolve] skill can also be activated from your Z-Energy; its base is still chosen in the Battle Area`;
       if (op.what === "aegisAltDrop") return `you can pay your [Aegis] skills by sending 1 ${(op.filter?.colors ?? []).join(" card and 1 ").toLowerCase()} card from your Drop to your Warp instead of discarding cards from your hand${forThe(op.until, r)}`;
       if (op.what === "aegisAltOpponentHand") return `${describeRef(op.target)}'s [Aegis] skill can be paid by sending 1 card from your opponent's hand to the bottom of their deck instead of discarding cards from your hand${forThe(op.until, r)}`;
@@ -2235,6 +2240,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
       if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
     }
+    if (o.op === "permit" && o.what === "counterFromDrop") { const bad = counterDropPermitProblem(o); if (bad) return `${step}: ${bad}`; }
     if (o.op === "permit" && o.what === "unionLine" && (typeof o.line !== "string" || !o.line || !isRecord(o.price))) return `${step}: a granted Union line needs its typed skill price; regenerate the grant`;
     if (o.op === "permit" && o.what === "unionLine") {
       if (!["Fusion", "Potara"].includes(String(o.unionVariant))) return `${step}: missing typed Union grant identity; regenerate rules and rebuild saved matches/exports`;

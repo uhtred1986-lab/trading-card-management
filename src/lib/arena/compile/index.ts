@@ -1,3 +1,4 @@
+import { counterDropPermit, COUNTER_DROP_COLORS } from "../vm/counter-drop-contract";
 import { compilePotaraMaterials } from "./potara-materials";
 import { isPotaraSkill, POTARA_REBUILD } from "../vm/potara-materials";
 import { isAbsorbSkill, ABSORB_REBUILD } from "../vm/absorb-procedure";
@@ -944,6 +945,10 @@ function compileSkillText(skill: Skill): Script {
   if (potaraSources) return { ops: potaraSources, unsupported: [] };
   const absorbUnder = c.permanent ? absorbMaterialUnderPermit(text) : null;
   if (absorbUnder) return { ops: [absorbUnder], unsupported: [] };
+  // R438: this entire sentence grants permission plus a mandatory price;
+  // splitting its conjunction would lose either the area or a removal.
+  const counterDrop = c.permanent ? /^if this card is in your drop(?: area)?,? you can activate it by paying its energy cost and removing it and 1 (red|blue|green|yellow) card in your hand from the game\.?$/i.exec(text.trim()) : null;
+  if (counterDrop) return { ops: [counterDropPermit(COUNTER_DROP_COLORS.find(color => color.toLowerCase() === counterDrop[1].toLowerCase())!)], unsupported: [] };
   const evolveZ = c.permanent ? evolveFromZEnergyPermit(text) : null;
   if (evolveZ) return { ops: [evolveZ], unsupported: [] };
   const evolveAreas = c.permanent ? evolveEnergyBasesPermit(text) : null;

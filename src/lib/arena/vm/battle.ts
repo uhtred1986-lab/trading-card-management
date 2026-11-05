@@ -1,3 +1,4 @@
+import { counterDropPermission, validCounterDropOrigin, counterDropOccurrences, requireCounterDropOccurrence, counterDropOccurrenceProblem } from "./counter-drop";
 import { staleExtraSelfActivation } from "./extra-activation";
 import { bindPaidMarkers, markerHistoryContract, type PaidMarkers } from "./paid-markers";
 import { counterEffectOps, paidCounterAdmission } from "./counter-admission";
@@ -721,7 +722,7 @@ export function counterAbilityAvailability(
 
   const window = openWindowOf(prompt.window);
   const rows: AbilityAvailability[] = [];
-  const cards = new Set([...(state.sides[player].zones.hand ?? []), ...prompt.candidates]);
+  const cards = new Set([...state.sides[player].zones.hand, ...state.sides[player].zones.drop, ...prompt.candidates]);
   for (const card of cards) {
     const counterSkills = skillsShowing(ctx, state, card).skills.filter((skill) => skill.kind.startsWith("counter:"));
     if (!counterSkills.length) continue;
@@ -743,7 +744,7 @@ export function counterAbilityAvailability(
           // Only a native ordinary orb price is a complete resource summary.
           // Alternative/action prices remain incomplete rather than inferred free.
           // A condition-only price (#716) charges nothing beyond the energy.
-          if (offer.cost || action.type !== "counter" || action.alt
+          if (offer.cost || action.type !== "counter" || action.alt || counterDropPermission(ctx, game, state, player, card)
             || counterPriceOps(skillsShowing(ctx, state, card).scripts.bySkill[skill.index])
             || (!costIsOnlyOrbs(skill.cost) && !skillsShowing(ctx, state, card).scripts.bySkill[skill.index]?.price?.condition)) return offer;
           const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, skill));
@@ -805,7 +806,7 @@ function counterCandidates(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (window === "attack" && !state.battle) return [];
   if (windowClosedBy(ctx, game, state, window)) return [];
   const out: CounterCandidate[] = [];
-  for (const card of state.sides[responder].zones.hand ?? []) {
+  for (const card of [...state.sides[responder].zones.hand, ...state.sides[responder].zones.drop.filter(id => counterDropPermission(ctx, game, state, responder, id))]) {
     const showing = skillsShowing(ctx, state, card);
     if (baseTypeOf(ctx, state, card) === "EXTRA" && staleExtraSelfActivation(showing.scripts)) continue;
     for (const sk of showing.skills) {
@@ -889,12 +890,16 @@ interface CounterRoutes {
  * typed gap.
  */
 function counterRoutes(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, sk: Skill): CounterRoutes {
+  const occurrenceProblem = state.prompt.kind === "counter" && state.prompt.player === player && state.prompt.candidates.includes(card) ? counterDropOccurrenceProblem(state, card, state.prompt.dropOccurrences) : null;
+  if (occurrenceProblem) return { paid: false, alt: null, why: [{ kind: "other", detail: occurrenceProblem }] };
+  if (!state.sides[player].zones.hand.includes(card) && !counterDropPermission(ctx, game, state, player, card)) return { paid: false, alt: null, why: [{ kind: "other", detail: "no Counter permission from this area" }] };
   const reading = readCounterPrice(ctx, game, state, player, card, sk);
   if (!reading.ok) return { paid: false, alt: null, why: [reading.why] };
   const price = priceFor(ctx, game, state, counterPaymentAction(game), card, counterPrice(ctx, game, state, card, sk));
   const plan = planCost(ctx, game, state, player, price, card);
-  const alt = counterAlt(ctx, game, state, card, player);
-  const ops = reading.ops;
+  const drop = counterDropPermission(ctx, game, state, player, card);
+  const alt = drop ? null : counterAlt(ctx, game, state, card, player);
+  const ops = drop ? [...drop.price.ops!, ...(reading.ops ?? [])] : reading.ops;
   if (alt?.pay === "program" && (ops || price.markersOff.length || price.pooled.some(p => p.n > 0))) programAltBesideAction();
   const paid = plan.ok && (!ops || counterActionFinishes(ctx, game, state, player, card, sk, ops, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, counterPaymentAction(game).cost)));
   const altOk = !!alt && counterActionFinishes(ctx, game, state, player, card, sk, alt.pay === "program" ? alt.ops ?? [] : ops ?? [], (s) => chargeCounterAlternative(ctx, game, s, [], player, card, sk, alt));
@@ -937,6 +942,8 @@ export interface CounterCost {
   skill: Skill;
   /** R461: alternative payment retains the original unpaid hand occurrence. */
   alternative?: { version: 1; sourceEpoch: number };
+  /** R438: original Drop occurrence, then its successful payment departure. */
+  dropOrigin?: { version: 1; sourceEpoch: number; permissionSkill: number; paidEpoch?: number };
   /** Its effect, run only once the whole price is paid. */
   effect: Op[];
   /** Paid at "without paying its energy cost" (5-3) — what `skillActivated` reports. */
@@ -951,9 +958,9 @@ export interface CounterCost {
  * Every answer is rechecked on an isolated board before anything moves; a
  * stale or dead-ending one is refused with nothing changed. A price that can
  * no longer be paid fails the activation (5-8-4): the energy stays spent, the
- * card goes to the Drop (22-10-7-1), and no skill, `skillActivated` moment or
- * effect follows. Once the price is paid in full, the card goes to the Drop
- * (22-10-7) and the skill activates.
+ * ordinary hand source goes to Drop (22-10-7-1), and no activation follows.
+ * A permitted Drop source instead remains where its original removal price
+ * placed it. Complete payment alone activates either route.
  */
 export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.counterCost!;
@@ -964,12 +971,27 @@ export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state:
       return "done";
     }
   }
+  if (cost.dropOrigin) {
+    const origin = cost.dropOrigin;
+    if (!validCounterDropOrigin(ctx, state, frame)) rebuildScope("rebuild the saved Drop Counter source");
+    const expected = origin.paidEpoch ?? origin.sourceEpoch;
+    const area = origin.paidEpoch === undefined ? "drop" : "removed";
+    if (!state.sides[frame.master].zones[area].includes(frame.card) || (state.cards[frame.card]?.zoneEpoch ?? 0) !== expected || (origin.paidEpoch === undefined && counterDropPermission(ctx, game, state, frame.master, frame.card)?.skillIndex !== origin.permissionSkill)) {
+      log(ev, { type: "note", text: "[Counter] activation failed: the original Drop permission source is unavailable" });
+      return "done";
+    }
+  }
   try {
     if (!(frame.awaiting === "replaceMove" && state.lastMode !== null) && !canFinishAutomaticPrice(ctx, game, state, frame)) {
       if (frame.awaiting) throw new IllegalAction("that [Counter] skill cost payment is no longer available");
       return failCounter(ctx, game, state, ev, frame);
     }
-    const result = stepScript(automaticPriceHost(ctx, game, state, ev), frame);
+    const host = automaticPriceHost(ctx, game, state, ev);
+    const result = stepScript(cost.dropOrigin ? { ...host, move: (id, to, owner, opts) => host.move(id, to, owner, { ...opts, onResult: result => {
+      opts?.onResult?.(result);
+      const origin = cost.dropOrigin!;
+      if (id === frame.card && result.completed && result.from === "drop" && result.to === "removed" && result.fromEpoch === origin.sourceEpoch && origin.paidEpoch === undefined) origin.paidEpoch = result.toEpoch;
+    } }) } : host, frame);
     if (result === "wait") {
       const prompt = state.prompt;
       if (prompt.kind === "chooseCards") {
@@ -987,24 +1009,25 @@ export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state:
   }
   // #677: the printed price is paid; the rule's prices come next (22-30-3's
   // "then, if there is an additional skill cost, … pay it"), with the card
-  // still in the hand, and this frame — nothing left to pay — activates it
-  // once the gate lets it through.
+  // in its declared route’s paid location (hand or Removed). This frame
+  // activates it only once the gate lets it through.
+  if (cost.dropOrigin && cost.dropOrigin.paidEpoch === undefined) rebuildScope("rebuild the completed Drop Counter source payment");
   if (cost.taxGate) {
     const gate = cost.taxGate;
     delete cost.taxGate;
     state.programs.unshift({ ...frame, ops: [], ip: 0 });
-    queueTaxGate(state, gate, 1, true);
+    queueTaxGate(state, { ...gate, ...(cost.dropOrigin ? { counterDropPaidEpoch: cost.dropOrigin.paidEpoch } : {}) }, 1, true);
     return "done";
   }
   // #550 (20-5-3): what the price chose — its names and, for a `bindX`
   // choice, X — is the effect's, exactly as `vm/activate.ts` hands an
   // [Activate]'s price on through `saveVars`/`saveX`.
-  activateCounterSkill(ctx, game, state, ev, frame.master, frame.card, cost.skill, cost.effect, cost.free, cost.afterSkillKeywords, frame.vars, frame.x, frame.paidMarkers);
+  activateCounterSkill(ctx, game, state, ev, frame.master, frame.card, cost.skill, cost.effect, cost.free, cost.afterSkillKeywords, frame.vars, frame.x, frame.paidMarkers, cost.dropOrigin);
   return "done";
 }
 
 function failCounter(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" {
-  if (state.sides[frame.master].zones.hand?.includes(frame.card)) moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true });
+  if (!frame.counterCost?.dropOrigin && state.sides[frame.master].zones.hand?.includes(frame.card)) moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true });
   log(ev, { type: "note", text: "[Counter] activation failed: its skill cost could not be paid in full" });
   return "done";
 }
@@ -1020,12 +1043,13 @@ function futureCounterProblem(state: VmState, sk: Skill, ops: Op[]): string | nu
 
 /**
  * 22-10-7 then 9-7-3-2: the [Counter] is activated — written down by the
- * battle, the card placed in the Drop, the `skillActivated` moment, the line
+ * battle, the hand source placed in Drop (a paid Drop source stays Removed),
+ * the `skillActivated` moment, the line
  * announced and its effect queued. Reached once its whole price is paid.
  */
 function activateCounterSkill(
   ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, card: string, sk: Skill, program: Op[], free: boolean,
-  afterSkillKeywords: ("Heroic" | "Villainous")[], vars: ScriptFrame["vars"] = {}, x?: number, paidMarkers?: PaidMarkers,
+  afterSkillKeywords: ("Heroic" | "Villainous")[], vars: ScriptFrame["vars"] = {}, x?: number, paidMarkers?: PaidMarkers, dropOrigin?: CounterCost["dropOrigin"],
 ): void {
   paidMarkers = bindPaidMarkers(paidMarkers, card, sk.index, { fixed: sk.spiritBoost, x: null });
   const admission = paidCounterAdmission(skillsShowing(ctx, state, card).scripts.bySkill[sk.index], program);
@@ -1036,11 +1060,11 @@ function activateCounterSkill(
   if (b) (b.counters ??= []).push({ card, by: player, after: state.sides[player].zones.combo?.length ?? 0 });
   const afterSkill = afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {};
   spendUse(state, player, card, sk);
-  moved(ctx, game, state, ev, card, "drop", { owner: player, reveal: true });
+  if (!dropOrigin) moved(ctx, game, state, ev, card, "drop", { owner: player, reveal: true });
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
   // Audit triggers 1: which [Counter] it is ("[Counter: Play]", "[Counter: Attack]"), for the moments that name one (EX13-19).
-  fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA", cardActivation: baseTypeOf(ctx, state, card) === "EXTRA" } });
+  fire(ctx, game, state, { event: "skillActivated", card, controller: player, args: { kind: "counter", window: sk.kind.replace(/^counter:/, ""), from: dropOrigin ? "drop" : "hand", paid: !free, extra: baseTypeOf(ctx, state, card) === "EXTRA", cardActivation: baseTypeOf(ctx, state, card) === "EXTRA" } });
   log(ev, { type: "skill", card, skill: sk.index, master: player, text: sk.raw, inBattle: !!b });
   // 9-7-2, 22-10-4 (#552): the activation is a counter motion, queued even
   // with no effect to run, so the opponent's [Counter: Counter] window
@@ -1083,7 +1107,7 @@ export function openCounterCounterWindow(ctx: EngineContext, game: GameDefinitio
   const candidates = counterCandidates(ctx, game, state, responder, "counter");
   if (!candidates.length) return false;
   motion.asking = true;
-  state.prompt = { kind: "counter", player: responder, window: "counter", candidates: candidates.map((c) => c.card) };
+  state.prompt = { kind: "counter", player: responder, window: "counter", candidates: candidates.map((c) => c.card), ...counterDropOccurrences(state, candidates.map(c=>c.card)) };
   return true;
 }
 
@@ -1161,7 +1185,7 @@ function openCounterWindow(ctx: EngineContext, game: GameDefinition, state: VmSt
     (b.emptyResponses ??= []).push("counter");
     return;
   }
-  state.prompt = { kind: "counter", player: responder, window: "attack", candidates: candidates.map((c) => c.card) };
+  state.prompt = { kind: "counter", player: responder, window: "attack", candidates: candidates.map((c) => c.card), ...counterDropOccurrences(state, candidates.map(c=>c.card)) };
   return "wait";
 }
 
@@ -1211,7 +1235,7 @@ export function openPlayCounterWindow(ctx: EngineContext, game: GameDefinition, 
   }
   state.programs.shift();
   state.resolving.frame = frame;
-  state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card) };
+  state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card), ...counterDropOccurrences(state, candidates.map(c=>c.card)) };
   return true;
 }
 
@@ -1240,7 +1264,7 @@ export function openKeywordPlayWindow(ctx: EngineContext, game: GameDefinition, 
   delete landing.counterWindow;
   ops[at] = landing;
   state.resolving.frame = { ...frame, ops, ip: at };
-  state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card) };
+  state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card), ...counterDropOccurrences(state, candidates.map(c=>c.card)) };
   return true;
 }
 
@@ -1262,7 +1286,7 @@ export function openLandedPlayWindow(ctx: EngineContext, game: GameDefinition, s
     return false;
   }
   state.resolving.frame = { ...frame };
-  state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card) };
+  state.prompt = { kind: "counter", player: responder, window: "play", candidates: candidates.map((c) => c.card), ...counterDropOccurrences(state, candidates.map(c=>c.card)) };
   return true;
 }
 
@@ -1285,7 +1309,7 @@ export function openSkillPlayWindow(ctx: EngineContext, game: GameDefinition, st
   scope.phase = boundary;
   scope.window = { programs: [frame, ...state.programs], resolving: previous };
   state.programs = [];
-  state.prompt = { kind: "counter", player: other(scope.master), window: counterMotion ? "counter" : "play", candidates: [...new Set(candidates.map(c => c.card))] };
+  state.prompt = { kind: "counter", player: other(scope.master), window: counterMotion ? "counter" : "play", candidates: [...new Set(candidates.map(c => c.card))], ...counterDropOccurrences(state, candidates.map(c=>c.card)) };
   return true;
 }
 
@@ -1344,9 +1368,12 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     delete askingMotion(state)?.counterMotion?.asking;
     return "done";
   }
-  // 22-10-5: a [Counter] is activated only from the hand — a frozen candidate
-  // that has since left it (a reload of a stale window) is refused.
-  if (!state.sides[action.player].zones.hand?.includes(action.card)) throw new IllegalAction("that card is no longer in your hand");
+  // 22-10-5: hand is the default; only the typed own-Drop permission
+  // widens it, and a frozen Drop candidate binds its original occurrence.
+  requireCounterDropOccurrence(state, action.card, pr.dropOccurrences);
+  const dropPermit = counterDropPermission(ctx, game, state, action.player, action.card);
+  if (!state.sides[action.player].zones.hand?.includes(action.card) && !dropPermit) throw new IllegalAction("that card has no Counter permission from its current area");
+  if (dropPermit && action.alt) throw new IllegalAction("the Drop permission requires paying its energy cost");
   const card = action.card;
   const window = openWindowOf(pr.window);
   const showing = skillsShowing(ctx, state, card);
@@ -1375,7 +1402,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // energy is still untouched.
   const reading = readCounterPrice(ctx, game, state, action.player, card, sk);
   if (!reading.ok) throw new IllegalAction(`can't pay the counter's cost: ${reading.why.kind}`);
-  const actionPrice = reading.ops;
+  const actionPrice = dropPermit ? [...dropPermit.price.ops!, ...(reading.ops ?? [])] : reading.ops;
   // 5-3: the printed alternative is paid *instead of* the card's energy cost
   // and the line's orbs — the legacy `payAltCost` on `action.alt` (#439). It
   // replaces the energy only: a printed action price is still owed (#716).
@@ -1401,7 +1428,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
     if (!plan.ok) throw new IllegalAction(`can't pay the counter's cost: ${plan.why[0]?.kind}`);
     if (action.pay === undefined && plan.asks && plan.options.length > 1) {
       const describe = `activate ${nameOf(ctx, state, card)}'s counter`;
-      state.prompt = { kind: "payCost", player: action.player, action: { ...action, skill: sk.index }, options: plan.options, ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe };
+      state.prompt = { kind: "payCost", player: action.player, action: { ...action, skill: sk.index }, ...(pr.dropOccurrences ? {dropOccurrences:structuredClone(pr.dropOccurrences)} : {}), options: plan.options, ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe };
       return "asked";
     }
     // 5-8-2: the energy chosen must leave the whole action price payable;
@@ -1425,7 +1452,7 @@ export function applyCounter(ctx: EngineContext, game: GameDefinition, state: Vm
   // was switched to Hidden Mode by this skill", BT28-121).
   const strictPrice = alt?.pay === "program" ? alt.ops ?? [] : actionPrice;
   if (strictPrice || taxGate) {
-    state.programs.unshift({ markerHistoryContract: markerHistoryContract(program, skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price), ...paidResources, ops: strictPrice ?? [], ip: 0, vars: paidResources?.vars ?? {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterCost: { skill: sk, effect: program, free: alt?.pay === "none", ...(alt?.pay === "program" ? { alternative: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0 } } : {}), afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
+    state.programs.unshift({ markerHistoryContract: markerHistoryContract(program, skillsShowing(ctx, state, card).scripts.bySkill[sk.index]?.price), ...paidResources, ops: strictPrice ?? [], ip: 0, vars: paidResources?.vars ?? {}, card, master: action.player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, skillKind: "counter", counterCost: { ...(dropPermit ? { dropOrigin: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0, permissionSkill: dropPermit.skillIndex } } : {}), skill: sk, effect: program, free: alt?.pay === "none", ...(alt?.pay === "program" ? { alternative: { version: 1, sourceEpoch: state.cards[card].zoneEpoch ?? 0 } } : {}), afterSkillKeywords, ...(taxGate ? { taxGate } : {}) } });
     return "done";
   }
   activateCounterSkill(ctx, game, state, ev, action.player, card, sk, program, alt?.pay === "none", afterSkillKeywords, paidResources?.vars, undefined, paidResources?.paidMarkers);
@@ -1671,7 +1698,7 @@ export function restoreNativePrompt(ctx: EngineContext, game: GameDefinition, st
     const responder = action.player;
     const window = windowNow(state);
     const candidates = counterCandidates(ctx, game, state, responder, window).map((c) => c.card);
-    return { kind: "counter", player: responder, window, candidates };
+    return { kind: "counter", player: responder, window, candidates, ...counterDropOccurrences(state, candidates) };
   }
   // An [Activate: Battle] is asked at the combo prompt and nowhere else in
   // the battle phase (#150), so an activation interrupted there is that one.
@@ -2021,7 +2048,7 @@ export function battleRejectedActions(ctx: EngineContext, game: GameDefinition, 
     // Every counter card in hand that is not on the menu: a candidate the
     // energy cannot cover, a counter for another moment, or one this engine
     // cannot read — the same gates `counterCandidates` and the menu apply.
-    for (const id of zone("hand")) {
+    for (const id of [...zone("hand"), ...zone("drop")]) {
       const why = counterWhy(ctx, game, state, p, id, pr.window, pr.candidates);
       if (why) push({ action: { type: "counter", player: p, card: id }, label: `Counter with ${nameOf(ctx, state, id)}`, why });
     }
