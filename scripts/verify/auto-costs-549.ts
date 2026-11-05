@@ -1395,8 +1395,19 @@ for (const [available, paid] of [[3, 1], [3, 2], [1, 1], [0, 0]] as const) {
     result = choose(s, paid === 1 ? [] : [life[1]]); events.push(...result.events); s = result.state;
   }
   assert.equal(s.sides.p1.zones.life.length, available - paid, "the paid count is the chosen one, not always the ceiling");
-  assert.equal(draws(events), 1, "the effect runs only after a complete bounded payment");
-  assert.equal(s.sides.p1.zones.hand.length, beforeHand + paid + 1);
+  // RM21-1-2-1, 21-2-1 and 21-2-2-1: paying the last Life ends the
+  // game interruptively. R436 clears the effect instead of drawing after loss.
+  if (available === paid) {
+    assert.equal(s.outcome?.kind, "win");
+    assert.equal(s.winner, "p2");
+    assert.equal(draws(events), 0, "no effect draws after terminal Life loss");
+    assert.equal(s.programs.length, 0);
+    assert.equal(s.pending.length, 0);
+    assert.equal(s.sides.p1.zones.hand.length, beforeHand + paid);
+  } else {
+    assert.equal(draws(events), 1, "the effect runs only after a complete bounded payment");
+    assert.equal(s.sides.p1.zones.hand.length, beforeHand + paid + 1);
+  }
 }
 console.log("  #820 bounded Auto Life payment: one/two, decline, one available and zero unavailable passed");
 
