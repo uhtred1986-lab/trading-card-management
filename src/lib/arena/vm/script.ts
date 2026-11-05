@@ -2949,7 +2949,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
           if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
           if (frame.overRealmLateTax) frame.overRealmLateTax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
-          if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] = h.zoneEpoch(id);
+          if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] ??= h.zoneEpoch(id);
           // Mechanism batch 2 (3-1-7): a card picked out of a secret area by a description is shown if it goes on to
           // another secret area; remembered here, while it is still where it was chosen from.
           // Phrasing batch 10 (owner's ruling of 27 Oct 2026): a pick out of the hand too — the hand is a secret area.
@@ -2967,6 +2967,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         };
         // Cards picked so far, while a multi-card choice is part-answered.
         const sofar = frame.awaiting === op.as ? (frame.vars[op.as] ?? []) : [];
+        if (frame.awakenPayment && sofar.some(id => !Number.isSafeInteger(frame.awakenPayment!.chosenEpochs[id]))) {
+          throw new IllegalAction("rebuild this saved Awaken choice with its original payer occurrences (R-470)");
+        }
 
         // 22-13-4-2: the characters a [Union-Fusion] line names, one card each
         // and all of one printed power, picked one card at a time among the
@@ -3155,6 +3158,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
           if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
           if (frame.overRealmLateTax) frame.overRealmLateTax.payers.push(...picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          // R-470: retain each Awaken payer while the remaining picks are pending.
+          if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] ??= h.zoneEpoch(id);
           if (done) {
             frame.awaiting = undefined;
             take(picked);
