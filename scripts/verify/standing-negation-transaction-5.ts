@@ -48,6 +48,23 @@ for (const master of ["p1", "p2"] as PlayerId[]) {
     settle(auraCtx, b.state, token, { arrivals: [arrival] }); check(auraCtx, b.state);
     assert.equal(b.state.standingNegationHistory, undefined);
   });
+  test(`${master}: copied whole-negator cannot disappear through missing or empty source record`, () => {
+    const b = board(master); b.put("ordinary", "V1");
+    addEffect(b.state, [], { target: "ordinary", master, kind: "copiedSkills", value: 0, until: "game", copied: { cardId: "DB1-066", side: "front", skills: [0] } });
+    const variants: CardScripts["bySkill"][] = [{}, { 0: { ...scripts["DB1-066"].bySkill[0], ops: [] } }];
+    for (const bySkill of variants) {
+      const altered = { ...ctx, scripts: { ...ctx.scripts, "DB1-066": { bySkill, complete: false, unsupported: [] } } };
+      assert.throws(() => capture(altered, b.state), /copied standing negators with reviewed grant identities/);
+    }
+    const missing = { ...ctx, defs: Object.fromEntries(Object.entries(ctx.defs).filter(([id]) => id !== "DB1-066")) };
+    assert.throws(() => capture(missing, b.state), /copied standing-negation source definition/);
+  });
+  test(`${master}: unrelated valid copied Auto retains unaffected path`, () => {
+    const b = board(master); b.put("ordinary", "V1");
+    addEffect(b.state, [], { target: "ordinary", master, kind: "copiedSkills", value: 0, until: "game", copied: { cardId: "BT10-153", side: "front", skills: [30] } });
+    const before = JSON.stringify(b.state), token = capture(ctx, b.state); settle(ctx, b.state, token); check(ctx, b.state);
+    assert.equal(JSON.stringify(b.state), before); assert.equal(b.state.standingNegationHistory, undefined);
+  });
   test(`${master}: capture is pure and commit preserves native reference identity`, () => {
     const b = board(master), before = JSON.stringify(b.state), frames = b.state.programs, pending = b.state.pending;
     const token = capture(ctx, b.state); assert.equal(JSON.stringify(b.state), before);
