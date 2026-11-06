@@ -21,8 +21,11 @@ const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition
 const copy=<T,>(v:T):T=>JSON.parse(JSON.stringify(v));
 function setup(p:PlayerId,standing=false,c:EngineContext=ctx){
  const state=RULES.createGame(c,{seed:488,p1:{name:"One",leader:"L",main:fifty("F")},p2:{name:"Two",leader:"L",main:fifty("F")}}).state as VmState;
+ // Stage raw fixture cards before constructing the validated native host.
+ const staged=[["source",c.defs.AUTO?"AUTO":"F"],["other",standing?"DB1-066":"F"],["unrelated","F"]];
+ for(const [id,def] of staged){state.cards[id]=newCard(id,def,p);state.sides[p].zones.hand.push(id);}
  const events:GameEvent[]=[],h=vmHost(c,game,state,events);
- for(const [id,def] of [["source",c.defs.AUTO?"AUTO":"F"],["other",standing?"DB1-066":"F"],["unrelated","F"]]){state.cards[id]=newCard(id,def,p);state.sides[p].zones.hand.push(id);h.move(id,"battle",p);}
+ for(const [id] of staged)h.move(id,"battle",p);
  h.addEffect({target:"source",kind:"power",value:7000,until:"game"});
  h.addEffect({target:"other",source:"source",master:p,kind:standing?"negateSkills":"power",value:standing?0:3000,until:"whileSourceInPlay"});
  h.addEffect({target:"unrelated",source:"source",master:p,kind:"power",value:2000,until:"game"});
