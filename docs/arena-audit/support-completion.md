@@ -267,3 +267,7 @@ Runtime `558128cd` adds bounded own-actor Battle Energy entry groundwork and BT2
 ## Checkpoint 55: Kefla and shared script cleanup
 
 Runtime `3b780b0e` adds Kefla's independent Potara-play/attack pair with a bounded source-occurrence contract, and shares actual script movement cleanup with isolated Energy projection. Combined validation passes 2,497 native/contract cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Exact one-record compiler diff: 13,012 readable /954 unread; runtime census remains12/318/2559. See [checkpoint 55](round-5/support-fiftyfifth-batch.md). Ordinary Battle Energy entry and Gohan's qualified attack alternative continue in the same PR.
+
+## Checkpoint 68: Auto play-cost completion and landed Counter timing
+
+Source `ab55b029` and registry `1137dd00` admit BT21-071#30's exact payment route. 836 counted controls plus Auto/Revive/VM suites, final type/lint, integrated metadata283/218 and browser214/121 pass. Compiler remains13,019 readable/946 unread; runtime census improves to3/308/2568, with only the intended source removed from blocked entries. See [checkpoint68](round-5/support-sixtyeighth-batch.md). Duration, Combo-negation and under-card activation work continue; Life completion remains an owner question.
