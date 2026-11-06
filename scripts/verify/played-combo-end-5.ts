@@ -1,5 +1,6 @@
 /** R-485: full frozen printed skills; synthetic numeric play/combo costs explicitly zero. */
 import assert from "node:assert/strict";
+import gohan from "./fixtures/gohan-target-paired-5.json";
 import fixtures from "./fixtures/played-combo-end-5.json";
 import { card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
@@ -37,6 +38,7 @@ for(const key of keys){const old=fixtures[key].record;const row=records.find(r=>
 for(const old of Object.values(fixtures.refused)){
  const r=skillRecords(card("refused",{skill:old.printed}))[0];
  if(old.cardId==="BT4-019"){assert.deepEqual(r.unread,[]);assert.deepEqual(r.trigger,["attacks","playedUsingUnionPotara"]);assert.equal(r.cond,null);}
+ else if(old.cardId==="BT26-100"){assert.deepEqual(r.unread,[]);assert.deepEqual(r.trigger,["played","attacksOpponentBattle"]);assert.equal(r.cond,null);assert.deepEqual(copy(r.ops),gohan.expectedOps);}
  else assert.ok(r.unread.length);
 }
 for(const tail of [" from your hand"," during your turn"," by your Leader's skill"]){const text=fixtures["P-656#10"].record.printed.replace("used in a combo,",`used in a combo${tail},`);assert.ok(skillRecords(card("unrepresented",{skill:text}))[0].unread.length);}

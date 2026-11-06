@@ -5376,6 +5376,10 @@
       "words": "when this card attacks"
     },
     {
+      "name": "attacksOpponentBattle",
+      "words": "when this card attacks an opponent's Battle Card"
+    },
+    {
       "name": "attacked",
       "words": "when this card is attacked"
     },

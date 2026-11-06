@@ -188,6 +188,12 @@ DEFINE TRIGGER attacks
   BIND "self"
   text: "when this card attacks"
 
+-- R490: the actual declaration target, before Counter or Blocker can change the battle.
+DEFINE TRIGGER attacksOpponentBattle
+  ON attackDeclared(role: attacker, targetOpponentBattle: true)
+  BIND "self"
+  text: "when this card attacks an opponent's Battle Card"
+
 -- §8-1-3 — when this card is attacked
 DEFINE TRIGGER attacked
   ON attackDeclared(role: target)

@@ -1,13 +1,27 @@
+import { completeFilter } from "./script-schema";
+import { canonicalTaxValue } from "./tax-receipt";
 import type { Script } from "./script";
 import type { VmState } from "./state";
 import { NotYet } from "./errors";
 
-/** R487: only the bounded Potara-arrival/attack draw and self-power program. */
+/** R487/R490: only the two bounded paired programs with an occurrence-bound self operation. */
 export interface PairedSelf { version: 1; card: string; token: number }
 export function pairedSelfScript(script: Script | undefined): boolean {
-  return Array.isArray(script?.trigger) && script.trigger.includes("playedUsingUnionPotara");
+  return Array.isArray(script?.trigger) && (script.trigger.includes("playedUsingUnionPotara") || script.trigger.includes("attacksOpponentBattle"));
 }
 export function requirePairedSelfShape(script: Script | undefined): void {
+  if (Array.isArray(script?.trigger) && script.trigger.includes("attacksOpponentBattle")) {
+    // Complete stored selector and variable linkage; key order is not semantics.
+    const expected = [
+      { op: "switchMode", target: { sel: { special: "self" } }, mode: "active" },
+      { op: "choose", sel: { side: "opponent", area: "battle", filter: completeFilter({ type: "BATTLE" }), count: 1, upTo: true, ignoreBarrier: true }, as: "c0", reason: "choose up to 1 of your opponent's Battle Cards" },
+      { op: "switchMode", target: { var: "c0" }, mode: "rest" },
+    ];
+    if (script.kind !== "auto" || !Array.isArray(script.trigger) || script.trigger.length !== 2 || !script.trigger.includes("played")
+        || canonicalTaxValue(script.ops) !== canonicalTaxValue(expected))
+      throw new NotYet("rebuild the bounded paired self-Active and opposing Rest program", "R490");
+    return;
+  }
   const ops = script?.ops;
   const draw = ops?.[0], power = ops?.[1];
   if (script?.kind !== "auto" || !Array.isArray(script.trigger) || script.trigger.length !== 2 || !script.trigger.includes("attacks")
