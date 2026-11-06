@@ -1,0 +1,1065 @@
+{
+  "P-656#10": {
+    "record": {
+      "cardId": "P-656",
+      "side": "front",
+      "skillIndex": 10,
+      "printed": "[auto]{y}, if your Leader is a blue <Whis> card: When this card is played or at the end of a battle in which this card was used in a combo, draw 1 card, then choose up to 1 of your opponent's Battle Cards, ignoring [barrier], and add it to its owner's energy in Rest Mode.",
+      "kind": "auto",
+      "trigger": [
+        "played",
+        "comboed"
+      ],
+      "combo": {
+        "version": 1,
+        "timing": "battleEnd",
+        "subject": "self",
+        "origins": null,
+        "turn": "any"
+      },
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "if your Leader is a blue <Whis> card",
+        "orbs": {
+          "Yellow": 1
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Blue"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "whis"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [
+        "When this card is played or at the end of a battle in which this card was used in a combo",
+        "draw 1 card",
+        "choose up to 1 of your opponent's Battle Cards",
+        "ignoring [barrier]",
+        "add it to its owner's energy in Rest Mode"
+      ],
+      "pattern": "when this card is played or at the end of a battle in which this card was used in a combo",
+      "reads": ""
+    },
+    "card": {
+      "id": "P-656",
+      "type": "BATTLE",
+      "colors": [
+        "Blue",
+        "Yellow"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Whis, Combo Attack",
+      "characters": [
+        "Whis"
+      ],
+      "traits": [
+        "God"
+      ],
+      "skill": "[energy-exhaust]<br>[auto]{y}, if your Leader is a blue <Whis> card: When this card is played or at the end of a battle in which this card was used in a combo, draw 1 card, then choose up to 1 of your opponent's Battle Cards, ignoring [barrier], and add it to its owner's energy in Rest Mode.<br>[activate: main]{u}, if you have 2 or more energy: Play this card from your hand.",
+      "backName": null,
+      "backSkill": null
+    },
+    "expectedOps": [
+      {
+        "op": "draw",
+        "n": 1
+      },
+      {
+        "op": "choose",
+        "sel": {
+          "side": "opponent",
+          "area": "battle",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": "BATTLE",
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          },
+          "count": 1,
+          "upTo": true,
+          "ignoreBarrier": true
+        },
+        "as": "c0",
+        "reason": "choose up to 1 of your opponent's Battle Cards"
+      },
+      {
+        "op": "moveTo",
+        "target": {
+          "var": "c0"
+        },
+        "to": "energy",
+        "mode": "rest",
+        "reveal": true
+      }
+    ],
+    "expectedCond": {
+      "kind": "leaderMatches",
+      "filter": {
+        "colors": [
+          "Blue"
+        ],
+        "notColors": [],
+        "monoColor": false,
+        "multiColor": false,
+        "characters": [
+          "whis"
+        ],
+        "notCharacters": [],
+        "charactersIncluding": [],
+        "notCharactersIncluding": [],
+        "charactersAll": [],
+        "namesAll": [],
+        "traits": [],
+        "notTraits": [],
+        "characterOrTrait": false,
+        "onlyCharacters": false,
+        "names": [],
+        "notNames": [],
+        "namesIncluding": [],
+        "notNamesIncluding": [],
+        "notKeywords": [],
+        "keywords": [],
+        "skillKind": null,
+        "unreadable": false,
+        "noKeywords": false,
+        "type": null,
+        "notType": null,
+        "faceUp": false,
+        "token": false,
+        "notToken": false,
+        "costMin": null,
+        "costMax": null,
+        "powerMin": null,
+        "powerMax": null,
+        "originalPowerMin": null,
+        "originalPowerMax": null,
+        "comboPowerMin": null,
+        "comboPowerMax": null,
+        "markersMin": null,
+        "markersMax": null,
+        "specifiedCostMin": null,
+        "specifiedCostMax": null,
+        "specifiedCostNone": false,
+        "costAtMostEnergy": false,
+        "costBelowEnergy": false,
+        "costAtLeastEnergy": false,
+        "costAboveEnergy": false,
+        "energyOfOpponent": false,
+        "originallySkillLess": false,
+        "skillLess": false,
+        "powerRel": null,
+        "nameInSkillTextOf": null,
+        "z": null
+      }
+    }
+  },
+  "BT16-131#10": {
+    "record": {
+      "cardId": "BT16-131",
+      "side": "front",
+      "skillIndex": 10,
+      "printed": "[Auto] When this card is played from your hand or at the end of a battle in which this card was used in a combo from your hand, add up to 1 skill-less Battle Card with an energy cost of 2 from your deck or Drop Area to your hand, then shuffle your deck if you looked through it. Additionally, if it's your opponent's turn, you may play 1 skill-less Battle Card with an energy cost of 2 from your hand in Rest Mode.",
+      "kind": "auto",
+      "trigger": [
+        "playedFromHand",
+        "comboed"
+      ],
+      "combo": {
+        "version": 1,
+        "timing": "battleEnd",
+        "subject": "self",
+        "origins": [
+          "hand"
+        ],
+        "turn": "any"
+      },
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [
+        "When this card is played from your hand or at the end of a battle in which this card was used in a combo from your hand",
+        "add up to 1 skill-less Battle Card with an energy cost of 2 from your deck or Drop Area to your hand",
+        "shuffle your deck if you looked through it",
+        "Additionally",
+        "if it's your opponent's turn",
+        "you may play 1 skill-less Battle Card with an energy cost of 2 from your hand in Rest Mode"
+      ],
+      "pattern": "when this card is played from your hand or at the end of a battle in which this card was used in a combo from your hand",
+      "reads": ""
+    },
+    "card": {
+      "id": "BT16-131",
+      "type": "BATTLE",
+      "colors": [
+        "Blue",
+        "Yellow"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Whis, Calling to Order",
+      "characters": [
+        "Whis"
+      ],
+      "traits": [
+        "God",
+        "Universe 7"
+      ],
+      "skill": "[Energy-Exhaust][Blocker]\r\n[Auto] When this card is played from your hand or at the end of a battle in which this card was used in a combo from your hand, add up to 1 skill-less Battle Card with an energy cost of 2 from your deck or Drop Area to your hand, then shuffle your deck if you looked through it. Additionally, if it's your opponent's turn, you may play 1 skill-less Battle Card with an energy cost of 2 from your hand in Rest Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "expectedOps": [
+      {
+        "op": "choose",
+        "sel": {
+          "side": "you",
+          "area": "deck",
+          "areas": [
+            "deck",
+            "drop"
+          ],
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": "BATTLE",
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": 2,
+            "costMax": 2,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": true,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          },
+          "count": 1,
+          "upTo": true
+        },
+        "as": "c0",
+        "reason": "add up to 1 skill-less Battle Card with an energy cost of 2 from your deck or Drop Area to your hand"
+      },
+      {
+        "op": "moveTo",
+        "target": {
+          "var": "c0"
+        },
+        "to": "hand"
+      },
+      {
+        "op": "shuffle"
+      },
+      {
+        "op": "if",
+        "cond": {
+          "kind": "isTurnPlayer",
+          "who": "opponent"
+        },
+        "then": [
+          {
+            "op": "may",
+            "ops": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "hand",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": 2,
+                    "costMax": 2,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": true,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": false
+                },
+                "as": "p1",
+                "reason": "you may play 1 skill-less Battle Card with an energy cost of 2 from your hand in Rest Mode"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "p1"
+                },
+                "mode": "rest"
+              }
+            ],
+            "reason": "play 1 skill-less Battle Card with an energy cost of 2 from your hand in Rest Mode"
+          }
+        ]
+      }
+    ],
+    "expectedCond": null
+  },
+  "BT16-143#20": {
+    "record": {
+      "cardId": "BT16-143",
+      "side": "front",
+      "skillIndex": 20,
+      "printed": "[auto] If you have 1 or more multicolor energy: When this card is played from your hand, or at the end of a battle where this card was used in a combo from your hand, choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less in Rest Mode and KO it.",
+      "kind": "auto",
+      "trigger": [
+        "playedFromHand",
+        "comboed"
+      ],
+      "combo": {
+        "version": 1,
+        "timing": "battleEnd",
+        "subject": "self",
+        "origins": [
+          "hand"
+        ],
+        "turn": "any"
+      },
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "If you have 1 or more multicolor energy",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": true,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [
+        "When this card is played from your hand",
+        "or at the end of a battle where this card was used in a combo from your hand",
+        "choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less in Rest Mode",
+        "KO it"
+      ],
+      "pattern": "when this card is played from your hand",
+      "reads": ""
+    },
+    "card": {
+      "id": "BT16-143",
+      "type": "BATTLE",
+      "colors": [
+        "Green",
+        "Yellow"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 16000,
+      "name": "Sawar, Angel of Universe 2",
+      "characters": [
+        "Sawar"
+      ],
+      "traits": [
+        "God",
+        "Universe 2"
+      ],
+      "skill": "[energy-exhaust]\r [successor]{g}\r [auto] If you have 1 or more multicolor energy: When this card is played from your hand, or at the end of a battle where this card was used in a combo from your hand, choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less in Rest Mode and KO it.",
+      "backName": null,
+      "backSkill": null
+    },
+    "expectedOps": [
+      {
+        "op": "choose",
+        "sel": {
+          "side": "opponent",
+          "area": "battle",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": "BATTLE",
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": 4,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          },
+          "count": 1,
+          "upTo": true,
+          "mode": "rest"
+        },
+        "as": "c0",
+        "reason": "choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less in Rest Mode"
+      },
+      {
+        "op": "ko",
+        "target": {
+          "var": "c0"
+        }
+      }
+    ],
+    "expectedCond": {
+      "kind": "count",
+      "sel": {
+        "side": "you",
+        "area": "energy",
+        "filter": {
+          "colors": [],
+          "notColors": [],
+          "monoColor": false,
+          "multiColor": true,
+          "characters": [],
+          "notCharacters": [],
+          "charactersIncluding": [],
+          "notCharactersIncluding": [],
+          "charactersAll": [],
+          "namesAll": [],
+          "traits": [],
+          "notTraits": [],
+          "characterOrTrait": false,
+          "onlyCharacters": false,
+          "names": [],
+          "notNames": [],
+          "namesIncluding": [],
+          "notNamesIncluding": [],
+          "notKeywords": [],
+          "keywords": [],
+          "skillKind": null,
+          "unreadable": false,
+          "noKeywords": false,
+          "type": null,
+          "notType": null,
+          "faceUp": false,
+          "token": false,
+          "notToken": false,
+          "costMin": null,
+          "costMax": null,
+          "powerMin": null,
+          "powerMax": null,
+          "originalPowerMin": null,
+          "originalPowerMax": null,
+          "comboPowerMin": null,
+          "comboPowerMax": null,
+          "markersMin": null,
+          "markersMax": null,
+          "specifiedCostMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostNone": false,
+          "costAtMostEnergy": false,
+          "costBelowEnergy": false,
+          "costAtLeastEnergy": false,
+          "costAboveEnergy": false,
+          "energyOfOpponent": false,
+          "originallySkillLess": false,
+          "skillLess": false,
+          "powerRel": null,
+          "nameInSkillTextOf": null,
+          "z": null
+        }
+      },
+      "atLeast": 1
+    }
+  },
+  "refused": {
+    "BT27-088#10": {
+      "cardId": "BT27-088",
+      "side": "front",
+      "skillIndex": 10,
+      "printed": "[Auto]{y}, if it's your turn: When this card is played or when a card is switched to Rest Mode by one of your skills, choose up to 1 of your opponent's Rest Mode Battle Cards, ignoring [Barrier], KO it, and this card get +5000 power for the turn.",
+      "kind": "auto",
+      "trigger": [
+        "played"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "if it's your turn",
+        "orbs": {
+          "Yellow": 1
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "isTurnPlayer"
+        },
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [
+        "When this card is played or when a card is switched to Rest Mode by one of your skills",
+        "choose up to 1 of your opponent's Rest Mode Battle Cards",
+        "ignoring [Barrier]",
+        "KO it",
+        "this card get +5000 power for the turn"
+      ],
+      "pattern": "when this card is played or when a card is switched to rest mode by one of your skills",
+      "reads": ""
+    },
+    "BT26-100#20": {
+      "cardId": "BT26-100",
+      "side": "front",
+      "skillIndex": 20,
+      "printed": "[Auto] When this card is played or attacks an opponent's Battle Card, switch this card to Active Mode, then choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and switch it to Rest Mode.",
+      "kind": "auto",
+      "trigger": [
+        "played",
+        "attacks"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [
+        "When this card is played or attacks an opponent's Battle Card",
+        "switch this card to Active Mode",
+        "choose up to 1 of your opponent's Battle Cards",
+        "ignoring [Barrier]",
+        "switch it to Rest Mode"
+      ],
+      "pattern": "when this card is played or attacks an opponent's battle card",
+      "reads": ""
+    },
+    "BT12-038#20": {
+      "cardId": "BT12-038",
+      "side": "front",
+      "skillIndex": 20,
+      "printed": "[auto][once per turn] If your Leader Card is mono-blue: When this card is played or your opponent activates a Battle Card's skill, choose up to 2 of your opponent's Battle Cards and return them to their owners' hands.",
+      "kind": "auto",
+      "trigger": [
+        "played"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": true,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "If your Leader Card is mono-blue",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Blue"
+            ],
+            "notColors": [],
+            "monoColor": true,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [
+        "When this card is played or your opponent activates a Battle Card's skill",
+        "choose up to 2 of your opponent's Battle Cards",
+        "return them to their owners' hands"
+      ],
+      "pattern": "when this card is played or your opponent activates a battle card's skill",
+      "reads": ""
+    },
+    "P-419#10": {
+      "cardId": "P-419",
+      "side": "front",
+      "skillIndex": 10,
+      "printed": "[auto][limit 1] When this card is played or you gain control of an opponent's Battle Card, your opponent sends 1 card from their hand to their Warp.",
+      "kind": "auto",
+      "trigger": [
+        "played"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": 1
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [
+        "When this card is played or you gain control of an opponent's Battle Card",
+        "your opponent sends 1 card from their hand to their Warp"
+      ],
+      "pattern": "when this card is played or you gain control of an opponent's battle card",
+      "reads": ""
+    },
+    "BT4-019#30": {
+      "cardId": "BT4-019",
+      "side": "front",
+      "skillIndex": 30,
+      "printed": "[auto] When this card is played using [union-potara] or attacks, draw 1 card, and this card gains +5000 power for the duration of the turn.",
+      "kind": "auto",
+      "trigger": [
+        "played",
+        "attacks"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [
+        "When this card is played using [union-potara] or attacks",
+        "draw 1 card",
+        "this card gains +5000 power for the duration of the turn"
+      ],
+      "pattern": "when this card is played using [union-potara] or attacks",
+      "reads": ""
+    }
+  }
+}

@@ -1434,6 +1434,20 @@ const PLAYED_COORDINATED = /^when (?:this card (?:in your hand )?is played|you p
 export function playedOrActiveDuringYourTurn(sk: Skill): boolean {
   return sk.kind === "auto" && /^when (?:you play this card|this card is played),? or when this card is switched to active mode by a skill during your turn(?:,|$)/.test(effectHead(maskNames(sk.effect).text));
 }
+/** R-485: only the represented unqualified pair or Hand-qualified pair. */
+export function playedOrComboBattleEnd(sk: Skill): boolean {
+  if (sk.kind !== "auto") return false;
+  const head = effectHead(maskNames(sk.effect).text);
+  const hand = /^when this card is played from your hand,? or at the end of a battle (?:in which|where) this card was used in a combo from your hand(?:,|$)/.test(head);
+  const plain = /^when this card is played or at the end of a battle in which this card was used in a combo(?:,|$)/.test(head);
+  if (!hand && !plain) return false;
+  const combo = compileComboQualification(sk);
+  const parts = momentPartSkills(sk) ?? [];
+  return combo?.timing === "battleEnd" && combo.subject === "self" && combo.turn === "any"
+    && (hand ? combo.origins?.length === 1 && combo.origins[0] === "hand" : combo.origins === null)
+    && parts.some(part => autoTriggerMatches(part, hand ? "playedFromHand" : "played"))
+    && parts.some(part => autoTriggerMatches(part, "comboed"));
+}
 export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (sk.kind !== "auto") return false;
   const head = effectHead(maskNames(sk.effect).text);
@@ -1441,6 +1455,7 @@ export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (!m) return false;
   const [, qualifier, rest] = m;
   if (playedOrActiveDuringYourTurn(sk)) return !autoTriggerMatches(sk, "activeBySkillDuringYourTurn");
+  if (playedOrComboBattleEnd(sk)) return false;
   // A qualifier on the play that `played` would ignore: only "from your hand"
   // and "using [Over Realm]" have readers of their own.
   if (/^ using \[/.test(qualifier) && !/^ using \[(?:dark )?over realm/.test(qualifier)) return true;
