@@ -5,3 +5,5 @@ On 6 November 2026, the official [BT25 card list](https://www.dbs-cardgame.com/e
 `src/lib/catalog/errata.ts` restores only the missing numeral for this card. Already numbered text remains unchanged. A local check against the complete frozen card source confirms the exact one-fragment correction, idempotence and preservation of an explicit different quantity; changed-file lint passes. No database or catalog refresh runs.
 
 This is a source correction, not admission of the historical paid-count Auto. Its complete face-up Z-Deck payment, per-card marker removal and conditional bonus still need native support. The next combined compiler scan will account for any record changes; checkpoint76's measurements predate this correction.
+
+The focused two-record comparison changes only BT25-083#0’s printed text, choice operation and description: the omitted quantity had lost optionality, so the corrected selector changes `upTo:false` to `upTo:true`. Its remaining unread fragments stay unread, and #10 is byte-for-byte structurally unchanged. The full combined scan remains due.
