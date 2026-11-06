@@ -7,7 +7,7 @@ import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { newCard } from "../../src/lib/arena/vm/zones";
-import { run } from "../../src/lib/arena/vm/flow";
+import { run, moved } from "../../src/lib/arena/vm/flow";
 import { resolvePlay } from "../../src/lib/arena/vm/play";
 import { vmHost } from "../../src/lib/arena/vm/host";
 import { stepScript, type Script, type ScriptFrame } from "../../src/lib/arena/vm/script";
@@ -60,7 +60,9 @@ for(const master of ["p1","p2"] as PlayerId[]){
   vmHost(ctx,game,s,[]).addEffect({target:"subject",kind:"power",value:5000,until:"turn",master});
   const before=JSON.stringify(s),projected=clone(s);projectStandingNegationMoves(ctx,game,projected,[{id:"subject",to:"drop"}],procedure);
   assert.equal(JSON.stringify(s),before);assert.ok(projected.sides[master].zones.drop.includes("subject"));assert.equal(skillsNegated(projected,"king"),false);
-  assert.equal(projected.effects.some(e=>e.target==="subject"),procedure==="comboSubject","projection matches its actual writer cleanup, not a generic lifetime rewrite");
+  assert.equal(projected.effects.some(e=>e.target==="subject"),false,"both actual reset writers end the old target power");
+  const actual=clone(s);if(procedure==="comboSubject")moved(ctx,game,actual,[],"subject","drop",{owner:master});else vmHost(ctx,game,actual,[]).move("subject","drop",master);
+  assert.deepEqual(projected,actual,"projection matches its actual writer's complete cleanup and standing settlement");
   attrsNow(ctx,game,projected,"subject");const stale=clone(s);stale.cards.king.zoneEpoch=(stale.cards.king.zoneEpoch??0)+1;const original=JSON.stringify(stale);assert.throws(()=>projectStandingNegationMoves(ctx,game,stale,[{id:"subject",to:"drop"}],procedure));assert.equal(JSON.stringify(stale),original);count++;
  }
  {
@@ -71,7 +73,9 @@ for(const master of ["p1","p2"] as PlayerId[]){
   for(const grouped of [false,true]) {
   let s=fresh();for(const a of [{type:"chooseFirst",player:s.chooser,first:master},{type:"mulligan",player:master,redraw:false},{type:"mulligan",player:other,redraw:false},{type:"pass",player:master}] as Action[])s=RULES.apply(ctx,s,a).state as VmState;
   add(s,"source","A");resolvePlay(ctx,game,s,[],"source",master);add(s,"king","DB1-066");
-  vmHost(ctx,game,s,[]).addEffect({target:"king",kind:"negateSkills",value:0,until:"game",master,...(grouped?{group:99}:{})});resolvePlay(ctx,game,s,[],"king",master);
+  resolvePlay(ctx,game,s,[],"king",master);
+  // This coupon-group control needs a live Battle negation, not an old Hand effect.
+  vmHost(ctx,game,s,[]).addEffect({target:"king",kind:"negateSkills",value:0,until:"game",master,...(grouped?{group:99}:{})});
   vmHost(ctx,game,s,[]).addEffect({target:"source",kind:"skillCost",value:-1,until:"turn",uses:1,master,group:99});
   for(let i=0;i<2;i++){add(s,`energy${i}`,"F","energy");s.cards[`energy${i}`].mode="active";}
   const action=RULES.legalActions(ctx,s).find(a=>a.action.type==="activate"&&a.action.card==="source");assert.ok(action);

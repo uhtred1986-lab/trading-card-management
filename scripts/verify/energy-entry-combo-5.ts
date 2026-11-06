@@ -50,7 +50,7 @@ let cases=0;
 for(const p of ["p1","p2"] as const)for(const offense of [true,false])for(const origin of ["hand","battle"] as const)for(const mode of ["accept","decline","partial","protected","whole","line","ordinary","rest","arrivalAttribution","payerAttribution","payerBattleBan"]){
  const b=setup(p,offense,origin,mode),epoch=b.s.cards[b.incoming].zoneEpoch??0,otherCards=copy(b.extra.map(id=>b.s.cards[id])),draws=b.events.filter(e=>e.type==="draw").length;
  assert.equal(b.s.battle!.comboOrigins![b.incoming],origin);
- if(origin==="battle"&&(mode==="whole"||mode==="line"))assert.ok(b.s.effects.some(e=>e.target===b.incoming),"negation carried from native Battle to Combo");
+ if(mode==="whole"||mode==="line")assert.equal(b.s.effects.some(e=>e.target===b.incoming),origin==="battle","Battle-to-Combo carries negation; ordinary Hand-to-Combo resets it");
  b.take({type:"activate",player:p,card:b.s.sides[p].zones.leader[0],skill:0});b.take({type:"choose",player:p,cards:[b.incoming]});
  let questions=0,selected=0;
  while(b.s.prompt.kind==="chooseMode"||b.s.prompt.kind==="chooseCards"){
@@ -59,9 +59,10 @@ for(const p of ["p1","p2"] as const)for(const offense of [true,false])for(const 
   RULES.boardView(b.c,copy(b.s),p,{});RULES.boardView(b.c,copy(b.s),other(p),{});
   b.take(b.s.prompt.kind==="chooseMode"?{type:"chooseMode",player:p,index:mode==="decline"?1:0}:{type:"choose",player:p,cards:[selected++===0?b.red:b.blue]});
  }
- assert.equal(questions===0,["whole","line","ordinary"].includes(mode));assert.equal(b.s.prompt.kind,"combo");
+ assert.equal(questions===0,mode==="ordinary"||origin==="battle"&&["whole","line"].includes(mode));assert.equal(b.s.prompt.kind,"combo");
+ if(origin==="hand"&&["whole","line"].includes(mode)){assert.equal(questions,3);assert.equal(selected,2);assert.ok([b.red,b.blue].every(id=>b.s.sides[p].zones.warp.includes(id)));}
  assert.ok(b.s.sides[p].zones.energy.includes(b.incoming));assert.equal(b.s.cards[b.incoming].zoneEpoch,epoch+1);
- const earned=["accept","rest","arrivalAttribution","payerAttribution"].includes(mode);
+ const earned=["accept","rest","arrivalAttribution","payerAttribution"].includes(mode)||origin==="hand"&&["whole","line"].includes(mode);
  assert.equal(b.s.cards[b.incoming].mode,earned&&mode!=="rest"||mode==="whole"?"active":"rest");assert.equal(hasKeyword(b.c,game,b.s,b.incoming,"Energy-Exhaust"),!earned);
  assert.equal(b.s.battle!.comboOrigins?.[b.incoming],undefined);assert.deepEqual(b.extra.map(id=>b.s.cards[id]),otherCards);
  if(mode==="partial"||mode==="payerBattleBan"){assert.ok(b.s.sides[p].zones.drop.includes(b.red));assert.ok(b.s.sides[p].zones.warp.includes(b.blue));}

@@ -185,6 +185,7 @@ for (const p of ['p1', 'p2'] as const) {
   };
   start();
   const first = b.s.effects.find(e => e.target === target && e.kind === 'power')!;
+  const firstAnchor = b.s.appliedEffectOwnership![first.id].anchor;
   // This save has already produced an effect. Missing or corrupt history must
   // refuse explicitly, never initialize an empty receipt or rediscover by source.
   for (const corrupt of ['missing', 'root', 'source', 'master', 'entry'] as const) {
@@ -214,9 +215,11 @@ for (const p of ['p1', 'p2'] as const) {
   b.take({ type: 'chooseMode', player: p, index: 0 });
   b.drain();
   assert.ok(b.s.sides[p].zones.battle.includes(target));
-  assert.equal(b.s.appliedEffectOwnership?.[first.id].current, null);
+  // R505 now performs the reset that Stage A only prepared: old effects end.
+  assert.equal(b.s.effects.some(effect => effect.id === first.id), false);
+  assert.equal(b.s.appliedEffectOwnership?.[first.id], undefined);
   assert.equal(b.s.appliedEffectOwnership?.[second.id].current?.area, 'battle');
-  assert.notEqual(b.s.appliedEffectOwnership?.[first.id].anchor, b.s.appliedEffectOwnership?.[second.id].anchor);
+  assert.notEqual(firstAnchor, b.s.appliedEffectOwnership?.[second.id].anchor);
   checks++;
 }
 // Direct native host adapter: two independent roots share an area-carry target.

@@ -1,3 +1,4 @@
+import { captureFlowPlacement, cleanupFlowPlacement } from "./flow-placement-cleanup";
 /** R477: explicit, isolated movement ownership for the two existing projections. */
 import type { EngineContext, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
@@ -10,7 +11,7 @@ import { NotYet } from "./errors";
 export type StandingProjectionMove = { id: string; to: string; owner?: PlayerId; mode?: string; position?: "top" | "bottom" };
 /** Does not emit, pend triggers or touch the live match. Caller owns this clone.
  * Keyword prices use host.moveTo cleanup; Combo subject information uses the
- * current flow.moved cleanup. R454's different movement lifetimes are not repaired here.
+ * exact flow.moved effect cleanup; keyword prices preserve their host policy.
  */
 export function projectStandingNegationMoves(ctx: EngineContext, game: GameDefinition, projected: VmState, moves: StandingProjectionMove[], procedure: "keywordPrice" | "comboSubject"): void {
   validateStandingNegationRead(ctx, projected);
@@ -23,12 +24,11 @@ export function projectStandingNegationMoves(ctx: EngineContext, game: GameDefin
   const token = beginStandingNegationMutation(ctx, projected);
   for (const { id, to, owner, mode, position } of moves) {
     const from = findCard(projected, id)!.zone;
+    const placement = procedure === "comboSubject" ? captureFlowPlacement(projected, id) : undefined;
     const result = moveCard(projected, game, id, to, { owner: owner ?? projected.cards[id].owner, ...(mode ? { mode } : {}), ...(position ? { position } : {}) });
     if (!result.ok || result.move.to !== to) throw new NotYet("project this movement with standing whole-negation history", "R477");
-    if (from !== to) {
-      if (procedure === "keywordPrice") dropEffectsOn(projected, [], id);
-      else projected.effects = projected.effects.filter(effect => effect.target !== id || effect.kind !== "control");
-    }
+    if (placement) cleanupFlowPlacement(projected, [], result.move, placement);
+    else if (from !== to) dropEffectsOn(projected, [], id);
   }
   finishStandingNegationMutation(ctx, projected, token);
 }

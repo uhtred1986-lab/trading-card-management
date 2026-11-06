@@ -1,5 +1,5 @@
 /** R495: private ownership of effects actually applied by one execution.
-* Preparatory provenance only; this module does not change effect cleanup.
+* Provenance only; the movement adapter chooses and applies effect cleanup.
 */
 import type { ContinuousEffect } from "../types";
 import type { ScriptFrame } from "./script";
@@ -239,12 +239,13 @@ export function captureAppliedEffectMove(state: VmState, card: string, receipt?:
   const from = effectOccurrence(state, card);
   return { from, ...(receipt ? { receipt, plan: captureForMove(receipt, boardOf(state), receipt.root, from) } : {}) };
 }
-/** Metadata only in Stage A: actual cleanup stays with the existing mover. */
+/** Settle metadata after actual cleanup; this function does not choose which
+ * effects survive. Only live retained effects acquire the new occurrence. */
 export function settleAppliedEffectMove(state: VmState, move: NativeEffectMove): void {
   const to = effectOccurrence(state, move.from.card), board = boardOf(state), area = areaCarries(move.from.area, to.area, move.from.holder === to.holder);
   if (move.receipt && move.plan) {
-    // Stage A preserves provenance, including payment provenance, without
-    // deciding which effects a future cleanup policy may retain.
+    // Preserve provenance, including payment provenance, only for surviving
+    // effects. Entitlement and pre-mutation payment refusal belong to the mover.
     const sameSkill = destinations.has(to.area);
     settleMove(move.receipt, board, move.receipt.root, move.plan, { moved: true, from: move.from, to, retention: area ? 'area' : sameSkill ? 'sameSkill' : 'reset' });
   }

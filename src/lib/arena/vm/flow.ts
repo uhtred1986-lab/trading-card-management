@@ -1,5 +1,6 @@
+import { captureFlowPlacement, cleanupFlowPlacement, needsFlowPaymentPreview } from "./flow-placement-cleanup";
 import { captureMovementAutoHistory, requireMovementAutoBodies, type MovementAutoHistory } from "./movement-auto-history";
-import { areaCarries, freshAppliedEffectRoot, executionReceipt, captureAppliedEffectMove, settleAppliedEffectMove, type Receipt } from "./applied-effect-receipt";
+import { areaCarries, freshAppliedEffectRoot, executionReceipt, type Receipt } from "./applied-effect-receipt";
 import { pairedSelfScript, requirePairedSelf, requirePairedSelfShape, requirePairedSourceFrame } from "./paired-self";
 import { requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
@@ -85,7 +86,7 @@ import { masterOf, nextPending, skillsShowing, type VmPendingRecord } from "./tr
 import { automaticHasPrice, canWithholdSecretAuto, secretAutoSource } from "./secret-auto";
 import { bondIsValid } from "./bond";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
-import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endOwnTurnEffects, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
+import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endOwnTurnEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { pendStandingPower, returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
 import { openSkillPlayWindow } from "./battle";
@@ -1864,41 +1865,26 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   const movementHistory = captureMovementAutoHistory(ctx, game, state, id);
   // Legacy consumers receive the same final snapshot; no pre-replacement list.
   const sourceNegated = movementHistory.declarations.filter(line => line.negated).map(line => line.index);
-  if (movementHistory.unresolved.length) {
+  const placement = captureFlowPlacement(state, id, opts.appliedEffects);
+  if (movementHistory.unresolved.length || needsFlowPaymentPreview(placement)) {
     const projected = structuredClone(state);
+    const projectedMutation = beginStandingNegationMutation(ctx, projected, route.to === "battle" ? id : undefined);
     const projectedMove = moveCard(projected, game, id, route.to, { ...opts, energyEntryCleanup: true,
       ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
     if (projectedMove.ok) {
-      if (from === "battle" && projectedMove.move.to !== "battle") endSourceEffects(projected, [], id);
+      cleanupFlowPlacement(projected, [], projectedMove.move, structuredClone(placement));
+      finishStandingNegationMutation(ctx, projected, projectedMutation, projectedMove.move.to === "battle" && from !== "battle" ? id : undefined);
       const prospective = movement(id, from, projectedMove.move.to, projectedMove.move.owner, opts, wasHidden, fromHolder);
       requireMovementAutoBodies(game, projected, movementHistory, prospective, areaCarries(from ?? "", projectedMove.move.to, fromHolder === projectedMove.move.owner), undefined, opts.movementAuto?.also);
     }
   }
   opts.movementAuto?.beforeMutation(movementHistory);
   if (redirectNote) log(ev, redirectNote);
-  const effectMove = captureAppliedEffectMove(state, id, opts.appliedEffects);
   const transaction = beginStandingNegationMutation(ctx, state, route.to === "battle" ? id : undefined);
   const result = moveCard(state, game, id, route.to, { ...opts, energyEntryCleanup: true, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
-  if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== id && !(result.move.released ?? []).some((released) => released.card === item.card));
-  // Where it really went: a rule about what the card *is* may send it
-  // somewhere else than asked (19-1-7, a token leaving play is removed).
   const to = result.move.to;
-  // 3-1-4, 20-9: a card that changes area is a new card, so a loan of it is
-  // over — the legacy `move` drops every effect on it, silently. Only the
-  // `control` effect is dropped here: the rest of this engine's per-card
-  // bookkeeping that rides on `effects` is ended by its own rules. A KO left a
-  // borrowed card's loan standing, so it outlived the card (#459,
-  // `verify/keywords.ts`'s TAKER2 case).
-  if (from !== to) state.effects = state.effects.filter((e) => !(e.target === id && e.kind === "control"));
-  // R476 owns only its stamped arrival negation, not the broader R454 cleanup.
-  if (from !== to) state.effects = state.effects.filter(e => !(e.target === id && e.energyEntryEpoch !== undefined));
-  // 5-5-4: a card arriving in a Battle Area remembers it for the turn —
-  // played or placed alike (5-5-1). Not a move from one Battle Area to another.
-  if (to === "battle" && from !== "battle" && state.cards[id]) state.cards[id].placedThisTurn = true;
-  // "…while this card is in a Battle Area": what the card made for that long
-  // ends as it leaves (`vm/host.ts`'s `moveTo` says the same for a skill's move).
-  if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
+  cleanupFlowPlacement(state, ev, result.move, placement);
   // 23-2-5: the pile it left behind is shown going first, with no moment of
   // its own — the legacy engine logs these moves and pends nothing for them.
   for (const r of result.move.released ?? []) {
@@ -1908,7 +1894,6 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
-  settleAppliedEffectMove(state, effectMove);
   if (to === asked) opts.beforeTriggers?.();
   finishStandingNegationMutation(ctx, state, transaction, to === "battle" && from !== "battle" ? id : undefined);
   report(!route.replacementApplied && result.move.to === asked, result.move.to);

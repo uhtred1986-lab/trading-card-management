@@ -50,14 +50,20 @@ function setup(p:PlayerId,offense:boolean,origin:"hand"|"battle",mode="accept"){
 let cases=0;const results=[];
 for(const p of ["p1","p2"] as const)for(const offense of [true,false])for(const origin of ["hand","battle"] as const)for(const mode of ["accept","whole","line"]){
  const b=setup(p,offense,origin,mode),beforeDraws=b.events.filter(e=>e.type==="draw"&&e.player===p).length,oldNegations=b.s.effects.filter(e=>e.target===b.incoming&&["negateSkills","negateSkill"].includes(e.kind)).length;
+ assert.equal(oldNegations,mode!=="accept"&&origin==="battle"?1:0,"ordinary Hand-to-Combo resets old negation; Battle-to-Combo retains it");
  b.take({type:"activate",player:p,card:b.s.sides[p].zones.leader[0],skill:0});b.take({type:"choose",player:p,cards:[b.incoming]});let chosen=0;
  while(b.s.prompt.kind==="chooseMode"||b.s.prompt.kind==="chooseCards") b.take(b.s.prompt.kind==="chooseMode"?{type:"chooseMode",player:p,index:0}:{type:"choose",player:p,cards:[chosen++===0?b.red:b.blue]});
+ if(origin==="hand"&&mode!=="accept"){
+  assert.equal(chosen,2);assert.ok([b.red,b.blue].every(id=>b.s.sides[p].zones.warp.includes(id)));
+  const stamp=b.s.effects.find(effect=>effect.target===b.incoming&&effect.energyEntryEpoch!==undefined);assert.ok(stamp);
+  assert.equal(stamp.energyEntryEpoch,b.s.cards[b.incoming].zoneEpoch);assert.equal(stamp.source,b.incoming);assert.equal(stamp.master,p);assert.equal(b.s.cards[b.incoming].mode,"active");
+ }
  const arrivalAutos=b.events.filter(e=>e.type==="skill"&&e.card===b.incoming&&e.skill===20).length;
  const draws=b.events.filter(e=>e.type==="draw"&&e.player===p).length;
  assert.ok(b.s.sides[p].zones.energy.includes(b.incoming));assert.equal(b.events.filter(e=>e.type==="move"&&e.card===b.incoming&&e.to==="energy").length,1);
  results.push({p,offense,origin,mode,oldNegations,arrivalAutos,draws:draws-beforeDraws,prompt:b.s.prompt.kind});cases++;
 }
-for(const r of results){assert.equal(r.arrivalAutos,r.mode==="accept"?1:0);assert.equal(r.draws,r.mode==="accept"?1:0);}
+for(const r of results){const active=r.mode==="accept"||r.origin==="hand";assert.equal(r.arrivalAutos,active?1:0);assert.equal(r.draws,active?1:0);}
 // Full actual records remain exact; only the independent mover is structural.
 for(const value of Object.values(fixtures))assert.deepEqual(copy(skillRecords(value.def as EngineContext["defs"][string])),value.records);
 const printedDefs:EngineContext["defs"]={L:card("L",{type:"LEADER",colors:["Blue"],characters:["Son Gohan: Childhood"],skill:"[Activate: Main] Draw 1 card."}),F:card("F",{}),E:card("E",{colors:["Blue"]}),WATCH:card("WATCH",{skill:"[Auto] When this card attacks, draw 1 card."})};

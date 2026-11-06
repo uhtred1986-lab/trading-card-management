@@ -484,6 +484,12 @@ export function dropEffectsOn(state: VmState, ev: GameEvent[], id: string): void
   dropEffects(state, ev, (e) => e.target !== id);
 }
 
+/** R505: retain only actual same-execution effects during an area reset. */
+export function dropEffectsOnExcept(state: VmState, ev: GameEvent[], id: string, retained: readonly number[]): void {
+  const keep = new Set(retained);
+  dropEffects(state, ev, effect => effect.target !== id || keep.has(effect.id));
+}
+
 // ── delayed effects (20-15) ─────────────────────────────────────────────────
 
 /** Write a program down for a later moment. */

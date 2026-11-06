@@ -1,3 +1,4 @@
+import { captureFlowPlacement, cleanupFlowPlacement } from "./flow-placement-cleanup";
 import type { MovementAutoHistory } from "./movement-auto-history";
 import { freshAppliedEffectRoot } from "./applied-effect-receipt";
 import { projectStandingNegationMoves } from "./standing-negation-projection";
@@ -425,9 +426,11 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
               projectStandingNegationMoves(ctx, game, projected, [{ id, to: "drop", owner: holder,
                 ...(route.mode ? { mode: route.mode } : {}), ...(route.position ? { position: route.position } : {}) }], "comboSubject");
             } else {
+              const placement = captureFlowPlacement(projected, id);
               const placed = moveCard(projected, game, id, "drop", { owner: holder,
                 ...(route.mode ? { mode: route.mode } : {}), ...(route.position ? { position: route.position } : {}) });
               if (!placed.ok || placed.move.to !== "drop") throw new NotYet("project a pre-announced Combo-to-Drop movement subject", "#609");
+              cleanupFlowPlacement(projected, [], placed.move, placement);
             }
             const subjectInfo = attrsNow(ctx, game, projected, id);
             for (const pending of pended) pending.subjectInfo = subjectInfo;
