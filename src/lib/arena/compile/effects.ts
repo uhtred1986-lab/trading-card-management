@@ -2788,6 +2788,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // both areas — a combo is made from either (2-9-1). A price is changed for every card it names, so "and" is the union.)
     let ref = refFor(countAreasSaidWithAnd(targetText), c);
     const kindWordTrim = kindWord?.trim();
+    // R502: these two exact self energy reducers name Hand AND Battle.
+    // Do not expand the shared selfFrom grammar used by unrelated movement/stack skills.
+    const handOrBattleReduction = kindWordTrim === "energy" && /^(?:reduce|decrease)\b/i.test(clause)
+      && /^this card in your hand or battle area$/i.test(targetText.trim());
+    if (handOrBattleReduction) {
+      ref = { sel: { special: "self", areas: ["hand", "battle"] } };
+    }
+
     // "…the combo cost of A cards and B cards in all of your areas by 1": the
     // list is two descriptions with a shared area, one reduction each (#907).
     const listed = kindWordTrim !== "skill" && kindWordTrim !== "evolve" && /\sand\s/.test(targetText) && /\bin all of your areas$/i.test(targetText) ? refsFor(targetText, c) : null;
@@ -2844,7 +2852,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // possessive normalisation above keeps the area only for the "for each"
     // reducer, so the plain one found the card wherever it was. The printed
     // scope is the hand, which is where a card is bought at (20-21).
-    if (!skillKind && "sel" in ref && ref.sel.special === "self" && !ref.sel.area && /\bthis card\b[^,]*\bin your hand\b/i.test(clause)) {
+    if (!skillKind && "sel" in ref && ref.sel.special === "self" && !ref.sel.area && !handOrBattleReduction && /\bthis card\b[^,]*\bin your hand\b/i.test(clause)) {
       ref = { sel: { ...ref.sel, area: "hand" } };
     }
     const orbs = /^\d+$/.test(amountText) ? null : orbsIn(amountText);
@@ -7517,6 +7525,23 @@ function delayedWarpReturn(clauses: string[], c: Ctx, joined: boolean[]): Op[] |
 }
 
 export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[] = []): Op[] {
+  // R501: "was in Rest Mode" is a selected pre-KO fact, not a KO-success hinge.
+  // Choose the branch before KO so replacement pauses preserve it without rereading the Drop card.
+  const restKo = ["choose up to 1 of your opponent's battle cards", "ko it", "if it was in rest mode", "draw 1 card"];
+  if (JSON.stringify(rawClauses.map(x => x.trim().replace(/[.]$/, "").toLowerCase())) === JSON.stringify(restKo)) {
+    const issues: string[] = [];
+    const prefix = compileClauseList(rawClauses.slice(0, 2), c, issues, rawJoined.slice(0, 2));
+    const [choice, ko] = prefix;
+    if (!issues.length && prefix.length === 2 && choice?.op === "choose" && choice.sel.side === "opponent"
+        && choice.sel.area === "battle" && choice.sel.count === 1 && choice.sel.upTo === true
+        && choice.sel.filter?.type === "BATTLE" && !choice.chooser && ko?.op === "ko"
+        && "var" in ko.target && ko.target.var === choice.as) {
+      return [choice, { op: "if", cond: { kind: "count", sel: { fromVar: choice.as, mode: "rest" }, atLeast: 1 },
+        then: [ko, { op: "draw", n: 1 }], else: [ko] }];
+    }
+    unsupported.push(rawClauses.join(", "));
+    return prefix;
+  }
   const warpReturn = delayedWarpReturn(rawClauses, c, rawJoined);
   if (warpReturn) return warpReturn;
   const clauses = joinSplitPlacements(rawClauses);
