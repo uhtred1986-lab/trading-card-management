@@ -1,0 +1,2894 @@
+{
+  "DB2-149": {
+    "card": {
+      "id": "DB2-149",
+      "type": "BATTLE",
+      "colors": [
+        "Black"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Katopesla, Universe 3 Policeman",
+      "characters": [
+        "Katopesla"
+      ],
+      "traits": [
+        "Alien",
+        "Universe 3"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 7 cards from the top of your deck, choose up to 1 ≪Universe 3≫ card among them, add it to your hand, then shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {},
+    "candidateKeys": [
+      "DB2-149#0"
+    ],
+    "allRecords": {
+      "DB2-149#0": {
+        "cardId": "DB2-149",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 7 cards from the top of your deck, choose up to 1 ≪Universe 3≫ card among them, add it to your hand, then shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Universe 3"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 ≪Universe 3≫ card among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 7, choose up to 1 ≪Universe 3≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "TB1-094",
+        "type": "BATTLE",
+        "colors": [
+          "Yellow"
+        ],
+        "cost": "1",
+        "specified": null,
+        "z": null,
+        "power": 10000,
+        "name": "Katopesla",
+        "characters": [
+          "Katopesla"
+        ],
+        "traits": [
+          "Alien",
+          "Universe 3"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "62a4b3dd7557f4c1def3f91ff7ca1fb4de6307b490e5f59f9959a0c7c67f08b2"
+  },
+  "TB1-027": {
+    "card": {
+      "id": "TB1-027",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Ready to Fight Son Goku",
+      "characters": [
+        "Son Goku"
+      ],
+      "traits": [
+        "Saiyan",
+        "Universe 7"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Universe 7≫ among them and add it to your hand. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "TB1-027": [
+        {
+          "name": "Ready to Fight Son Goku",
+          "qa": [
+            {
+              "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+              "a": "No, you can't.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+            },
+            {
+              "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+              "a": "No, that's not necessary.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+            },
+            {
+              "q": "When adding a card to your hand using the auto skill, do you need to reveal it to your opponent?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "TB1-027#0"
+    ],
+    "allRecords": {
+      "TB1-027#0": {
+        "cardId": "TB1-027",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Universe 7≫ among them and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Universe 7"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 ≪Universe 7≫ among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪Universe 7≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "BT14-006",
+        "type": "BATTLE",
+        "colors": [
+          "Red"
+        ],
+        "cost": "2",
+        "specified": null,
+        "z": null,
+        "power": 20000,
+        "name": "Super Saiyan Son Goku",
+        "characters": [
+          "Son Goku"
+        ],
+        "traits": [
+          "Saiyan",
+          "Universe 7"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "3b8e9c03119d8208e3640b332ad9aef9bac2559f0c3ec832ec9d43f9bf137f59"
+  },
+  "BT12-072": {
+    "card": {
+      "id": "BT12-072",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 9000,
+      "name": "Daiz, Invader of Earth",
+      "characters": [
+        "Daiz"
+      ],
+      "traits": [
+        "Turles Crusher Corps"
+      ],
+      "skill": "[Unique]<br>[Auto] If your Leader Card is a ≪Turles Crusher Corps≫ card and this card was used in a combo from your deck or hand: When this card would be placed in its owner's Drop Area from a Combo Area, you may play it in Rest Mode instead.<br>[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 ≪Turles Crusher Corps≫ card among them to your hand, then shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "BT12-072": [
+        {
+          "name": "Daiz, Invader of Earth",
+          "qa": [
+            {
+              "q": "If this card would be placed in its owner’s Drop Area from the Combo Area by {BT10-062 SS Bardock, Paternal Unison}’s auto skill, does this card’s auto skill activate?",
+              "a": "Yes, it does."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "BT12-072#20"
+    ],
+    "allRecords": {
+      "BT12-072#10": {
+        "cardId": "BT12-072",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] If your Leader Card is a ≪Turles Crusher Corps≫ card and this card was used in a combo from your deck or hand: When this card would be placed in its owner's Drop Area from a Combo Area, you may play it in Rest Mode instead.",
+        "kind": "auto",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader Card is a ≪Turles Crusher Corps≫ card and this card was used in a combo from your deck or hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "leaderMatches",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "turles crusher corps"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              {
+                "kind": "comboFrom",
+                "sel": {
+                  "special": "self"
+                },
+                "areas": [
+                  "deck",
+                  "hand"
+                ]
+              }
+            ]
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "turles crusher corps"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            {
+              "kind": "comboFrom",
+              "sel": {
+                "special": "self"
+              },
+              "areas": [
+                "deck",
+                "hand"
+              ]
+            }
+          ]
+        },
+        "ops": [
+          {
+            "op": "replace",
+            "event": "leave",
+            "from": [
+              "combo"
+            ],
+            "to": "drop",
+            "with": [
+              {
+                "op": "choose",
+                "sel": {
+                  "special": "self"
+                },
+                "as": "p0",
+                "reason": "you may play it in Rest Mode"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "p0"
+                },
+                "mode": "rest"
+              }
+            ],
+            "optional": true
+          }
+        ],
+        "unread": [],
+        "pattern": "if:all[replace]",
+        "reads": "if your leader is ≪turles crusher corps≫ and this card was used in a combo from the deck or hand: if this card would leave the combo area to the drop, you may have this happen instead: choose this card, play the chosen cards in rest mode"
+      },
+      "BT12-072#20": {
+        "cardId": "BT12-072",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 ≪Turles Crusher Corps≫ card among them to your hand, then shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "turles crusher corps"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "add up to 1 ≪Turles Crusher Corps≫ card among them to your hand"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪turles crusher corps≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "BT12-073",
+        "type": "BATTLE",
+        "colors": [
+          "Green"
+        ],
+        "cost": "2",
+        "specified": null,
+        "z": null,
+        "power": 15000,
+        "name": "Cacao, Invader of Earth",
+        "characters": [
+          "Cacao"
+        ],
+        "traits": [
+          "Turles Crusher Corps"
+        ],
+        "skill": "[Super Combo]<br>[Auto] If your Leader Card is green and your life is at 4 or less: When this card is used in a combo, draw 1 card.",
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "7c5364efe31e1c7f2a8c6d20ad0c8f5d31c22e2840cf4fcbf7eeefa2e661e58c"
+  },
+  "BT4-055": {
+    "card": {
+      "id": "BT4-055",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 1000,
+      "name": "Kindhearted Namekian Dende",
+      "characters": [
+        "Dende"
+      ],
+      "traits": [
+        "Namekian",
+        "God"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 ≪Namekian≫ and add it to your hand, then shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "BT4-055": [
+        {
+          "name": "Kindhearted Namekian Dende",
+          "qa": [
+            {
+              "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+              "a": "No, you cannot.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+            },
+            {
+              "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+              "a": "No, that’s not necessary.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+            },
+            {
+              "q": "When adding a card to your hand using an auto skill, do you need to reveal it to your opponent?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "BT4-055#0"
+    ],
+    "allRecords": {
+      "BT4-055#0": {
+        "cardId": "BT4-055",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 ≪Namekian≫ and add it to your hand, then shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Namekian"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 ≪Namekian≫"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪Namekian≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "TB3-044",
+        "type": "BATTLE",
+        "colors": [
+          "Green"
+        ],
+        "cost": "1",
+        "specified": null,
+        "z": null,
+        "power": 10000,
+        "name": "Dende",
+        "characters": [
+          "Dende"
+        ],
+        "traits": [
+          "Namekian"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "e079f8494b0e91cbfdb3e5e7c91a752b0c82a9aa708eb286c38077f6a1d34df8"
+  },
+  "TB1-045": {
+    "card": {
+      "id": "TB1-045",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Universe 9 Striker Roselle",
+      "characters": [
+        "Roselle"
+      ],
+      "traits": [
+        "Alien",
+        "Universe 9"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Universe 9≫ among them and add it to your hand. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "TB1-045": [
+        {
+          "name": "Universe 9 Striker Roselle",
+          "qa": [
+            {
+              "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+              "a": "No, you can't.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+            },
+            {
+              "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+              "a": "No, that's not necessary.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+            },
+            {
+              "q": "When adding a card to your hand using the auto skill, do you need to reveal it to your opponent?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "TB1-045#0"
+    ],
+    "allRecords": {
+      "TB1-045#0": {
+        "cardId": "TB1-045",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Universe 9≫ among them and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Universe 9"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 ≪Universe 9≫ among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪Universe 9≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "BT16-135",
+        "type": "BATTLE",
+        "colors": [
+          "Red",
+          "Yellow"
+        ],
+        "cost": "2",
+        "specified": null,
+        "z": null,
+        "power": 25000,
+        "name": "Mohito, Angel of Universe 9",
+        "characters": [
+          "Mohito"
+        ],
+        "traits": [
+          "God",
+          "Universe 9"
+        ],
+        "skill": "[Energy-Exhaust]",
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "cf8545bce88ffe1cff78e88de6d5078037a669daf066df26f1ef67a3e323f722"
+  },
+  "BT2-061": {
+    "card": {
+      "id": "BT2-061",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Universe 10 Supreme Kai Gowasu",
+      "characters": [
+        "Gowasu"
+      ],
+      "traits": [
+        "God"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪God≫ among them and add it to your hand. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "BT2-061": [
+        {
+          "name": "Universe 10 Supreme Kai Gowasu",
+          "qa": [
+            {
+              "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+              "a": "No, you cannot. Resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+            },
+            {
+              "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+              "a": "No, you do not.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+            },
+            {
+              "q": "{BT2‐061 Universe 10 Supreme Kai Gowasu}’s auto skill\nDo you need to reveal the card you added to your handed with?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "BT2-061#0"
+    ],
+    "allRecords": {
+      "BT2-061#0": {
+        "cardId": "BT2-061",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪God≫ among them and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "God"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 ≪God≫ among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪God≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "DB1-070",
+        "type": "BATTLE",
+        "colors": [
+          "Yellow"
+        ],
+        "cost": "1",
+        "specified": null,
+        "z": null,
+        "power": 10000,
+        "name": "Oracle Fish",
+        "characters": [
+          "Oracle Fish"
+        ],
+        "traits": [
+          "God"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "eb3e6a9727a18d013866f994e69281ac54abca17744e41945f46839153f816fa"
+  },
+  "BT3-067": {
+    "card": {
+      "id": "BT3-067",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Dr. Gero, Evil's Inventor",
+      "characters": [
+        "Dr. Gero"
+      ],
+      "traits": [
+        "Scientist"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Android≫ and add it to your hand. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "BT3-067": [
+        {
+          "name": "Dr. Gero, Evil's Inventor",
+          "qa": [
+            {
+              "q": "Do you need to reveal the card you added to your hand with this card ‘s auto skill?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "BT3-067#0"
+    ],
+    "allRecords": {
+      "BT3-067#0": {
+        "cardId": "BT3-067",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Android≫ and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Android"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 ≪Android≫"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪Android≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "BT17-127",
+        "type": "BATTLE",
+        "colors": [
+          "Black"
+        ],
+        "cost": "2",
+        "specified": null,
+        "z": null,
+        "power": 20000,
+        "name": "Fin",
+        "characters": [
+          "Fin"
+        ],
+        "traits": [
+          "Android"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "ba3deec7d663b0ea082832c2eb50b9527923966f1ec0a2ef5ac8687dac4f243e"
+  },
+  "TB1-086": {
+    "card": {
+      "id": "TB1-086",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Hero Combination Tupper",
+      "characters": [
+        "Tupper"
+      ],
+      "traits": [
+        "Alien",
+        "Pride Troopers",
+        "Universe 11"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 ≪Universe 11≫ among them and add it to your hand. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "TB1-086": [
+        {
+          "name": "Hero Combination Tupper",
+          "qa": [
+            {
+              "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+              "a": "No, you can't.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+            },
+            {
+              "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+              "a": "No, that's not necessary.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+            },
+            {
+              "q": "When adding a card to your hand using the auto skill, do you need to reveal it to your opponent?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "TB1-086#0"
+    ],
+    "allRecords": {
+      "TB1-086#0": {
+        "cardId": "TB1-086",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 ≪Universe 11≫ among them and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Universe 11"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 ≪Universe 11≫ among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪Universe 11≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "BT9-064",
+        "type": "BATTLE",
+        "colors": [
+          "Yellow"
+        ],
+        "cost": "1",
+        "specified": null,
+        "z": null,
+        "power": 5000,
+        "name": "Vuon, Dynamite Blaster",
+        "characters": [
+          "Vuon"
+        ],
+        "traits": [
+          "Alien",
+          "Pride Troopers",
+          "Universe 11"
+        ],
+        "skill": "[Blocker]",
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "e86e3d2306e56a0af562434c6abf3b07da3e0ca9dbfc5be1e455238575369a61"
+  },
+  "BT3-115": {
+    "card": {
+      "id": "BT3-115",
+      "type": "BATTLE",
+      "colors": [
+        "Black"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Towa, Space Time Unleashed",
+      "characters": [
+        "Towa"
+      ],
+      "traits": [
+        "Demon Realm Race"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 7 cards from the top of your deck. Choose up to 1 &lt;Mira&gt; or &lt;Masked Saiyan&gt; among them, and add it to your hand. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "BT3-115": [
+        {
+          "name": "Towa, Space Time Unleashed",
+          "qa": [
+            {
+              "q": "Do you need to reveal the card you added to your hand with this card ‘s auto skill?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "BT3-115#0"
+    ],
+    "allRecords": {
+      "BT3-115#0": {
+        "cardId": "BT3-115",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 7 cards from the top of your deck. Choose up to 1 <Mira> or <Masked Saiyan> among them, and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Mira",
+                  "Masked Saiyan"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 <Mira> or <Masked Saiyan> among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 7, choose up to 1 <Mira> or <Masked Saiyan> card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "DB1-084",
+        "type": "BATTLE",
+        "colors": [
+          "Black"
+        ],
+        "cost": "7",
+        "specified": null,
+        "z": null,
+        "power": 30000,
+        "name": "Mira, Assault from the Skies",
+        "characters": [
+          "Mira"
+        ],
+        "traits": [
+          "Android"
+        ],
+        "skill": "[double strike]<br>[over realm 7] {1}<br>[auto] When you play this card, draw 1 card, then at the start of your opponent's next Main Phase, choose 1 of your energy and switch it to Active Mode.",
+        "backName": null,
+        "backSkill": null
+      },
+      {
+        "id": "SD3-04",
+        "type": "BATTLE",
+        "colors": [
+          "Black"
+        ],
+        "cost": "4",
+        "specified": null,
+        "z": null,
+        "power": 20000,
+        "name": "Encroaching Threat Masked Saiyan",
+        "characters": [
+          "Masked Saiyan"
+        ],
+        "traits": [
+          "Saiyan"
+        ],
+        "skill": "[Permanent] This card can attack Battle Cards that are in Active Mode.<br>[Permanent] When you've sent 7 or more cards to your Warp, reduce the energy cost of this card in your hand and Warp by 1.",
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "f9744400f300ff72397ad3b43b32772769f9b9deae44ddb14f31614bc5e2b765"
+  },
+  "TB1-011": {
+    "card": {
+      "id": "TB1-011",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Cabba, Universe Mediator",
+      "characters": [
+        "Cabba"
+      ],
+      "traits": [
+        "Saiyan",
+        "Alien",
+        "Universe 6"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Universe 6≫ among them and add it to your hand. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "TB1-011": [
+        {
+          "name": "Cabba, Universe Mediator",
+          "qa": [
+            {
+              "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+              "a": "No, you can't.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+            },
+            {
+              "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+              "a": "No, that's not necessary.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+            },
+            {
+              "q": "When adding a card to your hand using the auto skill, do you need to reveal it to your opponent?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "TB1-011#0"
+    ],
+    "allRecords": {
+      "TB1-011#0": {
+        "cardId": "TB1-011",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Universe 6≫ among them and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Universe 6"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 ≪Universe 6≫ among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪Universe 6≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "BT7-038",
+        "type": "BATTLE",
+        "colors": [
+          "Blue"
+        ],
+        "cost": "3",
+        "specified": null,
+        "z": null,
+        "power": 30000,
+        "name": "Vados",
+        "characters": [
+          "Vados"
+        ],
+        "traits": [
+          "God",
+          "Universe 6"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "6ed7cadcca5e587d2f39154bf02a11dc16ca3f039632f4ba168363ab94b2da91"
+  },
+  "TB3-027": {
+    "card": {
+      "id": "TB3-027",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Planetary Invader Fasha",
+      "characters": [
+        "Fasha"
+      ],
+      "traits": [
+        "Saiyan",
+        "Bardock's Crew"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 5 cards from the top of your deck, choose up to 1 ≪Bardock's Crew≫ card from among them and add it to your hand, then shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {},
+    "candidateKeys": [
+      "TB3-027#0"
+    ],
+    "allRecords": {
+      "TB3-027#0": {
+        "cardId": "TB3-027",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 5 cards from the top of your deck, choose up to 1 ≪Bardock's Crew≫ card from among them and add it to your hand, then shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 5,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Bardock's Crew"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 ≪Bardock's Crew≫ card from among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 5, choose up to 1 ≪Bardock's Crew≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "DB1-071",
+        "type": "BATTLE",
+        "colors": [
+          "Yellow"
+        ],
+        "cost": "3",
+        "specified": null,
+        "z": null,
+        "power": 30000,
+        "name": "Tora",
+        "characters": [
+          "Tora"
+        ],
+        "traits": [
+          "Saiyan",
+          "Bardock's Crew"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "2c38adf9fb028e3f0d4013384c64896e9402fea0fe5ff1f76f07cdefc7834a17"
+  },
+  "TB1-060": {
+    "card": {
+      "id": "TB1-060",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Zarbuto, Maiden Attendant",
+      "characters": [
+        "Zarbuto"
+      ],
+      "traits": [
+        "Alien",
+        "Universe 2"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Universe 2≫ among them and add it to your hand. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "TB1-060": [
+        {
+          "name": "Zarbuto, Maiden Attendant",
+          "qa": [
+            {
+              "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+              "a": "No, you can't.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+            },
+            {
+              "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+              "a": "No, that's not necessary.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+            },
+            {
+              "q": "When adding a card to your hand using the auto skill, do you need to reveal it to your opponent?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "TB1-060#0"
+    ],
+    "allRecords": {
+      "TB1-060#0": {
+        "cardId": "TB1-060",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 ≪Universe 2≫ among them and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Universe 2"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 ≪Universe 2≫ among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪Universe 2≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "DB2-084",
+        "type": "BATTLE",
+        "colors": [
+          "Green"
+        ],
+        "cost": "3",
+        "specified": null,
+        "z": null,
+        "power": 30000,
+        "name": "Jimeze",
+        "characters": [
+          "Jimeze"
+        ],
+        "traits": [
+          "Alien",
+          "Universe 2"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "40588c6f824adcf27556a48008b532a0278f5b2a4f376fdf11f49c00dffe42cd"
+  },
+  "DB1-074": {
+    "card": {
+      "id": "DB1-074",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 4000,
+      "name": "Borgos, Raider's Warcry",
+      "characters": [
+        "Borgos"
+      ],
+      "traits": [
+        "Saiyan",
+        "Bardock's Crew"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 7 cards from the top of your deck, choose up to 1 ≪Bardock's Crew≫ card among them, add it to your hand, then shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {},
+    "candidateKeys": [
+      "DB1-074#0"
+    ],
+    "allRecords": {
+      "DB1-074#0": {
+        "cardId": "DB1-074",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 7 cards from the top of your deck, choose up to 1 ≪Bardock's Crew≫ card among them, add it to your hand, then shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Bardock's Crew"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 ≪Bardock's Crew≫ card among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 7, choose up to 1 ≪Bardock's Crew≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "DB1-071",
+        "type": "BATTLE",
+        "colors": [
+          "Yellow"
+        ],
+        "cost": "3",
+        "specified": null,
+        "z": null,
+        "power": 30000,
+        "name": "Tora",
+        "characters": [
+          "Tora"
+        ],
+        "traits": [
+          "Saiyan",
+          "Bardock's Crew"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "ced5d76573588bf2b8cd0d3e62067669f996b6eab7f84e922deb6e09da70f301"
+  },
+  "TB1-057": {
+    "card": {
+      "id": "TB1-057",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Girl Warrior Brianne De Chateau",
+      "characters": [
+        "Brianne De Chateau"
+      ],
+      "traits": [
+        "Alien",
+        "Maiden Squadron",
+        "Universe 2"
+      ],
+      "skill": "[Barrier] (This card can't be chosen by the skills of your opponent's cards)<br>[Auto] When you play this card, look at up to 7 cards from the top of your deck. Choose up to 1 ≪Maiden Squadron≫ among them and add it to your hand. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "TB1-057": [
+        {
+          "name": "Girl Warrior Brianne De Chateau",
+          "qa": [
+            {
+              "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+              "a": "No, you can't.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+            },
+            {
+              "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+              "a": "No, that's not necessary.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+            },
+            {
+              "q": "When adding a card to your hand using the auto skill, do you need to reveal it to your opponent?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "TB1-057#10"
+    ],
+    "allRecords": {
+      "TB1-057#0": {
+        "cardId": "TB1-057",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Barrier] (This card can't be chosen by the skills of your opponent's cards)",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Barrier",
+        "reads": ""
+      },
+      "TB1-057#10": {
+        "cardId": "TB1-057",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] When you play this card, look at up to 7 cards from the top of your deck. Choose up to 1 ≪Maiden Squadron≫ among them and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Maiden Squadron"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 ≪Maiden Squadron≫ among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 7, choose up to 1 ≪Maiden Squadron≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "matchingCards": [
+      {
+        "id": "DB2-070",
+        "type": "BATTLE",
+        "colors": [
+          "Green"
+        ],
+        "cost": "4",
+        "specified": null,
+        "z": null,
+        "power": 20000,
+        "name": "Ribrianne, Boundless Heart",
+        "characters": [
+          "Ribrianne"
+        ],
+        "traits": [
+          "Alien",
+          "Maiden Squadron",
+          "Universe 2"
+        ],
+        "skill": "[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and KO it.",
+        "backName": null,
+        "backSkill": null
+      }
+    ],
+    "imageSha256": "90d3989e3ca9f1e0ca4354ad6908b81f23f03275491da50c45d6a95eadcea3b0"
+  }
+}
