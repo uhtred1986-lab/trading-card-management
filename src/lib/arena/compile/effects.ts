@@ -1076,6 +1076,25 @@ function bindCompositeOffer(ops: Op[]): void {
   hinge.cond = { kind: "all", conds: [{ kind: "chose", var: choice.as }, { kind: "moved", var: choice.as, all: true }, { kind: "switched", var: energy.as }, { kind: "moved", var: self.completedAs, all: true }] };
 }
 
+/** R500: Cheelai's exact third option requires all seven original removals. */
+function bindSevenDragonBallRemoval(clauses: string[], ops: Op[]): boolean | null {
+  const exact = [
+    "remove 7 [dragon ball] cards in your drop area from the game",
+    "if you do",
+    "choose up to 2 green ≪frieza's army≫ cards with an energy cost of 2 or less from your deck",
+    "play them", "shuffle your deck", "flip this card over at the end of the turn",
+  ];
+  if (JSON.stringify(clauses.map(s => s.trim().replace(/[.]$/, "").toLowerCase())) !== JSON.stringify(exact)) return null;
+  const [choice, move, hinge] = ops;
+  if (ops.length !== 3 || choice?.op !== "choose" || choice.sel.count !== 7 || choice.sel.upTo !== false
+      || choice.sel.side !== "you" || choice.sel.area !== "drop" || JSON.stringify(choice.sel.filter?.keywords) !== '["Dragon Ball"]'
+      || move?.op !== "moveTo" || move.to !== "removed" || !("var" in move.target) || move.target.var !== choice.as
+      || hinge?.op !== "if" || hinge.else || hinge.cond.kind !== "chose" || hinge.cond.var !== choice.as || hinge.cond.atLeast !== 7) return false;
+  move.completedAs = choice.as;
+  hinge.cond = { kind: "moved", var: choice.as, atLeast: 7, all: true };
+  return true;
+}
+
 /** R-426: only an adjacent optional one-card choice followed by one ordinary move. */
 export function bindCompletedChoice(ops: Op[], name: string): Cond | null {
   const move = ops[ops.length - 1], choice = ops[ops.length - 2];
@@ -9126,6 +9145,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
   const formerOuter = ops.length > 1 && ops[0].op === "if" ? ops[0] : null;
   nestTerminalMovementHinges(ops);
   if (formerOuter && ops.length === 1 && ops[0] === formerOuter) c.resolutionCondition = formerOuter;
+  if (bindSevenDragonBallRemoval(rawClauses, ops) === false) refuse(rawClauses.join(", "));
   retainAdjacentMovementHinges(ops);
   bindCompositeOffer(ops);
   return ops;

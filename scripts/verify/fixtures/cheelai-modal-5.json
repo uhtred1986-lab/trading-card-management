@@ -1,0 +1,994 @@
+{
+  "cheelai": {
+    "card": {
+      "id": "BT6-054",
+      "type": "LEADER",
+      "colors": [
+        "Green"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Cheelai and Lemo",
+      "characters": [
+        "Cheelai: Br",
+        "Lemo: Br"
+      ],
+      "traits": [
+        "Frieza's Army",
+        "Shenron"
+      ],
+      "skill": "[Permanent] You can't add cards from your life to your hand during your turn, except with this card's skill. <br>[Activate: Main][Once per turn] Choose up to 1 [Dragon Ball] card from your deck or life and add it to your hand. Then shuffle any areas you looked through. <br>[Wish] When there are 7 [Dragon Ball] cards in your Drop Area: Choose up to 1 &lt;Broly: Br&gt; card from your Drop Area, add it to your hand, and flip this card over.",
+      "backName": "Cheelai and Lemo, the Kindhearted",
+      "backSkill": "[Permanent] You can't add cards from your life to your hand during your turn.<br>[Activate: Main][Once per turn] Choose one\u2014<br>\u30fbDraw 1 card.<br>\u30fbChoose 1 green or black \u226aDesire\u226b card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill.<br>\u30fbRemove 7 [Dragon Ball] cards in your Drop Area from the game.<br>If you do, choose up to 2 green \u226aFrieza's Army\u226b cards with an energy cost of 2 or less from your deck and play them, then shuffle your deck and flip this card over at the end of the turn."
+    },
+    "records": {
+      "BT6-054#0": {
+        "cardId": "BT6-054",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] You can't add cards from your life to your hand during your turn, except with this card's skill.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "isTurnPlayer"
+        },
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "addLifeToHand",
+            "side": "you",
+            "until": "game",
+            "exceptOwnSkills": true
+          }
+        ],
+        "unread": [],
+        "pattern": "if:isTurnPlayer[forbid:addLifeToHand]",
+        "reads": "if it is your turn: you can't add cards from life to hand except by this card's own skills"
+      },
+      "BT6-054#10": {
+        "cardId": "BT6-054",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main][Once per turn] Choose up to 1 [Dragon Ball] card from your deck or life and add it to your hand. Then shuffle any areas you looked through.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "deck",
+              "areas": [
+                "deck",
+                "life"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [
+                  "Dragon Ball"
+                ],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 [Dragon Ball] card from your deck or life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle",
+            "areas": [
+              "deck",
+              "life"
+            ],
+            "inspectedOnly": true
+          }
+        ],
+        "unread": [],
+        "pattern": "choose\u2192moveTo\u2192shuffle",
+        "reads": "choose up to 1 card with [Dragon Ball] in your deck or Life Area, move the chosen cards to hand, shuffle"
+      },
+      "BT6-054#20": {
+        "cardId": "BT6-054",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Wish] When there are 7 [Dragon Ball] cards in your Drop Area: Choose up to 1 <Broly: Br> card from your Drop Area, add it to your hand, and flip this card over.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "When there are 7 [Dragon Ball] cards in your Drop Area",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [
+                  "Dragon Ball"
+                ],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 7
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Broly: Br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 <Broly: Br> card from your Drop Area"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose\u2192moveTo",
+        "reads": "choose up to 1 <Broly: Br> card in your Drop Area, move the chosen cards to hand"
+      },
+      "BT6-054#0b": {
+        "cardId": "BT6-054",
+        "side": "back",
+        "skillIndex": 0,
+        "printed": "[Permanent] You can't add cards from your life to your hand during your turn.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "isTurnPlayer"
+        },
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "addLifeToHand",
+            "side": "you",
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:isTurnPlayer[forbid:addLifeToHand]",
+        "reads": "if it is your turn: you can't add cards from life to hand"
+      },
+      "BT6-054#10b": {
+        "cardId": "BT6-054",
+        "side": "back",
+        "skillIndex": 10,
+        "printed": "[Activate: Main][Once per turn] Choose one\u2014 \u30fbDraw 1 card. \u30fbChoose 1 green or black \u226aDesire\u226b card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill. \u30fbRemove 7 [Dragon Ball] cards in your Drop Area from the game.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "chooseMode",
+            "modes": [
+              {
+                "label": "Draw 1 card.",
+                "ops": [
+                  {
+                    "op": "draw",
+                    "n": 1
+                  }
+                ]
+              },
+              {
+                "label": "Choose 1 green or black \u226aDesire\u226b card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill.",
+                "ops": [
+                  {
+                    "op": "invokeSkill",
+                    "sel": {
+                      "side": "you",
+                      "area": "hand",
+                      "filter": {
+                        "colors": [
+                          "Green",
+                          "Black"
+                        ],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [
+                          "Desire"
+                        ],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": null,
+                        "costMax": null,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": true,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      "count": 1,
+                      "upTo": false
+                    },
+                    "skillKind": "activate:main",
+                    "from": "hand"
+                  }
+                ]
+              },
+              {
+                "label": "Remove 7 [Dragon Ball] cards in your Drop Area from the game.",
+                "ops": [
+                  {
+                    "op": "choose",
+                    "sel": {
+                      "side": "you",
+                      "area": "drop",
+                      "filter": {
+                        "colors": [],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [
+                          "Dragon Ball"
+                        ],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": null,
+                        "costMax": null,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      "count": 7,
+                      "upTo": false
+                    },
+                    "as": "c0",
+                    "reason": "Remove 7 [Dragon Ball] cards in your Drop Area from the game"
+                  },
+                  {
+                    "op": "moveTo",
+                    "target": {
+                      "var": "c0"
+                    },
+                    "to": "removed"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "choose one[draw/invokeSkill/choose\u2192moveTo]",
+        "reads": "choose one \u2014 draw 1 / activate up to 1 [Activate: Main] skill of 1 green or black \u226aDesire\u226b card with an energy cost less than or equal to your current energy in your hand for free / choose 7 cards with [Dragon Ball] in your Drop Area, move the chosen cards to removed"
+      },
+      "BT6-054#20b": {
+        "cardId": "BT6-054",
+        "side": "back",
+        "skillIndex": 20,
+        "printed": "If you do, choose up to 2 green \u226aFrieza's Army\u226b cards with an energy cost of 2 or less from your deck and play them, then shuffle your deck and flip this card over at the end of the turn.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "If you do",
+          "choose up to 2 green \u226aFrieza's Army\u226b cards with an energy cost of 2 or less from your deck",
+          "play them",
+          "shuffle your deck",
+          "flip this card over at the end of the turn"
+        ],
+        "pattern": "if you do",
+        "reads": ""
+      }
+    },
+    "faq": [
+      {
+        "name": "Cheelai and Lemo",
+        "qa": [
+          {
+            "q": "During your turn, if your opponent deals damage to you by using a skill, can you add cards from your life to your hand?",
+            "a": "No, you can\u2019t."
+          },
+          {
+            "q": "Can you activate this card\u2019s [Wish] skill when there are no\u3008Broly : Br\u3009 cards in your Drop Area?",
+            "a": "Yes, you can.\nEven if there are no\u3008Broly : Br\u3009 cards in your Drop Area, as long as the \u201cWhen there are 7 Dragon Ball cards in your Drop Area\u201d condition is met, you can activate and resolve the card\u2019s [Wish] skill."
+          },
+          {
+            "q": "Can you look at your life after looking at your deck with this card\u2019s auto skill?",
+            "a": "Yes, you can.\nHowever, make sure to resolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+          }
+        ]
+      },
+      {
+        "name": "Cheelai and Lemo, the Kindhearted",
+        "qa": [
+          {
+            "q": "During your turn, if your opponent deals damage to you by using a skill, can you add cards from your life to your hand?",
+            "a": "No, you can\u2019t."
+          },
+          {
+            "q": "When using this card\u2019s skill to activate [Activate] skills on cards with \u226aDesire\u226b, do you have to pay the energy cost on the activated card?",
+            "a": "No, you don\u2019t have to pay unless specified otherwise."
+          },
+          {
+            "q": "This card has a skill that reads: \u201cChoose 1 green or black \u226aDesire\u226b card in your hand with an energy cost less than or equal to your current energy and activate its [Activate : Main] skill.\u201d\nWhen you use this skill to activate an [Activate : Main] skill on a card in your hand, does that card remain in your hand?",
+            "a": "No, it doesn\u2019t. The skill places the card with \u226aDesire\u226b in your Drop Area, and then activates its [Activate : Main] skill."
+          },
+          {
+            "q": "Where should I place cards that have been \u201cremoved from the game\u201d?",
+            "a": "Cards that have been removed from the game should be placed face up in an area separate from your Drop Area and Warp that is visible to all players."
+          }
+        ]
+      }
+    ]
+  },
+  "desire": {
+    "card": {
+      "id": "BT9-089",
+      "type": "EXTRA",
+      "colors": [
+        "Black"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Unexpected Recovery",
+      "characters": [],
+      "traits": [],
+      "skill": "[Permanent] This card gains \u226aDesire\u226b in all areas.<br>[Activate: Main] If your Leader Card is a \u226aShenron\u226b card: Choose up to 1 of your Battle Cards with an energy cost of 2 and 15000 power, switch it to Active Mode, and it gets +5000 power for the duration of the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "records": {
+      "BT9-089#0": {
+        "cardId": "BT9-089",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] This card gains \u226aDesire\u226b in all areas.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "gains",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "traits": [
+              "desire"
+            ],
+            "characters": [],
+            "colors": [],
+            "allAreas": true
+          }
+        ],
+        "unread": [],
+        "pattern": "gains",
+        "reads": "this card also counts as \u226adesire\u226b"
+      },
+      "BT9-089#10": {
+        "cardId": "BT9-089",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main] If your Leader Card is a \u226aShenron\u226b card: Choose up to 1 of your Battle Cards with an energy cost of 2 and 15000 power, switch it to Active Mode, and it gets +5000 power for the duration of the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader Card is a \u226aShenron\u226b card",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "shenron"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "shenron"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 2,
+                "costMax": 2,
+                "powerMin": 15000,
+                "powerMax": 15000,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 of your Battle Cards with an energy cost of 2 and 15000 power"
+          },
+          {
+            "op": "switchMode",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "active"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[choose\u2192switchMode\u2192power]",
+        "reads": "if your leader is \u226ashenron\u226b: choose up to 1 Battle Card with an energy cost of 2 with 15000 power in your Battle Area, switch the chosen cards to active mode, the chosen cards +5000 power for the turn"
+      }
+    },
+    "faq": []
+  }
+}
