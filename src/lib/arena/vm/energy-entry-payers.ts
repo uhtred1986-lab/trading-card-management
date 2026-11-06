@@ -10,11 +10,13 @@ import { canonicalTaxValue as canonical } from "./tax-receipt";
 type Payer = { card: string; cardId: string; epoch: number; owner: string; holder: string };
 export type EnergyEntryPayers = Record<string, { offered: Payer[]; selected?: Payer; attempted?: true }>;
 const fail = (): never => { throw new NotYet("rebuild Energy entry payer occurrence history", "R476"); };
-const read = (h: ScriptHost, card: string): Payer => ({ card, cardId: h.catalogIdOf(card), epoch: h.zoneEpoch(card), owner: h.ownerOf(card), holder: h.masterOf(card) });
-const current = (h: ScriptHost, payer: Payer): boolean => h.exists(payer.card) && h.areaOf(payer.card) === "drop" && canonical(read(h,payer.card)) === canonical(payer);
+// R491: native Drop holder is a physical fact; masterOf falls back to ownership.
+const read = (h: ScriptHost, card: string): Payer => ({ card, cardId: h.catalogIdOf(card), epoch: h.zoneEpoch(card), owner: h.ownerOf(card), holder: h.energyEntryLocation?.(card)?.holder ?? "" });
+const inDrop = (h: ScriptHost, card: string): boolean => h.areaOf(card) === "drop" && h.energyEntryLocation?.(card)?.area === "drop";
+const current = (h: ScriptHost, payer: Payer): boolean => h.exists(payer.card) && inDrop(h,payer.card) && canonical(read(h,payer.card)) === canonical(payer);
 
 export function requireEnergyEntryPayers(h: ScriptHost, frame: ScriptFrame, payers: EnergyEntryPayers): void {
-  if (!payers || typeof payers !== "object" || Array.isArray(payers)) fail();
+  if (!h.energyEntryLocation || !payers || typeof payers !== "object" || Array.isArray(payers)) fail();
   for(const [name,choice] of Object.entries(payers)) {
     if (!(ENERGY_ENTRY_SLOTS as readonly string[]).includes(name) || !choice || !Array.isArray(choice.offered) || choice.attempted !== undefined && choice.attempted !== true) fail();
     for(const payer of choice.offered) if (!payer || typeof payer.card !== "string" || typeof payer.cardId !== "string" || !Number.isSafeInteger(payer.epoch) || payer.epoch < 0 || payer.owner !== frame.master || payer.holder !== frame.master) fail();
@@ -48,7 +50,7 @@ export function requireEnergyEntryPayers(h: ScriptHost, frame: ScriptFrame, paye
 export function offerEnergyEntryPayers(h: ScriptHost, frame: ScriptFrame, payers: EnergyEntryPayers, candidates: string[]): void {
   const op=frame.ops[frame.ip];
   if(op?.op!=="choose" || !(ENERGY_ENTRY_SLOTS as readonly string[]).includes(op.as) || payers[op.as]) return;
-  if(candidates.some(id=>h.areaOf(id)!=="drop"||h.ownerOf(id)!==frame.master||h.masterOf(id)!==frame.master)) fail();
+  if(!h.energyEntryLocation||candidates.some(id=>!inDrop(h,id)||h.ownerOf(id)!==frame.master||read(h,id).holder!==frame.master)) fail();
   payers[op.as]={offered:candidates.map(id=>read(h,id))};
 }
 
