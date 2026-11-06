@@ -1,3 +1,4 @@
+import {requireEnergyCouponFrame} from './energy-coupon-saves';
 import {recordMovementResult} from './movement-result';
 import {paidHandIntent,allHandPaymentMove,HAND_PAYERS} from './paid-hand-contract';
 import {paidHandProblem,captureAllHandPayment,requirePaidHandFrame,publishPaidHand} from './paid-hand-runtime';
@@ -78,6 +79,8 @@ export function stepOrdinaryActivateCost(ctx:EngineContext,game:GameDefinition,s
  const frames=()=>[frame,...state.programs];
  const pair=requireOrdinaryActivatePair(saved.cost,frames());
  if(canonical(pair.effect.ordinaryActivation)!==canonical(saved))fail();
+ // R448 applies before this dedicated R515 runner can pay any material.
+ requireEnergyCouponFrame(ctx,state,frame);
  requirePaidRemovalFrame(ctx,game,state,frame,saved.cost.source.script);
  requirePaidDropFrame(ctx,game,state,frame,saved.cost.source.script);
  requirePaidHandFrame(ctx,state,frame,saved.cost.source.script);

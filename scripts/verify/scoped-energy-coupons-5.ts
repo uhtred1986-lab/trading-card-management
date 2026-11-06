@@ -11,11 +11,12 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { energyCouponContract, requireEnergyCouponFrame } from "../../src/lib/arena/vm/energy-coupon-saves";
 import type { Op, ScriptFrame } from "../../src/lib/arena/vm/script";
+import { stepOrdinaryActivateCost } from "../../src/lib/arena/vm/ordinary-activate-runtime";
 import { run } from "../../src/lib/arena/vm/flow";
 import { attrsNow } from "../../src/lib/arena/vm/program";
 import { energyActivationReaches } from "../../src/lib/arena/vm/energy-coupons";
 import { cardPrice } from "../../src/lib/arena/vm/costs";
-import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
+import type { Action, CardDef, EngineContext, GameEvent, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 const printed = "[auto] When this card is played, look at up to 7 cards from the top of your deck, add up to 1 blue Extra with an energy cost of 1 to your hand, then shuffle your deck.<br>[activate: main][limit 1][spirit boost 1] Blue Unison with 15000 power or more: During that turn, the next time you activate the [activate: main] skill on a blue Extra with an energy cost of 1 from your hand, reduce the energy cost by {u}.";
 const defs: Record<string, CardDef> = {
@@ -237,7 +238,16 @@ for (const p of ["p1", "p2"] as const) {
             delete pending.activationEnergyPayment;
         else
             s.effects = s.effects.filter(e => !pending.activationEnergyPayment!.ids.includes(e.id));
-        s = take(copy(s), { type: "choose", player: p, cards: [material] });
+        if (variant !== "expired") {
+            const direct=copy(s),price=direct.programs.shift()!;assert.ok(price.saveVarsAs);
+            direct.lastChoice=[material];const before=JSON.stringify(direct),cursor=JSON.stringify(price),events:GameEvent[]=[];
+            assert.throws(()=>stepOrdinaryActivateCost(ctx,game,direct,events,price),/coupon/);
+            assert.equal(JSON.stringify(direct),before,"malformed coupon receipt refuses before any direct payment write");
+            assert.equal(JSON.stringify(price),cursor);assert.deepEqual(events,[]);assert.ok(direct.sides[p].zones.battle.includes(material));
+        }
+        const saved=copy(s),original=JSON.stringify(saved),result=RULES.apply(ctx,saved,{type:"choose",player:p,cards:[material]});
+        assert.equal(JSON.stringify(saved),original,"saved coupon choice input remains unchanged");s=result.state as VmState;
+        if (variant !== "expired") assert.ok(!result.events.some(event=>(event.type==="move"||event.type==="ko")&&event.card===material));
         if (variant === "expired") {
             assert.notEqual(s.outcome?.kind, "interrupted");
             assert.ok(!s.effects.some(e => e.energyActivation));
