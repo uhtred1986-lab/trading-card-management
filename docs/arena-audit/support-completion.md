@@ -216,6 +216,10 @@ Runtime `3ee59da5` adds the exact P-656, BT16-131 and BT16-143 paired records wi
 
 Runtime `2ffb87c6` binds optional entry from Combo to the original native activation, battle and source occurrence. Combined validation passes 2,379 native/contract cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Compiler/collector admission is unchanged; the six Energy-entry records remain unsupported overall and checkpoint53 catalog totals remain applicable. See [checkpoint 54](round-5/support-fiftyfourth-batch.md). Kefla and the shared movement cleanup prerequisite for Battle entry continue.
 
+## Checkpoint 57: opposing Energy movers and Battle attackers
+
+Runtime `89ca1edc` adds owner payment choices during an opponent's native Energy move and fixes Z-Battle/token attack classification and token Counter admission. Combined validation passes 4,230 native/contract cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Compiler records remain unchanged at 13,013 readable /953 unread; runtime census remains 12/318/2559. See [checkpoint 57](round-5/support-fiftyseventh-batch.md). Original Energy-arrival negation and temporary-control protections continue in the same PR.
+
 ## Checkpoint 56: Battle Energy entry and Gohan
 
 Runtime `558128cd` adds bounded own-actor Battle Energy entry groundwork and BT26-100's play/qualified-attack Auto. Combined validation passes 3,691 native/contract cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Exactly one compiler record changes: 13,013 readable /953 unread; runtime census remains 12/318/2559. See [checkpoint 56](round-5/support-fiftysixth-batch.md). Opposing-actor Energy entry and normalized Battle attack/Counter eligibility continue in the same PR.
