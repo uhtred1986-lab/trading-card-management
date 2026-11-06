@@ -283,3 +283,7 @@ Source `2aa3f4ea` and registry `055a3014` add preparatory mixed-policy history/r
 ## Checkpoint 71: standalone mixed-negation board adapters
 
 Source `00f9e096` and registry `37d601c9` add actual-state observation and staged history/grant-deletion publication. The worker passed 265 distinct adapter/contract/legacy cases; root reran 44 on the combined head. Capability inventory validates 222 sites. Gameplay hookup and card admission remain pending; catalog/runtime counts are unchanged. See [checkpoint 71](round-5/support-seventyfirst-batch.md).
+
+## Checkpoint 72: five Broly under-card permissions
+
+R514 source `9e1fa539`, preparatory participant extension `dd3d2666`, and registry `031feb52` are integrated. Exactly five original permission rows become readable; 13,025 readable / 940 unread records remain, with runtime 3 / 308 / 2,573. R514 has 521 counted new/compatibility controls; R513 retains 260 isolated/staged controls without gameplay admission. Combined type, 227-site inventory and 218-module/121-step browser checks pass. See [checkpoint 72](round-5/support-seventysecond-batch.md). Native Combo cleanup and historical paid-Token work continue.
