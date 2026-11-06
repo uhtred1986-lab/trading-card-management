@@ -1,3 +1,5 @@
+import {compilePaidRemovalFollowup} from '../../src/lib/arena/compile/effects';
+import type {Ctx} from '../../src/lib/arena/compile/shared';
 import {parseRule,printRule,type Rule} from '../../src/lib/arena/lang';
 /** Exact source/price/body contract plus compiler and language regression controls. */
 import assert from 'node:assert/strict';
@@ -67,4 +69,9 @@ const reordered=JSON.parse(JSON.stringify(script),(k,v)=>v&&typeof v==='object'&
 for(const text of [full.card.skill.replace('[activate: battle]','[activate: main]'),full.card.skill.replace('[activate: battle]','[activate: battle][Once per turn]'),full.card.skill.replace('Remove 1 of your','Remove 2 of your'),full.card.skill.replace('skill-less Battle Cards','Battle Cards'),full.card.skill.replace('remove a Token','remove a Battle Card'),full.card.skill.replace('draw 1 card.','draw 2 cards.'),full.card.skill.replace('Remove 1 of your','{b}, Remove 1 of your')]){
  const rows=skillRecords({...def,skill:text});assert.ok(rows.find(r=>r.skillIndex===10)?.unread.length);cases++;
 }
+// A rejected exact-body candidate must leave no choices for generic fallback.
+const context:Ctx={permanent:false,last:null,choices:[],lastSeen:null,lastNamed:null,mills:0,costs:0,lastPlayed:null,lastTarget:null,stale:null,twoNamedCardsRefused:false,lastOp:null,replacing:null,n:0,raw:skill.effect};
+const untouched=clone(context),priced=clone(script);priced.price!.payment.orbs={Black:1};
+assert.equal(compilePaidRemovalFollowup(skill,priced,context),null);
+assert.deepEqual(context,untouched);cases++;
 console.log(`paid-removal-contract-5: ${cases} isolated contract cases PASS; plus exact full-record and loaded-script assertions`);

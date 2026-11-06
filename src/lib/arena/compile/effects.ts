@@ -7560,7 +7560,7 @@ export function compileOriginalKoFollowup(rawClauses: string[], c: Ctx, unsuppor
 /** R516: only the complete original ordinary Battle price/body may read this history. */
 export function compilePaidRemovalFollowup(skill: Skill, envelope: Script, c: Ctx): Op[] | null {
   if (skill.effect.trim().replace(/\s+/g, ' ').replace(/\.$/, '').toLowerCase() !== 'choose up to 1 of your battle cards and it gets +10000 power for the battle. additionally, if you used this skill to remove a token from the game, draw 1 card') return null;
-  const local = { ...c }, issues: string[] = [];
+  const local = structuredClone(c), issues: string[] = [];
   const prefix = compileClauseList(['Choose up to 1 of your Battle Cards', 'it gets +10000 power for the battle'], local, issues);
   const ops = [...prefix, paidRemovalTail()];
   try { requirePaidRemovalShape(skill, { ...envelope, ops }); } catch { return null; }
