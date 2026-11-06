@@ -95,6 +95,8 @@ export interface ScriptHost {
   masterOf(id: string): PlayerId;
   /** Which area it stands in, or null for a card that is nowhere (under another card, or gone). */
   areaOf(id: string): Area | null;
+  /** Original native Combo activation facts, captured and rechecked on resume. */
+  energyEntryComboScope?(frame: ScriptFrame, id: string): import("./energy-entry-combo").EnergyComboScope;
   /** Physical zone holder, independent of card ownership or skill master. */
   energyEntryLocation?(id: string): { holder: PlayerId; area: Area } | null;
   /** The card this one is under (23-2), or null. */

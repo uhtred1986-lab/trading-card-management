@@ -9,9 +9,10 @@ import { IllegalAction } from "./illegal-action";
 type Occurrence = { card: string; epoch: number };
 export interface EnergyEntryWitness {
   version: 1;
+  combo?: import("./energy-entry-combo").EnergyComboScope;
   /** Allocated by the owning movement scope, never inferred from card order. */
   owner: number;
-  incoming: Occurrence & { cardId: string; flipped: boolean; area: "hand" | "deck" | "drop" | "warp" | "zEnergy"; holder: PlayerId; owner: PlayerId };
+  incoming: Occurrence & { cardId: string; flipped: boolean; area: "hand" | "deck" | "drop" | "warp" | "zEnergy" | "combo"; holder: PlayerId; owner: PlayerId };
   destination: { player: PlayerId; area: "energy"; mode?: "active" | "rest" };
   parent: { card: string; master: PlayerId; skillIndex?: number; ip: number; operation: Op; index: number; cards: string[] };
 }
@@ -24,12 +25,13 @@ export function captureEnergyEntryWitness(h: ScriptHost, owner: number, frame: S
   if (!Number.isSafeInteger(owner) || owner <= 0 || op?.op !== "moveTo" || loop?.kind !== "moveTo" || loop.ids[loop.index] !== incoming) rebuild("movement owner");
   // Admission is deliberately narrow until the corresponding route has its own proof.
   if (loop.ids.length !== 1) throw new NotYet("owner ordering for a multi-card Energy entry", "R476");
-  if (area !== "hand" && area !== "deck" && area !== "drop" && area !== "warp" && area !== "zEnergy") throw new NotYet("this Energy entry origin", "R476");
+  if (area !== "hand" && area !== "deck" && area !== "drop" && area !== "warp" && area !== "zEnergy" && area !== "combo") throw new NotYet("this Energy entry origin", "R476");
   const location=h.energyEntryLocation?.(incoming);
   if (!location || location.area!==area) rebuild("physical source location");
   if (location.holder!==destination.player || h.ownerOf(incoming) !== destination.player || h.masterOf(incoming) !== destination.player) throw new NotYet("another player's Energy entry", "R476");
   const witness: EnergyEntryWitness = {
     version: 1, owner,
+    ...(area==="combo"?{combo:h.energyEntryComboScope?.(frame,incoming)}:{}),
     incoming: { card: incoming, cardId: h.catalogIdOf(incoming), flipped: h.isFlipped(incoming), epoch: h.zoneEpoch(incoming), area, holder: location.holder, owner: h.ownerOf(incoming) },
     destination: structuredClone(destination),
     parent: { card: frame.card, master: frame.master, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}), ip: frame.ip, operation: structuredClone(op), index: loop.index, cards: [...loop.ids] },
@@ -42,13 +44,16 @@ export function captureEnergyEntryWitness(h: ScriptHost, owner: number, frame: S
 export function requireEnergyEntryWitness(h: ScriptHost, owner: number, frame: ScriptFrame, value: EnergyEntryWitness | undefined, destination: EnergyEntryWitness["destination"]): asserts value is EnergyEntryWitness {
   if (!value || value.version !== 1 || !Number.isSafeInteger(value.owner) || value.owner <= 0 || value.owner !== owner ||
     !value.incoming || typeof value.incoming.card !== "string" || typeof value.incoming.cardId !== "string" || typeof value.incoming.flipped !== "boolean" || !epoch(value.incoming.epoch) ||
-    !["hand", "deck", "drop", "warp", "zEnergy"].includes(value.incoming.area) || !player(value.incoming.holder) || !player(value.incoming.owner) ||
+    !["hand", "deck", "drop", "warp", "zEnergy", "combo"].includes(value.incoming.area) || !player(value.incoming.holder) || !player(value.incoming.owner) ||
     !value.destination || value.destination.area !== "energy" || !player(value.destination.player) ||
     value.destination.mode !== undefined && value.destination.mode !== "active" && value.destination.mode !== "rest" ||
     !value.parent || typeof value.parent.card !== "string" || !player(value.parent.master) || !epoch(value.parent.ip) || !epoch(value.parent.index) ||
     value.parent.skillIndex !== undefined && !epoch(value.parent.skillIndex) ||
     !value.parent.operation || value.parent.operation.op !== "moveTo" || !Array.isArray(value.parent.cards) || value.parent.cards.length !== 1 ||
     value.parent.index !== 0 || value.parent.cards[0] !== value.incoming.card) rebuild("saved movement contract");
+  if (value.incoming.area==="combo") {
+    if (!value.combo || !h.energyEntryComboScope || canonical(value.combo)!==canonical(h.energyEntryComboScope(frame,value.incoming.card))) rebuild("original Combo battle scope");
+  } else if (value.combo!==undefined) rebuild("unexpected Combo battle scope");
   const saved = value.parent, loop = frame.moveLoop;
   if (!Array.isArray(frame.ops) || frame.card !== saved.card || frame.master !== saved.master || frame.skillIndex !== saved.skillIndex || frame.ip !== saved.ip ||
     !loop || loop.kind !== "moveTo" || loop.index !== saved.index || canonical(loop.ids) !== canonical(saved.cards) ||

@@ -1,3 +1,4 @@
+import { captureEnergyComboScope } from "./energy-entry-combo";
 import { requireDeclaredCharge, requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes, refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 import { guardOptionalEnergyFrame, prepareOptionalEnergyEntry, optionalEnergyArrival, guardUnownedEnergyEntry, type OptionalEnergyArrival } from "./energy-entry-runtime";
@@ -153,6 +154,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // equality is relied on, and `createGame` already refuses a definition
     // whose zone names the procedure cannot find.
     areaOf: (id) => (zoneOf(state, id) as Area | null) ?? null,
+    energyEntryComboScope: (frame,id) => captureEnergyComboScope(ctx,game,state,frame,id),
     energyEntryLocation: id => { const at=findCard(state,id); return at ? {holder:at.owner,area:at.zone as Area} : null; },
     hostOf: (id) => hostOf(state, id),
     modeOf: (id) => (card(id).mode as Mode | null) ?? null,
