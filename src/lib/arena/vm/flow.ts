@@ -1,3 +1,4 @@
+import { pairedSelfScript, requirePairedSelf, requirePairedSelfShape } from "./paired-self";
 import { requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { guardUnownedEnergyEntry } from "./energy-entry-runtime";
@@ -933,6 +934,16 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       trigger: next.trigger, issue: "R483", detail: "saved watched Combo entry is missing its subject attributes; rebuild the match" });
     return true;
   }
+  if (pairedSelfScript(program) || next.pairedSelf) {
+    try {
+      if (next.copiedSkillCapture) throw new NotYet("copied paired self-power occurrence is not yet supported", "R487");
+      requirePairedSelfShape(program); requirePairedSelf(state, next.card, next.pairedSelf); }
+    catch (error) {
+      interruptGame(ctx, game, state, ev, { sourceCard: next.card, skillIndex: next.skillIndex, trigger: next.trigger,
+        issue: "R487", detail: error instanceof Error ? error.message : "rebuild paired self-power" });
+      return true;
+    }
+  }
   // Validate saved pending data without rechecking an occurrence that already
   // happened (9-6-11: Angila still resolves after a Jaco return to hand).
   if (program?.combo !== undefined || ["comboUsed", "comboed"].includes(next.trigger)) {
@@ -973,6 +984,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     trigger: next.trigger as Trigger,
     subject: next.subject,
     ...(next.faceUpLifeEpoch === undefined ? {} : { faceUpLifeEpoch: next.faceUpLifeEpoch }),
+    ...(next.pairedSelf ? { pairedSelf: { ...next.pairedSelf } } : {}),
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     // #930: how the card was played, as it was when this Auto was triggered.
     ...(next.selfEnteredUsing ? { selfEnteredUsing: next.selfEnteredUsing } : {}),
@@ -1008,7 +1020,10 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // 9-1-5: a card whose skills are negated has none, and one skill switched
   // off is off for the moment it answered to as well as for every other. The
   // one reading of that rule lives in `./effects.ts` and every reader uses it.
-  if (!arrivalAutoWasActive(next) && (captured.deleted || skillNegated(state, next.card, next.skillIndex, skill?.kind))) {
+  // R487: after source departure, a fresh occurrence's negation cannot cancel
+  // this validated old occurrence. Same-occurrence timing remains unchanged.
+  const departedPairedSource = !!next.pairedSelf && state.cards[next.card].pairedSelfToken !== next.pairedSelf.token;
+  if (!departedPairedSource && !arrivalAutoWasActive(next) && (captured.deleted || skillNegated(state, next.card, next.skillIndex, skill?.kind))) {
     log(ev, { type: "note", text: `${noteName} is negated, so it does not resolve` });
     return true;
   }
@@ -1525,6 +1540,10 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       const gap = comboScriptProblem(sourceScript)
         ?? (!frame.trigger || !sourceScript?.trigger?.includes(frame.trigger) ? "saved combo continuation has no matching occurrence; rebuild the match (#907)" : null);
       if (gap) throw new NotYet(gap, "#907");
+    }
+    if (pairedSelfScript(sourceScript) || frame.pairedSelf) {
+      if (frame.copiedSkillCapture) throw new NotYet("copied paired self-power occurrence is not yet supported", "R487");
+      requirePairedSelfShape(sourceScript); requirePairedSelf(state, frame.card, frame.pairedSelf);
     }
     if (frame.taxGate) return stepTaxGate(ctx, game, state, ev, frame);
     if (frame.reviveCost) return stepReviveCost(ctx, game, state, ev, frame);

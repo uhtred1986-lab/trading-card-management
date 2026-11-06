@@ -1875,6 +1875,8 @@ export interface ScriptFrame {
   selfEnteredUsing?: string;
   /** R-362: the original face-up Life occurrence; only self selections explicitly in Life use this guard. */
   faceUpLifeEpoch?: number;
+  /** R487 self occurrence captured when either paired moment entered pending. */
+  pairedSelf?: import("./paired-self").PairedSelf;
   /** #930: the subject's [Union] entry memory as the [Auto] was triggered (`VmPending.subjectEnteredUsing`, `vm/flow.ts`) — "when your <X> card is played by a [Union] skill" — kept if it left before resolving. Additive: older frames carry none. */
   subjectEnteredUsing?: string;
   /** Audit conditions 2: the card whose skill played the source (`VmCard.enteredBy`) as the [Auto] was triggered (`VmPending.selfEnteredBy`) — "when you play this card with the skill of {X}" — kept if it left before resolving. Additive: older frames carry none. */

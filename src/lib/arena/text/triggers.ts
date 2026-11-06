@@ -563,6 +563,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   // your Unison Card to activate this skill.)** When you use a red skill-less Battle Card … in a combo" (BT14-001b) —
   // says how the skill is paid, not when it happens (1-5-8); the head is the moment after it.
   const printed = effectHead(effect.text).replace(/^\([^()]*\)\s*/, "").replace(TURN_THEN_WHEN, "");
+  if (playedUsingPotaraOrAttacks(sk)) return trigger === "playedUsingUnionPotara" || trigger === "attacks";
   const trailing = trailingTrigger(sk);
   const head = trailing ? `${trailing}, ${printed}` : printed;
   if (sk.kind === "auto" && momentsBatch1(head).some((m) => m.trigger === trigger)) return true;
@@ -1434,6 +1435,10 @@ const PLAYED_COORDINATED = /^when (?:this card (?:in your hand )?is played|you p
 export function playedOrActiveDuringYourTurn(sk: Skill): boolean {
   return sk.kind === "auto" && /^when (?:you play this card|this card is played),? or when this card is switched to active mode by a skill during your turn(?:,|$)/.test(effectHead(maskNames(sk.effect).text));
 }
+/** R-487: exact independent Potara arrival/attack and bounded draw/self-power body. */
+export function playedUsingPotaraOrAttacks(sk: Skill): boolean {
+  return sk.kind === "auto" && /^when this card is played using \[union-potara\] or attacks, draw 1 card, and this card gains \+5000 power for the duration of the turn\.?$/.test(effectHead(maskNames(sk.effect).text));
+}
 /** R-485: only the represented unqualified pair or Hand-qualified pair. */
 export function playedOrComboBattleEnd(sk: Skill): boolean {
   if (sk.kind !== "auto") return false;
@@ -1455,7 +1460,7 @@ export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (!m) return false;
   const [, qualifier, rest] = m;
   if (playedOrActiveDuringYourTurn(sk)) return !autoTriggerMatches(sk, "activeBySkillDuringYourTurn");
-  if (playedOrComboBattleEnd(sk)) return false;
+  if (playedOrComboBattleEnd(sk) || playedUsingPotaraOrAttacks(sk)) return false;
   // A qualifier on the play that `played` would ignore: only "from your hand"
   // and "using [Over Realm]" have readers of their own.
   if (/^ using \[/.test(qualifier) && !/^ using \[(?:dark )?over realm/.test(qualifier)) return true;

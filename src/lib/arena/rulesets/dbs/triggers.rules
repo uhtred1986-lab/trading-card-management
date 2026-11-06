@@ -90,6 +90,12 @@ DEFINE TRIGGER playedUsingDarkOverRealm
   BIND "self"
   text: "when this card is played using [Dark Over Realm]"
 
+-- R487: actual Potara stack arrival; resolvePlay confirms complete success.
+DEFINE TRIGGER playedUsingUnionPotara
+  ON moved(asPlay: true, to: battle, using: "Union-Potara")
+  BIND "self"
+  text: "when this card is played using [Union-Potara]"
+
 -- R472: Putine watches the controller's other Battle Card's successful arrival.
 DEFINE TRIGGER yourOtherBattlePlayedUsingDarkOverRealm
   ON moved(asPlay: true, to: battle, using: "Dark Over Realm", watcher: controller)

@@ -1444,6 +1444,7 @@ export type Trigger =
    */
   | "playedUsingOverRealm"
   | "playedUsingDarkOverRealm"
+  | "playedUsingUnionPotara"
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**

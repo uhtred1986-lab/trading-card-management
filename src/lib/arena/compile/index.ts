@@ -1269,7 +1269,7 @@ function compileSkillText(skill: Skill): Script {
     // a named variant ("using [Union-Potara]") only that one. `resolvePlay`
     // withdraws the Auto from any other play (`vm/triggers.ts`
     // `unionPlayGate`). Only the whole moment: "…using [union-potara] or
-    // attacks" (BT4-019) has no gate for one half and stays refused.
+    // attacks" (BT4-019) uses independent typed moments (R487), no shared gate.
     const unionPlay = UNION_PLAY_TRIGGER.exec(trigger.trim());
     if (unionPlay) triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: unionPlay[1] ? UNION_VARIANT[unionPlay[1].toLowerCase() as keyof typeof UNION_VARIANT] : "Union" };
     // Audit conditions 2: how else the play had to be made — "with [Swap]", "using [Arrival]", "with the skill of
