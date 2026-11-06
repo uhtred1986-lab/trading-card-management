@@ -3670,8 +3670,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // it entered play is kept over the top of that, because `move` sets
           // it for any arrival in play and a card changing hands is not a card
           // newly played.
+          if (h.forbids("beMovedBySkill", { card: id, player: master, from: "battle", to: "battle", ...(frame.card ? { source: frame.card } : {}) })) continue;
+          if (!h.reportsMovement) throw new NotYet("control transfer requires authoritative movement completion", "R494");
           const entered = h.enteredTurnOf(id);
-          h.move(id, "battle", to, { carry: true, reason: "effect" });
+          let completed = false;
+          h.move(id, "battle", to, { carry: true, reason: "effect", actor: master, ...(frame.card ? { source: frame.card } : {}), onResult: result => {
+            completed = result.completed && result.card === id && result.from === "battle" && result.to === "battle";
+          } });
+          if (!completed || h.areaOf(id) !== "battle" || h.masterOf(id) !== to) continue;
           h.setEnteredTurn(id, entered);
           if (op.until) h.addEffect({ master, source: frame.card, target: id, kind: "control", value: 0, until: op.until, control: { from } });
         }
