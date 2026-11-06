@@ -95,6 +95,8 @@ export interface ScriptHost {
   masterOf(id: string): PlayerId;
   /** Which area it stands in, or null for a card that is nowhere (under another card, or gone). */
   areaOf(id: string): Area | null;
+  /** Physical zone holder, independent of card ownership or skill master. */
+  energyEntryLocation?(id: string): { holder: PlayerId; area: Area } | null;
   /** The card this one is under (23-2), or null. */
   hostOf(id: string): string | null;
   /** Active or Rest (1-10), or null where the area has no modes. */

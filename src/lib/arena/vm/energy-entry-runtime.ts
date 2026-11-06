@@ -62,7 +62,7 @@ export function optionalEnergyArrival(ctx: EngineContext, game: GameDefinition, 
     const modes=new Set([captureEnergyEntryMode(ctx,game,state,id,mode).mode,captureEnergyEntryMode(ctx,game,state,id,mode,true).mode]);
     // RM22-31 settles Exhaust before placement; it does not resolve a
     // protection that changes with area or mode. Compare only this bounded
-    // original Hand/Deck route, and refuse disagreement instead of ruling it.
+    // original own Hand/Deck/Warp/Z-Energy route, and refuse disagreement instead of ruling it.
     for(const candidateMode of modes){
       const projected=structuredClone(state);
       const token=beginStandingNegationMutation(ctx,projected);
