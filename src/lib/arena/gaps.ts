@@ -118,6 +118,8 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   opponentAttacksRedUnison2: "when your opponent attacks your red Unison Card with a specified cost of 2",
   opponentCombos: "when your opponent combos",
   youCombo: "when you combo",
+  youComboFromHand: "when you use a card from your hand in a combo",
+  youComboFromBattle: "when you combo with a card from your Battle Area during your turn",
   placed: "when this card is placed in a Battle Area",
   yourCardPlaced: "when a card is placed in your Battle Area",
   removedFromBattle: "when this card is removed from a Battle Area by a skill",

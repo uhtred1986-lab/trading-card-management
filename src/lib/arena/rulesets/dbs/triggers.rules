@@ -721,6 +721,18 @@ DEFINE TRIGGER youCombo
   BIND "subject"
   text: "when you combo"
 
+-- R-483 / §5-7: actual entry origin is checked against the arriving subject's
+-- native provenance before pending; a missing legacy origin is not inferred.
+DEFINE TRIGGER youComboFromHand
+  ON comboUsed(watcher: controller)
+  BIND "subject"
+  text: "when you use a card from your hand in a combo"
+
+DEFINE TRIGGER youComboFromBattle
+  ON comboUsed(watcher: controller)
+  BIND "subject"
+  text: "when you combo with a card from your Battle Area during your turn"
+
 -- §5-7 — when your opponent combos
 DEFINE TRIGGER opponentCombos
   ON comboUsed(watcher: opponent)

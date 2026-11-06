@@ -1246,7 +1246,7 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A watched move (phrasing batch 5) is pended once, about the moved card: every watcher the declaration names
   // answers — in play, and in a hand when its skill plays itself from there (DB2-174, `matchTriggers`' hand watchers).
   const watched = WATCHED_MOVE.has(trigger) || trigger === "flippedFaceUp";
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: { ...moment.args, ...(sourceMaster && moment.args.from === "battle" ? { fromHolder: sourceMaster } : {}) }, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
+  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: { ...moment.args, ...(sourceMaster && moment.args.from === "battle" ? { fromHolder: sourceMaster } : {}) }, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && (m.trigger === trigger || trigger === "youCombo" && (m.trigger === "youComboFromHand" || m.trigger === "youComboFromBattle")));
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 

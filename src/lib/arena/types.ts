@@ -1100,6 +1100,8 @@ export type Trigger =
    * and the distinct explicit end-of-battle departure moment.
    */
   | "youCombo"
+  /** R-483: watched combo qualified by its actual entry origin. */
+  | "youComboFromHand" | "youComboFromBattle"
   /**
    * "When this card is removed from a Battle Area by a skill" (3-1): a move an
    * effect caused, which the cards themselves distinguish from a KO — they

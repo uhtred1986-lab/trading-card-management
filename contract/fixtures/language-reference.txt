@@ -5644,6 +5644,14 @@
       "words": "when you combo"
     },
     {
+      "name": "youComboFromHand",
+      "words": "when you use a card from your hand in a combo"
+    },
+    {
+      "name": "youComboFromBattle",
+      "words": "when you combo with a card from your Battle Area during your turn"
+    },
+    {
       "name": "opponentCombos",
       "words": "when your opponent combos"
     },
