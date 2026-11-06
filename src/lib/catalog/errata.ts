@@ -47,6 +47,9 @@ function spaceBeforeKeyword(text: string): string {
  * be caught by `npm test`, which has no catalog to read.
  */
 export const CORRECTIONS: Record<string, [RegExp, string][]> = {
+  // Catalog export omits the Unison quantity; Bandai's card list and art both say 1 (6 Nov 2026):
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT25-083.png
+  "BT25-083": [[/choose\s+up\s+to\s+(?=of\s+your\s+opponent's\s+Unisons)/g, "choose up to 1 "]],
   // Deckplanet labels Tora's blue activation orb as black; verified against Bandai, 5 Nov 2026:
   // https://www.dbs-cardgame.com/images/cardlist/cardimg/EX25-13.png
   "EX25-13": [[/(\[Activate:\s*Main\]\s*\[Limit\s+1\]\s*)\{b\}(?=\s*,\s*if your Leader is a blue)/gi, "$1{u}"]],
