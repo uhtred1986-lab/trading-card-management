@@ -275,3 +275,7 @@ Source `ab55b029` and registry `1137dd00` admit BT21-071#30's exact payment rout
 ## Checkpoint 69: exact Majin battle duration
 
 Source `4dbfc971` and registry `37b0529f` admit only BT20-086#30's leading duration. 584 counted controls plus battle-end-delay/compiler checks, final type/lint and284 rulings pass. The full frozen diff changes only that record's unread/pattern fields:13,020 readable/945 unread. Runtime census stays3/308/2568 with identical blocked entries. See [checkpoint69](round-5/support-sixtyninth-batch.md). Combo-negation and Broly under-activation designs continue.
+
+## Checkpoint 70: isolated mixed negation foundation
+
+Source `2aa3f4ea` and registry `055a3014` add preparatory mixed-policy history/read contracts, with229 distinct controls and220 registered sites. No native writer or product admission is enabled; readable/runtime counts remain checkpoint69's. See [checkpoint70](round-5/support-seventieth-batch.md). Native Combo-negation adapters and Broly under-activation implementation continue.
