@@ -35,12 +35,27 @@ const ATTACKS = new Set([
     "[Auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 <Zamasu> or <Goku Black> card to your hand, then shuffle your deck.",
     "[Auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 ≪Phantom Demon≫ card to your hand, then shuffle your deck.",
 ]);
+// R534: twelve reviewed ordinary Battle played Autos with one color AND one trait.
+const COLOR_TRAIT = new Set([
+    "[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red ≪Machine Mutant≫ card among them to your hand, then shuffle your deck.",
+    "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Frieza Clan≫ card to your hand, then shuffle your deck.",
+    "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 yellow ≪Saiyan≫ card among them and add it to your hand, then shuffle your deck.",
+    "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Fierce Foe≫ card to your hand, then shuffle your deck.",
+    "[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow ≪Namekian≫ card among them to your hand, then shuffle your deck.",
+    "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red ≪Saiyan≫ card to your hand, then shuffle your deck.",
+    "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 red ≪Alien≫ among them and add it to your hand. Then, shuffle your deck.",
+    "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red ≪Red Ribbon Army≫ card to your hand, then shuffle your deck.",
+    "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 green ≪Android≫ card among them to your hand, then shuffle your deck.",
+    "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 white ≪Android≫ card to your hand, then shuffle your deck.",
+    "[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 white ≪King Kai's Planet≫ card to your hand, then shuffle your deck.",
+    "[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 black ≪Universe 7≫ card to your hand, then shuffle your deck.",
+]);
 export function reviewedIncrementalLook(skill: Skill, script: Script): Script {
     const text = skill.raw.replace(/\s+/g, " ").trim();
-    if (skill.kind !== "auto" || script.unsupported.length || (text !== GOHAN && text !== TRUNKS && text !== BABIDI && text !== CHEELAI && text !== CHICHI && !PLAYED.has(text) && !ATTACKS.has(text))) return script;
+    if (skill.kind !== "auto" || script.unsupported.length || (text !== GOHAN && text !== TRUNKS && text !== BABIDI && text !== CHEELAI && text !== CHICHI && !PLAYED.has(text) && !ATTACKS.has(text) && !COLOR_TRAIT.has(text))) return script;
     const [look, choose, move, tail] = script.ops;
     if (script.ops.length !== 4 || look.op !== "look" || choose.op !== "choose" || move.op !== "moveTo") return script;
-    if (text === GOHAN || text === BABIDI || text === CHEELAI || text === CHICHI || PLAYED.has(text) || ATTACKS.has(text)) return tail.op === "shuffle" ? { ...script, ops: [{ ...look, upTo: true }, choose, move, tail] } : script;
+    if (text === GOHAN || text === BABIDI || text === CHEELAI || text === CHICHI || PLAYED.has(text) || ATTACKS.has(text) || COLOR_TRAIT.has(text)) return tail.op === "shuffle" ? { ...script, ops: [{ ...look, upTo: true }, choose, move, tail] } : script;
     if (tail.op !== "chooseMode" || tail.modes.length !== 2 || !tail.modes.every(m => m.ops.length === 1 && m.ops[0].op === "moveTo" && m.ops[0].to === "deck")) return script;
     return { ...script, ops: [{ ...look, upTo: true }, choose, move, { ...tail, modes: tail.modes.map(mode => {
         const op = mode.ops[0];

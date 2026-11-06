@@ -211,9 +211,10 @@ for (const p of ["p1", "p2"] as const) {
     assert.equal(stopped.state.outcome?.kind, "interrupted"); assert.notEqual(stopped.state.prompt.kind, "chooseCards"); cases++;
 }
 const bounded = fresh("p1"), showing = skillsShowing(ctx, bounded.state, bounded.source), original = showing.scripts.bySkill[0], skill = showing.skills.find(s => s.index === 0)!;
+// R534 admits one color plus one trait; two colors remains outside the reviewed shape.
 for (const patch of [
     { characters: ["Cheelai: Br"] }, { traits: ["Power Wish", "Saiyan"] }, { traitsIncluding: ["Power"] },
-    { notTraits: ["Saiyan"] }, { colors: ["Black"] }, { anyOf: [{ ...emptyFilter(), traits: ["Power Wish"] }, { ...emptyFilter(), traits: ["Saiyan"] }] },
+    { notTraits: ["Saiyan"] }, { colors: ["Black", "Blue"] }, { anyOf: [{ ...emptyFilter(), traits: ["Power Wish"] }, { ...emptyFilter(), traits: ["Saiyan"] }] },
 ]) {
     const script = clone(original), op = script.ops[1]; assert.equal(op.op, "choose");
     if (op.op === "choose") op.sel.filter = { ...op.sel.filter!, ...patch } as typeof op.sel.filter;

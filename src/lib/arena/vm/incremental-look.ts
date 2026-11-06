@@ -9,7 +9,7 @@ import { withValidity } from './validity';
 import { recordedSkillIdentity } from './skill-identity';
 import { canonicalTaxValue as key } from './tax-receipt';
 import { zeroSkillPrice } from './skill-payment';
-import { revealAs, validateProgram } from './script-schema';
+import { COLORS, revealAs, validateProgram } from './script-schema';
 import type { GameDefinition } from '../rulesets';
 import { resolveSelector } from './program';
 import { predicateOf } from './filters';
@@ -85,7 +85,12 @@ function requireShape(skill: Skill, script: Script): void {
     const choose = script.ops[1], move = script.ops[2], tail = script.ops[3];
     if (choose?.op === 'choose' && choose.sel.filter) {
         const f = choose.sel.filter;
-        if (Object.entries(f).some(([k, v]) => !['characters', 'traits'].includes(k) && v !== null && v !== undefined && v !== false && !(Array.isArray(v) && v.length === 0))
+        // R534: a single positive printed color AND one trait; all prior
+        // character/trait-only shapes retain their empty color defaults.
+        if (f.colors !== undefined && !Array.isArray(f.colors)) fail();
+        const colors = f.colors ?? [];
+        if (Object.entries(f).some(([k, v]) => !['characters', 'traits', 'colors'].includes(k) && v !== null && v !== undefined && v !== false && !(Array.isArray(v) && v.length === 0))
+            || (colors.length > 0 && (colors.length !== 1 || (f.traits?.length ?? 0) !== 1 || (f.characters?.length ?? 0) !== 0 || !COLORS.includes(colors[0]) || colors[0] === 'Colorless'))
             || (f.traits?.length ?? 0) > 1 || ((f.traits?.length ?? 0) > 0 && ((f.characters?.length ?? 0) > 0 || !f.traits[0].trim())))
             throw new NotYet('inspect using an unreviewed historical identity filter', 'R527');
     }
