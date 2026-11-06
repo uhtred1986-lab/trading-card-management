@@ -1,0 +1,9 @@
+# Support checkpoint 85: corrected Chi-Chi inspection
+
+Source correction `c203811a` restores BT4-089's image-verified Earthling trait while preserving Goku's Lineage. R532 `b995c322` separately admits its exact original played Auto. The [source receipt](chichi-trait-source.md) and [native proof](incremental-look-chichi.md) retain the complete source, FAQs, original skill row, correction idempotence and unchanged sibling fields. Registration is `0e75b611`.
+
+Root's full frozen comparison changes only **BT4-089#0 ops/reads** from checkpoint84; all other **13,965 complete records and field sets are identical**. Totals remain **6,597 cards /13,966 records /13,032 readable /934 unread**. SHA-256: `ad7d14e646f0317f8c7a7960c18f7f515f8f4c19aee04d1ee486a90cbfd5f002`. The complete runtime census and gap list are identical: **2 readable-but-blocked /307 additionally blocked /2,575 contextual-unknown**. These are record diagnostics, not fully supported card counts.
+
+Integrated **422 search cases** (including Chi-Chi28), source-correction proof, **220 Combo cleanup cases**, TypeScript, focused lint, capability inventory270 and rulings304/170 pass. Real Chromium passes232 modules/121 steps to turn18 main, identical to Node and offline after loading, hash `d4f7c3ee11c0ed0bca30c6e0dfc91ab4176bb7a5196309e21864656227f3c09a`. No UI changes; prior inspection screenshot evidence remains applicable.
+
+The frozen original full contract-emission run continues discovering legacy regression failures. Repairs are recorded separately; no combined full gate, fresh contract completion or build success is claimed. Immediate instruction-boundary loss remains open. Native under-standing integration and six exact attack-triggered inspection candidates continue; Bio-Man identity-spacing research remains separate. No database writes, migration, dependencies, merge or deployment.
