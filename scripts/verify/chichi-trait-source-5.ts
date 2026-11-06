@@ -1,10 +1,11 @@
-/** BT4-089 source correction only: no optional-look admission. */
+/** BT4-089 source correction remains independent of R532 Auto admission. */
 import assert from "node:assert/strict";
 import source from "./fixtures/chichi-trait-source-5.json";
 import { FIELD_CORRECTIONS, correctCardFields, unmatchedFieldCorrections } from "../../src/lib/catalog/errata";
 import { shapeCatalog } from "../../src/lib/catalog/deckplanet";
 import { cardDefFrom } from "../../src/lib/arena/load";
 import { skillRecords } from "../../src/lib/arena/draft";
+import { describeScript } from "../../src/lib/arena/vm/script";
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 const raw = source.card;
 const before = { name: raw.name, backName: raw.backName, characters: raw.characters, traits: raw.traits };
@@ -68,5 +69,11 @@ for (const [id, correction] of Object.entries(FIELD_CORRECTIONS)) {
 }
 const def = cardDefFrom(shaped as never);
 assert.deepEqual(def.traits, wanted, "actual shaped catalog loads both traits into arena definition");
-assert.deepEqual(clone(skillRecords(def)), Object.values(source.allRecords), "whole original Auto row remains unchanged; no new upTo admission");
+const originalTraits = { ...def, traits: raw.traits };
+assert.deepEqual(skillRecords(def), skillRecords(originalTraits), "trait correction itself changes no skill record");
+const expected = clone(Object.values(source.allRecords)) as ReturnType<typeof skillRecords>;
+assert.equal(expected.length, 1);
+expected[0].ops[0] = { ...expected[0].ops[0], upTo: true } as typeof expected[0]["ops"][number];
+expected[0].reads = describeScript(expected[0].ops);
+assert.deepEqual(clone(skillRecords(def)), expected, "R532 changes only the exact optional flag and narration; every other frozen field survives");
 console.log("chichi-trait-source-5: exact traits, actual shaping/load, idempotence, stale/missing/mismatched sources, input purity, previous field fixes and Fusion separation passed");

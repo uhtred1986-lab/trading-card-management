@@ -2890,5 +2890,197 @@
       }
     ],
     "imageSha256": "90d3989e3ca9f1e0ca4354ad6908b81f23f03275491da50c45d6a95eadcea3b0"
+  },
+  "BT4-089": {
+    "card": {
+      "id": "BT4-089",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Dynasty's Solace Chi-Chi",
+      "characters": [
+        "Chi-Chi"
+      ],
+      "traits": [
+        "Goku's Lineage"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 ≪Goku's Lineage≫ from among them and add it to your hand, then shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": {
+      "BT4-089": [
+        {
+          "name": "Dynasty's Solace Chi-Chi",
+          "qa": [
+            {
+              "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+              "a": "No, you cannot.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+            },
+            {
+              "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+              "a": "No, that’s not necessary.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+            },
+            {
+              "q": "When adding a card to your hand using an auto skill, do you need to reveal it to your opponent?",
+              "a": "Yes, you do."
+            }
+          ]
+        }
+      ]
+    },
+    "candidateKeys": [
+      "BT4-089#0"
+    ],
+    "allRecords": {
+      "BT4-089#0": {
+        "cardId": "BT4-089",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 ≪Goku's Lineage≫ from among them and add it to your hand, then shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 3,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Goku's Lineage"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "choose up to 1 ≪Goku's Lineage≫ from among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 3, choose up to 1 ≪Goku's Lineage≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    },
+    "imageSha256": "d623c4ff5c28c048d6db4ade3c476ee251181f2858ec89f246a1040aa35ba0d6",
+    "matchingCards": [
+      {
+        "id": "BT4-082",
+        "type": "BATTLE",
+        "colors": [
+          "Yellow"
+        ],
+        "cost": "1",
+        "specified": null,
+        "z": null,
+        "power": 10000,
+        "name": "Kakarot",
+        "characters": [
+          "Kakarot"
+        ],
+        "traits": [
+          "Goku's Lineage"
+        ],
+        "skill": null,
+        "backName": null,
+        "backSkill": null
+      }
+    ]
   }
 }

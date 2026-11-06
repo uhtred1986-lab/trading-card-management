@@ -1,7 +1,8 @@
-/** R531: fourteen exact original ordinary played Autos, no runtime extension. */
+/** R531/R532: fifteen exact original ordinary played Autos, no runtime extension. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { card } from "./harness";
+import { correctCardFields } from "../../src/lib/catalog/errata";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { describeScript } from "../../src/lib/arena/vm/script";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
@@ -15,10 +16,12 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 type SourceCard = { id: string; name: string; type: CardDef["type"]; colors: CardDef["colors"]; cost: string; power: number; characters: string[]; traits: string[]; skill: string | null; backName: string | null; backSkill: string | null };
 type Source = { card: SourceCard; candidateKeys: string[]; allRecords: Record<string, ReturnType<typeof skillRecords>[number]>; matchingCards: SourceCard[] };
 const sources: Record<string, Source> = JSON.parse(fs.readFileSync(new URL("./fixtures/incremental-look-played-5.json", import.meta.url), "utf8"));
-assert.equal(Object.keys(sources).length, 14);
+assert.equal(Object.keys(sources).length, 15);
 assert.equal(sources["BT8-061"], undefined, "Bio-Man awaits source identity spacing review");
-assert.equal(sources["BT4-089"], undefined, "Chi-Chi awaits separate Earthling source correction review");
-const toDef = (c: SourceCard, sourcePrice = false) => card(c.id, { name: c.name, type: c.type, colors: c.colors, energyCost: Number(c.cost), specifiedCost: !sourcePrice || c.colors[0] === "Black" ? {} : { [c.colors[0]]: 1 }, power: c.power, characters: c.characters, traits: c.traits, skill: c.skill });
+const toDef = (c: SourceCard, sourcePrice = false) => {
+    c = correctCardFields(c.id, c);
+    return card(c.id, { name: c.name, type: c.type, colors: c.colors, energyCost: Number(c.cost), specifiedCost: !sourcePrice || c.colors[0] === "Black" ? {} : { [c.colors[0]]: 1 }, power: c.power, characters: c.characters, traits: c.traits, skill: c.skill });
+};
 let cases = 0;
 const perCard: Record<string, number> = {};
 for (const [id, source] of Object.entries(sources)) {
@@ -33,6 +36,7 @@ for (const [id, source] of Object.entries(sources)) {
         F: card("F", { colors: [raw.colors[0] === "Black" ? "Blue" : raw.colors[0]], skill: null }),
         [id]: toDef(raw, true),
     };
+    if (id === "BT4-089") assert.deepEqual(defs[id].traits, ["Earthling", "Goku's Lineage"], "native source uses the reviewed correction");
     for (const match of source.matchingCards) defs[match.id] = toDef(match);
     // Synthetic negative definitions are explicitly mechanism controls; matching
     // native branches below use complete unmodified catalog target definitions.
@@ -199,4 +203,4 @@ for (const [id, source] of Object.entries(sources)) {
     cases++;
     perCard[id] = cases - startCases;
 }
-console.log(`${cases} R531 ordinary-play inspection cases across ${Object.keys(sources).length} exact cards: ${JSON.stringify(perCard)}`);
+console.log(`${cases} R531/R532 ordinary-play inspection cases across ${Object.keys(sources).length} exact cards: ${JSON.stringify(perCard)}`);

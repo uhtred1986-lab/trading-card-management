@@ -1,6 +1,6 @@
 # R531: fourteen exact ordinary played inspection Autos
 
-This slice admits fourteen complete reviewed Auto lines through the existing R527/R529/R530 kernel. It changes no VM, public-reveal projection, dynamic-eligibility guard, generic parser, runner or registry. Chi-Chi BT4-089 is outside this slice pending review of its source definition's missing printed Earthling trait; this is a source correction follow-up, not a permanent deferral.
+This slice admits fourteen complete reviewed Auto lines through the existing R527/R529/R530 kernel. It changes no VM, public-reveal projection, dynamic-eligibility guard, generic parser, runner or registry. Chi-Chi BT4-089 is outside this fourteen-card slice; its missing Earthling trait is corrected independently and its later exact admission is recorded under [R532](incremental-look-chichi.md).
 
 ## Sources and exact scope
 
