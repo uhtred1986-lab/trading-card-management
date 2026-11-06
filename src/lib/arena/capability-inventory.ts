@@ -475,6 +475,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-r518-paid-drop-identity", file: "src/lib/arena/vm/paid-drop-preflight.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-518; BT17-035 complete original price and conditional bonus", detail: "Successful original owner-Drop payment whose General Blue membership changes during departure requires a reviewed identity policy. Native cloned projection refuses that case before payment rather than treating it as an unaffordable price or choosing old/new attributes." },
   { id: "arena-vm-r520-placed-under-master", file: "src/lib/arena/vm/placed-under-master.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-520; RM0-3-4-1 and RM23-2-2-4", detail: "A placed-under self Auto requires the native emitter's actual unique source/top relation and host area holder. Missing, stale, duplicated or malformed relations cannot supply a master; unrelated watchers and global master queries are unchanged." },
   { id: "arena-vm-r519-under-release", file: "src/lib/arena/vm/under-release-cleanup.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-519; RM23-2-4 through 23-2-6; pending Z-material Battle/Combo ruling", detail: "Under placement requires original flat materials and complete actual release results on the captured board. Unproved source areas, nested piles and Z-material Battle/Combo transitions refuse before live placement. Incoming source lifetime remains separate." },
   { id: "arena-vm-r519-stack-origin", file: "src/lib/arena/vm/play.ts", ordinal: 3, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-519; RM23-2-4 through 23-2-6", detail: "Stack materials must already occupy the actual destination area and holder before the first play movement. Native expanded Potara origins are normalized beforehand; unnormalized cross-area materials are not silently admitted." },
@@ -721,6 +722,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-r518-paid-drop-identity": "paidDropPayerPayable|-|paid&&isGeneralBlue(info!)!==original.blue",
   "arena-vm-r520-placed-under-master": "<top-level>|-|-",
   "arena-vm-r519-under-release": "<top-level>|-|-",
   "arena-vm-r519-stack-origin": "stackOnto|-|!at || at.zone !== to || at.owner !== player",
