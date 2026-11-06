@@ -311,3 +311,7 @@ R521 `a6900810` integrates effective-area source cleanup and physical effect-own
 ## Under-standing observer preparation after checkpoint 78
 
 R523 `08a9ecd1` adds an isolated actual-board observer for Abducted, preserving its exact stored loader refusal and all unread siblings. Independent negation and attack-ban plans use actual pile membership and the host holder, including foreign-owned Combo hosts. The helper writes no native history, grants or attack rules. Its 94 new cases and prior 53 contract cases pass; worker type/lint/rulings and root focused verification pass. Native imports remain absent. See [source, staged evidence and explicit bounds](round-5/under-standing-observer.md). This adds no compiler-readable record or admitted card; shared native fact extraction is next.
+
+## Support checkpoint 79: P-764 original paid Warp count
+
+R522 `4e545059` supports the complete original attack Auto with source-bound Burst, three-or-more distinct-name Warp payment and exact per-card retrieval cost. The 280 new counted checks and 363 counted compatibility checks pass, alongside Auto-cost #549, combined type/lint/rulings and browser 238/121. Registry: 250 VM sites. The full comparison changes only `P-764#20`: **13,028 readable /937 unread**, with runtime summary and all gaps unchanged (2/307/2,574). See [checkpoint79](round-5/support-seventyninth-batch.md) for evidence and explicit limits. Work continues toward all-card support in the same PR.
