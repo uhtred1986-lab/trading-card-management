@@ -1,3 +1,5 @@
+import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
+import type { CostRecord } from "../../src/lib/arena/vm/script";
 /** R477 bounded native writer fixtures; no catalog admission. */
 import assert from "node:assert/strict";
 import fixtures from "./fixtures/standing-negation-observation-5.json";
@@ -19,7 +21,7 @@ const defs = { ...CTX.defs }, scripts: Record<string, CardScripts> = { ...CTX.sc
 for (const [id, fixture] of Object.entries(fixtures)) {
   defs[id] = { ...CTX.defs.V1, id, skill: fixture.skill };
   scripts[id] = { bySkill: {}, complete: false, unsupported: ["R477 native fixture only"] };
-  for (const row of id === "BT1-043" ? currentWhis : fixture.records) scripts[id].bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage } as Script;
+  for (const row of id === "BT1-043" ? currentWhis : fixture.records) scripts[id].bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage, trigger: row.trigger, price: priceFromCostRecord(row.cost as CostRecord) } as Script;
 }
 for (const id of ["L-RED", "L-BLUE"]) { defs[id] = { ...defs[id], skill: null, back: undefined }; scripts[id] = { bySkill: {}, complete: true, unsupported: [] }; }
 const ctx: EngineContext = { ...CTX, defs, scripts };

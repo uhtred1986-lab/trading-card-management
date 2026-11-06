@@ -1,26 +1,28 @@
+import { standingWholePrinted, standingWholeScript } from "./standing-negation-policy";
 import { requireStandingNegationBounds, standingWholeIntent } from "./standing-negation-bounds";
-/** R477 bounded native integration. Catalog admission remains separate. */
+/** R477/R509 bounded native integration; exact source admission retains contextual refusals. */
 import type { ContinuousEffect, EngineContext, GameEvent } from "../types";
 import type { VmState } from "./state";
 import { parseSkills } from "../text/cards";
 import { programsOf } from "./common";
 import { NotYet } from "./errors";
 import { emptyStandingNegationHistory } from "./standing-negation-history";
-import { standingNegationBattleOccurrences } from "./standing-negation-observation";
+import { requireStandingWholeSourceAreas, standingNegationBattleOccurrences } from "./standing-negation-observation";
 import { assertStandingNegationSettled, captureStandingNegationMutation, settleStandingNegationMutation, type StandingNegationMutation } from "./standing-negation-transaction";
 import { invalidateStandingNegationReadSeal, issueStandingNegationReadSeal, standingNegationReadSealMatches } from "./standing-negation-read";
 
 /** New games only: existing affected saves may never acquire inferred history. */
 export function initializeStandingNegation(ctx: EngineContext, state: VmState): void {
-  const complete = Object.values(ctx.defs).some(def => (["front", "back"] as const).some(side => parseSkills((side === "back" ? def.back?.skill : def.skill) ?? null).some(skill => {
-    if (skill.kind !== "permanent" || skill.effect.trim().toLowerCase() !== "negate the skills of all other battle cards.") return false;
+  const complete = Object.values(ctx.defs).some(def => ["BATTLE", "Z-BATTLE", "TOKEN"].includes(def.type) && (["front", "back"] as const).some(side => parseSkills((side === "back" ? def.back?.skill : def.skill) ?? null).some(skill => {
+    if (!standingWholePrinted(skill)) return false;
     const script = programsOf(ctx, def, side).bySkill[skill.index];
-    return !!script && !script.unsupported.length && script.ops.some(op => op.op === "negateSkills");
+    return standingWholeScript(script);
   })));
   if (complete) state.standingNegationHistory = emptyStandingNegationHistory();
   validateStandingNegationRead(ctx, state);
 }
 export function validateStandingNegationRead(ctx: EngineContext, state: VmState): void {
+  requireStandingWholeSourceAreas(ctx, state);
   if (!state.standingNegationHistory) {
     const potential = (["p1", "p2"] as const).some(master => (state.sides[master].zones.battle ?? []).some(id => {
       const card = state.cards[id], def = card && ctx.defs[card.cardId];

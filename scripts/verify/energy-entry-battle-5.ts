@@ -1,3 +1,5 @@
+import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
+import type { CostRecord } from "../../src/lib/arena/vm/script";
 /** R489: ordinary owned Battle optional entry, native actions and saved choices. */
 import fixtures from "./fixtures/standing-negation-observation-5.json";
 import type { Script } from "../../src/lib/arena/vm/script";
@@ -26,7 +28,7 @@ function stage(s:VmState,p:PlayerId,def:string,area:Area){const id=s.sides[p].zo
 function setup(p:PlayerId,route:"main"|"offense"|"defense"="main",self=false,choice="accept"){
  const c:EngineContext & {rulesetDefinition?:typeof game}=copy(ctx),turn=route==="defense"?other(p):p,events:GameEvent[]=[];
  if(choice==="standing"){
-  c.defs.N=card("N",{skill:fixtures["DB1-066"].skill});const row=fixtures["DB1-066"].records[0];c.scripts!.N={bySkill:{0:{kind:row.kind,ops:row.ops,unsupported:row.unread,validity:row.validity,usage:row.usage} as Script},complete:true,unsupported:[]};
+  c.defs.N=card("N",{skill:fixtures["DB1-066"].skill});const row=fixtures["DB1-066"].records[0];c.scripts!.N={bySkill:{0:{kind:row.kind,ops:row.ops,unsupported:row.unread,validity:row.validity,usage:row.usage,trigger:row.trigger,price:priceFromCostRecord(row.cost as CostRecord)} as Script},complete:true,unsupported:[]};
  }
  let s=RULES.createGame(c,{seed:489,p1:{name:"One",leader:"L",main:fifty("F")},p2:{name:"Two",leader:"L",main:fifty("F")}}).state as VmState;
  const take=(a:Action)=>{const before=JSON.stringify(s),r=RULES.apply(c,s,a);assert.equal(JSON.stringify(s),before);s=r.state as VmState;events.push(...r.events);assert.equal(s.outcome,undefined,JSON.stringify(s.outcome));};

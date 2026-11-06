@@ -1,8 +1,8 @@
+import { standingWholeDescriptor, standingWholePrinted, standingWholeScript } from "./standing-negation-policy";
 import { requireStandingNegationBounds } from "./standing-negation-bounds";
-/** R477 bounded native observation prototype; bounded native fixture callers; no product admission. */
+/** R477/R509 bounded native whole-negation observation and source validation. */
 import type { EngineContext, PlayerId } from "../types";
 import { parseSkills } from "../text/cards";
-import { emptyFilter } from "../text/filters";
 import { programsOf } from "./common";
 import { externallyNegatedSkill } from "./effects";
 import { NotYet } from "./errors";
@@ -29,7 +29,6 @@ function cardOf(source: Card): Card {
   const { card, cardId, epoch, hiddenCount, side, master } = source;
   return { card, cardId, epoch, hiddenCount, side, master };
 }
-const wholeOperation: Op = { op: "negateSkills", target: { sel: { side: "both", area: "battle", filter: { ...emptyFilter(), type: "BATTLE" }, count: 99, upTo: false, notSelf: "card" } }, until: "game" };
 const protectionOperation: Op = { op: "forbid", what: "beNegated", until: "game", target: { sel: { special: "self" } } };
 const attackProtection: Op = { op: "permit", what: "attackUnnegatable", until: "game", target: { sel: { special: "self" } } };
 function contains(ops: Op[], what: "whole" | "protection"): boolean {
@@ -41,13 +40,32 @@ function unconditional(script: Script): boolean {
     && !script.price?.condition && !script.paidAdmission;
 }
 
+/** This policy has no Leader, Unison or Field source semantics. Inactive areas
+ * and ordinary buried cards are deliberately not discovered as active sources. */
+export function requireStandingWholeSourceAreas(ctx: EngineContext, state: VmState): void {
+  for (const p of ["p1", "p2"] as const) for (const zone of ["leader", "unison", "battle"] as const) {
+    for (const id of state.sides[p].zones[zone] ?? []) {
+      const instance = state.cards[id], def = instance && ctx.defs[instance.cardId];
+      if (!instance || !def || instance.hidden) continue;
+      const type = def.type.replace(/^Z-/, "");
+      if (zone === "battle" && (type === "BATTLE" || type === "TOKEN")) continue;
+      if (zone === "battle" ? type !== "EXTRA" : type !== (zone === "leader" ? "LEADER" : "UNISON")) continue;
+      const side = instance.flipped ? "back" : "front", scripts = programsOf(ctx, def, side);
+      for (const skill of parseSkills((side === "back" ? def.back?.skill : def.skill) ?? null)) {
+        if (skill.kind === "permanent" && (skill.effect.trim().toLowerCase() === "negate the skills of all other battle cards."
+          || standingWholeDescriptor(scripts.bySkill[skill.index]?.ops))) refuse("standing whole-negation from a non-Battle source");
+      }
+    }
+  }
+}
+
 /** Capture exact native Battle occurrences before a synchronous mutation. */
 export function standingNegationBattleOccurrences(ctx: EngineContext, state: VmState): Card[] {
   const board: Card[] = [];
   for (const master of ["p1", "p2"] as PlayerId[]) for (const id of state.sides[master].zones.battle ?? []) {
     const instance = state.cards[id], def = instance && ctx.defs[instance.cardId];
     if (!instance || !def) return refuse("rebuild standing-negation Battle occurrence definition");
-    if (def.type !== "BATTLE" && def.type !== "TOKEN") continue;
+    if (def.type !== "BATTLE" && def.type !== "Z-BATTLE" && def.type !== "TOKEN") continue;
     board.push({ card: id, cardId: instance.cardId, epoch: instance.zoneEpoch ?? 0, hiddenCount: instance.hiddenCount ?? 0, side: instance.flipped ? "back" : "front", master });
   }
   if (new Set(board.map(card => card.card)).size !== board.length) refuse("duplicate standing-negation Battle occurrence");
@@ -56,8 +74,9 @@ export function standingNegationBattleOccurrences(ctx: EngineContext, state: VmS
 
 /** Reads exact stored programs and raw printed skill identities, never statics,
  * attrsNow, keyword queries or a compiler. Existing unsupported records refuse;
- * tests may supply complete reviewed programs without admitting a live row. */
+ * only the exact reviewed whole-source envelope is admitted. */
 export function observeStandingNegation(ctx: EngineContext, state: VmState, transaction: StandingNegationTransaction): Observation {
+  requireStandingWholeSourceAreas(ctx, state);
   if (!transaction || typeof transaction !== "object" || !Array.isArray(transaction.arrivals) || !Array.isArray(transaction.before)) return refuse("rebuild standing-negation transaction witness");
   const validCard = (card: Card) => !!card && typeof card === "object" && !Array.isArray(card)
     && Object.keys(card).sort().join(",") === "card,cardId,epoch,hiddenCount,master,side"
@@ -87,8 +106,8 @@ export function observeStandingNegation(ctx: EngineContext, state: VmState, tran
     // still requires the exact complete stored operation below, never text.
     const intent = skill.effect.trim().toLowerCase() === "negate the skills of all other battle cards.";
     if (!intent && !(script && contains(script.ops, "whole"))) continue;
-    if (!script || !unconditional(script) || skill.bond !== null || skill.sparking !== null || skill.granted) return refuse("observe only complete unconditional standing-negation and self-protection records");
-    if (canonical(script.ops) !== canonical([wholeOperation])) refuse("observe only all-other-Battle whole-negation policy");
+    if (script && !standingWholeDescriptor(script.ops)) return refuse("observe only all-other-Battle whole-negation policy");
+    if (!script || !standingWholePrinted(skill) || !standingWholeScript(script)) return refuse("observe only complete unconditional standing-negation and self-protection records");
     sources.push({ source: { ...occurrence, skillIndex: skill.index, skillIdentity: canonical(script) }, enabled: !externallyNegatedSkill(state, occurrence.card, skill.index, skill.kind) });
   }
   for (const effect of state.effects) {

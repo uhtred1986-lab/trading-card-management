@@ -1,3 +1,5 @@
+import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
+import type { CostRecord } from "../../src/lib/arena/vm/script";
 /** R488: shared script placement cleanup and isolated Energy projection. */
 import assert from "node:assert/strict";
 import fixtures from "./fixtures/standing-negation-observation-5.json";
@@ -16,7 +18,7 @@ import { assertStandingNegationSettled } from "../../src/lib/arena/vm/standing-n
 import { forbids, attrsNow } from "../../src/lib/arena/vm/program";
 const defs={L:card("L",{type:"LEADER"}),F:card("F",{}),"DB1-066":card("DB1-066",{skill:fixtures["DB1-066"].skill})};
 const ctx:EngineContext={defs,scripts:rulesFromRows(Object.values(defs).flatMap(skillRecords).map((r,id)=>({...r,id,status:"draft",source:"compiler"}) as unknown as RuleRow),defs)};
-const row=fixtures["DB1-066"].records[0];ctx.scripts!["DB1-066"].bySkill[0]={kind:row.kind,ops:row.ops,unsupported:row.unread,validity:row.validity,usage:row.usage} as Script;
+const row=fixtures["DB1-066"].records[0];ctx.scripts!["DB1-066"].bySkill[0]={kind:row.kind,ops:row.ops,unsupported:row.unread,validity:row.validity,usage:row.usage,trigger:row.trigger,price:priceFromCostRecord(row.cost as CostRecord)} as Script;
 const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
 const copy=<T,>(v:T):T=>JSON.parse(JSON.stringify(v));
 function setup(p:PlayerId,standing=false,c:EngineContext=ctx){

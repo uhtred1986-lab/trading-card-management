@@ -1,4 +1,6 @@
-/** Exact stored policy fixtures observed without admitting their gameplay. */
+import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
+import type { CostRecord } from "../../src/lib/arena/vm/script";
+/** Exact stored policy observation fixtures; R509 retains native source metadata. */
 import assert from "node:assert/strict";
 import fixtures from "./fixtures/standing-negation-observation-5.json";
 import currentWhis from "./fixtures/standing-negation-whis-r479.json";
@@ -17,11 +19,11 @@ const defs = { ...CTX.defs }, records: Record<string, CardScripts> = {};
 for (const [id, fixture] of Object.entries(fixtures)) {
   defs[id] = { ...CTX.defs.V1, id, skill: fixture.skill };
   records[id] = { bySkill: {}, complete: false, unsupported: ["R477 observation fixture only"] };
-  for (const row of fixture.records) records[id].bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage } as Script;
+  for (const row of fixture.records) records[id].bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage, trigger: row.trigger, price: priceFromCostRecord(row.cost as CostRecord) } as Script;
 }
 const ctx: EngineContext = { ...CTX, defs, scripts: { ...CTX.scripts, ...records } };
 const whisScripts = structuredClone(records["BT1-043"]);
-for (const row of currentWhis) whisScripts.bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage } as Script;
+for (const row of currentWhis) whisScripts.bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage, trigger: row.trigger, price: priceFromCostRecord(row.cost as CostRecord) } as Script;
 const whisCtx: EngineContext = { ...ctx, scripts: { ...ctx.scripts, "BT1-043": whisScripts } };
 let cases = 0;
 const test = (name: string, fn: () => void) => { fn(); cases++; console.log(`PASS ${name}`); };

@@ -1,4 +1,6 @@
-/** R477 synchronous adapter prototype, without production host integration. */
+import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
+import type { CostRecord } from "../../src/lib/arena/vm/script";
+/** R477 synchronous adapter contract fixtures with complete R509 source metadata. */
 import assert from "node:assert/strict";
 import fixtures from "./fixtures/standing-negation-observation-5.json";
 import { CTX, fifty } from "./harness";
@@ -16,7 +18,7 @@ const defs = { ...CTX.defs }, scripts: Record<string, CardScripts> = { ...CTX.sc
 for (const [id, fixture] of Object.entries(fixtures)) {
   defs[id] = { ...CTX.defs.V1, id, skill: fixture.skill };
   scripts[id] = { bySkill: {}, complete: false, unsupported: ["observation fixture only"] };
-  for (const row of fixture.records) scripts[id].bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage } as Script;
+  for (const row of fixture.records) scripts[id].bySkill[row.skillIndex] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage, trigger: row.trigger, price: priceFromCostRecord(row.cost as CostRecord) } as Script;
 }
 const ctx: EngineContext = { ...CTX, defs, scripts };
 function board(master: PlayerId) {

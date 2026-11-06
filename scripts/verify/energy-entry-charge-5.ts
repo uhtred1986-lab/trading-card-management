@@ -1,3 +1,5 @@
+import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
+import type { CostRecord } from "../../src/lib/arena/vm/script";
 /** R482 saved ordinary Charge action and optional Energy entry. */
 import assert from "node:assert/strict";
 import fixtures from "./fixtures/standing-negation-observation-5.json";
@@ -18,7 +20,7 @@ defs.K=card("K",{skill:fixtures["DB1-066"].skill});
 const rows=Object.values(defs).flatMap(skillRecords);
 const ctx:EngineContext={defs,scripts:rulesFromRows(rows.map((row,id)=>({...row,id,status:"draft",source:"compiler"}) as unknown as RuleRow),defs)};
 ctx.scripts!.K={bySkill:{},complete:false,unsupported:["R477 fixture only"]};
-for(const r of fixtures["DB1-066"].records)ctx.scripts!.K.bySkill[r.skillIndex]={kind:r.kind,ops:r.ops,unsupported:r.unread,validity:r.validity,usage:r.usage} as Script;
+for(const r of fixtures["DB1-066"].records)ctx.scripts!.K.bySkill[r.skillIndex]={kind:r.kind,ops:r.ops,unsupported:r.unread,validity:r.validity,usage:r.usage,trigger:r.trigger,price:priceFromCostRecord(r.cost as CostRecord)} as Script;
 ctx.scripts!.IN.bySkill[10].ops=[{op:"energyEntryExhaust",colors:["Red","Blue"]}];ctx.scripts!.IN.bySkill[10].unsupported=[];
 const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
 const copy=<T,>(value:T):T=>JSON.parse(JSON.stringify(value));

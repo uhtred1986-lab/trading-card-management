@@ -1,4 +1,6 @@
-/** R477 coupon and isolated projection fixtures. No catalog admission. */
+import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
+import type { CostRecord } from "../../src/lib/arena/vm/script";
+/** R477 coupon and isolated projection compatibility for the R509 admitted policy. */
 import assert from "node:assert/strict";
 import fixtures from "./fixtures/standing-negation-observation-5.json";
 import { card, fifty } from "./harness";
@@ -23,7 +25,7 @@ import type { Action, EngineContext, GameEvent, PlayerId } from "../../src/lib/a
 const defs:EngineContext["defs"]={W:card("W",{type:"LEADER",skill:"[Auto] When a card in your Combo Area is placed in your Drop Area, choose 1 Battle Card in your Combo Area and draw 1 card."}),L:card("L",{type:"LEADER",skill:null}),F:card("F",{skill:null}),A:card("A",{skill:"[Activate: Main] {1}: Draw 1 card."}),R:card("R",{skill:"[Over Realm 3]"})};
 for(const id of ["DB1-066","BT10-153"] as const)defs[id]=card(id,{skill:fixtures[id].skill});
 const scripts=rulesFromRows(Object.values(defs).flatMap(skillRecords).map((r,id)=>({...r,id,status:"confirmed",source:"compiler"}) as unknown as RuleRow),defs);
-for(const id of ["DB1-066","BT10-153"] as const){scripts[id]={bySkill:{},complete:false,unsupported:["R477 fixture only"]};for(const r of fixtures[id].records)scripts[id].bySkill[r.skillIndex]={kind:r.kind,ops:r.ops,unsupported:r.unread,validity:r.validity,usage:r.usage} as Script;}
+for(const id of ["DB1-066","BT10-153"] as const){scripts[id]={bySkill:{},complete:false,unsupported:["R477 fixture only"]};for(const r of fixtures[id].records)scripts[id].bySkill[r.skillIndex]={kind:r.kind,ops:r.ops,unsupported:r.unread,validity:r.validity,usage:r.usage,trigger:r.trigger,price:priceFromCostRecord(r.cost as CostRecord)} as Script;}
 scripts.W={...scripts.W,complete:true,unsupported:[],bySkill:{0:{...scripts.W.bySkill[0],trigger:["comboToDrop"],unsupported:[],ops:[{op:"choose",sel:{area:"combo",side:"both",count:1},as:"picked"},{op:"draw",n:1}]}}};
 const ctx:EngineContext={defs,scripts},loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
 const clone=<T,>(v:T):T=>JSON.parse(JSON.stringify(v));

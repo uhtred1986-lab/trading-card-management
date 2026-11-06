@@ -1,4 +1,4 @@
-/** R477 native timing fixtures; exact stored King/Gotenks rows, no catalog admission. */
+/** R477/R509 native timing compatibility through exact King/Gotenks source admission. */
 import assert from "node:assert/strict";
 import fixtures from "./fixtures/standing-negation-observation-5.json";
 import { card, fifty } from "./harness";
@@ -35,9 +35,8 @@ for(const id of ["DB1-066","BT10-153"] as const)defs[id]=card(id,{skill:correctS
 const rows=Object.values(defs).filter(d=>!fixtures[d.id as keyof typeof fixtures]).flatMap(skillRecords);
 for(const id of ["DB1-066","BT10-153"] as const)rows.push(...fixtures[id].records as unknown as typeof rows);
 const scripts=rulesFromRows(rows.map((row,id)=>({...row,id,status:"confirmed",source:"compiler"}) as unknown as RuleRow),defs);
-// Fixture-only opt-in to the exact stored whole-negation policy; card-level
-// runtime support remains blocked and all other loaded metadata is retained.
-for(const [id,index] of [["DB1-066",0],["BT10-153",20]] as const){assert.deepEqual(scripts[id].bySkill[index].unsupported,["Permanent negateSkills is not collected as a runtime static"]);scripts[id].bySkill[index].unsupported=[];}
+// R509: exact complete source policy now loads without a fixture-only override.
+for(const [id,index] of [["DB1-066",0],["BT10-153",20]] as const){assert.deepEqual(scripts[id].bySkill[index].unsupported,[]);}
 assert.deepEqual(scripts["BT10-153"].bySkill[30].trigger,["removedByOpponent"]);
 const ctx:EngineContext={defs,scripts},loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;
 const other=(p:PlayerId):PlayerId=>p==="p1"?"p2":"p1";

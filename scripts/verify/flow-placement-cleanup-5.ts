@@ -1,3 +1,5 @@
+import { priceFromCostRecord } from "../../src/lib/arena/vm/skill-payment";
+import type { CostRecord } from "../../src/lib/arena/vm/script";
 /** R505 actual flow cleanup, same-execution effects and retained grant history. */
 import assert from 'node:assert/strict';
 import fixtures from './fixtures/movement-auto-history-5.json';
@@ -185,7 +187,7 @@ for (const p of ['p1', 'p2'] as const) {
     c.defs.N = card('N', { skill: standingFixture['DB1-066'].skill });
     c.scripts!.N = rulesFromRows(skillRecords(c.defs.N).map((r, id) => ({ ...r, id, status: 'draft', source: 'compiler' }) as unknown as RuleRow), c.defs).N;
     const row = standingFixture['DB1-066'].records[0];
-    c.scripts!.N.bySkill[0] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage } as Script;
+    c.scripts!.N.bySkill[0] = { kind: row.kind, ops: row.ops, unsupported: row.unread, validity: row.validity, usage: row.usage, trigger: row.trigger, price: priceFromCostRecord(row.cost as CostRecord) } as Script;
     const state = RULES.createGame(c, { seed: 505, p1: { name: 'One', leader: 'L', main: fifty('F') }, p2: { name: 'Two', leader: 'L', main: fifty('F') } }).state as VmState;
     const id = stage(state, p, 'F', 'combo'), negator = stage(state, p, 'N', 'hand');
     const h = vmHost(c, game, state, []);
@@ -223,7 +225,7 @@ for (const p of ['p1', 'p2'] as const)
         if (standing) {
             c.defs.N = card('N', { skill: standingFixture['DB1-066'].skill });
             const r = standingFixture['DB1-066'].records[0];
-            c.scripts!.N = { bySkill: { 0: { kind: r.kind, ops: r.ops, unsupported: r.unread, validity: r.validity, usage: r.usage } as Script }, complete: true, unsupported: [] };
+            c.scripts!.N = { bySkill: { 0: { kind: r.kind, ops: r.ops, unsupported: r.unread, validity: r.validity, usage: r.usage, trigger: r.trigger, price: priceFromCostRecord(r.cost as CostRecord) } as Script }, complete: true, unsupported: [] };
         }
         let state = RULES.createGame(c, { seed: 505, p1: { name: 'One', leader: 'L', main: fifty('F') }, p2: { name: 'Two', leader: 'L', main: fifty('F') } }).state as VmState;
         const events: GameEvent[] = [];
