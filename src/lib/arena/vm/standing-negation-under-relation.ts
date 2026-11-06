@@ -32,7 +32,7 @@ export interface UnderStandingSource {
     skillIdentity: string;
 }
 export type UnderRelationChange = {
-    kind: "reorder" | "carry";
+    kind: "reorder";
     before: UnderRelation;
     after: UnderRelation;
 };
@@ -93,7 +93,7 @@ export function requireUnderRelations(cards: Card[], piles: UnderPile[], relatio
 }
 /** Exact before/after facts, not an inference made by a standing query. */
 export function requireUnderRelationChange(change: UnderRelationChange): void {
-    if (!underShape(change, ["kind", "before", "after"]) || !["reorder", "carry"].includes(change.kind)
+    if (!underShape(change, ["kind", "before", "after"]) || change.kind !== "reorder"
         || !underShape(change.before, ["source", "host", "position"])
         || !underShape(change.after, ["source", "host", "position"]))
         underRebuild("unreviewed under-standing relation transition");
@@ -108,15 +108,8 @@ export function requireUnderRelationChange(change: UnderRelationChange): void {
             version: 2, policy: "mixedWholeV1", cards: [host], battle: null, candidates: [],
         });
     }
-    const a = change.before.host, b = change.after.host;
-    if (change.kind === "reorder") {
-        if (canonical(a) !== canonical(b)) underRebuild("reorder cannot change the outer host");
-    } else {
-        if (a.card !== b.card || a.cardId !== b.cardId || a.owner !== b.owner || a.side !== b.side
-            || a.hiddenCount !== b.hiddenCount || a.holder !== b.holder || a.master !== b.master
-            || !["battle", "combo"].includes(a.area) || !["battle", "combo"].includes(b.area)
-            || a.area === b.area || !natural(b.epoch) || b.epoch !== a.epoch + 1
-            || change.before.position !== change.after.position)
-            underRebuild("unreviewed carried under-standing relation");
-    }
+    // RM23-2-5 releases the pile when the top moves to a differently named
+    // area. Existing native Battle/Combo pile retention is not rule authority.
+    if (canonical(change.before.host) !== canonical(change.after.host))
+        underRebuild("reorder cannot change the outer host");
 }

@@ -76,12 +76,12 @@ for (const p of ["p1", "p2"] as const) {
         assert.equal(settle(h, next, [receipt]).active[0].serial, 1);
         refused(() => settle(h, next, [receipt, receipt]));
     });
-    test(`${p} exact native epoch carry preserves under generation`, () => {
+    test(`${p} cross-area carry is refused at exact and jumped epochs`, () => {
         const next = copy(b), host = { ...next.area.cards[0], area: "combo" as const, epoch: 2 };
         next.area.cards = [host]; next.piles[0].host = host; next.under[0].relation.host = host;
         next.under[0].negateTargets = [host]; next.under[0].attackBanTargets = [host];
-        const receipt: UnderRelationChange = { kind: "carry", before: b.under[0].relation, after: next.under[0].relation };
-        refused(() => settle(h, next)); assert.equal(settle(h, next, [receipt]).active[0].serial, 1);
+        const receipt = { kind: "carry", before: b.under[0].relation, after: next.under[0].relation } as unknown as UnderRelationChange;
+        refused(() => settle(h, next)); refused(() => settle(h, next, [receipt]));
         const skipped = copy(next); skipped.area.cards[0].epoch = 5; skipped.piles[0].host.epoch = 5;
         skipped.under[0].relation.host.epoch = 5; skipped.under[0].negateTargets[0].epoch = 5; skipped.under[0].attackBanTargets[0].epoch = 5;
         refused(() => settle(h, skipped, [{ ...receipt, after: skipped.under[0].relation }]));
@@ -123,7 +123,7 @@ for (const p of ["p1", "p2"] as const) {
             next.area.cards = [host]; next.piles[0].host = host; next.under[0].relation.host = host;
             next.under[0].negateTargets = [host]; next.under[0].attackBanTargets = [host];
             refused(() => settle(h, next));
-            refused(() => settle(h, next, [{ kind: "carry", before: b.under[0].relation, after: next.under[0].relation }]));
+            refused(() => settle(h, next, [{ kind: "reorder", before: b.under[0].relation, after: next.under[0].relation }]));
         });
     test(`${p} multiple attachments have stable separate generations`, () => {
         const next = copy(b), second = copy(next.under[0]);
@@ -135,7 +135,7 @@ for (const p of ["p1", "p2"] as const) {
     });
     test(`${p} malformed receipt hosts refuse deliberately`, () => {
         const next = copy(b); next.piles[0].cards.unshift("material"); next.under[0].relation.position = 1;
-        const receipt = { kind: "carry", before: { ...b.under[0].relation, host: null }, after: next.under[0].relation };
+        const receipt = { kind: "reorder", before: { ...b.under[0].relation, host: null }, after: next.under[0].relation };
         refused(() => settle(h, next, [receipt as unknown as UnderRelationChange]));
     });
 }

@@ -1002,7 +1002,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Under-source standing effects: preparatory contract",
-    body: "An isolated version-3 contract represents Abducted as a physical card under its actual outer Battle-card host, with independent negation and attack-ban outputs. Exact relation receipts preserve a generation through pile reorder or Battle/Combo carry; detached occurrences cannot be resurrected. Control, promotion, Hidden and other unreviewed transitions refuse. Existing version-1/version-2 histories are unchanged. This helper has no native observer or writer and does not admit BT23-070 or either of its activation skills.",
+    body: "An isolated version-3 contract represents Abducted as a physical card under its actual outer Battle-card host, with independent negation and attack-ban outputs. Exact relation receipts preserve a generation through pile reorder; detached occurrences cannot be resurrected. Cross-area host movement must release attachments under RM23-2-5 and cannot be treated as carry. Control, promotion, Hidden and other unreviewed transitions refuse. Existing version-1/version-2 histories are unchanged. This helper has no native observer or writer and does not admit BT23-070 or either of its activation skills.",
   },
   {
     title: "Ordinary Activate payment: preparatory continuation",
