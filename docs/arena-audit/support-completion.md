@@ -199,3 +199,7 @@ The payment census identifies two bare numeric Evolve prices: P-006 (`{g}{g}1`) 
 ## Checkpoint 50: paired play and Active triggers
 
 Runtime `4a1b8ff4` adds three paired-trigger Auto records with the own-turn restriction confined to the Active alternative. The complete catalog now has 13,005 readable / 961 unread records; runtime census remains 12 readable gaps, 321 additional blocked records and 2,559 contextual unknowns. Combined validation passes 271 focused cases, VM/rulesets/wordings, TypeScript, metadata, browser privacy/replay and 40 Fusion games. See [checkpoint 50](round-5/support-fiftieth-batch.md). Ordinary Charge continuation and watched Combo-origin triggers continue in the same PR.
+
+## Checkpoint 51: ordinary Charge and watched Combo origins
+
+Runtime `e41f7c2a` preserves ordinary Charge through optional Energy-entry choices and adds three watched Combo-origin records. Native source attribution, counted allowances, saved continuation and captured trigger attributes have explicit regression coverage. The complete catalog is 13,008 readable / 958 unread records; runtime census is 12 readable gaps, 318 additional blocked records and 2,559 contextual unknowns. Combined validation passes 899 focused cases, adjacent Combo suites, VM/rulesets/wordings, TypeScript, metadata, browser privacy/replay and 40 Fusion games. See [checkpoint 51](round-5/support-fiftyfirst-batch.md). Warp/Z-Energy entry and remaining paired triggers continue.
