@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Battle attackers include Z-Battle Cards and tokens (R-492)",
+    body: "An ordinary Battle Card attack condition includes a Z-Battle Card or skill-created token attacking from the Battle Area. BT8-089's watched Auto therefore restricts the attacking player's other tokens and cost-seven-or-less Battle Cards, preserving the original attacker exception; Leader and Unison attacks do not qualify. Each actual attacker declaration broadcasts once, including when a Counter later redirects its target. Counter: Battle Card Attack also accepts token attackers as Battle Cards. King Cold still requires its Counter energy payment, plays and redirects the attack, and can use Revenge after that battle. Z-Battle, Leader, Unison and Extra Counter staging otherwise retain their existing paths. This changes native classification, not any compiled card record or the separate original-target qualification.",
+  },
+  {
     title: "Played or attacking an opponent's Battle Card (R-490)",
     body: "BT26-100's complete self-Active and opposing-Rest Auto answers a play independently of its qualified attack. The attack qualifies from its actual original declaration target: an opponent-held Battle Card, Z-Battle Card or token in the Battle Area. A later Counter, target departure or Blocker cannot erase or create that occurrence. Ordinary standalone attack-target readings remain unchanged. The exact three-operation body shares the bounded paired self-reference contract: after the source leaves, its self-Active instruction cannot affect a fresh occurrence, but the separate optional opposing Battle selection still resolves and ignores Barrier. Retained movement preserves that self reference. Saved choice continuations retain the original token and complete variable linkage; malformed captures or bodies refuse, and copied programs remain unsupported. This does not introduce a live guard condition on the play or expand the general Auto self-reference behavior.",
   },
