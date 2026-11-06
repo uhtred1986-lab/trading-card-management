@@ -1,3 +1,4 @@
+import { compileEnergyEntryPolicy } from "./energy-entry";
 import { compileCounterArrival } from "./counter-arrival";
 import { counterUnderPermit } from "../vm/counter-under-contract";
 import { counterEnergyPermit } from "../vm/counter-energy-contract";
@@ -847,6 +848,8 @@ function aegisAltPermit(text: string): { head: string | null; opener: string | n
 }
 
 function compileSkillText(skill: Skill): Script {
+  const energyEntry = compileEnergyEntryPolicy(skill);
+  if (energyEntry) return { ops: [{ op: "energyEntryExhaust", colors: energyEntry.colors }], trigger: [], unsupported: [] };
   const arrivalPolicy = compileCounterArrival(skill);
   if (arrivalPolicy) return arrivalPolicy;
   // [Union-Fusion] and [Union-Potara] print two character names where an

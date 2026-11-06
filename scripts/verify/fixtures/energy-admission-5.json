@@ -1,0 +1,185 @@
+{
+  "P-656": {
+    "id": "P-656",
+    "type": "BATTLE",
+    "colors": [
+      "Blue",
+      "Yellow"
+    ],
+    "cost": "2",
+    "specified": null,
+    "z": null,
+    "power": 20000,
+    "name": "Whis, Combo Attack",
+    "characters": [
+      "Whis"
+    ],
+    "traits": [
+      "God"
+    ],
+    "skill": "[energy-exhaust]<br>[auto]{y}, if your Leader is a blue <Whis> card: When this card is played or at the end of a battle in which this card was used in a combo, draw 1 card, then choose up to 1 of your opponent's Battle Cards, ignoring [barrier], and add it to its owner's energy in Rest Mode.<br>[activate: main]{u}, if you have 2 or more energy: Play this card from your hand.",
+    "backName": null,
+    "backSkill": null
+  },
+  "DB2-175": {
+    "id": "DB2-175",
+    "type": "BATTLE",
+    "colors": [
+      "Red",
+      "Blue"
+    ],
+    "cost": "2",
+    "specified": null,
+    "z": null,
+    "power": 16000,
+    "name": "Champa & Vados, Universe 6 Destroyer & Angel",
+    "characters": [
+      "Champa",
+      "Vados"
+    ],
+    "traits": [
+      "God",
+      "Universe 6"
+    ],
+    "skill": "[energy-exhaust]<br>[permanent] When placing this card in your energy from any area, you may choose 1 red card and 1 blue card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.<br>[activate: main]{r}{u}, return this card to its owner's hand: Choose up to 1 Extra Card in your deck with an energy cost of 3 or more, add it to your hand, then shuffle your deck.",
+    "backName": null,
+    "backSkill": null
+  },
+  "DB2-171": {
+    "id": "DB2-171",
+    "type": "BATTLE",
+    "colors": [
+      "Red",
+      "Yellow"
+    ],
+    "cost": "2",
+    "specified": null,
+    "z": null,
+    "power": 16000,
+    "name": "Sidra & Mohito, Universe 9 Destroyer & Angel",
+    "characters": [
+      "Sidra",
+      "Mohito"
+    ],
+    "traits": [
+      "God",
+      "Universe 9"
+    ],
+    "skill": "[energy-exhaust]<br>[permanent] When placing this card in your energy from any area, you may choose 1 red card and 1 yellow card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.<br>[activate: main]{r}{y}: Choose 1 of your opponent's Battle Cards or energy, switch it to Rest Mode, then choose up to 1 of your opponent's Battle Cards and it gets -20000 power for the turn.",
+    "backName": null,
+    "backSkill": null
+  },
+  "BT1-052": {
+    "id": "BT1-052",
+    "type": "EXTRA",
+    "colors": [
+      "Blue"
+    ],
+    "cost": "2",
+    "specified": null,
+    "z": null,
+    "power": null,
+    "name": "Objection",
+    "characters": [],
+    "traits": [],
+    "skill": "[Activate: Main] Choose up to 1card from your hand, and add it to your energy.",
+    "backName": null,
+    "backSkill": null
+  },
+  "DB2-176": {
+    "id": "DB2-176",
+    "type": "BATTLE",
+    "colors": [
+      "Green",
+      "Yellow"
+    ],
+    "cost": "2",
+    "specified": null,
+    "z": null,
+    "power": 16000,
+    "name": "Heles & Sawar, Universe 2 Destroyer & Angel",
+    "characters": [
+      "Heles",
+      "Sawar"
+    ],
+    "traits": [
+      "God",
+      "Universe 2"
+    ],
+    "skill": "[energy-exhaust]<br>[permanent] When placing this card in your energy from any area, you may choose 1 green card and 1 yellow card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.<br>[activate: main][once per turn]{g}{y}: Choose up to 2 green or yellow Battle Cards in your hand with energy costs of 2 or less, play them with their skills negated for the turn, then your opponent chooses 1 card in their hand and places it in their Drop Area.",
+    "backName": null,
+    "backSkill": null
+  },
+  "DB2-166": {
+    "id": "DB2-166",
+    "type": "BATTLE",
+    "colors": [
+      "Red",
+      "Green"
+    ],
+    "cost": "2",
+    "specified": null,
+    "z": null,
+    "power": 16000,
+    "name": "Arack & Cucatail, Universe 5 Destroyer & Angel",
+    "characters": [
+      "Arack",
+      "Cucatail"
+    ],
+    "traits": [
+      "God",
+      "Universe 5"
+    ],
+    "skill": "[energy-exhaust]<br>[permanent] When placing this card in your energy from any area, you may choose 1 red card and 1 green card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.<br>[activate: main]{r}{g}: This card gets +14000 power and [double strike] until the start of your next Main Phase.",
+    "backName": null,
+    "backSkill": null
+  },
+  "DB2-173": {
+    "id": "DB2-173",
+    "type": "BATTLE",
+    "colors": [
+      "Blue",
+      "Green"
+    ],
+    "cost": "2",
+    "specified": null,
+    "z": null,
+    "power": 16000,
+    "name": "Rumsshi & Kusu, Universe 10 Destroyer & Angel",
+    "characters": [
+      "Rumsshi",
+      "Kusu"
+    ],
+    "traits": [
+      "God",
+      "Universe 10"
+    ],
+    "skill": "[energy-exhaust]<br>[permanent] When placing this card in your energy from any area, you may choose 1 blue card and 1 green card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.<br>[activate: main][once per turn]{u}{g}: Choose up to 1 of your opponent's Battle Cards, KO it, then draw 1 card.",
+    "backName": null,
+    "backSkill": null
+  },
+  "DB2-168": {
+    "id": "DB2-168",
+    "type": "BATTLE",
+    "colors": [
+      "Blue",
+      "Yellow"
+    ],
+    "cost": "2",
+    "specified": null,
+    "z": null,
+    "power": 16000,
+    "name": "Iwne & Awamo, Universe 1 Destroyer & Angel",
+    "characters": [
+      "Iwne",
+      "Awamo"
+    ],
+    "traits": [
+      "God",
+      "Universe 1"
+    ],
+    "skill": "[energy-exhaust]<br>[permanent] When placing this card in your energy from any area, you may choose 1 blue card and 1 yellow card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.<br>[activate: main]{u}{y}: Choose up to 1 of your opponent's Battle Cards, place it at the bottom of its owner's deck, then at the start of your opponent's next Main Phase, choose up to 2 of your energy and switch them to Active Mode.",
+    "backName": null,
+    "backSkill": null
+  }
+}

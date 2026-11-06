@@ -5,7 +5,7 @@ import { energyEntryPolicyProblem } from "../../src/lib/arena/vm/energy-entry-po
 import { skillRecords } from "../../src/lib/arena/draft";
 import { runtimeSupportOfRow } from "../../src/lib/arena/rules-store";
 
-// Exact printed six-card family. No native admission is claimed by this reader.
+// Exact printed six-card family; R507 admits the bounded native descriptor.
 const pairs = [
   ["DB2-166", "red", "green"], ["DB2-168", "blue", "yellow"],
   ["DB2-171", "red", "yellow"], ["DB2-173", "blue", "green"],
@@ -19,7 +19,10 @@ for (const [id, first, second] of pairs) {
   assert.deepEqual(policy, { version: 1, colors: [first[0].toUpperCase() + first.slice(1), second[0].toUpperCase() + second.slice(1)] });
   assert.equal(energyEntryPolicyProblem(policy), null);
   const row = skillRecords(card(id, { skill: text }))[0];
-  assert.ok(runtimeSupportOfRow(row).unsupported.length, "reader-only WIP must not admit the old after-entry Permanent");
+  assert.deepEqual(row.ops, [{ op: "energyEntryExhaust", colors: policy!.colors }]);
+  assert.deepEqual(row.trigger, []);
+  assert.deepEqual(runtimeSupportOfRow(row).unsupported, []);
+  assert.ok(runtimeSupportOfRow(row).unknown.length, "remaining route limits are explicit");
   cases++;
 }
 for (const text of [
@@ -36,4 +39,4 @@ for (const value of [null, [], {}, { version: 2, colors: ["Red", "Blue"] },
   { version: 1, colors: ["Red", "Blue"], optional: false }]) {
   assert.ok(energyEntryPolicyProblem(value)); cases++;
 }
-console.log(`energy-entry-policy-5: ${cases} isolated descriptor/reader cases passed; native admission remains blocked`);
+console.log(`energy-entry-policy-5: ${cases} isolated descriptor/reader cases passed; bounded native admission`);

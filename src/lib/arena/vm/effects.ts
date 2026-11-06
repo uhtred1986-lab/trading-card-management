@@ -1,3 +1,4 @@
+import { energyEntryDescriptor } from "./energy-entry-policy";
 import { freshAppliedEffectRoot } from "./applied-effect-receipt";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { standingSkillsNegated } from "./standing-negation-read";
@@ -838,6 +839,8 @@ export function permanents(
           // offered at all. The same zones `vm/activate.ts` counts.
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
+          // R507: this whole descriptor belongs to the arrival procedure, not standing layers.
+          if (energyEntryDescriptor(program.ops)) continue;
           if (!sparkingIsValid(state, p, sk.validity)) continue;
           if (sk.bond != null && !bondValid(src, p, sk)) continue;
           const areaOps = extra ? [...program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy")), ...(zone === "drop" && areaFlags(printed).drop ? dropSelfOps(program.ops) : [])]
@@ -865,6 +868,8 @@ export function permanents(
             if (sk.kind !== "permanent" || skillNegated(state, src, sk.index, sk.kind)) continue;
             const program = showing.scripts.bySkill[sk.index];
             if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
+            // R507: this whole descriptor belongs to the arrival procedure, not standing layers.
+            if (energyEntryDescriptor(program.ops)) continue;
             if (!sparkingIsValid(state, p, sk.validity)) continue;
             if (sk.bond != null && !bondValid(src, p, sk)) continue;
             const ops = pileOps(program.ops);
