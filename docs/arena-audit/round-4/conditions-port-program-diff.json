@@ -1,0 +1,2565 @@
+{
+  "format": "arena-program-diff-v1",
+  "baseline": "93ebd6b9",
+  "catalogSha256": "dcfba11b09fe10746a5f86176511bc9edd85c6156f239508a301326440339fb4",
+  "beforeSha256": "2284c8aa822b4cf781fc0338e377bd777eef35abfca28a5d5c5d7eff512fcac7",
+  "afterSha256": "72478eb41970effb1a7c27bb97721fc96c5cdd1c7c7298ec6b4a930d2a33ff73",
+  "skills": 13964,
+  "read": 12956,
+  "unread": 1008,
+  "changes": [
+    {
+      "key": "BT19-063#20",
+      "printed": "[activate: main][limit 1]{u}, if you have 3 or more energy and a player has a <Son Gohan: SH> card in play: Play this card from your hand.",
+      "changedFields": [
+        "cond",
+        "cost",
+        "pattern",
+        "reads"
+      ],
+      "before": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "son gohan: sh"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 3
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 3 or more energy and a player has a <Son Gohan: SH> card in play",
+          "orbs": {
+            "Blue": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "son gohan: sh"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 3
+          },
+          "program": null
+        },
+        "pattern": "if:count[choose→play]",
+        "reads": "if there are 3 or more <son gohan: sh> cards in your Energy Area: choose this card, play the chosen cards"
+      },
+      "after": {
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "energy"
+              },
+              "atLeast": 3
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "both",
+                "areas": [
+                  "leader",
+                  "battle"
+                ],
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "son gohan: sh"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            }
+          ]
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 3 or more energy and a player has a <Son Gohan: SH> card in play",
+          "orbs": {
+            "Blue": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "energy"
+                },
+                "atLeast": 3
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "both",
+                  "areas": [
+                    "leader",
+                    "battle"
+                  ],
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "son gohan: sh"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                },
+                "atLeast": 1
+              }
+            ]
+          },
+          "program": null
+        },
+        "pattern": "if:all[choose→play]",
+        "reads": "if there are 3 or more cards in your Energy Area and there are 1 or more <son gohan: sh> cards in both players' Leader Area or Battle Area in total: choose this card, play the chosen cards"
+      }
+    },
+    {
+      "key": "BT19-064#20",
+      "printed": "[activate: main][limit 1]{u}, if you have 3 or more energy and a player has a <Piccolo: SH> card in play: Play this card from your hand.",
+      "changedFields": [
+        "cond",
+        "cost",
+        "pattern",
+        "reads"
+      ],
+      "before": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "piccolo: sh"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 3
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 3 or more energy and a player has a <Piccolo: SH> card in play",
+          "orbs": {
+            "Blue": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "piccolo: sh"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 3
+          },
+          "program": null
+        },
+        "pattern": "if:count[choose→play]",
+        "reads": "if there are 3 or more <piccolo: sh> cards in your Energy Area: choose this card, play the chosen cards"
+      },
+      "after": {
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "energy"
+              },
+              "atLeast": 3
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "both",
+                "areas": [
+                  "leader",
+                  "battle"
+                ],
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "piccolo: sh"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            }
+          ]
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 3 or more energy and a player has a <Piccolo: SH> card in play",
+          "orbs": {
+            "Blue": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "energy"
+                },
+                "atLeast": 3
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "both",
+                  "areas": [
+                    "leader",
+                    "battle"
+                  ],
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "piccolo: sh"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                },
+                "atLeast": 1
+              }
+            ]
+          },
+          "program": null
+        },
+        "pattern": "if:all[choose→play]",
+        "reads": "if there are 3 or more cards in your Energy Area and there are 1 or more <piccolo: sh> cards in both players' Leader Area or Battle Area in total: choose this card, play the chosen cards"
+      }
+    },
+    {
+      "key": "BT19-080#20",
+      "printed": "[auto] When this card is played, choose up to 1 of your opponent's Battle Cards with an energy cost of 6 or less, KO it, and this card gets +5000 power for the turn. Additionally, if you have at least 1 <Son Goku: Br> card and 1 <Vegeta: Br> card in your Z-Energy, draw 1 card.",
+      "changedFields": [
+        "ops",
+        "pattern",
+        "reads"
+      ],
+      "before": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 6,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards with an energy cost of 6 or less"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          },
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 5000,
+            "until": "turn"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "son goku: br"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "zEnergy",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "Vegeta: Br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": false
+                },
+                "as": "c1",
+                "reason": "1 <Vegeta: Br> card in your Z-Energy"
+              },
+              {
+                "op": "draw",
+                "n": 1
+              }
+            ]
+          }
+        ],
+        "pattern": "choose→ko→power→if:count[choose→draw]",
+        "reads": "choose up to 1 Battle Card with an energy cost of 6 or less in your opponent's Battle Area, KO the chosen cards, this card +5000 power for the turn, if there are 1 or more <son goku: br> cards you have in play: choose 1 <Vegeta: Br> card in your Z-Energy Area, draw 1"
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 6,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards with an energy cost of 6 or less"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          },
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 5000,
+            "until": "turn"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "zEnergy",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "son goku: br"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            },
+            "then": [
+              {
+                "op": "if",
+                "cond": {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "zEnergy",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "vegeta: br"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  },
+                  "atLeast": 1
+                },
+                "then": [
+                  {
+                    "op": "draw",
+                    "n": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "pattern": "choose→ko→power→if:count[if:count[draw]]",
+        "reads": "choose up to 1 Battle Card with an energy cost of 6 or less in your opponent's Battle Area, KO the chosen cards, this card +5000 power for the turn, if there are 1 or more <son goku: br> cards in your Z-Energy Area: if there are 1 or more <vegeta: br> cards in your Z-Energy Area: draw 1"
+      }
+    },
+    {
+      "key": "BT19-112#30",
+      "printed": "[activate: main]{y}{y}{y}, if you have 4 or more energy and there are 2 <Lord Slug> cards with combo costs of 1 in your Z-Energy―1 with an energy cost of 3 and 1 with an energy cost of 5: Play this card from your hand.",
+      "changedFields": [
+        "cond",
+        "cost",
+        "pattern",
+        "reads"
+      ],
+      "before": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "lord slug"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 3,
+              "costMax": 3,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null,
+              "comboCostMax": 1,
+              "comboCostMin": 1
+            }
+          },
+          "atLeast": 4
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 4 or more energy and there are 2 <Lord Slug> cards with combo costs of 1 in your Z-Energy―1 with an energy cost of 3 and 1 with an energy cost of 5",
+          "orbs": {
+            "Yellow": 3
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "lord slug"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 3,
+                "costMax": 3,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "comboCostMax": 1,
+                "comboCostMin": 1
+              }
+            },
+            "atLeast": 4
+          },
+          "program": null
+        },
+        "pattern": "if:count[choose→play]",
+        "reads": "if there are 4 or more <lord slug> cards with an energy cost of 3 with a combo cost of 1 in your Energy Area: choose this card, play the chosen cards"
+      },
+      "after": {
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "energy"
+              },
+              "atLeast": 4
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "zEnergy",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "lord slug"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": 3,
+                      "costMax": 3,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null,
+                      "comboCostMax": 1,
+                      "comboCostMin": 1
+                    }
+                  },
+                  "atLeast": 1
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "zEnergy",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "lord slug"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": 5,
+                      "costMax": 5,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null,
+                      "comboCostMax": 1,
+                      "comboCostMin": 1
+                    }
+                  },
+                  "atLeast": 1
+                }
+              ]
+            }
+          ]
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 4 or more energy and there are 2 <Lord Slug> cards with combo costs of 1 in your Z-Energy―1 with an energy cost of 3 and 1 with an energy cost of 5",
+          "orbs": {
+            "Yellow": 3
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "energy"
+                },
+                "atLeast": 4
+              },
+              {
+                "kind": "all",
+                "conds": [
+                  {
+                    "kind": "count",
+                    "sel": {
+                      "side": "you",
+                      "area": "zEnergy",
+                      "filter": {
+                        "colors": [],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [
+                          "lord slug"
+                        ],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": 3,
+                        "costMax": 3,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null,
+                        "comboCostMax": 1,
+                        "comboCostMin": 1
+                      }
+                    },
+                    "atLeast": 1
+                  },
+                  {
+                    "kind": "count",
+                    "sel": {
+                      "side": "you",
+                      "area": "zEnergy",
+                      "filter": {
+                        "colors": [],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [
+                          "lord slug"
+                        ],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": 5,
+                        "costMax": 5,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null,
+                        "comboCostMax": 1,
+                        "comboCostMin": 1
+                      }
+                    },
+                    "atLeast": 1
+                  }
+                ]
+              }
+            ]
+          },
+          "program": null
+        },
+        "pattern": "if:all[choose→play]",
+        "reads": "if there are 4 or more cards in your Energy Area and there are 1 or more <lord slug> cards with an energy cost of 3 with a combo cost of 1 in your Z-Energy Area and there are 1 or more <lord slug> cards with an energy cost of 5 with a combo cost of 1 in your Z-Energy Area: choose this card, play the chosen cards"
+      }
+    },
+    {
+      "key": "BT19-113#30",
+      "printed": "[activate: main][limit 1]{y}{y}, if you have 3 or more energy and a <Lord Slug> card with an energy cost of 3 and combo cost of 1 in your Z-Energy: Play this card from your hand.",
+      "changedFields": [
+        "cond",
+        "cost",
+        "pattern",
+        "reads"
+      ],
+      "before": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "lord slug"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 3,
+              "costMax": 3,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null,
+              "comboCostMax": 1,
+              "comboCostMin": 1
+            }
+          },
+          "atLeast": 3
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 3 or more energy and a <Lord Slug> card with an energy cost of 3 and combo cost of 1 in your Z-Energy",
+          "orbs": {
+            "Yellow": 2
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "lord slug"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 3,
+                "costMax": 3,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "comboCostMax": 1,
+                "comboCostMin": 1
+              }
+            },
+            "atLeast": 3
+          },
+          "program": null
+        },
+        "pattern": "if:count[choose→play]",
+        "reads": "if there are 3 or more <lord slug> cards with an energy cost of 3 with a combo cost of 1 in your Energy Area: choose this card, play the chosen cards"
+      },
+      "after": {
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "energy"
+              },
+              "atLeast": 3
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "zEnergy",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "lord slug"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": 3,
+                  "costMax": 3,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null,
+                  "comboCostMax": 1,
+                  "comboCostMin": 1
+                }
+              },
+              "atLeast": 1
+            }
+          ]
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 3 or more energy and a <Lord Slug> card with an energy cost of 3 and combo cost of 1 in your Z-Energy",
+          "orbs": {
+            "Yellow": 2
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "energy"
+                },
+                "atLeast": 3
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "zEnergy",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "lord slug"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": 3,
+                    "costMax": 3,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null,
+                    "comboCostMax": 1,
+                    "comboCostMin": 1
+                  }
+                },
+                "atLeast": 1
+              }
+            ]
+          },
+          "program": null
+        },
+        "pattern": "if:all[choose→play]",
+        "reads": "if there are 3 or more cards in your Energy Area and there are 1 or more <lord slug> cards with an energy cost of 3 with a combo cost of 1 in your Z-Energy Area: choose this card, play the chosen cards"
+      }
+    },
+    {
+      "key": "BT19-145#30",
+      "printed": "[activate: main][once per turn] If you have 5 or more Z-Energy or 2 or more Z-Battle Cards in play: Choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or more, ignoring [barrier], and place it at the bottom of its owner's deck.",
+      "changedFields": [
+        "cond",
+        "cost",
+        "reads"
+      ],
+      "before": {
+        "cond": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "zEnergy"
+              },
+              "atLeast": 5
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": true
+                }
+              },
+              "atLeast": 5
+            }
+          ]
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If you have 5 or more Z-Energy or 2 or more Z-Battle Cards in play",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "any",
+            "conds": [
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "zEnergy"
+                },
+                "atLeast": 5
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "battle",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": true
+                  }
+                },
+                "atLeast": 5
+              }
+            ]
+          },
+          "program": null
+        },
+        "reads": "if there are 5 or more cards in your Z-Energy Area, or there are 5 or more Z-Battle Cards in your Battle Area: choose up to 1 Battle Card with an energy cost of 3 or more in your opponent's Battle Area ignoring [Barrier], move the chosen cards to the bottom of the deck"
+      },
+      "after": {
+        "cond": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "zEnergy"
+              },
+              "atLeast": 5
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": true
+                }
+              },
+              "atLeast": 2
+            }
+          ]
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If you have 5 or more Z-Energy or 2 or more Z-Battle Cards in play",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "any",
+            "conds": [
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "zEnergy"
+                },
+                "atLeast": 5
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "battle",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": true
+                  }
+                },
+                "atLeast": 2
+              }
+            ]
+          },
+          "program": null
+        },
+        "reads": "if there are 5 or more cards in your Z-Energy Area, or there are 2 or more Z-Battle Cards in your Battle Area: choose up to 1 Battle Card with an energy cost of 3 or more in your opponent's Battle Area ignoring [Barrier], move the chosen cards to the bottom of the deck"
+      }
+    },
+    {
+      "key": "P-468#20",
+      "printed": "[Activate: Main][Limit 1] If your Leader is both a yellow <Vegeta> and <Trunks: Future> card and you discard this card from your hand: Choose up to 1 of your opponent's Battle Cards or Unisons with an energy cost of 2 or less and switch it to Rest Mode.",
+      "changedFields": [
+        "cond",
+        "cost",
+        "reads"
+      ],
+      "before": {
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Yellow"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "vegeta",
+              "trunks: future"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader is both a yellow <Vegeta> and <Trunks: Future> card and you discard this card from your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Yellow"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "vegeta",
+                "trunks: future"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": [
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self",
+                  "area": "hand"
+                }
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "reads": "if your leader is Yellow <vegeta> or <trunks: future>: choose up to 1 Battle Card or Unison Card with an energy cost of 2 or less in your opponent's Battle Area or Unison Area, switch the chosen cards to rest mode"
+      },
+      "after": {
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Yellow"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [
+              "vegeta",
+              "trunks: future"
+            ],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader is both a yellow <Vegeta> and <Trunks: Future> card and you discard this card from your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Yellow"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [
+                "vegeta",
+                "trunks: future"
+              ],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": [
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self",
+                  "area": "hand"
+                }
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "reads": "if your leader is Yellow <vegeta> <trunks: future>: choose up to 1 Battle Card or Unison Card with an energy cost of 2 or less in your opponent's Battle Area or Unison Area, switch the chosen cards to rest mode"
+      }
+    }
+  ]
+}

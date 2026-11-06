@@ -1,3 +1,6 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
+import { renewOrdinaryUseGeneration } from "./limits";
+import { refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 /**
  * Where a card *is*, read off the `ZONE` declarations rather than off a field
  * name.
@@ -73,28 +76,30 @@ const Z_CARD_DEPARTURE_AREAS = new Set(["leader", "battle", "unison"]);
 /** 23-2-5: where the cards under a card go when it leaves play — the Drop Area, as `moveCard`'s own 23-2-5 half above already names it. */
 const PILE_EXIT = "drop";
 
-/** In play, or a pile a card may sit on (a combo): the places 3-1-6-1 and 19-1-7 both treat as "on the table". */
-function heldInPlay(game: GameDefinition, zone: string): boolean {
-  const z = game.zones[zone];
-  return z?.inPlay === true || z?.host === true;
-}
-
 /** A card in a game, as the rules engine keeps it. Everything else about a card is an *attribute* (`vm/cards.ts`). */
 export interface VmCard {
   /** Unique in this game (`p1#17`), the same convention the legacy engine uses. */
   id: string;
   /** Increases on a new area entry, so a standing grant from this copy is not reused after it leaves and returns. */
   zoneEpoch?: number;
+  /** R487 scoped self reference; retained movement preserves it, a new occurrence advances it. */
+  pairedSelfToken?: number;
   /** The catalog id (`BT18-020`), which is what `ctx.defs` is keyed by. */
   cardId: string;
   /** Whose card it is. A card in an opponent's area still belongs to its owner (3-1-6). */
   owner: PlayerId;
+  /** R456: only native ordinary OR arrival cleanup; not a general effect lifetime. */
+  overRealmReturn?: import("../types").OverRealmReturn;
   /** The mode it is in, when its zone declares any; null when the zone has none (1-10). */
   mode: string | null;
   /** Markers on the card (1-11). Only a zone declared `markers: true` keeps them. */
   markers: number;
   /** The cards under this one, topmost first (23-2). They are in no zone of their own. */
   under: string[];
+  /** R-398: the selected Leader occurrence under a placed Z-Leader; absence is the legacy base-first stack. */
+  leaderBase?: { card: string; epoch: number };
+  /** New explicit-base stack format; an absent identity here is an invalid save, not a legacy base-first pile. */
+  leaderStackVersion?: 1;
   /** 3-9-2-1: turned face up in a closed area, and still in it. */
   faceUp: boolean;
   /** Turned to its back side — a Leader's awakened face (1-9). */
@@ -121,6 +126,8 @@ export interface VmCard {
    * copy's own history. `endTurn` empties it.
    */
   usedThisTurn: number[];
+  /** R515: increments only when this physical card loses its usage history. */
+  ordinaryUseGeneration?: number;
   /** 13-4: a card may use no second marker skill this turn. Emptied with the list above. */
   usedMarkerSkill: boolean;
   /**
@@ -257,6 +264,10 @@ export interface Replacement {
 }
 
 export interface MoveOptions {
+  /** R496: native host verified effective Z-BATTLE type for this exact inter-player Battle transfer. */
+  zBattleControl?: { from: PlayerId; to: PlayerId };
+  /** Internal synchronous cleanup ownership: only host.moveTo/flow.moved set it. */
+  energyEntryCleanup?: true;
   /** Whose copy of the zone: an opponent's Battle Area is a different area (3-1-1). Defaults to the card's owner. */
   owner?: PlayerId;
   /** Which end of the pile the card arrives at. `"bottom"` (append) by default; the rule being played says when it is the top. */
@@ -267,6 +278,8 @@ export interface MoveOptions {
   carry?: boolean;
   /** Put it under this card instead of into a zone (23-2). The host's zone must be declared `host: true`. */
   under?: string;
+  /** R-398: only the strict printed Z-Awaken self-payment authorizes a Z-Deck pile host. */
+  underProcedure?: "Z-Awaken";
   /** It arrives on top of this card, which goes under it next (23-2): a zone that holds one card is not full for it — the Leader Area at [Z-Awaken] (22-46-6, #155). */
   onto?: string;
   /** A replacement the caller has already decided on. Recorded, never applied (see `Replacement`). */
@@ -301,6 +314,7 @@ export interface At {
 
 /** The board `moveCard` works on — the part of `VmState` that is cards and zones, so the mover needs no whole state. */
 export interface Board {
+  effects?: readonly { target: string; energyEntryEpoch?: number }[];
   sides: Record<PlayerId, { zones: Zones }>;
   cards: Record<string, VmCard>;
 }
@@ -323,6 +337,15 @@ export function hostOf(board: Board, id: string): string | null {
   return null;
 }
 
+/** R-428: an under-card's area is its destination host's area (23-2-2-2). */
+export function removedInsteadOfUnder(board: Board, game: GameDefinition, id: string, top: string, zAwaken = false): boolean {
+  const card = board.cards[id], to = findCard(board, top), from = findCard(board, id);
+  if (!card || !from || !to || id === top || hostOf(board, id) === top) return false;
+  if (game.zones[to.zone]?.host !== true && !(zAwaken && to.zone === "zDeck" && board.cards[top].zCard && card.owner === board.cards[top].owner)) return false;
+  if (isTokenCard(card.cardId) && (from.zone === "battle" || from.zone === "combo") && to.zone !== "battle" && to.zone !== "combo") return true;
+  return card.zCard === true && Z_CARD_DEPARTURE_AREAS.has(from.zone) && (from.zone !== to.zone || from.owner !== to.owner);
+}
+
 /**
  * Move one card, honouring what the zone's declaration says about it.
  *
@@ -331,6 +354,8 @@ export function hostOf(board: Board, id: string): string | null {
  * a rule that can say why it did not happen.
  */
 export function moveCard(board: Board, game: GameDefinition, id: string, to: string, opts: MoveOptions = {}): MoveResult {
+  requireUnscopedStandingWrite(board);
+  if (!opts.energyEntryCleanup || opts.under !== undefined || opts.onto !== undefined) refuseEnergyEntryProcedure(board,[id,opts.under,opts.onto]);
   const card = board.cards[id];
   if (!card) return { ok: false, refused: `there is no card ${id} in this game` };
 
@@ -342,10 +367,13 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     const onTop = board.cards[opts.under];
     if (!onTop) return { ok: false, refused: `there is no card ${opts.under} to go under` };
     if (onTop.id === id) return { ok: false, refused: `a card cannot go under itself` };
+    if (host === onTop.id) return { ok: false, refused: `the card is already under that host (23-2-2-1)` };
     const at = findCard(board, onTop.id);
     if (!at) return { ok: false, refused: `${opts.under} is in no zone, so nothing can go under it` };
-    if (game.zones[at.zone]?.host !== true) return { ok: false, refused: `the ${at.zone} does not hold cards under cards (23-2)` };
+    if (game.zones[at.zone]?.host !== true && !(opts.underProcedure === "Z-Awaken" && at.zone === "zDeck" && onTop.zCard && card.owner === onTop.owner)) return { ok: false, refused: `the ${at.zone} does not hold cards under cards (23-2)` };
+    if (removedInsteadOfUnder(board, game, id, onTop.id, opts.underProcedure === "Z-Awaken") && game.zones[TOKEN_EXIT]) return moveCard(board, game, id, TOKEN_EXIT, { ...opts, under: undefined });
     lift(board, id, host);
+    delete card.overRealmReturn; // becoming an under-card ends this arrival
     // 23-2-2-2: the cards under a card are in the area of the card on top.
     // 3-1-4 resets a card that changes area; a Leader going under a Z-Leader
     // stays in its Leader Area under 22-46-6, so its awakened face, position
@@ -353,6 +381,8 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     const leaderUnderZLeader = from?.zone === "leader" && at.zone === "leader" && onTop.zCard === true;
     if (!leaderUnderZLeader) {
       card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;
+      if (card.pairedSelfToken !== undefined) card.pairedSelfToken = card.zoneEpoch;
+      renewOrdinaryUseGeneration(card);
       card.usedThisTurn = []; // 3-1-4: a new card, so a fresh [Once per turn] (#746)
       reset(card, null);
     }
@@ -368,9 +398,14 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     // stripped one from every card once it went under another.
     const carried = card.under.splice(0);
     const follows = from === null || from.zone === at.zone;
-    onTop.under.unshift(id, ...(follows ? carried : []));
-    if (!follows) for (const u of carried) moveCard(board, game, u, "drop", {});
-    return { ok: true, move: record(id, from, "under", onTop.owner, opts, opts.under) };
+    // 23-2-4: new cards go at the bottom; the existing stack does not reorder.
+    onTop.under.push(id, ...(follows ? carried : []));
+    const released: MoveRecord[] = [];
+    if (!follows) for (const u of carried) {
+      const out = moveCard(board, game, u, board.cards[u]?.zCard === true && game.zones[TOKEN_EXIT] ? TOKEN_EXIT : PILE_EXIT, {});
+      if (out.ok) released.push({ ...out.move, from: from.zone, fromOwner: from.owner });
+    }
+    return { ok: true, move: { ...record(id, from, "under", onTop.owner, opts, opts.under), ...(released.length ? { released } : {}) } };
   }
 
   // ── into a zone ─────────────────────────────────────────────────────────
@@ -380,14 +415,15 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     (from.zone === "battle" || from.zone === "combo") &&
     to !== "battle" && to !== "combo";
   // 14-1-4 removes a Z-Card when it leaves a Leader, Battle or Unison Area,
-  // regardless of its destination. The same zone name on the other player's
-  // side is a different area (3-1-1), so transfer between Battle Areas also
-  // leaves the source area. Combo is deliberately not listed: a Z-Card already
+  // except a native-verified Z-Battle control transfer (Gaining Control FAQ Q5).
+  // Other Z types retain their departure rule across holders. Combo is deliberately not listed: a Z-Card already
   // in Combo can be moved to Z-Energy at 8-5-2. [Ultimate]'s separate 22-14-3
   // rule is still handled by its own hook, not by this area redirect.
   const destinationOwner = opts.owner ?? card.owner;
+  const zBattleControl = opts.zBattleControl && from?.zone === "battle" && to === "battle"
+    && from.owner !== destinationOwner && opts.zBattleControl.from === from.owner && opts.zBattleControl.to === destinationOwner;
   const zCardLeavesListedArea = card.zCard === true && from && Z_CARD_DEPARTURE_AREAS.has(from.zone) &&
-    (from.zone !== to || from.owner !== destinationOwner);
+    (from.zone !== to || from.owner !== destinationOwner) && !zBattleControl;
   if ((tokenLeavesItsAreas || zCardLeavesListedArea) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
   const zone = game.zones[to];
   if (!zone) return { ok: false, refused: `the ${game.id} ruleset declares no zone called ${JSON.stringify(to)}` };
@@ -408,6 +444,15 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   // all, which is a board no rule can describe.
   if (opts.mode !== undefined && !zone.modes?.includes(opts.mode)) return { ok: false, refused: `a card in the ${to} is never ${opts.mode}` };
 
+  // Invalid explicit identity must never fall back to an unrelated first card.
+  const leavingZLeader = card.zCard === true && from?.zone === "leader" && (to !== "leader" || from.owner !== toOwner);
+  if (leavingZLeader && card.leaderStackVersion !== undefined && (card.leaderStackVersion !== 1 || !card.leaderBase))
+    return { ok: false, refused: "the Z-Leader stack is missing its recorded original Leader" };
+  if (leavingZLeader && card.leaderBase !== undefined) {
+    const base = card.leaderBase, original = board.cards[base.card];
+    if (!Number.isSafeInteger(base.epoch) || !original || !card.under.includes(base.card) || (original.zoneEpoch ?? 0) !== base.epoch)
+      return { ok: false, refused: "the Z-Leader's recorded original Leader occurrence is no longer under it" };
+  }
   lift(board, id, host);
   // 15-1-5: when the top Z-Leader leaves its Leader Area, that top card is
   // removed and the underlying Leader stays in the same Area. A Z-Awakened
@@ -415,7 +460,9 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   // the Z-Leader, so restore that pile to its original top card before the
   // ordinary 23-2-5 release handling below.
   if (card.zCard === true && from?.zone === "leader" && (to !== "leader" || from.owner !== toOwner) && card.under.length) {
-    const [leader, ...carried] = card.under.splice(0);
+    const pile = card.under.splice(0);
+    const leader = card.leaderBase?.card ?? pile[0];
+    const carried = pile.filter(x => x !== leader);
     const underneath = board.cards[leader];
     if (underneath) {
       underneath.mode = card.mode;
@@ -430,12 +477,16 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   // among them removed from the game (14-1-4) — the legacy `move`'s own line,
   // in its order: the pile goes before the card on top is logged as gone.
   const released: MoveRecord[] = [];
-  if (from && heldInPlay(game, from.zone) && !heldInPlay(game, to) && card.under.length) {
+  if (from && ["battle", "combo", "unison"].includes(from.zone) && from.zone !== to && card.under.length) {
     for (const u of card.under.splice(0)) {
       const out = moveCard(board, game, u, board.cards[u]?.zCard === true && game.zones[TOKEN_EXIT] ? TOKEN_EXIT : PILE_EXIT, { position: "top" });
       if (out.ok) released.push({ ...out.move, from: from.zone, fromOwner: from.owner });
     }
   }
+  // R456 follows only the rule's effect-carrying paths, even where legacy
+  // native movement still increments its general area epoch (R454 separate).
+  const keepsOverRealm = !!from && ((from.zone === to && from.owner === toOwner) || (["battle", "unison"].includes(from.zone) && ["battle", "unison", "combo"].includes(to)) || from.zone === "combo" && to === "battle");
+  if (!keepsOverRealm) delete card.overRealmReturn;
   if (!opts.carry) {
     if (from?.zone !== to || from.owner !== toOwner) {
       card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;
@@ -444,11 +495,12 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
       // Battle/Unison -> Battle/Unison/Combo, or Combo -> Battle, carries what was
       // on the card, and the use with it. [Limit X] is counted on the master
       // (`VmSide.limitUses`), not here, and is untouched (22-44-3, #741).
-      if (!(from && KEEPS_USES[from.zone]?.includes(to))) card.usedThisTurn = [];
+      if (!(from && KEEPS_USES[from.zone]?.includes(to))) { renewOrdinaryUseGeneration(card); card.usedThisTurn = []; }
     }
     reset(card, zone);
   }
   else if (zone.modes && !zone.modes.includes(card.mode ?? "")) card.mode = arrivalMode(zone);
+  if (!keepsOverRealm && card.pairedSelfToken !== undefined) card.pairedSelfToken = card.zoneEpoch ?? 0;
   if (opts.mode !== undefined) card.mode = opts.mode;
   // 20-9-2: a carrying move (gaining control) keeps the card's markers as it
   // keeps everything else about it — the legacy `move`'s `carry`, which skips
@@ -503,4 +555,6 @@ function reset(card: VmCard, zone: ZoneDef | null): void {
   delete card.placedThisTurn;
   delete card.playedThisTurn;
   delete card.playedFrom;
+  delete card.leaderBase;
+  delete card.leaderStackVersion;
 }

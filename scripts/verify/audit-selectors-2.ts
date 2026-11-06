@@ -19,7 +19,7 @@
  *     (EX23-32).
  * F.  "…to your opponent's Battle Area" (`toOpponent`, BT13-028, BT13-029, BT20-123); "would leave the Battle Area by a
  *     skill" keeps its cause (BT25-014).
- * G.  Honest gaps: a cost bound counted off the board (P-300, BT15-145, BT22-127), "not a copy of this card" (BT20-124).
+ * G.  Cost bounds counted off the board (P-300/BT22-127 now read under R-404; BT15-145 still unread), "not a copy of this card" (BT20-124).
  * I.  "Play up to 2 … Tokens, and those cards get +5000 power" (BT21-088): every token an offer made is "those cards"
  *     (a list of per-offer names, `Ctx.group`).
  * H.  Counts and places: "that many" (BT12-002, BT31-072), "up to X" unread (DB3-141), "your yellow <Spike> card gets"
@@ -318,7 +318,7 @@ for (const [text, what] of [
 
 // ── G. honest gaps ───────────────────────────────────────────────────────────
 for (const [text, what] of [
-  // A cost bound counted off the board: no filter field holds it (was read as a Battle Card in the opponent's hand).
+  // R-404 teaches the two <= one-card bounds; the greater-than form remains an honest gap.
   ["[activate: main]{g}{g}, discard this card from your hand: Choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in their hand, ignoring [barrier], and KO it.", "P-300"],
   ["[auto] When this card attacks, choose up to 1 of your opponent's Battle Cards with an energy cost greater than the number of cards in their hand and KO it.", "BT15-145"],
   ["[auto] When this card is played, choose up to 1 of your opponent's Battle Cards with an energy cost less than or equal to the number of cards in your Z-Deck, ignoring [barrier], and send it to its owner's Warp.", "BT22-127"],
@@ -326,7 +326,12 @@ for (const [text, what] of [
   ["[Activate: Main][Limit 1] If your Leader is a <Evil Saiyan> or <Cumber> card—both black: Play this card from your hand in your opponent's Battle Area, look at up to 5 cards from the top of your deck, add up to 1 <Mai: Future> card or ≪Saiyan≫ card—both black, not a copy of this card, and with an energy cost of 6 or less—among them to your hand, and shuffle your deck.", "BT20-124"],
 ] as const) {
   const [rec] = skillRecords(card(what, { skill: text }));
-  assert.ok(rec.unread.length, `G: ${what} — unread (${rec.reads})`);
+  if (what === "P-300" || what === "BT22-127") {
+    assert.deepEqual(rec.unread, [], `G: ${what} — R-404 now reads this bounded choice`);
+    const sel = opOf(rec.ops, "choose")[0].sel;
+    assert.deepEqual([sel.area, sel.side, sel.count, sel.upTo], ["battle", "opponent", 1, true]);
+    assert.deepEqual(sel.sumAtMost, { attr: "energyCost", total: { count: { side: what === "P-300" ? "opponent" : "you", area: what === "P-300" ? "hand" : "zDeck" } } });
+  } else assert.ok(rec.unread.length, `G: ${what} — unread (${rec.reads})`);
   assert.ok(!opsDeep(rec.ops).some((o) => o.op === "moveTo" && "sel" in o.target && o.target.sel.special === "self" && o.to === "hand"), `G: ${what} — never this card to the hand`);
   records++;
 }

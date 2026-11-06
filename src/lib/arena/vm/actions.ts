@@ -1,3 +1,10 @@
+import { captureOrdinaryActivation, requireOrdinaryResourceDeclaration } from "./ordinary-activate-runtime";
+import { activateUnderCards, requireActivateUnderSource } from "./activate-under";
+import { activateUnderPriceRefusals, queueActivateUnderCost, captureActivateUnderEnergy, type ActivateUnderEnergy } from "./activate-under-cost";
+import { ordinaryChargeDeclaration } from "./energy-entry-charge";
+import { canPayAwakenAlternative, hasAwakenAlternative, queueAwakenAlternative } from "./awaken-alternative-costs";
+import { fieldPaymentRefusals, isFieldPayment, queueFieldCost } from "./field-costs";
+import { isOverRealmPayment, overRealmPaymentRefusals, retainOverRealmSelection } from "./over-realm-cost";
 /**
  * A move, as a declaration — and the refusal that comes with it.
  *
@@ -35,6 +42,7 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network, and
  * nothing read at request time.
  */
+import { askActionPool, pooledPaymentVariants } from "./pooled-costs";
 import { IllegalAction } from "./common";
 import { type AbilityAvailability, type EngineContext, type GameEvent, type LegalAction, type RejectedAction } from "../types";
 import type { VmAltCost } from "./effects";
@@ -42,7 +50,7 @@ import { other, type Action, type PlayerId, type Prompt, type Requirement } from
 import { describeScript, taxLabel, type Cond, type Op, type Selector } from "./script";
 import type { DefineRefusal } from "../lang";
 import type { ActionDef, GameDefinition } from "../rulesets";
-import { isFusionPayment, activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, keywordActionPrice, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
+import { burstNegated, isFusionPayment, activationAlt, activationTaxes, activationTaxGate, canPayPriceProgram, activationMoment, activationRefusals, activationsOf, announce, announcesBeforePrice, boundFor, evolveOntoBases, keywordActivationMoments, queueTaxGate, keywordActionPrice, resolveActivation, scopedPayersSpent, swapActionPrice, type ActivationLine } from "./activate";
 import { queueAegisCost } from "./aegis-costs";
 import { assertDropPricePayable, dropPriceRefusals, hasDropActionPrice, queueDropCost } from "./drop-costs";
 import { assertSwapPricePayable, queueSwapCost, swapPriceRefusals } from "./swap-costs";
@@ -58,6 +66,7 @@ import { keywordRefusalCond, keywordWords } from "./keyword-do";
 import { attrsNow, forbiddenBy, readingBoard, taxesOn, type TaxInForce } from "./program";
 import { SETUP_ZONES, findCard } from "./zones";
 import type { VmState } from "./state";
+import { isOrderedZAwaken, orderedZAwakenRefusals, retainZAwakenSelection } from "./z-awaken-costs";
 
 /**
  * One candidate of one action: the card it is about, or null for a move that is
@@ -159,6 +168,7 @@ function candidatesOnBoard(ctx: EngineContext, game: GameDefinition, state: VmSt
   // a move declared `skills:` is about a **line** of each of those cards rather
   // than about the card, so a card with three of them is asked about three
   // times and answered three times (#147).
+  if (def.skills) cards.push(...activateUnderCards(ctx, game, state, player).filter(card => !cards.includes(card)));
   if (def.skills) return cards.flatMap((card) => (card === null ? [] : activationsOf(ctx, state, def, card, game).flatMap((line) => activation(ctx, game, state, def, player, line))));
   return (
     cards
@@ -236,11 +246,11 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
     let short: Requirement[] = [];
     // Phrasing batch 10 (22-43): "[Spirit Boost X]" — X markers off the Unison Card (`DEFINE COST spiritBoost`'s place),
     // one candidate per number of markers it holds, the energy unchanged.
-    const unisonMarkers = xPrice.spiritBoost ? state.cards[state.sides[player].zones.unison?.[0] ?? ""]?.markers ?? 0 : 0;
+    const unisonMarkers = xPrice.spiritBoost && !burstNegated(ctx, game, state, line.card) ? state.cards[state.sides[player].zones.unison?.[0] ?? ""]?.markers ?? 0 : 0;
     for (let n = xPrice.min ?? 0; n <= (xPrice.spiritBoost ? Math.min(unisonMarkers, xPrice.max ?? Infinity) : (xPrice.max ?? Infinity)); n++) {
       const energy = bound.energy ?? { total: 0, orbs: {}, either: [] };
       const withX: BoundAmounts = xPrice.spiritBoost
-        ? { ...bound, markersFrom: { ...(bound.markersFrom ?? {}), unison: { n: -n, by: "Spirit Boost" } } }
+        ? { ...bound, markersFrom: { ...(bound.markersFrom ?? {}), unison: { ...bound.markersFrom?.unison, n: -n, by: "Spirit Boost" } } }
         : { ...bound, energy: { ...energy, total: (energy.total ?? 0) + n } };
       const price = priceFor(ctx, game, state, def, line.card, withX);
       if (isFusionPayment(line)) {
@@ -254,25 +264,42 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
         short = plan.why;
         break;
       }
+      const strict = dropPriceRefusals(ctx, game, state, player, line, s => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!), n);
+      if (strict.length) { short = strict; continue; }
       out.push({ card: line.card, skill: line.skillIndex, why: [], price, x: n });
     }
     return out.length ? out : [{ card: line.card, skill: line.skillIndex, why: short, price: priceFor(ctx, game, state, def, line.card, bound) }];
   }
   const price = def.cost?.length ? priceFor(ctx, game, state, def, line.card, bound) : freePrice();
-  if (!why.length && isFusionPayment(line)) {
+  if (!why.length && isFieldPayment(line)) {
+    if (!gates.after.length) why.push(...fieldPaymentRefusals(ctx, game, state, player, line));
+  } else if (!why.length && isOverRealmPayment(line)) {
+    if (!gates.after.length) why.push(...overRealmPaymentRefusals(ctx, game, state, player, line));
+  } else if (!why.length && isOrderedZAwaken(line)) {
+    if (!gates.after.length) why.push(...orderedZAwakenRefusals(ctx, game, state, player, line));
+  } else if (!why.length && isFusionPayment(line)) {
     if (!gates.after.length) why.push(...fusionPaymentRefusals(ctx, game, state, player, line));
   } else if (!why.length && def.cost?.length) {
     const plan = planCost(ctx, game, state, player, price, line.card);
     if (!plan.ok) why.push(...plan.why);
-    // #729: a [Swap]'s action price is offered only when the energy this plan
-    // pays leaves the whole action payable on the strict host, and 22-22-3's
-    // reveal still possible after it — proven on a copy of the board.
-    else if (!gates.after.length) why.push(...swapPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
-    // #926: the same for a [Union-Fusion]/[Union-Potara]/[Evolve]-family
-    // action price ("draw 1 card"): offered only when it can be paid in full
-    // after this plan's energy (5-8-3) — a deck too thin to draw from cannot.
-    if (plan.ok && !gates.after.length && !why.length) why.push(...keywordPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
-    if (plan.ok && !gates.after.length && !why.length) why.push(...dropPriceRefusals(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, line.card, def.cost!)));
+    else if (!gates.after.length) {
+      const ops = line.script?.price?.ops ?? [];
+      const frame = { card: line.card, master: player, skillIndex: line.skillIndex, ops, ip: 0, vars: {} };
+      // No subset enumeration for a plain play or a price that cannot inspect
+      // these cards. Identity-sensitive prices need one complete witness.
+      const variants = ops.length && !ops.every(op => op.op === "skip" || op.op === "draw")
+        ? pooledPaymentVariants(ctx, game, state, frame, price, plan.payment) : [plan.payment];
+      let failures: Requirement[] = [];
+      for (const payment of variants) {
+        const charge = (s: VmState) => chargeCost(ctx, game, s, [], player, payment, line.card, def.cost!);
+        failures = swapPriceRefusals(ctx, game, state, player, line, charge);
+        if (!failures.length) failures = keywordPriceRefusals(ctx, game, state, player, line, charge);
+        if (!failures.length) failures = dropPriceRefusals(ctx, game, state, player, line, charge);
+        if (!failures.length) failures = activateUnderPriceRefusals(ctx, game, state, player, line, charge, price, payment);
+        if (!failures.length) break;
+      }
+      why.push(...failures);
+    }
   }
   why.push(...gates.after);
   const out: Candidate[] = [{ card: line.card, skill: line.skillIndex, why, price }];
@@ -282,10 +309,10 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
   // sits beside "Activate X (2)". Asked only of a line every other gate lets
   // through, and offered only when the line's own orbs can be paid out of
   // what the alternative leaves (#155).
-  const alt = open ? activationAlt(ctx, game, state, def, player, line) : null;
+  const alt = open && !line.activateUnderOrigin ? activationAlt(ctx, game, state, def, player, line) : null;
   if (alt) {
     const altPrice = def.cost?.length ? priceFor(ctx, game, state, def, line.card, alt.bound) : freePrice();
-    if (!def.cost?.length || planCost(ctx, game, restedAlready(state, alt.resting), player, altPrice, line.card).ok) out.push({ card: line.card, skill: line.skillIndex, alt: alt.alt, why: [], price: altPrice });
+    if ((!isFieldPayment(line) || !fieldPaymentRefusals(ctx, game, state, player, line, false, alt.alt).length) && (!def.cost?.length || planCost(ctx, game, restedAlready(state, alt.resting), player, altPrice, line.card).ok)) out.push({ card: line.card, skill: line.skillIndex, alt: alt.alt, why: [], price: altPrice });
   }
   // EX03-16: an [Evolve] whose price changes only onto a named base is a
   // candidate once per such base, at the price that base gives it — the
@@ -494,7 +521,7 @@ export function legalActionsOf(ctx: EngineContext, game: GameDefinition, state: 
     const line = c.card !== null && c.skill !== undefined ? lineOf(ctx, game, state, def, c.card, c.skill) : undefined;
     const actionPrice = !c.alt && line && !line.keyword ? line.script?.price?.ops : undefined;
     // Fusion has no determined resource amount until its materials move.
-    const cost = line && isFusionPayment(line) ? undefined : actionCostOf(c.price, actionPrice) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
+    const cost = line && (isFusionPayment(line) || isOverRealmPayment(line)) ? undefined : actionCostOf(c.price, actionPrice) ?? (c.x !== undefined && c.skill !== undefined ? { energy: 0, describe: "free" } : undefined);
     const paymentPreview = paymentPreviewFor(ctx, game, state, player, c);
     out.push({ action: actionFor(game, def, player, c), label: labelFor(ctx, game, state, def, c, true), ...(cost ? { cost } : {}), ...(paymentPreview ? { paymentPreview } : {}) });
   }
@@ -856,6 +883,9 @@ export type Applied = "none" | "done" | "asked";
  * was not offered being refused rather than quietly taken.
  */
 export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action, as?: ActionDef): Applied {
+  const resumedOrdinary = state.ordinaryResourceResume;
+  if (resumedOrdinary) requireOrdinaryResourceDeclaration(ctx, state, resumedOrdinary, action);
+  delete state.ordinaryResourceResume;
   // `as` is the declaration read against another window — the combo prompt's
   // `activate` (`vm/battle.ts`, #150) — and is checked exactly as the
   // declaration itself would be.
@@ -907,8 +937,21 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // on and before `spendUses` spends a counted rule's use. A keyword's own
   // move has no single boundary they are known to belong at yet, so one under
   // a tax stops here — before anything is paid — rather than going untaxed.
+  if (line && isFieldPayment(line)) {
+    if (fieldPaymentRefusals(ctx, game, state, player, line, false, chosen.alt, action).length) throw new IllegalAction("the complete Field activation cost cannot be paid");
+    queueFieldCost(ctx, game, state, player, line, false, chosen.alt, action);
+    if (def.again !== true) answered(state);
+    return "done";
+  }
+  const ordinaryDeclared = resumedOrdinary ?? (line ? captureOrdinaryActivation(ctx, game, state, player, line) : undefined);
   const gate = line ? activationTaxGate(ctx, game, state, player, line.card, line.kind) : null;
   if (line?.keyword && gate) throw new NotYet(`charge a 20-14 activation tax on a keyword's own [${line.keyword.name}] move`, "#677");
+  if (line && hasAwakenAlternative(line)) {
+    if (!canPayAwakenAlternative(ctx, game, state, player, line)) throw new IllegalAction("neither Awaken alternative can be paid");
+    queueAwakenAlternative(state, player, line);
+    if (def.again !== true) answered(state);
+    return "done";
+  }
   // A keyword move that is the keyword's alone is announced as it is paid for
   // and ahead of the payment, the legacy order (`announcesBeforePrice`) — but
   // never before a `payCost` question below, which pays and announces nothing.
@@ -922,11 +965,19 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (def.again !== true) answered(state);
     return "done";
   }
-  if (line && isFusionPayment(line)) {
+  if (line && (isFusionPayment(line) || isOrderedZAwaken(line) || isOverRealmPayment(line))) {
+    if (isOverRealmPayment(line) && overRealmPaymentRefusals(ctx, game, state, player, line, action).length) throw new IllegalAction("the Over Realm costs cannot be completed");
+    if (isOrderedZAwaken(line) && orderedZAwakenRefusals(ctx, game, state, player, line, action).length) throw new IllegalAction("the Z-Awaken costs cannot be completed");
     resolveActivation(ctx, game, state, ev, player, line, chosen.x);
+    const saved = state.programs.find(f => f.card === line.card && f.keywordPrice?.zAwaken)?.keywordPrice?.zAwaken;
+    if (saved) retainZAwakenSelection(state, saved, action);
+    const overRealm = state.programs.find(f => f.card === line.card && f.keywordPrice?.overRealm)?.keywordPrice?.overRealm;
+    if (overRealm) retainOverRealmSelection(state, overRealm, action);
     if (def.again !== true) answered(state);
     return "done";
   }
+  let underEnergy: ActivateUnderEnergy | undefined;
+  let paidResources: ReturnType<typeof chargeCost> | undefined;
   const early = line && announcesBeforePrice(line) ? line : null;
   if (chosen.alt) {
     // 5-3: the alternative is paid *instead of* the declared price — nothing,
@@ -941,12 +992,13 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       const plan = planCost(ctx, game, state, player, chosen.price, card);
       if (!plan.ok) throw new IllegalAction(`${def.label ?? def.name} cannot be paid for: ${plan.why[0].kind}`);
       const spent = scopedPayersSpent(ctx, game, state, player, line);
-      chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
+      if (line?.activateUnderOrigin) underEnergy = captureActivateUnderEnergy(ctx, game, state, line, chosen.price, plan.payment);
+      paidResources = chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
       spent(plan.payment.rest);
     }
   } else if (def.cost?.length && !declining(def, card)) {
     const explicit = (action as { pay?: string[] }).pay;
-    const plan = planCost(ctx, game, state, player, chosen.price, card, explicit);
+    const plan = planCost(ctx, game, state, player, chosen.price, card, explicit, (action as { payPools?: import("../types").PoolPaymentSelection }).payPools);
     if (!plan.ok) throw new IllegalAction(`${def.label ?? def.name} cannot be paid for: ${plan.why[0].kind}`);
     // 3-8-2: the player pays with whatever energy they like, so a price with
     // more than one genuinely different answer is *asked* before it is taken —
@@ -962,18 +1014,35 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       // "play Son Goku" — the legacy engine's own wording for this prompt, which
       // is the move's label with its first letter lowered.
       const label = labelFor(ctx, game, state, def, chosen, true);
-      state.prompt = { kind: "payCost", player, action, options: plan.options, describe: label.charAt(0).toLowerCase() + label.slice(1) };
+      state.prompt = { kind: "payCost", player, action: line && action.type === "activate" ? { ...action, skill: line.skillIndex } : action, options: plan.options, ...(ordinaryDeclared ? { ordinaryActivation: structuredClone(ordinaryDeclared) } : {}), ...(line?.activateUnderOrigin ? { activateUnderOrigin: structuredClone(line.activateUnderOrigin) } : {}), ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe: label.charAt(0).toLowerCase() + label.slice(1) };
+      return "asked";
+    }
+    const poolOps = line?.script?.price?.ops ?? [];
+    const completePool = line && poolOps.length && !poolOps.every(op => op.op === "skip" || op.op === "draw") ? (payment: typeof plan.payment) => {
+      const charge = (s: VmState) => chargeCost(ctx, game, s, [], player, payment, card, def.cost!);
+      return !swapPriceRefusals(ctx, game, state, player, line, charge).length
+        && !keywordPriceRefusals(ctx, game, state, player, line, charge).length
+        && !dropPriceRefusals(ctx, game, state, player, line, charge, chosen.x).length;
+    } : undefined;
+    if (card !== null && askActionPool(ctx, game, state, player, line && action.type === "activate" ? { ...action, skill: line.skillIndex } : action, chosen.price, card, plan.payment, poolOps, completePool)) {
+      if (ordinaryDeclared && state.prompt.kind === "chooseCards" && state.prompt.pooledPayment) state.prompt.pooledPayment.ordinaryActivation = structuredClone(ordinaryDeclared);
       return "asked";
     }
     // #729 (5-8-3): the energy chosen must leave a [Swap]'s whole action price
     // payable; refused here, on a copy, while nothing is paid.
+    if (line?.activateUnderOrigin) {
+      requireActivateUnderSource(ctx, game, state, line.activateUnderOrigin, line.card, player, line.skillIndex);
+      const problems = activateUnderPriceRefusals(ctx, game, state, player, line, s => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!), chosen.price, plan.payment);
+      if (problems.length) throw new IllegalAction("the complete under-card Extra payment cannot be paid");
+    }
     if (line) assertSwapPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
     if (line) assertKeywordPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
-    if (line) assertDropPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
+    if (line) assertDropPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!), chosen.x);
     if (early) announce(state, ev, player, early);
     // BT28-106: a once-per-turn grant whose card paid this line is spent.
     const spent = line ? scopedPayersSpent(ctx, game, state, player, line) : null;
-    chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
+    if (line?.activateUnderOrigin) underEnergy = captureActivateUnderEnergy(ctx, game, state, line, chosen.price, plan.payment);
+    paidResources = chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
     spent?.(plan.payment.rest);
   } else if (early) announce(state, ev, player, early);
   // The one move whose program is not the declaration's: an activation runs the
@@ -981,7 +1050,10 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // program of nine different lines. `vm/activate.ts` counts the use, sends an
   // Extra to the Drop (12-2-2), announces the line and queues its frame — and
   // the moment is fired here, as a moment and never as a trigger name.
-  if (line && swapActionPrice(line)) {
+  if (line?.activateUnderOrigin) {
+    if (!underEnergy) throw new IllegalAction("rebuild the under-card Extra energy payment");
+    queueActivateUnderCost(ctx, game, state, ev, line, underEnergy);
+  } else if (line && swapActionPrice(line)) {
     // #729: the [Swap]'s action price is paid next, on the strict host, as a
     // stored continuation (`vm/swap-costs.ts`); the skill is used — announced,
     // counted, its moments fired and its `DO` queued — only once it is paid.
@@ -995,15 +1067,16 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
     const keywordMoments = keywordActivationMoments(state, player, line);
     const queued = state.programs.length;
-    const strictDrop = hasDropActionPrice(state, line);
-    if (strictDrop) queueDropCost(ctx, game, state, player, line, chosen.x);
-    else resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto);
+    const strictDrop = !ordinaryDeclared && hasDropActionPrice(state, line);
+    const ordinaryPrice = !!ordinaryDeclared;
+    if (strictDrop) queueDropCost(ctx, game, state, player, line, chosen.x, paidResources);
+    else resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto, ordinaryDeclared ? { ...paidResources, ordinaryActivation: ordinaryDeclared } : paidResources);
     // #677: the prices are charged in front of everything the activation
     // queued, re-read live after each one (`vm/activate.ts`'s `TaxGate`).
     if (gate) queueTaxGate(state, gate, state.programs.length - queued);
     // #926: a keyword move with an action price fires its moments once its
     // `DO` has paid it (`vm/keyword-costs.ts`), not as it is declared.
-    if (!strictDrop && !keywordActionPrice(line)) {
+    if (!strictDrop && !keywordActionPrice(line) && !ordinaryPrice) {
       fire(ctx, game, state, moment);
       for (const m of keywordMoments) fire(ctx, game, state, m);
     }
@@ -1013,7 +1086,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // spent - whether it was paid in energy or bought at an alternative.
     if (card !== null && def.cost?.includes("energy")) {
       const at = findCard(state, card)?.zone;
-      if (at === "hand" || at === "zDeck") spendPriceUses(state, ev, card);
+      if (at === "hand" || at === "zDeck") spendPriceUses(ctx, state, ev, card);
     }
     runProgram(state, def, player, chosen);
     if (card !== null) chargeTaxes(ctx, game, state, def, player, card, action);
@@ -1064,7 +1137,7 @@ function runProgram(state: VmState, def: ActionDef, player: PlayerId, chosen: Ca
   // binds nothing, so a program of such a move that reads `X` says so rather
   // than reading zero (`amount` throws on an unbound X).
   const x = def.cost?.length ? chosen.price.energy : undefined;
-  state.programs.unshift({ ops: def.do, ip: 0, vars, card: self, master: player, ...(x === undefined ? {} : { x }), ...(PLAYS.has(def.name as Action["type"]) ? { declaredPlay: true as const } : {}) });
+  state.programs.unshift({ ops: def.do, ip: 0, vars, card: self, master: player, ...(x === undefined ? {} : { x }), ...(PLAYS.has(def.name as Action["type"]) ? { declaredPlay: true as const } : {}), ...(def.name === "charge" && card !== null && ordinaryChargeDeclaration(state.game,def) ? { declaredCharge: true as const } : {}) });
 }
 
 /**

@@ -88,26 +88,33 @@ function chooses(node: unknown, out: Extract<Op, { op: "choose" }>[] = []): Extr
 }
 
 // ── in a game ────────────────────────────────────────────────────────────────
-function opponentPlays(skill: string, setup: { battle?: string[]; oppBattle?: string[]; oppHand?: string[] }, id: string) {
+function opponentPlays(skill: string, setup: { battle?: string[]; oppBattle?: string[]; oppHand?: string[] }, id: string, incoming = "V-BLUE") {
   DEFS[id] = { ...DEFS.V1, id, name: id, skill };
-  let s = stagedG({ battle: [id, ...(setup.battle ?? [])], oppBattle: setup.oppBattle, oppHand: ["V-BLUE", ...(setup.oppHand ?? [])], oppEnergy: ["V-BLUE"] });
+  let s = stagedG({ battle: [id, ...(setup.battle ?? [])], oppBattle: setup.oppBattle, oppHand: [incoming, ...(setup.oppHand ?? [])], oppEnergy: ["V-BLUE"] });
   s = playG(s, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null });
-  const played = findG(s, "p2", "hand", "V-BLUE");
+  const played = findG(s, "p2", "hand", incoming);
   s = playG(s, { type: "play", player: "p2", card: played });
   if (s.prompt.kind === "payCost") s = playG(s, { type: "payCost", player: "p2", option: 0 });
   return { s, played };
 }
 
 // "That Battle Card" is the one just played: my own Battle Cards are not on offer, and it is the one that is hit.
-{
+for (const incoming of ["V-BLUE", "T1015-HIGH"]) {
+  DEFS["T1015-HIGH"] = { ...DEFS["V-BLUE"], id: "T1015-HIGH", name: "T1015-HIGH", power: 20000 };
   DEFS.MINE = card("MINE", { energyCost: 2, colors: ["Red"], power: 10000 });
-  const { s, played } = opponentPlays("[Auto] When your opponent plays a Battle Card, you may choose that Battle Card and have it get -15000 power for the turn.", { battle: ["MINE"] }, "T1015A");
+  const { s, played } = opponentPlays("[Auto] When your opponent plays a Battle Card, you may choose that Battle Card and have it get -15000 power for the turn.", { battle: ["MINE"] }, "T1015A", incoming);
   assert.equal(s.prompt.kind, "chooseCards");
   assert.equal(s.prompt.player, "p1");
   assert.deepEqual(s.prompt.choice.candidates, [played], "only the card just played is on offer");
   const before = powerIn(CTX, s, played);
   const after = playG(s, { type: "choose", player: "p1", cards: [played] });
-  assert.equal(powerIn(CTX, after, played), before - 15000);
+  if (before > 15000) {
+    assert.ok(zoneOf(after, "p2", "battle").includes(played));
+    assert.equal(powerIn(CTX, after, played), before - 15000, "surviving target proves the exact reduction");
+  } else {
+    assert.ok(zoneOf(after, "p2", "drop").includes(played), "21-6 removes the nonpositive-power target");
+    assert.equal(powerIn(CTX, after, played), before, "3-1-4 ends the old power effect on departure");
+  }
   const mine = zoneOf(after, "p1", "battle").find((x) => after.cards[x].cardId === "MINE")!;
   assert.equal(powerIn(CTX, after, mine), 10000, "my own Battle Card is untouched");
   assertConsistentG(after);

@@ -1,3 +1,14 @@
+import {requireInspectionPrompt} from './incremental-look';
+import { requireOrdinaryResourceDeclaration } from "./ordinary-activate-runtime";
+import { requireActivateUnderSource } from "./activate-under";
+import { prepareEnergyCharge, ownEnergyCharge, requireEnergyCharge } from "./energy-entry-charge";
+import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
+import { requireStandingNegationBounds } from "./standing-negation-bounds";
+import { initializeStandingNegation, validateStandingNegationRead } from "./standing-negation-runtime";
+import { requireCounterUnderOccurrence } from "./counter-under";
+import { requireCounterEnergyOccurrence } from "./counter-energy";
+import { requireCounterDropOccurrence } from "./counter-drop";
+import { counterXValue } from "./counter-x";
 /**
  * The rules engine, as far as it is built.
  *
@@ -38,6 +49,7 @@
  * definition arrives as a generated constant (`rulesets/dbs/files.ts`), so
  * nothing here reads a file at request time.
  */
+import { selectedPoolAnswer } from "./pooled-costs";
 import { IllegalAction } from "./common";
 import { type AbilityAvailability, type Action, type EngineContext, type GameEvent, type GameOptions, type LegalAction, type RejectedAction } from "../types";
 import type { Beats } from "../beats";
@@ -45,12 +57,12 @@ import type { BoardView, CardArt } from "../view";
 import { isZ } from "../text/cards";
 import { PLAYERS, type PlayerId, type Requirement } from "../types";
 import { rulesetFor, type GameDefinition } from "../rulesets";
-import { ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
+import { burstNegated, ACTIVATION_ZONE_NAMES, windowOf } from "./activate";
 import { abilityAvailability as declaredAbilityAvailability, applyDeclared, declaredLegalActions, declaredRejectedActions } from "./actions";
-import { applyBattleActivation, applyBlock, applyCombo, applyCounter, applyZEnergyFromCombo, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterAbilityAvailability, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
+import { applyBattleActivation, applyBlock, applyCombo, applyCounter, requireExtraCounterBinding, applyZEnergyFromCombo, attackLegalActions, attackRejectedActions, battleRejectedActions, comboLegalActions, counterAbilityAvailability, counterLegalActions, declareAttack, openPlayCounterWindow, restoreNativePrompt, resumeDamage } from "./battle";
 import { forbiddenBy, hasKeyword, immunityRefusing, readingBoard, spendProhibitionUse } from "./program";
 import { whoseSkills } from "./script";
-import { chargesOf, describePayment } from "./costs";
+import { requireMarkerPayers, chargesOf, describePayment } from "./costs";
 import { skillsShowing } from "./triggers";
 import { attributeGaps, attrsForDefs, playerAttributes, withTokens, type AttrProblem, type AttrValue } from "./cards";
 import { costLayerGaps } from "./effects";
@@ -59,7 +71,7 @@ import { fire } from "./events";
 import { SETUP_ZONES, WORKED_STEPS, answered, draw, endGame, enterPhase, flipForChooser, moved, other, requirePrompt, run, shuffleDeck, turnPhases } from "./flow";
 import { VM_STATE_VERSION, type VmSide, type VmState } from "./state";
 import { PLAY_ZONE_NAMES } from "./play";
-import { emptyZones, moveCard, newCard, placeZones } from "./zones";
+import { emptyZones, moveCard, newCard, placeZones, hostOf } from "./zones";
 import { vmBoardView } from "./view";
 import { vmRevealedTo } from "./view";
 import { canWithholdSecretAuto } from "./secret-auto";
@@ -321,6 +333,7 @@ function createGame(ctx: EngineContext, options: GameOptions): { state: VmState;
   // question — which is 6-2-1-4's, so a freshly made game is a game waiting to
   // be told who goes first.
   state.flow = [];
+  initializeStandingNegation(ctx, state);
   enterPhase(ctx, game, state, events, rules.setupPhase);
   run(ctx, game, state, events);
   return { state, events };
@@ -393,14 +406,19 @@ function apply(ctx: EngineContext, prev: VmState, action: Action, offeredAttack 
 }
 
 function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAttack = false, previewBlock = false): { state: VmState; events: GameEvent[] } {
+  guardEnergyEntryLifetimes(prev);
   const game = definitionFor(prev.game, ctx);
   const state = structuredClone(prev);
+  validateStandingNegationRead(ctx, state);
+  if (["play", "playZ", "playUnison", "activate", "counter"].includes(action.type) && "card" in action && typeof action.card === "string") requireStandingNegationBounds(ctx, state, ["play", "playZ"].includes(action.type) && ctx.defs[state.cards[action.card]?.cardId]?.type === "BATTLE" ? action.card : undefined);
+  requireEnergyCharge(game,state);
+  const energyCharge=prepareEnergyCharge(ctx,game,state,action);
   const events: GameEvent[] = [{ type: "action", action }];
   // A completed declaration remains visible for its response snapshot. Only
   // the exact suspended frame may carry it through a further answer/reload.
   if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((marker) =>
     action.type !== "concede" && (state.cards[marker.card]?.zoneEpoch ?? 0) === marker.sourceZoneEpoch
-      && state.programs.some((frame) => frame.autoRevealEpoch === marker.epoch && frame.card === marker.card
+      && [...state.programs, ...(state.skillPlayScopes ?? []).flatMap(scope => scope.window?.programs ?? [])].some((frame) => (frame as { autoRevealEpoch?: number }).autoRevealEpoch === marker.epoch && frame.card === marker.card
         && frame.skillIndex === marker.skillIndex && frame.trigger === marker.trigger));
 
   // 0-1-3-4: conceding is a player's act and no card may cause or replace it,
@@ -480,6 +498,33 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       const pr = prev.prompt;
       if (pr.kind !== "payCost") throw new IllegalAction("no payment is being asked for");
       if (action.player !== pr.player) throw new IllegalAction("that payment belongs to another player");
+      requireOrdinaryResourceDeclaration(ctx, state, pr.ordinaryActivation, pr.action);
+      if (pr.activateUnderOrigin || pr.action.type === "activate" && hostOf(state, pr.action.card)) {
+        if (pr.action.type !== "activate") throw new IllegalAction("rebuild the saved under-card activation payment");
+        requireActivateUnderSource(ctx, game, state, pr.activateUnderOrigin, pr.action.card, pr.player, pr.action.skill);
+      }
+      if (pr.action.type === "counter" && pr.action.card) { requireCounterDropOccurrence(state, pr.action.card, pr.dropOccurrences); requireCounterEnergyOccurrence(state, pr.action.card, pr.energyOccurrences); requireCounterUnderOccurrence(state, pr.action.card, pr.underOccurrences); }
+      if (pr.action.type === "counter" && pr.action.card && (pr.extraCounter || state.sides[pr.player].zones.hand.includes(pr.action.card) && ctx.defs[state.cards[pr.action.card]?.cardId]?.type === "EXTRA")) requireExtraCounterBinding(state, pr.player, pr.action.card, pr.extraCounter);
+      if (pr.extraCounter) {
+        if (pr.action.type !== "counter" || !pr.action.card || pr.action.skill !== pr.extraCounter.skillIndex || (pr.action.x ?? null) !== pr.extraCounter.selectedX) throw new IllegalAction("rebuild the saved Extra Counter skill and selected X");
+        const skillIndex = pr.action.skill;
+        const selected = skillsShowing(ctx, state, pr.action.card).skills.find(sk => sk.index === skillIndex);
+        if (!selected || selected.kind !== pr.extraCounter.skillKind) throw new IllegalAction("rebuild the saved Extra Counter declaration");
+        counterXValue(pr.action, pr.extraCounter.declaredScript.price?.x);
+      }
+      if (pr.markerPayers !== undefined) requireMarkerPayers(ctx, game, state, pr.player, pr.markerPayers);
+      if (pr.action.type === "activate" || pr.action.type === "counter" && !pr.extraCounter) {
+        const original = pr.action;
+        if (original.card) {
+          const showing = skillsShowing(ctx, state, original.card);
+          if (original.skill === undefined && Object.values(showing.scripts.bySkill).some(script => script?.price?.payment.spiritBoost || script?.price?.x?.spiritBoost)) throw new IllegalAction("rebuild the ambiguous saved Spirit Boost skill payment");
+          const price = original.skill === undefined ? undefined : showing.scripts.bySkill[original.skill]?.price;
+          const selectedX = original.type === "counter" ? counterXValue(original, price?.x) : original.x;
+          const expected = burstNegated(ctx, game, state, original.card) ? 0 : (price?.x?.spiritBoost ? selectedX ?? 0 : price?.payment.spiritBoost ?? 0);
+          const saved = pr.markerPayers?.filter(payer => payer.by === "Spirit Boost").reduce((n,payer) => n - payer.n, 0) ?? 0;
+          if (expected !== saved || (expected > 0 && pr.markerPayers === undefined)) throw new IllegalAction("rebuild the saved Spirit Boost payment menu");
+        }
+      }
       const option = pr.options[action.option];
       if (!option) throw new IllegalAction("no such payment");
       const restored = structuredClone(prev);
@@ -488,8 +533,9 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       // says why running the flow on a native prompt's frame cannot do this,
       // the way it can for a declared move's `again:`-left `top.asking`.
       const native = restoreNativePrompt(ctx, game, restored, pr.action);
-      if (native) restored.prompt = native;
+      if (native) { if (native.kind === "counter" && pr.extraCounter) native.extraCounter = structuredClone(pr.extraCounter); restored.prompt = native; }
       else run(ctx, game, restored, events);
+      if (pr.ordinaryActivation) restored.ordinaryResourceResume = structuredClone(pr.ordinaryActivation);
       const inner = { ...pr.action, pay: option.rest } as Action;
       const again = apply(ctx, restored, inner);
       return { state: again.state, events: [...events, ...again.events] };
@@ -501,6 +547,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
     // `stepScript` to read through the host, which is the shape both engines
     // share (`s.lastChoice` / `s.lastMode`).
     case "choose": {
+      requireInspectionPrompt(ctx,game,state);
       requirePrompt(state, action, ["chooseCards"]);
       const pr = state.prompt;
       if (pr.kind !== "chooseCards") throw new IllegalAction("no choice pending");
@@ -508,6 +555,22 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       if (action.cards.some((id) => !choice.candidates.includes(id)) || new Set(action.cards).size !== action.cards.length) throw new IllegalAction("invalid choice");
       if (action.cards.length > choice.max) throw new IllegalAction(`choose at most ${choice.max}`);
       if (action.cards.length < choice.min) throw new IllegalAction(`choose at least ${choice.min}`);
+      if (pr.pooledPayment) {
+        const pending = pr.pooledPayment;
+        requireOrdinaryResourceDeclaration(ctx, state, pending.ordinaryActivation, pending.action);
+        const selected = selectedPoolAnswer(state, pending, action.cards);
+        const prior = (pending.action as { payPools?: import("../types").PoolPaymentSelection }).payPools;
+        const pools = structuredClone(prior?.pools ?? []);
+        const previous = pools.find(p => p.cost === selected.cost);
+        if (previous) previous.cards.push(...selected.cards); else pools.push(selected);
+        const inner = { ...pending.action, payPools: { source: pending.source, pools } } as Action;
+        const native = restoreNativePrompt(ctx, game, state, pending.action);
+        if (native) state.prompt = native;
+        else run(ctx, game, state, events);
+        if (pending.ordinaryActivation) state.ordinaryResourceResume = structuredClone(pending.ordinaryActivation);
+        const again = apply(ctx, state, inner);
+        return { state: again.state, events: [...events, ...again.events] };
+      }
       state.lastChoice = action.cards;
       break;
     }
@@ -526,6 +589,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
     // 9-10-2/9-10-3: which replacement a departure takes, or none, is
     // answered the way a printed choice is — the legacy engine's own pairing.
     case "chooseMode": {
+      requireInspectionPrompt(ctx,game,state);
       requirePrompt(state, action, ["chooseMode", "replaceMove"]);
       const pr = state.prompt;
       if (pr.kind !== "chooseMode" && pr.kind !== "replaceMove") throw new IllegalAction("no option is being offered");
@@ -590,7 +654,9 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       const took = state.prompt.kind === "combo" ? applyBattleActivation(ctx, game, state, events, action) : applyDeclared(ctx, game, state, events, action);
       if (took === "none") throw new NotYet(`take a ${action.type} action — no DEFINE ACTION declares it`, DECLARED_BY[action.type] ?? "#146");
       if (took === "asked") return { state, events };
-      spendUses(ctx, game, state, action);
+      // R457: queued Field payments spend counted activation allowance only
+      // after every original cost and activation tax has completed.
+      if (!state.programs.some(frame => (frame.fieldCost || frame.awakenAlternativeCost) && frame.card === action.card && frame.master === action.player)) spendUses(ctx, game, state, action);
       break;
     }
     default: {
@@ -608,6 +674,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       // move loses its prompt.
       if (took === "asked") return { state, events };
       spendUses(ctx, game, state, action);
+      if (energyCharge) ownEnergyCharge(game,state,energyCharge);
       // #150, 9-6: a declared play the opponent could answer with a [Counter:
       // Play] waits on that answer before it resolves — the window is the
       // question now, so the flow does not run on.
@@ -702,6 +769,7 @@ function mulligan(ctx: EngineContext, game: GameDefinition, state: VmState, even
  * deleted legacy engine did with it.
  */
 function legalActions(ctx: EngineContext, state: VmState): LegalAction[] {
+  guardEnergyEntryLifetimes(state);
   const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => [...declaredLegalActions(ctx, game, state), ...promptAnswers(ctx, state)]);
 }
@@ -925,6 +993,7 @@ function chooseRejectedActions(ctx: EngineContext, game: GameDefinition, state: 
 
 /** The board, drawn from the declarations for one side of the table. */
 function boardView(ctx: EngineContext, state: VmState, viewer: PlayerId, images: Record<string, CardArt>, availability: AbilityAvailability[] = []): BoardView {
+  guardEnergyEntryLifetimes(state);
   const game = definitionFor(state.game, ctx);
   return readingBoard(ctx, game, state, () => vmBoardView(ctx, game, state, viewer, images, availability));
 }

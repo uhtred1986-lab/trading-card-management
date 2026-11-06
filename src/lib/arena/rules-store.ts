@@ -1,3 +1,21 @@
+import { standingUnderDescriptor, standingUnderPrinted, standingUnderScript } from "./vm/standing-negation-under-policy";
+import { activateUnderDescriptor, activateUnderPrinted, activateUnderScript } from "./vm/activate-under-contract";
+import { standingComboWholeDescriptor, standingComboWholePrinted, standingComboWholeScript, standingWholeDescriptor, standingWholePrinted, standingWholeScript } from "./vm/standing-negation-policy";
+import { autoPlayEnvelopeProblem, underOpponentPlayPrice } from "./vm/auto-play-cost";
+import { compileEnergyEntryPolicy } from "./compile/energy-entry";
+import { containsEnergyEntryDescriptor, energyEntryDescriptor } from "./vm/energy-entry-policy";
+import { dropComboRecordGap } from "./vm/drop-combo-contract";
+import { compileAwakenAlternative } from "./compile/awaken-alternative";
+import { counterArrivalRecordGap } from "./vm/counter-arrival-policy";
+import { counterSpiritBoostX } from "./vm/counter-x";
+import { EXTRA_SELF_REBUILD, selfExtraActivationWording, extraActivationContractGap } from "./vm/extra-activation";
+import { markerHistoryContractGap } from "./vm/paid-markers";
+import { playReplacementDescriptor, shortPlayReplacementGap } from "./vm/short-play-replacement";
+import { printsScopedEnergyCoupon } from "./vm/energy-coupons";
+import { unscopedEnergyCoupon } from "./vm/energy-coupon-saves";
+import { storedPaidAdmission } from "./vm/paid-admission";
+import { printedSpiritBoostDescriptor } from "./text/spirit-boost";
+import { legacyMovementHinge } from "./vm/movement-result";
 import { isPotaraSkill } from "./vm/potara-materials";
 import { isAbsorbSkill } from "./vm/absorb-procedure";
 import { needsEvolutionContract } from "./vm/evolution-base";
@@ -17,15 +35,17 @@ import type { Db } from "@/db";
 import { cardRules, cards } from "@/db/schema";
 import { completeFilters, describeScript, type CardScripts, type Op } from "./vm/script";
 import { costModifierAs, modifyAttrAs, negateAs, replaceAs } from "./vm/script-schema";
-import { DEFERRED_STATICS, STATIC_OPS } from "./vm/effects";
+import { DEFERRED_STATICS, STATIC_OPS, isComboDepartureProgram } from "./vm/effects";
 import { readableAutomaticPrice } from "./vm/auto-costs";
 import { NotYet } from "./vm/errors";
+import { deepEqual } from "./lang/print";
 import { validateRule } from "./lang/validate";
 import { type CardDef } from "./types";
 import type { Cond, CostRecord, SkillPrice, XCost } from "./vm/script";
 import type { Trigger } from "./types";
 import { clauseShape, mechanismOf, PHRASING_ONLY } from "./gaps";
 import type { EngineId } from "./engines";
+import { bondSelector } from "./text/bond";
 import { parseSkills, skillLines } from "./text/cards";
 import { needsPaymentRecord, priceFromCostRecord, costRecordProblem, zeroCostRecord, zeroSkillPrice } from "./vm/skill-payment";
 import { reviewVersion } from "./rule-review-version";
@@ -146,6 +166,84 @@ function comboContractGap(row: { printed: string; trigger?: unknown; combo?: unk
   return comboScriptProblem(row);
 }
 
+/** Old Combo-to-Drop substitutes omitted their original destination. Do not run them as broader departures. */
+function comboDepartureContractGap(row: { printed: string; ops: unknown }): string | null {
+  if (!/when this card would be placed in (?:its owner['’]?s|your) drop(?: area)? from (?:a|your|the) combo area/i.test(row.printed)) return null;
+  const unbounded = (body: unknown): boolean => Array.isArray(body) && body.some(value => {
+    if (!value || typeof value !== "object") return false;
+    const op = value as Op;
+    if (op.op === "if") return unbounded(op.then) || unbounded(op.else);
+    if (op.op !== "replace" && op.op !== "replaceLeave") return false;
+    if (!op.from?.includes("combo")) return false;
+    return op.op === "replace" ? op.event === "leave" && op.to !== "drop" : op.requestedTo !== "drop";
+  });
+  return unbounded(row.ops) ? "rebuild this Combo-to-Drop replacement with its original destination" : null;
+}
+
+/** All-area self protection is a stored qualification, never inferred in play. */
+function negationAreaContractGap(row: { printed: string; ops: unknown; kind?: string }): string | null {
+  const text = row.printed.toLowerCase();
+  if (row.kind === "permanent" && /negate (?:its|this card['’]s) \[[^\]]+\](?: skill)? in (?:all|any) areas?/.test(text)) {
+    const missing = (value: unknown): boolean => {
+      if (Array.isArray(value)) return value.some(missing);
+      if (!value || typeof value !== "object") return false;
+      const op = value as Record<string, unknown>;
+      if ((op.op === "negateKeyword" || (op.op === "negate" && op.what === "keyword")) && op.allAreas !== true) return true;
+      return Object.values(op).some(missing);
+    };
+    if (missing(row.ops)) return "rebuild the stored self keyword negation all-area qualification";
+  }
+  const allArea = /skills?[^.;]*(?:can't|cannot|can not) be negated[^.;]*in (?:any|all) areas?\b|skills?[^;]*in (?:any|all) areas?[^;]*(?:can't|cannot|can not) be negated/.test(text);
+  const originalOnly = /original skills?[^.;]*(?:can't|cannot|can not) be negated/.test(text);
+  if (!allArea && !originalOnly) return null;
+  let stale = false;
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (!value || typeof value !== "object") return;
+    const op = value as Record<string, unknown>;
+    if (op.op === "forbid" && op.what === "beNegated" && (originalOnly || op.fromArea !== "any")) stale = true;
+    Object.values(op).forEach(visit);
+  };
+  visit(row.ops);
+  return stale ? "rebuild the stored negation-protection area or original-skill qualification" : null;
+}
+
+/** Printed nouns only detect a stale contract; executable target types remain stored data. */
+function resolvingPlayContractGap(row: { printed: string; ops: unknown }): string | null {
+  const expected = new Set<string>();
+  const text = row.printed.toLowerCase();
+  for (const m of text.matchAll(/the (?:(battle|unison|extra) card (?:being played|played|(?:that )?your opponent is playing)|played (battle|unison|extra) card) (?:is (?:played|placed|put|sent|returned)|(?:has|have) (?:its|their) skills? negated)/g)) expected.add((m[1] ?? m[2]).toUpperCase());
+  if (!expected.size) return null;
+  const found = new Set<string>();
+  let changesPlay = false;
+  let unqualified = false;
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (!value || typeof value !== "object") return;
+    const op = value as Record<string, unknown>;
+    if (op.op === "resolvingPlay" || (op.op === "replace" && op.event === "play")) {
+      changesPlay = true;
+      if (typeof op.cardType === "string") found.add(op.cardType);
+      else unqualified = true;
+    }
+    Object.values(op).forEach(visit);
+  };
+  visit(row.ops);
+  return changesPlay && (unqualified || [...expected].some(type => !found.has(type))) ? "rebuild the stored played-card type qualification" : null;
+}
+
+function movementResultContractGap(row: { printed: string; ops: unknown }): string | null {
+  return /\bif (?:(?:you|they) (?:do(?: not)?|did(?: not)?|don['’]?t|didn['’]?t)|so|not)\b/i.test(row.printed) && Array.isArray(row.ops) && !programProblem(row.ops) && legacyMovementHinge(row.ops as Op[])
+    ? "rebuild the original movement completion required by if-you-do" : null;
+}
+
+/** A specified payer must survive stored-row loading, including draft rows. */
+function spiritBoostContractGap(row: Pick<RuleRow, "printed" | "cost">): string | null {
+  const descriptor = parseSkills(row.printed).map(printedSpiritBoostDescriptor).find(d => d.kind !== "none");
+  if (descriptor?.kind === "filter" && !(row.cost as CostRecord | null)?.spiritBoostPayer) return "rebuild the specified Spirit Boost payer contract";
+  return null;
+}
+
 /**
  * The typed records a row must carry before the engine will run it — Sparking
  * validity, skill usage, combo qualification, payment (#1066) and Fusion/Union
@@ -153,19 +251,153 @@ function comboContractGap(row: { printed: string; trigger?: unknown; combo?: unk
  * an out-of-date record that rebuilding the rule writes, not a clause the engine
  * cannot do: `ruleHealth` reports it as `needsRebuild`, never as a health.
  */
+/** R447: old rows must not execute card-energy discounts with discarded skill scope. */
+function couponScopeContractGap(row: { printed: string; ops: unknown }): string | null {
+  return printsScopedEnergyCoupon(row.printed) && unscopedEnergyCoupon(row.ops) ? "rebuild the card-energy coupon's explicit activation scope" : null;
+}
+
+/** R474: old conjunction/pool programs cannot stand in for one paid alternative. */
+function awakenAlternativeContractGap(row: { printed: string; cost: unknown; cond?: unknown }): string | null {
+  if (!/\[Awaken\]/i.test(row.printed) || !/\bor you choose \d+ cards from under\b/i.test(row.printed)) return null;
+  const expected = parseSkills(row.printed).map(compileAwakenAlternative).find(Boolean);
+  if (!expected) return null;
+  const cost = row.cost as CostRecord | null;
+  return !cost || !deepEqual(cost.awakenAlternative, expected) || cost.condition != null || !!cost.program?.length || row.cond != null
+    ? "rebuild the single-pile alternative Awaken payment contract" : null;
+}
+
+/** R479: an old fused record cannot stand in for independently typed skills. */
+function fusedSkillBoundaryGap(row: { printed: string }): string | null {
+  return /\.\[(?:auto|permanent|activate\s*:|counter\s*:)/i.test(row.printed) && skillLines(row.printed).length > 1
+    ? "rebuild adjacent printed skill boundaries" : null;
+}
+
 export function recordContractGaps(row: Pick<RuleRow, "kind" | "cost" | "ops" | "printed"> & { trigger?: unknown; combo?: unknown; usage?: unknown; validity?: unknown; cond?: unknown }): string[] {
   const gaps: string[] = [];
+  const boundaryGap = fusedSkillBoundaryGap(row);
+  if (boundaryGap) gaps.push(boundaryGap);
+  const awakenGap = awakenAlternativeContractGap(row);
+  if (awakenGap) gaps.push(awakenGap);
+  const historyGap = markerHistoryContractGap(row);
+  if (historyGap) gaps.push(historyGap);
+  const couponGap = couponScopeContractGap(row);
+  if (couponGap) gaps.push(couponGap);
+  const spiritGap = spiritBoostContractGap(row);
+  if (spiritGap) gaps.push(spiritGap);
+  const movementGap = movementResultContractGap(row);
+  if (movementGap) gaps.push(movementGap);
+  const negationAreaGap = negationAreaContractGap(row);
+  if (negationAreaGap) gaps.push(negationAreaGap);
+  const dropComboGap = dropComboRecordGap(row);
+  if (dropComboGap) gaps.push(dropComboGap);
+  const arrivalGap = counterArrivalRecordGap(row);
+  if (arrivalGap) gaps.push(arrivalGap);
+  const extraActivationGap = extraActivationContractGap(row);
+  if (extraActivationGap) gaps.push(extraActivationGap);
+  const shortReplacementGap = shortPlayReplacementGap(row);
+  if (shortReplacementGap) gaps.push(shortReplacementGap);
+  const playedTypeGap = resolvingPlayContractGap(row);
+  if (playedTypeGap) gaps.push(playedTypeGap);
   const validityGap = validityProblem(row.validity);
   if (validityGap) gaps.push(validityGap);
   const usageGap = usageProblem(row.usage);
   if (usageGap) gaps.push(usageGap);
   const comboGap = comboContractGap(row);
   if (comboGap) gaps.push(comboGap);
+  const departureGap = comboDepartureContractGap(row);
+  if (departureGap) gaps.push(departureGap);
   const paymentGap = costRecordProblem(row.cost);
   if (paymentGap) gaps.push(paymentGap);
   else if ((row.cost as CostRecord).readable === false) gaps.push("the stored skill payment is unreadable");
   gaps.push(...materialContractGaps(row));
   return gaps;
+}
+
+/** A standing Combo replacement has no activation payment or uncollected condition. */
+function supportedComboReplacement(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  if (costRecordProblem(row.cost) || usageProblem(row.usage) || !Array.isArray(row.ops) || programProblem(row.ops)) return false;
+  const cost = row.cost as CostRecord | null;
+  const usage = row.usage as UsageRecord | undefined;
+  return !!cost?.readable && !Object.values(cost.orbs).some(n => n !== 0) && !cost.either.length
+    && !cost.marker && !cost.burst && !cost.spiritBoost && !cost.program?.length && !cost.x && !cost.payWith?.length
+    && !cost.fusion && !cost.evolution && !cost.absorb && !cost.potara
+    && (!cost.condition || deepEqual(cost.condition, row.cond))
+    && !!usage && !usage.oncePerTurn && !usage.limit
+    && isComboDepartureProgram(row.ops as Op[]);
+}
+
+/** The whole unqualified descriptor is consumed at arrival, never as a standing effect. */
+function supportedEnergyEntry(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  if (row.kind !== "permanent" || costRecordProblem(row.cost) || usageProblem(row.usage) ||
+    validityProblem(row.validity) || !Array.isArray(row.ops) || programProblem(row.ops) || row.cond != null ||
+    !Array.isArray(row.trigger) || row.trigger.length) return false;
+  const policy = energyEntryDescriptor(row.ops as Op[]);
+  const skills = parseSkills(row.printed);
+  const printed = skills.length === 1 && compileEnergyEntryPolicy(skills[0]);
+  const cost = row.cost as CostRecord;
+  const usage = row.usage as UsageRecord;
+  const validity = row.validity as ValidityRecord;
+  return !!policy && !!printed && deepEqual(policy, printed) && cost.readable && !cost.text.trim() &&
+    !Object.values(cost.orbs).some(Boolean) && !cost.either.length && cost.marker == null &&
+    cost.burst == null && cost.spiritBoost == null && !cost.program?.length && !cost.x && !cost.payWith?.length &&
+    !cost.fusion && !cost.evolution && !cost.absorb && !cost.potara && cost.awakenAlternative == null && !cost.condition &&
+    !usage.oncePerTurn && usage.limit === null && validity.sparking === null;
+}
+
+/** R514: validate both printed intent and the complete executable permission. */
+function supportedActivateUnder(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+ if(costRecordProblem(row.cost)||row.cond!=null||row.combo!=null||!deepEqual(row.cost,zeroCostRecord()))return false;
+ const printed=parseSkills(row.printed),policy=printed.length===1?activateUnderPrinted(printed[0]):null;
+ return !!policy&&policy===activateUnderScript({kind:row.kind as import("./types").Skill["kind"],ops:row.ops as Op[],unsupported:row.unread as string[],trigger:row.trigger as Trigger[],usage:row.usage as UsageRecord,validity:row.validity as ValidityRecord,price:priceOfRow(row as RuleRow)});
+}
+function activateUnderIntent(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+ return !!activateUnderDescriptor(row.ops)||parseSkills(row.printed).some(s=>!!activateUnderPrinted(s))||(row.ops as Op[]).some(o=>o.op==='permit'&&o.what==='activateFromUnder');
+}
+
+/** R509: the history writer owns only the complete unqualified whole descriptor. */
+function supportedStandingWhole(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  if (costRecordProblem(row.cost) || row.cond != null || row.combo != null) return false;
+  const printed = parseSkills(row.printed);
+  return printed.length === 1 && standingWholePrinted(printed[0])
+    && deepEqual(row.cost, zeroCostRecord())
+    && standingWholeScript({ kind: row.kind as import("./types").Skill["kind"], ops: row.ops as Op[],
+      unsupported: row.unread as string[], trigger: row.trigger as Trigger[], usage: row.usage as UsageRecord,
+      validity: row.validity as ValidityRecord, price: priceOfRow(row as RuleRow) });
+}
+
+
+/** R528: only the complete original unpriced under-standing line belongs to native history. */
+function supportedStandingUnder(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  if (costRecordProblem(row.cost) || row.cond != null || row.combo != null) return false;
+  const printed = parseSkills(row.printed);
+  return printed.length === 1 && standingUnderPrinted(printed[0]) && deepEqual(row.cost, zeroCostRecord())
+    && standingUnderScript({ kind: row.kind as import("./types").Skill["kind"], ops: row.ops as Op[],
+      unsupported: row.unread as string[], trigger: row.trigger as Trigger[], usage: row.usage as UsageRecord,
+      validity: row.validity as ValidityRecord, price: priceOfRow(row as RuleRow) });
+}
+function standingUnderIntent(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  return standingUnderDescriptor(row.ops) || parseSkills(row.printed).some(skill =>
+    /^negate the skills of battle cards on top of this card\b/i.test(skill.effect.trim()));
+}
+
+/** R513: the loader's condition wrapper is part of the exact Combo policy. */
+function supportedStandingComboWhole(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  if (costRecordProblem(row.cost) || row.combo != null) return false;
+  const printed = parseSkills(row.printed);
+  return printed.length === 1 && standingComboWholePrinted(printed[0])
+    && deepEqual(row.cost, zeroCostRecord())
+    && standingComboWholeScript({ kind: row.kind as import("./types").Skill["kind"], ops: programOf(row),
+      unsupported: row.unread as string[], trigger: row.trigger as Trigger[], usage: row.usage as UsageRecord,
+      validity: row.validity as ValidityRecord, price: priceOfRow(row as RuleRow) });
+}
+function standingComboWholeIntent(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  return standingComboWholeDescriptor(programOf(row)) || parseSkills(row.printed).some(standingComboWholePrinted);
+}
+
+function autoPlayRecordGap(row: Parameters<typeof runtimeSupportOfRow>[0]): string | null {
+  const cost = row.cost as CostRecord | null;
+  if (row.kind.toLowerCase() !== "auto" || costRecordProblem(cost) || !cost?.program || !hasOp(cost.program, "play")) return null;
+  return autoPriceGap(cost) ?? autoPlayEnvelopeProblem({ kind: "auto", price: priceOfRow(row as RuleRow), ops: row.ops as Op[], trigger: row.trigger as Trigger[] });
 }
 
 /**
@@ -178,6 +410,22 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   const unknown: string[] = [];
   const kind = row.kind.toLowerCase();
   const cost = row.cost as { program?: Op[] | null; x?: XCost } | null;
+  if (containsEnergyEntryDescriptor(row.ops) && !supportedEnergyEntry(row)) unsupported.push("optional Energy entry requires a whole unpriced, unqualified Permanent source descriptor");
+
+  if(activateUnderIntent(row)&&!supportedActivateUnder(row)) unsupported.push("under Activate requires the exact unpriced, unqualified original permission");
+  if(supportedActivateUnder(row)) unknown.push("under Activate uses the bounded ordered native source/payment contract; additional taxes and modifiers refuse before payment");
+  if (standingUnderIntent(row) && !supportedStandingUnder(row))
+    unsupported.push("under-standing requires the complete unpriced, unqualified original Permanent descriptor");
+  if (supportedStandingUnder(row))
+    unknown.push("under-standing depends on original native v3 occurrence history, full protection qualification and bounded relationship writers");
+  const standingIntent = standingWholeDescriptor(row.ops) || parseSkills(row.printed).some(standingWholePrinted);
+  if (standingIntent && !supportedStandingWhole(row)) unsupported.push("standing whole-negation requires a whole unpriced, unqualified Permanent source descriptor");
+  if (supportedStandingWhole(row)) unknown.push("standing whole-negation depends on native occurrence history, protection and mutation bounds");
+
+  if (standingComboWholeIntent(row) && !supportedStandingComboWhole(row))
+    unsupported.push("Combo whole-negation requires the complete unpriced, unqualified conditional Permanent descriptor");
+  if (supportedStandingComboWhole(row))
+    unknown.push("Combo whole-negation depends on mixed occurrence history, complete protection records and bounded simultaneous cleanup");
 
   // An Auto's action or X price is paid by the VM's own planner (#549,
   // `vm/auto-costs.ts`); refuse only what that planner refuses statically, in
@@ -186,19 +434,24 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   if (kind === "auto") {
     const gap = autoPriceGap(cost);
     if (gap) unsupported.push(gap);
+    if (!costRecordProblem(row.cost) && underOpponentPlayPrice(cost?.program ?? [])) {
+      const playGap = autoPlayRecordGap(row);
+      if (playGap) unsupported.push(playGap);
+      else unknown.push("Auto play-cost support depends on a plain under-card occurrence, synchronous original payment and landed Counter timing bounds");
+    }
   }
-  if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0)) {
+  if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0) && !supportedComboReplacement(row)) {
     unsupported.push("the Auto rule has no readable WHEN trigger");
   }
-  const triggers = Array.isArray(row.trigger) ? row.trigger : [];
-  if (triggers.includes("flippedFaceUp")) {
-    unsupported.push("the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)");
-  }
+  if (kind.startsWith("counter:") && cost?.x && !counterSpiritBoostX(cost.x)) unsupported.push("the Counter window has no supported X payment choice contract");
   // Counter: Counter uses the native counter-motion chain (#552). Its
   // affordability is checked on the live board, like the other Counters.
 
   if (kind === "permanent") {
-    for (const op of row.ops as Op[]) {
+    if (parseSkills(row.printed).some(skill => bondSelector(skill)?.kind === "unknown")) unsupported.push("the specified Bond Permanent selector is not yet resolved");
+    const energyEntry = supportedEnergyEntry(row);
+    if (energyEntry) unknown.push("optional Energy entry depends on the native original movement, origin, payment and replacement bounds");
+    for (const op of energyEntry || supportedStandingWhole(row) || supportedStandingComboWhole(row) || supportedStandingUnder(row) || supportedActivateUnder(row) ? [] : row.ops as Op[]) {
       const gap = permanentOpGap(op);
       if (gap) unsupported.push(gap);
     }
@@ -355,10 +608,11 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!comboContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || (standingUnderIntent(row) && !supportedStandingUnder(row)) || (standingComboWholeIntent(row) && !supportedStandingComboWhole(row)) || (activateUnderIntent(row) && !supportedActivateUnder(row)) || !!autoPlayRecordGap(row) || ((standingWholeDescriptor(row.ops) || parseSkills(row.printed).some(standingWholePrinted)) && !supportedStandingWhole(row)) || (containsEnergyEntryDescriptor(row.ops) && !supportedEnergyEntry(row)) || !!fusedSkillBoundaryGap(row) || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!counterArrivalRecordGap(row) || !!dropComboRecordGap(row) || !!extraActivationContractGap(row) || !!markerHistoryContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || !!awakenAlternativeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
-      : { kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
+      : { playReplacement: row.kind === "counter:play" ? playReplacementDescriptor(programOf(row)) : undefined, paidAdmission: storedPaidAdmission(row.cond, price?.condition), kind: row.kind as import("./types").Skill["kind"], ops: programOf(row), unsupported: blocksExecution ? support.unsupported : [], price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) };
     base.unsupported.push(...support.unsupported);
     base.complete = base.unsupported.length === 0;
     out[key] = base;
@@ -367,7 +621,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     if (seen.has(expectedKey)) continue;
     const key = scriptsKey(skill.cardId, skill.side);
     const base = out[key] ?? { bySkill: {}, complete: false, unsupported: [] };
-    base.bySkill[skill.skillIndex] = { ops: [], unsupported: ["no current rule record; regenerate rules and rebuild the match"], price: zeroSkillPrice(false), trigger: [] };
+    base.bySkill[skill.skillIndex] = { ops: [], unsupported: ["no current rule record; regenerate rules and rebuild the match", ...(defs[skill.cardId]?.type === "EXTRA" && selfExtraActivationWording(skill.printed) ? [EXTRA_SELF_REBUILD] : [])], price: zeroSkillPrice(false), trigger: [] };
     base.complete = false;
     base.unsupported.push(`no current rule record for printed skill ${skill.skillIndex}: ${skill.effect}`);
     out[key] = base;

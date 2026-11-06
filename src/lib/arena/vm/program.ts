@@ -1,3 +1,18 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
+import { nativeUnderAttackProhibited } from "./under-native-read";
+import { paidDropSelfAllowed } from './paid-drop-reference';
+import { completedKoCost, koResultRebuild } from "./ko-result";
+import { requiredStampedCards } from "./required-stamp";
+import { requirePairedSelf } from "./paired-self";
+import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
+import { beginStandingNegationMutation, finishStandingNegationMutation, readingStandingBoard, validateStandingNegationRead } from "./standing-negation-runtime";
+import { captureCopiedSkill } from "./triggers";
+import { counterActivationFrom } from "./counter-activation-origin";
+import { taxReceiptIdentity } from "./tax-receipt";
+import { requirePaidMarkers } from "./paid-markers";
+import { requireEnergyCouponEffects } from "./energy-coupon-saves";
+import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
+import { completedMovement, completedSwitch } from "./movement-result";
 import { isPotaraSkill, requirePotaraMaterials } from "./potara-materials";
 import { requireUsage } from "./usage";
 import { requireValidity } from "./validity";
@@ -57,12 +72,12 @@ import { costEnergyOk, emptyFilter, hasEnergyBound, nameInSkillText, parseFilter
 import { bindKeywordParams, type GameDefinition, type HookPoint } from "../rulesets";
 import { PRINTED_BASE, attrsOf, type AttrValue, type Attrs } from "./cards";
 import { describeCond as sayCond } from "./script-schema";
-import { IllegalAction, grantedLineIndex, isGrantedLine, mirrorSides, programsOf } from "./common";
+import { IllegalAction, grantedLineIndex, isGrantedLine, isCopiedSkill, mirrorSides, programsOf } from "./common";
 import { HOOK_CONTRACT } from "./hook-contract";
 import { grantedSkillNegated, KEYWORD_WILDCARD, keywordSkillsNegated, keywordStatics, ownProhibitions, permanents, skillNegated, skillsNegated, valueOf, type VmStatic } from "./effects";
 import { predicateOf } from "./filters";
 import { masterOf, skillsShowing } from "./triggers";
-import { keywordBondHolds } from "./bond";
+import { bondIsValid, keywordBondHolds } from "./bond";
 import { SETUP_ZONES, findCard, hostOf, inPlayZones } from "./zones";
 import type { VmState } from "./state";
 
@@ -176,19 +191,22 @@ let staticsScope: StaticsScope | null = null;
 
 /** Run one read-only question about `state` with its statics read once. The state must not be changed in place while `read` runs. */
 export function readingBoard<T>(ctx: EngineContext, game: GameDefinition, state: VmState, read: () => T): T {
-  const outer = staticsScope;
-  // Already inside a reading of this very board: its statics are this one's.
-  if (outer && outer.state === state && outer.ctx === ctx && outer.game === game) return read();
-  staticsScope = { state, ctx, game, standing: null };
-  try {
-    return read();
-  } finally {
-    staticsScope = outer;
-  }
+  return readingStandingBoard(ctx, game, state, () => {
+    const outer = staticsScope;
+    // Already inside a reading of this very board: its statics are this one's.
+    if (outer && outer.state === state && outer.ctx === ctx && outer.game === game) return read();
+    staticsScope = { state, ctx, game, standing: null };
+    try {
+      return read();
+    } finally {
+      staticsScope = outer;
+    }
+  });
 }
 
 /** Every [Permanent] standing right now — and every keyword's `altPayment` body — or nothing while one is being read (see `readingStatics`). */
 function statics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
+  validateStandingNegationRead(ctx, state);
   if (readingStatics) return [];
   const scope = staticsScope && !readingImmunities && staticsScope.state === state && staticsScope.ctx === ctx && staticsScope.game === game ? staticsScope : null;
   if (scope?.standing) return scope.standing;
@@ -220,6 +238,36 @@ function grantBarred(ctx: EngineContext, game: GameDefinition, state: VmState, i
 }
 
 
+/** R-444: seed identity and negation/protection facts before evaluating Bond gates.
+ * No global static-cache override: ordinary attributes keep their existing
+ * recursion boundary. Bond-dependent identity/negation/protection is explicitly refused. Identity
+ * producer conditions keep the existing static evaluation boundary; this is
+ * not a general fixpoint solver for mutually dependent Permanent effects.
+ */
+function permanentBondGate(ctx: EngineContext, game: GameDefinition, state: VmState): (source: string, player: PlayerId, skill: Skill) => boolean {
+  const affectsBondPrerequisites = (ops: Op[]): boolean => ops.some(op => op.op === "if"
+    ? affectsBondPrerequisites(op.then) || affectsBondPrerequisites(op.else ?? [])
+    : op.op === "gains" || (op.op === "modifyAttr" && ["colors", "traits", "characters", "alsoNames"].includes(op.attr)) || (op.op === "negateSkillsOfKind" && op.kind === "keyword") || (op.op === "forbid" && op.what === "beNegated"));
+  const count = (source: string, player: PlayerId, skill: Skill): boolean => {
+    const script = skillsShowing(ctx, state, source).scripts.bySkill[skill.index];
+    if (skill.bond != null && script && affectsBondPrerequisites(script.ops)) throw new NotYet("evaluate Bond-dependent standing identity, keyword negation or protection", "#907");
+    const valid = bondIsValid(ctx, game, state, player, skill, source, false);
+    if (valid === null) throw new NotYet("evaluate this specified Bond Permanent selector", "#544");
+    return valid;
+  };
+  const targets = (frame: ScriptFrame, op: Op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref);
+  const holds = (frame: ScriptFrame, op: Op) => op.op === "if" && condHolds(ctx, game, state, frame, op.cond);
+  const facts = permanents(ctx, game, state, targets, holds, (frame, a) => amount(ctx, game, state, frame, a), count, affectsBondPrerequisites);
+  return (source, player, skill) => {
+    // Even a false preliminary count cannot hide an unsupported dependency.
+    const script = skillsShowing(ctx, state, source).scripts.bySkill[skill.index];
+    if (skill.bond != null && script && affectsBondPrerequisites(script.ops)) return count(source, player, skill);
+    const suppressed = facts.some(e => e.kind === "negateKeyword" && e.target === source && e.value === (KEYWORD_WILDCARD as unknown) && !negationRefused(ctx, game, state, source, e, facts));
+    const valid = bondIsValid(ctx, game, state, player, skill, source, suppressed, id => attrsNow(ctx, game, state, id, facts));
+    return valid === null ? count(source, player, skill) : valid;
+  };
+}
+
 function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   readingStatics = true;
   try {
@@ -229,7 +277,7 @@ function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): 
     // change can carry, counted over the board. `readingStatics` is already
     // true here, so the count reads printed values and cannot recur.
     const measure = (frame: ScriptFrame, a: Amount) => amount(ctx, game, state, frame, a);
-    const standing = permanents(ctx, game, state, targets, holds, measure);
+    const standing = permanents(ctx, game, state, targets, holds, measure, permanentBondGate(ctx, game, state));
     // #154: a keyword's `altPayment` body is a standing change of the same
     // kinds, read off the cards in play that carry it ([Warrior of Universe
     // 7]'s ≪Universe 7≫ cards with no specified cost, 22-19). Only looked for
@@ -288,6 +336,7 @@ export function permanentStaticsOf(ctx: EngineContext, game: GameDefinition, sta
       (frame, op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref),
       (frame, op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false),
       (frame, a) => amount(ctx, game, state, frame, a),
+      permanentBondGate(ctx, game, state),
       (ops) => ops === program.ops,
     ).filter((e) => e.source === id);
   } finally {
@@ -316,6 +365,7 @@ function immunityStatics(ctx: EngineContext, game: GameDefinition, state: VmStat
       (frame, op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref),
       (frame, op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false),
       (frame, a) => amount(ctx, game, state, frame, a),
+      permanentBondGate(ctx, game, state),
       grantsImmunity,
     ).filter((e) => e.kind === "immune");
   } finally {
@@ -369,12 +419,15 @@ function namesNow(attrs: Attrs): string[] {
  * see the same number — the property `verify/vm.ts` asserts against the legacy
  * engine's `matches`.
  */
-export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): Attrs {
+export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, suppliedStanding?: VmStatic[], payment?: EnergyPaymentContext): Attrs {
+  guardEnergyEntryLifetimes(state);
+  validateStandingNegationRead(ctx, state);
+  requireEnergyCouponEffects(ctx, state);
   const card = state.cards[id];
   const def = card ? ctx.defs[card.cardId] : undefined;
   if (!def) return {};
   const printed = attrsOf(def, game).attrs;
-  const standing = statics(ctx, game, state);
+  const standing = suppliedStanding ?? statics(ctx, game, state);
   // 20-21: a board-filled price has no printed face of its own — its `printed`
   // layer is the number beside it, and `PRINTED_BASE` is that pairing. Seeded
   // before the layers are walked, so a reduction adds to the printed cost
@@ -455,7 +508,7 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // through this attribute) must find [Blocker] and friends in, and a Hidden
   // Mode card grants none at all (23-5-2), which `base.skill` being absent
   // there already gives for free.
-  if (game.attributes.keywords) base.keywords = keywordSkillsNegated(state, id) ? [] : printedKeywordNames(typeof base.skill === "string" ? base.skill : null, programsOf(ctx, def, card.flipped && def.back ? "back" : "front"));
+  if (game.attributes.keywords) base.keywords = keywordSkillsNegated(state, id) ? [] : printedKeywordNames(typeof base.skill === "string" ? base.skill : null, programsOf(ctx, def, card.flipped && def.back ? "back" : "front"), state, id);
   // 1-5-9, 9-1-4: a filter's bare "skill-less" — the legacy `skillLessNow`.
   if (game.attributes.skillLess) base.skillLess = skillLessNow(ctx, game, state, id, standing);
   // The value every layer is applied *to*, so an attribute the base left out —
@@ -465,8 +518,14 @@ export function attrsNow(ctx: EngineContext, game: GameDefinition, state: VmStat
   // Every change in force **about this card**, of every kind: which of them a
   // layer reads is `LAYER_KINDS`, and keeping that pairing in one place is the
   // whole reason this no longer filters by the attribute's name (#148).
-  const mine = standing.filter((e) => e.target === id);
-  const timed = state.effects.filter((e) => e.target === id);
+  const mine = standing.filter((e) => e.target === id && energyActivationReaches(e.energyActivation, payment));
+  const timed = state.effects.filter((e) => {
+    if (!energyActivationReaches(e.energyActivation, payment)) return false;
+    if (e.target === id) return true;
+    if (!payment || !e.energyActivation || !e.matching || (e.uses ?? 1) <= 0) return false;
+    const frame: ScriptFrame = { ops: [], ip: 0, vars: e.matching.vars, card: e.source ?? id, master: e.master };
+    return resolveSelector(ctx, game, state, frame, e.matching.sel).includes(id);
+  });
   // 20-1: list identity changes add to the effective card in every area, but
   // do not rewrite what is printed. Generic selectors keep reading effective
   // attributes; rules that explicitly ask for original colours must use the
@@ -588,8 +647,10 @@ function attrPlanOf(game: GameDefinition): { face: string[]; layered: string[] }
  */
 const KEYWORD_NAMES = new Map<string, readonly string[]>();
 const NO_KEYWORDS: readonly string[] = Object.freeze([]);
-function printedKeywordNames(text: string | null, scripts?: import("./script").CardScripts): readonly string[] {
+function printedKeywordNames(text: string | null, scripts?: import("./script").CardScripts, state?: VmState, id?: string): readonly string[] {
   if (!text) return NO_KEYWORDS;
+  if (state && id && state.effects.some(e => e.target === id && e.kind === "negateSkill"))
+    return keywordsInSkills(parseSkills(text).map(sk => recordedSkillIdentity(sk, scripts?.bySkill[sk.index])).filter(sk => !skillNegated(state, id, sk.index, sk.kind))).map(k => k.name);
   if (scripts && Object.values(scripts.bySkill).some((s) => s.unsupported.length || s.price?.fusion !== undefined || s.price?.evolution !== undefined || s.price?.absorb !== undefined || s.price?.potara !== undefined))
     return keywordsInSkills(parseSkills(text).map((sk) => recordedSkillIdentity(sk, scripts.bySkill[sk.index]))).map((k) => k.name);
   let names = KEYWORD_NAMES.get(text);
@@ -657,7 +718,8 @@ function measureOf(ctx: EngineContext, game: GameDefinition, state: VmState, id:
     case "comboCost":
       return num(now.comboCostOf);
     case "energyCost":
-      return num(now.costOf);
+      // R-404 / 1-2-5: the numerical cost is never below the specified orbs, including an undefined X (zero).
+      return Math.max(num(now.costOf), Array.isArray(now.specifiedCost) ? now.specifiedCost.length : 0);
     // 1-2-3: the number of orbs the specified cost asks for, as it stands (or
     // as it stood, for a card read from a movement's captured information);
     // a card with no specified cost to read has none.
@@ -798,13 +860,15 @@ export function permitted(ctx: EngineContext, game: GameDefinition, state: VmSta
  * (#153); this is only whether the card has it, which [Barrier] needs here.
  */
 export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"]): boolean {
+  guardEnergyEntryLifetimes(state);
+  validateStandingNegationRead(ctx, state);
   const card = state.cards[id];
   // 23-5-2-1: a skill a Hidden Mode card gains is ignored, so a granted
   // [Blocker] or [Barrier] is no more in force than a printed one.
   if (!card || card.hidden || keywordSkillsNegated(state, id)) return false;
   const standing = statics(ctx, game, state);
   if (keywordNegatedFor(ctx, game, state, id, name, standing)) return false;
-  for (const k of printedKeywords(ctx, game, state, id)) if (k.name === name) return true;
+  for (const k of printedKeywords(ctx, game, state, id)) if (k.keyword.name === name) return true;
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name && !grantedSkillNegated(state, id, e.id)) return true;
   for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.value as KeywordSkill)?.name === name && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) return true;
   return false;
@@ -818,13 +882,13 @@ export function hasKeyword(ctx: EngineContext, game: GameDefinition, state: VmSt
  * (#439). Grants are collected separately, then named keyword negation is
  * applied to printed and granted skills alike.
  */
-function printedKeywords(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordSkill[] {
+function printedKeywords(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordInstance[] {
   if (state.cards[id].hidden || keywordSkillsNegated(state, id)) return [];
   return skillsShowing(ctx, state, id)
     .skills.filter((sk) => sk.keyword && !skillNegated(state, id, sk.index, sk.kind)
       // 22-21-3: "[Blocker][Bond 3] …" is a [Blocker] only while the Bond holds.
-      && (sk.bond == null || keywordBondHolds(ctx, game, state, masterOf(game, state, id), sk)))
-    .map((sk) => sk.keyword!);
+      && (sk.bond == null || keywordBondHolds(ctx, game, state, masterOf(game, state, id), sk, id)))
+    .map((sk) => ({ keyword: sk.keyword!, skillIndex: sk.index, ...(isCopiedSkill(sk.index) ? {} : { skillSide: state.cards[id].flipped ? "back" as const : "front" as const }) }));
 }
 
 /**
@@ -838,28 +902,49 @@ export function keywordsInForce(ctx: EngineContext, game: GameDefinition, state:
   return keywordInstancesInForce(ctx, game, state, id).map((instance) => instance.keyword);
 }
 
-/** Keep each timed grant's persisted effect ID beside its keyword for hooks. */
-function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { keyword: KeywordSkill; grantEffectId?: number; standingGrantId?: string }[] {
+/** Identity shared by menus and hooks; copied pure keywords use grantEffectId. */
+export interface KeywordInstance {
+  keyword: KeywordSkill;
+  /** Hidden/Revealed also changes skill incarnation without an area change. */
+  hiddenCount?: number;
+  skillSide?: "front" | "back";
+  /** Human source/duration description supplied by the host for a menu. */
+  grantDescription?: string;
+  /** Chosen standing grants also track their source Hidden/Revealed incarnation. */
+  grantSource?: string;
+  sourceHiddenCount?: number;
+  skillIndex?: number;
+  grantEffectId?: number;
+  standingGrantId?: string;
+}
+
+/** Every in-force keyword instance retains its original source identity. */
+export function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): KeywordInstance[] {
+  guardEnergyEntryLifetimes(state);
+  validateStandingNegationRead(ctx, state);
   const card = state.cards[id];
   // 23-5-2-1, as in `hasKeyword`.
   if (!card || card.hidden || keywordSkillsNegated(state, id)) return [];
   const standing = statics(ctx, game, state);
-  const out: { keyword: KeywordSkill; grantEffectId?: number; standingGrantId?: string }[] = printedKeywords(ctx, game, state, id).map((keyword) => ({ keyword }));
+  const out: KeywordInstance[] = printedKeywords(ctx, game, state, id);
   for (const e of state.effects) if (e.kind === "keyword" && e.target === id && !grantedSkillNegated(state, id, e.id)) out.push({ keyword: e.value as KeywordSkill, grantEffectId: e.id });
-  for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) out.push({ keyword: e.value as KeywordSkill, ...(e.standingGrantId === undefined ? {} : { standingGrantId: e.standingGrantId }) });
-  return out.filter(({ keyword }) => !keywordNegatedFor(ctx, game, state, id, keyword.name, standing));
+  for (const e of standing) if (e.kind === "keyword" && e.target === id && (e.standingGrantId === undefined || !grantedSkillNegated(state, id, e.standingGrantId))) out.push({ keyword: e.value as KeywordSkill, ...(e.standingGrantId === undefined ? {} : { standingGrantId: e.standingGrantId, grantSource: e.source, sourceHiddenCount: state.cards[e.source]?.hiddenCount ?? 0 }) });
+  return out.filter(({ keyword }) => !keywordNegatedFor(ctx, game, state, id, keyword.name, standing)).map(instance => ({ ...instance, hiddenCount: card.hiddenCount ?? 0 }));
 }
 
 /**
- * 9-1-5: one keyword skill of this card negated for a span — the one a
- * `negateChosenKeyword` step had its master pick. Read last by both
- * `hasKeyword` and `keywordsInForce`, so it beats a grant of the same keyword,
- * the way the legacy `keywordsInForce` applies it.
+ * Generic named-keyword negation remains name-wide, including old resolved
+ * saved effects. Chosen negation uses individual skill/grant identity instead.
  */
-function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"] | undefined, standing: readonly VmStatic[] = []): boolean {
+export function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"] | undefined, standing: readonly VmStatic[] = []): boolean {
   if (!name) return false;
   if (state.effects.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name)) return true;
   return standing.some((e) => e.kind === "negateKeyword" && e.target === id && (e.value === name || e.value === (KEYWORD_WILDCARD as unknown)) && !negationRefused(ctx, game, state, id, e));
+}
+
+/** Keyword metadata such as Burst observes the same standing wildcard and protection as named keywords. */
+export function standingKeywordsNegated(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): boolean {
+  return statics(ctx, game, state).some(e => e.kind === "negateKeyword" && e.target === id && e.value === (KEYWORD_WILDCARD as unknown) && !negationRefused(ctx, game, state, id, e));
 }
 
 /**
@@ -879,13 +964,15 @@ export function standingKindNegated(ctx: EngineContext, game: GameDefinition, st
  * controller and its card (audit lane C, 2 Nov 2026: "…by your opponent's skills", DB1-021; "…by the skills of your red
  * <Garlic Jr.> cards", P-641).
  */
-function negationRefused(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, e: VmStatic): boolean {
+function negationRefused(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, e: VmStatic, standing?: VmStatic[]): boolean {
   let active = CHECKING_STATIC_NEGATION.get(state);
   if (!active) CHECKING_STATIC_NEGATION.set(state, active = new Set());
   if (active.has(id)) return false;
   active.add(id);
   try {
-    return forbids(ctx, game, state, "beNegated", { card: id, player: e.master, source: e.source });
+    const opts = { card: id, player: e.master, source: e.source };
+    if (standing) return prohibitions(ctx, game, state, id, { hooks: false, standing }).some(rule => ruleApplies(ctx, game, state, "beNegated", rule, opts) && !(rule.forbid.uses ?? 0) && !rule.forbid.pay);
+    return forbids(ctx, game, state, "beNegated", opts);
   } finally {
     active.delete(id);
   }
@@ -926,24 +1013,11 @@ export interface HookBody {
  */
 export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint): HookBody[] {
   const out: HookBody[] = [];
-  // `keywordsInForce` starts with printed skills, then appends effect/static
-  // grants. Consume printed identities in that same order so a grant of a
-  // keyword already printed on the card cannot borrow its skillIndex.
-  const printed = new Map<string, number[]>();
-  if (!state.cards[subject]?.hidden && !keywordSkillsNegated(state, subject)) {
-    for (const skill of skillsShowing(ctx, state, subject).skills) {
-      if (skill.keyword && !skillNegated(state, subject, skill.index, skill.kind)) {
-        const indexes = printed.get(skill.keyword.name) ?? [];
-        indexes.push(skill.index);
-        printed.set(skill.keyword.name, indexes);
-      }
-    }
-  }
   for (const instance of keywordInstancesInForce(ctx, game, state, subject)) {
     const kw = instance.keyword;
     const def = game.keywords[kw.name];
     const hooks = def?.hooks?.filter((hook) => hook.at === point) ?? [];
-    const skillIndex = hooks.length && instance.grantEffectId === undefined && instance.standingGrantId === undefined ? printed.get(kw.name)?.shift() : undefined;
+    const skillIndex = instance.skillIndex;
     // #156: a body names its keyword's parameters the way a `DO` does —
     // [Strike]'s `$x` is 2 on a [Double Strike] — bound from the instance in
     // force, granted or printed.
@@ -957,7 +1031,8 @@ export function hookBodiesFor(ctx: EngineContext, game: GameDefinition, state: V
 /** A minimal frame for a hook body: the language's own shape, `self` bound the way every program already reads its own card, plus whatever this hook's `vars` name. Exported for `vm/hooks.ts`'s `fireHook`. */
 export function hookFrame(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, ops: Op[], vars: Record<string, string[]>, skillIndex?: number, grantEffectId?: number, standingGrantId?: string): ScriptFrame {
   const skill = skillIndex === undefined ? undefined : skillsShowing(ctx, state, subject).skills.find(s => s.index === skillIndex);
-  return { ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { usage: requireUsage(skill?.usage), validity: requireValidity(skill?.validity) }), ...(skillIndex === undefined ? {} : { skillIndex }), ...(grantEffectId === undefined ? {} : { grantEffectId }), ...(standingGrantId === undefined ? {} : { standingGrantId }) };
+  const copiedSkillCapture = skill ? captureCopiedSkill(state, subject, skill, skillsShowing(ctx, state, subject).scripts.bySkill[skill.index]) : undefined;
+  return { ...(copiedSkillCapture ? { copiedSkillCapture } : {}), ops, ip: 0, vars: { self: [subject], ...vars }, card: subject, master: masterOf(game, state, subject), pendingHookSkill: true, ...(skillIndex === undefined ? {} : { usage: requireUsage(skill?.usage), validity: requireValidity(skill?.validity) }), ...(skillIndex === undefined ? {} : { skillIndex }), ...(grantEffectId === undefined ? {} : { grantEffectId }), ...(standingGrantId === undefined ? {} : { standingGrantId }) };
 }
 
 export type QueryFact =
@@ -986,6 +1061,10 @@ export type QueryFact =
  * wrongly read" applies to a hook body exactly as it does to a card's.
  */
 export function queryHookStatics(ctx: EngineContext, game: GameDefinition, state: VmState, subject: string, point: HookPoint): QueryFact[] {
+  // R468 / 23-2-2: the current attrBonus keyword, Servant, has no under-card
+  // exception. Keep printed keyword identity for selectors; suppress only its
+  // effective attribute bonus, without changing other hook families.
+  if (point === "attrBonus" && hostOf(state, subject)) return [];
   const spec = HOOK_CONTRACT[point];
   if (spec.answer !== "query") throw new Error(`vm/program.ts: "${point}" is an effect hook — use fireHook, not queryHookStatics`);
   const out: QueryFact[] = [];
@@ -1097,11 +1176,11 @@ interface RuleInForce {
  * and must not be re-applied to `ownProhibitions`/`state.effects`/a
  * [Permanent] by this function folding every source into one boolean.
  */
-function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, card?: string, opts: { hooks?: boolean } = {}): RuleInForce[] {
+function prohibitions(ctx: EngineContext, game: GameDefinition, state: VmState, card?: string, opts: { hooks?: boolean; standing?: VmStatic[] } = {}): RuleInForce[] {
   const out: RuleInForce[] = [];
   for (const e of state.effects) if (e.kind === "forbid" && e.forbid) out.push({ target: e.target, source: e.source ?? null, until: e.until, master: e.master, forbid: e.forbid, key: `effect:${e.id}` });
   const ordinal: Record<string, number> = {};
-  for (const e of statics(ctx, game, state)) {
+  for (const e of opts.standing ?? statics(ctx, game, state)) {
     if (e.kind !== "forbid") continue;
     const n = (ordinal[e.source] = (ordinal[e.source] ?? -1) + 1);
     out.push({ target: e.target, source: e.source, until: "permanent", forbid: e.value as Prohibition, key: `static:${e.source}:${n}` });
@@ -1149,6 +1228,17 @@ function ruleApplies(
 ): boolean {
   const f = rule.forbid;
   if (f.what !== what) return false;
+  if (f.copiesOf) {
+    const source = rule.source;
+    const master = f.master ?? rule.master ?? (source ? masterOf(game, state, source) : undefined);
+    if (!source || !master || !opts.card || !state.cards[opts.card]) return false;
+    //9-1-6: this skill references the selected cards' effective keywords.
+    // The ordinary CardFilter keyword reader preserves printed text instead.
+    const keywordRequirements = f.copiesOf.filter?.keywords ?? [];
+    const selector = keywordRequirements.length ? { ...f.copiesOf, filter: { ...f.copiesOf.filter!, keywords: [] } } : f.copiesOf;
+    const observed = resolveSelector(ctx, game, state, { card: source, master, ops: [], ip: 0, vars: {} }, selector, true);
+    if (!observed.some(id => state.cards[id]?.cardId === state.cards[opts.card!].cardId && keywordRequirements.every(keyword => hasKeyword(ctx, game, state, id, keyword)))) return false;
+  }
   // A missing/stale defender cannot prove that a qualified declaration is legal.
   // Only declaration callers supply this context; Blocker redirects do not.
   if (f.attackTarget && opts.attackTarget && state.cards[opts.attackTarget] &&
@@ -1328,6 +1418,11 @@ export function forbiddenBy(
   what: ForbiddenAction,
   opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; ignoreOwnPermanent?: boolean } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
+  if (state.underStandingNegationHistory && what === "attack" && opts.card) {
+    validateStandingNegationRead(ctx, state);
+    const ban = nativeUnderAttackProhibited(state, opts.card);
+    if (ban) return { by: nameShowing(ctx, state, ban.source) ?? null };
+  }
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
     // Mechanism batch 4 (EX21-31): "…ignoring its [permanent] skill" — the played card's own rule does not refuse it.
@@ -1428,6 +1523,8 @@ export function keywordPlayTaxes(
 
 /** One price a rule in force charges for an action (20-14-1), with the words a refusal names it by. */
 export interface TaxInForce {
+  /** Optional immutable identity for a native declaration that prepays this tax. */
+  identity?: string;
   ops: Op[];
   by: string | null;
   until: EffectUntil;
@@ -1452,7 +1549,7 @@ export interface TaxInForce {
  * all of them, in this order, every time; whether they *can* be paid is the
  * caller's question (`canPayPriceProgram`), asked of the acting player.
  */
-export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; counted?: boolean } = {}): TaxInForce[] {
+export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; counted?: boolean; withIdentity?: boolean } = {}): TaxInForce[] {
   const out: TaxInForce[] = [];
   for (const rule of prohibitions(ctx, game, state, opts.card)) {
     // `counted` asks the other half (#677): the priced rules whose free uses
@@ -1461,7 +1558,7 @@ export function taxesOn(ctx: EngineContext, game: GameDefinition, state: VmState
     if (!rule.forbid.pay?.length || ((rule.forbid.uses ?? 0) > 0) !== !!opts.counted) continue;
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
     const defender = !!(rule.forbid.attackTarget || rule.forbid.against || rule.forbid.attackOnly);
-    out.push({ ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until, key: rule.key, ...(defender ? { defender: true as const } : {}) });
+    out.push({ ...(opts.withIdentity ? { identity: taxReceiptIdentity(rule.key, { forbid: rule.forbid, target: rule.target, master: rule.master }, rule.source && state.cards[rule.source] ? { card: rule.source, cardId: state.cards[rule.source].cardId, epoch: state.cards[rule.source].zoneEpoch ?? 0 } : null) } : {}), ops: rule.forbid.pay, by: rule.source && state.cards[rule.source] ? (nameShowing(ctx, state, rule.source) ?? null) : null, until: rule.until, key: rule.key, ...(defender ? { defender: true as const } : {}) });
   }
   return out;
 }
@@ -1510,12 +1607,20 @@ export function chargeSwitchForbidden(ctx: EngineContext, game: GameDefinition, 
  * whose budget is still unspent, so the action that spends the last use is the
  * one that turns the rule on.
  */
-export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string } = {}): void {
-  for (const e of state.effects) {
-    if (e.kind !== "forbid" || !e.forbid || (e.forbid.uses ?? 0) <= 0) continue;
-    if (!ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid, key: `effect:${e.id}` }, opts)) continue;
-    e.forbid.uses = Math.max(0, (e.forbid.uses ?? 0) - 1);
-  }
+/** Pure matching seam: native preview and live counted-use writer read the same original rules. */
+export function prohibitionUsesToSpend(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction,
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; from?: string; skillKind?: string; keyword?: string }) {
+  return state.effects.filter(e => e.kind === "forbid" && e.forbid && (e.forbid.uses ?? 0) > 0
+    && ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid, key: `effect:${e.id}` }, opts));
+}
+export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; from?: string; skillKind?: string; keyword?: string } = {}): void {
+  requireUnscopedStandingWrite(state);
+  // Read every applicable budget on one settled board before changing any use.
+  const spent = prohibitionUsesToSpend(ctx, game, state, what, opts);
+  if (!spent.length) return;
+  const token = beginStandingNegationMutation(ctx, state, undefined, { effects: [{ kind: "prohibitionUse", what, opts }] });
+  for (const e of spent) e.forbid!.uses = Math.max(0, (e.forbid!.uses ?? 0) - 1);
+  finishStandingNegationMutation(ctx, state, token);
 }
 
 // ── selectors (5-2) ─────────────────────────────────────────────────────────
@@ -1593,11 +1698,28 @@ function narrowsBy(f: CardFilter): string[] {
  * the comments that explain *why* an order matters are carried with them: a
  * `take` before the filter because the top card of a deck is not searched for,
  * `hidden` before `filter` because a face-down card has no front-side
- * information to filter on (23-5-2).
+ * information to filter on (23-5-2). Numerical counts observe cards rather than choose or affect them (R-404):
+ * `observing` skips only selection/immunity protections, preserving area, ownership and every description.
  */
-export function resolveSelector(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector): string[] {
+export function resolveSelector(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, observing = false): string[] {
+  const required = sel.requiredStamp !== undefined ? requiredStampedCards(state, frame, sel) : undefined;
+  if (sel.special === "self" && frame.pairedSelf) {
+    requirePairedSelf(state, frame.card, frame.pairedSelf);
+    if (state.cards[frame.card].pairedSelfToken !== frame.pairedSelf.token) return [];
+  }
+  if (sel.special === "self" && !paidDropSelfAllowed(state, frame)) return [];
+  // R-362 / 3-1-4: the Auto's other effects still resolve, but this face-up Life card cannot be a later occurrence.
+  // Restrict the guard to its original Life reference; a move performed by the skill may legitimately use it elsewhere.
+  if (sel.special === "self" && sel.area === "life" && frame.faceUpLifeEpoch !== undefined) {
+    const source = state.cards[frame.card];
+    if (!source?.faceUp || (source.zoneEpoch ?? 0) !== frame.faceUpLifeEpoch) return [];
+  }
   let out: string[] = [];
-  if (sel.special) {
+  if (required) {
+    out = required;
+  } else if (sel.special === "resolving" && frame.resolvedPlayCards && !observing) {
+    out = frame.resolvedPlayCards.filter(item => state.cards[item.card] && (state.cards[item.card].zoneEpoch ?? 0) === item.epoch).map(item => item.card);
+  } else if (sel.special) {
     const pick = specialCard(state, frame, sel.special);
     out = pick && state.cards[pick] ? [pick] : [];
   } else if (sel.fromVar) {
@@ -1610,7 +1732,7 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     const areas = sel.areas?.length ? sel.areas : [sel.area ?? "battle"];
     for (const [i, area] of areas.entries()) {
       if (area === "under" && sel.underHost) {
-        for (const host of resolveSelector(ctx, game, state, frame, sel.underHost)) out.push(...(state.cards[host]?.under ?? []));
+        for (const host of resolveSelector(ctx, game, state, frame, sel.underHost, observing)) out.push(...(state.cards[host]?.under ?? []));
         continue;
       }
       // #930: "your Drop or your opponent's Battle Area" — an owner per area.
@@ -1707,13 +1829,13 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
       // no zone (23-2); it is where the selector says while the card holding
       // the pile is one `underHost` names.
       const host = wanted.includes("under") ? hostOf(state, id) : null;
-      const inPile = !!host && (!sel.underHost || resolveSelector(ctx, game, state, frame, sel.underHost).includes(host));
+      const inPile = !!host && (!sel.underHost || resolveSelector(ctx, game, state, frame, sel.underHost, observing).includes(host));
       if (!inPile && !wanted.includes(zoneOf(state, id) ?? "")) return false;
     }
     // Moments batch 1: and the card a moment hands on — "by **your** Leader's skill" asks whose the skill's card is.
     // (Audit-selectors-1 review: and the battle's two cards — "1 of **your** attacking cards" (BT1-005) is no card of the
     // other player's, whose attack it may be.)
-    if ((sel.fromVar || sel.special === "subject" || sel.special === "attacker" || sel.special === "guard") && sel.side && !sideOf(frame.master, sel.side).includes(masterOf(game, state, id))) return false;
+    if ((sel.fromVar || sel.special === "subject" || sel.special === "attacker" || sel.special === "guard" || sel.special === "onTop") && sel.side && !sideOf(frame.master, sel.side).includes(masterOf(game, state, id))) return false;
     // 23-5-2 again: a Hidden Mode card has none of its front-side information
     // — so it answers no measure, except one that only says what type a card
     // is *not*: having no card type at all, it is a "non-Extra card" (BT28-150).
@@ -1784,13 +1906,13 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // rule is `ownProhibitions`' own doc claim, "wherever it sits" (9-1-3-3),
     // and has nothing to do with [Barrier].
     // R-204: a printed "choose" of the card a moment names (`choice`) is a choice like any other.
-    if ((!sel.special || sel.choice) && !sel.ignoreBarrier && sel.side !== "you" && zoneOf(state, id) !== "hand" && masterOf(game, state, id) !== frame.master && queryHookStatics(ctx, game, state, id, "chooseable").some((f) => f.op === "forbid"))
+    if (!observing && (!sel.special || sel.choice) && !sel.ignoreBarrier && sel.side !== "you" && zoneOf(state, id) !== "hand" && masterOf(game, state, id) !== frame.master && queryHookStatics(ctx, game, state, id, "chooseable").some((f) => f.op === "forbid"))
       return false;
     // 20-4: every other "can't be chosen" prohibition — `state.effects`, a
     // [Permanent], or the card's own rule about itself — wherever the card
     // sits. `hooks: false` leaves the fact just checked above out, so it is
     // not re-applied here without its own exemptions.
-    if ((!sel.special || sel.choice) && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id, hooks: false }))
+    if (!observing && (!sel.special || sel.choice) && masterOf(game, state, id) !== frame.master && forbids(ctx, game, state, "beChosen", { card: id, hooks: false }))
       return false;
     // 9-1-4: a card no skill may touch (#154). The one place immunity is
     // enforced, as on the legacy engine — every op reaches a card through a
@@ -1798,12 +1920,12 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     // inherits the check. Which skills it refuses is the stored rule's
     // business (`immunityRefusing`), and `self` is kept out: a card's own
     // skill naming itself is the skill working, not a skill touching it.
-    if (sel.special !== "self" && immunityRefusing(ctx, game, state, id, frame.card, frame.master)) return false;
+    if (!observing && sel.special !== "self" && immunityRefusing(ctx, game, state, id, frame.card, frame.master)) return false;
     return true;
   });
   // Audit-selectors-1 (`alsoFrom`): the cards each alternative describes, in its own place, are on offer too — one choice
   // among them all. Bound by what the choice already excludes (`notIn`, this card), never by this selector's measures.
-  const alternatives = (sel.alsoFrom ?? []).flatMap((alt) => resolveSelector(ctx, game, state, frame, { ...alt, ...(sel.notIn ? { notIn: sel.notIn } : {}), ...(sel.notSelf ? { notSelf: sel.notSelf } : {}), ...(sel.ignoreBarrier ? { ignoreBarrier: true } : {}) }));
+  const alternatives = (sel.alsoFrom ?? []).flatMap((alt) => resolveSelector(ctx, game, state, frame, { ...alt, ...(sel.notIn ? { notIn: sel.notIn } : {}), ...(sel.notSelf ? { notSelf: sel.notSelf } : {}), ...(sel.ignoreBarrier ? { ignoreBarrier: true } : {}) }, observing));
   const union = alternatives.length ? [...kept, ...alternatives.filter((id, i) => !kept.includes(id) && alternatives.indexOf(id) === i)] : kept;
   return self && !union.includes(self) ? [self, ...union] : union;
 }
@@ -1839,6 +1961,7 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
   if ("plus" in a) return amount(ctx, game, state, frame, a.plus[0]) + a.plus[1];
   // Phrasing batch 8: "(Up to 2)" (P-464) — the amount, never above the printed ceiling.
   if ("capped" in a) return Math.min(amount(ctx, game, state, frame, a.capped[0]), a.capped[1]);
+  if ("paidMarkers" in a) return requirePaidMarkers(frame, a.paidMarkers).amount * (a.times ?? 1);
   if ("var" in a) return (frame.vars[a.var] ?? []).length;
   if ("sumPower" in a) return (frame.vars[a.sumPower.var] ?? []).reduce((t, id) => t + measureOf(ctx, game, state, id, "power"), 0);
   if ("handUpTo" in a) return Math.max(0, a.handUpTo - (state.sides[frame.master].zones[SETUP_ZONES.hand]?.length ?? 0));
@@ -1857,12 +1980,12 @@ export function amount(ctx: EngineContext, game: GameDefinition, state: VmState,
     return ids.length ? measureOf(ctx, game, state, ids[0], a.name, "sel" in a.attr && a.attr.sel.special === "subject" && ids[0] === frame.subject ? frame.subjectInfo : undefined) * (a.times ?? 1) : 0;
   }
   if ("markers" in a) return perStep(markersOn(ctx, game, state, frame, a.markers), a.per) * (a.times ?? 1);
-  return perStep(countSelected(ctx, game, state, frame, a.count), a.per) * (a.times ?? 1);
+  return perStep(countSelected(ctx, game, state, frame, a.count, true), a.per) * (a.times ?? 1);
 }
 
 /** The cards a selector finds, counted as it says — by name under `differentNames` (BT18-104). */
-export function countSelected(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector): number {
-  return selectedCount(sel, resolveSelector(ctx, game, state, frame, sel), (id) => String(attrsNow(ctx, game, state, id).name ?? id), (id) => list(attrsNow(ctx, game, state, id).colors).map(String), (id) => list(attrsNow(ctx, game, state, id).characters).map(String));
+export function countSelected(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, observing = false): number {
+  return selectedCount(sel, resolveSelector(ctx, game, state, frame, sel, observing), (id) => String(attrsNow(ctx, game, state, id).name ?? id), (id) => list(attrsNow(ctx, game, state, id).colors).map(String), (id) => list(attrsNow(ctx, game, state, id).characters).map(String));
 }
 
 // ── conditions (9-4) ────────────────────────────────────────────────────────
@@ -1905,7 +2028,8 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
   const leaderOf = (side: Side | undefined) => state.sides[side === "opponent" ? other(frame.master) : frame.master].zones[SETUP_ZONES.leader]?.[0] ?? null;
   switch (c.kind) {
     case "count":
-      return between(countSelected(ctx, game, state, frame, c.sel), c.atLeast, c.atMost);
+      // R-385: checking how many cards exist is observation, not choosing targets.
+      return between(countSelected(ctx, game, state, frame, c.sel, true), c.atLeast, c.atMost);
     case "life":
       return between(lifeCount(game, state, frame.master, c.side), c.atLeast, c.atMost);
     case "leaderColor": {
@@ -1935,7 +2059,7 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     case "inBattle": {
       const b = state.battle;
       const inBattle =
-        !!b && resolveSelector(ctx, game, state, frame, c.sel).some((id) => (c.role === "attacker" ? b.attacker === id : c.role === "guard" ? b.guard === id : b.attacker === id || b.guard === id));
+        !!b && resolveSelector(ctx, game, state, frame, c.sel, true).some((id) => (c.role === "attacker" ? b.attacker === id : c.role === "guard" ? b.guard === id : b.attacker === id || b.guard === id));
       return c.not ? !inBattle : inBattle;
     }
     // BT3-103's "if this card participated in a battle during your opponent's
@@ -1974,14 +2098,15 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     }
     // BT15-118's "a turn in which this card was placed in a Battle Area"
     // (5-5-4): the card's memory of arriving (`VmCard.placedThisTurn`).
+    case "counterActivatedFrom": return counterActivationFrom(frame, c.from, c.skill);
     case "placedThisTurn":
       return resolveSelector(ctx, game, state, frame, c.sel).some((id) =>
         c.from?.length ? !!state.cards[id]?.playedThisTurn && (c.from as string[]).includes(state.cards[id]?.playedFrom ?? "") : !!(c.played ? state.cards[id]?.playedThisTurn : state.cards[id]?.placedThisTurn));
     case "every": {
-      const ids = resolveSelector(ctx, game, state, frame, c.sel);
+      const ids = resolveSelector(ctx, game, state, frame, c.sel, true);
       // Nothing there is not "all of it" (0-2-4-1).
       if (!ids.length) return false;
-      const ok = new Set(resolveSelector(ctx, game, state, frame, c.matching));
+      const ok = new Set(resolveSelector(ctx, game, state, frame, c.matching, true));
       return ids.every((id) => ok.has(id));
     }
     case "any":
@@ -1992,6 +2117,13 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const l = leaderOf(c.side);
       return !!l && state.cards[l].flipped === (c.flipped ?? true);
     }
+    case "koedByThisSkill":
+      if (!frame.koBinding || frame.koBinding.name !== c.var) koResultRebuild("missing condition binding");
+      return completedKoCost(frame.koResults?.[c.var], frame.koBinding, frame.vars[c.var]?.length ?? 0, c.costMax);
+    case "switched":
+      return completedSwitch(frame, c.var);
+    case "moved":
+      return completedMovement(frame, c.var, c.atLeast, c.all);
     case "did":
       // #1121 (20-16): "if you do" is true only when the optional action happened, not when the offer was taken.
       if (c.what === "may" && frame.did?.may && frame.mayWitness && (frame.acted ?? 0) <= frame.mayWitness.base) return false;
@@ -2012,10 +2144,18 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
     // Phrasing batch 6 (EX16-02): a card of that choice was taken from one of these areas.
     case "choseFrom":
       return (frame.chosenFrom?.[c.var] ?? []).some((area) => (c.areas as string[]).includes(area));
+    case "paidMarkers": {
+      const paid = requirePaidMarkers(frame, c.cost);
+      return paid.payers.filter(payer => !c.filter || predicateOf(c.filter, game)(payer.info)).reduce((n, payer) => n + payer.amount, 0) >= (c.atLeast ?? 1);
+    }
     case "varMatches":
+      if (c.paid) {
+        if (!frame.paidCardInfo?.[c.var]) throw new NotYet("read paid-card history missing from a saved frame; rebuild the saved match", "R-389");
+        return Object.values(frame.paidCardInfo[c.var]).some(info => predicateOf(c.filter, game)(info));
+      }
       return (frame.vars[c.var] ?? []).some((id) => state.cards[id] && predicateOf(c.filter, game)(attrsNow(ctx, game, state, id)));
     // "If the revealed card's energy cost is the same as the declared number" (BT22-090).
-    // Phrasing batch 10 (22-43): the X a [Spirit Boost X] price was paid at.
+    // A selected-number condition; actual marker history uses paidMarkers.
     case "xAtLeast":
       return frame.x !== undefined && frame.x >= c.n;
     case "varAttrIsX":

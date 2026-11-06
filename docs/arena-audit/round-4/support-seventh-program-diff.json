@@ -1,0 +1,272 @@
+[
+  {
+    "key": "BT12-071#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "replace",
+          "event": "leave",
+          "from": [
+            "combo"
+          ],
+          "with": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self"
+              },
+              "as": "p0",
+              "reason": "you may play it in Rest Mode"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              },
+              "mode": "rest"
+            }
+          ],
+          "optional": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b and this card was used in a combo from the deck or hand: if this card would leave the combo area, you may have this happen instead: choose this card, play the chosen cards in rest mode"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "replace",
+          "event": "leave",
+          "from": [
+            "combo"
+          ],
+          "to": "drop",
+          "with": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self"
+              },
+              "as": "p0",
+              "reason": "you may play it in Rest Mode"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              },
+              "mode": "rest"
+            }
+          ],
+          "optional": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b and this card was used in a combo from the deck or hand: if this card would leave the combo area to the drop, you may have this happen instead: choose this card, play the chosen cards in rest mode"
+    }
+  },
+  {
+    "key": "BT12-072#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "replace",
+          "event": "leave",
+          "from": [
+            "combo"
+          ],
+          "with": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self"
+              },
+              "as": "p0",
+              "reason": "you may play it in Rest Mode"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              },
+              "mode": "rest"
+            }
+          ],
+          "optional": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b and this card was used in a combo from the deck or hand: if this card would leave the combo area, you may have this happen instead: choose this card, play the chosen cards in rest mode"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "replace",
+          "event": "leave",
+          "from": [
+            "combo"
+          ],
+          "to": "drop",
+          "with": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self"
+              },
+              "as": "p0",
+              "reason": "you may play it in Rest Mode"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              },
+              "mode": "rest"
+            }
+          ],
+          "optional": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b and this card was used in a combo from the deck or hand: if this card would leave the combo area to the drop, you may have this happen instead: choose this card, play the chosen cards in rest mode"
+    }
+  },
+  {
+    "key": "BT12-074#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "replace",
+          "event": "leave",
+          "from": [
+            "combo"
+          ],
+          "with": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self"
+              },
+              "as": "p0",
+              "reason": "you may play it"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              }
+            }
+          ],
+          "optional": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b and this card was used in a combo from the deck or hand: if this card would leave the combo area, you may have this happen instead: choose this card, play the chosen cards"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "replace",
+          "event": "leave",
+          "from": [
+            "combo"
+          ],
+          "to": "drop",
+          "with": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self"
+              },
+              "as": "p0",
+              "reason": "you may play it"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              }
+            }
+          ],
+          "optional": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b and this card was used in a combo from the deck or hand: if this card would leave the combo area to the drop, you may have this happen instead: choose this card, play the chosen cards"
+    }
+  },
+  {
+    "key": "BT12-075#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "replace",
+          "event": "leave",
+          "from": [
+            "combo"
+          ],
+          "with": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self"
+              },
+              "as": "p0",
+              "reason": "you may play it in Rest Mode"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              },
+              "mode": "rest"
+            }
+          ],
+          "optional": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b and this card was used in a combo from the deck or hand: if this card would leave the combo area, you may have this happen instead: choose this card, play the chosen cards in rest mode"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "replace",
+          "event": "leave",
+          "from": [
+            "combo"
+          ],
+          "to": "drop",
+          "with": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self"
+              },
+              "as": "p0",
+              "reason": "you may play it in Rest Mode"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              },
+              "mode": "rest"
+            }
+          ],
+          "optional": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b and this card was used in a combo from the deck or hand: if this card would leave the combo area to the drop, you may have this happen instead: choose this card, play the chosen cards in rest mode"
+    }
+  }
+]

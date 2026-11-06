@@ -1,0 +1,354 @@
+{
+  "BT1-061": {
+    "card": {
+      "id": "BT1-061",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Friend-Summoning Son Gohan",
+      "characters": [
+        "Son Gohan: Youth"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "skill": "[Auto] When you play this card, look at up to 7 cards from the top of your deck. Choose up to 1 &lt;Krillin&gt; among them and add it to your hand.",
+      "backName": null,
+      "backSkill": null
+    },
+    "ownFAQ": [
+      {
+        "name": "Friend-Summoning Son Gohan",
+        "qa": [
+          {
+            "q": "You use {BT1-061 Friend-Summoning Son Gohan}\u2019s auto skill to look at cards from the top of your deck, and place cards that are not \u201cKrillin\u201d back on top. Do you shuffle your deck afterwards?",
+            "a": "Yes, you do.\nThe skill of {BT1-061 Friend-Summoning Son Gohan} has been updated, and is different from the text currently printed on the card.\nThe updated skill is as follows:\n\u201c[Auto] When you play this card, look at up to 7 cards from the top of your deck. Choose up to 1 \uff1cKrillin\uff1e among them and add it to your hand. Then shuffle your deck.\u201d"
+          },
+          {
+            "q": "Can you choose to play the card with the skill as printed?",
+            "a": "No, you cannot.\nPlease apply the updated skill when using the card."
+          },
+          {
+            "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+            "a": "No, you cannot.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+          },
+          {
+            "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+            "a": "No, that\u2019s not necessary.\nYou can stop looking at cards from the top of your deck whenever you like as long as you do not exceed the limit specified in the skill."
+          },
+          {
+            "q": "Can you add {BT1-072 Human Shield Krillin} to your hand with {Friend-Summoning Son Gohan}\u2019s skill?",
+            "a": "Yes, you can.\nThe character name of {BT1-072 Human Shield Krillin} is \u201cKrillin\u201d so the condition specified on the card text is fulfilled."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT1-061#0": {
+        "cardId": "BT1-061",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When you play this card, look at up to 7 cards from the top of your deck. Choose up to 1 <Krillin> among them and add it to your hand. Then, shuffle your deck.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Krillin"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 <Krillin> among them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look\u2192choose\u2192moveTo\u2192shuffle",
+        "reads": "look at the top 7, choose up to 1 <Krillin> card of the cards looked at, move the chosen cards to hand, shuffle"
+      }
+    }
+  },
+  "EX02-01": {
+    "card": {
+      "id": "EX02-01",
+      "type": "BATTLE",
+      "colors": [
+        "Black"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Time Patrol Trunks",
+      "characters": [
+        "Trunks: Xeno"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "skill": "[Over Realm 3]  (If you have at least 3 cards in your Drop Area, you can play this card by sending all cards in your Drop Area to your Warp. At the end of that turn, send this card from the Battle Area to your Warp.  [Over Realm] can be activated once per turn)<br>[Auto] When you play this card using [Over Realm], look at up to 2 cards from the top of your deck. Choose up to 1 of them and add it to your hand. Then, place the remaining cards on the top or bottom of your deck in any order.",
+      "backName": null,
+      "backSkill": null
+    },
+    "ownFAQ": [
+      {
+        "name": "Time Patrol Trunks",
+        "qa": [
+          {
+            "q": "When using {EX02-01 Time Patrol Trunks}\u2019s auto skill to look at the top two cards of your deck, if you choose not to put any cards in your hand, can you choose to place one of the remaining cards on the top of your deck and the other on the bottom of your deck?",
+            "a": "No, you can\u2019t."
+          },
+          {
+            "q": "When using {EX02-01 Time Patrol Trunks}\u2019s auto skill to add the top card of your deck to your hand, do you have to reveal the card to your opponent?",
+            "a": "No, you don\u2019t."
+          },
+          {
+            "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+            "a": "No, you cannot.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+          },
+          {
+            "q": "When looking at a specified number of cards from the top of your deck, do you need to declare the number of cards beforehand?",
+            "a": "No, you do not. You can stop looking at cards whenever you like as long as you don\u2019t exceed the limit specified in the skill."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "EX02-01#0": {
+        "cardId": "EX02-01",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Over Realm 3]  (If you have at least 3 cards in your Drop Area, you can play this card by sending all cards in your Drop Area to your Warp. At the end of that turn, send this card from the Battle Area to your Warp.  [Over Realm] can be activated once per turn)",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Over Realm",
+        "reads": ""
+      },
+      "EX02-01#10": {
+        "cardId": "EX02-01",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] When you play this card using [Over Realm], look at up to 2 cards from the top of your deck. Choose up to 1 of them and add it to your hand. Then, place the remaining cards on the top or bottom of your deck in any order.",
+        "kind": "auto",
+        "trigger": [
+          "playedUsingOverRealm"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 2,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 of them"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "chooseMode",
+            "chooser": "you",
+            "reason": "Put the cards on the top or the bottom of the deck, all of them together",
+            "modes": [
+              {
+                "label": "Top of the deck",
+                "ops": [
+                  {
+                    "op": "moveTo",
+                    "target": {
+                      "var": "looked",
+                      "minus": "c0"
+                    },
+                    "to": "deck",
+                    "position": "top"
+                  }
+                ]
+              },
+              {
+                "label": "Bottom of the deck",
+                "ops": [
+                  {
+                    "op": "moveTo",
+                    "target": {
+                      "var": "looked",
+                      "minus": "c0"
+                    },
+                    "to": "deck",
+                    "position": "bottom"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "look\u2192choose\u2192moveTo\u2192choose one[moveTo/moveTo]",
+        "reads": "look at the top 2, choose up to 1 of the cards looked at, move the chosen cards to hand, choose one \u2014 move the rest of the cards looked at to the top of the deck / move the rest of the cards looked at to the bottom of the deck"
+      }
+    }
+  }
+}

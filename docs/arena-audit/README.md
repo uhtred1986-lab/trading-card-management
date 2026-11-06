@@ -5,6 +5,9 @@ run the next round of the readings audit is in this folder; it assumes no memory
 Read `CLAUDE.md`, `docs/arena-batch-process.md` (research order, rulings ledger, checks, integration) and the skill
 `arena-work` first.
 
+**4 November bounded follow-up:** [Seven condition misreads are repaired](round-4/conditions-followup.md)
+originally in draft PR #1248 and now carried into PR #1249, with no read/unread count change or production record writes. R-380–R-383 are allocated; the remaining condition lane starts at R-384. BT2-048’s mandatory keyword-negation choice is also repaired in PR #1249; the four lanes’ unread work continues. The production baseline below is still the 3 November snapshot.
+
 ## Where things stand
 
 - `main` at #1246. The **dbs** game: **12,953 of 13,964 skills read (92.8%)**, 1,011 unread, on the production
@@ -29,7 +32,7 @@ Read `CLAUDE.md`, `docs/arena-batch-process.md` (research order, rulings ledger,
 |---|---|---|---|
 | **T** triggers | `text/triggers.ts`, `rulesets/dbs/triggers.rules` (regenerate `files.ts` with `npm run arena:rulesets`), `gaps.ts`, `vm/triggers.ts`, `probe.ts`, the moment code in `compile/index.ts` | `unread/moments.md`, `notes-T.md` | 206 [Auto] skills whose moment is unread, 187 clusters |
 | **C** conditions | `compile/conditions.ts`, the condition vocabulary (lang flags, the Cond describer, VM evaluation) | `unread/conditions.md`, `notes-C.md` | 107 skills, 94 clusters |
-| **S** selectors | `text/filters.ts`, selector parsing in `compile/targets.ts` and `compile/*`, `vm/filters.ts`, `describeFilter`/`describeSelector` | **`notes-S.md` first: 10 audit findings still misread (they play wrongly)**, then `unread/selectors.md` | 282 skills, 260 clusters |
+| **S** selectors | `text/filters.ts`, selector parsing in `compile/targets.ts` and `compile/*`, `vm/filters.ts`, `describeFilter`/`describeSelector` | **`notes-S.md` first, with the [condition follow-up](round-4/conditions-followup.md)**, then `unread/selectors.md` | 282 skills, 260 clusters |
 | **E** effects | `compile/effects.ts` and the op compilers, `compile/clauses.ts`, `describeScript`, the ops' VM code, `src/lib/catalog/errata.ts` | `unread/effects.md`, `notes-E.md` | 414 skills, 379 clusters |
 
 - The `unread/*.md` files cluster every unread skill by the wording of its first unread clause (names → X,
@@ -152,3 +155,13 @@ script).
      a dry run. Classify the pending writes: read→unread must be exactly the lanes' deliberate list. Then `--apply`.
    - `--describe-only` over every card id: a dry run first, check no "granted by skill" opening is lost, then apply.
    - `npx tsx scripts/arena-fuzz.mts 40`.
+
+Round 4 bounded follow-up: [chosen keyword negation](round-4/keyword-negation-followup.md) covers mandatory choice and official-Q&A Barrier handling, plus instance-specific negation for printed copies and grants, including saved prompts and legacy compatibility (R-400/R-401, PR #1249).
+
+The same PR continues with [explicit Leader/Battle area scope](round-4/on-board-area-followup.md) (R-402), including full-program corpus comparison and correction of the BT12 optional-scope audit inference.
+
+PR #1249 also [repairs the Teach prompt budget and P-093 Counter-ban scope](round-4/battle-skill-ban-followup.md) (R-403). Teach now passes directly on this branch.
+
+The next PR #1249 follow-up adds [cost bounds from area counts](round-4/counted-cost-followup.md) (R-404): three formerly unread skills, numerical counts that include protected cards, and the specified-cost minimum for numerical energy-cost reads.
+
+The owner has expanded the goal to [complete card support](support-completion.md). Continue across families in PR #1249; that tracker defines the baseline, runtime proof requirements and active workstreams.

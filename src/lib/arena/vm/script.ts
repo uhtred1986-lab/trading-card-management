@@ -1,3 +1,9 @@
+import {allHandPaymentMove,handPaymentRebuild} from './paid-hand-contract';
+import { paidDropPlayAllowed } from './paid-drop-reference';
+import { koResultRebuild, recordKoOutcome, requireKoResult, startKoResult, type KoOutcome } from "./ko-result";
+import { NotYet } from "./errors";
+import { mergeTaxPayers } from "./tax-receipt";
+import type { OverRealmSource } from "./over-realm-cost";
 /**
  * The effect language and its interpreter.
  *
@@ -9,10 +15,12 @@
  *
  * Nothing here reads card text. Section numbers refer to the Rule Manual.
  */
-import { canCombo, identityKey, skillsOf, sumReachable } from "../text/cards";
+import { baseType, canCombo, identityKey, keywordName, skillsOf, sumReachable } from "../text/cards";
 import type { CardFilter } from "../text/filters";
 import { KEYWORD_NAMES, asksAQuestion, comboFromAs, costModifierAs, describeCond, describeFilter, describeScript, describeSelector, discardAs, modifyAttrAs, moveAs, negateAs, replaceAs, revealAs } from "./script-schema";
 import { IllegalAction, sideOf } from "./common";
+import { counterSelfPlayAllowed, prepareCounterSelfBinding, requireCounterSelfBinding, counterSelfTaxBinding } from "./counter-self-binding";
+import { recordMovementResult, startMovementResult, validateMovementResult, prepareUnderSource, prepareCompletionSource, selfCompletionMove, underSelfMove, movementDestination, movementRebuild } from "./movement-result";
 import { completablePicks, disjointGroups, disjointPayable, laterSlots } from "./disjoint";
 import type { ScriptHost } from "./script-host";
 import type { AltCost, Area, Color, CounterKind, DelayScope, DelayTiming, ForbiddenAction, KeywordSkill, MoveReason, PlayerId, Prompt, ReplacementChoice, ReplacementResult, Skill, SkillKindPrefix, NegatedSkillKind, SkipWhat, Trigger } from "../types";
@@ -136,6 +144,8 @@ export interface Selector {
   hidden?: boolean;
   /** Draw the candidates from a bound variable instead of an area. */
   fromVar?: string;
+  /** Require the named move's saved arrival occurrences; missing stamps are invalid. */
+  requiredStamp?: true;
   /**
    * For `area: "under"`, whose pile that is: "from under your <Kefla> Battle
    * Card", "from under your Leader Card". Absent means this card's own pile.
@@ -420,6 +430,7 @@ export type AmountAttr = "power" | "comboPower" | "energyCost" | "comboCost" | "
 export type Amount =
   | number
   | { var: string }
+  | { paidMarkers: string; times?: number }
   | { count: Selector; per?: number; times?: number }
   /** The total power of the cards bound to a name — "the cards switched to Rest Mode by this skill" ([Alliance], 22-32). The special case of `sumOf` that predates it, kept because rows spell it this way. */
   | { sumPower: { var: string } }
@@ -548,6 +559,7 @@ export type Cond =
    * Audit conditions 3: with `from`, the play was made from one of those areas — "Additionally, if this card was played
    * from a Drop" (BT31-050), asked by the [Auto] its play triggered (`VmCard.playedFrom`).
    */
+  | { kind: "counterActivatedFrom"; from: "energy"; skill: "counter:attack" }
   | { kind: "placedThisTurn"; sel: Selector; played?: true; from?: ScriptArea[] }
   /**
    * "If **all** of your opponent's energy is in Rest Mode" (XD1-01): every card
@@ -584,6 +596,9 @@ export type Cond =
    * paid by giving one, and an “up to” choice is the only way to decline, so
    * the two readings have to be told apart. Defaults to 1.
    */
+  | { kind: "switched"; var: string }
+  | { kind: "moved"; var: string; atLeast?: number; all?: boolean }
+  | { kind: "koedByThisSkill"; var: string; costMax: number }
   | { kind: "chose"; var: string; atLeast?: number }
   /**
    * Phrasing batch 6 (owner's ruling, 26 Oct 2026): "…in your hand or Drop Area and place it at the bottom of your deck.
@@ -593,7 +608,8 @@ export type Cond =
    */
   | { kind: "choseFrom"; var: string; areas: ScriptArea[] }
   /** "If that card is a Battle Card": what a reveal or a look turned up (20-11). */
-  | { kind: "varMatches"; var: string; filter: CardFilter }
+  | { kind: "paidMarkers"; cost: string; filter?: CardFilter; atLeast?: number }
+  | { kind: "varMatches"; var: string; filter: CardFilter; paid?: true }
   /** "If the revealed card's energy cost is the same as the declared number" (BT22-090): a card a reveal or a look bound has this measure equal to the X a `declare` bound. */
   | { kind: "varAttrIsX"; var: string; attr: AmountAttr }
   /**
@@ -765,7 +781,7 @@ export type Op =
   | { op: "win"; side?: Side }
   /** 12-2-4: choose a qualifying hand Extra's named skill and invoke it without its original costs. */
   | { op: "invokeSkill"; trait: string; skillKind: "activate:main"; from: "hand"; maxCost: "currentEnergy" }
-  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:battle" | "activate:main/battle"; from: "hand" }
+  | { op: "invokeSkill"; sel: Selector; skillKind: "activate:main" | "activate:battle" | "activate:main/battle" | "activate:any"; from: "hand" | "deck" | "drop" }
   | { op: "energyMarker"; n: Amount; side?: Side }
   /**
    * `chooser` is who answers, when that is not the player whose skill this is:
@@ -786,10 +802,10 @@ export type Op =
    * card's specified cost": a Vegito the Active green energy cannot pay for
    * is not on offer.
    */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; owed?: true; exactly?: Amount; specifiedCostAtMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; owed?: true; exactly?: Amount; specifiedCostAtMost?: Amount; energyCostEquals?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
-  | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
+  | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea; upTo?: true }
   /**
    * "Reveal the top card of your opponent's deck" (20-11-2): both players see
    * it, so the name is logged, and the cards stay where they are — bound to
@@ -799,8 +815,8 @@ export type Op =
    * reveal; `"you"` is the master looking alone — no log, nothing public — the
    * act `look` is the macro over (`revealAs`, `script-schema.ts`).
    */
-  | { op: "reveal"; sel: Selector; as: string; audience?: "you" | "both" }
-  | { op: "ko"; target: Ref }
+  | { op: "reveal"; sel: Selector; as: string; audience?: "you" | "both"; incremental?: true }
+  | { op: "ko"; target: Ref; completedAs?: string }
   /** `to: "under"` puts the card under `under`, or under the source card (23-2). */
   /**
    * `owner` overrides whose area the card lands in — "place it in your
@@ -814,7 +830,7 @@ export type Op =
    * `triggers.rules` may match `moved(cause: …)` (spec §2.5-2). Left out, a
    * move means `effect`, which is what nearly every one is.
    */
-  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; random?: true; cause?: MoveReason; as?: string }
+  | { op: "moveTo"; target: Ref; to: ScriptArea; position?: "top" | "bottom"; mode?: "active" | "rest"; reveal?: boolean; under?: Ref; owner?: Side; faceUp?: boolean; random?: true; cause?: MoveReason; as?: string; completedAs?: string }
   /**
    * `onto` plays the card on top of another, which is how [Union-Absorb]
    * resolves (22-13-6-3) and how the "play … on top of this card" wordings
@@ -828,14 +844,14 @@ export type Op =
   /** `negated` is "played … with its skills negated" (9-1-5), for the turn or for as long as it is in play. */
   /** Mechanism batch 3: `toOwners` — "play them to their owners' Battle Areas" (BT13-096): each card into its own owner's Battle Area. */
   /** Audit selectors 2: `toOpponent` — "play … from your deck **to your opponent's Battle Area**" (BT13-028, BT22-006): into the other player's Battle Area, under their control. */
-  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; counterWindow?: true; markers?: Amount; using?: string; toOwners?: true; toOpponent?: true; ignoreOwnPermanent?: true }
+  | { op: "play"; target: Ref; activating?: true; mode?: "active" | "rest"; onto?: Ref; alsoUnder?: Ref; negated?: "turn" | "game"; negatedKinds?: NegatedSkillKind[]; negatedUntil?: Duration; counterWindow?: true; markers?: Amount; using?: string; toOwners?: true; toOpponent?: true; ignoreOwnPermanent?: true }
   /**
    * `by` names the keyword whose skill does the switching (#157): [Alliance]'s
    * rest-as-cost (22-32-3) is "switched to Rest Mode by an [Alliance] skill",
    * a different moment from "…by one of your skills" (1-10). No card says it;
    * a keyword body does.
    */
-  | { op: "switchMode"; target: Ref; mode: "active" | "rest"; by?: KeywordSkill["name"] }
+  | { op: "switchMode"; target: Ref; mode: "active" | "rest"; by?: KeywordSkill["name"]; completedAs?: string }
   /**
    * 20-9: gaining control of a card is moving it into your own area and
    * becoming its master (20-9-1), which is why this is one move and not a flag
@@ -968,17 +984,19 @@ export type Op =
    * keyword skills `target` has in force as the step resolves — that is
    * `negateChosenKeyword`.
    */
-  | { op: "negate"; target?: Ref; what: NegateScope; kind?: NegatedSkillKind; keyword?: KeywordSkill["name"]; chosen?: boolean; until?: Duration }
+  | { op: "negate"; target?: Ref; what: NegateScope; kind?: NegatedSkillKind; keyword?: KeywordSkill["name"]; allAreas?: boolean; chosen?: boolean; mandatory?: boolean; until?: Duration }
   /**
    * "Choose up to 1 keyword skill on your opponent's Battle Cards and negate
    * that skill for the turn" (9-1-5, BT31-138): the master picks one keyword
    * skill among those every card `target` finds has in force right now, and
    * only that keyword is negated on that card, for `until`. The choice is of a
    * *skill*, so the menu lists keywords (with the card's name when several
-   * cards carry them) and ends with "None" for the printed "up to 1"; a target
-   * with no keyword skills asks nothing and does nothing.
+   * cards carry them). `mandatory: true` omits "None" for printed "choose 1";
+   * absent/false keeps the legacy "up to 1" choice. A target with no keyword
+   * skills asks nothing and does nothing. Choosing a skill bypasses Barrier,
+   * not a prohibition against negation (official Q&A BT2-048 / BT6-057).
    */
-  | { op: "negateChosenKeyword"; target: Ref; until: Duration }
+  | { op: "negateChosenKeyword"; target: Ref; until: Duration; mandatory?: boolean }
   /** 23-5: "switch it to Hidden Mode" / "switch it to Revealed Mode" — Battle Cards in the Battle Area only. */
   | { op: "hidden"; target: Ref; hidden: boolean; sameHiding?: boolean }
   /** "Switch the target of the attack to it" — the card becomes the guard, as a [Blocker] would (22-4-2). */
@@ -1047,6 +1065,8 @@ export type Op =
       what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
+      /** Card energy only: exact activation whose payment receives this coupon (R448). */
+      energyActivation?: import("./energy-coupons").EnergyActivation;
       /** `costReduction`'s `tag`, carried through unchanged. */
       tag?: string;
       pay?: "none" | "life" | "program" | "energy";
@@ -1090,6 +1110,8 @@ export type Op =
       what?: "energy" | "skill" | "evolve" | "combo" | "zEnergy" | "specified";
       colors?: (Color | "any")[];
       skillKind?: SkillKindPrefix;
+      /** Card energy only: exact activation whose payment receives this coupon (R448). */
+      energyActivation?: import("./energy-coupons").EnergyActivation;
       /** Audit lane E: with `skillKind: "activate"`, the one timing printed — "[Activate: Main]" or "[Activate: Battle]"; an "[Activate: Main/Battle]" line is either. */
       activateTiming?: "main" | "battle";
       /**
@@ -1138,6 +1160,8 @@ export type Op =
    */
   | {
       op: "negateKeyword";
+      /** Qualified self Permanent remains valid outside play (9-1-3-2). */
+      allAreas?: boolean;
       keyword: KeywordSkill["name"];
       target?: Ref;
       /**
@@ -1153,6 +1177,7 @@ export type Op =
    * read by every rule that looks at what a card *is*, not by the ones that
    * look at what it does.
    */
+  | { op: "energyEntryExhaust"; colors: [Color, Color] }
   | { op: "gains"; traits?: string[]; characters?: string[]; colors?: Color[]; names?: string[]; target?: Ref; allAreas?: boolean }
   /**
    * 9-10: where this card goes instead, when it would leave the Battle Area.
@@ -1197,7 +1222,7 @@ export type Op =
    * *opponent's* skill caused, which is what 19 cards print and what only a
    * caller that knows whose skill it is can answer.
    */
-  | { op: "replace"; event: ReplaceEvent; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "koInBattle" | "attack"; bySide?: "opponent" | "you"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
+  | { op: "replace"; event: ReplaceEvent; cardType?: "BATTLE" | "UNISON" | "EXTRA"; from?: ("battle" | "combo")[]; by?: "skill" | "ko" | "skillOrKo" | "skillOrKoBySkill" | "koInBattle" | "attack"; bySide?: "opponent" | "you"; to?: "hand" | "drop"; optional?: boolean; with: Op[]; target?: Ref }
   /**
    * Another way to pay for a card's own [Counter] skill (5-3): for nothing, by
    * adding cards from your life to your hand, by a reduced energy price
@@ -1272,7 +1297,7 @@ export type Op =
    * stops the play outright and sends the card there rather than into play;
    * `mode` and `negated` let the play happen but change how the card arrives.
    */
-  | { op: "resolvingPlay"; instead?: ScriptArea; position?: "top" | "bottom"; mode?: "rest"; negated?: boolean }
+  | { op: "resolvingPlay"; cardType?: "BATTLE" | "UNISON" | "EXTRA"; instead?: ScriptArea; position?: "top" | "bottom"; mode?: "rest"; negated?: boolean }
   | { op: "negateAttack" }
   /**
    * 9-7: negate the counter this one is answering. The counter being answered
@@ -1322,6 +1347,8 @@ export type Op =
       fromArea?: "hand" | "battle" | "drop" | "deck" | "energy" | "unison" | "under" | "any";
       fromOwnArea?: true;
       sameNameAsSelf?: boolean;
+      /** R469: same card number as any currently observed selected card. */
+      copiesOf?: Selector;
       bySkill?: boolean;
       exceptEvolve?: boolean;
       /** #930: "you can only play Battle Cards by using [Union-Fusion]" — the one kind of play still allowed (`Prohibition.exceptUnion`). */
@@ -1400,7 +1427,7 @@ export type Op =
    * `filter` describes may come from under the target (the granting card)
    * instead — a Battle Card the cost's own description fits, one for one.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "comboFromDrop" | "fieldBattle" | "fieldKeepOthers" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "counterFromEnergy" | "counterFromUnder" | "activateFromUnder" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; counterUnderPolicy?: "asHandV1"; activateUnderPolicy?: import("./activate-under-contract").ActivateUnderPolicy; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1408,7 +1435,7 @@ export type Op =
    * `may` reads, since `may` is this op with the second option empty
    * (`docs/arena-ruleset-spec.md` §2.3).
    */
-  | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string; chooser?: Side }
+  | { op: "chooseMode"; modes: { label: string; ops: Op[] }[]; reason?: string; chooser?: Side; counterArrivalPolicy?: "eachQualifyingPlayV1" }
   /**
    * "You may draw 1 card" (20-16): the master decides whether the rest of this
    * clause happens. Taking it silently is not the rule — and "if you don't"
@@ -1515,6 +1542,7 @@ export interface PayWith {
 }
 
 export interface SkillPrice {
+  awakenAlternative?: import("./awaken-alternative").AwakenAlternative;
   /** #907: compiled Fusion material authority; catalog wording is display only. */
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
@@ -1547,8 +1575,8 @@ export interface XCost {
   max?: number;
   /**
    * Phrasing batch 10 (22-43): "[Spirit Boost X]" — X is the number of markers the price removes from your Unison Card,
-   * not energy (BT14-029, BT14-030, BT14-090). The effect reads it back as X ("if you removed a marker … using this
-   * skill" is X ≥ 1, "for each marker you removed using this skill" is X).
+   * not energy (BT14-029, BT14-030, BT14-090). R449 effects read the actual successful marker receipt;
+   * choosing X alone does not prove those markers were removed.
    */
   spiritBoost?: true;
 }
@@ -1562,6 +1590,7 @@ export interface XCost {
  * reaches the database) to know what a price looks like.
  */
 export interface CostRecord {
+  awakenAlternative?: import("./awaken-alternative").AwakenAlternative;
   fusion?: FusionMaterials;
   evolution?: EvolutionBase;
   absorb?: AbsorbProcedure;
@@ -1575,6 +1604,8 @@ export interface CostRecord {
   marker: number | null;
   burst: number | null;
   spiritBoost: number | null;
+  /** The specified Unison paying Spirit Boost markers (22-43-3-1). */
+  spiritBoostPayer?: CardFilter;
   /** "If your Leader is red" — a condition the price states. */
   condition: Cond | null;
   /** "Switch this card to Rest Mode" — an action the price charges. */
@@ -1593,6 +1624,8 @@ export interface SkillPayment {
   marker: number | null;
   burst: number | null;
   spiritBoost: number | null;
+  /** The specified Unison paying Spirit Boost markers (22-43-3-1). */
+  spiritBoostPayer?: CardFilter;
 }
 
 /** The supported §22-13-4 procedure. Extensions are typed standing permissions,
@@ -1637,6 +1670,7 @@ export function costSentence(cost: CostRecord | null): string | null {
   if (cost.burst != null) parts.push(`Burst ${cost.burst}`);
   if (cost.spiritBoost != null) parts.push(`Spirit Boost ${cost.spiritBoost}`);
   if (cost.x?.spiritBoost) parts.push("Spirit Boost X");
+  if (cost.spiritBoostPayer) parts.push(`Spirit Boost payer: your ${describeFilter(cost.spiritBoostPayer)}`);
   // 20-19: the alternative payers are named before the conditions, because
   // they are part of what the price *is* — "pay 2 energy or use this card as
   // energy" — rather than something it also requires.
@@ -1649,6 +1683,12 @@ export function costSentence(cost: CostRecord | null): string | null {
 }
 
 export interface Script {
+  /** Typed single incoming-card replacement; absent when ordinary moves coexist. */
+  playReplacement?: import("./short-play-replacement").PlayReplacementDescriptor;
+  /** Loader provenance for a condition reconstructed from row.cond (R433). */
+  paidAdmission?: import("./paid-admission").PaidAdmission;
+  /** Compilation-only: retain a relocated resolution condition inside DO when drafting. */
+  keepResolutionCondition?: true;
   /** Existing card_rules.kind, persisted into executable contexts; required for typed Fusion. */
   kind?: Skill["kind"];
   usage?: import("./usage").UsageRecord;
@@ -1700,6 +1740,38 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  lookExecution?: import("./incremental-look").LookExecution;
+  incrementalLook?: import("./incremental-look").IncrementalLook;
+  /** R495 effect execution and dormant body/payment provenance. */
+  appliedEffects?: import("./applied-effect-receipt").Receipt;
+  appliedPaymentEffects?: import("./applied-effect-receipt").Receipt;
+
+  /** The DO queued by the Charge action; its movement is not a skill. */
+  declaredCharge?: true;
+  /** R482 original Charge action; never a skill activation. */
+  energyCharge?: import("./energy-entry-charge").EnergyChargeScope;
+  /** R475: exact copied source retained after deletion/expiry of its grant. */
+  copiedSkillCapture?: import("./triggers").CopiedSkillCapture;
+  arrivalDecision?: import("./counter-arrival-runtime").CounterArrivalDecision;
+  arrivalResume?: import("./counter-arrival-runtime").CounterArrivalResume;
+  arrivalBatch?: import("./counter-arrival-batch").CounterArrivalBatch;
+  arrivalBatchResume?: import("./counter-arrival-runtime").CounterArrivalBatchResume;
+  /** Expected scoped coupon operations captured by a fresh effect activation. */
+  energyCouponContract?: import("./energy-coupon-saves").EnergyCouponContract;
+  activationEnergyPayment?: import("./costs").CapturedEnergyCouponUses;
+  /** R463: immutable declaration origin survives payment and self-play. */
+  counterActivation?: import("./counter-activation-origin").CounterActivationOrigin;
+  /** The typed admission gate was satisfied before this Counter activated. */
+  counterAdmission?: import("./paid-admission").PaidAdmission;
+  counterChoice?: { version: 1; candidates?: { card: string; epoch: number }[] };
+  counterSource?: { version: 1; card: string; epoch: number };
+  /** R465: only explicit self references retain the captured Counter occurrence. */
+  counterSelfChoices?: import("./counter-self-binding").CounterSelfChoices;
+  /** An outstanding price for this Counter's original self-play occurrence. */
+  counterSelfTax?: import("./counter-self-binding").CounterSelfTax;
+  retainedCounter?: { version: 1; owner: number; child: number };
+  retainedResume?: import("./retained-counter").RetainedResume;
+  pendingArrival?: import("./retained-counter").PendingArrival;
   /**
    * The keyword whose own program this is ([Revive] …): a play it makes is
    * that keyword's play, which "…with skills other than [Revive Blue/Green]"
@@ -1711,12 +1783,38 @@ export interface ScriptFrame {
   validity?: import("./validity").ValidityRecord;
   /** #933: this frame is a player's declared play (`DEFINE ACTION play`/`playUnison`/`playZ`, 5-5-2), not a skill's (5-5-3): its `play` op is asked of 20-14 as `bySkill: false`. Additive: an older suspended frame was a declared play only by its `ops`, and a skill play is the default. */
   declaredPlay?: true;
+  /** R-421: identity of an activated immediate effect, separate from prices
+   * and quoted/delayed programs. Copied by its own resumable continuations. */
+  skillEffectOrigin?: import("./skill-play-scope").SkillEffectOrigin;
+  /** Internal end-of-effect boundary, after nested invocations and before
+   * the runner permits a checkpoint. Never a card-text operation. */
+  skillPlayFinish?: { version: 1; scope: number };
+  replacementAuto?: import("./replacement-auto").ReplacementAuto;
+  replacementFallback?: import("./replacement-auto").ReplacementAuto;
+  /** Original Combo departure waiting beneath a replacement scope; only its
+   * completed original move credits this parent's may/did witness. */
+  replacementMove?: { card: string; epoch: number; completedAs?: string };
+  switchCandidates?: Record<string, { card: string; epoch: number }[]>;
+  switchResults?: Record<string, { version: 1; completed: boolean }>;
+  completionSource?: { version: 1; card: string; epoch: number };
+  koBinding?: import("./ko-result").KoBinding;
+  koResults?: Record<string, import("./ko-result").KoResult>;
+  movementResults?: Record<string, import("./movement-result").MovementResult>;
+  underSource?: { version: 1; card: string; epoch: number };
+  /** Exact Counter kind and the unknown-target window it answered. */
+  counterPlay?: true;
+  counterAnswerScope?: number;
+  skillPlayInternal?: { version: 1; kind: "arrivalBinding" };
+  /** Successful arrivals named by an after-effect Counter, with occurrences. */
+  resolvedPlayCards?: { card: string; epoch: number }[];
   /** 22-5-5-1 / 3-1-4: the chosen evolution base is the same area-entry
    * through the Counter: Play window, including a leave-and-return. */
   evolutionBase?: { card: string; zoneEpoch: number };
   /** #929: the [Union] play's source, host and materials as they stood when the play was declared (card, area-change count) — what the counter window must leave where it was. */
   unionBound?: { card: string; zoneEpoch: number }[];
   /** #920: explicit Drop activation action price, additive for newly queued frames only. */
+  activateUnderPayment?: true;
+  activateUnderCost?: import("./activate-under-cost").ActivateUnderCost;
   dropCost?: import("./drop-costs").DropCost;
   /** #624: optional Revive hand payment before determining additional costs.
    * Additive at state version 10: older suspended frames execute their stored
@@ -1726,8 +1824,23 @@ export interface ScriptFrame {
   aegisCost?: import("./aegis-costs").AegisCost;
   /** #549: captured, reloadable Auto cost/effect continuation. */
   autoCost?: import("./auto-costs").AutomaticCost;
+  /** R510: private original play payment, retained into the activated body. */
+  autoPlayCost?: import("./auto-play-cost").AutoPlayCostReceipt;
+  /** R457: original Field declaration and ordered Extra payment continuation. */
+  fieldCost?: import("./field-costs").FieldCost;
+  awakenAlternativePaid?: import("./awaken-alternative-costs").AwakenAlternativePaid;
+  awakenAlternativeCost?: import("./awaken-alternative-costs").AwakenAlternativeCost;
+  /** R469: mandatory other-Field cleanup, with suspendable replacements. */
+  fieldCleanup?: import("./field-rules").FieldCleanup;
+  /** R-399: an exact, saved selection for freely chosen resource pools. */
+  poolPayment?: import("./pooled-costs").FramePoolPayment;
   /** #677: the 20-14 prices on an activation, charged one at a time and re-read live in front of what it guards. Additive: older states never carry one. */
   taxGate?: import("./activate").TaxGate;
+  /** R453: source authority while a queued Extra Counter tax is being paid. */
+  counterNonhandTax?: import("./counter-nonhand-tax").CounterNonhandTax;
+  extraCounterTax?: { version: 1; source: import("./counter-extra-cost").ExtraCounterSource };
+  /** The Extra skill declared in hand survives source placement and self-costs. */
+  counterDeclaredScript?: { version: 1; card: string; skillIndex: number; kind: string; script: Script };
   /** #716: a [Counter]'s printed action price, paid on the strict host before the skill activates. Additive: older states never carry one. */
   counterCost?: import("./battle").CounterCost;
   /** #552: this frame is an activated [Counter]'s counter motion (9-7-2), answered by a [Counter: Counter] window before it resolves. Additive: older states never carry one. */
@@ -1772,8 +1885,16 @@ export interface ScriptFrame {
   subject?: string;
   /** §9-6-9-1-3 movement information, captured separately from live zones. */
   subjectInfo?: import("./cards").Attrs;
+  /** R-389: historical characteristics of successfully paid pooled cards, separate from live epoch-bound refs. */
+  paidCardInfo?: Record<string, Record<string, import("./cards").Attrs>>;
+  paidMarkers?: import("./paid-markers").PaidMarkers;
+  markerHistoryContract?: import("./paid-markers").MarkerHistoryContract;
   /** #930: the source's [Union] entry memory (`VmCard.enteredUsing`) as the skill was activated (`vm/activate.ts`) — "this card" after it left as the cost — or, for an [Auto], as it was triggered (`VmPending.selfEnteredUsing`, `vm/flow.ts`): a copy that left before resolving keeps it. Additive: older frames carry none. */
   selfEnteredUsing?: string;
+  /** R-362: the original face-up Life occurrence; only self selections explicitly in Life use this guard. */
+  faceUpLifeEpoch?: number;
+  /** R487 self occurrence captured when either paired moment entered pending. */
+  pairedSelf?: import("./paired-self").PairedSelf;
   /** #930: the subject's [Union] entry memory as the [Auto] was triggered (`VmPending.subjectEnteredUsing`, `vm/flow.ts`) — "when your <X> card is played by a [Union] skill" — kept if it left before resolving. Additive: older frames carry none. */
   subjectEnteredUsing?: string;
   /** Audit conditions 2: the card whose skill played the source (`VmCard.enteredBy`) as the [Auto] was triggered (`VmPending.selfEnteredBy`) — "when you play this card with the skill of {X}" — kept if it left before resolving. Additive: older frames carry none. */
@@ -1794,6 +1915,8 @@ export interface ScriptFrame {
   pendingHookIdentityMissing?: true;
   /** Set while a `choose` is waiting for an answer. */
   awaiting?: string;
+  /** Exact menu positions, persisted across JSON reload; absent on legacy name-only menus. */
+  keywordChoices?: (import("./program").KeywordInstance & { card: string; zoneEpoch: number })[];
   /** Closed areas this running skill actually inspected, persisted across a choice/reload. */
   lookedAreas?: Partial<Record<PlayerId, ("deck" | "life")[]>>;
   /**
@@ -1811,6 +1934,9 @@ export interface ScriptFrame {
   searchedDecks?: PlayerId[];
   /** Card selected for a nested skill activation while its line is being chosen. */
   invokingCard?: string;
+  /** R-420: nested activation choices identify the same occurrence after reload. */
+  invokingEpoch?: number;
+  invokingCandidates?: { card: string; epoch: number }[];
   /** Offered skill indices stay bound to their prompt positions across reload. */
   invokingLines?: number[];
   /** A mode prompt's positions cannot be silently reinterpreted after a board change. */
@@ -1828,6 +1954,20 @@ export interface ScriptFrame {
    * what the price chose (4-3-3).
    */
   saveVarsAs?: string;
+  /** R516: selected original payer, then native movement result; private continuation only. */
+  paidRemoval?: import("./paid-removal-runtime").PaidRemovalFrame;
+  paidDrop?: import("./paid-drop-runtime").PaidDropFrame;
+  paidHand?: import("./paid-hand-contract").PaidHandFrame;
+  paidWarp?: import("./paid-warp-runtime").PaidWarpFrame;
+  /** Original ordinary Activate price and successful effect continuation. */
+  ordinaryActivation?: import("./ordinary-activate-runtime").OrdinaryActivation;
+  /** R-387: an Awaken action payment keeps the Leader and its chosen material occurrences across reloads. */
+  overRealmSource?: OverRealmSource;
+  overRealmPaidTaxes?: string[];
+  overRealmReturn?: import("../types").OverRealmReturn | null;
+  /** R456: strict payment of a newly appearing tax on this native OR play. */
+  overRealmLateTax?: import("./over-realm-cost").OverRealmLateTax;
+  awakenPayment?: { sourceEpoch: number; chosenEpochs: Record<string, number> };
   /**
    * #1117 (4-3-3, 5-8-2-2): set on a price's frame when a step of the price did
    * not really happen — a KO the card was spared, a card that did not join the
@@ -1877,6 +2017,9 @@ export interface ScriptFrame {
    * "you may" also made "up to" is owed in full (`owedInFull`, #720).
    */
   offered?: true;
+  /** R476: original movement owns its optional pre-entry effect through suspension. */
+  energyEntry?: import("./energy-entry-continuation").EnergyEntryContinuation;
+  energyEntrySequence?: number;
   /** A `moveTo`/`ko` loop suspended for a replacement choice. */
   moveLoop?: {
     kind: "moveTo" | "ko";
@@ -2176,13 +2319,21 @@ const PLAY_TAX_ASKED = "§playTaxAsked";
 
 /** `switchMode` on these cards, with the moments a switch to Rest Mode pends (1-10). */
 function switchAll(h: ScriptHost, frame: ScriptFrame, op: Extract<Op, { op: "switchMode" }>, ids: string[], master: PlayerId): void {
+  if (op.completedAs) {
+    if (ids.length > 1) movementRebuild("original switch completion requires at most one selected card");
+    const candidates = frame.switchCandidates?.[op.completedAs];
+    if (!Array.isArray(candidates) || new Set(candidates.map(item => item?.card)).size !== candidates.length || candidates.some(item => !item || typeof item.card !== "string" || !Number.isSafeInteger(item.epoch) || item.epoch < 0)) movementRebuild("rebuild this saved switch chooser occurrence");
+    ids = ids.filter(id => candidates.some(item => item.card === id && item.epoch === h.zoneEpoch(id)));
+    (frame.switchResults ??= {})[op.completedAs] = { version: 1, completed: false };
+  }
   for (const id of ids) {
     const was = h.modeOf(id);
     // The switch says what caused it — this skill, and the keyword whose
     // skill it is when a keyword body names one (#157) — so a host that
     // fires the moment itself can tell "by one of your skills" from "by
     // an [Alliance] skill" (the rules engine's `modeSwitched(by: …)`).
-    h.setMode(id, op.mode, { card: frame.card, master, ...(op.by ? { keyword: op.by } : {}), ...(frame.skillKind ? { kind: frame.skillKind } : {}) });
+    const completed = h.setMode(id, op.mode, { card: frame.card, master, ...(op.by ? { keyword: op.by } : {}), ...(frame.skillKind ? { kind: frame.skillKind } : {}) });
+    if (op.completedAs && completed && was === "active" && op.mode === "rest") frame.switchResults![op.completedAs].completed = true;
     // "When this card is switched to Rest Mode by one of your skills"
     // (1-10): the card and the skill both have to be yours, which is what
     // "your" says — an opponent resting it is not this moment.
@@ -2313,9 +2464,24 @@ function rememberLook(frame: ScriptFrame, player: PlayerId, areas: ("deck" | "li
  * ended or a sub-flow (playing a card) took over.
  */
 export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
+  h.guardEnergyEntryFrame?.(frame);
+  if (frame.viaKeyword === "Over Realm" && (!frame.overRealmSource || frame.overRealmSource.version !== 1)) throw new NotYet("rebuild this saved Over Realm source/payment continuation", "R456");
+  if (frame.viaKeyword === "Over Realm" && !frame.keywordPrice && (!Array.isArray(frame.overRealmPaidTaxes) || frame.overRealmPaidTaxes.some(key => typeof key !== "string"))) throw new NotYet("rebuild this saved Over Realm completed-payment receipt", "R456");
+  requireCounterSelfBinding(frame, undefined);
+  prepareUnderSource(frame, h.zoneEpoch(frame.card));
+  prepareCompletionSource(frame, h.zoneEpoch(frame.card));
   const master = frame.master;
 
   for (let guard = 0; guard < 200; guard++) {
+    if (frame.ordinaryActivation && frame.saveVarsAs && frame.priceUnpaid) { frame.ip = frame.ops.length; frame.moveLoop = undefined; }
+    if (frame.awakenPayment && frame.saveVarsAs) {
+      const payment = frame.awakenPayment;
+      if (h.areaOf(frame.card) !== "leader" || h.zoneEpoch(frame.card) !== payment.sourceEpoch
+        || Object.entries(payment.chosenEpochs).some(([id, epoch]) => h.zoneEpoch(id) !== epoch)) {
+        frame.priceUnpaid ??= "the Awaken Leader or a chosen payment card changed area";
+      }
+      if (frame.priceUnpaid) frame.ip = frame.ops.length;
+    }
     if (frame.ip >= frame.ops.length) {
       // A skill's price is its own program, run before the effect (4-3-3), but
       // the effect may point back at what the price chose: "Choose 1 {Tree of
@@ -2330,7 +2496,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         return "done";
       }
       if (frame.saveVarsAs) {
-        h.saveVars(frame.saveVarsAs, { ...frame.vars });
+        h.saveVars(frame.saveVarsAs, { ...frame.vars }, frame.paidCardInfo);
         // 20-5: and the X a `bindX` choose bound, for the prices that are a
         // choice rather than an energy payment ("discard any number of cards:
         // … X cards"). Under a key of its own rather than folded into the
@@ -2357,8 +2523,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
     // None of them ever reads an op another produces, so the order of the
     // composition is immaterial.
     const op = revealAs(moveAs(replaceAs(costModifierAs(negateAs(modifyAttrAs(frame.ops[frame.ip]))))));
+    prepareCounterSelfBinding(frame, op);
+    const deferredCounter = h.deferCounterOperation?.(frame, op);
+    if (deferredCounter === "retained") return "done";
+    if (deferredCounter) { frame.ip++; continue; }
 
     switch (op.op) {
+      case "energyEntryExhaust":
+        throw new NotYet("an Energy entry descriptor outside its original movement", "R476");
       case "note":
         h.note(op.text);
         break;
@@ -2460,9 +2632,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // The name is bound either way: a clause asking about a card that was
         // never there has to come out false, not match whatever was bound
         // before it.
+        const paid = !!op.as && (!!frame.saveVarsAs || frame.autoCost?.stage === "action");
+        const paidInfo: Record<string, import("./cards").Attrs> = {};
+        const paidEpochs: string[] = [];
+        let unpaid = false;
         const milled: string[] = [];
         for (const p of sideOf(master, op.side)) {
           const n = h.amount(frame, op.n);
+          if (paid && h.zone(p, "deck").length < n) unpaid = true;
           for (let i = 0; i < n && h.zone(p, "deck").length; i++) {
             const id = h.zone(p, "deck")[0];
             const movedMaster = h.masterOf(id);
@@ -2470,9 +2647,22 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             // Moments batch 1: a skill's move out of the deck — "placed in your Drop from your deck by a skill" (BT16-009).
             // Placed face up, but not a reveal (20-11-1): "revealed from the top of your deck" is a skill that says so.
             if (h.areaOf(id) === "drop") pendMovedBySkill(h, frame, id, { fromArea: "deck", pileHost: undefined, movedMaster, revealed: false });
+            if (paid) {
+              if (h.areaOf(id) !== "drop" || h.masterOf(id) !== p) unpaid = true;
+              else { paidInfo[id] = h.cardInfo(id); paidEpochs.push(`${id}@${h.zoneEpoch(id)}`); }
+            }
             milled.push(id);
             frame.acted = (frame.acted ?? 0) + 1;
           }
+        }
+        if (unpaid) {
+          if (frame.saveVarsAs) frame.priceUnpaid ??= "the complete mill price did not reach its Drop Area";
+          else throw new IllegalAction("the complete mill price did not reach its Drop Area");
+        } else if (paid && op.as) {
+          const name = `paid_mill_${op.as}`;
+          (frame.paidCardInfo ??= {})[name] = paidInfo;
+          frame.vars[name] = [...milled];
+          frame.vars[`${name}@epoch`] = paidEpochs;
         }
         if (op.as) frame.vars[op.as] = milled;
         break;
@@ -2555,6 +2745,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const owner = owners.find((p) => !all.filter((id) => h.ownerOf(id) === p).every((id) => order.includes(id)));
           const open = all.filter((id) => h.ownerOf(id) === owner && !order.includes(id));
           if (!pick || !open.includes(pick)) throw new IllegalAction("that card is not one of the cards to put back");
+          h.recordInspectionOrder?.(frame,pick);
           order.push(pick);
         }
         let asked = false;
@@ -2598,28 +2789,35 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           h.clearLastChoice();
           if (optional && answer?.length === 0) {
             frame.invokingCard = undefined;
+            frame.invokingEpoch = undefined;
+            frame.invokingCandidates = undefined;
             frame.awaiting = undefined;
             break;
           }
           card = answer?.length === 1 ? answer[0] : undefined;
-          if (!card || !candidates.includes(card)) throw new IllegalAction("that hand card cannot have its skill activated now");
+          if (!card || !candidates.includes(card) || (frame.invokingCandidates && !frame.invokingCandidates.some(p => p.card === card && p.epoch === h.zoneEpoch(card!)))) throw new IllegalAction("that card cannot have its skill activated now");
           frame.invokingCard = card;
+          frame.invokingEpoch = h.zoneEpoch(card);
+          frame.invokingCandidates = undefined;
           frame.awaiting = undefined;
         }
         if (!card) {
           if (!candidates.length) {
             if (optional) break;
-            throw new IllegalAction("there is no qualifying skill to activate from hand");
+            throw new IllegalAction(`there is no qualifying skill to activate from ${op.from}`);
           }
           if (optional || candidates.length > 1) {
             frame.awaiting = "invokeCard";
+            frame.invokingCandidates = candidates.map(id => ({ card: id, epoch: h.zoneEpoch(id) }));
             h.resume(frame);
             h.ask({ kind: "chooseCards", player: master, choice: { reason: `${h.nameOf(frame.card)}: choose ${"trait" in op ? `a ${op.trait} card` : "a qualifying Extra"} whose ${op.skillKind} skill to activate`, candidates, min: optional ? 0 : 1, max: 1, continuation: "invokeCard" } });
             return "wait";
           }
           card = candidates[0];
           frame.invokingCard = card;
+          frame.invokingEpoch = h.zoneEpoch(card);
         }
+        if (!candidates.includes(card) || (frame.invokingEpoch !== undefined && frame.invokingEpoch !== h.zoneEpoch(card))) throw new IllegalAction("the selected card is no longer the same occurrence");
         const skills = eligible(card);
         if (!skills.length) throw new IllegalAction("the selected skill is no longer eligible");
         let skill = skills[0];
@@ -2640,6 +2838,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           return "wait";
         }
         frame.invokingCard = undefined;
+        frame.invokingEpoch = undefined;
         frame.ip++;
         h.resume(frame);
         h.invokeSkill(master, card, skill.index, op);
@@ -2690,6 +2889,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "look": {
+        if (op.upTo) {
+          if (!h.incrementalLook) throw new NotYet("inspect privately without the native continuation host", "R527");
+          const result = h.incrementalLook(frame, op);
+          if (result === "wait") return result;
+          break;
+        }
         // 20-11: looking is not revealing — only the player looking sees them,
         // which is why the cards are bound to a name rather than moved.
         const p = sideOf(master, op.side)[0];
@@ -2727,6 +2932,30 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "choose": {
+        if (frame.counterChoice || frame.arrivalDecision) {
+          const witness = frame.counterChoice ?? frame.arrivalDecision!;
+          if (witness.version !== 1) movementRebuild("rebuild this saved Counter chooser witness");
+          if (frame.awaiting === op.as) {
+            if (!Array.isArray(witness.candidates) || new Set(witness.candidates.map(item => item?.card)).size !== witness.candidates.length || witness.candidates.some(item => !item || typeof item.card !== "string" || !Number.isSafeInteger(item.epoch) || item.epoch < 0)) movementRebuild("rebuild this saved Counter chooser occurrences");
+            if (h.lastChoice()?.some(id => !witness.candidates!.some(item => item.card === id && item.epoch === h.zoneEpoch(id)))) throw new IllegalAction("that Counter choice occurrence is no longer available");
+          } else witness.candidates = h.resolveSelector(frame, op.sel).map(card => ({ card, epoch: h.zoneEpoch(card) }));
+        }
+        const placement = frame.ops[frame.ip + 1];
+        if (placement?.op === "switchMode" && placement.completedAs) {
+          if (op.sel.count !== 1 || placement.completedAs !== op.as) movementRebuild("switch completion requires a one-card bound chooser");
+          if (frame.awaiting === op.as) {
+            if (!frame.switchCandidates?.[op.as]) movementRebuild("rebuild this saved switch chooser occurrence");
+          } else (frame.switchCandidates ??= {})[op.as] = h.resolveSelector(frame, op.sel).map(card => ({ card, epoch: h.zoneEpoch(card) }));
+        }
+        if (placement?.op === "moveTo" && placement.to === "under" && placement.completedAs === op.as) {
+          if (frame.awaiting === op.as) movementDestination(frame, op.as);
+          else {
+            const hosts = placement.under ? h.resolveRef(frame, placement.under) : [frame.card];
+            const sourceStillCurrent = !underSelfMove(placement) || frame.underSource?.epoch === h.zoneEpoch(frame.card);
+            const destination = hosts.length === 1 && sourceStillCurrent ? { card: hosts[0], epoch: h.zoneEpoch(hosts[0]) } : null;
+            startMovementResult(frame, op.as, [], destination);
+          }
+        }
         // A search over several closed areas exposes their joint pool to the
         // chooser. Record the areas on the frame only when this step is run,
         // so an unchosen branch cannot cause a later conditional shuffle.
@@ -2769,6 +2998,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const described = describesCard(op.sel);
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
+          h.recordInspectionChoice?.(frame,op,picked);
           // Phrasing batch 4 (owner's approval of 26 Oct 2026; 5-8-2-2): an action price's exact "choose N" — not "up
           // to", not "all", not a bound read off the board — is paid in full or not at all. Fewer cards than that at
           // payment time (5-2-5's "as many as possible" is an effect's, never a price's) leaves the price unpaid: the
@@ -2780,6 +3010,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             return;
           }
           frame.vars[op.as] = picked;
+          // R-396: a Z-Awaken payment may pause for a movement replacement.
+          // Bind the selected occurrence so resuming cannot pay with a reentry.
+          if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
+          if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers = mergeTaxPayers(frame.keywordCost.overRealm.tax.payers, picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          if (frame.overRealmLateTax) frame.overRealmLateTax.payers = mergeTaxPayers(frame.overRealmLateTax.payers, picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] ??= h.zoneEpoch(id);
           // Mechanism batch 2 (3-1-7): a card picked out of a secret area by a description is shown if it goes on to
           // another secret area; remembered here, while it is still where it was chosen from.
           // Phrasing batch 10 (owner's ruling of 27 Oct 2026): a pick out of the hand too — the hand is a secret area.
@@ -2797,6 +3033,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         };
         // Cards picked so far, while a multi-card choice is part-answered.
         const sofar = frame.awaiting === op.as ? (frame.vars[op.as] ?? []) : [];
+        if (frame.awakenPayment && sofar.some(id => !Number.isSafeInteger(frame.awakenPayment!.chosenEpochs[id]))) {
+          throw new IllegalAction("rebuild this saved Awaken choice with its original payer occurrences (R-470)");
+        }
 
         // 22-13-4-2: the characters a [Union-Fusion] line names, one card each
         // and all of one printed power, picked one card at a time among the
@@ -2929,8 +3168,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         let room = bound ? h.amount(frame, bound.total) - sofar.reduce((n, id) => n + measure(id), 0) : Infinity;
         // #930, BT26-088: only a card whose specified cost the counted cards can pay.
         const payable = op.specifiedCostAtMost !== undefined ? h.amount(frame, op.specifiedCostAtMost) : Infinity;
+        const exactEnergy = op.energyCostEquals === undefined ? undefined : h.amount(frame, op.energyCostEquals);
+        if (exactEnergy !== undefined && (!Number.isSafeInteger(exactEnergy) || exactEnergy < 0)) throw new IllegalAction("the per-card energy-cost bound must be a nonnegative integer");
+        const energy = (id: string) => h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: "energyCost" });
         const specified = (id: string) => h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: "specifiedCost" });
-        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && (payable === Infinity || specified(id) <= payable) && (!unionOf || fillsNames([...sofar, id])) && priceTargetFits(h, frame, op.as, id));
+        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && (exactEnergy === undefined || h.cardInfo(id).energyCost != null && energy(id) === exactEnergy) && (payable === Infinity || specified(id) <= payable) && (!unionOf || fillsNames([...sofar, id])) && priceTargetFits(h, frame, op.as, id));
         // #970: a slot of a disjoint set offers only the cards that leave the
         // slots after it a card each — never a way into a dead end, and a
         // duplicate is not a candidate for the answer to be checked against.
@@ -2943,7 +3185,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // find"). Only the candidates in open areas still have to be taken. Never a price's (5-8-2-2 is paid in full).
         // Phrasing batch 9: the hand's cards only on an effect — a price run on a frame of its own ([Aegis]'s hand colours,
         // a [Revive], a keyword's action price, …) is paid in full (5-8-2-2), as a `saveVarsAs` price is.
-        const paying = !!(frame.saveVarsAs || frame.aegisCost || frame.reviveCost || frame.dropCost || frame.autoCost || frame.counterCost || frame.swapCost || frame.keywordCost || frame.keywordPrice);
+        const paying = !!(frame.saveVarsAs || frame.aegisCost || frame.fieldCost || frame.awakenAlternativeCost || frame.reviveCost || frame.dropCost || frame.activateUnderCost || frame.autoCost || frame.counterCost || frame.swapCost || frame.keywordCost || frame.keywordPrice);
         const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => (paying ? inSecretPile(h, id) : declinablePick(h, id))).length : 0;
         const floor = secretCands ? Math.min(minimum, sofar.length + cands.length - secretCands) : minimum;
 
@@ -2981,6 +3223,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // card ends an "up to" choice early, as 5-2-4 allows.
           const done = picked.length >= want || picked.length === sofar.length || picked.length >= sofar.length + cands.length;
           frame.vars[op.as] = picked;
+          // R-443: optional Z-Awaken payments can pause between picks too.
+          if (frame.keywordCost?.line.keyword?.name === "Z-Awaken") frame.vars[`${op.as}@epoch`] = picked.map(id => `${id}@${h.zoneEpoch(id)}`);
+          if (frame.keywordCost?.overRealm?.tax) frame.keywordCost.overRealm.tax.payers = mergeTaxPayers(frame.keywordCost.overRealm.tax.payers, picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          if (frame.overRealmLateTax) frame.overRealmLateTax.payers = mergeTaxPayers(frame.overRealmLateTax.payers, picked.map(card => ({ card, epoch: h.zoneEpoch(card) })));
+          // R-470: retain each Awaken payer while the remaining picks are pending.
+          if (frame.awakenPayment) for (const id of picked) frame.awakenPayment.chosenEpochs[id] ??= h.zoneEpoch(id);
           if (done) {
             frame.awaiting = undefined;
             take(picked);
@@ -3030,13 +3278,29 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         return "wait";
       }
 
-      case "ko":
-        frame.moveLoop ??= { kind: "ko", ids: h.resolveRef(frame, op.target), index: 0, reason: "ko" };
+      case "ko": {
+        if (op.completedAs && (!frame.koBinding || frame.koBinding.name !== op.completedAs)) koResultRebuild("missing active original KO binding");
+        if (!frame.moveLoop) {
+          const ids = h.resolveRef(frame, op.target);
+          if (op.completedAs) {
+            if (frame.koResults?.[op.completedAs]) koResultRebuild("original KO cannot restart from saved outcomes");
+            (frame.koResults ??= {})[op.completedAs] = startKoResult(frame.koBinding!, ids.map(card => ({ card, epoch: h.zoneEpoch(card), owner: h.ownerOf(card) })));
+          }
+          frame.moveLoop = { kind: "ko", ids, index: 0, reason: "ko" };
+        }
+        const recordKo = op.completedAs ? (outcome: KoOutcome) => recordKoOutcome(frame.koResults![op.completedAs!], frame.koBinding!, frame.moveLoop!.index, outcome) : undefined;
+        const refusedKo = (id: string) => recordKo?.({ card:id, fromEpoch:h.zoneEpoch(id), toEpoch:h.zoneEpoch(id), to:h.areaOf(id) as import("../types").Area | null,
+          owner:h.ownerOf(id), moved:false, route:{skillReplacementApplied:false,nativeHook:"none",primitiveRemoval:"none"}, cost:null });
         while (frame.moveLoop && frame.moveLoop.kind === "ko" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
+          if (op.completedAs) {
+            const receipt = frame.koResults?.[op.completedAs]; requireKoResult(receipt, frame.koBinding!, frame.moveLoop.index);
+            if (receipt.selected[frame.moveLoop.index]?.epoch !== h.zoneEpoch(id)) koResultRebuild("selected KO occurrence changed before attempt");
+          }
           // 22-12: [Indestructible] cannot be KO'd by an opponent's skill.
           if (h.hasKeyword(id, "Indestructible") && h.masterOf(id) !== master) {
             if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} cannot be KO'd`;
+            refusedKo(id);
             frame.moveLoop.index++;
             continue;
           }
@@ -3045,6 +3309,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // Battle Cards" (BT10-058, `byTypes`), as the move below does.
           if (h.forbids("beKOdBySkill", { player: master, card: id, ...(frame.card ? { source: frame.card } : {}) })) {
             if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} cannot be KO'd`;
+            refusedKo(id);
             frame.moveLoop.index++;
             continue;
           }
@@ -3077,7 +3342,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const before = frame.moveLoop.beforeDrop ?? h.zone(h.ownerOf(id), "drop").length;
             frame.moveLoop.beforeDrop = undefined;
             const deferred = defers(replaced);
-            h.ko(id, frame.card, replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced });
+            const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
+            if (substitute) h.prepareReplacement?.(substitute, id, "drop", { owner: h.ownerOf(id), reason: "ko", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
+            h.ko(id, frame.card, { ...(recordKo ? { onKoResult: recordKo } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+            if (frame.ordinaryActivation && frame.saveVarsAs && frame.priceUnpaid) {
+              if (deferred) h.interrupt(substitute!, frame); else h.resume(frame);
+              return "done";
+            }
+            if (op.completedAs) requireKoResult(frame.koResults?.[op.completedAs], frame.koBinding!, frame.moveLoop.index + 1);
             // "If you KO'd a card" (20-16): only a KO that happened counts.
             if (h.zone(h.ownerOf(id), "drop").length > before) { (frame.did ??= {}).ko = true; frame.acted = (frame.acted ?? 0) + 1; }
             // #1117: the price is paid by this card standing in the Drop, not by the attempt: anything that kept it
@@ -3086,16 +3358,20 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             if (frame.saveVarsAs && !h.zone(h.ownerOf(id), "drop").includes(id)) frame.priceUnpaid ??= `${h.nameOf(id)} was not KO'd`;
             if (deferred) {
               frame.moveLoop.index++;
-              h.interrupt(substituteFrame(h, id, replaced!), frame);
+              h.interrupt(substitute!, frame);
               return "done";
             }
-          }
+          } else refusedKo(id);
           frame.moveLoop.index++;
         }
         frame.moveLoop = undefined;
         break;
+      }
 
       case "moveTo": {
+        // Refuse unsupported optional entries before receipts, RNG, or any card
+        // in the batch changes. Existing hosts retain their normal resolution.
+        if (op.to === "energy" && h.guardEnergyEntryBatch) h.guardEnergyEntryBatch(frame, frame.moveLoop?.ids ?? h.resolveRef(frame, op.target));
         // 23-2: under a card is not an area of its own, so it is its own move.
         // #1123: a host named by a selector is taken only when it matches one card. Several matches
         // are a choice the record never asked (the compiler makes a counted host a `choose`), and
@@ -3112,7 +3388,22 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // takes, named for a later clause (which also asks where they are by then).
         // Several moves under one name add up: "send up to 1 <Vegeta> card and 1 <Nappa> card … to your Warp … play all
         // the cards sent to the Warp by this skill" (BT7-051) is both cards.
+        if (op.completedAs && (!("var" in op.target) && !selfCompletionMove(op) && !allHandPaymentMove(op) || op.to === "play")) movementRebuild("rebuild the original-movement target contract");
+        if (op.completedAs && !h.reportsMovement) movementRebuild("this host cannot report original movement completion");
+        if (op.completedAs && frame.moveLoop) validateMovementResult(frame, op.completedAs);
+        if (op.completedAs && !frame.moveLoop && selfCompletionMove(op)) startMovementResult(frame, op.completedAs, [{ card: frame.card, epoch: frame.completionSource!.epoch }]);
+        if (op.completedAs && !frame.moveLoop && "var" in op.target) {
+          const name = op.target.var;
+          const stamps = frame.vars[epochVar(name)];
+          const selected = (frame.vars[name] ?? []).map(card => {
+            const stamp = stamps?.find(item => item.startsWith(`${card}@`));
+            return { card, epoch: stamp ? Number(stamp.slice(card.length + 1)) : h.zoneEpoch(card) };
+          });
+          const destination = op.to === "under" ? movementDestination(frame, op.completedAs) : undefined;
+          startMovementResult(frame, op.completedAs, selected, destination);
+        }
         if (op.as && !frame.moveLoop) frame.vars[op.as] = [...new Set([...(frame.vars[op.as] ?? []), ...h.resolveRef(frame, op.target)])];
+        if (allHandPaymentMove(op) && (!frame.ordinaryActivation || !frame.paidHand || !frame.movementResults?.[op.completedAs!])) handPaymentRebuild();
         frame.moveLoop ??= {
           kind: "moveTo",
           ids: op.random ? shuffledIds(h, h.resolveRef(frame, op.target)) : h.resolveRef(frame, op.target),
@@ -3122,14 +3413,30 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           reveal: op.reveal,
           mode: op.mode,
           faceUp: op.faceUp,
-          reason: op.cause ?? "effect",
+          reason: frame.declaredCharge ? "charge" : op.cause ?? "effect",
         };
         while (frame.moveLoop && frame.moveLoop.kind === "moveTo" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
+          // A suspended optional effect finishes before any newly active
+          // prohibition can skip its original incoming card. Its final payer
+          // movement may change those rules, so completion reruns them below.
+          if (frame.energyEntry && h.prepareEnergyEntry) {
+            const entry = h.prepareEnergyEntry(frame, id, frame.energyEntry.witness.destination);
+            if (entry === "wait") return "wait";
+            if (entry === "recheck") continue;
+          }
+          if (op.completedAs && !frame.movementResults![op.completedAs].selected.some(item => item.card === id && item.epoch === h.zoneEpoch(id))) {
+            if (frame.awaiting === "replaceMove") { h.clearLastMode(); frame.awaiting = undefined; }
+            frame.moveLoop.index++;
+            continue;
+          }
           // 3-1-2: a Leader Card stays in the Leader Area. Skills may change
           // its power or negate it, but nothing puts it anywhere else — and
           // an empty Leader Area is a state the rest of the engine cannot read.
-          if (h.areaOf(id) === "leader") {
+          // R-397 / 15-1-4-2, -5: the controller's effect may move its
+          // Z-Leader; the zone primitive removes only that top card and
+          // restores its Leader. Ordinary Leaders and opponent effects stay barred.
+          if (h.areaOf(id) === "leader" && !(h.defOf(id).type === "Z-LEADER" && h.masterOf(id) === master)) {
             frame.moveLoop.index++;
             continue;
           }
@@ -3154,8 +3461,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // "You can't use non-≪Red Ribbon Army≫ card skills to place cards in
           // your energy" (BT17-032, `fromArea: "any"`): a card from any area —
           // a rule naming no area is still about the Battle Area alone.
-          if (leaving && h.forbids("beMovedBySkill", { card: id, player: master, from: leaving, to: op.to, toBottom: op.position === "bottom", ...(frame.card ? { source: frame.card } : {}) })) {
+          if (!frame.declaredCharge && leaving && h.forbids("beMovedBySkill", { card: id, player: master, from: leaving, to: op.to, toBottom: op.position === "bottom", ...(frame.card ? { source: frame.card } : {}) })) {
             if (frame.saveVarsAs) frame.priceUnpaid ??= leaving === "battle" ? `${h.nameOf(id)} can't be removed from the Battle Area` : `${h.nameOf(id)} can't be moved from the ${leaving}`;
+            // R525: stop this exact price at the refused instruction. Its
+            // untouched suffix is not a movement result and cannot be paid.
+            if (frame.ordinaryActivation && frame.saveVarsAs && allHandPaymentMove(op)) { h.resume(frame); return "done"; }
             frame.moveLoop.index++;
             continue;
           }
@@ -3168,6 +3478,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             continue;
           }
           if (op.to === "under") {
+            if (op.completedAs) {
+              const destination = movementDestination(frame, op.completedAs);
+              if (!destination || destination.card !== host || h.zoneEpoch(destination.card) !== destination.epoch) { frame.moveLoop.index++; continue; }
+            }
             // 20-14: "you can't place cards under this card, except with this
             // card's skill" (BT25-008, BT7-022) — asked of the host.
             if (host && h.forbids("placeUnder", { card: host, player: master, moving: id, ...(frame.card ? { source: frame.card } : {}) })) {
@@ -3175,7 +3489,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               frame.moveLoop.index++;
               continue;
             }
-            if (host) { h.placeUnder(id, host); frame.acted = (frame.acted ?? 0) + 1; }
+            if (host) {
+              const placed = h.placeUnder(id, host, frame, op.completedAs ? result => recordMovementResult(frame, op.completedAs!, result) : undefined);
+              if (placed) frame.acted = (frame.acted ?? 0) + 1;
+              if (frame.awakenPayment) {
+                if (placed) frame.awakenPayment.chosenEpochs[id] = h.zoneEpoch(id);
+                else frame.priceUnpaid ??= "an Awaken payment card could not be placed under its Leader";
+              }
+            } else if (frame.awakenPayment) frame.priceUnpaid ??= "the Awaken payment's Leader is missing";
             frame.moveLoop.index++;
             continue;
           }
@@ -3201,7 +3522,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             h.clearLastMode();
             frame.awaiting = undefined;
           } else {
-            const choices = h.replacementsFor(id, op.cause ?? "effect", { actor: master, inSubstitute: !!frame.replacing, requestedTo: dest });
+            const choices = h.replacementsFor(id, frame.declaredCharge ? "charge" : op.cause ?? "effect", { actor: frame.declaredCharge ? undefined : master, inSubstitute: !!frame.replacing, requestedTo: dest });
+            if (frame.energyCharge && choices.length) throw new NotYet("ordinary Charge incoming replacement", "R482");
             const allowNone = choices.length > 0 && choices.every((c) => c.optional);
             if (choices.length > 1 || allowNone) {
               frame.awaiting = "replaceMove";
@@ -3217,7 +3539,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             }
             replaced = choices.length ? routeOf(choices[0]) : null;
           }
+          if (dest === "energy" && h.prepareEnergyEntry) {
+            const entry = h.prepareEnergyEntry(frame, id, { player: owner, area: "energy", ...(op.mode ? { mode: op.mode } : {}) });
+            if (entry === "wait") return "wait";
+            if (entry === "recheck") continue;
+          }
           const deferred = defers(replaced);
+          const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
+          if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: frame.declaredCharge ? "charge" : frame.ordinaryActivation && frame.saveVarsAs ? "cost" : op.cause ?? "effect", ...(frame.declaredCharge || frame.ordinaryActivation && frame.saveVarsAs ? {} : { actor: master, by: "skill" as const, byCard: frame.card, byOpponent: h.masterOf(id) !== master }) });
+          if (substitute?.replacementAuto) frame.replacementMove = { card: id, epoch: substitute.replacementAuto.epoch, ...(op.completedAs ? { completedAs: op.completedAs } : {}) };
           // 3-10: "when this card is sent from your deck to your Warp by your
           // <Heles> card's skill" (BT30-106) asks where it came from, which is
           // gone once it has moved.
@@ -3240,7 +3570,18 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // deck or the life is revealed the same way.
           const picked = !!frame.specifiedPicks?.includes(id);
           const shown = op.reveal || (picked && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp))) || (picked && h.areaOf(id) === "hand" && (dest === "deck" || (dest === "life" && !op.faceUp)));
-          h.move(id, dest, owner, { position: op.position, reveal: shown, reason: op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          const legacyUnion = frame.declaredCharge ? null : lineUnionVariant(h, frame);
+          const legacyMovement = frame.declaredCharge ? undefined : { version: 1 as const,
+            ...(legacyUnion ? { union: legacyUnion } : {}), ...(op.reveal ? { revealedTop: true as const } : {}),
+            ...(pileHost ? { fromPile: h.areaOf(pileHost) === "leader" ? "leader" as const : "other" as const } : {}) };
+          const movedTo = h.move(id, dest, owner, { legacyMovement, ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(op.mode ? { requestedMode: op.mode } : {}), position: op.position, reveal: shown, reason: frame.declaredCharge ? "charge" : op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          if (frame.ordinaryActivation && frame.saveVarsAs && frame.priceUnpaid) {
+            if (deferred) h.interrupt(substitute!, frame); else h.resume(frame);
+            return "done";
+          }
+          // The original movement owns this child only until its one native
+          // movement attempt returns (including a refused movement).
+          if (dest === "energy" && h.prepareEnergyEntry) frame.energyEntry = undefined;
           // #107: the departure is already replaced — the card stayed — and
           // the program that stood in for it runs as a frame of its own, so a
           // question inside it is asked rather than lost. Nothing below is
@@ -3248,33 +3589,33 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (deferred) {
             frame.moveLoop.leftBattle = undefined;
             frame.moveLoop.index++;
-            h.interrupt(substituteFrame(h, id, replaced!), frame);
+            h.interrupt(substitute!, frame);
             return "done";
           }
           // 3-1: "when this card is removed from a Battle Area by a skill",
           // and the commoner narrowing to the *opponent's* skills. A card that
           // went nowhere — a replacement sent it back — was not removed.
           if (leftBattle && h.areaOf(id) !== "battle") {
-            h.pend("removedFromBattle", id, undefined, negatedThere);
-            if (h.masterOf(id) !== master) {
-              h.pend("removedByOpponent", id, undefined, negatedThere);
+            h.pend("removedFromBattle", id, undefined, negatedThere, movedMaster);
+            if (movedMaster !== master) {
+              h.pend("removedByOpponent", id, undefined, negatedThere, movedMaster);
               // Phrasing batch 5 (DB2-174, BT15-062, EX16-01): the same moment, watched by the removed card's master's
               // cards — "When one of your … Battle Cards is removed from your Battle Area by an opponent's skill". The
               // removed card is the subject.
-              h.pend("yourCardRemovedByOpponent", id, id);
+              h.pend("yourCardRemovedByOpponent", id, id, undefined, movedMaster);
             }
             // Audit triggers 2: the same move by any skill, watched by either side's cards — "When one of your
             // ≪Red Ribbon Army≫ cards is removed from your Battle Area by a skill" (BT17-038), "When one of your
             // opponent's Battle Cards is removed from their Battle Area by a skill" (DB3-103). The removed card is the subject.
-            h.pend("yourCardRemovedBySkill", id, id);
-            h.pend("opponentCardRemovedBySkill", id, id);
+            h.pend("yourCardRemovedBySkill", id, id, undefined, movedMaster);
+            h.pend("opponentCardRemovedBySkill", id, id, undefined, movedMaster);
             // The narrower wording, which names where it ended up as well —
             // and the one that names no cause, which covers this too.
             if (h.areaOf(id) === "drop") {
-              h.pend("droppedFromBattle", id, undefined, negatedThere);
+              h.pend("droppedFromBattle", id, undefined, negatedThere, movedMaster);
               // …and by an opponent's skill (SD15-03, #728).
-              if (h.masterOf(id) !== master) h.pend("droppedByOpponent", id, undefined, negatedThere);
-              h.pend("leftBattleToDrop", id);
+              if (movedMaster !== master) h.pend("droppedByOpponent", id, undefined, negatedThere, movedMaster);
+              h.pend("leftBattleToDrop", id, undefined, negatedThere, movedMaster);
             }
           }
           // "When this card is placed in your Drop Area from your hand by a
@@ -3301,8 +3642,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // a condition the rule asks of it — the same way `restedBySkill`
           // hands on the card that rested it.
           if (fromDeck && h.areaOf(id) === "warp" && h.masterOf(id) === master) h.pend("deckToWarpBySkill", id, frame.card);
-          if (fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal, ...(negatedThere?.length ? { negated: negatedThere } : {}) });
-          if (op.mode) h.setMode(id, op.mode);
+          if (!frame.declaredCharge && fromArea !== h.areaOf(id)) pendMovedBySkill(h, frame, id, { fromArea, pileHost, movedMaster, revealed: !!op.reveal, ...(negatedThere?.length ? { negated: negatedThere } : {}) });
+          if (op.mode && movedTo !== "energy") h.setMode(id, op.mode);
           // 5-5: a card a skill *places* in a Battle Area was not played, so
           // "when this card is played" does not fire — 30 cards say only
           // "when this card is placed in a Battle Area".
@@ -3317,6 +3658,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           frame.moveLoop.leftBattle = undefined;
           frame.moveLoop.index++;
         }
+        if (h.prepareEnergyEntry) frame.energyEntry = undefined;
         frame.moveLoop = undefined;
         // Phrasing batch 9 (owner's ruling of 27 Oct 2026 on BT10-054, 3-1-4): the cards a named move took are the cards
         // as they arrived. One that leaves that area and comes back is a new card, and no longer the one "you placed in
@@ -3400,8 +3742,14 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // it entered play is kept over the top of that, because `move` sets
           // it for any arrival in play and a card changing hands is not a card
           // newly played.
+          if (h.forbids("beMovedBySkill", { card: id, player: master, from: "battle", to: "battle", ...(frame.card ? { source: frame.card } : {}) })) continue;
+          if (!h.reportsMovement) throw new NotYet("control transfer requires authoritative movement completion", "R494");
           const entered = h.enteredTurnOf(id);
-          h.move(id, "battle", to, { carry: true, reason: "effect" });
+          let completed = false;
+          h.move(id, "battle", to, { carry: true, reason: "effect", actor: master, ...(frame.card ? { source: frame.card } : {}), onResult: result => {
+            completed = result.completed && result.card === id && result.from === "battle" && result.to === "battle";
+          } });
+          if (!completed || h.areaOf(id) !== "battle" || h.masterOf(id) !== to) continue;
           h.setEnteredTurn(id, entered);
           if (op.until) h.addEffect({ master, source: frame.card, target: id, kind: "control", value: 0, until: op.until, control: { from } });
         }
@@ -3487,8 +3835,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // by everything that player has in play. One moment, two wordings.
           const before = h.pendingCount();
           h.pend("flippedFaceUp", id, frame.card);
-          for (const w of h.cardsInPlay(h.masterOf(id))) if (w !== id) h.pend("flippedFaceUp", w, id);
-          h.dropPendsOfOtherColours(before, frame.card);
+          h.dropPendsOfOtherColours(before, frame.card, master);
         }
         break;
       }
@@ -3696,30 +4043,52 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // 9-1-5: one keyword skill, picked by the master among those the
         // target cards have in force *now* — a granted one included, a
         // negated one not — and negated on that card alone for the duration.
-        const offered: { card: string; keyword: KeywordSkill["name"] }[] = [];
-        for (const id of h.resolveRef(frame, op.target)) {
+        const offered: NonNullable<ScriptFrame["keywordChoices"]> = [];
+        // Official Q&A: choose the skill, so bypass Barrier only for this operation.
+        const target: Ref = "sel" in op.target ? { sel: { ...op.target.sel, ignoreBarrier: true } } : op.target;
+        for (const id of h.resolveRef(frame, target)) {
           if (!h.exists(id) || h.forbids("beNegated", { card: id, ...negatedBy(frame) })) continue;
-          for (const name of KEYWORD_NAMES) if (h.hasKeyword(id, name)) offered.push({ card: id, keyword: name });
+          const instances = h.keywordInstances(id, master);
+          for (const name of KEYWORD_NAMES) for (const instance of instances.filter(k => k.keyword.name === name))
+            offered.push({ ...instance, card: id, zoneEpoch: h.zoneEpoch(id) });
         }
-        if (!offered.length) break;
         if (h.lastMode() == null || frame.awaiting !== "negateChosenKeyword") {
-          const several = new Set(offered.map((o) => o.card)).size > 1;
+          if (!offered.length) break;
+          const several = new Set(offered.map(o => o.card)).size > 1;
+          frame.keywordChoices = offered;
           frame.awaiting = "negateChosenKeyword";
           h.resume(frame);
           h.ask({
             kind: "chooseMode",
             player: master,
             reason: `${h.nameOf(frame.card)}: choose a keyword skill to negate`,
-            // "Up to 1" on every card printing this, so the last option declines.
-            options: [...offered.map((o) => (several ? `${h.nameOf(o.card)}: [${o.keyword}]` : `[${o.keyword}]`)), "None"],
+            options: [...offered.map(o => {
+              const duplicates = offered.filter(k => k.card === o.card && k.keyword.name === o.keyword.name).length > 1;
+              const sameSource = offered.filter(k => k.card === o.card && k.keyword.name === o.keyword.name && (k.skillIndex !== undefined) === (o.skillIndex !== undefined) && (k.standingGrantId !== undefined) === (o.standingGrantId !== undefined));
+              const origin = o.grantDescription ? `${o.grantDescription}; copy ${sameSource.indexOf(o) + 1}` : `${o.skillSide ? "printed" : "copied"} copy ${sameSource.indexOf(o) + 1}`;
+              return `${several ? `${h.nameOf(o.card)}: ` : ""}[${keywordName(o.keyword)}]${duplicates ? ` (${origin})` : ""}`;
+            }), ...(op.mandatory ? [] : ["None"])],
           });
           return "wait";
         }
         const at = h.lastMode()!;
+        // Old saves retained only name-based option text, not identities. Use the
+        // original label so removed options never shift a later answer's index.
+        const legacy = offered.filter((o, i) => offered.findIndex(k => k.card === o.card && k.keyword.name === o.keyword.name) === i);
+        const several = new Set(legacy.map(o => o.card)).size > 1;
+        const legacyOptions = [...legacy.map(o => `${several ? `${h.nameOf(o.card)}: ` : ""}[${o.keyword.name}]`), ...(op.mandatory ? [] : ["None"])];
+        const legacyMatches = JSON.stringify(h.lastModeOptions()) === JSON.stringify(legacyOptions);
+        const picked = frame.keywordChoices ? frame.keywordChoices[at] : legacyMatches ? legacy[at] : undefined;
         h.clearLastMode();
         frame.awaiting = undefined;
-        const picked = offered[at];
-        if (picked) h.addEffect({ master: frame.master, source: frame.card, target: picked.card, kind: "negateKeyword", value: picked.keyword, until: op.until });
+        delete frame.keywordChoices;
+        const live = picked && offered.some(o => o.card === picked.card && o.zoneEpoch === picked.zoneEpoch && (o.hiddenCount ?? 0) === (picked.hiddenCount ?? 0) && o.skillSide === picked.skillSide && o.skillIndex === picked.skillIndex && o.grantEffectId === picked.grantEffectId && o.standingGrantId === picked.standingGrantId && o.grantSource === picked.grantSource && o.sourceHiddenCount === picked.sourceHiddenCount);
+        if (picked && live) {
+          const base = { master: frame.master, source: frame.card, target: picked.card, until: op.until };
+          if (picked.skillIndex !== undefined) h.addEffect({ ...base, kind: "negateSkill", value: picked.skillIndex, skillSide: picked.skillSide });
+          else if (picked.grantEffectId !== undefined || picked.standingGrantId !== undefined)
+            h.addEffect({ ...base, kind: "negateGrantedSkill", value: picked.grantEffectId ?? { standingGrantId: picked.standingGrantId!, source: picked.grantSource, sourceHiddenCount: picked.sourceHiddenCount } });
+        }
         break;
       }
 
@@ -3793,6 +4162,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}),
             player: players[0],
             filter: op.filter,
+            ...(op.copiesOf ? { copiesOf: op.copiesOf, master: frame.master } : {}),
             name: op.sameNameAsSelf ? h.nameOf(frame.card) : undefined,
           },
         });
@@ -3813,6 +4183,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // 8-1-1 lifted for one card — the opposite of `forbid`, and stored the
       // same way so that a duration expires it the same way.
       case "permit":
+        if (op.what === "activateFromUnder") throw new NotYet("under-card Activate permission must be an original whole Permanent", "R514");
         for (const id of h.resolveRef(frame, op.target)) {
           h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter, line: op.line, unionVariant: op.unionVariant, price: op.price, source: op.source, n: op.n } });
         }
@@ -3844,7 +4215,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // an earlier use of the name still held.
         const made: string[] = [];
         for (let i = 0; i < n; i++) {
-          const id = h.createToken(p, op.name, op.power, op.comboCost, op.comboPower, op.colors, op.mode);
+          const id = h.createToken(p, op.name, op.power, op.comboCost, op.comboPower, op.colors, op.mode, frame);
+          if (!id) continue;
           made.push(id);
           h.pend("played", id);
         }
@@ -3884,7 +4256,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const made = h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "specifiedCost", value: { colors: op.colors, sign }, until: op.until ?? "turn", ...(uses !== undefined ? { uses } : {}), ...(group !== undefined ? { group } : {}) });
             if (uses !== undefined && group === undefined && made) {
               group = made.id;
-              made.group = made.id;
+              if (h.setEffectGroup) h.setEffectGroup(made.id, made.id);
+              else made.group = made.id;
             }
           }
           break;
@@ -3922,7 +4295,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // (BT28-061), "the [EX-Evolve] skill on a yellow … <Son Gohan: Youth> card from your hand" (EX25-26) — waits the
         // same way for the next such activation this turn, wherever the description looks. Pinned to the cards there
         // when it resolved, a card played or drawn later was never reached.
-        if ((kind === "skillCost" || kind === "evolveCost") && uses !== undefined && !op.onto && op.target && "sel" in op.target && !op.target.sel.areas?.length && !op.target.sel.special && !op.target.sel.fromVar) {
+        if ((kind === "skillCost" || kind === "evolveCost" || (kind === "cost" && op.energyActivation)) && uses !== undefined && !op.onto && op.target && "sel" in op.target && !op.target.sel.areas?.length && !op.target.sel.special && !op.target.sel.fromVar) {
           // Every card it finds, not a count of them (the compiler's `count: 99`).
           const sel: Selector = { ...op.target.sel };
           delete sel.count;
@@ -3933,6 +4306,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             target: "",
             kind,
             value: by,
+            ...(op.energyActivation ? { energyActivation: op.energyActivation } : {}),
+            ...(kind === "cost" ? { costOrigin: { version: 1 as const, skillIndex: frame.skillIndex ?? null, energyActivation: op.energyActivation ?? null } } : {}),
             until: op.until ?? "turn",
             tag: op.tag,
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
@@ -3952,6 +4327,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             target: id,
             kind,
             value: by,
+            ...(op.energyActivation ? { energyActivation: op.energyActivation } : {}),
+            ...(kind === "cost" ? { costOrigin: { version: 1 as const, skillIndex: frame.skillIndex ?? null, energyActivation: op.energyActivation ?? null } } : {}),
             until: op.until ?? "turn",
             ...(op.skillKind ? { skillKind: op.skillKind } : {}),
             ...(op.activateTiming ? { activateTiming: op.activateTiming } : {}),
@@ -3962,7 +4339,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           });
           if (uses !== undefined && group === undefined && made) {
             group = made.id;
-            made.group = made.id;
+            if (h.setEffectGroup) h.setEffectGroup(made.id, made.id);
+            else made.group = made.id;
           }
         }
         break;
@@ -4009,7 +4387,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
                 source: frame.card,
                 target: id,
                 kind: "replaceLeave",
-                value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target: bound, vars: capturedVars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
+                value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional, target: bound, vars: capturedVars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
                 until: op.until,
               });
             }
@@ -4019,7 +4397,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               source: frame.card,
               target: "",
               kind: "replaceLeave",
-              value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, target, vars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
+              value: { to, from: op.from, by: op.by, bySide: op.bySide, mode: op.mode, position: op.position, requestedTo: op.requestedTo, optional: op.optional, target, vars, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) },
               until: op.until,
             });
           }
@@ -4061,15 +4439,23 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "resolvingPlay": {
+        const current = h.resolvingCard();
+        if (op.cardType && current && baseType(h.defOf(current)) !== op.cardType) break;
         if (!op.instead) {
           // The play still happens and only its manner changes, which is not a
           // replacement at all (9-6): `resolvePlay` reads these as the card
           // enters. Only the `instead` branch below is the macro over `replace`
           // that `OP_CLASS` calls it.
           const card = h.resolvingCard();
-          if (!card) break;
+          if (!card) {
+            if (op.negated) for (const id of h.resolvedPlayCards?.(frame) ?? []) {
+              if (op.cardType && baseType(h.defOf(id)) !== op.cardType) continue;
+              if (!h.forbids("beNegated", { card: id, ...negatedBy(frame) })) h.addEffect({ master, source: frame.card, target: id, kind: "negateSkills", value: 0, until: "turn" });
+            }
+            break;
+          }
           if (op.mode === "rest") h.setPlayRest(card);
-          if (op.negated && !h.forbids("beNegated", { card, ...negatedBy(frame) })) h.setPlayNegated(card);
+          if (op.negated && !h.forbids("beNegated", { card, ...negatedBy(frame) })) h.setPlayNegated(card, negatedBy(frame));
           break;
         }
         h.replaceResolvingPlay([{ op: "moveTo", target: { sel: { special: "resolving" } }, to: op.instead, ...(op.position ? { position: op.position } : {}) }]);
@@ -4133,7 +4519,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
         // 20-14: a skill doing the playing, which is the half fifteen cards ban.
-        const candidates = h.resolveRef(frame, op.target);
+        const candidates = h.resolveRef(frame, op.target).filter(id => paidDropPlayAllowed(frame, id, h.zoneEpoch(id), h.areaOf(id), h.defOf(id).id)).filter(id => counterSelfPlayAllowed(frame, op.target, id, h.zoneEpoch(id), h.areaOf(id))).filter(id => frame.viaKeyword !== "Over Realm" || !!frame.overRealmSource && frame.overRealmSource.card === id && frame.overRealmSource.cardId === h.defOf(id).id && frame.overRealmSource.epoch === h.zoneEpoch(id) && frame.overRealmSource.area === h.areaOf(id));
         // #933: whether it is an evolution is the play's own `using`, never the
         // keyword tag on the skill making it — P-336's [Activate: Main] evolves.
         const evolution = op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve";
@@ -4141,7 +4527,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // skill. A card that has one is activated, not played: its [Field]
         // resolves with the activation's own prohibitions and moments, the
         // printed price waived. Any other card it names is played as before.
-        if (op.activating && candidates.length === 1) {
+        if (op.activating) {
+          if (candidates.length !== 1) break;
           const field = h.fieldSkill(master, candidates[0]);
           // Has the skill but may not activate it (negated, forbidden, a tax
           // unpaid): nothing happens, and above all it is not played instead.
@@ -4155,18 +4542,22 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             return "done";
           }
           // Audit effects 2 (12-1-3, 12-2-4): "choose 1 {Tora's Red Armband} … in your hand, activate it" (EB1-59) — an
-          // Extra with no [Field] in its master's hand is activated through its [Activate: Main] line, its costs waived,
+          // R-420: a non-Field Extra from hand, deck or Drop activates one of its Activate lines, its costs waived,
           // and never played into the Battle Area; with no such line it can use, nothing happens.
-          if (field === "none" && h.areaOf(candidates[0]) === "hand" && h.defOf(candidates[0]).type === "EXTRA") {
+          const from = h.areaOf(candidates[0]);
+          if (field === "none" && (from === "hand" || from === "deck" || from === "drop") && h.defOf(candidates[0]).type === "EXTRA") {
             const sel: Selector = "var" in op.target ? { fromVar: op.target.var, count: 1, upTo: true } : { ...op.target.sel, count: 1, upTo: true };
-            frame.ops = [...frame.ops.slice(0, frame.ip), { op: "invokeSkill", sel, skillKind: "activate:main", from: "hand" }, ...frame.ops.slice(frame.ip + 1)];
+            frame.ops = [...frame.ops.slice(0, frame.ip), { op: "invokeSkill", sel, skillKind: "activate:any", from }, ...frame.ops.slice(frame.ip + 1)];
             continue;
           }
+          // A bare activation never becomes a Battle Card play or an unsupported-area Extra play.
+          break;
         }
         // #930: which [Union] variant the play is, again the play's own `using`
         // ("you can only play Battle Cards by using [Union-Fusion]", P-069).
         const union = unionVariantOf(op.using);
-        let targets = candidates.filter((id) => !h.forbids("play", { player: master, card: id, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(op.ignoreOwnPermanent ? { ignoreOwnPermanent: true } : {}) }));        // 22-5-7: a paid keyword evolution that fails to play and has not
+        const playPermission = { player: master, bySkill: !frame.declaredPlay && !h.playAsCost, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(op.ignoreOwnPermanent ? { ignoreOwnPermanent: true } : {}) };
+        let targets = candidates.filter((id) => !h.forbids("play", { ...playPermission, card: id }));        // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand (or, #917, the Z-Energy it was activated from) is put in Drop. A printed Drop evolution already is there.
         // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card
         // that fails to enter play (Fusion/Potara: the card that activated it,
@@ -4184,8 +4575,20 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // being played (a price from the hand never offers it). A price that
         // can't be paid, or one declined, leaves that card where it is. The
         // play the player declares has paid at its declaration already.
+        // R465: a saved tax offer cannot authorize a fresh self occurrence.
+        // Consume only this abandoned offer's answer; independent tail choices
+        // must not inherit it, and already completed tax payments stay spent.
+        if (!targets.length) {
+          if (frame.awaiting === "playTax") {
+            if (h.lastMode() != null) h.clearLastMode();
+            frame.awaiting = undefined;
+          }
+          delete frame.vars[PLAY_TAX_ASKED];
+          delete frame.vars[PLAY_TAX_PAID];
+          delete frame.vars[PLAY_TAX_SKIPPED];
+        }
         if (!frame.declaredPlay && targets.length) {
-          const ask = (id: string) => ({ player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}) });
+          const ask = (id: string) => ({ player: master, card: id, bySkill: !h.playAsCost, ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(frame.viaKeyword === "Over Realm" && id === frame.overRealmSource?.card && frame.overRealmSource.epoch === h.zoneEpoch(id) && frame.overRealmPaidTaxes ? { excludePaidTaxes: frame.overRealmPaidTaxes } : {}) });
           if (frame.awaiting === "playTax" && h.lastMode() != null) {
             const yes = h.lastMode() === 0;
             h.clearLastMode();
@@ -4194,7 +4597,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             delete frame.vars[PLAY_TAX_ASKED];
             if (asked && yes) {
               frame.vars[PLAY_TAX_PAID] = [...(frame.vars[PLAY_TAX_PAID] ?? []), asked];
-              h.interrupt({ ops: h.taxesOn("play", ask(asked)).flat(), ip: 0, vars: {}, card: asked, master }, frame);
+              h.interrupt({ ops: h.taxesOn("play", ask(asked)).flat(), ip: 0, vars: {}, card: asked, master, counterSelfTax: counterSelfTaxBinding(frame, op.target), ...(frame.viaKeyword === "Over Realm" && frame.overRealmSource ? { overRealmLateTax: { version: 1 as const, source: structuredClone(frame.overRealmSource), ownerIp: frame.ip, payers: [] } } : {}) }, frame);
               return "done";
             }
             if (asked) frame.vars[PLAY_TAX_SKIPPED] = [...(frame.vars[PLAY_TAX_SKIPPED] ?? []), asked];
@@ -4245,7 +4648,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         frame.ip++;
         // A keyword's own play (#155) goes through the [Counter: Play] window
         // a declared play opens (9-6); the host says whether it stopped to ask.
-        return h.playThen(targets, { player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.toOpponent ? { toOpponent: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
+        return h.playThen(targets, { playPermission, player: master, mode: op.mode, onto, ...(under?.length ? { under } : {}), negatedKinds: op.negatedKinds, negatedUntil: op.negatedUntil, negated: op.negated && !targets.every((id) => h.forbids("beNegated", { card: id, ...negatedBy(frame) })) ? op.negated : undefined, ...(op.toOwners ? { toOwners: true as const } : {}), ...(op.toOpponent ? { toOpponent: true as const } : {}), ...(op.markers !== undefined ? { markers: h.amount(frame, op.markers) } : {}), ...(op.counterWindow ? { counterWindow: true } : {}), ...(op.using ? { using: op.using } : {}) }, frame) === "wait" ? "wait" : "done";
       }
 
       case "delay":
@@ -4303,6 +4706,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           if (minimum < 99 && h.resolveSelector(frame, first.sel).length < minimum) {
             (frame.did ??= {}).may = false;
             frame.vars[first.as] = [];
+            if (frame.counterSelfChoices) delete frame.counterSelfChoices.vars[first.as];
             frame.ip++;
             continue;
           }
@@ -4313,7 +4717,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // its own (#970), is declined for you like the single choice above.
         if (disjointGroups(op.ops).length && !disjointPayable(op.ops, (slot) => h.resolveSelector(frame, { ...slot.sel, notIn: undefined }))) {
           (frame.did ??= {}).may = false;
-          for (const o of op.ops) if (o.op === "choose") frame.vars[o.as] = [];
+          for (const o of op.ops) if (o.op === "choose") {
+            frame.vars[o.as] = [];
+            if (frame.counterSelfChoices) delete frame.counterSelfChoices.vars[o.as];
+          }
           frame.ip++;
           continue;
         }
@@ -4341,9 +4748,21 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "chooseMode": {
+        if (op.counterArrivalPolicy) {
+          const witness = frame.arrivalDecision;
+          if (op.counterArrivalPolicy !== "eachQualifyingPlayV1" || !witness || witness.version !== 1 || !h.canReplaceCounterArrival) movementRebuild("rebuild this per-arrival Counter decision");
+          if (!h.exists(witness.arrival.card) || h.zoneEpoch(witness.arrival.card) !== witness.arrival.epoch) {
+            h.clearLastMode();
+            frame.awaiting = undefined;
+            frame.offeredModes = undefined;
+            frame.ip++;
+            continue;
+          }
+        }
         // A nested invocation can only be chosen when at least one hand card
         // has a legal line. The other printed modes retain their own choices.
-        const available = op.modes.map((mode, index) => ({ mode, index })).filter(({ mode }) => {
+        const available = op.modes.map((mode, index) => ({ mode, index })).filter(({ mode, index }) => {
+          if (op.counterArrivalPolicy && index === 0 && !h.canReplaceCounterArrival!(frame)) return false;
           // Earlier operations may make an Extra eligible. Only a mode whose
           // entire effect is this invocation can be excluded in advance.
           const only = mode.ops.length === 1 ? mode.ops[0] : null;
@@ -4355,8 +4774,19 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (h.lastMode() != null && frame.awaiting === "mode") {
           const index = h.lastMode()!;
           const original = frame.offeredModes?.[index] ?? (frame.offeredModes ? undefined : index);
-          const picked = available.find((candidate) => candidate.index === original)?.mode;
+          let picked = available.find((candidate) => candidate.index === original)?.mode;
+          if (picked && op.counterArrivalPolicy && original === 0) {
+            const witness = frame.arrivalDecision!, name = "§arrivalIncoming";
+            witness.accepting = true;
+            frame.vars[name] = [witness.arrival.card];
+            frame.vars[epochVar(name)] = [`${witness.arrival.card}@${witness.arrival.epoch}`];
+            picked = { ...picked, ops: [
+              { op: "moveTo", target: { var: name }, to: "drop", completedAs: name },
+              { op: "if", cond: { kind: "not", cond: { kind: "moved", var: name, atLeast: 1 } }, then: structuredClone(op.modes[1].ops) },
+            ] };
+          }
           if (!picked) throw new IllegalAction("that mode is no longer available");
+          h.recordInspectionMode?.(frame,op,original!);
           h.clearLastMode();
           frame.awaiting = undefined;
           frame.offeredModes = undefined;

@@ -1,0 +1,445 @@
+{
+  "baseline": "29326703",
+  "catalogSha256": "dcfba11b09fe10746a5f86176511bc9edd85c6156f239508a301326440339fb4",
+  "method": "runtimeSupportOfRow over full compiler records; additional reasons exclude each record unread clauses; contextual unknowns are not counted as unsupported",
+  "readButExplicitlyBlocked": [
+    {
+      "skill": "P-181#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT17-110#20b",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT19-100#30",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT27-048#20",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT20-055#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT9-100#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "TB1-052#0",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT20-086#10",
+      "reasons": [
+        "Permanent negateSkills is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "BT20-114#20",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "P-184#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "SD18-01#20",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT2-084#0",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "EX21-22#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT29-029#30",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "EX23-28#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT17-001#20",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT22-002#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "EX21-28#0",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT17-002#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT19-002#20",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "DB1-066#0",
+      "reasons": [
+        "Permanent negateSkills is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "BT18-003#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT13-046#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT26-031#20",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT27-102#0",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT31-055#20b",
+      "reasons": [
+        "Permanent comboFrom is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "BT21-036#0",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "EX23-19#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT10-031#20",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "P-327#20",
+      "reasons": [
+        "missing or contradictory typed Union-Absorb procedure v1; regenerate rules and rebuild saved matches/exports (#907)"
+      ]
+    },
+    {
+      "skill": "BT12-074#10",
+      "reasons": [
+        "the Auto rule has no readable WHEN trigger"
+      ]
+    },
+    {
+      "skill": "BT12-001#10",
+      "reasons": [
+        "the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)"
+      ]
+    },
+    {
+      "skill": "BT12-001#20b",
+      "reasons": [
+        "the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)"
+      ]
+    },
+    {
+      "skill": "EX10-03#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "DB2-175#10",
+      "reasons": [
+        "Permanent may is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "BT20-054#20",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT21-071#30",
+      "reasons": [
+        "the rules engine cannot pay Auto action price containing play yet — #549 builds it"
+      ]
+    },
+    {
+      "skill": "DB2-171#10",
+      "reasons": [
+        "Permanent may is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "BT12-072#10",
+      "reasons": [
+        "the Auto rule has no readable WHEN trigger"
+      ]
+    },
+    {
+      "skill": "EX09-03#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT12-005#0",
+      "reasons": [
+        "the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)"
+      ]
+    },
+    {
+      "skill": "BT10-153#20",
+      "reasons": [
+        "Permanent negateSkills is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "BT16-020#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "TB1-048#10",
+      "reasons": [
+        "Permanent negateSkills is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "BT20-002#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "P-470#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT12-006#10",
+      "reasons": [
+        "the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)"
+      ]
+    },
+    {
+      "skill": "DB2-176#10",
+      "reasons": [
+        "Permanent may is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "BT12-009#10",
+      "reasons": [
+        "the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)"
+      ]
+    },
+    {
+      "skill": "BT12-010#10",
+      "reasons": [
+        "the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)"
+      ]
+    },
+    {
+      "skill": "BT23-070#0",
+      "reasons": [
+        "Permanent negateSkills is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "P-006#0",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT21-074#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT27-100#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT14-032#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "SD20-02#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT12-121#10",
+      "reasons": [
+        "the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)"
+      ]
+    },
+    {
+      "skill": "BT12-071#10",
+      "reasons": [
+        "the Auto rule has no readable WHEN trigger"
+      ]
+    },
+    {
+      "skill": "BT27-046#0",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "EX19-06#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT27-119#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT9-112#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT9-112#10b",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT14-046#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT14-121#30",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "SD22-01#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT19-003#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "BT12-075#10",
+      "reasons": [
+        "the Auto rule has no readable WHEN trigger"
+      ]
+    },
+    {
+      "skill": "DB2-166#10",
+      "reasons": [
+        "Permanent may is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "DB2-173#10",
+      "reasons": [
+        "Permanent may is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "BT27-120#10",
+      "reasons": [
+        "the stored skill payment is unreadable"
+      ]
+    },
+    {
+      "skill": "DB2-168#10",
+      "reasons": [
+        "Permanent may is not collected as a runtime static"
+      ]
+    },
+    {
+      "skill": "EX19-01#10",
+      "reasons": [
+        "the rules engine does not emit flippedFaceUp yet (LIFEWATCH; vm/host.ts)"
+      ]
+    }
+  ]
+}

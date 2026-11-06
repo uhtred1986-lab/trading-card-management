@@ -42,6 +42,7 @@ import type { VmState } from "./state";
 export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[], after = 0): Beats {
   const list: NumberedBeat[] = [];
   const art: Record<string, BeatArt> = {};
+  const revealedMoves: NonNullable<Beats["revealedMoves"]> = {};
   let n = after;
   const push = (b: Beat) => list.push({ ...b, n: ++n } as NumberedBeat);
 
@@ -79,6 +80,12 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
         if (e.privateOrder) break;
         remember(e.card);
         push({ t: "move", card: e.card, from: e.from, to: e.to, owner: e.owner, ...(revealedMove(e, state.cards[e.card]?.faceUp) ? { reveal: true as const } : {}) });
+        // Trusted engine events, converted within this batch. This freezes the
+        // conversion-time face; it is not a per-move historical definition.
+        // Keep it separate from art, which later batches merge by physical ID.
+        if (e.reveal === true && ["hand", "deck", "life"].includes(e.to) && art[e.card]) {
+          revealedMoves[n] = { version: 1, n, card: e.card, from: e.from, to: e.to, owner: e.owner, art: { ...art[e.card] } };
+        }
         break;
       case "mode":
         remember(e.card);
@@ -194,5 +201,5 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
   // `beats.ts`'s own last step, so a `damage` beat's `by` and a `skill`
   // beat's `extra`/`noEffect` read the same on either engine (#463).
   relateBeats(list, state.prompt.kind);
-  return { seq: n, list, art };
+  return { seq: n, list, art, ...(Object.keys(revealedMoves).length ? { revealedMoves } : {}) };
 }

@@ -1,3 +1,11 @@
+import {incrementalLookIntent,captureLookSource} from './incremental-look';
+import { paidWarpIntent, capturePaidWarpSource } from './paid-warp-runtime';
+import { placedUnderMaster } from "./placed-under-master";
+import { captureKoBinding, koResultScript } from "./ko-source";
+import { originalMovementSkillNegated } from "./movement-auto-history";
+import { capturePairedSelf, pairedSelfScript, type PairedSelf } from "./paired-self";
+import { resolvedGrantDeleted, resolvedGrantReceipt } from "./resolved-grant-deletion";
+import { canonicalTaxValue } from "./tax-receipt";
 import { recordedSkillIdentity } from "./skill-identity";
 import { noSparking, withValidity, sparkingIsValid, validityProblem } from "./validity";
 import { unlimitedUsage, withUsage, requireUsage } from "./usage";
@@ -61,7 +69,7 @@ import { needsPaymentRecord } from "./skill-payment";
 import { autoTriggerMatches, triggeredPermanent, whiteCellPlayedSubjectFilter } from "../text/triggers";
 import { comboQualificationProblem, comboScriptProblem } from "./combo-qualification";
 import { parseSkills } from "../text/cards";
-import { copiedSkillIndex, programsOf } from "./common";
+import { COPIED_SKILL_BASE, GRANTED_LINE_BASE, copiedSkillIndex, programsOf } from "./common";
 import { NO_RULES, type CardScripts, type Cond, type Op, type Script } from "./script";
 import type { CardFilter } from "../text/filters";
 import { PLAYERS, other, type PlayerId, type Skill, type Trigger } from "../types";
@@ -78,7 +86,7 @@ import { findCard, inPlayZones } from "./zones";
 import { skillNegated, skillsNegated } from "./effects";
 import { usableFrom } from "./activate";
 import { keywordMomentOf } from "./keyword-do";
-import { attrsNow, condHolds } from "./program";
+import { attrsNow, condHolds, keywordNegatedFor, staticsNow } from "./program";
 import type { Attrs } from "./cards";
 import { predicateOf } from "./filters";
 
@@ -91,7 +99,28 @@ import { predicateOf } from "./filters";
  * one difference is `trigger`, a declared name rather than a union member —
  * which is the whole point, since a second game declares its own.
  */
+export interface CopiedSkillCapture {
+  version: 1;
+  card: string;
+  epoch: number;
+  hiddenCount: number;
+  grant: number;
+  index: number;
+  sourceIndex: number;
+  record: string;
+}
+
 export interface VmPending {
+  lookSource?: import("./incremental-look").LookSource;
+  paidWarpSource?: import("./paid-warp-contract").PaidWarpSource;
+  /** R510: this actual Auto pended during an already-completed play cost. */
+  paidArrivalWitness?: import("./auto-play-cost").PaidArrivalWitness;
+  koBinding?: import("./ko-result").KoBinding;
+  /** Exact copied declaration captured before deletion/expiry of its grant. */
+  copiedSkillCapture?: CopiedSkillCapture;
+  /** R-422: this exact Auto was active during a successful scoped arrival,
+   * before its after-effect Counter timing (RM 9-6-11). */
+  arrivalWitness?: { version: 1; scope: number; skillIndex: number; arrival: { card: string; epoch: number }; source: { card: string; epoch: number } };
   /** Older serialized Auto entries omit the kind field. */
   kind?: "auto";
   /** The card whose skill answers. */
@@ -117,6 +146,9 @@ export interface VmPending {
    * pended; never copied onto a later play's Autos. Older entries carry none.
    */
   selfEnteredUsing?: string;
+  /** R-362: the own-Life Auto keeps the occurrence which was turned face up. */
+  faceUpLifeEpoch?: number;
+  pairedSelf?: PairedSelf;
   /**
    * #930: the same memory of the moment's `subject` — "when your <X> card is
    * played by a [Union] skill" (BT22-033, BT25-036 back) asks how that card
@@ -150,7 +182,7 @@ export type VmPendingRecord = VmPending | VmPendingHook;
 const LEFT_BATTLE_BY_SKILL = new Set(["removedFromBattle", "removedByOpponent", "droppedFromBattle", "droppedByOpponent", "leftBattleToDrop"]);
 /**
  * 9-6-9-2 again, for the self-moments of a move that may start in a Battle Area whatever its cause: the moment carries
- * the [Auto]s negated there (`sourceNegated`, set only for a move out of a Battle Area), and none of them answers.
+ * the [Auto]s negated there (`sourceNegated`; Energy arrivals also capture this from other areas), and none of them answers.
  * Review of audit triggers 3: "When this card is sent from a Battle Area to a Warp" (BT5-048), "…sent to its owner's
  * Warp" (BT31-108), "…by a skill" (BT31-018), "…returned to its owner's hand from the Battle Area" (DB1-097) answered
  * a move out of the Battle Area where the card's skills had been negated.
@@ -196,7 +228,7 @@ export function matchTriggers(game: GameDefinition, state: VmState, moment: Mome
       // its own area-movement [Auto]s, "unless specified otherwise" — and the
       // declaration that names `hidden: true` is what specifies it.
       if (card === moment.card && moment.args.hidden === true && !asksHidden) continue;
-      if (!holdsFor(game, state, trigger, card)) continue;
+      if (!holdsFor(game, state, trigger, card, placedUnderMaster(game, state, moment, card, trigger.name))) continue;
       // #1163: `byWatcher: true` — only the card whose own skill made the move
       // is asked ("…is played by this card's skill", BT29-083). The moment
       // names that card as `byCard`; a move no card's skill made names none.
@@ -255,6 +287,9 @@ function asked(game: GameDefinition, state: VmState, trigger: TriggerDef, moment
     // 9-1-3-2 / 9-6-3-1-1: a watcher whose own skill plays this card from the
     // hand is heard there too; `pendAutos` keeps only the skills that say so.
     if (handOut) for (const p of sides) for (const id of state.sides[p].zones.hand) { askedCards.push(id); handOut.add(id); }
+    // R-361 / 9-1-3-2: BT20-032 pays itself from the Combo Area when another card arrives. Only records whose
+    // price/effect explicitly names that origin survive the same usableFrom check as hand watchers below.
+    if (handOut && trigger.name === "youPlayed") for (const p of sides) for (const id of state.sides[p].zones.combo) { askedCards.push(id); handOut.add(id); }
     // 9-1-3-2 / 3-9-4 (#1098): "When your life moves to another area, you may
     // play this card from your Drop" works from the Drop, so the Drop copies
     // hear this moment too. They are only *asked* here; `pendAutos` keeps a
@@ -362,13 +397,13 @@ function inPlay(game: GameDefinition, state: VmState, sides: PlayerId[]): string
  * condition read as `true` is a skill firing at the wrong moment, and read as
  * `false` a skill that never fires — both worse than being told.
  */
-function holdsFor(game: GameDefinition, state: VmState, trigger: TriggerDef, card: string): boolean {
+function holdsFor(game: GameDefinition, state: VmState, trigger: TriggerDef, card: string, suppliedMaster?: PlayerId): boolean {
   const cond = trigger.where;
   if (!cond) return true;
   if (cond.kind !== "isTurnPlayer") {
     throw new RulesetBroken(state.game, `trigger ${JSON.stringify(trigger.name)} is narrowed by ${cond.kind}, and this interpreter reads only isTurnPlayer so far (#142)`);
   }
-  const master = masterOf(game, state, card);
+  const master = suppliedMaster ?? masterOf(game, state, card);
   return cond.who === "opponent" ? state.turnPlayer !== master : state.turnPlayer === master;
 }
 
@@ -433,7 +468,7 @@ const BATCH1_GATED = new Set<string>(["droppedFromHandByOpponent", "activeBySkil
   // asked only as the Auto resolved — so "[Once per turn] When one of your yellow <Son Goku> cards with an energy cost
   // of 2 is played" (BT21-115) was spent by the first card of any kind you played, and "{1}: When an opponent's Battle
   // Card with an energy cost of 4 or less attacks" (DB2-148) asked its price for a Leader's attack.
-  "youPlayed", "eitherCardPlayed", "yourCardPlayedFromHand", "yourCardPlayedFromDrop", "yourCardAttacks", "opponentAttacks",
+  "yourOtherBattlePlayedUsingDarkOverRealm", "youPlayed", "eitherCardPlayed", "yourCardPlayedFromHand", "yourCardPlayedFromDrop", "yourCardAttacks", "opponentAttacks",
   "evolveActivated",
   // Audit triggers 3: a keyword's move, watched — the card whose move it is, described ("When your yellow <Garlic Jr.>
   // activates an [Overlord] skill", P-568; "When you activate the [Blocker] skill on one of your yellow Battle Cards",
@@ -456,8 +491,8 @@ function aboutTheSubject(cond: Cond): boolean {
 }
 
 /** Every subject condition in the record's leading chain of lone IFs holds of this match's subject (none: true). */
-function subjectConditionsHold(ctx: EngineContext, game: GameDefinition, state: VmState, match: TriggerMatch, master: PlayerId, ops: readonly Op[] | undefined): boolean {
-  const frame = { ops: [], ip: 0, vars: {}, card: match.card, master, ...(match.subject ? { subject: match.subject } : {}) };
+function subjectConditionsHold(ctx: EngineContext, game: GameDefinition, state: VmState, match: TriggerMatch, master: PlayerId, ops: readonly Op[] | undefined, subjectInfo?: Attrs): boolean {
+  const frame = { ops: [], ip: 0, vars: {}, card: match.card, master, ...(match.subject ? { subject: match.subject } : {}), ...(subjectInfo ? { subjectInfo } : {}) };
   for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) {
     const cond = at[0].cond;
     if (aboutTheSubject(cond) && !condHolds(ctx, game, state, frame, cond)) return false;
@@ -509,14 +544,15 @@ export function unionPlayedGate(ops: readonly Op[] | undefined, who: "self" | "s
  * `all`. The [Union] gate above is one of these; `resolvePlay` asks them all of the play that pended the [Auto], so a
  * play that does not answer them is no trigger (9-6-2). For the card's own play, whose turn it is is asked too — "when
  * you play this card during your opponent's turn" (BT9-058): played on your own turn the [Auto] is never pended and
- * its price is never asked. Empty for any other shape.
+ * its price is never asked. R-361 also extracts subject-count descriptions for watched plays; those are checked
+ * against the captured played card alongside its successful keyword entry. Empty for any other shape.
  */
 export function playGates(ops: readonly Op[] | undefined, who: "self" | "subject"): Cond[] {
   const out: Cond[] = [];
   const about = (c: Cond) => c.kind === "playedUsing" && c.sel.special === who && !c.sel.filter;
   const visit = (cond: Cond): void => {
     if (cond.kind === "all") { for (const c of cond.conds) visit(c); return; }
-    if (about(cond) || (cond.kind === "not" && about(cond.cond)) || (who === "self" && cond.kind === "isTurnPlayer")) out.push(cond);
+    if (about(cond) || (cond.kind === "not" && about(cond.cond)) || (who === "self" && cond.kind === "isTurnPlayer") || (who === "subject" && cond.kind === "count" && cond.sel.special === "subject")) out.push(cond);
   };
   for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) visit(at[0].cond);
   return out;
@@ -535,6 +571,8 @@ export function playGates(ops: readonly Op[] | undefined, who: "self" | "subject
  */
 export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment, only?: (match: TriggerMatch) => boolean, subjectInfo?: Attrs, cleanupOccurrence?: string, comboOrigin?: ComboOrigin): VmPending[] {
   const pended: VmPending[] = [];
+  // R489: an actual Battle-to-Energy movement retains original-area facts.
+  const battleEnergyDeparture = moment.event === "moved" && moment.args.from === "battle" && moment.args.to === "energy";
   // The entry moment carries the actual source area. Save it on the battle,
   // since several actions and even a JSON reload may separate entry from
   // 8-5's cleanup departure. A later entry of this same copy replaces it.
@@ -546,6 +584,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
   }
   for (const match of matchTriggers(game, state, moment, true)) {
     if (only && !only(match)) continue;
+    // R496 / 9-6-9-1-2: the transferred card's own Auto has its former master,
+    // who did not gain this card; only other recipient watchers can answer.
+    if (match.trigger === "youGainControlBattle" && match.card === moment.card) continue;
     if (match.trigger === "comboToDrop" && moment.args.cleanupDeparture === true) continue;
     // "…from **your** Combo Area" (R-280's `yourCardComboToDrop` too): a card that left another player's Combo Area is not.
     if ((match.trigger === "comboToDrop" || match.trigger === "yourCardComboToDrop") && moment.args.fromHolder !== moment.controller) continue;
@@ -560,7 +601,13 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
     // `front` is 23-5-2-4's exception: a moment that is about the card
     // switching to Hidden Mode is answered by its front side.
     if (!inst || (inst.hidden && !match.front) || skillsNegated(state, match.card)) continue;
-    const master = masterOf(game, state, match.card);
+    // RM 9-6-9-1-2 and BT10-153 Q&A: a self departure Auto belongs
+    // to the source's former Battle controller, even after returning to its
+    // physical owner's area. The move already captured that holder.
+    const originalHolder = moment.event === "moved" && moment.card === match.card
+      && moment.args.from === "battle" && (LEFT_BATTLE_BY_SKILL.has(match.trigger) || SELF_MOVE_FROM_BATTLE.has(match.trigger) || battleEnergyDeparture && match.trigger === "placedInEnergy")
+      ? moment.args.fromHolder : undefined;
+    const master = placedUnderMaster(game, state, moment, match.card, match.trigger) ?? (originalHolder === "p1" || originalHolder === "p2" ? originalHolder : masterOf(game, state, match.card));
     // Read once per card: a text box is parsed by a regex, and a moment that
     // every card in play hears would otherwise parse each of them twice.
     const showing = skillsShowing(ctx, state, match.card);
@@ -570,25 +617,32 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // which is the one place a keyword's moment is written down.
       const keyword = sk.kind === "keyword" ? keywordMomentOf(game, sk, match.trigger) : undefined;
       if (sk.kind !== "auto" && !keyword && !triggeredPermanent(sk)) continue;
+      if (keyword && keywordNegatedFor(ctx, game, state, match.card, sk.keyword?.name, staticsNow(ctx, game, state))) continue;
       // 22-21: a pending Auto is only created while its Bond condition is
       // valid. Unknown named selectors are left for the normal unread-rule
       // boundary; they must never be treated as an unrestricted count here.
-      if (sk.kind === "auto" && bondIsValid(ctx, game, state, master, sk) === false) continue;
+      if (sk.kind === "auto" && bondIsValid(ctx, game, state, master, sk, match.card) === false) continue;
       // 9-1-5: one skill of a card switched off — by index, or a whole kind at
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
-      if (SELF_MOVE_FROM_BATTLE.has(match.trigger) && moment.sourceNegated?.includes(sk.index)) continue;
+      if (moment.event === "moved" && moment.args.to === "energy" && moment.card === match.card
+        && (match.trigger === "placedInEnergy" || match.trigger === "placedInEnergyFromHand") && !moment.movementHistory && moment.sourceNegated?.includes(sk.index)) continue;
+      if (SELF_MOVE_FROM_BATTLE.has(match.trigger) && !moment.movementHistory && moment.sourceNegated?.includes(sk.index)) continue;
       // 9-6-9-2: an area-movement [Auto] negated in its original Battle Area
       // does not trigger although the card has moved on (and the move ended
       // the negation).
-      if (LEFT_BATTLE_BY_SKILL.has(match.trigger) && moment.sourceNegated?.includes(sk.index)) continue;
+      if (LEFT_BATTLE_BY_SKILL.has(match.trigger) && !moment.movementHistory && moment.sourceNegated?.includes(sk.index)) continue;
       const script = showing.scripts.bySkill[sk.index];
+      if (originalMovementSkillNegated(game, state, moment, match.card, match.trigger, sk, script)) continue;
       const combo = script?.combo;
       if (sk.kind === "auto" && (combo !== undefined || script?.trigger?.some((t) => t === "comboUsed" || t === "comboed"))) {
         const gap = comboScriptProblem(script);
         if (gap) throw new NotYet(gap, "#907");
       }
       if (!keyword && !answersTo(showing.scripts, sk, match.trigger)) continue;
+      // R-362: only the explicitly own-Life wording answers from Life, and only for its own transition.
+      const ownFaceUpLife = match.trigger === "flippedFaceUp" && /when this card in your life is flipped face up/i.test(sk.cost + " " + sk.effect);
+      if (match.trigger === "flippedFaceUp" && (ownFaceUpLife ? match.card !== moment.card : findCard(state, match.card)?.zone === "life")) continue;
       // #1163, #1166: "…played by this card's skill" — "this card" is the one
       // with the skill, or, for a skill granted in quotation marks, the card
       // whose skill granted it.
@@ -647,7 +701,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // the card a watched power change is about ("…one of your opponent's Battle Cards") are trigger conditions: one
       // that does not hold is no trigger (9-6-2), so the Auto is not pended and a [Once per turn] is not spent on it.
       // Read off the record's leading chain of lone IFs, as each IF would read it.
-      if (sk.kind === "auto" && BATCH1_GATED.has(match.trigger) && !subjectConditionsHold(ctx, game, state, match, master, showing.scripts.bySkill[sk.index]?.ops)) continue;
+      if (sk.kind === "auto" && BATCH1_GATED.has(match.trigger) && !subjectConditionsHold(ctx, game, state, match, master, showing.scripts.bySkill[sk.index]?.ops, battleEnergyDeparture ? subjectInfo : undefined)) continue;
       // 9-1-3-2: an [Auto] whose effect takes this card out of an area outside
       // play ("play this card from your hand") works from that area only
       // (9-6-3-1-1 lets its master leave it undeclared there). A hand copy is
@@ -663,6 +717,24 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
         // Phrasing batch 8: a pile card (in no zone) is asked only for a skill that takes it out of the pile (BT21-105).
         if (at ? !outside.includes(at as never) : !pileSkill) continue;
       } else if (at && game.zones[at]?.inPlay === true && outside.length > 0 && outside.every((a) => game.zones[a]?.inPlay !== true)) continue;
+      // R-483: a watched origin belongs to the card that actually entered Combo,
+      // not to the watcher. Native entry replaces provenance; departure clears it.
+      if (match.trigger === "youComboFromHand" || match.trigger === "youComboFromBattle") {
+        if (!moment.card || match.subject !== moment.card || findCard(state, moment.card)?.zone !== "combo") continue;
+        // The subject filter may share an all() with the printed turn check.
+        // Check only these trigger qualifiers, never an activation price.
+        const frame = { ops: [], ip: 0, vars: {}, card: match.card, master, subject: moment.card };
+        const holds = (cond: Cond): boolean => cond.kind === "all" ? cond.conds.every(holds)
+          : aboutTheSubject(cond) || cond.kind === "isTurnPlayer" ? condHolds(ctx, game, state, frame, cond) : true;
+        let qualified = true;
+        for (let at = script?.ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) {
+          if (!holds(at[0].cond)) { qualified = false; break; }
+        }
+        if (!qualified) continue;
+        const origin = state.battle?.comboOrigins?.[moment.card];
+        if (origin === undefined) throw new NotYet("infer the origin of a watched combo entry in an older saved battle", "#672");
+        if (origin !== (match.trigger === "youComboFromHand" ? "hand" : "battle")) continue;
+      }
       if (match.trigger === "comboed" && moment.args.cleanupDeparture === true && combo?.timing === "battleEnd") continue;
       // 8-5-10-1 names the actual 8-5-8 cleanup departure, not an
       // arbitrary mid-battle exit. This also covers no-hand-source wordings.
@@ -718,8 +790,18 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // notice passes its projected new-area information explicitly. Either
       // way the subject's event information is frozen before another Auto can
       // move it again at the checkpoint.
-      const movementInfo = subjectInfo ?? (match.trigger === "comboToDrop" && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
+      const movementInfo = subjectInfo ?? (["comboToDrop", "youComboFromHand", "youComboFromBattle"].includes(match.trigger) && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
+      const copiedSkillCapture = captureCopiedSkill(state, match.card, sk, script);
+      if (incrementalLookIntent(script?.ops) && copiedSkillCapture) throw new NotYet("capture a copied private inspection", "R527");
+      if (paidWarpIntent(script) && copiedSkillCapture) throw new NotYet("capture a copied Warp-count Auto declaration", "R522");
+      if (pairedSelfScript(script) && copiedSkillCapture) throw new NotYet("copied bounded paired-source occurrence is not yet supported", "R487");
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
+        ...(incrementalLookIntent(script?.ops) ? {lookSource:captureLookSource(ctx,state,match.card,master,sk,script!)} : {}),
+        ...(paidWarpIntent(script) ? { paidWarpSource: capturePaidWarpSource(ctx, state, match.card, master, sk, script!) } : {}),
+        ...(koResultScript(script) ? { koBinding: captureKoBinding(state, match.card, master, sk.index, script!) } : {}),
+        ...(pairedSelfScript(script) ? { pairedSelf: capturePairedSelf(state, match.card, script!) } : {}),
+        ...(copiedSkillCapture ? { copiedSkillCapture } : {}),
+        ...(ownFaceUpLife ? { faceUpLifeEpoch: state.cards[match.card]?.zoneEpoch ?? 0 } : {}),
         ...(movementInfo && match.subject ? { subjectInfo: movementInfo } : {}),
         ...(cleanupOccurrence && match.trigger === "comboToDrop" ? { cleanupOccurrence } : {}),
         ...(state.cards[match.card]?.enteredUsing ? { selfEnteredUsing: state.cards[match.card].enteredUsing } : {}),
@@ -768,6 +850,18 @@ const isMoment = (name: string): name is Trigger => (TRIGGERS as readonly string
  * own and the attribute adapter reads the front — noted in §3 of the ruleset
  * spec as one of the five things the grammar could not say.
  */
+function executableSkill(sk: Skill, scripts: CardScripts): Skill {
+    const script = scripts.bySkill[sk.index];
+    sk = recordedSkillIdentity(sk, script);
+    const native = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk) && !sk.oncePerTurn && sk.limit === null;
+    const bareKeyword = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk);
+    if (bareKeyword && script && validityProblem(script.validity)) throw new NotYet(validityProblem(script.validity)!, "#907");
+    if (bareKeyword && (sk.sparking !== null || script?.validity?.sparking != null))
+      throw new NotYet("apply Sparking to native keyword identity; this qualified keyword remains unsupported", "#907");
+    return withValidity(withUsage(sk, script ? script.usage : (native ? unlimitedUsage() : undefined)),
+      script ? script.validity : (native && sk.sparking === null ? noSparking() : undefined));
+}
+
 export function skillsShowing(ctx: EngineContext, state: VmState, id: string): { skills: Skill[]; scripts: CardScripts } {
   const inst = state.cards[id];
   const def = inst ? ctx.defs[inst.cardId] : undefined;
@@ -781,22 +875,12 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
   // on it, every reader of this function at once (#439). A copied pure
   // keyword line is not here: it is granted as a `keyword` effect.
   const copies = state.effects.filter((e) => e.kind === "copiedSkills" && e.target === id && e.copied);
-  const executable = (sk: Skill, scripts: CardScripts): Skill => {
-    const script = scripts.bySkill[sk.index];
-    sk = recordedSkillIdentity(sk, script);
-    const native = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk) && !sk.oncePerTurn && sk.limit === null;
-    const bareKeyword = sk.kind === "keyword" && !sk.effect.trim() && !sk.cost.trim() && !needsPaymentRecord(sk);
-    if (bareKeyword && script && validityProblem(script.validity)) throw new NotYet(validityProblem(script.validity)!, "#907");
-    if (bareKeyword && (sk.sparking !== null || script?.validity?.sparking != null))
-      throw new NotYet("apply Sparking to native keyword identity; this qualified keyword remains unsupported", "#907");
-    return withValidity(withUsage(sk, script ? script.usage : (native ? unlimitedUsage() : undefined)),
-      script ? script.validity : (native && sk.sparking === null ? noSparking() : undefined));
-  };
+
   // #1166: a line printed in quotation marks is a skill this card grants
   // ("…your Leader gains the following skill for the turn- "[auto] …""),
   // never one it has — it runs only as the copy a quoted grant makes.
   const mine = own.skills.some((sk) => sk.granted) ? own.skills.filter((sk) => !sk.granted) : own.skills;
-  if (!copies.length) return { ...own, skills: mine.map((sk) => executable(sk, own.scripts)) };
+  if (!copies.length) return { ...own, skills: mine.map((sk) => executableSkill(sk, own.scripts)) };
   const skills = mine.slice();
   const bySkill = { ...own.scripts.bySkill };
   for (const e of copies) {
@@ -805,7 +889,7 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
     if (!src) continue;
     const scripts = programsOf(ctx, src, c.side);
     for (const sk of parseSkills((c.side === "back" ? src.back?.skill : src.skill) ?? null)) {
-      if (!c.skills.includes(sk.index)) continue;
+      if (!c.skills.includes(sk.index) || resolvedGrantDeleted(state, id, e.id, sk.index)) continue;
       // #1166: a quoted grant runs the quoted skill; no other copy takes one.
       if (!sk.granted !== !c.quoted) continue;
       const index = copiedSkillIndex(e.id, sk.index);
@@ -817,7 +901,7 @@ export function skillsShowing(ctx: EngineContext, state: VmState, id: string): {
       }
     }
   }
-  return { skills: skills.map((sk) => executable(sk, { ...own.scripts, bySkill })), scripts: { ...own.scripts, bySkill } };
+  return { skills: skills.map((sk) => executableSkill(sk, { ...own.scripts, bySkill })), scripts: { ...own.scripts, bySkill } };
 }
 
 // ── the checkpoint's queue (4-2-2, 9-6-6) ───────────────────────────────────
@@ -838,4 +922,41 @@ export function nextPending(state: VmState): VmPendingRecord | null {
     return i >= 0 ? state.pending.splice(i, 1)[0] : null;
   };
   return pick(state.turnPlayer) ?? pick(other(state.turnPlayer));
+}
+
+/** Capture existing identity only; this never grants or compiles a skill. */
+export function captureCopiedSkill(state: VmState, card: string, skill: Skill, script: Script | undefined): CopiedSkillCapture | undefined {
+  for (const effect of state.effects) {
+    if (effect.kind !== "copiedSkills" || effect.target !== card || !effect.copied) continue;
+    const sourceIndex = effect.copied.skills.find(index => copiedSkillIndex(effect.id, index) === skill.index);
+    if (sourceIndex === undefined) continue;
+    const epoch = state.cards[card]?.zoneEpoch ?? 0;
+    const hiddenCount = state.cards[card]?.hiddenCount ?? 0;
+    resolvedGrantReceipt(state, card, epoch, effect.id, hiddenCount);
+    return { version: 1, card, epoch, hiddenCount, grant: effect.id, index: skill.index, sourceIndex, record: canonicalTaxValue({ skill, script }) };
+  }
+  return undefined;
+}
+
+/** Exact metadata for one captured declaration; never a list offered to new
+ * activations. The original compiled rule must still match its captured record. */
+export function capturedSkillShowing(ctx: EngineContext, state: VmState, card: string, index: number, capture?: CopiedSkillCapture): { skill?: Skill; script?: Script; deleted: boolean } {
+  if (!capture) {
+    if (index >= COPIED_SKILL_BASE && index < GRANTED_LINE_BASE) throw new NotYet("rebuild the captured copied-skill declaration", "R475");
+    const showing = skillsShowing(ctx, state, card);
+    return { skill: showing.skills.find(skill => skill.index === index), script: showing.scripts.bySkill[index], deleted: false };
+  }
+  const fail = (): never => { throw new NotYet("rebuild the captured copied-skill declaration", "R475"); };
+  if (capture.version !== 1 || capture.card !== card || capture.index !== index || !Number.isSafeInteger(capture.epoch) || capture.epoch < 0 || !Number.isSafeInteger(capture.hiddenCount) || capture.hiddenCount < 0 || !Number.isSafeInteger(capture.grant) || capture.grant < 0 || !Number.isSafeInteger(capture.sourceIndex) || capture.sourceIndex < 0 || copiedSkillIndex(capture.grant, capture.sourceIndex) !== index || typeof capture.record !== "string") return fail();
+  const receipt = resolvedGrantReceipt(state, card, capture.epoch, capture.grant, capture.hiddenCount), copied = receipt.copied;
+  if (receipt.kind !== "copiedSkills" || !copied || !copied.skills.includes(capture.sourceIndex)) return fail();
+  const source = ctx.defs[copied.cardId];
+  if (!source) return fail();
+  const printed = parseSkills((copied.side === "back" ? source.back?.skill : source.skill) ?? null).find(skill => skill.index === capture.sourceIndex);
+  if (!printed || !printed.granted !== !copied.quoted) return fail();
+  const scripts = programsOf(ctx, source, copied.side), original = scripts.bySkill[capture.sourceIndex];
+  const script = original?.usage?.limit != null ? { ...original, usage: undefined, unsupported: [...original.unsupported, "copied Limit ceilings require a canonical shared same-skill identity; unsupported (#907)"] } : original;
+  const skill = executableSkill({ ...(printed.granted ? printed.granted.skill : printed), index }, { ...scripts, bySkill: { [index]: script! } });
+  if (canonicalTaxValue({ skill, script }) !== capture.record) return fail();
+  return { skill, script, deleted: receipt.deleted };
 }

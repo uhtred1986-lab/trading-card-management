@@ -1,0 +1,26 @@
+# Entry negation, implicit Absorb and passive costs — 4 Nov 2026
+
+Intermediate checkpoint in PR #1249. Compiler/runtime changes through `e428cf6c`; immediate-skill lifecycle infrastructure through `4560a682`. Complete support remains in progress.
+
+## Behavior and sources
+
+- **R-388, partial entry negation (`e428cf6c`):** play operations carry typed negated skill kinds and their duration. Successful entry applies those negations after zone reset and before movement/on-play watchers, including Unison entry. Deflect still protects the card before entry; a keyword-negated card loses it on the board before the post-entry Counter window. Keyword-only negation preserves ordinary on-play Autos, while Auto/non-keyword negation suppresses them. Failed entry applies nothing. The movement callback is synchronous runtime plumbing, not persisted state. Sources include RM 3-1-4, 9-6 and 22-13-6-3, and the BT10-153/DB1-066 Q&A cited in the ledger.
+- **Implicit Absorb, same ruling:** P-327's single immediate play uses the activating card as its required host. The compiler infers that host only for an unambiguous single immediate play; explicit hosts survive, and delayed/granted programs are excluded. Typed Absorb validation remains in place. The Evolve reader also retains a printed partial-negation suffix.
+- **R-441, passive cost wording (`49a907ee` plus corpus followup):** BT13-001's two faces retain red, Bardock's Crew, own Battle Area and original energy cost one when applying the increase. The full catalog additionally identifies BT20-135: its reduction retains mono-black, Saiyan, combo cost one, combo power 5000 and own hand/Battle Area. Each qualifier is exercised through stored programs. The existing standing modifier provides the behavior; the change normalizes the possessive passive wording. Sources: RM 20-3-1, 20-21 and 9-5-1, printed cards; own-card Q&A/errata do not alter these modifiers.
+- **R-421 lifecycle groundwork (`4560a682`):** ordinary Activate, Auto and Counter effects retain a versioned immediate lifetime, nested ancestry and an internal completion boundary across save/reload. A departed source does not cancel an activated effect. Pending on-play Autos begin after the parent ends. Conservative arrival bounds include tokens/Unisons and exclude future or invoked child effects. Existing declared/keyword timing paths retain their current owner. This step does **not** enable the missing shared Counter windows; those and their per-arrival bindings are the next implementation.
+
+## Verification
+
+At `e428cf6c`, 48 implicit-Absorb/entry, 110 Surge, 50 face-up-Life, 70 invocation and 20 passive-cost scenarios pass together (298 total), with language, lang, describe, Teach, rulings, typecheck and changed-file lint. Entry worker compatibility also covers the relevant Union/Absorb, wording, selector, trigger, payment, capability and preview suites. The catalog followup expands passive-cost coverage to 36 cases.
+
+At `4560a682`, the lifecycle's 22 cases pass together with the 48 entry and 70 invocation scenarios, Counter-chain #552 and Counter-price #716; typecheck, rulings, changed-file lint and capability inventory pass. Scope tests exercise nested invocation, reload, source departure, zero selections, deferred on-play Autos, Counter effects, and malformed ancestry/continuations. Language fixtures are regenerated directly and reviewed; this is not a full contract emission.
+
+Fixture fuzz at `e428cf6c` completes 40/40 with zero crashes, interruptions or action limits (`/tmp/arena-support5/combined/fuzz-fourth.json`). This is shared-runtime Fusion fixture regression coverage, not exhaustive Masters or Fusion support. The lifecycle head `4560a682` also completes 40/40 with zero crashes, interruptions or action limits (`fuzz-fourth-scopes.json`).
+
+## Full-record evidence and remaining work
+
+The frozen 6,597-card/13,964-skill Masters corpus changes exactly **18 records** from the third checkpoint: fifteen entry/Absorb records exactly equal the independently reviewed worker output, plus three passive-cost restorations. Every field outside the intended passive operations, pattern, narration and unread status is unchanged. The entry inverse comparison preserves the original targets, kinds and durations while moving negation to entry; P-327 additionally receives only its typed procedure/implicit host. [Full changed-field evidence](support-fourth-program-diff.json).
+
+Snapshot: `/tmp/arena-support5/combined/fourth-full.json`, SHA-256 `ddaf17f74a655bbae903ed2bb5eef37ac7961041861542181fc06d7642bfcf26`. It compiled the `e428cf6c` source; the subsequent lifecycle-only commit changes no stored compiler program. Totals: **12,972 readable / 992 unread**, three restorations, no read-to-unread regressions. Additional readable-record runtime gaps fall to **47** after the Absorb procedure fix. The broader checker reports 363 records with additional reasons and 2,558 contextual unknowns; it remains non-exhaustive.
+
+Shared Counter timing, paid-card history, remaining payment/runtime families and unread clauses continue. The Battle invocation owner question remains pending. No production refresh, database change, deployment or merge occurred. The full integration gate remains deferred until the complete combined deliverable.

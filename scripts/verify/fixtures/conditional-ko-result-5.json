@@ -1,0 +1,705 @@
+{
+  "BT3-071": {
+    "card": {
+      "id": "BT3-071",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Unfeeling Destroyer Android 14",
+      "characters": [
+        "Android 14"
+      ],
+      "traits": [
+        "Android"
+      ],
+      "skill": "[Double Strike] (This card inflicts 2 damage instead of 1 when attacking)<br>[Auto] When you play this card, your opponent chooses 1 of their Battle Cards and KO-s it. If this skill is used to KO a Battle Card with an energy cost of 3 or less, draw 1 card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Unfeeling Destroyer Android 14",
+        "qa": [
+          {
+            "q": "When this card’s auto skill is used to KO {BT2-006 Miraculous Comeback Ultimate Gohan}, do you draw a card?",
+            "a": "No, you don’t.\n{BT2-006 Miraculous Comeback Ultimate Gohan}’s energy cost isn’t reduced by 4 in the Drop Area, so its energy cost is 6—this means the condition requiring the energy cost to be 3 or less isn’t met."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT3-071#0": {
+        "cardId": "BT3-071",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Double Strike] (This card inflicts 2 damage instead of 1 when attacking)",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Strike",
+        "reads": ""
+      },
+      "BT3-071#10": {
+        "cardId": "BT3-071",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] When you play this card, your opponent chooses 1 of their Battle Cards and KOs it. If this skill is used to KO a Battle Card with an energy cost of 3 or less, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "chooser": "opponent",
+            "reason": "your opponent chooses 1 of their Battle Cards"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [
+          "If this skill is used to KO a Battle Card with an energy cost of 3 or less",
+          "draw 1 card"
+        ],
+        "pattern": "if this skill is used to ko a battle card with an energy cost of N or less",
+        "reads": "your opponent chooses 1 Battle Card in your opponent's Battle Area, KO the chosen cards"
+      }
+    }
+  },
+  "BT2-006": {
+    "card": {
+      "id": "BT2-006",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "6",
+      "specified": null,
+      "z": null,
+      "power": 25000,
+      "name": "Miraculous Comeback Ultimate Gohan",
+      "characters": [
+        "Son Gohan: Adolescence"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "skill": "[Double Strike]<br>[Permanent] If you have only 3 or less cards besides this card in your hand, reduce the energy cost of this card in your hand or Battle Area by 4.<br>[Auto] When this card KO-s your opponent's Battle Card, inflict 2 damage to your opponent.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Miraculous Comeback Ultimate Gohan",
+        "qa": [
+          {
+            "q": "When you have 3 or less cards in your hand, can you KO {BT2‐006 Miraculous Comeback Ultimate Gohan} with {BT1‐063 Son Goten, Family of Justice}’s auto skill?",
+            "a": "Yes, you can.\nIf the controller has 3 or less cards in their hand, the energy cost of {BT2‐006 Miraculous Comeback Ultimate Gohan} in the Battle Area becomes 2, so it can be KO-ed by {BT1‐063 Son Goten, Family of Justice}’s auto skill."
+          },
+          {
+            "q": "{BT2‐006 Miraculous Comeback Ultimate Gohan} inflicted damage to the opponent with its auto skill. Does the owner of {BT2‐006 Miraculous Comeback Ultimate Gohan} choose which cards the opponent adds from the Life Area to their hand?",
+            "a": "No, they do not.\nThe player who was damaged chooses which cards to add to their hand."
+          },
+          {
+            "q": "If {Miraculous Comeback Ultimate Gohan} is attacked while it has [Revenge] and KOs your opponent’s Battle Card with [Revenge], can you use this card’s auto skill to deal damage to your opponent?",
+            "a": "Yes, you can.\n{BT2-006 Miraculous Comeback Ultimate Gohan}’s auto skill still activates when it KOs a card with one of its skills."
+          },
+          {
+            "q": "If {BT2-006 Miraculous Comeback Ultimate Gohan} KOs a Battle Card with [Revenge], does its auto skill activate?",
+            "a": "Yes, it does."
+          },
+          {
+            "q": "{BT2‐006 Miraculous Comeback Ultimate Gohan}’s energy cost was decreased by 4 due to its permanent skill. Does the remaining cost need to be paid with the specified color?",
+            "a": "Yes, it does."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT2-006#10": {
+        "cardId": "BT2-006",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Permanent] If you have only 3 or less cards besides this card in your hand, reduce the energy cost of this card in your hand or Battle Area by 4.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "hand",
+            "notSelf": "card"
+          },
+          "atMost": 3
+        },
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self",
+                "areas": [
+                  "hand",
+                  "battle"
+                ]
+              }
+            },
+            "amount": 4,
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[costReduction]",
+        "reads": "if there are 3 or fewer cards in your hand other than this card: this card costs 4 less"
+      },
+      "BT2-006#20": {
+        "cardId": "BT2-006",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Auto] When this card KOs your opponent's Battle Card, inflict 2 damage to your opponent.",
+        "kind": "auto",
+        "trigger": [
+          "kos"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "damage",
+            "n": 2,
+            "side": "opponent"
+          }
+        ],
+        "unread": [],
+        "pattern": "damage",
+        "reads": "deal 2 damage"
+      }
+    }
+  },
+  "BT18-034": {
+    "card": {
+      "id": "BT18-034",
+      "type": "Z-BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": "2",
+      "power": 25000,
+      "name": "Cell, Awakening of the Created",
+      "characters": [
+        "Cell"
+      ],
+      "traits": [
+        "Android"
+      ],
+      "skill": "[Deflect][Critical]<br>[Auto] When this card is played, choose all of your opponent's Battle Cards with energy costs of 5 or less and place them under this card.<br>[Activate: Main][Once per turn] If 1 or more cards are under this card and you place all of them in their owners' Drops: Switch this card to Active Mode. Additionally, if you used this card's skill to place 4 or more cards in Drops, this card gains [Triple Strike] for the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT18-034#10": {
+        "cardId": "BT18-034",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] When this card is played, choose all of your opponent's Battle Cards with energy costs of 5 or less and place them under this card.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 5,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 99,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "choose all of your opponent's Battle Cards with energy costs of 5 or less"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→moveTo",
+        "reads": "choose all Battle Cards with an energy cost of 5 or less in your opponent's Battle Area, move the chosen cards under this card"
+      },
+      "BT18-034#20": {
+        "cardId": "BT18-034",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Activate: Main][Once per turn] If 1 or more cards are under this card and you place all of them in their owners' Drops: Switch this card to Active Mode. Additionally, if you used this card's skill to place 4 or more cards in Drops, this card gains [Triple Strike] for the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": false,
+          "text": "If 1 or more cards are under this card and you place all of them in their owners' Drops",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "If 1 or more cards are under this card and you place all of them in their owners' Drops",
+          "if you used this card's skill to place 4 or more cards in Drops",
+          "this card gains [Triple Strike] for the turn"
+        ],
+        "pattern": "if N or more cards are under this card and you place all of them in their owners' drops",
+        "reads": ""
+      }
+    }
+  },
+  "BT4-124": {
+    "card": {
+      "id": "BT4-124",
+      "type": "BATTLE",
+      "colors": [
+        "Black"
+      ],
+      "cost": "10",
+      "specified": null,
+      "z": null,
+      "power": 40000,
+      "name": "Beyond Darkness Demigra",
+      "characters": [
+        "Demigra"
+      ],
+      "traits": [
+        "Demon God"
+      ],
+      "skill": "[Ultimate]<br>[Dark Over Realm 7] ⑤<br>[Triple Strike]<br>[Auto] When this card attacks, your opponent reveals their hand. Choose up to 4 Battle Cards from it and combo with them in your Combo Area.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Beyond Darkness Demigra",
+        "qa": [
+          {
+            "q": "When using a card’s skill to combo, do you need to pay the combo cost for the card you’re combo-ing with?",
+            "a": "No, you do not need to pay unless specified otherwise."
+          },
+          {
+            "q": "If your Leader Card is black, what happens if you use this card’s skill to combo with your opponent’s {BT1-010 Divine Aide Vados}?",
+            "a": "{BT1-010 Divine Aide Vados}’s auto skill activates, and, because your Leader Card isn’t red, the “draw 1 card and add +10000 to this card's Combo for the duration of the turn” part of the card doesn’t resolve."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT4-124#10": {
+        "cardId": "BT4-124",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Dark Over Realm 7] {5}",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {
+            "any": 5
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Over Realm",
+        "reads": ""
+      },
+      "BT4-124#30": {
+        "cardId": "BT4-124",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[Auto] When this card attacks, your opponent reveals their hand. Choose up to 4 Battle Cards from it and combo with them in your Combo Area.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "reveal",
+            "sel": {
+              "side": "opponent",
+              "area": "hand"
+            },
+            "as": "revealed"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 4,
+              "upTo": true,
+              "fromVar": "revealed"
+            },
+            "as": "c0",
+            "reason": "Choose up to 4 Battle Cards from it"
+          },
+          {
+            "op": "comboFrom",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "reveal→choose→comboFrom",
+        "reads": "reveal all cards in your opponent's hand, choose up to 4 Battle Cards of the cards looked at, use the chosen cards in a combo"
+      }
+    }
+  }
+}

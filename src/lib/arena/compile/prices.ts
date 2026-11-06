@@ -1,3 +1,8 @@
+import {compilePaidHand} from './paid-hand';
+import {compilePaidWarp} from './paid-warp';
+import { compileAwakenAlternative } from "./awaken-alternative";
+import { spiritBoostDescriptor } from "../text/spirit-boost";
+import { isCompetingZAwakenPrice, supportedZAwakenActionPrice } from "../vm/activation-price-support";
 import { compilePotaraMaterials } from "./potara-materials";
 import { isAbsorbSkill, absorbPriceProblem, absorbEffectProblem } from "../vm/absorb-procedure";
 import { compileEvolutionBase } from "./evolution-base";
@@ -170,13 +175,17 @@ export function costText(cost: string): string {
  * price the player can pay.
  */
 export function compileCostProgram(skill: Skill): Script | null {
-  return splitPrice(skill).program;
+  const hand = compilePaidHand(skill);
+  if(hand)return {ops:hand.price!.ops!,unsupported:[]};
+  const warp = compilePaidWarp(skill);
+  if (warp) return { ops: warp.price!.ops!, unsupported: [] };
+  return compileAwakenAlternative(skill) ? null : splitPrice(skill).program;
 }
 
 const costPrograms = new Map<string, Script | null>();
 
-/** The keyword moves whose printed action price (before the colon) is compiled as a price program: [Swap] (#729), [Union] (Fusion, Potara) and the [Evolve] family (#926). */
-const PRICED_KEYWORD_MOVES = new Set<string>(["Swap", "Union", "Evolve"]);
+/** The keyword moves whose printed action price (before the colon) is compiled as a price program: [Swap] (#729), [Union] (Fusion, Potara) and the [Evolve] family (#926), and Awaken (R-387). */
+const PRICED_KEYWORD_MOVES = new Set<string>(["Swap", "Union", "Evolve", "Awaken", "Z-Awaken"]);
 
 /**
  * Compile one piece of price text as a program. Memoised on the text and the
@@ -184,7 +193,7 @@ const PRICED_KEYWORD_MOVES = new Set<string>(["Swap", "Union", "Evolve"]);
  * compiler.
  */
 export function compileAction(said: string, skill: Skill): Script | null {
-  const key = `${skill.tags.join("|")} ${said}`;
+  const key = `${skill.tags.join("|")}\0${said}`;
   const hit = costPrograms.get(key);
   if (hit !== undefined) return hit;
   // Compiled as an [Activate] so that a leading "when" is not mistaken for a
@@ -199,10 +208,23 @@ export function compileAction(said: string, skill: Skill): Script | null {
   // "[Union-Fusion]{r}{r}{r}, draw 2 cards: Red <Son Goku: Br> and …"
   // (BT11-013), "[EX-Evolve]{r}{r}{r}, draw 1 card: Red <Broly: Br> …"
   // (BT13-024). Only those tags come off: the other keywords that own their
-  // line keep their prices unread until their own moves can charge one.
-  const owner = skill.keyword && PRICED_KEYWORD_MOVES.has(skill.keyword.name) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
+  // line keep their prices unread until their own moves can charge one. R-387 adds
+  // Awaken, whose native activation pays its printed action before effects and flipping.
+  // R-396 adds only the verified single-card Z-Awaken price shapes below.
+  // R-456: the native Dark Over Realm procedure can pay this exact draw
+  // after its whole-Drop cost and printed energy. Other action prices remain gaps.
+  const darkDraw = skill.keyword?.name === "Over Realm" && skill.keyword.dark
+    && /^(?:you )?draw 1 card\.?$/i.test(said.trim());
+  const fieldDraw = skill.keyword?.name === "Field" && /^(?:you )?draw 1 card\.?$/i.test(said.trim());
+  const owner = skill.keyword && (fieldDraw || darkDraw || PRICED_KEYWORD_MOVES.has(skill.keyword.name)) && !(skill.keyword.name === "Union" && skill.keyword.variant === "Absorb") ? skill.keyword.name : null;
   const tags = owner ? skill.tags.filter((t) => keywordOf(t)?.name !== owner) : skill.tags;
   const read = (text: string) => compileSkill({ ...skill, kind: "activate:main", keyword: null, tags, cost: "", effect: text });
+  // R-443: Z-Energy is the named area; the omitted noun means its cards.
+  if (skill.keyword?.name === "Z-Awaken") said = said.replace(/^place up to 3 of your z-energy under your leader(?: card)?$/i, "place up to 3 cards from your Z-Energy under your Leader");
+  // R-470: the destination before the source is the same exact under-card
+  // payment (BT16-020's erratum), never an alternative to its life gate.
+  if (skill.keyword?.name === "Awaken") said = said.replace(/^(?:you )?place ([1-9]\d*) (≪[^≫]+≫) cards? under this card from your drop(?: area)?\.?$/i,
+    "place $1 $2 cards from your Drop Area under this card");
   let sc = read(said);
   // A printed price is written in the second person and every action pattern
   // in the compiler is written in the imperative, so one the compiler cannot
@@ -212,14 +234,17 @@ export function compileAction(said: string, skill: Skill): Script | null {
   const bare = dropTheSubject(said);
   if ((sc.unsupported.length || !sc.ops.length) && bare !== said) sc = read(bare);
   sc = paidWithYourOwn(sc);
+  // R-396: other Z-Awaken payments await their own complete procedure.
+  if (skill.keyword?.name === "Z-Awaken" && !supportedZAwakenActionPrice(sc.ops)) { costPrograms.set(key, null); return null; }
   // #970: disjoint choices are charged on an [Activate] line's own price only —
   // an [Auto], a [Counter] and a keyword's move have their own payment
-  // planners, and none of them matches cards across slots.
+  // planners, and none of them matches cards across slots. R-387 admits Awaken
+  // through the ordinary activation price planner with a saved occurrence guard.
   const disjoint = sc.ops.some((op) => op.op === "choose" && op.sel.notIn);
   // Phrasing batch 3: the effect's "send up to 1 <A> and 1 <B> from your deck to your Warp" (BT20-054, `named-set.ts`)
   // is not a price: an "up to" send slot is one a price could pay with nothing (#970 keeps it unread there).
   const upToSend = sc.ops.some((op) => op.op === "choose" && op.sel.notIn && op.sel.upTo && sc.ops.some((m) => m.op === "moveTo" && m.to === "warp" && "var" in m.target && m.target.var === op.as));
-  const out = sc.unsupported.length || !sc.ops.length || upToSend || (disjoint && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
+  const out = sc.unsupported.length || !sc.ops.length || upToSend || (disjoint && !(skill.keyword?.name === "Z-Awaken" && isCompetingZAwakenPrice(sc.ops)) && skill.keyword?.name !== "Awaken" && (!skill.kind.startsWith("activate") || skill.keyword)) ? null : sc;
   costPrograms.set(key, out);
   return out;
 }
@@ -348,6 +373,7 @@ export function aegisPriceLine<T extends Pick<Skill, "keyword" | "cost" | "effec
  * that direction would hand the player a free skill.
  */
 export function priceCondition(skill: Skill): { cond: Cond; subject?: Ref } | null {
+  if (compileAwakenAlternative(skill)) return null;
   const conds = splitPrice(skill).conds;
   if (!conds.length) return null;
   if (conds.length === 1) return conds[0];
@@ -374,7 +400,10 @@ function priceText(skill: Skill): string {
   // "[Bond 2] If your Leader Card is a ≪Slug's Army≫ card:" (BT12-060) is the
   // price's condition whole, and cutting it as a descriptor lost it.
   if (skill.bond != null && !/^(?:if|when|while|during)\b/i.test(said)) return said.replace(/^[^,(]*(?:\([^)]*\))?\.?\s*,?\s*/, "");
-  if (skill.spiritBoost != null) return said.replace(/^(?:[a-z-]+ )?(?:z-)?unison cards?\b[^,]*(?:,\s*|$)/i, "");
+  if (skill.spiritBoost != null || skill.tags.some(tag => /^spirit boost x$/i.test(tag))) {
+    const descriptor = spiritBoostDescriptor(said);
+    if (descriptor.kind === "filter") return descriptor.rest;
+  }
   return said;
 }
 
@@ -504,7 +533,14 @@ function readPrice(printed: string, skill: Skill): PriceSplit {
   // compiler reads — a named list, one slot per name (`named-set.ts`) — so the
   // words of such a clause are not asked.
   const withoutNamedSets = namedSetSpans(said).reduceRight((rest, [from, to]) => rest.slice(0, from) + rest.slice(to), said);
-  if (SUMMED_COUNT.test(said) || EACH_COUNT.test(withoutNamedSets)) return NO_PRICE;
+  if (SUMMED_COUNT.test(said)) return NO_PRICE;
+  if (EACH_COUNT.test(withoutNamedSets)) {
+    // R-394: an exact existential named pair, optionally after Awaken's life
+    // alternative, is a condition rather than a choice of payment slots.
+    const existential = /^(?:(?:if|when) )?(?:your life is at \d+ or (?:less|fewer|more),? or )?you have \d+ or more each of (?:red|blue|green|yellow|black|white) <[^>]+> and <[^>]+> cards in (?:play|your battle area|your drop(?: area)?)$/i.test(said);
+    const only = existential ? allConditions(said) : null;
+    return only ? { conds: only, program: null } : NO_PRICE;
+  }
   // #970: a multi-slot send/place beside an aside the readers above did not fold
   // ("a <Gogeta> or <Veku> card―both with the [aegis] skill―in play", BT22-033)
   // would keep the condition half-read: left unread whole.
@@ -589,7 +625,9 @@ export function joints(said: string): { at: number; len: number }[] {
 /** Compile the complete price once, including an explicit zero payment. */
 export function compileCostRecord(skill: Skill): CostRecord {
   if (skill.kind === "permanent") return zeroCostRecord();
-  const condition = priceCondition(skill)?.cond ?? null;
+  const spirit = skill.spiritBoost != null || skill.tags.some(tag => /^spirit boost x$/i.test(tag)) ? spiritBoostDescriptor(costText(skill.cost)) : { kind: "none" as const };
+  const awakenAlternative = compileAwakenAlternative(skill);
+  const condition = compilePaidHand(skill)?.price?.condition ?? priceCondition(skill)?.cond ?? null;
   const program = compileCostProgram(skill)?.ops ?? null;
   const x = priceX(skill);
   const fusion = compileFusionMaterials(skill);
@@ -599,10 +637,10 @@ export function compileCostRecord(skill: Skill): CostRecord {
   const absorb = absorbEffect && !absorbEffect.unsupported.length && !absorbPriceProblem(program, condition) && !absorbEffectProblem(absorbEffect.ops) ? { version: 1 as const, variant: "Absorb" as const, area: "battle" as const } : undefined;
   return {
     version: 1,
-    readable: costIsOnlyOrbs(skill.cost) || bondDescriptorOnly(skill) || condition !== null || !!program?.length || (x !== null && !x.spiritBoost),
+    readable: spirit.kind !== "unknown" && (!!awakenAlternative || costIsOnlyOrbs(skill.cost) || bondDescriptorOnly(skill) || (spirit.kind === "filter" && !spirit.rest) || condition !== null || !!program?.length || (x !== null && !x.spiritBoost)),
     text: costText(skill.cost), orbs: { ...skill.energyCost }, either: skill.energyEither.map((group) => [...group]),
-    marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost,
-    condition, program, ...(fusion ? { fusion } : {}), ...(potara ? { potara } : {}), ...(evolution ? { evolution } : {}), ...(absorb ? { absorb } : {}), ...(x ? { x } : {}),
+    marker: skill.markerCost, burst: skill.burst, spiritBoost: skill.spiritBoost, ...(spirit.kind === "filter" ? { spiritBoostPayer: spirit.filter } : {}),
+    condition, program, ...(awakenAlternative ? { awakenAlternative } : {}), ...(fusion ? { fusion } : {}), ...(potara ? { potara } : {}), ...(evolution ? { evolution } : {}), ...(absorb ? { absorb } : {}), ...(x ? { x } : {}),
   };
 }
 

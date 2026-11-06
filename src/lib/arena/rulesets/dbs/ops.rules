@@ -282,9 +282,9 @@ DEFINE OP negateSkillsOfKind
 
 -- §9-1-5 — "negate this card's [Energy-Exhaust] skill in all areas"
 DEFINE OP negateKeyword
-  TAKES (keyword: word, target: ref)
+  TAKES (keyword: word, target: ref, allAreas: boolean, until: duration)
   DO {
-    negate(target: $target, what: keyword, keyword: $keyword)
+    negate(target: $target, what: keyword, keyword: $keyword, allAreas: $allAreas, until: $until)
   }
   text: "the target loses the named keyword skill"
   doc: "what `negateKeyword` means: one named keyword taken away, wherever the card sits — no duration of its own, unlike the other three"
@@ -293,12 +293,12 @@ DEFINE OP negateKeyword
 -- Unison and negate that skill for the turn" (BT31-138): the keyword is the
 -- master's pick as the step resolves, among those the target has in force.
 DEFINE OP negateChosenKeyword
-  TAKES (target: ref, until: duration)
+  TAKES (target: ref, until: duration, mandatory: boolean)
   DO {
-    negate(target: $target, what: keyword, chosen: true, until: $until)
+    negate(target: $target, what: keyword, chosen: true, until: $until, mandatory: $mandatory)
   }
   text: "the master picks one keyword skill the target has, and it stops applying, for the duration"
-  doc: "what `negateChosenKeyword` means: one keyword skill, picked as the step resolves among those the target cards have in force, negated on its card for the duration (9-1-5)"
+  doc: "what `negateChosenKeyword` means: one keyword skill, picked as the step resolves among those the target cards have in force, negated on its card for the duration (9-1-5); mandatory true requires a choice when available, absent or false permits None"
 
 -- §9-1-5 — "negate this skill for the turn / battle / game"
 DEFINE OP negateOwnSkill
@@ -509,17 +509,17 @@ DEFINE OP negateCounter
 -- §9-6 — "negate the play of that card and place it at the bottom of its
 -- owner's deck", "it's played in Rest Mode", "…with its skills negated"
 DEFINE OP resolvingPlay
-  TAKES (instead: area, position: word, mode: word, negated: boolean)
+  TAKES (instead: area, position: word, mode: word, negated: boolean, cardType: word)
   DO {
     GIVEN $instead {
-      replace(event: play, with: { moveTo(target: [resolving], to: $instead, position: $position) })
+      replace(event: play, cardType: $cardType, with: { moveTo(target: [resolving], to: $instead, position: $position) })
     }
     UNLESS $instead {
       GIVEN $negated {
-        replace(event: play, with: { play(target: [resolving], mode: $mode, negated: turn) })
+        replace(event: play, cardType: $cardType, with: { play(target: [resolving], mode: $mode, negated: turn) })
       }
       UNLESS $negated {
-        replace(event: play, with: { play(target: [resolving], mode: $mode) })
+        replace(event: play, cardType: $cardType, with: { play(target: [resolving], mode: $mode) })
       }
     }
   }
@@ -536,18 +536,24 @@ DEFINE OP resolvingPlay
 -- §20-11 — "look at the top 3 cards of your deck", "…the bottom card…",
 -- "look at your opponent's hand"
 DEFINE OP look
-  TAKES (n: amount, as: string, side: side, from: word, area: area)
+  TAKES (n: amount, as: string, side: side, from: word, area: area, upTo: boolean)
   DO {
-    GIVEN $area = deck {
-      GIVEN $from = top {
-        reveal(sel: TOP $n IN $side.deck, as: $as, audience: you)
-      }
-      GIVEN $from = bottom {
-        reveal(sel: BOTTOM $n IN $side.deck, as: $as, audience: you)
-      }
+    GIVEN $upTo {
+      GIVEN $from = top { reveal(sel: TOP $n IN $side.deck, as: $as, audience: you, incremental: true) }
+      GIVEN $from = bottom { reveal(sel: BOTTOM $n IN $side.deck, as: $as, audience: you, incremental: true) }
     }
-    UNLESS $area = deck {
-      reveal(sel: IN $side.$area, as: $as, audience: you)
+    UNLESS $upTo {
+      GIVEN $area = deck {
+        GIVEN $from = top {
+          reveal(sel: TOP $n IN $side.deck, as: $as, audience: you)
+        }
+        GIVEN $from = bottom {
+          reveal(sel: BOTTOM $n IN $side.deck, as: $as, audience: you)
+        }
+      }
+      UNLESS $area = deck {
+        reveal(sel: IN $side.$area, as: $as, audience: you)
+      }
     }
   }
   text: "the cards are shown to the player alone, and stay where they are"

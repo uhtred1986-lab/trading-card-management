@@ -195,7 +195,7 @@ function counterPaysTwo(w: VmState, neg: string, fs: string[]): { state: VmState
   const ev = [...asked.events, ...live.events];
   assert.deepEqual(ids(live.state, "p1", "drop", "F677").sort(), [fs[0], fs[1]].sort(), "2 cards from the hand to the Drop, once");
   assert.deepEqual(ids(live.state, "p1", "hand", "F677"), [fs[2]]);
-  assert.ok(Math.max(movedTo(ev, fs[0], "drop"), movedTo(ev, fs[1], "drop")) < movedTo(ev, neg, "drop"), "the price, then the [Counter] to the Drop");
+  assert.ok(movedTo(ev, neg, "drop") < Math.min(movedTo(ev, fs[0], "drop"), movedTo(ev, fs[1], "drop")), "R-453: Extra staging, then the activation tax");
   assert.equal(skills(ev, neg), 1);
   assert.ok(ev.some((e) => e.type === "attackNegated"), "and it resolves");
   return { state: live.state, events: ev };
@@ -349,12 +349,12 @@ const shape = (f: Extract<Op, { op: "forbid" }>) => ({ what: f.what, side: f.sid
   const asked = apply(w, { type: "counter", player: "p1", card: neg });
   assert.equal(asked.state.prompt.kind, "chooseCards");
   assert.deepEqual([...(asked.state.prompt.kind === "chooseCards" ? asked.state.prompt.choice.candidates : [])].sort(), [f1, f2].sort(), "never the [Counter] itself");
-  assert.deepEqual(ids(asked.state, "p1", "hand", "N677"), [neg], "still in the hand while its price is paid");
+  assert.deepEqual(ids(asked.state, "p1", "drop", "N677"), [neg], "R-453 / 12-2-2: Extra enters Drop before its skill costs and activation tax");
   privateToPayer(asked.state, "p1", "F677");
   const paid = apply(reload(asked.state), { type: "choose", player: "p1", cards: [f1] });
   const ev = [...asked.events, ...paid.events];
   assert.deepEqual(ids(paid.state, "p1", "warp", "F677"), [f1]);
-  assert.ok(movedTo(ev, f1, "warp") < movedTo(ev, neg, "drop"), "price, then the [Counter] to the Drop (22-10-7)");
+  assert.ok(movedTo(ev, neg, "drop") < movedTo(ev, f1, "warp"), "R-453: Extra staging precedes its activation tax");
   assert.ok(movedTo(ev, neg, "drop") < at(ev, (e) => e.type === "skill" && e.card === neg));
   assert.equal(skills(ev, neg), 1);
   assert.ok(ev.some((e) => e.type === "attackNegated"), "and it resolves");

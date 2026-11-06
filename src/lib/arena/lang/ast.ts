@@ -70,6 +70,7 @@ export type SelectorPart = "special" | "fromVar" | "count" | "take" | "filter" |
 export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   special: "special",
   fromVar: "fromVar",
+  requiredStamp: "flag",
   underHost: "places",
   count: "count",
   upTo: "count",
@@ -147,7 +148,7 @@ export function filterSlot(kind: FilterFieldType): FieldType {
 // ── expressions ─────────────────────────────────────────────────────────────
 
 /** What one argument of an expression call is. */
-export type ExprArg = "selector" | "var" | "number" | "side" | "ref" | "attr";
+export type ExprArg = "markerCost" | "selector" | "var" | "number" | "side" | "ref" | "attr";
 
 /**
  * One shape an `Amount` may take, as the language writes it.
@@ -186,6 +187,7 @@ export interface ExprSpec {
  * so a shape added to `Amount` is one row here and no new parsing.
  */
 export const EXPR_SCHEMA: ExprSpec[] = [
+  { key: "paidMarkers", call: "paidMarkers", args: ["markerCost"], times: true, example: "paidMarkers(spiritBoost)", maxExample: "paidMarkers(spiritBoost) * 5000" },
   { key: "count", call: "count", args: ["selector"], times: true, per: true, example: "count(SELECTOR)", maxExample: "count(SELECTOR) / 2 * 5000" },
   { key: "markers", call: "markers", args: ["selector"], times: true, per: true, example: "markers(SELECTOR)", maxExample: "markers(SELECTOR) / 2 * 5000" },
   { key: "sumPower", call: "sumPower", args: ["var"], example: "sumPower($rested)" },
@@ -222,7 +224,9 @@ void _everyAttrWritten;
  * same list.
  */
 export const COST_ITEMS = [
+  { syntax: "AWAKENALT", doc: "the versioned life-or-single-pile Awaken payment contract as quoted JSON" },
   { syntax: "EVOLUTION", doc: "the versioned EX-Evolve Battle-base contract as a quoted JSON object" },
+  { syntax: "SPIRITPAYER", doc: "the specified Spirit Boost Unison filter as quoted JSON" },
   { syntax: "FUSION", doc: "the versioned Fusion material contract as a quoted JSON object" },
   { syntax: "UNREAD", doc: "this price is not executable until its complete payment is recorded" },
   { syntax: "{Red}", doc: "an energy orb of a colour; repeat or mix freely ({Red}{Red}{any})" },
@@ -243,7 +247,7 @@ export const COST_ITEMS = [
  * kind names, and the words that introduce a declaration's clauses.
  */
 export const RESERVED = new Set([
-  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "FUSION", "EVOLUTION", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ALSO", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
+  "WHEN", "COST", "IF", "THEN", "DO", "TEXT", "PAYWITH", "SPIRITPAYER", "AWAKENALT", "FUSION", "EVOLUTION", "AS", "AND", "OR", "NOT", "IN", "FROM", "UNDER", "ALSO", "ANY", "TOP", "BOTTOM", "UP", "TO", "MINUS", "NULL", "TRUE", "FALSE", "ALL",
   "DEFINE", "GAME", "ATTRIBUTE", "ZONE", "PHASE", "STEP", "ACTION", "TRIGGER", "KEYWORD", "WIN", "OP", "WORDS", "PROMPT", "HOOK", "ON", "WHERE", "BIND", "FOR", "REFUSE", "UNLESS", "TAKES", "LIMIT", "AFTER",
 ]);
 

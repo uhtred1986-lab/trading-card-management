@@ -135,10 +135,10 @@ const triggers = (text: string, names: string[]) => names.filter((n) => autoTrig
   assert.deepEqual(triggers("[Auto] When this card activates [Blocker], switch it to Active Mode.", ["attacks", "blockerUsed"]), ["blockerUsed"]);
   // Another card's attack or block is not this card's.
   assert.deepEqual(triggers("[Auto][Once per turn] When your black card with a [Union] skill or black Z-Unison attacks or activates the [Blocker] skill, draw 1 card and it gets +5000 power for the turn.", ["attacks", "blockerUsed"]), []);
-  // "When you activate this card's [Blocker]" was read as a play ("when you activate this card" is an Extra's own play, 12-2).
+  // Blocker activation and an Extra's own activation retain distinct trigger identities (R460).
   const BT1_087 = "[Auto] When you activate this card's [Blocker], switch this card to Active Mode after the battle.";
-  assert.deepEqual(triggers(BT1_087, ["played", "blockerUsed"]), ["blockerUsed"]);
-  assert.deepEqual(triggers("[Auto] When you activate this card, draw 1 card.", ["played", "blockerUsed"]), ["played"], "an Extra's own activation is still a play");
+  assert.deepEqual(triggers(BT1_087, ["played", "blockerUsed", "selfExtraActivated"]), ["blockerUsed"]);
+  assert.deepEqual(triggers("[Auto] When you activate this card, draw 1 card.", ["played", "blockerUsed", "selfExtraActivated"]), ["selfExtraActivated"], "an Extra's own activation uses its original self-activation event");
 }
 
 // ── 5. the combo-entry moments ───────────────────────────────────────────────

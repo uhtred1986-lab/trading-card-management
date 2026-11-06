@@ -1,0 +1,7 @@
+# BT13-046 source-price correction
+
+The official [BT13-046 image](https://www.dbs-cardgame.com/images/cardlist/cardimg/BT13-046.png) prints a circled generic **6**, then draw two cards, for EX-Evolve on a Boujack costing three or four. The public catalog and official text export lose the numeral as `?`. Parent and independent worker image readings agree. The saved official image SHA-256 is `799bc58eaa19c36dc025cc20ed8ea5b48d41f74e404e93e2e9b07eedabf777b0`; retained image/crop/source notes are under `/workspace/shared/arena-support5/recovery/BT13-046*` and `boujack-image-price.txt`.
+
+An exact per-card catalog correction restores `{6}` only in this EX-Evolve/draw-two sentence. It does not reinterpret question marks generally or change unrelated text. The existing typed EX-Evolve payment then pays six generic energy and actually draws two cards before evolution; no new payment mechanism is added.
+
+`boujack-price-5` verifies the exact correction, idempotence, another card remaining unchanged, and 20 native both-seat payment/base scenarios with JSON replay. Cost-three/four Boujack bases work; Rest Mode is inherited. Five energy, a one-card deck, wrong character, wrong cost, wrong area and opponent-owned bases refuse both the menu offer and a forged declaration. Successful plays spend all six generic energy, draw exactly two and retain the chosen base underneath. This is support for this EX-Evolve line, not an exhaustive claim about the card's other skills.

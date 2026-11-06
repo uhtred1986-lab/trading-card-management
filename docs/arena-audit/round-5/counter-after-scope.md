@@ -1,0 +1,9 @@
+# R431 — Nested Counter effects from an after-window
+
+The native DB2-040/DB2-169 Window2 reproduction interrupted with a saved-window-state error before evaluating the effect. A parent with a parked after-window still had phase effect; opening the Counter's own potential-play scope correctly rejected that contradictory state. The correction records the actual boundary when parking the window. Before-window behavior and the serialized scope version stay unchanged; no new schema or compiler field is introduced.
+
+RM 4-3-2-3/4 and 9-7-3-5-1 permit the nested Counter effect's own timings and continuation back to the parent. DB2-040 and DB2-169 own FAQs explicitly say that their being-played condition is false in Window2: neither the transformation nor self-play resolves, and the Counter stays in Drop. Existing observational count semantics already return no being-played card after arrival while direct resolving-card targets retain Window2 availability. A proposed extra qualifier was unnecessary and was not implemented.
+
+Fourteen native cases exercise both seats and JSON replay. The two actual stored DB2 Counter lines cover low-cost, over-threshold and zero parent arrivals; the Counter remains in Drop and the arrived card is unaffected. Actual BT10-136 activated in the parent's after-window opens its own before-window, accepts actual BT1-110, enters Rest, and returns through both completed scopes. Its other on-play actions retain their normal execution. This is runtime scope evidence; DB2-169's unrelated Aegis-trigger reading remains outside this batch.
+
+The shared-scope94 and Counter-chain552 suites, TypeScript, changed-file lint, rulings and capability inventory are the targeted checks. Compiler inputs/outputs and language fixtures are unchanged, so there is no record refresh or full corpus delta for this patch. Next is retained ownership for mixed Window1 future-card tails; DB2-030's per-arrival optional decision remains a separate extension.

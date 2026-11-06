@@ -20,6 +20,7 @@
  * 18 Oct 2026, with the trigger shortened where it is not the point.
  */
 import assert from "node:assert/strict";
+import energySources from "./fixtures/energy-admission-5.json";
 import { DBS_DEFINITION, DEFS, actsG, assertConsistentG, card, comboCostOfG, compileSkill, findG, moveG, parseSkills, playCostG, playG, stagedG, zoneOf } from "./harness";
 import type { Action, EngineState } from "./harness";
 import { validateProgram, type Op } from "../../src/lib/arena/vm/script";
@@ -281,11 +282,21 @@ const playCard = (s: EngineState, id: string) => pay(playG(s, { type: "play", pl
 
 // ── "you may choose 1 red card and 1 green card in your Drop Area and send them to your Warp" ──
 {
-  const db2 = compile("[permanent] When placing this card in your energy from any area, you may choose 1 red card and 1 green card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.");
-  assert.deepEqual(db2.unsupported, [], "DB2-166 and its five siblings read");
-  const [offer] = find(db2.ops, "may");
-  assert.deepEqual(find(offer.ops, "choose").map((x) => [x.sel.area, x.sel.count, !!x.sel.notIn]), [["drop", 1, false], ["drop", 1, true]], "each from the Drop, a card of its own");
-  assert.equal(find(db2.ops, "negateKeyword").length, 1, "'if you do' follows the offer");
+  // R507 replaced the former generic may/continuous negation lowering with
+  // the complete pre-entry procedure descriptor. Read the original whole card;
+  // the separate synthetic Auto below still proves ordinary disjoint choices.
+  const full = energySources["DB2-166"];
+  const permanent = parseSkills(full.skill).find(skill => skill.index === 10)!;
+  assert.equal(full.backSkill, null);
+  assert.equal(permanent.raw, "[permanent] When placing this card in your energy from any area, you may choose 1 red card and 1 green card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.");
+  assert.equal(permanent.kind, "permanent");
+  assert.equal(permanent.cost, "");
+  const db2 = compileSkill(permanent);
+  assert.deepEqual(db2.unsupported, [], "DB2-166's reviewed Energy procedure reads");
+  assert.deepEqual(db2.trigger, [], "pre-entry procedure, not an arrival Auto");
+  assert.deepEqual(db2.ops, [{ op: "energyEntryExhaust", colors: ["Red", "Green"] }]);
+  assert.deepEqual(find(db2.ops, "may"), [], "optional payment belongs to the native procedure");
+  assert.deepEqual(find(db2.ops, "negateKeyword"), [], "no continuous Exhaust negation is introduced");
   assert.equal(validateProgram(db2.ops), true);
 
   def("C907-RED", { colors: ["Red"] });

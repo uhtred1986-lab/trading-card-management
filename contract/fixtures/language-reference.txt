@@ -245,7 +245,7 @@
     {
       "name": "invokeSkill",
       "class": "primitive",
-      "signature": "{\"op\":\"invokeSkill\",\"trait\"?:\"…\",\"sel\"?:SELECTOR,\"skillKind\":\"activate:main\"|\"activate:battle\"|\"activate:main/battle\",\"from\":\"hand\",\"maxCost\"?:\"currentEnergy\"}",
+      "signature": "{\"op\":\"invokeSkill\",\"trait\"?:\"…\",\"sel\"?:SELECTOR,\"skillKind\":\"activate:main\"|\"activate:battle\"|\"activate:main/battle\"|\"activate:any\",\"from\":\"hand\"|\"deck\"|\"drop\",\"maxCost\"?:\"currentEnergy\"}",
       "fields": [
         {
           "name": "trait",
@@ -267,7 +267,8 @@
           "enumValues": [
             "activate:main",
             "activate:battle",
-            "activate:main/battle"
+            "activate:main/battle",
+            "activate:any"
           ]
         },
         {
@@ -276,7 +277,9 @@
           "nullable": false,
           "type": "enum",
           "enumValues": [
-            "hand"
+            "hand",
+            "deck",
+            "drop"
           ]
         },
         {
@@ -290,7 +293,7 @@
         }
       ],
       "sentence": "choose 1 ≪Desire≫ card in your hand with an energy cost less than or equal to your current energy and activate its [Activate: Main] skill",
-      "doc": "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs."
+      "doc": "R-420 / 12-2-4: invoke one Extra Activate line from hand, deck or Drop. Bare activate-card instructions allow Main, Battle or Main/Battle; a named line restricts the kind. The original energy and skill costs are waived, while conditions, usage limits, negation and external taxes remain. Hand/deck Extras enter Drop before resolving; Drop Extras stay there. A saved card/line choice is bound to the same zone occurrence. The legacy trait/currentEnergy form remains hand-only."
     },
     {
       "name": "energyMarker",
@@ -424,6 +427,13 @@
           "type": "amount"
         },
         {
+          "name": "energyCostEquals",
+          "required": false,
+          "nullable": false,
+          "offCard": "each candidate must have this effective energy cost; this is a per-card filter and does not change the selector's cardinality or optionality",
+          "type": "amount"
+        },
+        {
           "name": "specifiedCostAtMost",
           "required": false,
           "nullable": false,
@@ -437,8 +447,14 @@
     {
       "name": "look",
       "class": "macro over `reveal`",
-      "signature": "{\"op\":\"look\",\"n\":AMOUNT,\"as\":\"…\",\"side\"?:\"you\"|\"opponent\",\"from\"?:\"top\"|\"bottom\",\"area\"?:AREA}",
+      "signature": "{\"op\":\"look\",\"upTo\"?:true|false,\"n\":AMOUNT,\"as\":\"…\",\"side\"?:\"you\"|\"opponent\",\"from\"?:\"top\"|\"bottom\",\"area\"?:AREA}",
       "fields": [
+        {
+          "name": "upTo",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
         {
           "name": "n",
           "required": true,
@@ -483,8 +499,14 @@
     {
       "name": "reveal",
       "class": "primitive",
-      "signature": "{\"op\":\"reveal\",\"sel\":SELECTOR,\"as\":\"…\",\"audience\"?:\"you\"|\"both\"}",
+      "signature": "{\"op\":\"reveal\",\"incremental\"?:true|false,\"sel\":SELECTOR,\"as\":\"…\",\"audience\"?:\"you\"|\"both\"}",
       "fields": [
+        {
+          "name": "incremental",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
         {
           "name": "sel",
           "required": true,
@@ -515,13 +537,19 @@
     {
       "name": "ko",
       "class": "macro over `move`",
-      "signature": "{\"op\":\"ko\",\"target\":TARGET}",
+      "signature": "{\"op\":\"ko\",\"target\":TARGET,\"completedAs\"?:\"…\"}",
       "fields": [
         {
           "name": "target",
           "required": true,
           "nullable": false,
           "type": "ref"
+        },
+        {
+          "name": "completedAs",
+          "required": false,
+          "nullable": false,
+          "type": "string"
         }
       ],
       "sentence": "KO this card"
@@ -529,7 +557,7 @@
     {
       "name": "moveTo",
       "class": "primitive",
-      "signature": "{\"op\":\"moveTo\",\"target\":TARGET,\"to\":AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"active\"|\"rest\",\"reveal\"?:true|false,\"under\"?:TARGET,\"owner\"?:\"you\"|\"opponent\",\"faceUp\"?:true|false,\"random\"?:true|false,\"cause\"?:\"ko\"|\"effect\"|\"rule\"|…}",
+      "signature": "{\"op\":\"moveTo\",\"target\":TARGET,\"to\":AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"active\"|\"rest\",\"reveal\"?:true|false,\"under\"?:TARGET,\"owner\"?:\"you\"|\"opponent\",\"faceUp\"?:true|false,\"random\"?:true|false,\"cause\"?:\"ko\"|\"effect\"|\"rule\"|…,\"completedAs\"?:\"…\"}",
       "fields": [
         {
           "name": "target",
@@ -613,6 +641,12 @@
           ]
         },
         {
+          "name": "completedAs",
+          "required": false,
+          "nullable": false,
+          "type": "string"
+        },
+        {
           "name": "as",
           "required": false,
           "nullable": false,
@@ -626,7 +660,7 @@
     {
       "name": "play",
       "class": "primitive",
-      "signature": "{\"op\":\"play\",\"target\":TARGET,\"mode\"?:\"active\"|\"rest\",\"onto\"?:TARGET,\"negated\"?:\"turn\"|\"game\",\"using\"?:\"Over Realm\"|\"Evolve\"|\"EX-Evolve\"|…}",
+      "signature": "{\"op\":\"play\",\"target\":TARGET,\"mode\"?:\"active\"|\"rest\",\"onto\"?:TARGET,\"negated\"?:\"turn\"|\"game\",\"negatedKinds\"?:[\"auto\"|\"activate\"|\"counter\"|\"permanent\"|\"keyword\"],\"negatedUntil\"?:DURATION,\"using\"?:\"Over Realm\"|\"Dark Over Realm\"|\"Evolve\"|…}",
       "fields": [
         {
           "name": "target",
@@ -668,6 +702,26 @@
           ]
         },
         {
+          "name": "negatedKinds",
+          "required": false,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "auto",
+            "activate",
+            "counter",
+            "permanent",
+            "keyword"
+          ]
+        },
+        {
+          "name": "negatedUntil",
+          "required": false,
+          "nullable": false,
+          "type": "duration"
+        },
+        {
           "name": "activating",
           "required": false,
           "nullable": false,
@@ -695,6 +749,7 @@
           "type": "enum",
           "enumValues": [
             "Over Realm",
+            "Dark Over Realm",
             "Evolve",
             "EX-Evolve",
             "Xeno-Evolve",
@@ -729,18 +784,24 @@
         }
       ],
       "sentence": "play this card",
-      "doc": "\"onto\" plays it on top of another card ([Union-Absorb], 22-13-6-3); \"negated\" is \"played with its skills negated\" (9-1-5). \"using: Evolve/EX-Evolve/Xeno-Evolve\" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. \"using: Over Realm\" is that keyword's own play and marks its arrival (22-15). \"using: Union-Fusion/Union-Potara/Union-Absorb\" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; \"alsoUnder\" puts [Union-Potara]'s second material under the card as part of the play."
+      "doc": "\"onto\" plays it on top of another card ([Union-Absorb], 22-13-6-3); \"negated\" is \"played with its skills negated\" (9-1-5). \"negatedKinds\" and \"negatedUntil\" are a nonempty exact kind list and its duration: those skills are negated on successful entry before played triggers and the landed counter window (R-388), respecting negation protection and the acting skill master/source. Use neither field for a later separate negation. \"using: Evolve/EX-Evolve/Xeno-Evolve\" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. \"using: Over Realm\" is that keyword's own play and marks its arrival (22-15); \"using: Dark Over Realm\" retains the distinct dark procedure (22-23), without the normal end-turn departure. \"using: Union-Fusion/Union-Potara/Union-Absorb\" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; \"alsoUnder\" puts [Union-Potara]'s second material under the card as part of the play."
     },
     {
       "name": "switchMode",
       "class": "macro over `modifyAttr`",
-      "signature": "{\"op\":\"switchMode\",\"target\":TARGET,\"mode\":\"active\"|\"rest\"}",
+      "signature": "{\"op\":\"switchMode\",\"target\":TARGET,\"completedAs\"?:\"…\",\"mode\":\"active\"|\"rest\"}",
       "fields": [
         {
           "name": "target",
           "required": true,
           "nullable": false,
           "type": "ref"
+        },
+        {
+          "name": "completedAs",
+          "required": false,
+          "nullable": false,
+          "type": "string"
         },
         {
           "name": "mode",
@@ -1129,7 +1190,7 @@
     {
       "name": "negate",
       "class": "primitive",
-      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\"|\"keyword\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"negate\",\"target\"?:TARGET,\"allAreas\"?:true|false,\"what\":\"skills\"|\"kind\"|\"keyword\"|\"own\",\"kind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\"|\"keyword\",\"keyword\"?:\"Awaken\"|\"Wish\"|\"Field\"|…,\"chosen\"?:true|false,\"mandatory\"?:true|false,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "target",
@@ -1137,6 +1198,12 @@
           "nullable": false,
           "defaultText": "{\"sel\":{\"special\":\"self\"}}",
           "type": "ref"
+        },
+        {
+          "name": "allAreas",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         },
         {
           "name": "what",
@@ -1217,6 +1284,12 @@
           "type": "boolean"
         },
         {
+          "name": "mandatory",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
           "name": "until",
           "required": false,
           "nullable": false,
@@ -1224,7 +1297,7 @@
         }
       ],
       "sentence": "negate the skills of this card for the rest of the game",
-      "doc": "the primitive under \"negateSkills\", \"negateSkillsOfKind\", \"negateKeyword\" and \"negateOwnSkill\" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). \"what\" says which — \"skills\" is every skill of the target, \"kind\" one printed kind of them (say which in \"kind\"), \"keyword\" one named keyword in every area (say which in \"keyword\"), \"own\" the skill resolving now. \"until\" left out is for the game. \"keyword\" with \"chosen\" and no \"keyword\" lets the master pick one of the keyword skills the target has in force as the step resolves (\"negateChosenKeyword\"). Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
+      "doc": "the primitive under \"negateSkills\", \"negateSkillsOfKind\", \"negateKeyword\" and \"negateOwnSkill\" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). \"what\" says which — \"skills\" is every skill of the target, \"kind\" one printed kind of them (say which in \"kind\"), \"keyword\" one named keyword in every area (say which in \"keyword\"), \"own\" the skill resolving now. \"until\" left out is for the game. \"keyword\" with \"chosen\" and no \"keyword\" lets the master pick one of the keyword skills the target has in force as the step resolves (\"negateChosenKeyword\"). For this chosen-keyword form, \"mandatory\" true requires one available choice; absent or false retains the optional None choice of existing stored rules. Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean"
     },
     {
       "name": "negateSkills",
@@ -1249,7 +1322,7 @@
     {
       "name": "negateChosenKeyword",
       "class": "macro over `negate`",
-      "signature": "{\"op\":\"negateChosenKeyword\",\"target\":TARGET,\"until\":DURATION}",
+      "signature": "{\"op\":\"negateChosenKeyword\",\"target\":TARGET,\"until\":DURATION,\"mandatory\"?:true|false}",
       "fields": [
         {
           "name": "target",
@@ -1262,10 +1335,16 @@
           "required": true,
           "nullable": false,
           "type": "duration"
+        },
+        {
+          "name": "mandatory",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
       "sentence": "choose up to 1 keyword skill of this card and negate it for the turn",
-      "doc": "\"choose up to 1 keyword skill on your opponent's Battle Cards and negate that skill for the turn\" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about"
+      "doc": "9-1-5: the master picks one keyword skill among those the target cards have in force. \"mandatory\":true means printed \"choose 1\"; absent/false preserves the optional \"up to 1\" choice of existing records. No available keyword means no question or effect (5-2-6). Choosing a skill bypasses Barrier (Q&A BT2-048, DB1-093, BT6-057), but a prohibition against negation still applies. Only the selected printed, timed-granted or standing-granted instance is negated; other copies and later grants remain in force. Saved menus retain instance identity. Legacy pending name-only menus keep their option indexes when unchanged; old resolved name-wide effects retain their saved semantics"
     },
     {
       "name": "negateSkillsOfKind",
@@ -1376,8 +1455,8 @@
           "type": "ref"
         }
       ],
-      "sentence": "place this card on top of this card, from under it",
-      "doc": "\"place a Z-Extra from under this card on top of this card\" (23-2, 21-5-2): the target, a card in this card's pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card's position, the continuous effects on its power and its seat in a battle; this card's other effects end. \"onto\" (mechanism batch 3) names another card whose pile it is and whose place it takes — \"place this card from under your Leader on top of your Leader\" (BT20-058, 22-46-6 by analogy): exactly one card, or nothing moves. A Leader Area takes only a Leader or Z-Leader card on top (3-1-2), which then is the Leader, and \"when your Leader is placed\" answers it"
+      "sentence": "place this card on top of this card",
+      "doc": "\"place a Z-Extra from under this card on top of this card\" (23-2, 21-5-2): the target, a card in this card's pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card's position, the continuous effects on its power and its seat in a battle; this card's other effects end. \"onto\" (mechanism batch 3) names another card whose pile it is and whose place it takes — \"place this card from under your Leader on top of your Leader\" (BT20-058, 22-46-6 by analogy): exactly one card, or nothing moves. A Leader Area takes only a Leader or Z-Leader card on top (3-1-2), which then is the Leader, and \"when your Leader is placed\" answers it. R-395: a Z-Leader may also arrive from its owner's Z-Deck onto that player's Leader for Z-Awaken (22-46-6); this is placement, not play, with no Counter:Play window"
     },
     {
       "name": "comboFrom",
@@ -1567,7 +1646,7 @@
     {
       "name": "costModifier",
       "class": "primitive",
-      "signature": "{\"op\":\"costModifier\",\"target\"?:TARGET,\"amount\"?:AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"pay\"?:\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\"|\"activate:battle\",\"alt\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"onto\"?:TARGET,\"uses\"?:N}",
+      "signature": "{\"op\":\"costModifier\",\"target\"?:TARGET,\"amount\"?:AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"energyActivation\"?:\"activate\"|\"main\"|\"battle\"|\"main/battle\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"pay\"?:\"none\"|\"life\"|\"program\"|\"energy\",\"n\"?:N,\"for\"?:\"counter\"|\"play\"|\"activate:battle\",\"alt\"?:[…],\"orbs\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"onto\"?:TARGET,\"uses\"?:N}",
       "fields": [
         {
           "name": "target",
@@ -1595,6 +1674,18 @@
             "combo",
             "zEnergy",
             "specified"
+          ]
+        },
+        {
+          "name": "energyActivation",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "activate",
+            "main",
+            "battle",
+            "main/battle"
           ]
         },
         {
@@ -1710,7 +1801,7 @@
     {
       "name": "costReduction",
       "class": "macro over `costModifier`",
-      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"activateTiming\"?:\"main\"|\"battle\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"uses\"?:N,\"onto\"?:TARGET}",
+      "signature": "{\"op\":\"costReduction\",\"target\":TARGET,\"amount\":AMOUNT,\"what\"?:\"energy\"|\"skill\"|\"evolve\"|\"combo\"|\"zEnergy\"|\"specified\",\"skillKind\"?:\"auto\"|\"activate\"|\"counter\"|\"permanent\",\"activateTiming\"?:\"main\"|\"battle\",\"energyActivation\"?:\"activate\"|\"main\"|\"battle\"|\"main/battle\",\"tag\"?:\"…\",\"colors\"?:[\"any\"|\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"|\"Black\"|\"White\"|\"Colorless\"],\"until\"?:DURATION,\"uses\"?:N,\"onto\"?:TARGET}",
       "fields": [
         {
           "name": "target",
@@ -1759,6 +1850,18 @@
           "enumValues": [
             "main",
             "battle"
+          ]
+        },
+        {
+          "name": "energyActivation",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "activate",
+            "main",
+            "battle",
+            "main/battle"
           ]
         },
         {
@@ -1814,9 +1917,31 @@
       "doc": "[Permanent] only unless a duration is given (20-21): \"reduce the energy cost of your <Son Goku> cards in your hand by 1\" — the selector names the area the text names, usually the hand; \"skill\"/\"evolve\" are orb costs read by `orbTotals` for one skill on one card, and \"onto\" scopes an \"evolve\" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); \"zEnergy\" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. \"specified\" is the coloured part of an X-cost card's price (owner's ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. \"uses\" (with \"skill\"/\"evolve\" and a duration) is how many activations the change reaches before it ends — \"the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}\" (BT31-096) is uses 1, until \"turn\"; the activation that pays a line it reaches spends one, and \"until\" still ends it unused. \"tag\" (with \"skill\"/\"evolve\") narrows the change to one keyword's line, lower-case — \"z-awaken\", \"arrival\", \"swap\", \"union\", \"successor\", \"ex-evolve\", \"xeno-evolve\" (a bare [Evolve] is all three variants, 22-5-2-2, and needs none); \"skillKind\" does the same for [Activate]/[Auto]/[Counter]. A skill-cost change said in a colour does nothing to a {1} orb and one said as {1} does nothing to a coloured orb (5-8-2-4). \"uses\" is also read on an energy cost (\"what\" absent) and on \"specified\": \"the next time you play X, reduce its energy cost by {r}\" is spent by the play or Extra activation that pays the card's price. The effects one op puts in force share its uses (a \"group\"): paying any one ends them all. An energy cost reduced by a plain number comes off the total alone, floored at the specified orbs that remain (FAQ Skills Q24, 1-2-2-1); one reduced \"by {r}\" takes that colour off the specified cost as well, as many as the card demands (20-21-2, 20-21-2-1)."
     },
     {
+      "name": "energyEntryExhaust",
+      "class": "primitive",
+      "signature": "{\"op\":\"energyEntryExhaust\",\"colors\":[\"Red\"|\"Blue\"|\"Green\"|\"Yellow\"]}",
+      "fields": [
+        {
+          "name": "colors",
+          "required": true,
+          "nullable": false,
+          "type": "list",
+          "listOf": "enum",
+          "enumValues": [
+            "Red",
+            "Blue",
+            "Green",
+            "Yellow"
+          ]
+        }
+      ],
+      "sentence": "when entering Energy, optionally send 1 undefined card and 1 undefined card, two distinct cards from your Drop, to Warp to negate this card’s Energy-Exhaust",
+      "doc": "R476 stored pre-entry procedure descriptor, consumed only by the original Energy movement owner. Exactly two distinct color slots; ordinary effect choices and movement completion, never an action-price host. It is not an executable effect step."
+    },
+    {
       "name": "negateKeyword",
       "class": "macro over `negate`",
-      "signature": "{\"op\":\"negateKeyword\",\"keyword\":\"Awaken\"|\"Wish\"|\"Field\"|…,\"target\"?:TARGET,\"until\"?:DURATION}",
+      "signature": "{\"op\":\"negateKeyword\",\"keyword\":\"Awaken\"|\"Wish\"|\"Field\"|…,\"allAreas\"?:true|false,\"target\"?:TARGET,\"until\"?:DURATION}",
       "fields": [
         {
           "name": "keyword",
@@ -1866,6 +1991,12 @@
           ]
         },
         {
+          "name": "allAreas",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
+        {
           "name": "target",
           "required": false,
           "nullable": false,
@@ -1880,7 +2011,7 @@
         }
       ],
       "sentence": "negate the [Awaken] skill of this card",
-      "doc": "take one named keyword away (\"negate this card's [Energy-Exhaust] skill in all areas\", 9-1-5); the keyword is its printed name, e.g. \"Blocker\". With \"until\" (phrasing batch 6, owner's ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — \"choose up to 1 of your opponent's Battle Cards, negate [Indestructible], and KO it\" (BT23-081) is \"turn\"; without, it is standing (a [Permanent]'s)"
+      "doc": "With allAreas:true, only a standing self named-keyword negation is valid outside play; the qualifier does not widen an aura source or a timed effect. Take one named keyword away (\"negate this card's [Energy-Exhaust] skill in all areas\", 9-1-5); the keyword is its printed name, e.g. \"Blocker\". With \"until\" (phrasing batch 6, owner's ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — \"choose up to 1 of your opponent's Battle Cards, negate [Indestructible], and KO it\" (BT23-081) is \"turn\"; without, it is standing (a [Permanent]'s)"
     },
     {
       "name": "gains",
@@ -2042,7 +2173,7 @@
     {
       "name": "replace",
       "class": "primitive",
-      "signature": "{\"op\":\"replace\",\"from\"?:[\"battle\"|\"combo\"],\"event\":\"leave\"|\"ko\"|\"play\"|…,\"with\":[…],\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"skillOrKoBySkill\"|\"koInBattle\"|\"attack\",\"bySide\"?:\"opponent\"|\"you\",\"to\"?:\"hand\"|\"drop\",\"optional\"?:true|false,\"target\"?:TARGET}",
+      "signature": "{\"op\":\"replace\",\"from\"?:[\"battle\"|\"combo\"],\"event\":\"leave\"|\"ko\"|\"play\"|…,\"cardType\"?:\"BATTLE\"|\"UNISON\"|\"EXTRA\",\"with\":[…],\"by\"?:\"skill\"|\"ko\"|\"skillOrKo\"|\"skillOrKoBySkill\"|\"koInBattle\"|\"attack\",\"bySide\"?:\"opponent\"|\"you\",\"to\"?:\"hand\"|\"drop\",\"optional\"?:true|false,\"target\"?:TARGET}",
       "fields": [
         {
           "name": "from",
@@ -2068,6 +2199,17 @@
             "marker",
             "attack",
             "counter"
+          ]
+        },
+        {
+          "name": "cardType",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "BATTLE",
+            "UNISON",
+            "EXTRA"
           ]
         },
         {
@@ -2125,7 +2267,7 @@
         }
       ],
       "sentence": "if this card would leave the Battle Area, this happens instead: draw 1",
-      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"from\" optionally names the Battle/Combo departure areas for a leave redirect; \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\", and by \"bySide\" to the opponent's skill), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only), \"life\" (a life card's own move to the hand or the Drop Area, 8-4-6-1's damage — narrowed by \"to\", absent for either destination; \"by\"/\"bySide\" mean nothing here, since nobody's skill puts a card out of the life area; with a \"target\" it is the rule of the life card that prints it — \"if you would reveal this card from your life to add it to your hand\" (BT10-036, 9-1-3-3) — read while that card lies in the Life Area and answering only when it is the card taken), \"marker\" (this Unison would lose a marker, only with \"by\":\"attack\" — 13-5-2's removal by an opponent's attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and \"with\" runs), \"attack\" (the attack in progress, 8-1-6-1) and \"counter\" (the [Counter] this one answers, 9-7) — those two only with an empty \"with\", read back as \"negateAttack\"/\"negateCounter\" (#137). \"by\":\"ko\" on a \"leave\" is the same moment as \"ko\", the spelling \"replaceLeave\" lowers to; \"by\":\"koInBattle\" on a \"ko\" is the battle's KO only (8-4-6-2, \"if this card would be KO'd in battle\", BT17-139), never a skill's; \"by\":\"skillOrKoBySkill\" is a departure a skill causes or a skill's KO, never the battle's (\"once per turn, this card can't be removed from a Battle Area by skills\", BT22-117, P-638). \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may ask a question, and then it only applies where somebody can hear it (#107, #272); \"optional\" is 9-10-3's \"you may\". A \"leave\"/\"ko\"/\"life\"/\"marker\" replacement is [Permanent] only — or, for \"leave\", the leaf of a keyword's wouldLeave hook: [Ultimate]'s \"removed from the game instead\" (22-14-3), read as a redirect after any [Permanent]'s"
+      "doc": "an event happens differently, or not at all (9-10) — the primitive \"replaceLeave\" and the \"instead\" half of \"resolvingPlay\" are macros over. \"from\" optionally names the Battle/Combo departure areas for a leave redirect; \"to\" narrows the original destination for leave as well as life replacements; \"event\" is the moment: \"leave\" (the card would leave the Battle Area, narrowed by \"by\", and by \"bySide\" to the opponent's skill), \"ko\" (it would be KO'd), \"play\" (the play being resolved, 9-6, [Counter: Play] only), \"life\" (a life card's own move to the hand or the Drop Area, 8-4-6-1's damage — narrowed by \"to\", absent for either destination; \"by\"/\"bySide\" mean nothing here, since nobody's skill puts a card out of the life area; with a \"target\" it is the rule of the life card that prints it — \"if you would reveal this card from your life to add it to your hand\" (BT10-036, 9-1-3-3) — read while that card lies in the Life Area and answering only when it is the card taken), \"marker\" (this Unison would lose a marker, only with \"by\":\"attack\" — 13-5-2's removal by an opponent's attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and \"with\" runs), \"attack\" (the attack in progress, 8-1-6-1) and \"counter\" (the [Counter] this one answers, 9-7) — those two only with an empty \"with\", read back as \"negateAttack\"/\"negateCounter\" (#137). \"by\":\"ko\" on a \"leave\" is the same moment as \"ko\", the spelling \"replaceLeave\" lowers to; \"by\":\"koInBattle\" on a \"ko\" is the battle's KO only (8-4-6-2, \"if this card would be KO'd in battle\", BT17-139), never a skill's; \"by\":\"skillOrKoBySkill\" is a departure a skill causes or a skill's KO, never the battle's (\"once per turn, this card can't be removed from a Battle Area by skills\", BT22-117, P-638). \"with\" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as \"subject\". It may ask a question, and then it only applies where somebody can hear it (#107, #272); \"optional\" is 9-10-3's \"you may\". A \"leave\"/\"ko\"/\"life\"/\"marker\" replacement is standing: [Permanent], an Auto whose whole rule replaces its own Combo departure, or, for \"leave\", the leaf of a keyword's wouldLeave hook: [Ultimate]'s \"removed from the game instead\" (22-14-3), read as a redirect after any [Permanent]'s"
     },
     {
       "name": "altCost",
@@ -2269,8 +2411,19 @@
     {
       "name": "resolvingPlay",
       "class": "macro over `replace`",
-      "signature": "{\"op\":\"resolvingPlay\",\"instead\"?:AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"rest\",\"negated\"?:true|false}",
+      "signature": "{\"op\":\"resolvingPlay\",\"cardType\"?:\"BATTLE\"|\"UNISON\"|\"EXTRA\",\"instead\"?:AREA,\"position\"?:\"top\"|\"bottom\",\"mode\"?:\"rest\",\"negated\"?:true|false}",
       "fields": [
+        {
+          "name": "cardType",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "BATTLE",
+            "UNISON",
+            "EXTRA"
+          ]
+        },
         {
           "name": "instead",
           "required": false,
@@ -2304,7 +2457,7 @@
         }
       ],
       "sentence": "the card being played is played with its skills negated",
-      "doc": "[Counter: Play] only (9-6). With \"instead\" the play is negated and the card goes there; without it the play happens and only the manner changes (\"mode\":\"rest\" or \"negated\":true)"
+      "doc": "[Counter: Play] only (9-6). \"cardType\" preserves an explicit Battle, Unison or Extra qualifier; Battle includes Battle tokens and Z-Battle Cards. With \"instead\" the play is negated and the card goes there; without it the play happens and only the manner changes (\"mode\":\"rest\" or \"negated\":true)"
     },
     {
       "name": "negateAttack",
@@ -2343,7 +2496,7 @@
     {
       "name": "forbid",
       "class": "primitive",
-      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"attackTarget\"?:FILTER,\"attackOnly\"?:TARGET,\"against\"?:TARGET,\"attacker\"?:TARGET,\"fromArea\"?:\"hand\"|\"battle\"|\"drop\"|…,\"fromOwnArea\"?:true|false,\"sameNameAsSelf\"?:true|false,\"bySkill\"?:true|false,\"exceptEvolve\"?:true|false,\"exceptUnion\"?:[\"Fusion\"|\"Potara\"|\"Absorb\"],\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false,\"skillKinds\"?:[\"…\"],\"exceptOwnSkills\"?:true|false,\"exceptSourceName\"?:\"…\",\"toArea\"?:\"hand\"|\"deck\"|\"drop\"|\"warp\"|\"energy\"|\"life\",\"toBottom\"?:true|false,\"byFilter\"?:FILTER,\"cardsOf\"?:\"you\"|\"opponent\",\"exceptKeyword\"?:\"…\",\"costVsEnergy\"?:\"above\"|\"atLeast\",\"keywordSkill\"?:\"…\",\"sameCharacterUnder\"?:true|false,\"exceptFilter\"?:FILTER,\"exceptByFilter\"?:FILTER,\"exceptCards\"?:TARGET}",
+      "signature": "{\"op\":\"forbid\",\"what\":\"attack\"|\"beAttacked\"|\"block\"|…,\"until\":DURATION,\"target\"?:TARGET,\"side\"?:\"you\"|\"opponent\",\"filter\"?:FILTER,\"attackTarget\"?:FILTER,\"attackOnly\"?:TARGET,\"against\"?:TARGET,\"attacker\"?:TARGET,\"fromArea\"?:\"hand\"|\"battle\"|\"drop\"|…,\"fromOwnArea\"?:true|false,\"sameNameAsSelf\"?:true|false,\"copiesOf\"?:SELECTOR,\"bySkill\"?:true|false,\"exceptEvolve\"?:true|false,\"exceptUnion\"?:[\"Fusion\"|\"Potara\"|\"Absorb\"],\"uses\"?:AMOUNT,\"unless\"?:COND,\"unlessPay\"?:[…],\"byTypes\"?:[\"LEADER\"|\"BATTLE\"|\"EXTRA\"|\"UNISON\"],\"turnPlayer\"?:true|false,\"counterKind\"?:\"play\"|\"attack\"|\"battleCardAttack\"|\"counter\",\"otherCards\"?:true|false,\"extraCardActivation\"?:true|false,\"skillKinds\"?:[\"…\"],\"exceptOwnSkills\"?:true|false,\"exceptSourceName\"?:\"…\",\"toArea\"?:\"hand\"|\"deck\"|\"drop\"|\"warp\"|\"energy\"|\"life\",\"toBottom\"?:true|false,\"byFilter\"?:FILTER,\"cardsOf\"?:\"you\"|\"opponent\",\"exceptKeyword\"?:\"…\",\"costVsEnergy\"?:\"above\"|\"atLeast\",\"keywordSkill\"?:\"…\",\"sameCharacterUnder\"?:true|false,\"exceptFilter\"?:FILTER,\"exceptByFilter\"?:FILTER,\"exceptCards\"?:TARGET}",
       "fields": [
         {
           "name": "what",
@@ -2462,6 +2615,12 @@
           "required": false,
           "nullable": false,
           "type": "boolean"
+        },
+        {
+          "name": "copiesOf",
+          "required": false,
+          "nullable": false,
+          "type": "selector"
         },
         {
           "name": "bySkill",
@@ -2686,7 +2845,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"fieldBattle\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\",\"unionVariant\"?:\"Fusion\"|\"Potara\",\"price\"?:PRICE,\"source\"?:FILTER,\"n\"?:N}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"comboFromDrop\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\",\"unionVariant\"?:\"Fusion\"|\"Potara\",\"price\"?:PRICE,\"activateUnderPolicy\"?:\"asHandV1\"|\"asHandGreenBrolyLeaderV1\",\"counterUnderPolicy\"?:\"asHandV1\",\"source\"?:FILTER,\"n\"?:N}",
       "fields": [
         {
           "name": "what",
@@ -2696,7 +2855,9 @@
           "enumValues": [
             "attackActive",
             "comboRest",
+            "comboFromDrop",
             "fieldBattle",
+            "fieldKeepOthers",
             "overRealmFromWarp",
             "unionFusionAreas",
             "unionFusionWarp",
@@ -2705,6 +2866,10 @@
             "unionLine",
             "evolveEnergyBases",
             "evolveFromZEnergy",
+            "counterFromDrop",
+            "counterFromEnergy",
+            "counterFromUnder",
+            "activateFromUnder",
             "aegisAltDrop",
             "aegisAltOpponentHand",
             "attackUnnegatable",
@@ -2759,6 +2924,25 @@
           "type": "price"
         },
         {
+          "name": "activateUnderPolicy",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "asHandV1",
+            "asHandGreenBrolyLeaderV1"
+          ]
+        },
+        {
+          "name": "counterUnderPolicy",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "asHandV1"
+          ]
+        },
+        {
           "name": "source",
           "required": false,
           "nullable": false,
@@ -2772,7 +2956,7 @@
         }
       ],
       "sentence": "this card can attack cards in Active Mode for the turn",
-      "doc": "\"ownDiscardOptional\" (phrasing batch 8: \"you don't have to place cards from your hand in the Drop Area as a result of this card's skill\", TB1-002) makes the discard of the target's own skills from its master's hand optional: the master picks up to that many; \"comboRestSelf\" (phrasing batch 7: \"this card can be used in combos in Rest Mode\", P-582) lets the target itself, rested, be used in a combo; \"awakenLife\" (phrasing batch 6: \"you can activate your Leader's [Awaken] even if your life is at 6 or less\", P-500; \"…even if you have 5 or more life\", BT1-051) raises the target Leader's [Awaken] life ceiling to \"n\" (99: none) while it lasts; the [Awaken]'s other conditions still hold. \"evolveFromZEnergy\" (BT19-077/078/081/082; 22-5-2 and the official card Q&A on BT19-077) lets the target card use its own [Evolve] skill while the card is in your Z-Energy as well as from the hand: only the source area widens, the base is still chosen in the Battle Area and Active Mode is not granted. \"evolveEnergyBases\" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. \"aegisAltDrop\" / \"aegisAltOpponentHand\" (BT22-035, BT22-140; 22-30-3 \"instead of\", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card's own [Aegis] only) one card of your opponent's hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or \"this card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand\" (22-15, \"overRealmFromWarp\", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or \"you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand\" (22-13-4-2-1, \"unionFusionAreas\", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `attackUnnegatable` (EX03-14, #936) is \"its attacks can't be negated\": the attacks of the target (timed, or a [Permanent] standing one) stay un-negated when a skill would negate them, while a ban on attacking and removal of the attacker still work. `unionFusionDropBottom` (EX23-36 / P-519) is this hand copy’s own Fusion material-area permission: specified equal-power Battle Cards may come from hand and Drop together; only chosen Drop cards go to the deck bottom in the owner’s private order, while hand materials go to Drop. `absorbMaterialUnder` (BT17-082 back, #930; owner-accepted default of 25 Oct 2026) is read in play: when its master pays a [Union-Absorb] skill cost on a card the filter describes (≪Namekian≫) by placing cards under that card, each such card may instead be a Battle Card from under the granting card that the cost’s own description fits, one for one; the energy of the cost is untouched. `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does"
+      "doc": "\"comboFromDrop\" (R473, BT31-055 back) permits its master to declare combos with qualifying own Drop Battle Cards, paying normal combo cost; it does not perform a free combo. \"ownDiscardOptional\" (phrasing batch 8: \"you don't have to place cards from your hand in the Drop Area as a result of this card's skill\", TB1-002) makes the discard of the target's own skills from its master's hand optional: the master picks up to that many; \"comboRestSelf\" (phrasing batch 7: \"this card can be used in combos in Rest Mode\", P-582) lets the target itself, rested, be used in a combo; \"awakenLife\" (phrasing batch 6: \"you can activate your Leader's [Awaken] even if your life is at 6 or less\", P-500; \"…even if you have 5 or more life\", BT1-051) raises the target Leader's [Awaken] life ceiling to \"n\" (99: none) while it lasts; the [Awaken]'s other conditions still hold. \"evolveFromZEnergy\" (BT19-077/078/081/082; 22-5-2 and the official card Q&A on BT19-077) lets the target card use its own [Evolve] skill while the card is in your Z-Energy as well as from the hand: only the source area widens, the base is still chosen in the Battle Area and Active Mode is not granted. \"evolveEnergyBases\" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. \"aegisAltDrop\" / \"aegisAltOpponentHand\" (BT22-035, BT22-140; 22-30-3 \"instead of\", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card's own [Aegis] only) one card of your opponent's hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: \"this card can attack Battle Cards in Active Mode\" (8-1-1, \"attackActive\"), or \"you can use your … Rest Mode … cards in combos\" (5-7, \"comboRest\", whose target is the card granting it), \"the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings\" (22-3, \"fieldBattle\", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or \"this card's [Over Realm] skill can be activated from its owner's Warp under the same conditions as if it were in your hand\" (22-15, \"overRealmFromWarp\", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or \"you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand\" (22-13-4-2-1, \"unionFusionAreas\", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `attackUnnegatable` (EX03-14, #936) is \"its attacks can't be negated\": the attacks of the target (timed, or a [Permanent] standing one) stay un-negated when a skill would negate them, while a ban on attacking and removal of the attacker still work. `unionFusionDropBottom` (EX23-36 / P-519) is this hand copy’s own Fusion material-area permission: specified equal-power Battle Cards may come from hand and Drop together; only chosen Drop cards go to the deck bottom in the owner’s private order, while hand materials go to Drop. `absorbMaterialUnder` (BT17-082 back, #930; owner-accepted default of 25 Oct 2026) is read in play: when its master pays a [Union-Absorb] skill cost on a card the filter describes (≪Namekian≫) by placing cards under that card, each such card may instead be a Battle Card from under the granting card that the cost’s own description fits, one for one; the energy of the cost is untouched. `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does"
     },
     {
       "name": "if",
@@ -2803,7 +2987,7 @@
     {
       "name": "chooseMode",
       "class": "primitive",
-      "signature": "{\"op\":\"chooseMode\",\"modes\":[{\"label\":\"…\",\"ops\":[…]}],\"reason\"?:\"…\",\"chooser\"?:\"you\"|\"opponent\"}",
+      "signature": "{\"op\":\"chooseMode\",\"modes\":[{\"label\":\"…\",\"ops\":[…]}],\"reason\"?:\"…\",\"chooser\"?:\"you\"|\"opponent\",\"counterArrivalPolicy\"?:\"eachQualifyingPlayV1\"}",
       "fields": [
         {
           "name": "modes",
@@ -2822,10 +3006,19 @@
           "required": false,
           "nullable": false,
           "type": "side"
+        },
+        {
+          "name": "counterArrivalPolicy",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "eachQualifyingPlayV1"
+          ]
         }
       ],
       "sentence": "choose one — draw 1",
-      "doc": "\"Choose one— ・A ・B\" (20-2): the master picks one printed option, or \"chooser\" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty"
+      "doc": "\"Choose one— ・A ・B\" (20-2): the master picks one printed option, or \"chooser\" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty. R435 counterArrivalPolicy is restricted to the exact Ultrasonic Exchange whole-program contract: independently resolve this choice for each qualifying incoming Battle Card, under its original Counter controller"
     },
     {
       "name": "may",
@@ -3320,6 +3513,33 @@
       "doc": "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026). `what: Union-Fusion` / `Union-Potara` / `Union-Absorb` is that [Union] keyword only. As the lone IF of an [Auto] on `played` — \"when this card is played using [Union]\" (BT14-114, BT28-097 …) — it is the trigger's own condition: `resolvePlay` withdraws the Auto from any play that was not such an entry, so it is never triggered by an ordinary, failed or other-variant play. With `sel: subject`, beside the description of the played card in an `all`, on an [Auto] on `youPlayed` — \"when your <X> card is played by a [Union] skill\" (BT22-033, BT25-036 back, P-682), \"when you play a Battle Card using a [Union-Fusion] skill\" (BT12-122) — it is the same trigger condition about that card, and the [Auto] carries the subject's entry as it was when triggered. `what: Evolve` (prohibition batch 6, EX04-04's \"if you played this card with [evolve]\") is the same lasting memory of a successful entry by an [Evolve], [EX-Evolve] or [Xeno-Evolve] play (22-5-2-2: \"[Evolve]\" is every one of them), kept while the copy stays in the area. Audit conditions 2 (3 Nov 2026): `what: EX-Evolve` / `Swap` / `Arrival` / `Successor` is that keyword's own play alone (\"when you play this card with [Swap]\", BT4-083; \"…using [Arrival]\", BT25-129), the same lasting memory; `what: skill` is a play a skill made (\"…played using a skill\", BT16-051), `by: other` another card's skill (BT20-104), `by: self` the card's own (P-628), and `source` the card whose skill it was, as it stands (\"…with the skill of {Majin Buu's Sealed Ball}\", BT2-028; \"…with <Trunks: Future> skill\", BT2-041) — a play its player declared is no skill's. Under `not` it is \"…played without using skills\" (BT15-042). Every one of them, as a lone IF of an [Auto] on `played`, is the trigger's own condition (`playGates`)"
     },
     {
+      "kind": "counterActivatedFrom",
+      "class": "primitive",
+      "signature": "{\"kind\":\"counterActivatedFrom\",\"from\":\"energy\",\"skill\":\"counter:attack\"}",
+      "fields": [
+        {
+          "name": "from",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "energy"
+          ]
+        },
+        {
+          "name": "skill",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "counter:attack"
+          ]
+        }
+      ],
+      "sentence": "this card’s [Counter:Attack] was activated from your energy",
+      "doc": "R463: captured declaration area; not the source’s current area after payment or self-play."
+    },
+    {
       "kind": "placedThisTurn",
       "class": "macro over `count`",
       "signature": "{\"kind\":\"placedThisTurn\",\"sel\":SELECTOR,\"played\"?:true|false,\"from\"?:[…]}",
@@ -3501,6 +3721,68 @@
       "sentence": "not (it is your turn)"
     },
     {
+      "kind": "switched",
+      "class": "primitive",
+      "signature": "{\"kind\":\"switched\",\"var\":\"…\"}",
+      "fields": [
+        {
+          "name": "var",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        }
+      ],
+      "sentence": "the chosen energy was switched to Rest Mode",
+      "doc": "R-429: original Active-to-Rest completion, excluding prevented switches and already-Rest no-ops"
+    },
+    {
+      "kind": "koedByThisSkill",
+      "class": "primitive",
+      "signature": "{\"kind\":\"koedByThisSkill\",\"var\":\"…\",\"costMax\":N}",
+      "fields": [
+        {
+          "name": "var",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "costMax",
+          "required": true,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "this skill KO'd a card with final energy cost 1 or less"
+    },
+    {
+      "kind": "moved",
+      "class": "primitive",
+      "signature": "{\"kind\":\"moved\",\"var\":\"…\",\"atLeast\"?:N,\"all\"?:true|false}",
+      "fields": [
+        {
+          "name": "var",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        },
+        {
+          "name": "all",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        }
+      ],
+      "sentence": "at least 1 chosen original moves completed",
+      "doc": "R-426: reads a moveTo completedAs result; replacements and prevented movement do not complete the original action"
+    },
+    {
       "kind": "chose",
       "class": "macro over `count`",
       "signature": "{\"kind\":\"chose\",\"var\":\"…\",\"atLeast\"?:N}",
@@ -3602,12 +3884,42 @@
         }
       ],
       "sentence": "X is 1 or more",
-      "doc": "phrasing batch 10 (22-43): \"if you removed a marker from one of your red Unison Cards using this skill\" on a [Spirit Boost X] line (BT14-029) — the X its price was paid at is at least n. False when nothing bound X"
+      "doc": "the selected X is at least n; false when nothing bound X. Actual Spirit Boost payment conditions use paidMarkers instead (R-449), because chosen X is not proof that markers were removed."
+    },
+    {
+      "kind": "paidMarkers",
+      "class": "primitive",
+      "signature": "{\"kind\":\"paidMarkers\",\"cost\":\"spiritBoost\",\"filter\"?:FILTER,\"atLeast\"?:N}",
+      "fields": [
+        {
+          "name": "cost",
+          "required": true,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "spiritBoost"
+          ]
+        },
+        {
+          "name": "filter",
+          "required": false,
+          "nullable": false,
+          "type": "filter"
+        },
+        {
+          "name": "atLeast",
+          "required": false,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "1 or more markers were paid for this skill",
+      "doc": "R-449: actual successful marker payment and payer characteristics captured before removal; never chosen X or a current Unison. Missing history requires rebuilding the saved match."
     },
     {
       "kind": "varMatches",
-      "class": "macro over `count`",
-      "signature": "{\"kind\":\"varMatches\",\"var\":\"…\",\"filter\":FILTER}",
+      "class": "primitive",
+      "signature": "{\"kind\":\"varMatches\",\"var\":\"…\",\"filter\":FILTER,\"paid\"?:true|false}",
       "fields": [
         {
           "name": "var",
@@ -3620,9 +3932,16 @@
           "required": true,
           "nullable": false,
           "type": "filter"
+        },
+        {
+          "name": "paid",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
         }
       ],
-      "sentence": "that card is red"
+      "sentence": "that card is red",
+      "doc": "R-389: paid:true tests historical characteristics captured when a declared pooled payment succeeded; it does not reread the current card or the whole Drop. Missing paid history interrupts with a saved-match rebuild message. Omitted paid retains live variable matching; selecting/playing paid cards uses a separate live fromVar selector and its epoch stamp."
     },
     {
       "kind": "isTurnPlayer",
@@ -4078,6 +4397,10 @@
       "part": "fromVar"
     },
     {
+      "field": "requiredStamp",
+      "part": "flag"
+    },
+    {
       "field": "underHost",
       "part": "places"
     },
@@ -4214,6 +4537,10 @@
     {
       "word": "any",
       "doc": "no filter, no count — every card the area holds (the printer's own word for an empty selector)"
+    },
+    {
+      "word": "requiredStamp",
+      "doc": "requires FROM and saved occurrence stamps for every bound card; missing or malformed stamps refuse, later occurrences do not match"
     },
     {
       "word": "active",
@@ -4863,6 +5190,15 @@
   ],
   "expressions": [
     {
+      "key": "paidMarkers",
+      "call": "paidMarkers",
+      "args": [
+        "markerCost"
+      ],
+      "example": "paidMarkers(spiritBoost)",
+      "maxExample": "paidMarkers(spiritBoost) * 5000"
+    },
+    {
       "key": "count",
       "call": "count",
       "args": [
@@ -4966,8 +5302,16 @@
   ],
   "costItems": [
     {
+      "syntax": "AWAKENALT",
+      "doc": "the versioned life-or-single-pile Awaken payment contract as quoted JSON"
+    },
+    {
       "syntax": "EVOLUTION",
       "doc": "the versioned EX-Evolve Battle-base contract as a quoted JSON object"
+    },
+    {
+      "syntax": "SPIRITPAYER",
+      "doc": "the specified Spirit Boost Unison filter as quoted JSON"
     },
     {
       "syntax": "FUSION",
@@ -5040,6 +5384,18 @@
       "words": "when this card is played using [Over Realm]"
     },
     {
+      "name": "playedUsingDarkOverRealm",
+      "words": "when this card is played using [Dark Over Realm]"
+    },
+    {
+      "name": "playedUsingUnionPotara",
+      "words": "when this card is played using [Union-Potara]"
+    },
+    {
+      "name": "yourOtherBattlePlayedUsingDarkOverRealm",
+      "words": "when another of your Battle Cards is played using [Dark Over Realm]"
+    },
+    {
       "name": "youPlayed",
       "words": "when you play a card"
     },
@@ -5084,6 +5440,10 @@
       "words": "when this card attacks"
     },
     {
+      "name": "attacksOpponentBattle",
+      "words": "when this card attacks an opponent's Battle Card"
+    },
+    {
       "name": "attacked",
       "words": "when this card is attacked"
     },
@@ -5094,6 +5454,10 @@
     {
       "name": "battleCardAttacks",
       "words": "when a Battle Card attacks"
+    },
+    {
+      "name": "yourBattleAttacksLeader",
+      "words": "when your Battle Card attacks a Leader Card"
     },
     {
       "name": "aPlayerPlacesInBattle",
@@ -5356,6 +5720,14 @@
       "words": "when you combo"
     },
     {
+      "name": "youComboFromHand",
+      "words": "when you use a card from your hand in a combo"
+    },
+    {
+      "name": "youComboFromBattle",
+      "words": "when you combo with a card from your Battle Area during your turn"
+    },
+    {
       "name": "opponentCombos",
       "words": "when your opponent combos"
     },
@@ -5400,6 +5772,10 @@
       "words": "when you activate an [Overlord] skill"
     },
     {
+      "name": "reviveActivated",
+      "words": "when one of your Battle Cards activates [Revive]"
+    },
+    {
       "name": "overRealmPlayed",
       "words": "when you play a card using [Over Realm]"
     },
@@ -5416,8 +5792,16 @@
       "words": "when your opponent activates a [Counter: Attack] skill"
     },
     {
-      "name": "extraActivated",
+      "name": "selfExtraActivated",
+      "words": "when you activate this Extra Card"
+    },
+    {
+      "name": "extraActivatedFromHand",
       "words": "when you activate an Extra Card from your hand"
+    },
+    {
+      "name": "extraActivated",
+      "words": "when you activate an Extra Card"
     },
     {
       "name": "counterFreeFromHand",
@@ -5522,6 +5906,10 @@
     {
       "name": "activeBySkill",
       "words": "when this card is switched to Active Mode by a skill"
+    },
+    {
+      "name": "activeBySkillDuringYourTurn",
+      "words": "when this card is switched to Active Mode by a skill during your turn"
     },
     {
       "name": "yourEnergyActiveBySkill",
@@ -5806,6 +6194,10 @@
     {
       "name": "yourCardComboToDrop",
       "words": "when one of your cards goes from your Combo Area to your Drop"
+    },
+    {
+      "name": "youGainControlBattle",
+      "words": "when you gain control of an opponent's Battle Card"
     }
   ],
   "literals": [

@@ -44,6 +44,7 @@ import { deepEqual, parseDefinitions, parseRule, printDefinitions, validateRule 
 import { bindKeywordCond, bindKeywordParams, loadRuleset, loadDbs, loadFusion, rulesetFor, DBS_FILES, MacroError, expandMacros, opsIn, HOOK_POINTS, type KeywordDef, type RulesetError } from "../../src/lib/arena/rulesets";
 import { optionsFor, whenMoments, words } from "../../src/lib/arena/rulesets/words";
 import { RULES } from "../../src/lib/arena/vm";
+import { addEffect } from "../../src/lib/arena/vm/effects";
 import { HOOK_CONTRACT, fireHook, hookBodiesFor, queryHookStatics } from "../../src/lib/arena/vm/hooks";
 import { CTX, fifty } from "./harness";
 
@@ -1214,20 +1215,17 @@ if (dbs.ok) {
   const cardId = state.sides.p1.zones.hand[0];
   assert.ok(cardId, "a dealt hand was empty");
 
-  let nextEffectId = 1;
   for (const at of Object.values(KEYWORD_AT)) {
     const keyword = at.keyword;
     if (state.effects.some((e) => e.kind === "keyword" && (e.value as KeywordSkill).name === keyword)) continue;
-    state.effects.push({
-      id: nextEffectId++,
+    // Use the native grant writer so R475 records this granted occurrence.
+    addEffect(state, [], {
       target: cardId,
       kind: "keyword",
       // A keyword whose body names a parameter is granted with it (#157).
       value: (at.granted ?? { name: keyword }) as KeywordSkill,
       until: "game",
-      ownerTurn: "p1" as PlayerId,
       master: "p1" as PlayerId,
-      createdTurn: 0,
     });
   }
 

@@ -1,0 +1,300 @@
+{
+  "card": {
+    "id": "P-045",
+    "type": "LEADER",
+    "colors": [
+      "Green"
+    ],
+    "cost": null,
+    "specified": null,
+    "z": null,
+    "power": 1000,
+    "name": "Hercule",
+    "characters": [
+      "Hercule"
+    ],
+    "traits": [
+      "Earthling"
+    ],
+    "skill": "[Activate: Battle] [Once per turn] If it is your turn, look at up to 2 cards from the top of your deck. If there are any Battle Cards, you may choose to combo with them. Then, place the remaining cards in your Drop Area.<br>[Awaken] When your life is at 4 or less: You may draw 2 cards and flip this card over.",
+    "backName": "Saiyan Delusion Hercule",
+    "backSkill": "[Activate: Main] [Once per turn] Place all cards from your hand in the Drop Area (you can't activate this ability with no cards in hand): This card gains +50000 power for the duration of the turn. If you placed 5 or more cards in the Drop Area with this skill, this card gains [Triple Strike] for the duration of the turn. <br>[Auto] When this card attacks, draw 1 card."
+  },
+  "ownFAQ": {},
+  "records": {
+    "P-045#0": {
+      "cardId": "P-045",
+      "side": "front",
+      "skillIndex": 0,
+      "printed": "[Activate: Battle] [Once per turn] If it is your turn, look at up to 2 cards from the top of your deck. If there are any Battle Cards, you may choose to combo with them. Then, place the remaining cards in your Drop Area.",
+      "kind": "activate:battle",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": true,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "isTurnPlayer"
+          },
+          "then": [
+            {
+              "op": "look",
+              "n": 2,
+              "as": "looked"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 1
+          },
+          "then": [
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "looked"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        }
+      ],
+      "unread": [
+        "you may choose to combo with them"
+      ],
+      "pattern": "you may choose to combo with them",
+      "reads": "if it is your turn: look at the top 2 (end if), if there are 1 or more Battle Cards in your Battle Area: move the chosen cards to drop"
+    },
+    "P-045#10": {
+      "cardId": "P-045",
+      "side": "front",
+      "skillIndex": 10,
+      "printed": "[Awaken] When your life is at 4 or less: You may draw 2 cards and flip this card over.",
+      "kind": "keyword",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "life",
+          "side": "you",
+          "atMost": 4
+        },
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "draw",
+          "n": 2
+        }
+      ],
+      "unread": [],
+      "pattern": "draw",
+      "reads": "draw 2"
+    },
+    "P-045#0b": {
+      "cardId": "P-045",
+      "side": "back",
+      "skillIndex": 0,
+      "printed": "[Activate: Main] [Once per turn] Place all cards from your hand in the Drop Area (you can't activate this ability with no cards in hand): This card gains +50000 power for the duration of the turn. If you placed 5 or more cards in the Drop Area with this skill, this card gains [Triple Strike] for the duration of the turn.",
+      "kind": "activate:main",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": true,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Place all cards from your hand in the Drop Area",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "moveTo",
+            "target": {
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "count": 99,
+                "upTo": false
+              }
+            },
+            "to": "drop",
+            "reveal": true
+          }
+        ]
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "power",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "amount": 50000,
+          "until": "turn"
+        }
+      ],
+      "unread": [
+        "If you placed 5 or more cards in the Drop Area with this skill",
+        "this card gains [Triple Strike] for the duration of the turn"
+      ],
+      "pattern": "if you placed N or more cards in the drop area with this skill",
+      "reads": "this card +50000 power for the turn"
+    },
+    "P-045#10b": {
+      "cardId": "P-045",
+      "side": "back",
+      "skillIndex": 10,
+      "printed": "[Auto] When this card attacks, draw 1 card.",
+      "kind": "auto",
+      "trigger": [
+        "attacks"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "draw",
+          "n": 1
+        }
+      ],
+      "unread": [],
+      "pattern": "draw",
+      "reads": "draw 1"
+    }
+  }
+}

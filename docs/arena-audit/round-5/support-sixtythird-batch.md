@@ -1,0 +1,9 @@
+# Support checkpoint 63: private optional Life choices
+
+Source `438c57b0` and registration `339a3055` correct the optional Life-to-Hand choices on Cabba, Pan, Broly, Nail and Yamcha. Face-down Life uses physical-position labels; already face-up Life stays public. Only the exact unpriced Auto prefix is admitted. Conditions, prices, follow-ups and opponent choice ownership are preserved. See the [detailed receipt](blind-life-hand.md).
+
+Targeted validation passes 44 gameplay scenarios, all 50 Champa ordering scenarios, existing face-up Life and Life-lock compatibility, rulesets, language/Teach, TypeScript, touched-file lint and 277 rulings. The new scenarios use actual paid plays or attacks, saved choices, deterministic replay and both private views. Failed movement uses a native prohibition. Generic script discovery of Life-specific replacements remains a separately documented gap; these tests do not claim to repair it.
+
+Root independently verified every frozen record and its hash, then ran the runtime census. Exactly five records change, each only ops/reads: BT1-014#0, TB2-024#0, P-092#0, TB3-057#20 and TB2-042#10. Totals remain **6,597 cards / 13,965 records: 13,018 readable / 947 unread**, with **12 readable runtime gaps / 317 additional blocked records / 2,559 contextual unknowns**. Snapshot SHA-256: `a2b991d25580068360e767fba0223ca76ec05e73ae3d60ac3a6b6f9da16f7750`. These are record diagnostics, not complete-card coverage.
+
+No VM code changes in this checkpoint. Checkpoint62's 45-suite combined runtime, browser and Fusion results remain historical evidence; they were not needlessly rerun. Movement cleanup and retained copied-grant history are under implementation, followed by optional Energy product admission and further unsupported cards in PR #1249. No database refresh/write, dependency change, migration, merge or deployment is included.

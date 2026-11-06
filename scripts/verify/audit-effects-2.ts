@@ -249,7 +249,7 @@ for (const [id, text, op, n] of [
   const keywords = record("P-744", "[auto] When this card is played, choose all of the keyword skills on your opponent's Battle Cards and negate them for the turn.");
   assert.deepEqual(keywords.ops.map((o) => o.op), ["negateSkillsOfKind"], "K: P-744: the keyword skills alone");
   const crew = record("P-437", "[auto][limit 1] When this card is played, look at up to 5 cards from the top of your deck, play up to 1 red ≪Bardock's Crew≫ card with an energy cost of 1 among them with its [auto] skills negated for the turn, and shuffle your deck.");
-  assert.ok(!opOf(crew, "play")[0].negated && opOf(crew, "negateSkillsOfKind").some((o) => o.kind === "auto"), "K: P-437: only its [Auto] skills negated");
+  assert.ok(!opOf(crew, "play")[0].negated && opOf(crew, "play")[0].negatedKinds?.includes("auto"), "K: P-437: only its [Auto] skills negated");
   const beerus = record("BT8-126", "[Auto] When you play this card, choose up to 1 <Beerus> card in your Drop Area with an energy cost of 3 or more, add it to your hand, then if you have 5 or less cards in your hand also draw 1 card.");
   assert.ok(opOf(beerus, "if").some((o) => o.then.some((x) => x.op === "draw")), "K: BT8-126: the conditional draw");
   const trunks = record("P-275", "[Auto] If your Leader Card is a blue <Trunks: Future> card: When this card is played, you may add 1 card from your life to your hand. If you do, choose 1 card in your hand and place it face up in your life.");

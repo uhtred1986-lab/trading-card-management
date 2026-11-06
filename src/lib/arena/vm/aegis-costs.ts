@@ -1,4 +1,5 @@
 /** 22-30-3: Aegis pays its hand cards before determining any additional cost. */
+import { chooseFramePools, primeFramePools, requirePoolOccurrence, resourceActionFinishes } from "./pooled-costs";
 import { other, type Area, type Color, type EngineContext, type GameEvent, type PlayerId } from "../types";
 import { emptyFilter } from "../text/filters";
 import { aegisAlternatives, type AegisAlt } from "./program";
@@ -18,6 +19,7 @@ export interface AegisCost {
   costs: string[];
   effect: Op[];
   stage: "colors" | "additional" | "native" | "action";
+  selectedChoice?: number;
   /** How the 22-30-3 hand-colour payment is made; unset until settled (BT22-035, BT22-140). It survives reload with the frame. */
   method?: "hand" | AegisAlt["kind"];
   /** The colours `aegisAltDrop` sends, one card each. */
@@ -177,16 +179,21 @@ export function stepAegisCost(ctx: EngineContext, game: GameDefinition, state: V
   if (cost.stage === "additional") {
     const choices = cost.choices ?? [];
     if (!choices.length) return fail(ev);
-    if (choices.length > 1 && frame.awaiting !== "aegisAdditional") {
+    primeFramePools(game, state, frame, choices[0].price);
+    if (cost.selectedChoice === undefined && choices.length > 1 && frame.awaiting !== "aegisAdditional") {
       frame.awaiting = "aegisAdditional";
       state.programs.unshift(frame);
       state.prompt = { kind: "chooseMode", player: frame.master, reason: "Pay the additional Aegis skill cost", options: choices.map((choice) => choice.label) };
       return "wait";
     }
-    const index = choices.length > 1 ? state.lastMode : 0;
+    const index = cost.selectedChoice ?? (choices.length > 1 ? state.lastMode : 0);
     const choice = index === null ? undefined : choices[index];
     if (!choice) throw new IllegalAction("no such additional Aegis payment");
-    const current = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest);
+    cost.selectedChoice = index!;
+    state.lastMode = null;
+    const following = cost.line.script?.price?.ops ?? [];
+    if (chooseFramePools(ctx, game, state, frame, choice.price, choice.payment, following.length ? payment => resourceActionFinishes(ctx, game, state, frame, payment, cost.costs, following) : undefined) === "wait") return "wait";
+    const current = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest, frame.poolPayment?.selection);
     if (!current.ok || !samePayment(current.payment, choice.payment)) throw new IllegalAction("that additional Aegis payment is no longer available");
     state.lastMode = null;
     delete frame.awaiting;
@@ -208,6 +215,7 @@ export function stepAegisCost(ctx: EngineContext, game: GameDefinition, state: V
     cost.stage = "native";
   }
   if (cost.stage === "native") {
+    requirePoolOccurrence(state, frame);
     const payment = cost.payment!;
     const charges = chargesOf(game);
     while (cost.nativeIndex! < cost.costs.length) {
@@ -220,6 +228,7 @@ export function stepAegisCost(ctx: EngineContext, game: GameDefinition, state: V
         if (!to) throw new RulesetBroken(game.id, `the price ${name} takes cards but says nowhere to put them`);
         const id = cards[cost.poolIndex!];
         if (id) {
+          requirePoolOccurrence(state, frame, name, id);
           const from = charge.from ?? { side: "you", area: "life" };
           const side = from.side === "opponent" ? other(frame.master) : frame.master;
           if (host.areaOf(id) !== from.area || !state.sides[side].zones[from.area]?.includes(id)
@@ -237,6 +246,7 @@ export function stepAegisCost(ctx: EngineContext, game: GameDefinition, state: V
           }
           const result = stepScript(host, frame);
           if (result === "wait") return "wait";
+          if (id === frame.card && frame.poolPayment) frame.poolPayment.sourcePaid = true;
           cost.poolIndex!++;
           frame.ops = [];
           frame.ip = 0;
@@ -260,6 +270,7 @@ export function stepAegisCost(ctx: EngineContext, game: GameDefinition, state: V
     frame.ip = 0;
     delete frame.vars["§aegisNativePayment"];
     cost.stage = "action";
+    delete frame.poolPayment;
   }
   if (cost.stage === "action") {
     if (frame.ops.length) {

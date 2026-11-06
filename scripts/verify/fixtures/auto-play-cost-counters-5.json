@@ -1,0 +1,486 @@
+[
+  {
+    "id": "BT1-107",
+    "card": {
+      "id": "BT1-107",
+      "type": "EXTRA",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Cold Bloodlust",
+      "characters": [],
+      "traits": [],
+      "skill": "[Counter: Play] If your Leader Card is \u226aFrieza's Army\u226b, the Battle Card played has its skill negated for the duration of the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Cold Bloodlust",
+        "qa": [
+          {
+            "q": "When can I activate a [Counter: Play] skill against an opponent\u2019s skill that puts a Battle Card into play?",
+            "a": "[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play.\nIf you activate {BT1-107 Cold Bloodlust} after your opponent resolves the skill and puts their Battle Card into play, their Battle Card\u2019s \u201cwhen you play this card\u201d skill(s) will still activate. If you want to prevent their \u201cwhen you play this card\u201d skill(s) from activating, you must activate {Cold Bloodlust} after your opponent activates their skill that puts the Battle Card into play, but before it resolves."
+          },
+          {
+            "q": "When can you activate {BT1-107 Cold Bloodlust} against your opponent\u2019s [Evolve] and/or [EX-Evolve] skills?",
+            "a": "[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play. When your opponent activates and pays the cost for [Evolve] and/or [EX-Evolve], {BT1-107 Cold Bloodlust} can be activated either before they place the card(s) on top of the specified card(s), or after."
+          },
+          {
+            "q": "You activated this card when the opponent played a Battle Card. Then, if the opponent activates activates\n{BT1-005 Furthering Destruction Champa} targeting that card and gives it [Double Strike], is that [Double Strike]\nnegated as well?",
+            "a": "Yes, it is.\nAny skills gained afterwards are negated as well."
+          },
+          {
+            "q": "When can you activate {BT1-107 Cold Bloodlust} against your opponent\u2019s [Union-Potara] skills?",
+            "a": "[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play.\nWhen your opponent activates and pays the cost for [Union-Potara], you can activate [Counter: Play] either before they place the card(s) on top of the specified card(s), or after.\nIf you activate {Cold Bloodlust} after the Battle Card comes into play, their Battle Card\u2019s \u201cwhen you play this card\u201d skill(s) will still activate even though the original skill was negated. If you want to prevent their \u201cwhen you play this card\u201d skill(s) from activating, you must activate {Cold Bloodlust} after your opponent activates their skill that puts the Battle Card into play, but before it resolves."
+          },
+          {
+            "q": "When can you activate {BT1-107 Cold Bloodlust} against your oppoWhen can you activate {BT1-107 Cold Bloodlust} against your opponent\u2019s [Union-Fusion] skills??",
+            "a": "[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play.\nWhen your opponent activates and pays the cost for [Union-Fusion], you can activate [Counter: Play] either before they place the specified card(s) in the Drop Area and play the card, or after.\nIf you activate {Cold Bloodlust} after the Battle Card comes into play, their Battle Card\u2019s \u201cwhen you play this card\u201d skill(s) will still activate even though the original skill was negated. If you want to prevent their \u201cwhen you play this card\u201d skill(s) from activating, you must activate {Cold Bloodlust} after your opponent activates their skill that puts the Battle Card into play, but before it resolves."
+          },
+          {
+            "q": "When can you activate {BT1-107 Cold Bloodlust} against your opponent\u2019s [Union-Absorb] skills?",
+            "a": "[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play.\nWhen your opponent activates and pays the cost for [Union-Absorb], you can activate [Counter: Play] either before they choose the card to play, or after your opponent chooses a card from the deck, puts it into play, and shuffles their deck.\nIf you activate {Cold Bloodlust} after the Battle Card comes into play, their Battle Card\u2019s \u201cwhen you play this card\u201d skill(s) will still activate even though the original skill was negated. If you want to prevent their \u201cwhen you play this card\u201d skill(s) from activating, you must activate {Cold Bloodlust} after your opponent activates their skill that puts the Battle Card into play, but before it resolves."
+          },
+          {
+            "q": "When can you activate {BT1-107 Cold Bloodlust} against your opponent\u2019s [Over Realm] skills?",
+            "a": "[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play.\nWhen your opponent activates and pays the cost for [Over Realm], you can activate [Counter: Play] before they send their Drop Area to the Warp, or after your opponent plays the card via [Over Realm].\nIf you activate {Cold Bloodlust} after the Battle Card comes into play, their Battle Card\u2019s \u201cwhen you play this card\u201d skill(s) will still activate even though the original skill was negated. If you want to prevent their \u201cwhen you play this card\u201d skill(s) from activating, you must activate {Cold Bloodlust} after your opponent activates their skill that puts the Battle Card into play, but before it resolves."
+          },
+          {
+            "q": "When can you activate {BT1-107 Cold Bloodlust} against the auto skills on cards like {BT1-008 Bewitching God Vados}?",
+            "a": "[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play.\nWhen your opponent activates {BT1-008 Bewitching God Vados}\u2019s auto skill, [Counter: Play] can be activated before they look at the top three cards of their deck, or after they look at the top three cards of their deck, choose one, put it into play, and shuffle their deck.\nIf you activate {Cold Bloodlust} after the Battle Card comes into play, their Battle Card\u2019s \u201cwhen you play this card\u201d skill(s) will still activate even though the original skill was negated. If you want to prevent their \u201cwhen you play this card\u201d skill(s) from activating, you must activate {Cold Bloodlust} after your opponent activates their skill that puts the Battle Card into play, but before it resolves."
+          },
+          {
+            "q": "When can you activate {BT1-107 Cold Bloodlust} against [Activate: Main] skills on cards like {BT2-043 Trunks, Creator of the Future}?",
+            "a": "[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play.\nWhen your opponent activates and pays for {BT2-043 Trunks, Creator of the Future}\u2019s [Activate: Main] skill, [Counter: Play] can be activated before they choose a card from their hand to put into play, or after your opponent chooses the card from their hand and puts it into play.\nIf you activate {Cold Bloodlust} after the Battle Card comes into play, their Battle Card\u2019s \u201cwhen you play this card\u201d skill(s) will still activate even though the original skill was negated. If you want to prevent their \u201cwhen you play this card\u201d skill(s) from activating, you must activate {Cold Bloodlust} after your opponent activates their skill that puts the Battle Card into play, but before it resolves."
+          },
+          {
+            "q": "When can you activate a [Counter] against your opponent\u2019s [Counter]?",
+            "a": "You can only activate it after your opponent activates their own [Counter] but before it resolves.\n[Counter] skills are activated and resolved during a special timing window called counter timing, but it ends as soon as one [Counter] skill begins to resolve. Once counter timing ends, [Counter] skills can no longer be activated, which means that new [Counter] skills can\u2019t be activated once a [Counter] finishes resolving."
+          },
+          {
+            "q": "If {BT1-107 Cold Bloodlust} is activated in response to {BT1-043 Whis, Judge of the Gods} being played, are {BT1-043 Whis, Judge of the Gods}\u2019s skills negated?",
+            "a": "Yes, they are.\n{BT1-043 Whis, Judge of the Gods}\u2019s skill stopping its attacks and skills from being negated is applied when the card is in the Battle Area, but {BT1-107 Cold Bloodlust} negates its skills before the card is played."
+          },
+          {
+            "q": "{BT1-107 Cold Bloodlust} is activated in response to {BT2-037 Determined Striker SSB Son Goku}\u2019s [Counter: Attack] skill. Can {Determined Striker SSB Son Goku}\u2019s [Counter: Attack] skill still be used to negate the attack?",
+            "a": "Yes, {BT2-037 Determined Striker SSB Son Goku}\u2019s [Counter: Attack] skill can still be used to negate the attack.\n{BT1-107 Cold Bloodlust} negates {BT2-037 Determined Striker SSB Son Goku}\u2019s skills for the duration of the turn, but skills that have already been activated still resolve."
+          },
+          {
+            "q": "Why can Cold Bloodlust negate {TB1-097 Son Goku, The Awakened Power}'s [Victory Strike]?",
+            "a": "When {BT1-107 Cold Bloodlust} or {XD1-10 Frost's Deadly Poison} is activated during the first counter window, it can negate a Battle Card\u2019s skills in the area it is in before it is played.\nCards like {BT1-043 Whis, Judge of the Gods} and {TB1-097 Son Goku, The Awakened Power} have skills that say \u201c[Permanent] This card's attack and skill cannot be negated,\u201d but those skills are only active when those cards are in the Battle Area. Cards like {DB1-021 Ultra Instinct Son Goku, the Unstoppable} have skills that say \u201c[Permanent] This card's skills can't be negated in any area by your opponent's skills.\u201d, and those skills are always active, no matter what area the card is in, so they can\u2019t be negated by a card like {Cold Bloodlust}.\nReference:\nOfficial Rules 1-5-8:\nIf not specified otherwise, the skills (card text) of Leader Cards and Battle Cards are only relevant in the Leader Area and Battle Area."
+          },
+          {
+            "q": "You activate this card\u2019s [Counter] skill in response to your opponent activating the activate skill on {BT6-116 Restore the Universes!}. Do all of the cards played have their skills negated?",
+            "a": "Yes."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "BT1-110",
+    "card": {
+      "id": "BT1-110",
+      "type": "EXTRA",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Crusher Ball",
+      "characters": [],
+      "traits": [],
+      "skill": "[Counter: Play] The Battle Card played is played in Rest Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Crusher Ball",
+        "qa": [
+          {
+            "q": "When can I activate a [Counter: Play] skill against an opponent\u2019s skill that puts a Battle Card into play?",
+            "a": "[Counter: Play] skills can be activated before and/or after the opponent resolves the skill that puts the Battle Card into play.\n{BT1-110 Crusher Ball} is a skill that treats the skill that put the card into play as the condition for forcing the card to enter play in Rest Mode, which means that activating {Crusher Ball} after your opponent has resolved the skill and put the card into play won\u2019t allow you to put it into Rest Mode.\nIf you want your opponent\u2019s Battle Card to enter play in Rest Mode, you have to activate {BT1-110 Crusher Ball} before your opponent activates and resolves the skill that puts the Battle Card into play."
+          },
+          {
+            "q": "When should I play {BT1-110 Crusher Ball} in order to make sure a Battle Card played with an opponent\u2019s [Evolve] or [EX-Evolve] skill comes into play in Rest Mode?",
+            "a": "Activate it after your opponent pays for and activates [Evolve] or [EX-Evolve] but before they place the card on top of the specified card (before it resolves).\n{BT1-110 Crusher Ball} is a skill that treats the skill that put the card into play as the condition for forcing the card to enter play in Rest Mode, which means that activating {Crusher Ball} after your opponent has resolved the skill and put the card into play won\u2019t allow you to put it into Rest Mode."
+          },
+          {
+            "q": "When should I play {BT1-110 Crusher Ball} in order to make sure a Battle Card played with an opponent\u2019s [Union-Potara] skill comes into play in Rest Mode?",
+            "a": "Activate it after your opponent pays for and activates [Union-Potara] but before they place the card on top of the specified card (before it resolves).\n{BT1-110 Crusher Ball} is a skill that treats the skill that put the card into play as the condition for forcing the card to enter play in Rest Mode, which means that activating {Crusher Ball} after your opponent has resolved the skill and put the card into play won\u2019t allow you to put it into Rest Mode."
+          },
+          {
+            "q": "When should I play {BT1-110 Crusher Ball} in order to make sure a Battle Card played with an opponent\u2019s [Union-Fusion] skill comes into play in Rest Mode?",
+            "a": "Activate it after your opponent pays for and activates [Union-Fusion] but before they place the specified card in the Drop Area (before it resolves).\n{BT1-110 Crusher Ball} is a skill that treats the skill that put the card into play as the condition for forcing the card to enter play in Rest Mode, which means that activating {Crusher Ball} after your opponent has resolved the skill and put the card into play won\u2019t allow you to put it into Rest Mode."
+          },
+          {
+            "q": "When should I play {BT1-110 Crusher Ball} in order to make sure a Battle Card played with an opponent\u2019s [Union-Absorb] skill comes into play in Rest Mode?",
+            "a": "Activate it after your opponent pays for and activates [Union-Absorb] but before they choose the card they\u2019re going to play (before it resolves).\n{BT1-110 Crusher Ball} is a skill that treats the skill that put the card into play as the condition for forcing the card to enter play in Rest Mode, which means that activating {Crusher Ball} after your opponent has resolved the skill and put the card into play won\u2019t allow you to put it into Rest Mode."
+          },
+          {
+            "q": "When should I play {BT1-110 Crusher Ball} in order to make sure a Battle Card played with an opponent\u2019s [Over Realm] skill comes into play in Rest Mode?",
+            "a": "Activate it after your opponent pays for and activates [Over Realm] but before they send their Drop Area to the Warp (before it resolves).\n{BT1-110 Crusher Ball} is a skill that treats the skill that put the card into play as the condition for forcing the card to enter play in Rest Mode, which means that activating {Crusher Ball} after your opponent has resolved the skill and put the card into play won\u2019t allow you to put it into Rest Mode."
+          },
+          {
+            "q": "When can you activate a [Counter] against your opponent\u2019s [Counter]?",
+            "a": "You can only activate it after your opponent activates their own [Counter] but before it resolves.\n[Counter] skills are activated and resolved during a special timing window called counter timing, but it ends as soon as one [Counter] skill begins to resolve. Once counter timing ends, [Counter] skills can no longer be activated, which means that new [Counter] skills can\u2019t be activated once a [Counter] finishes resolving."
+          },
+          {
+            "q": "I activate {BT1-110 Crusher Ball} in response to the activation of a skill that mentions playing cards. If that skill plays multiple cards, does only one of the cards get put into play in Rest Mode?",
+            "a": "No, when multiple cards are played, all of them come into play in Rest Mode. When activated in response to the act of cards being \u201cplayed\u201d (including when cards are put into play with skills), {BT1-110 Crusher Ball} causes those cards to enter play in Rest Mode. [It does not target a single card being played.]"
+          },
+          {
+            "q": "You activate this card\u2019s [Counter] skill in response to your opponent activating {BT2-014 Ghost Attack Super Saiyan 3 Gotenks}\u2019s auto skill. Do all 3 of the Ghost tokens enter play in Rest Mode?",
+            "a": "Yes. All 3 Ghost tokens enter play in Rest Mode."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "BT8-043",
+    "card": {
+      "id": "BT8-043",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Absolute Release Ball",
+      "characters": [],
+      "traits": [],
+      "skill": "[Counter: Play] If your Leader Card is blue and your life is at 4 or less: If the Battle Card being played has an energy cost of 3 or less, it is returned to its owner's hand instead of being played, then choose up to 1 of your blue energy and switch it to Active Mode. <br>[Permanent] If you have a multicolor card in your energy and your life is at 4 or less, you can activate this card's [Counter] skill from your hand by adding a card from your life to your hand instead of paying its energy cost.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Absolute Release Ball",
+        "qa": [
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 1. If your opponent chooses to play a Battle Card off the skill with an energy cost of 4, does this card's \"then choose up to 1 of your blue energy and switch it to Active Mode\" resolve?",
+            "a": "No, it doesn't, as the Battle Card doesn't fulfill the \"if the Battle Card being played has an energy cost of 3 or less\" requirement of this card."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card from a secret area, you activate this card during Counter Window 1. If your opponent chooses to not play a Battle Card using that skill, does this card's \"then choose up to 1 of your blue energy and switch it to Active Mode\" resolve?",
+            "a": "No, it doesn't, as the \"if the Battle Card being played has an energy cost of 3 or less\" requirement of this card hasn\u2019t been fulfilled."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 2. Does this card's \"it is returned to its owner's hand instead of being played, then choose up to 1 of your blue energy and switch it to Active Mode\" resolve?",
+            "a": "No, it doesn't. The Battle Card has already been played, so the \"if the Battle Card being played has an energy cost of 3 or less\" requirement of this card isn\u2019t fulfilled."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "BT9-027",
+    "card": {
+      "id": "BT9-027",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Frieza, Undying Emperor",
+      "characters": [
+        "Frieza"
+      ],
+      "traits": [
+        "Frieza Clan",
+        "Universe 7"
+      ],
+      "skill": "[Counter: Play] If the Battle Card being played has an energy cost of 3 or less, it is returned to its owner's hand instead of being played, then play this card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Frieza, Undying Emperor",
+        "qa": [
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 1. If your opponent chooses to play a Battle Card with an energy cost of 4, does this card's \"then play this card\" resolve?",
+            "a": "No, it doesn't, as the Battle Card doesn't fulfill the \"if the Battle Card being played has an energy cost of 3 or less\" requirement of this card. This card is placed in its owner's Drop Area."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card from a secret area, you activate this card during Counter Window 1. If your opponent chooses to not play a Battle Card using that skill, does this card's \"then play this card\" resolve?",
+            "a": "No, it doesn't, as the \"if the Battle Card being played has an energy cost of 3 or less\" requirement of this card hasn\u2019t been fulfilled. This card is placed in its owner's Drop Area."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 2. Does this card's \"it is returned to its owner's hand instead of being played, then play this card\" resolve?",
+            "a": "No, it doesn't. The Battle Card has already been played, so the \"if the Battle Card being played has an energy cost of 3 or less\" requirement of this card isn\u2019t fulfilled."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "BT9-035",
+    "card": {
+      "id": "BT9-035",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Chaos Beam Volley",
+      "characters": [],
+      "traits": [],
+      "skill": "[Counter: Play] If your Leader Card is a \u226aFrieza Clan\u226b card: If the Battle Card being played has an energy cost of 3 or less, it is returned to its owner's hand instead of being played, then your opponent places 2 cards from the top of their deck in their Drop Area.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Chaos Beam Volley",
+        "qa": [
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 1. If your opponent chooses to play a Battle Card with an energy cost of 4, does this card's \"then your opponent places 2 cards from the top of their deck in their Drop Area\" resolve?",
+            "a": "No, it doesn't, as the Battle Card doesn't fulfill the \"if the Battle Card being played has an energy cost of 3 or less\" requirement of this card."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card from a secret area, you activate this card during Counter Window 1. If your opponent chooses to not play a Battle Card using that skill, does this card's \"then your opponent places 2 cards from the top of their deck in their Drop Area\" resolve?",
+            "a": "No, it doesn't, as the \"if the Battle Card being played has an energy cost of 3 or less\" requirement of this card isn't being fulfilled."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 2. Does this card's \"then your opponent places 2 cards from the top of their deck in their Drop Area\" resolve?",
+            "a": "No, it doesn't. The Battle Card has already been played, so the \"if the Battle Card being played has an energy cost of 3 or less\" requirement of this card isn\u2019t fulfilled."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "DB1-040",
+    "card": {
+      "id": "DB1-040",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Desperate Measures",
+      "characters": [],
+      "traits": [],
+      "skill": "[Counter: Play] If the Battle Card your opponent is playing has an energy cost of 2 or less, it is returned to its owner's hand instead of being played, then choose up to 1 of your blue Battle Cards with an energy cost of 3 or less and return it to its owner's hand.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Desperate Measures",
+        "qa": [
+          {
+            "q": "What happens if you activate this card in response to the activate skill of your opponent\u2019s {BT2-043 Trunks, Creator of the Future}?",
+            "a": "If the card chosen by {BT2-043 Trunks, Creator of the Future}\u2019s activate skill has an energy cost of 2 or less, it can\u2019t be played; if it has an energy cost of 3, it can."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 1. If your opponent chooses to play a Battle Card with an energy cost of 3, does this card's \"choose up to 1 of your blue Battle Cards with an energy cost of 3 or less and return it to its owner's hand\" resolve?",
+            "a": "No, it doesn't, as the Battle Card doesn't fulfill the \"if the Battle Card your opponent is playing has an energy cost of 2 or less\" requirement of this card."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card from a secret area, you activate this card during Counter Window 1. If your opponent chooses to not play a Battle Card using that skill, does this card's \"choose up to 1 of your blue Battle Cards with an energy cost of 3 or less and return it to its owner's hand\" resolve?",
+            "a": "No, it doesn't, as the \"if the Battle Card your opponent is playing has an energy cost of 2 or less\" requirement of this card isn't being fulfilled."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 2. Does this card's \"choose up to 1 of your blue Battle Cards with an energy cost of 3 or less and return it to its owner's hand\" resolve?",
+            "a": "No, it doesn't. The Battle Card has already been played, so the \"if the Battle Card your opponent is playing has an energy cost of 2 or less\" requirement of this card isn\u2019t fulfilled."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "DB2-040",
+    "card": {
+      "id": "DB2-040",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "5",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Hit, Deadly Vanguard",
+      "characters": [
+        "Hit"
+      ],
+      "traits": [
+        "Alien",
+        "Universe 6"
+      ],
+      "skill": "[Counter: Play] If the Battle Card being played has an energy cost of 5 or less, it is returned to its owner's hand instead of being played, then play this card.<br>[Permanent] During your opponent's turn, reduce the energy cost of this card in your hand by 2.<br>[Permanent] This card can't be returned to your hand by your skills.<br>[Auto] When you play this card, choose up to 1 of your opponent's Battle Cards with an energy cost of 5 or less and return it to its owner's hand.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Hit, Deadly Vanguard",
+        "qa": [
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 1. If your opponent chooses to play a Battle Card with an energy cost of 6 of their skill, does this card's \"then play this card\" skill resolve?",
+            "a": "No, it doesn't, as the Battle Card doesn't fulfill the \"if the Battle Card being played has an energy cost of 5 or less\" requirement on this card. This card is placed in its owner's Drop Area."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card from a secret area, you activate this card during Counter Window 1. If your opponent chooses to not play a Battle Card using that skill, does this card's \"then play this card\" skill resolve?",
+            "a": "No, it doesn't, as the \"if the Battle Card being played has an energy cost of 5 or less\" requirement of this card isn\u2019t being fulfilled. This card is placed in its owner's Drop Area."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 2. Does this card's \"it is returned to its owner's hand instead of being played, then play this card\" resolve?",
+            "a": "No, it doesn't. The Battle Card has already been played, so the \"if the Battle Card being played has an energy cost of 5 or less\" requirement of this card isn't fulfilled. This card is placed in its owner's Drop Area."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "DB2-169",
+    "card": {
+      "id": "DB2-169",
+      "type": "BATTLE",
+      "colors": [
+        "Blue",
+        "Yellow"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 19000,
+      "name": "Geene & Martinne, Universe 12 Destroyer & Angel",
+      "characters": [
+        "Geene",
+        "Martinne"
+      ],
+      "traits": [
+        "God",
+        "Universe 12"
+      ],
+      "skill": "[Counter: Play] If the Battle Card being played has an energy cost of 5 or less, negate its skills for the turn and play this card.<br>[Energy-Exhaust]<br>[Aegis Blue/Yellow][Once per turn]<br>[Auto][Once per turn] When you activate [Aegis Blue/Yellow], draw 2 cards.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Geene & Martinne, Universe 12 Destroyer & Angel",
+        "qa": [
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 1. If your opponent chooses to play a Battle Card with an energy cost of 6, does this card's \"and play this card\" resolve?",
+            "a": "No, it doesn't, as the Battle Card doesn't fulfill the \"if the Battle Card being played has an energy cost of 5 or less\" requirement of this card. This card is placed in its owner's Drop Area."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card from a secret area, you activate this card during Counter Window 1. If your opponent chooses to not play a Battle Card using that skill, does this card's \"and play this card\" skill resolve?",
+            "a": "No, it doesn't, as the \"if the Battle Card being played has an energy cost of 5 or less\" requirement of this card isn\u2019t being met. This card is placed in its owner's Drop Area."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 2. Does this card's \"negate its skills for the turn and play this card\" resolve?",
+            "a": "No, it doesn't. The Battle Card has already been played, so the \"if the Battle Card being played has an energy cost of 5 or less\" requirement of this card isn't fulfilled. This card is placed in its owner\u2019s Drop Area."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "EX10-06",
+    "card": {
+      "id": "EX10-06",
+      "type": "EXTRA",
+      "colors": [
+        "Blue",
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Hidden Potential",
+      "characters": [],
+      "traits": [],
+      "skill": "[Energy-Exhaust]<br>[Counter: Play] Your Leader Card is green: If the Battle Card being played has an energy cost of 4 or less, it is placed in its owner's Drop Area instead of being played, then choose up to 1 of your blue or green energy and switch it to Active Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Hidden Potential",
+        "qa": [
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 1. If your opponent chooses to play a Battle Card with an energy cost of 5, does this card's \"choose up to 1 of your blue or green energy and switch it to Active Mode\" resolve?",
+            "a": "No, it doesn't, as the Battle Card doesn't fulfill the \"if the Battle Card being played has an energy cost of 4 or less\" requirement of this card."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card from a secret area, you activate this card during Counter Window 1. If your opponent chooses to not play a Battle Card using that skill, does this card's \"choose up to 1 of your blue or green energy and switch it to Active Mode\" resolve?",
+            "a": "No, it doesn't, as the \"if the Battle Card being played has an energy cost of 4 or less\" requirement of this card isn't being fulfilled."
+          },
+          {
+            "q": "In response to your opponent using a skill that plays a Battle Card, you activate this card during Counter Window 2. Does this card's \"it is placed in its owner's Drop Area instead of being played, then choose up to 1 of your blue or green energy and switch it to Active Mode\" resolve?",
+            "a": "No, it doesn't. The Battle Card has already been played, so the \"if the Battle Card being played has an energy cost of 4 or less\" requirement of this card isn\u2019t fulfilled."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "BT10-008",
+    "card": {
+      "id": "BT10-008",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Yamcha, Merciless Barrage",
+      "characters": [
+        "Yamcha"
+      ],
+      "traits": [
+        "Earthling"
+      ],
+      "skill": "[Counter: Play] You can't activate the [Counter: Play] skills of other cards for the turn: Choose up to 2 of your opponent's Battle Cards, they get -15000 power for the turn, then play this card.<br>[Permanent] If you have a red Unison Card with 2 or more markers in play, you can activate this card's [Counter] skill from your hand without paying its energy cost.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Yamcha, Merciless Barrage",
+        "qa": [
+          {
+            "q": "When your opponent pays the energy cost to play a Battle Card from their hand, can you use this card\u2019s [Counter : Play] skill to choose the Battle Card they\u2019re about to play?",
+            "a": "No, you can\u2019t."
+          },
+          {
+            "q": "When your opponent is going to play a Battle Card using a skill, can you use this card\u2019s [Counter : Play] skill to choose the Battle Card they\u2019re about to play?",
+            "a": "No, you can\u2019t."
+          },
+          {
+            "q": "When your opponent has played a card using a skill, can you use this card\u2019s [Counter : Play] skill during counter window 2 to choose the Battle Card they played?",
+            "a": "Yes, you can."
+          }
+        ]
+      }
+    ]
+  }
+]

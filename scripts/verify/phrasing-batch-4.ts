@@ -100,7 +100,8 @@ for (const [text, what, until] of [
   ["[activate: main][once per turn]{1}, if your Leader is a red <Gogeta: Br> card: Play up to 1 red <Gogeta: Br> card with an energy cost of 8 from your hand on top of this card in Active Mode with its non-keyword skills negated until the end of your opponent's next turn.", "EX21-20", "nextTurn"],
 ] as const) {
   const rec = record(text, what);
-  const negs = kindsNegated(rec);
+  const play = opsDeep(rec.ops).find((o) => o.op === "play");
+  const negs = play?.op === "play" && play.negatedKinds ? play.negatedKinds.map((kind) => ({ kind, until: play.negatedUntil })) : kindsNegated(rec);
   assert.deepEqual(negs.map((n) => n.kind), NON_KEYWORD, `${what}: the three non-keyword kinds`);
   assert.ok(negs.every((n) => n.until === until), `${what}: …for ${until}`);
   assert.ok(!opsDeep(rec.ops).some((o) => o.op === "negateSkills" || (o.op === "play" && o.negated)), `${what}: …and never every skill`);
@@ -116,8 +117,8 @@ for (const [text, what, until] of [
   const rec2 = skillRecords(card("BT21-066", { skill: BT21_066 }))[0];
   assert.ok(rec2.unread.length === 0 || rec2.unread.every((u) => !/non-keyword/.test(u)), "A2: BT21-066's play is read");
   if (!rec2.unread.length) {
-    assert.deepEqual(kindsNegated(rec2).map((n) => n.kind), NON_KEYWORD, "A2: BT21-066 plays the card with its non-keyword skills negated");
-    assert.ok(!opsDeep(rec2.ops).some((o) => o.op === "play" && o.negated), "A2: …the play itself is plain");
+    assert.deepEqual(opsDeep(rec2.ops).flatMap((o) => o.op === "play" ? o.negatedKinds ?? [] : []), NON_KEYWORD, "A2: BT21-066 plays the card with its non-keyword skills negated");
+    assert.ok(!opsDeep(rec2.ops).some((o) => o.op === "play" && o.negated), "A2: …the play negates only those kinds");
   }
   records++;
 }

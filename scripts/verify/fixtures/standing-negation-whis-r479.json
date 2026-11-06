@@ -1,0 +1,98 @@
+[
+  {
+    "cardId": "BT1-043",
+    "side": "front",
+    "skillIndex": 10,
+    "printed": "[Permanent] This card's attack and skill cannot be negated.",
+    "kind": "permanent",
+    "trigger": [],
+    "combo": null,
+    "usage": {
+      "version": 1,
+      "oncePerTurn": false,
+      "limit": null
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    },
+    "cost": {
+      "version": 1,
+      "readable": true,
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "text": "",
+      "condition": null,
+      "program": null
+    },
+    "cond": null,
+    "ops": [
+      {
+        "op": "permit",
+        "what": "attackUnnegatable",
+        "target": {
+          "sel": {
+            "special": "self"
+          }
+        },
+        "until": "game"
+      },
+      {
+        "op": "forbid",
+        "what": "beNegated",
+        "until": "game",
+        "target": {
+          "sel": {
+            "special": "self"
+          }
+        }
+      }
+    ],
+    "unread": [],
+    "pattern": "permit\u2192forbid:beNegated",
+    "reads": "this card's attacks can't be negated, this card can't have their skills negated"
+  },
+  {
+    "cardId": "BT1-043",
+    "side": "front",
+    "skillIndex": 20,
+    "printed": "[Auto] When you play this card, if your Leader Card is <Beerus>, after your current turn ends, take another turn.",
+    "kind": "auto",
+    "trigger": [
+      "played"
+    ],
+    "combo": null,
+    "usage": {
+      "version": 1,
+      "oncePerTurn": false,
+      "limit": null
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    },
+    "cost": {
+      "version": 1,
+      "readable": true,
+      "text": "",
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": null,
+      "program": null
+    },
+    "cond": null,
+    "ops": [],
+    "unread": [
+      "after your current turn ends",
+      "take another turn"
+    ],
+    "pattern": "after your current turn ends",
+    "reads": ""
+  }
+]

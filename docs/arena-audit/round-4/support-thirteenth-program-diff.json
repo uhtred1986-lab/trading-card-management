@@ -1,0 +1,63 @@
+[
+  {
+    "key": "BT18-003#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "Your life is at 4 or less, all of your energy is in Rest Mode, and you skip your Charge Phase during your next turn",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Your life is at 4 or less, all of your energy is in Rest Mode, and you skip your Charge Phase during your next turn",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "every",
+              "sel": {
+                "side": "you",
+                "area": "energy"
+              },
+              "matching": {
+                "side": "you",
+                "area": "energy",
+                "mode": "rest"
+              }
+            }
+          ]
+        },
+        "program": [
+          {
+            "op": "skip",
+            "what": "charge",
+            "when": "next"
+          }
+        ]
+      }
+    }
+  }
+]

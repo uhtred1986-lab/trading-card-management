@@ -47,6 +47,21 @@ function spaceBeforeKeyword(text: string): string {
  * be caught by `npm test`, which has no catalog to read.
  */
 export const CORRECTIONS: Record<string, [RegExp, string][]> = {
+  // The export joins the quoted granted skill to the separate four-colour Main skill (6 Nov 2026):
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT20-120.png
+  "BT20-120": [[/(in\s+your\s+hand\.")(\[activate:\s*main\]\s*\[limit\s+1\]\s*\{r\}\{u\}\{g\}\{y\})/gi, "$1<br>$2"]],
+  // Catalog export omits the Unison quantity; Bandai's card list and art both say 1 (6 Nov 2026):
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT25-083.png
+  "BT25-083": [[/choose\s+up\s+to\s+(?=of\s+your\s+opponent's\s+Unisons)/g, "choose up to 1 "]],
+  // Deckplanet labels Tora's blue activation orb as black; verified against Bandai, 5 Nov 2026:
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/EX25-13.png
+  "EX25-13": [[/(\[Activate:\s*Main\]\s*\[Limit\s+1\]\s*)\{b\}(?=\s*,\s*if your Leader is a blue)/gi, "$1{u}"]],
+  // The text export loses the circled 6; verified against Bandai's printed card, 5 Nov 2026:
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT13-046.png
+  "BT13-046": [[/(\[EX-Evolve\])\s*\?(?=,\s*draw\s+2\s+cards:)/gi, "$1{6}"]],
+  // Deckplanet omits the Awaken threshold; verified against Bandai's printed front, 4 Nov 2026:
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT26-031.png
+  "BT26-031": [[/you\s+have\s+or\s+more\s+Z-Energy/g, "you have 3 or more Z-Energy"]],
   // ── Dragon Ball Super (the game the arena plays) ──────────────────────────
   // Official 2020-03-06 errata (#920), verified 2026-10-15:
   // https://www.dbs-cardgame.com/us-en/rule/errata-cards.php
@@ -687,11 +702,11 @@ export function unmatchedCorrections(textsByCard: Map<string, string[]>): string
   return out;
 }
 
-// ── What a card *is*: names, character names, specified cost ────────────────
+// ── What a card *is*: names, character names, traits, specified cost ────────────────
 
 /**
  * Official errata to a card's identity rather than its skill text: its card name, its back's name and its character
- * names (2-3, 2-10). The feed prints the misprint, as it prints the skill-text ones above, so the catalog sync
+ * names (2-3, 2-10), plus image-verified missing traits. The feed prints the misprint, as it prints the skill-text ones above, so the catalog sync
  * corrects these on the way in the same way (`correctCardFields`, called by `shapeCatalog`) and re-checks every claim
  * against the payload it just fetched (`unmatchedFieldCorrections`): each is a `[printed, official]` pair, and a
  * printed side that no longer matches means the source was fixed upstream (delete the line) or moved (look at it).
@@ -699,7 +714,10 @@ export function unmatchedCorrections(textsByCard: Map<string, string[]>): string
  * Names matter to play, not only to display: "{Kaio-Ken Son Goku, Maximum Gains}" (BT15-068's corrected text) finds a
  * card by its card name, and "<Black Masked Saiyan>" a card by a character name.
  */
-export const FIELD_CORRECTIONS: Record<string, { name?: [string, string]; backName?: [string, string]; characters?: [string[], string[]] }> = {
+export const FIELD_CORRECTIONS: Record<string, { name?: [string, string]; backName?: [string, string]; characters?: [string[], string[]]; traits?: [string[], string[]] }> = {
+  // 2026-11-06: Bandai's BT4-089 image prints Earthling/Goku's Lineage; the feed omits Earthling.
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT4-089.png
+  "BT4-089": { traits: [["Goku's Lineage"], ["Earthling", "Goku's Lineage"]] },
   // 2025-01-17: "The character name is Sansyo, and the card is treated as <Sansyo, Interference>" (the feed already
   // prints the character, not the card name).
   "P-642": { name: ["Sansho, Interference", "Sansyo, Interference"] },
@@ -727,14 +745,18 @@ export const SPECIFIED_COST_CORRECTIONS: Record<string, string> = {
 
 const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
-/** A card's name, back name and character names with the official errata applied. Safe to call twice. */
-export function correctCardFields<T extends { name: string; backName: string | null; characters: string[] }>(cardId: string, fields: T): T {
+/** Trait input stays optional for existing name/character-only callers. */
+export interface CorrectableCardFields { name: string; backName: string | null; characters: string[]; traits?: string[] }
+
+/** Identity fields with exact source corrections applied. Safe to call twice. */
+export function correctCardFields<T extends CorrectableCardFields>(cardId: string, fields: T): T {
   const fix = FIELD_CORRECTIONS[cardId];
   if (!fix) return fields;
   const out = { ...fields };
   if (fix.name && out.name === fix.name[0]) out.name = fix.name[1];
   if (fix.backName && out.backName === fix.backName[0]) out.backName = fix.backName[1];
   if (fix.characters && sameList(out.characters, fix.characters[0])) out.characters = [...fix.characters[1]];
+  if (fix.traits && out.traits && sameList(out.traits, fix.traits[0])) out.traits = [...fix.traits[1]];
   return out;
 }
 
@@ -742,7 +764,7 @@ export function correctCardFields<T extends { name: string; backName: string | n
  * Which identity corrections no longer match the card as the source prints it (`${cardId}` → its uncorrected
  * fields). A card absent from the payload is not reported, as in `unmatchedCorrections`.
  */
-export function unmatchedFieldCorrections(fieldsByCard: Map<string, { name: string; backName: string | null; characters: string[] }>): string[] {
+export function unmatchedFieldCorrections(fieldsByCard: Map<string, CorrectableCardFields>): string[] {
   const out: string[] = [];
   for (const [cardId, fix] of Object.entries(FIELD_CORRECTIONS)) {
     const f = fieldsByCard.get(cardId);
@@ -750,6 +772,7 @@ export function unmatchedFieldCorrections(fieldsByCard: Map<string, { name: stri
     if (fix.name && f.name !== fix.name[0]) out.push(`${cardId}: name "${fix.name[0]}" is now "${f.name}"`);
     if (fix.backName && f.backName !== fix.backName[0]) out.push(`${cardId}: back name "${fix.backName[0]}" is now "${f.backName}"`);
     if (fix.characters && !sameList(f.characters, fix.characters[0])) out.push(`${cardId}: characters ${JSON.stringify(fix.characters[0])} are now ${JSON.stringify(f.characters)}`);
+    if (fix.traits && (!f.traits || !sameList(f.traits, fix.traits[0]))) out.push(`${cardId}: traits ${JSON.stringify(fix.traits[0])} are now ${JSON.stringify(f.traits)}`);
   }
   return out;
 }

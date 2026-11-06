@@ -1,3 +1,48 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
+import { requireDormantNativePolicy } from "./under-native-observation";
+import { applyNativeUnderEffectWrites, type NativeUnderWritePlan, type NativeUnderEffectWrite } from "./under-native-plan";
+import {incrementalLookIntent,requireLookSource,requireLookPending,activateLook,requireIncrementalLook} from './incremental-look';
+import {paidHandFrameIntent,requirePaidHandFrame} from './paid-hand-runtime';
+import { paidWarpSourceKey } from './paid-warp-contract';
+import { paidWarpIntent, paidWarpFrameIntent, requirePaidWarpPending, requirePaidWarpSource, requirePaidWarpFrame, refusePaidWarpTax } from './paid-warp-runtime';
+import { paidDropIntent } from './paid-drop-contract';
+import { requirePaidDropFrame, requirePaidDropResume } from './paid-drop-runtime';
+import { requirePaidRemovalFrame } from './paid-removal-runtime';
+import { capturePileRelease, requirePileReleaseCapture, cleanupReleasedPile } from "./pile-release-cleanup";
+import { renewOrdinaryUseGeneration } from "./limits";
+import { stepOrdinaryActivateCost, requireOrdinaryActivation, requireOrdinaryPriceFrame } from "./ordinary-activate-runtime";
+import { stepActivateUnderCost } from "./activate-under-cost";
+import { koResultScript, requireKoBinding, requireKoFrame } from "./ko-source";
+import { requireKoRoute, type KoOutcome } from "./ko-result";
+import { captureFlowPlacement, cleanupFlowPlacement, needsFlowPaymentPreview } from "./flow-placement-cleanup";
+import { captureMovementAutoHistory, requireMovementAutoBodies, type MovementAutoHistory } from "./movement-auto-history";
+import { areaCarries, freshAppliedEffectRoot, executionReceipt, type Receipt } from "./applied-effect-receipt";
+import { pairedSelfScript, requirePairedSelf, requirePairedSelfShape, requirePairedSourceFrame } from "./paired-self";
+import { requireEnergyCharge } from "./energy-entry-charge";
+import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
+import { guardUnownedEnergyEntry } from "./energy-entry-runtime";
+import { mixedStandingLeaderRestoration, hasStandingNegationHistory, expireStandingNegationBatch, beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
+import { capturedGrantedSkillNegated } from "./effects";
+import { capturedSkillShowing } from "./triggers";
+import { requireAwakenAlternativeFrame, stepAwakenAlternative } from "./awaken-alternative-costs";
+import { queueFieldCleanup, stepFieldCleanup } from "./field-rules";
+import { requireFieldFrame, stepFieldCost } from "./field-costs";
+import { completeCounterArrivalDecision, requireCounterArrivalBatchResume, prepareDirectCounterArrival, requireCounterArrivalContract, requireCounterArrivalDecision, retireCounterArrivalTemplates } from "./counter-arrival-runtime";
+import { stepCounterNonhandTax } from "./counter-tax";
+import { validCounterUnderOrigin } from "./counter-under";
+import { guardCounterNonhandTaxPayment } from "./counter-nonhand-tax";
+import { validCounterEnergyOrigin } from "./counter-energy";
+import { requireCounterActivationOrigin } from "./counter-activation-origin";
+import { overRealmReturnCurrent, stepOverRealmLateTax } from "./over-realm-cost";
+import { validCounterDropOrigin } from "./counter-drop";
+import { requireMarkerHistoryFrame, markerHistoryContract } from "./paid-markers";
+import { counterChoiceTail } from "./counter-continuation";
+import { requirePlayReplacement } from "./short-play-replacement";
+import { energyCouponContract, requireEnergyCouponFrame } from "./energy-coupon-saves";
+import { chooseFramePools, primeFramePools } from "./pooled-costs";
+import { requireCounterAdmission } from "./counter-admission";
+import { requireCounterSelfBinding, guardCounterSelfTaxPayment } from "./counter-self-binding";
+import { completeRetainedResume, settleRetainedCounter, requireRetainedCounter } from "./retained-counter";
 import { hasDropBottomRoute } from "./fusion-materials";
 import { containsPotaraPlay, isPotaraSkill, potaraPrintedSelector, POTARA_REBUILD } from "./potara-materials";
 import { containsAbsorbPlay, isAbsorbSkill } from "./absorb-procedure";
@@ -44,7 +89,7 @@ import { comboScriptProblem } from "./combo-qualification";
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
-import { type Action, type EngineContext, type GameEvent, type Skill } from "../types";
+import { counterKindOf, type Action, type EngineContext, type GameEvent, type Skill } from "../types";
 import { AREAS, PHASES } from "./script";
 import { nextRandom, shuffle } from "./rng";
 import { PLAYERS, other, type Area, type MoveReason, type Phase, type PlayerId, type Prompt, type ReplacementResult } from "../types";
@@ -57,12 +102,16 @@ import { masterOf, nextPending, skillsShowing, type VmPendingRecord } from "./tr
 import { automaticHasPrice, canWithholdSecretAuto, secretAutoSource } from "./secret-auto";
 import { bondIsValid } from "./bond";
 import { keywordMomentOf, keywordProgram } from "./keyword-do";
-import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endOwnTurnEffects, endSourceEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
+import { dueDelays, endAfterChargeEffects, endAfterOpponentChargeEffects, endEffects as endEffectsOfDuration, endNextMainEffects, endOwnTurnEffects, endTurnRelativeEffects, expireDelayed, grantedSkillNegated, powerReductionSources, skillNegated, skillsNegated } from "./effects";
 import { pendStandingPower, returnLoans, vmHost } from "./host";
 import { NotYet } from "./errors";
-import { replacementPrompt, stepScript, type ScriptFrame } from "./script";
+import { openSkillPlayWindow } from "./battle";
+import { recordMovementResult, requireMovementResults, requireDelayedMovementResults, prepareUnderSource, prepareCompletionSource, type MovementOutcome } from "./movement-result";
+import { beginReplacementAuto, prepareReplacementAuto, requireReplacementOrigin, sameReplacementOccurrence } from "./replacement-auto";
+import { rebuildScope, arrivalAutoWasActive, finishSkillPlayScope, releaseSkillPlayWindow, requireSkillEffectOrigin, scopeForFinish, startSkillPlayScope } from "./skill-play-scope";
+import { replacementPrompt, routeOf, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
-import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
+import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, isTokenCard, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
 import { attrsNow, chargeSwitchForbidden, forbiddenForCard, forbids, hasKeyword, keywordPlayTaxes, permissions, readingBoard, staticsNow, taxesOn } from "./program";
 import { attrsOf, playerAttributes } from "./cards";
@@ -78,9 +127,11 @@ import { assertCurrentFusion, stepFusionMaterials, stepKeywordCost } from "./key
 import { stepDropCost } from "./drop-costs";
 import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { emptyUnisons } from "./unison-zero";
-import { queueReviveCost, stepReviveCost } from "./revive-costs";
-import { AutoPaymentFailed, automaticPriceHost, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
-import { activationTaxGate, activationTaxes, stepTaxGate, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
+import { requireReviveFrame, reviveCostPayable, queueReviveCost, stepReviveCost } from "./revive-costs";
+import { AutoPaymentFailed, automaticResourcesFinish, automaticPriceHost, reviveTaxPayers, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
+import { requireAutoPlayProgram, requireCounterArrivalTiming } from "./auto-play-cost-runtime";
+import { underOpponentPlayPrice } from "./auto-play-cost";
+import { requireZAwakenBindings, activationTaxGate, activationTaxes, stepTaxGate, guardExtraCounterTaxPayment, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
 import { describeScript } from "./script-schema";
 import { IllegalAction } from "./common";
 import { spendUse, usesLeft } from "./limits";
@@ -228,7 +279,7 @@ const STEP_WORK: Record<string, Work> = {
     section: "7-2-4",
     waits: "an `until:` a duration expiry can be declared against, rather than the closed `DURATIONS` list the language carries",
     run: (ctx, game, state, ev) => {
-      returnLoans(ctx, game, state, ev, endTurnRelativeEffects(state, ev));
+      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endTurnRelativeEffects(s, events), [{ kind: "endRelative" }]));
     },
   },
   mainPending: {
@@ -237,7 +288,7 @@ const STEP_WORK: Record<string, Work> = {
     run: (ctx, game, state, ev) => {
       // #1163: "until the start of your next Main Phase" ends here, before
       // anything waiting for this Main Phase resolves.
-      returnLoans(ctx, game, state, ev, endNextMainEffects(state, ev));
+      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endNextMainEffects(s, events), [{ kind: "endNextMain" }]));
       state.programs.push(...dueDelays(state, "mainStart"));
       // 7-2-11's one charge has gone by the moment the Main Phase begins,
       // whether or not a card was actually charged at the Charge Phase's own
@@ -260,11 +311,18 @@ const STEP_WORK: Record<string, Work> = {
     run: (ctx, game, state, ev) => {
       // 7-4-5/6: "for the turn" effects end, and 20-15's last timing is the
       // one that happens as the turn closes over them.
-      returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "turn"));
-      // Phrasing batch 7: the turn's half of "the end of a battle or the end of the turn, whichever comes first".
-      returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
-      // #930: "until the end of your turn" ends only at the end of its master's turn.
-      returnLoans(ctx, game, state, ev, endOwnTurnEffects(state, ev));
+      if (hasStandingNegationHistory(state)) {
+        returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
+          ...endEffectsOfDuration(s, events, "turn"),
+          ...endEffectsOfDuration(s, events, "battleOrTurn"),
+          ...endOwnTurnEffects(s, events),
+        ], [{ kind: "end", until: "turn" }, { kind: "end", until: "battleOrTurn" }, { kind: "endOwnTurn" }]));
+      } else {
+        // Preserve the legacy callback order outside the opted-in writer proof.
+        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "turn"));
+        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
+        returnLoans(ctx, game, state, ev, endOwnTurnEffects(state, ev));
+      }
       state.programs.push(...dueDelays(state, "turnCleanup"));
     },
   },
@@ -325,8 +383,14 @@ const STEP_WORK: Record<string, Work> = {
       // step it was written for has now happened, so it is spent — on this
       // player's cards only, which is what makes "next" the right one
       // whichever turn the effect was made on (the legacy `turn.activeAll`).
-      endAfterChargeEffects(state, ev, covered);
-      endAfterOpponentChargeEffects(state, ev);
+      if (hasStandingNegationHistory(state)) {
+        returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
+          ...endAfterChargeEffects(s, events, covered), ...endAfterOpponentChargeEffects(s, events),
+        ], [{ kind: "endCharge", cards: covered }, { kind: "endOpponentCharge" }]));
+      } else {
+        endAfterChargeEffects(state, ev, covered);
+        endAfterOpponentChargeEffects(state, ev);
+      }
     },
   },
   chargeDraw: {
@@ -350,6 +414,7 @@ const STEP_WORK: Record<string, Work> = {
       // game rather than on the cards in play, because a card that left play
       // and came back is a new copy and has to start from nothing either way.
       for (const inst of Object.values(state.cards)) {
+        renewOrdinaryUseGeneration(inst);
         inst.usedThisTurn = [];
         inst.usedMarkerSkill = false;
         // 8-1-2-2: the battle roles end with the battle, but the memory of
@@ -421,6 +486,7 @@ const GUARD = 10_000;
  * question nobody answers.
  */
 export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], previewStop?: "battleCounterAttack" | "battleOffense"): void {
+  requireUnscopedStandingWrite(state);
   let guard = 0;
   checkWins(ctx, game, state, ev);
   while (state.flow.length) {
@@ -446,11 +512,17 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // ends them after [Revenge]'s KO and [Dual Attack]'s stand (#154 found
       // the rules engine never ending them at all, through [Alliance]).
       if (top.phase === "battle") {
-        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battle"));
-        // Phrasing batch 7: "…until the end of a battle or the end of the turn, whichever comes first" (BT15-139)
-        // ends with the first battle to end after it was made, or with the turn (`endEffects` below), whichever is first.
-        returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
+        if (hasStandingNegationHistory(state)) {
+          returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
+            ...endEffectsOfDuration(s, events, "battle"), ...endEffectsOfDuration(s, events, "battleOrTurn"),
+          ], [{ kind: "end", until: "battle" }, { kind: "end", until: "battleOrTurn" }]));
+        } else {
+          returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battle"));
+          returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
+        }
+        const battleMutation = beginStandingNegationMutation(ctx, state, undefined, { battle: { kind: "end" } });
         state.battle = null;
+        finishStandingNegationMutation(ctx, state, battleMutation, undefined, { kind: "end" });
       }
       // 7-3: a phase running out of steps is the moment "at the end of your
       // Main Phase" names. No client draws a phase *ending* and the legacy
@@ -639,6 +711,7 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
  * cleared so no later program reads it as still being resolved.
  */
 function releaseResolvingPlay(state: VmState): boolean {
+  if (releaseSkillPlayWindow(state)) return true;
   const r = state.resolving;
   if (!r) return false;
   if (!r.frame) {
@@ -647,6 +720,7 @@ function releaseResolvingPlay(state: VmState): boolean {
   }
   const frame = r.frame;
   delete r.frame;
+  if (r.heldEpoch !== undefined && (!r.card || (state.cards[r.card]?.zoneEpoch ?? 0) !== r.heldEpoch)) r.replaced = true;
   if (r.replaced || r.landed) state.resolving = null;
   if (!r.replaced) state.programs.push(frame);
   return true;
@@ -688,10 +762,13 @@ export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmSt
     if (shown) log(ev, { ...shown, skipped: true });
     // 20-13-5: a duration ending in this Charge Phase ends immediately when
     // that phase is skipped, even though its Active Step will never run.
-    if (name === game.game?.phases?.[0]) endAfterOpponentChargeEffects(state, ev);
+    if (name === game.game?.phases?.[0]) {
+      if (hasStandingNegationHistory(state)) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endAfterOpponentChargeEffects(s, events), [{ kind: "endOpponentCharge" }]));
+      else endAfterOpponentChargeEffects(state, ev);
+    }
     // …and so does "until the start of your next Main Phase" (#1163) when the
     // phase whose first step would have ended it is skipped.
-    if (declared.steps.includes("mainPending")) returnLoans(ctx, game, state, ev, endNextMainEffects(state, ev));
+    if (declared.steps.includes("mainPending")) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endNextMainEffects(s, events), [{ kind: "endNextMain" }]));
     return;
   }
   emit(ctx, game, state, ev, { event: "phaseStart", controller: state.turnPlayer, args: { phase: name } }, shownPhase(game, state, name));
@@ -832,7 +909,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // An old pending queue cannot bypass the executable-record migration.
   for (const item of state.pending) {
     if (item.kind === "hook") continue;
-    const sk = skillsShowing(ctx, state, item.card).skills.find((line) => line.index === item.skillIndex);
+    const sk = capturedSkillShowing(ctx, state, item.card, item.skillIndex, item.copiedSkillCapture).skill;
     const gap = usageProblem(sk?.usage) ?? validityProblem(sk?.validity);
     if (gap) {
       interruptGame(ctx, game, state, ev, { sourceCard: item.card, skillIndex: item.skillIndex,
@@ -859,12 +936,12 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // Captured keyword effects use the same owner-choice checkpoint queue as
     // ordinary Autos. Put the already-compiled frame on the runner only after
     // the confirmative rule check above has completed.
-    state.programs.unshift(next.frame);
+    state.programs.unshift(freshAppliedEffectRoot(state, { ...next.frame, skillEffectOrigin: { version: 2, kind: "hook" } }, "hook"));
     return true;
   }
   const named = state.cards[next.card]?.cardId ?? next.card;
-  const showing = skillsShowing(ctx, state, next.card);
-  const skill = showing.skills.find((sk) => sk.index === next.skillIndex);
+  const captured = capturedSkillShowing(ctx, state, next.card, next.skillIndex, next.copiedSkillCapture);
+  const skill = captured.skill;
   // Bare Attack/Revenge lines deliberately have no card_rules row: their
   // entire behavior is the declared keyword DO/battleEnd hook (22-8/22-9).
   // Do not confuse that with a missing printed effect. A priced/qualified
@@ -872,8 +949,32 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   const nativeBattleKeyword = skill?.kind === "keyword"
     && (skill.keyword?.name === "Attack" || skill.keyword?.name === "Revenge")
     && !skill.effect.trim() && !skill.cost.trim() && !automaticHasPrice(skill, undefined);
-  const program = showing.scripts.bySkill[next.skillIndex]
+  const program = captured.script
     ?? (nativeBattleKeyword ? { ops: [], unsupported: [] } : undefined);
+  if(incrementalLookIntent(program?.ops)||next.lookSource)requireLookPending(ctx,state,next.lookSource,next.card,next.master,next.skillIndex);
+  if (paidWarpIntent(program) || next.paidWarpSource) requirePaidWarpPending(ctx, game, state, next.paidWarpSource, next.card, next.master, next.skillIndex);
+  if (koResultScript(program) || next.koBinding) {
+    try { requireKoBinding(state, program, next.koBinding, next.card, next.master, next.skillIndex); }
+    catch (error) { interruptGame(ctx, game, state, ev, {sourceCard:next.card,skillIndex:next.skillIndex,trigger:next.trigger,issue:"R506",detail:error instanceof Error?error.message:"missing KO source"}); return true; }
+  }
+  // R483: these entry-qualified watchers always retain the actual subject's
+  // event attributes. A later Auto may already have moved that subject.
+  if (["youComboFromHand", "youComboFromBattle"].includes(next.trigger)
+    && (!next.subject || !next.subjectInfo)) {
+    interruptGame(ctx, game, state, ev, { sourceCard: next.card, skillIndex: next.skillIndex,
+      trigger: next.trigger, issue: "R483", detail: "saved watched Combo entry is missing its subject attributes; rebuild the match" });
+    return true;
+  }
+  if (pairedSelfScript(program) || next.pairedSelf) {
+    try {
+      if (next.copiedSkillCapture) throw new NotYet("copied bounded paired-source occurrence is not yet supported", "R487");
+      requirePairedSelfShape(program); requirePairedSelf(state, next.card, next.pairedSelf); }
+    catch (error) {
+      interruptGame(ctx, game, state, ev, { sourceCard: next.card, skillIndex: next.skillIndex, trigger: next.trigger,
+        issue: "R487", detail: error instanceof Error ? error.message : "rebuild bounded paired source" });
+      return true;
+    }
+  }
   // Validate saved pending data without rechecking an occurrence that already
   // happened (9-6-11: Angila still resolves after a Jaco return to hand).
   if (program?.combo !== undefined || ["comboUsed", "comboed"].includes(next.trigger)) {
@@ -887,7 +988,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A pending trigger can wait behind other Autos; check Bond again when this
   // one is actually activated (22-21-3). In particular, do so before deciding
   // whether a secret-area Auto must be revealed.
-  if (skill?.kind === "auto" && bondIsValid(ctx, game, state, next.master, skill) === false) {
+  if (skill?.kind === "auto" && bondIsValid(ctx, game, state, next.master, skill, next.card) === false) {
     if (!secretAutoSource(game, state, next)) log(ev, { type: "note", text: `${named}'s [Bond ${skill.bond}] condition does not hold, so its skill does not activate` });
     return true;
   }
@@ -902,6 +1003,10 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     return true;
   }
   const frame: ScriptFrame & { autoRevealEpoch?: number } = {
+    ...(next.copiedSkillCapture ? { copiedSkillCapture: structuredClone(next.copiedSkillCapture) } : {}),
+    ...(skill?.kind === "auto" ? { skillEffectOrigin: { version: 2 as const, kind: "auto" as const } } : {}),
+    markerHistoryContract: markerHistoryContract(program?.ops ?? [], program?.price),
+    energyCouponContract: energyCouponContract(program?.ops ?? []),
     ops: program?.ops ?? [],
     ip: 0,
     vars: {},
@@ -909,6 +1014,11 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     master: next.master,
     trigger: next.trigger as Trigger,
     subject: next.subject,
+    ...(next.faceUpLifeEpoch === undefined ? {} : { faceUpLifeEpoch: next.faceUpLifeEpoch }),
+    ...(next.lookSource ? {lookExecution:{source:structuredClone(next.lookSource)}} : {}),
+    ...(next.paidWarpSource ? { paidWarp: { source: structuredClone(next.paidWarpSource), binding: paidWarpSourceKey(next.paidWarpSource) } } : {}),
+    ...(next.koBinding ? { koBinding: { ...next.koBinding } } : {}),
+    ...(next.pairedSelf ? { pairedSelf: { ...next.pairedSelf } } : {}),
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     // #930: how the card was played, as it was when this Auto was triggered.
     ...(next.selfEnteredUsing ? { selfEnteredUsing: next.selfEnteredUsing } : {}),
@@ -918,10 +1028,15 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     usage: skill?.usage as import("./usage").UsageRecord,
     validity: skill?.validity as import("./validity").ValidityRecord,
   };
+  freshAppliedEffectRoot(state, frame, skill?.kind === "auto" ? "auto" : "keyword");
   // #677: a 20-14 price on activating this [Auto] (EX06-35's "your opponent
   // can't activate skills unless …") makes it a priced one — read now, on the
   // board it is chosen on, before anything is paid.
-  const taxGate = skill?.kind === "auto" ? activationTaxGate(ctx, game, state, next.master, next.card, skill.kind) : null;
+  // R467 / 22-34-1: only this KO-triggered keyword is admitted through
+  // the priced Auto tax continuation; other keyword Autos keep their gap.
+  const nativeRevive = skill?.kind === "keyword" && skill.keyword?.name === "Revive" && next.trigger === "koed";
+  const taxKind = nativeRevive ? "auto" : skill?.kind;
+  const taxGate = taxKind === "auto" ? activationTaxGate(ctx, game, state, next.master, next.card, taxKind) : null;
   // 9-6-3-1 precedes the price decision in 9-6-4. A priced secret Auto is
   // shown when specified, but this declaration must never look like a fired
   // skill to event consumers or probes. The eventual skill event is separate.
@@ -940,26 +1055,29 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // 9-1-5: a card whose skills are negated has none, and one skill switched
   // off is off for the moment it answered to as well as for every other. The
   // one reading of that rule lives in `./effects.ts` and every reader uses it.
-  if (skillNegated(state, next.card, next.skillIndex, skill?.kind)) {
+  // R487: after source departure, a fresh occurrence's negation cannot cancel
+  // this validated old occurrence. Same-occurrence timing remains unchanged.
+  const departedPairedSource = !!next.pairedSelf && state.cards[next.card].pairedSelfToken !== next.pairedSelf.token;
+  if (!departedPairedSource && !arrivalAutoWasActive(next, state) && (captured.deleted || skillNegated(state, next.card, next.skillIndex, skill?.kind))) {
     log(ev, { type: "note", text: `${noteName} is negated, so it does not resolve` });
     return true;
   }
   // 9-6-3-2 with 20-14: an [Auto] is activated too, so a card that "can't
   // activate skills" (BT29-041) has its pending [Auto] cancelled.
-  if (skill?.kind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card, skillKind: "auto" })) {
+  if (taxKind === "auto" && forbids(ctx, game, state, "activateSkill", { player: next.master, card: next.card, skillKind: "auto" })) {
     log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate, so it does not resolve" : `${named} can't activate skills, so its skill does not resolve` });
     return true;
   }
   // #677, 20-14-1 with 9-6-3-2: a price on activating it that cannot be paid
   // whole means the [Auto] cannot be activated, so it is cancelled. One that
   // can is part of its cost (9-6-4), offered below with any printed price.
-  if (skill && taxGate && unpaidActivationTax(ctx, game, state, next.master, next.card, activationTaxes(ctx, game, state, next.master, next.card, skill.kind))) {
+  if (skill && taxGate && !nativeRevive && unpaidActivationTax(ctx, game, state, next.master, next.card, activationTaxes(ctx, game, state, next.master, next.card, taxKind))) {
     log(ev, { type: "note", text: declaredSecret ? "This Auto skill cannot activate: a price a rule puts on it can't be paid" : `${named}'s skill can't be activated: a price a rule puts on it (20-14-1) can't be paid` });
     return true;
   }
   // A keyword's own [Auto] ([Offering], [Revive], [Alliance] …) has no
   // boundary the price is known to belong at yet: stopped, never untaxed.
-  if (skill?.kind === "keyword" && activationTaxes(ctx, game, state, next.master, next.card, skill.kind).length) {
+  if (skill?.kind === "keyword" && !nativeRevive && activationTaxes(ctx, game, state, next.master, next.card, skill.kind).length) {
     throw new NotYet("charge a 20-14 activation tax on a keyword's own [Auto]", "#677");
   }
   // Stage 7: a keyword's own line that answered through its declaration's
@@ -1002,7 +1120,11 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
         log(ev, { type: "note", text: `${named}: [Revive] can't play it — the price a rule puts on playing it (20-14-1) can't be paid` });
         return true;
       }
-      queueReviveCost(game, state, { ...frame, ...(printed ? { printed } : {}), viaKeyword: keyword.name }, keyword, skill, program);
+      if (taxGate && !reviveCostPayable(ctx, game, state, { ...frame, viaKeyword: keyword.name }, keyword, skill, program, taxGate)) {
+        log(ev, { type: "note", text: `${named}: Revive's complete color, additional and activation-tax costs cannot be paid` });
+        return true;
+      }
+      queueReviveCost(game, state, { ...frame, ...(printed ? { printed } : {}), viaKeyword: keyword.name }, keyword, skill, program, taxGate);
       return true;
     }
     queueAutomatic(ctx, game, state, ev, { ...frame, ops: keywordProgram(game, keyword, skill), ...(printed ? { printed } : {}), viaKeyword: keyword.name }, skill, program);
@@ -1033,7 +1155,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
 /** 22-11-5 / 22-44-5 (#741): the line of a pending [Auto] when it has no use left this turn for its master, else null. */
 function spentLine(ctx: EngineContext, state: VmState, item: VmPendingRecord): Skill | null {
   if (item.kind === "hook") return null;
-  const sk = skillsShowing(ctx, state, item.card).skills.find((line) => line.index === item.skillIndex);
+  const sk = capturedSkillShowing(ctx, state, item.card, item.skillIndex, item.copiedSkillCapture).skill;
   return sk && usesLeft(state, item.master, item.card, sk) === 0 ? sk : null;
 }
 
@@ -1057,6 +1179,7 @@ function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState
       frame.afterSkillKeywords = keywords;
     }
   }
+  activateLook(frame,!!taxGate);
   const printed = automaticHasPrice(skill, program);
   const priced = printed || !!taxGate;
   if (!priced || !skill) {
@@ -1078,7 +1201,9 @@ function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState
     return;
   }
   try {
+    refusePaidWarpTax(frame, !!taxGate);
     const autoCost = prepareAutomaticCost(ctx, game, state, frame, skill, program);
+    if (frame.autoPlayCost && taxGate) throw new NotYet("pay an Auto play cost with an additional activation tax", "R510");
     if (taxGate) {
       // 9-6-4: one decision for the whole cost — the printed price and the
       // rule's prices with it — so the option names both.
@@ -1274,11 +1399,187 @@ function zoneOfCard(state: VmState, id: string): string | null {
  * The fixed opening words retained for older interrupted states and decision
  * rows. New outcomes use the typed `outcome` field.
  */
+function stepReplacementFallback(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
+  const original = frame.replacementFallback!;
+  const finishParentMove = (completed: boolean, outcome?: MovementOutcome) => {
+    const parent = state.programs.find(item => item.replacementMove?.card === original.card && item.replacementMove.epoch === original.epoch);
+    if (parent) {
+      if (outcome && parent.replacementMove?.completedAs) recordMovementResult(parent, parent.replacementMove.completedAs, outcome);
+      if (completed) parent.acted = (parent.acted ?? 0) + 1;
+      delete parent.replacementMove;
+    }
+  };
+  if (!sameReplacementOccurrence(state, original)) { finishParentMove(false); return "done"; }
+  let selected: import("../types").ReplacementChoice | undefined;
+  if (original.awaiting) {
+    const { choices, allowNone } = original.awaiting;
+    const index = state.lastMode;
+    if (index === null || (!choices[index] && !(allowNone && index === choices.length))) throw new IllegalAction("choose an offered original-departure replacement");
+    selected = choices[index]; state.lastMode = null; delete original.awaiting;
+  } else {
+    const choices = replacementChoices(ctx, game, state, original.card, original.move.reason, { actor: original.move.actor, requestedTo: "drop", ...(original.move.cleanupDeparture ? { comboCleanup: true } : {}) })
+      .filter(choice => !original.used.some(used => used.source === choice.source && used.skillIndex === choice.skillIndex && used.occurrence === choice.occurrence));
+    const allowNone = choices.length > 0 && choices.every(choice => choice.optional);
+    if (choices.length > 1 || allowNone) {
+      original.awaiting = { choices, allowNone };
+      state.programs.unshift(frame);
+      const prompt = replacementPrompt(state.cards[original.card].cardId, "drop", choices, allowNone);
+      state.prompt = { kind: "replaceMove", player: masterOf(game, state, original.card), card: original.card, ...prompt };
+      return "wait";
+    }
+    selected = choices[0];
+  }
+  const route = selected ? routeOf(selected) : null;
+  const deferred = !!route?.ops?.length;
+  let substitute: ScriptFrame | undefined;
+  if (deferred && route) {
+    substitute = { ops: route.ops!, ip: 0, vars: structuredClone((selected as typeof selected & { vars?: ScriptFrame["vars"] })?.vars ?? {}), card: route.source ?? original.card, master: route.master ?? frame.master, subject: original.card, replacing: original.card, skillIndex: route.skillIndex, ...(route.optional ? { offered: true } : {}) };
+    prepareReplacementAuto(ctx, game, state, substitute, original.card, "drop", original.move);
+    const used = [...original.used, { source: substitute.card, skillIndex: substitute.skillIndex, occurrence: selected!.occurrence! }];
+    if (substitute.replacementAuto) substitute.replacementAuto.used = used;
+    else { original.used = used; state.programs.unshift(frame); }
+  }
+  const cleanup = state.battle?.endCombo?.substituteDeparture;
+  if (cleanup && original.move.cleanupDeparture) cleanup.active = true;
+  let outcome: MovementOutcome | undefined;
+  try { moved(ctx, game, state, ev, original.card, "drop", { ...original.move, onResult: result => { outcome = result; }, replaced: deferred ? { ...route!, deferred: true } : route }); }
+  finally { if (cleanup) delete cleanup.active; }
+  if (substitute) state.programs.unshift(substitute);
+  else finishParentMove(!!outcome?.completed, outcome);
+  return "done";
+}
+
+function programSourceScript(ctx: EngineContext, state: VmState, frame: ScriptFrame): Script | undefined {
+  if(frame.lookExecution)return requireLookSource(ctx,state,frame.lookExecution.source,frame.card,frame.master,frame.skillIndex);
+  if (frame.paidWarp) return requirePaidWarpSource(ctx, state, frame.paidWarp.source, frame.card, frame.master, frame.skillIndex);
+  if (frame.ordinaryActivation) {
+    if (!frame.saveVarsAs && frame.ordinaryActivation.cost?.phase !== "committed") throw new IllegalAction("the ordinary Activate effect has no completed payment");
+    return requireOrdinaryActivation(ctx, state, frame.ordinaryActivation, frame.card, frame.master, frame.skillIndex);
+  }
+  const declaration = frame.counterDeclaredScript;
+  if (declaration && (declaration.version !== 1 || declaration.card !== frame.card || !Number.isSafeInteger(declaration.skillIndex) || declaration.skillIndex < 0 || declaration.skillIndex !== frame.skillIndex || !declaration.script || (declaration.script.kind !== undefined && declaration.script.kind !== declaration.kind) || !counterKindOf(declaration.kind))) {
+    rebuildScope("rebuild this Counter continuation against its current stored rule: mismatched declared skill identity");
+  }
+  if (frame.counterCost?.extra && frame.counterCost.extra.skillIndex !== frame.skillIndex) rebuildScope("rebuild this saved Extra Counter selected skill");
+  return frame.counterCost?.extra?.declaredScript ?? declaration?.script ?? (frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? capturedSkillShowing(ctx, state, frame.card, frame.skillIndex, frame.copiedSkillCapture).script : undefined);
+}
+
+/** The same pending-stage policy, bound to the original observed source. */
+function capturedHookNegated(ctx: EngineContext, state: VmState, frame: ScriptFrame): boolean {
+  if (frame.grantEffectId !== undefined) return capturedGrantedSkillNegated(state, frame.card, frame.grantEffectId, frame.skillIndex);
+  if (frame.copiedSkillCapture) {
+    const captured = capturedSkillShowing(ctx, state, frame.card, frame.skillIndex!, frame.copiedSkillCapture);
+    if (captured.deleted) return true;
+    if ((state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.copiedSkillCapture.epoch || (state.cards[frame.card]?.hiddenCount ?? 0) !== frame.copiedSkillCapture.hiddenCount) return false;
+  }
+  return skillsNegated(state, frame.card) || (frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")) || (frame.standingGrantId !== undefined && grantedSkillNegated(state, frame.card, frame.standingGrantId));
+}
+
 function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): "done" | "wait" {
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
-    const sourceScript = frame.skillIndex !== undefined && !frame.fusionIdentity && !frame.evolutionIdentity && !frame.absorbIdentity && !frame.potaraIdentity ? skillsShowing(ctx, state, frame.card).scripts.bySkill[frame.skillIndex] : undefined;
+    if(frame.lookExecution||frame.incrementalLook||incrementalLookIntent(frame.ops))requireIncrementalLook(ctx,game,state,frame);
+    const lookResume=frame.arrivalBatchResume?.frame??frame.arrivalResume?.frame??frame.retainedResume?.frame;
+    if(lookResume&&(lookResume.lookExecution||lookResume.incrementalLook||incrementalLookIntent(lookResume.ops)))throw new IllegalAction("private inspection cannot resume through a play wrapper (R527)");
+    if (paidHandFrameIntent(frame)) requirePaidHandFrame(ctx, state, frame);
+    const handResume=frame.arrivalBatchResume?.frame??frame.arrivalResume?.frame??frame.retainedResume?.frame;
+    if(handResume&&paidHandFrameIntent(handResume)){requirePaidHandFrame(ctx,state,handResume);throw new IllegalAction("the entire-Hand skill has no play continuation (R525)");}
+    if (paidWarpFrameIntent(frame)) requirePaidWarpFrame(ctx, game, state, frame);
+    const warpResume = frame.arrivalBatchResume?.frame ?? frame.arrivalResume?.frame ?? frame.retainedResume?.frame;
+    if (warpResume && paidWarpFrameIntent(warpResume)) {
+      requirePaidWarpFrame(ctx, game, state, warpResume);
+      throw new IllegalAction("the Warp-count Auto has no play continuation; rebuild this saved resume (R522)");
+    }
+    requireCounterArrivalTiming(ctx, state);
+    requireOrdinaryPriceFrame(frame);
+    if (frame.ordinaryActivation && frame.saveVarsAs) return stepOrdinaryActivateCost(ctx, game, state, ev, frame);
+    if (frame.activateUnderPayment || "activateUnderCost" in frame) return stepActivateUnderCost(ctx, game, state, ev, frame);
+    if (frame.energyCharge || state.energyCharge) requireEnergyCharge(game,state,frame);
+    if (frame.fieldCleanup) return stepFieldCleanup(ctx, game, state, ev, frame);
+    if (frame.awakenAlternativeCost) return stepAwakenAlternative(ctx, game, state, ev, frame);
+    if (frame.fieldCost) return stepFieldCost(ctx, game, state, ev, frame);
+    requireFieldFrame(frame);
+    if (!guardCounterNonhandTaxPayment(ctx, state, ev, frame)) return "done";
+    if (frame.overRealmReturn !== undefined && !overRealmReturnCurrent(state, frame)) return "done";
+    if (frame.overRealmLateTax) return stepOverRealmLateTax(ctx, game, state, ev, frame);
+    if (!guardExtraCounterTaxPayment(ctx, state, ev, frame)) return "done";
+    if (!guardCounterSelfTaxPayment(state, frame, parent => programSourceScript(ctx, state, parent))) return "done";
+    if (frame.replacementFallback) return stepReplacementFallback(ctx, game, state, ev, frame);
+    if (frame.replacementAuto && !beginReplacementAuto(ctx, game, state, frame, (skill, program) => {
+      freshAppliedEffectRoot(state, frame, "replacement");
+      const tax = activationTaxGate(ctx, game, state, frame.master, frame.card, "auto");
+      if (tax && unpaidActivationTax(ctx, game, state, frame.master, frame.card, activationTaxes(ctx, game, state, frame.master, frame.card, "auto"))) {
+        log(ev, { type: "note", text: "The replacement Auto cannot activate: its additional price cannot be paid" });
+        return;
+      }
+      queueAutomatic(ctx, game, state, ev, frame, skill, program, tax);
+    })) return "done";
+    if (frame.arrivalBatchResume) {
+      const resume = frame.arrivalBatchResume;
+      if (resume.frame.paidDrop || paidDropIntent(resume.frame.ordinaryActivation?.cost?.source?.script) || paidDropIntent(resume.frame)) requireOrdinaryActivation(ctx, state, resume.frame.ordinaryActivation, resume.frame.card, resume.frame.master, resume.frame.skillIndex);
+      requirePaidDropResume(ctx, game, state, resume.frame, resume.cards);
+      requireCounterArrivalBatchResume(state, resume);
+      return vmHost(ctx, game, state, ev).playThen(resume.cards, resume.options, resume.frame) === "wait" ? "wait" : "done";
+    }
+    if (frame.arrivalResume) {
+      const resume = frame.arrivalResume;
+      if (resume.frame.paidDrop || paidDropIntent(resume.frame.ordinaryActivation?.cost?.source?.script) || paidDropIntent(resume.frame)) requireOrdinaryActivation(ctx, state, resume.frame.ordinaryActivation, resume.frame.card, resume.frame.master, resume.frame.skillIndex);
+      requirePaidDropResume(ctx, game, state, resume.frame, resume.cards);
+      completeCounterArrivalDecision(state, resume);
+      return vmHost(ctx, game, state, ev).playThen(resume.cards, resume.options, resume.frame) === "wait" ? "wait" : "done";
+    }
+    if (frame.retainedResume) {
+      const resume = frame.retainedResume;
+      if (resume.kind !== "finish") {
+        if (resume.frame.paidDrop || paidDropIntent(resume.frame.ordinaryActivation?.cost?.source?.script) || paidDropIntent(resume.frame)) requireOrdinaryActivation(ctx, state, resume.frame.ordinaryActivation, resume.frame.card, resume.frame.master, resume.frame.skillIndex);
+        requirePaidDropResume(ctx, game, state, resume.frame, resume.cards);
+      }
+      completeRetainedResume(state, resume);
+      if (resume.kind === "finish") { state.resolving = resume.previous ?? null; state.programs.unshift(resume.frame); return "done"; }
+      return vmHost(ctx, game, state, ev).playThen(resume.cards, resume.options, resume.frame) === "wait" ? "wait" : "done";
+    }
+    if (frame.skillPlayFinish) {
+      const scope = scopeForFinish(state, frame);
+      if (settleRetainedCounter(state, scope, frame)) return "done";
+      retireCounterArrivalTemplates(scope);
+      if (!scope.purpose && scope.id === frame.skillPlayFinish.scope && !scope.canceled && scope.phase !== "after" && openSkillPlayWindow(ctx, game, state, frame, scope, "after")) return "wait";
+      finishSkillPlayScope(state, frame); return "done";
+    }
+    requireRetainedCounter(state, frame);
+    requireZAwakenBindings(frame);
+    requireReviveFrame(state, frame);
+    const sourceScript = programSourceScript(ctx, state, frame);
+    requirePaidRemovalFrame(ctx, game, state, frame, sourceScript);
+    requirePaidDropFrame(ctx, game, state, frame, sourceScript);
+    requirePaidWarpFrame(ctx, game, state, frame, sourceScript);
+    requirePaidHandFrame(ctx,state,frame,sourceScript);
+    requireKoFrame(state, sourceScript, frame);
+    requirePairedSourceFrame(state, sourceScript, frame);
+    requireCounterArrivalContract(frame, sourceScript);
+    requireCounterArrivalDecision(state, frame);
+    if ((frame.counterChoice || state.skillPlayScopes?.some(scope => scope.id === frame.skillEffectOrigin?.scope && scope.purpose === "counterContinuation")) && (sourceScript?.kind !== "counter:play" || !counterChoiceTail(sourceScript.ops))) rebuildScope("rebuild this Counter continuation against its current stored rule");
+    if (frame.counterPlay && sourceScript?.kind === "counter:play" && counterChoiceTail(sourceScript.ops)) {
+      const origin = frame.skillEffectOrigin;
+      const scope = origin?.scope === undefined ? undefined : state.skillPlayScopes?.find(item => item.id === origin.scope);
+      if (!origin || origin.version !== 2 || origin.kind !== "counter" || (origin.scope !== undefined ? scope?.purpose !== "counterContinuation" || frame.counterChoice?.version !== 1 : frame.ip !== 0 || !counterChoiceTail(frame.ops))) {
+        rebuildScope("rebuild this saved Counter choice continuation");
+      }
+    }
+    requirePlayReplacement(frame, sourceScript);
+    requireAwakenAlternativeFrame(frame, sourceScript);
+    requireMarkerHistoryFrame(frame, sourceScript);
+    requireCounterAdmission(frame, sourceScript);
+    requireCounterSelfBinding(frame, sourceScript);
+    requireCounterActivationOrigin(frame, sourceScript);
+    if (frame.skillKind === "counter" && frame.saveVarsAs === `costvars:${frame.card}:${frame.skillIndex}`) rebuildScope("rebuild this saved alternative Counter payment before activation");
+    if (frame.counterCost && frame.ops.length && !sourceScript?.price?.ops?.length && !frame.counterCost.alternative && !validCounterDropOrigin(ctx, state, frame) && !validCounterEnergyOrigin(ctx, state, frame) && !validCounterUnderOrigin(ctx, state, frame)) rebuildScope("rebuild the saved alternative Counter source");
+    requireEnergyCouponFrame(ctx, state, frame);
+    requireReplacementOrigin(frame, sourceScript);
+    requireMovementResults(frame, sourceScript);
+    requireDelayedMovementResults(frame, frame.skillIndex === undefined && state.cards[frame.card] ? Object.values(skillsShowing(ctx, state, frame.card).scripts.bySkill) : []);
+    prepareUnderSource(frame, state.cards[frame.card]?.zoneEpoch ?? 0);
+    prepareCompletionSource(frame, state.cards[frame.card]?.zoneEpoch ?? 0);
     if (frame.fusionIdentity || sourceScript?.price?.fusion !== undefined) {
       const gap = fusionIdentityProblem(frame.fusionIdentity, true); if (gap) throw new NotYet(gap, "#907");
     }
@@ -1315,10 +1616,15 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
         ?? (!frame.trigger || !sourceScript?.trigger?.includes(frame.trigger) ? "saved combo continuation has no matching occurrence; rebuild the match (#907)" : null);
       if (gap) throw new NotYet(gap, "#907");
     }
+    if (pairedSelfScript(sourceScript) || frame.pairedSelf) {
+      if (frame.copiedSkillCapture) throw new NotYet("copied bounded paired-source occurrence is not yet supported", "R487");
+      requirePairedSelfShape(sourceScript); requirePairedSelf(state, frame.card, frame.pairedSelf);
+    }
     if (frame.taxGate) return stepTaxGate(ctx, game, state, ev, frame);
     if (frame.reviveCost) return stepReviveCost(ctx, game, state, ev, frame);
     if (frame.aegisCost) return stepAegisCost(ctx, game, state, ev, frame);
     if (frame.counterCost) return stepCounterCost(ctx, game, state, ev, frame);
+    if (frame.counterNonhandTax) return stepCounterNonhandTax(ctx, game, state, ev, frame);
     if (frame.swapCost) return stepSwapCost(ctx, game, state, ev, frame);
     if (frame.keywordPrice) assertCurrentFusion(frame.keywordPrice, !!frame.evolutionIdentity);
     if (frame.keywordCost) return stepKeywordCost(ctx, game, state, ev, frame);
@@ -1328,12 +1634,14 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (frame.autoCost) {
       const cost = frame.autoCost;
       if (cost.stage === "offer") {
+        if (cost.choices[0]) primeFramePools(game, state, frame, cost.choices[0].price);
         if (frame.awaiting !== "autoCost" || state.lastMode === null) {
           frame.awaiting = "autoCost";
           state.programs.unshift(frame);
           state.prompt = { kind: "chooseMode", player: frame.master, reason: "Pay this Auto skill's cost?", options: [...cost.choices.map((choice) => `Pay: ${choice.label}`), "Don't pay"] };
           return "wait";
         }
+        cost.selectedChoice = state.lastMode;
         const choice = cost.choices[state.lastMode];
         state.lastMode = null;
         delete frame.awaiting;
@@ -1341,12 +1649,20 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
           log(ev, { type: "note", text: "Auto skill declined: its cost was not paid" });
           return "done";
         }
+        cost.stage = "pools";
+      }
+      if (cost.stage === "pools") {
+        const choice = cost.choices[cost.selectedChoice!];
+        if (!choice) throw new IllegalAction("this Auto has no selected resource payment");
+        if (chooseFramePools(ctx, game, state, frame, choice.price, choice.payment, frame.ops.length ? payment => automaticResourcesFinish(ctx, game, state, frame, payment) : undefined) === "wait") return "wait";
         beginAutomaticCost(ctx, game, state, ev, frame, choice);
       }
+      reviveTaxPayers(state, frame);
       // Recheck the submitted choice on an isolated board before any mutation.
       // Invalid or dead-ending answers leave the persisted payment cursor intact.
       if (!(frame.awaiting === "replaceMove" && state.lastMode !== null) && !canFinishAutomaticPrice(ctx, game, state, frame)) throw new IllegalAction("that choice cannot pay the entire Auto skill cost");
-      const result = stepScript(automaticPriceHost(ctx, game, state, ev), frame);
+      const result = stepScript(automaticPriceHost(ctx, game, state, ev, frame.autoCost?.reviveTax ? frame : undefined, frame), frame);
+      if (result === "wait") reviveTaxPayers(state, frame, true);
       if (result === "done") finishAutomaticCost(ctx, game, state, ev, frame);
       else if (state.prompt.kind === "chooseCards") {
         const prompt = state.prompt;
@@ -1358,7 +1674,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       }
       return result;
     }
-    if (frame.pendingHookSkill && (skillsNegated(state, frame.card) || (frame.skillIndex !== undefined && skillNegated(state, frame.card, frame.skillIndex, "keyword")) || (frame.grantEffectId !== undefined && grantedSkillNegated(state, frame.card, frame.grantEffectId)) || (frame.standingGrantId !== undefined && grantedSkillNegated(state, frame.card, frame.standingGrantId)))) {
+    if (frame.pendingHookSkill && capturedHookNegated(ctx, state, frame)) {
       log(ev, { type: "note", text: `${state.cards[frame.card]?.cardId ?? frame.card}'s skill is negated, so it does not resolve` });
       return "done";
     }
@@ -1386,15 +1702,25 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     // when the motion first reaches the front — after its activation (and any
     // after-skill moment it raises) and before its effect resolves. A motion
     // answered here waits at the front under the answer's own motion.
+    const nativeDeclared = !!state.resolving && !state.resolving.scopeWindow && !state.resolving.landed && state.resolving.card === frame.card && state.resolving.player === frame.master && frame.skillIndex === undefined && frame.vars.card?.includes(frame.card) && frame.ops.length === 1 && frame.ops[0].op === "play" && "var" in frame.ops[0].target && frame.ops[0].target.var === "card";
+    if (!nativeDeclared) requireSkillEffectOrigin(frame, sourceScript, frame.skillIndex === undefined && state.cards[frame.card] ? Object.values(skillsShowing(ctx, state, frame.card).scripts.bySkill) : []);
+    if (frame.autoPlayCost || (frame.skillEffectOrigin?.kind === "auto" || !frame.skillEffectOrigin && frame.trigger)
+      && sourceScript?.kind === "auto" && underOpponentPlayPrice(sourceScript.price?.ops ?? [])) requireAutoPlayProgram(ctx, frame, true);
+    const skillScope = startSkillPlayScope(state, frame);
+    if (skillScope?.phase === "before" && openSkillPlayWindow(ctx, game, state, frame, skillScope, "before")) return "wait";
     if (frame.counterMotion && !frame.counterMotion.opened && openCounterCounterWindow(ctx, game, state, frame)) {
       state.programs.unshift(frame);
       return "wait";
     }
+    prepareDirectCounterArrival(state, frame);
     const substitute = state.battle?.endCombo?.stage === "departures" ? state.battle.endCombo.substituteDeparture : undefined;
     const ownCleanupSubstitute = !!substitute && frame.replacing === substitute.card;
     if (ownCleanupSubstitute) substitute.active = true;
     try {
-      return stepScript(vmHost(ctx, game, state, ev), frame);
+      executionReceipt(state, frame);
+      const result = stepScript(vmHost(ctx, game, state, ev, frame), frame);
+      if (result === "done" && frame.energyCharge) delete state.energyCharge;
+      return result;
     } finally {
       if (ownCleanupSubstitute) delete substitute!.active;
     }
@@ -1488,6 +1814,7 @@ export function requirePrompt(state: VmState, action: Action, kinds: Prompt["kin
 
 /** One player's deck, randomised with the game's seeded RNG (6-2-1-7). The only place the deck's order is decided, so a replay from the same seed shuffles the same way. */
 export function shuffleDeck(state: VmState, p: PlayerId): void {
+  requireUnscopedStandingWrite(state);
   // A shuffled secret zone destroys the usable identity of a card revealed
   // there, even when the seeded permutation happens to be unchanged.
   if (state.publicAutoReveals?.length) {
@@ -1501,6 +1828,7 @@ export function shuffleDeck(state: VmState, p: PlayerId): void {
 
 /** One card from the top of a player's deck into their hand, `n` times, with the two events the legacy engine emits for each. */
 export function draw(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], p: PlayerId, n: number): number {
+  requireUnscopedStandingWrite(state);
   let drawn = 0;
   for (let i = 0; i < n; i++) {
     const id = state.sides[p].zones[SETUP_ZONES.deck][0];
@@ -1517,6 +1845,13 @@ export function draw(ctx: EngineContext, game: GameDefinition, state: VmState, e
 
 /** How a card came to move, for the pattern arguments that ask (`moved(asPlay: true)`, `moved(by: skill)`). */
 export interface MoveCause {
+  /** Private synchronous KO-victim history handoff; never serialized. */
+  movementAuto?: { also: Moment; beforeMutation: (history: MovementAutoHistory) => void; beforeSubstitute?: () => void };
+  /** Private current-execution provenance, never an event field. */
+  appliedEffects?: Receipt;
+  /** Internal synchronous result reporting, never serialized with a frame. */
+  onResult?: (result: MovementOutcome) => void;
+  onKoResult?: (result: KoOutcome) => void;
   owner?: PlayerId;
   position?: "top" | "bottom";
   /**
@@ -1557,6 +1892,10 @@ export interface MoveCause {
   replacementEvent?: string;
   /** 8-5-8: its generic Combo-to-Drop Auto was pended at 8-5-6. */
   cleanupDeparture?: true;
+  /** Synchronous arrival setup after zone reset, before any movement/entry watchers. Never persisted. */
+  beforeTriggers?: () => void;
+  /** Closed native arrival effects; v3 never executes a captured live-board callback. */
+  standingArrival?: NativeUnderEffectWrite[];
 }
 
 /**
@@ -1568,62 +1907,126 @@ export interface MoveCause {
  * zone a board cannot animate, and still a place a card arrived in.
  */
 export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
+  requireUnscopedStandingWrite(state);
+  guardEnergyEntryLifetimes(state);
+  if (asked === "energy") guardUnownedEnergyEntry(ctx,state,id);
+  validateStandingNegationRead(ctx, state);
   const from = fromZone(state, id);
+  const fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
+  const report = (completed: boolean, actual = fromZone(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
+  const koOwner = state.cards[id]?.owner;
+  const primitiveRemoval = !opts.onKoResult ? "none" as const : isTokenCard(state.cards[id]?.cardId ?? "") ? "token" as const
+    : state.cards[id]?.zCard && String(attrsNow(ctx, game, state, id).type) === "Z-BATTLE" ? "zBattle" as const : "none" as const;
+  let koReported = false;
+  const reportKo = (route: { skillReplacementApplied: boolean; nativeHook: "none" | "ultimate" | "unreviewed" }, departed: boolean) => {
+    if (!opts.onKoResult || koReported) return;
+    const facts = { ...route, primitiveRemoval: departed ? primitiveRemoval : "none" as const };
+    requireKoRoute(facts);
+    const cost = departed && !facts.skillReplacementApplied ? attrsNow(ctx, game, state, id).costOf : null;
+    opts.onKoResult({ card: id, fromEpoch, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch,
+      to: fromZone(state, id) as import("../types").Area | null, owner: koOwner!, moved: departed, route: facts,
+      cost: typeof cost === "number" ? cost : null });
+    koReported = true;
+  };
   const fromHolder = findCard(state, id)?.owner;
   // BT29-029 / 9-6-9-1-2: read the returned card before leaving ends
   // source effects or control loans. Keep this on the private moment only.
   const returnInfo = from === "battle" || from === "unison" ? attrsNow(ctx, game, state, id) : undefined;
-  const sourceNegated = from === "battle"
-    ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
   // Audit triggers 3 (3-9-2-1): a face-up Life card, read before the move turns it face down (3-1-4).
   const wasFaceUpLife = from === "life" && !!state.cards[id]?.faceUp;
   // 9-10: a replacement stands in front of a card leaving play, and a
   // substitute keeps it where it is (9-10-1-1) — nothing below happens then.
+  let redirectNote: Extract<GameEvent, { type: "note" }> | undefined;
   const route = leaveRoute(ctx, game, state, ev, id, from, asked, {
+    ...((opts.movementAuto?.beforeSubstitute || opts.onKoResult) ? { beforeSubstitute: () => {
+      reportKo({ skillReplacementApplied: true, nativeHook: "none" }, false);
+      opts.movementAuto?.beforeSubstitute?.();
+    } } : {}),
+    ...(opts.movementAuto ? { onRedirectNote: (note: Extract<GameEvent, { type: "note" }>) => { redirectNote = note; } } : {}),
     reason: opts.reason,
     ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}),
     ...(opts.actor ? { actor: opts.actor } : {}),
     ...(opts.usedReplacements ? { usedReplacements: opts.usedReplacements } : {}),
     ...(opts.replacementEvent ? { event: opts.replacementEvent } : {}),
   });
+  if (!route.stays && route.to === "energy") guardUnownedEnergyEntry(ctx,state,id);
   if (route.replacement) opts.usedReplacements?.add(route.replacement);
-  if (route.stays) return;
-  if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) return;
-  const result = moveCard(state, game, id, route.to, { ...opts, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
+  if (opts.onKoResult) requireKoRoute({ ...route.koProvenance, primitiveRemoval });
+  if (route.stays) { reportKo(route.koProvenance, false); report(false); return; }
+  if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { reportKo(route.koProvenance, false); report(false); return; }
+  const restoredLeader = mixedStandingLeaderRestoration(state, id, from, route.to);
+  const controlTransfer = from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder;
+  if (state.underStandingNegationHistory && controlTransfer) requireDormantNativePolicy(state, "actual control transfer");
+  if (state.cards[id]?.hidden || ((state.cards[id]?.under.length && !restoredLeader || from === null) || controlTransfer) && !state.underStandingNegationHistory) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, ["battle", "leader"].includes(route.to) ? id : undefined);
+  const movementHistory = captureMovementAutoHistory(ctx, game, state, id);
+  // Legacy consumers receive the same final snapshot; no pre-replacement list.
+  const sourceNegated = movementHistory.declarations.filter(line => line.negated).map(line => line.index);
+  if (state.underStandingNegationHistory && (opts.beforeTriggers && opts.standingArrival === undefined))
+    refuseStandingNegationMutation(state, "untyped arrival setup or stack movement", ctx);
+  const nativePlan: NativeUnderWritePlan = { moves: [{ route: "flow", card: id, to: route.to,
+    options: { energyEntryCleanup: true, ...(opts.owner ? { owner: opts.owner } : {}), ...(opts.onto ? { onto: opts.onto } : {}),
+      ...((route.position ?? opts.position) ? { position: route.position ?? opts.position } : {}), ...(route.mode ? { mode: route.mode } : {}) },
+    ...(opts.appliedEffects ? { receipt: opts.appliedEffects } : {}) }],
+    ...(route.to === asked ? { effects: opts.standingArrival ?? [] } : {}) };
+  const placement = captureFlowPlacement(state, id, opts.appliedEffects);
+  const pileRelease = capturePileRelease(state, id);
+  if (pileRelease || movementHistory.unresolved.length || needsFlowPaymentPreview(placement)) {
+    const projected = structuredClone(state);
+    const projectedMutation = beginStandingNegationMutation(ctx, projected, ["battle", "leader"].includes(route.to) ? id : undefined, nativePlan);
+    const projectedPile = capturePileRelease(projected, id);
+    const projectedMove = moveCard(projected, game, id, route.to, { ...opts, energyEntryCleanup: true,
+      ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
+    if (projectedMove.ok) {
+      cleanupFlowPlacement(projected, [], projectedMove.move, structuredClone(placement));
+      cleanupReleasedPile(projected, [], projectedPile, projectedMove.move);
+      if (projected.underStandingNegationHistory && projectedMove.move.to === asked) applyNativeUnderEffectWrites(ctx, game, projected, [], opts.standingArrival ?? []);
+      finishStandingNegationMutation(ctx, projected, projectedMutation, projected.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : projectedMove.move.to === "battle" && from !== "battle" ? id : undefined, undefined, [projectedMove.move]);
+      const prospective = movement(id, from, projectedMove.move.to, projectedMove.move.owner, opts, wasHidden, fromHolder);
+      const cleanupSpecial: Moment | undefined = state.battle?.endCombo?.substituteDeparture?.active
+        && state.battle.endCombo.substituteDeparture.card === id && from === "combo" && projectedMove.move.to === "drop"
+        ? { event: "moved", card: id, controller: projectedMove.move.owner, args: { from: "combo", to: "drop", cleanupSpecial: true } } : undefined;
+      requireMovementAutoBodies(game, projected, movementHistory, prospective, areaCarries(from ?? "", projectedMove.move.to, fromHolder === projectedMove.move.owner), undefined, opts.movementAuto?.also ?? cleanupSpecial);
+    }
+  }
+  opts.movementAuto?.beforeMutation(movementHistory);
+  requirePileReleaseCapture(state, pileRelease);
+  if (redirectNote) log(ev, redirectNote);
+  const transaction = beginStandingNegationMutation(ctx, state, ["battle", "leader"].includes(route.to) ? id : undefined, nativePlan);
+  const result = moveCard(state, game, id, route.to, { ...opts, energyEntryCleanup: true, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
-  if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== id && !(result.move.released ?? []).some((released) => released.card === item.card));
-  // Where it really went: a rule about what the card *is* may send it
-  // somewhere else than asked (19-1-7, a token leaving play is removed).
   const to = result.move.to;
-  // 3-1-4, 20-9: a card that changes area is a new card, so a loan of it is
-  // over — the legacy `move` drops every effect on it, silently. Only the
-  // `control` effect is dropped here: the rest of this engine's per-card
-  // bookkeeping that rides on `effects` is ended by its own rules. A KO left a
-  // borrowed card's loan standing, so it outlived the card (#459,
-  // `verify/keywords.ts`'s TAKER2 case).
-  if (from !== to) state.effects = state.effects.filter((e) => !(e.target === id && e.kind === "control"));
-  // 5-5-4: a card arriving in a Battle Area remembers it for the turn —
-  // played or placed alike (5-5-1). Not a move from one Battle Area to another.
-  if (to === "battle" && from !== "battle" && state.cards[id]) state.cards[id].placedThisTurn = true;
-  // "…while this card is in a Battle Area": what the card made for that long
-  // ends as it leaves (`vm/host.ts`'s `moveTo` says the same for a skill's move).
-  if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
+  cleanupFlowPlacement(state, ev, result.move, placement);
+  const released = cleanupReleasedPile(state, ev, pileRelease, result.move);
   // 23-2-5: the pile it left behind is shown going first, with no moment of
   // its own — the legacy engine logs these moves and pends nothing for them.
-  for (const r of result.move.released ?? []) {
+  for (const r of released) {
     if (r.from && isAreaWord(r.from) && isAreaWord(r.to)) log(ev, { type: "move", card: r.card, from: r.from, to: r.to, owner: r.owner });
   }
   const shown: GameEvent | null =
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
+  if (to === asked) {
+    if (state.underStandingNegationHistory) applyNativeUnderEffectWrites(ctx, game, state, ev, opts.standingArrival ?? []);
+    else opts.beforeTriggers?.();
+  }
+  finishStandingNegationMutation(ctx, state, transaction, state.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined, undefined, [result.move]);
+  reportKo(route.koProvenance, from !== result.move.to);
+  report(!route.replacementApplied && result.move.to === asked, result.move.to);
   const moment = movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder);
   if (wasFaceUpLife) moment.args.faceUp = true;
   if (returnInfo && (to === "hand" || from === "unison")) moment.subjectInfo = returnInfo;
   if (sourceNegated) moment.sourceNegated = sourceNegated;
+  moment.movementHistory = movementHistory;
+  const substitute = state.battle?.endCombo?.substituteDeparture;
+  if (substitute?.active && substitute.card === id && from === "combo" && to === "drop") {
+    substitute.actualDrop = { controller: result.move.owner, movementHistory };
+    moment.args.cleanupDeparture = true;
+  }
   emit(ctx, game, state, ev, moment, shown);
+  queueFieldCleanup(ctx, game, state, id, from, fromHolder);
   // #155: a keyword's onLeave/onEnter hook, scoped to a place a card is *in
   // play* in (9-1-3-1) — [Field] cares about the Battle Area, never a hand or
   // deck a card passes through on the way to being dealt. `hookBodiesFor`
@@ -1691,8 +2094,13 @@ export function endGame(ctx: EngineContext, game: GameDefinition, state: VmState
   state.overReason = reason;
   state.outcome = outcome ?? { kind: winner ? "win" : "draw", winner, reason };
   state.flow = [];
-  // 0-1-3: nothing answers to a game that has ended, so the queue goes with it
-  // rather than being drained into an over phase by the checkpoint.
+  // 0-1-3: terminal means both running and parked work is discarded.
+  // Otherwise a suspended window can restore its parent in the over phase
+  // and overwrite the original outcome or continue playing after game end.
+  state.programs = [];
+  delete state.energyCharge;
+  delete state.skillPlayScopes;
+  state.resolving = null;
   state.pending = [];
   delete state.pendingOrder;
   enterPhase(ctx, game, state, ev, over);

@@ -91,7 +91,8 @@ function cardQuestion(match: PinnedMatch): NonNullable<Parameters<typeof buildDe
     candidates: [...pr.choice.candidates],
     // #720: a choice a taken voluntary substitute owes in full is exact.
     upTo: plain ? (!!op.sel.upTo && !owedInFull(frame, op)) || op.atMost !== undefined : pr.choice.min === 0,
-    remaining,
+    remaining: pr.choice.continuation === "pooledPayment" ? pr.choice.min : remaining,
+    ...(pr.choice.atomic ? { atomic: true } : {}),
     question: questionOf(match)!,
     ...(pr.choice.cover?.length ? { cover: [...pr.choice.cover] } : {}),
   };

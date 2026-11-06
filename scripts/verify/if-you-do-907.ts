@@ -142,9 +142,11 @@ const mode = (s: EngineState, index: number) => playG(s, { type: "chooseMode", p
 
   const empty = stagedG({ hand: ["IYD_HURT"] });
   while (zoneOf(empty, "p1", "life").length) zoneOf(empty, "p1", "drop").push(zoneOf(empty, "p1", "life").pop()!);
+  const handBeforeLoss = [...ids(empty, "p1", "hand")];
   const noLife = playG(empty, { type: "play", player: "p1", card: findG(empty, "p1", "hand", "IYD_HURT") });
   assert.equal(noLife.prompt.kind === "chooseMode", false, "with no life there is nothing to take, so nothing to offer");
-  assert.equal(ids(noLife, "p1", "hand").length, 0, "and no draw");
+  assert.deepEqual(ids(noLife, "p1", "hand"), handBeforeLoss, "interruptive loss stops both the attempted play and any draw");
+  assert.equal(noLife.winner, "p2", "zero-Life setup loses before a new action (21-2)");
 }
 
 // A compulsory move of this card.

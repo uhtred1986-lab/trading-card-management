@@ -1,0 +1,564 @@
+{
+  "contract": 2,
+  "game": {
+    "id": 527,
+    "revision": 1,
+    "mode": "hotseat",
+    "engine": "rules",
+    "game": "dbs",
+    "status": "playing",
+    "turn": 1,
+    "p1Name": "One",
+    "p2Name": "Two",
+    "you": "p1"
+  },
+  "view": {
+    "you": {
+      "player": "p1",
+      "name": "One",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L",
+        "name": "L",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": "1",
+        "comboCost": 0,
+        "comboPower": 5000,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p1#33",
+          "cardId": "BT1-061",
+          "name": "Friend-Summoning Son Gohan",
+          "power": 10000,
+          "colors": [
+            "Green"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "2",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Auto] When you play this card, look at up to 7 cards from the top of your deck. Choose up to 1 &lt;Krillin&gt; among them and add it to your hand. Then, shuffle your deck.",
+          "reading": "look at up to 7 cards from the top of your deck, choose up to 1 <Krillin> card of the cards looked at, move the chosen cards to hand, shuffle",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "auto",
+              "category": "automatic",
+              "text": "[Auto] When you play this card, look at up to 7 cards from the top of your deck. Choose up to 1 <Krillin> among them and add it to your hand. Then, shuffle your deck.",
+              "tags": [
+                "Auto"
+              ],
+              "zone": "battle",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "incomplete"
+              },
+              "pending": true
+            }
+          ]
+        }
+      ],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#17",
+          "cardId": "F",
+          "name": "F",
+          "power": 10000,
+          "colors": [
+            "Green"
+          ],
+          "imageUrl": null,
+          "mode": "rest",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#27",
+          "cardId": "F",
+          "name": "F",
+          "power": 10000,
+          "colors": [
+            "Green"
+          ],
+          "imageUrl": null,
+          "mode": "rest",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "energyColors": [
+        {
+          "card": "p1#17",
+          "colors": [
+            "Green"
+          ],
+          "paymentColors": [
+            "Green"
+          ]
+        },
+        {
+          "card": "p1#27",
+          "colors": [
+            "Green"
+          ],
+          "paymentColors": [
+            "Green"
+          ]
+        }
+      ],
+      "hand": [
+        {
+          "id": "p1#42",
+          "cardId": "F",
+          "name": "F",
+          "power": 10000,
+          "colors": [
+            "Green"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#28",
+          "cardId": "F",
+          "name": "F",
+          "power": 10000,
+          "colors": [
+            "Green"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#12",
+          "cardId": "F",
+          "name": "F",
+          "power": 10000,
+          "colors": [
+            "Green"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#16",
+          "cardId": "F",
+          "name": "F",
+          "power": 10000,
+          "colors": [
+            "Green"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        },
+        {
+          "id": "p1#15",
+          "cardId": "F",
+          "name": "F",
+          "power": 10000,
+          "colors": [
+            "Green"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "handCount": 5,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 34,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 0,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "them": {
+      "player": "p2",
+      "name": "Two",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L",
+        "name": "L",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": "1",
+        "comboCost": 0,
+        "comboPower": 5000,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [],
+      "energyColors": [],
+      "hand": null,
+      "handCount": 6,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 36,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "turn": 1,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "chooseMode",
+      "player": "p1",
+      "question": "Look at cards from the deck",
+      "hint": "The card offers these; exactly one happens (20-2).",
+      "step": {
+        "index": 1,
+        "count": 1,
+        "label": "Look at cards from the deck"
+      },
+      "inspection": {
+        "cards": [
+          {
+            "id": "?p1:deck:0",
+            "cardId": "P0",
+            "name": "Inspected match 1",
+            "power": 10000,
+            "colors": [
+              "Red"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          },
+          {
+            "id": "?p1:deck:1",
+            "cardId": "P1",
+            "name": "Inspected match 2",
+            "power": 10000,
+            "colors": [
+              "Red"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          },
+          {
+            "id": "?p1:deck:2",
+            "cardId": "P2",
+            "name": "Inspected match 3",
+            "power": 10000,
+            "colors": [
+              "Red"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          },
+          {
+            "id": "?p1:deck:3",
+            "cardId": "P3",
+            "name": "Inspected match 4",
+            "power": 10000,
+            "colors": [
+              "Red"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          },
+          {
+            "id": "?p1:deck:4",
+            "cardId": "P4",
+            "name": "Inspected match 5",
+            "power": 10000,
+            "colors": [
+              "Red"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          },
+          {
+            "id": "?p1:deck:5",
+            "cardId": "P5",
+            "name": "Inspected match 6",
+            "power": 10000,
+            "colors": [
+              "Red"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          },
+          {
+            "id": "?p1:deck:6",
+            "cardId": "N",
+            "name": "Inspected nonmatching card",
+            "power": 10000,
+            "colors": [
+              "Red"
+            ],
+            "imageUrl": null,
+            "mode": "active",
+            "hidden": false,
+            "flipped": false,
+            "markers": 0,
+            "underCount": 0,
+            "isToken": false,
+            "cost": "1",
+            "comboCost": 0,
+            "comboPower": 5000,
+            "keywords": [],
+            "text": null,
+            "reading": "",
+            "referee": false
+          }
+        ],
+        "inspected": 7,
+        "maximum": 7,
+        "atLimit": true
+      }
+    },
+    "over": null
+  },
+  "decision": {
+    "actor": "p1",
+    "window": "chooseMode",
+    "phase": "main",
+    "battleStep": null
+  },
+  "legal": [
+    {
+      "action": {
+        "type": "chooseMode",
+        "player": "p1",
+        "index": 0
+      },
+      "label": "Continue"
+    }
+  ],
+  "taps": {
+    "byCard": {},
+    "bare": [
+      0
+    ],
+    "attackTargets": {}
+  },
+  "beats": null,
+  "spotlight": null,
+  "log": [],
+  "waiting": "you",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}

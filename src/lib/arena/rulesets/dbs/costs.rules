@@ -101,16 +101,15 @@ DEFINE COST combo                                                         -- §5
 -- where the op says; `payWith`'s names cards the price was handed, so they are
 -- rested where they stand. 5-4-3: the Z-Energy is spent, not rested — the
 -- cards are placed in the Drop Area — which is why the op is a move.
--- `fromEnd` says which end of the pile the cards come off: the far end, the
--- last placed first, which is the order the engine that has been playing
--- spends Z-Energy in and therefore the order the Drop Area ends up in.
+-- 3-13-2: the player chooses any cards in their own Z-Energy to pay.
+-- This is a freely selected pool, unlike Burst's ordered top-of-deck cost.
 DEFINE COST zEnergy                                                       -- §5-4
   TAKES (n: amount)
   consumes: cards
   amount: "zEnergyCostOf"
-  asks: nothing
+  asks: choice
   DO {
-    moveTo(target: IN you.zEnergy fromEnd, to: drop)
+    moveTo(target: IN you.zEnergy, to: drop)
   }
   text: "a Z-card's Z-Energy price: that many cards are placed from the Z-Energy Area in the Drop Area, on top of the card's energy cost (5-4, 16-2-1)"
 

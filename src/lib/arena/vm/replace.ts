@@ -1,3 +1,4 @@
+import { canonicalTaxValue } from "./tax-receipt";
 /**
  * 9-10 on the rules engine: what stands in front of a card leaving play.
  *
@@ -58,10 +59,10 @@ let applyingReplacement = false;
 const LIFE_ZONE = "life";
 
 /** Every replacement standing in front of this card's departures, in the order the statics are read (the legacy order). */
-function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { source: string; master: PlayerId; skillIndex?: number; r: Replacement }[] {
+function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: string): { source: string; master: PlayerId; skillIndex?: number; occurrence: string; r: Replacement }[] {
   const out = staticsNow(ctx, game, state)
     .filter((e) => e.kind === "replaceLeave" && e.target === id)
-    .map((e) => ({ source: e.source, master: e.master, ...(e.skillIndex === undefined ? {} : { skillIndex: e.skillIndex }), r: e.value as Replacement }));
+    .map((e) => ({ source: e.source, master: e.master, occurrence: `standing:${state.cards[e.source]?.zoneEpoch ?? 0}`, ...(e.skillIndex === undefined ? {} : { skillIndex: e.skillIndex }), r: e.value as Replacement }));
   // Timed replacements retain their selector and re-evaluate it at each
   // departure, including cards that enter the Battle Area after activation.
   for (const e of state.effects) {
@@ -70,7 +71,7 @@ function standing(ctx: EngineContext, game: GameDefinition, state: VmState, id: 
     const r: Replacement = { ...stored, source: stored.source ?? e.source, master: stored.master ?? e.master };
     const target = r.target ?? { special: "self" as const };
     const frame: ScriptFrame = { ops: [], ip: 0, vars: r.vars ?? {}, card: e.source, master: e.master };
-    if (resolveSelector(ctx, game, state, frame, target).includes(id)) out.push({ source: e.source, master: e.master, ...(r.skillIndex === undefined ? {} : { skillIndex: r.skillIndex }), r });
+    if (resolveSelector(ctx, game, state, frame, target).includes(id)) out.push({ source: e.source, master: e.master, occurrence: `timed:${e.id}`, ...(r.skillIndex === undefined ? {} : { skillIndex: r.skillIndex }), r });
   }
   return out;
 }
@@ -127,7 +128,7 @@ export function replacementChoices(
   const out: ReplacementChoice[] = [];
   const from = findCard(state, id)?.zone;
   const heldDestination = !!opts.requestedTo && (inPlayZones(game).includes(opts.requestedTo) || game.zones[opts.requestedTo]?.host === true);
-  for (const { source, master, skillIndex, r } of standing(ctx, game, state, id)) {
+  for (const { source, master, skillIndex, occurrence, r } of standing(ctx, game, state, id)) {
     // Existing unscoped replacements still answer only departures out of
     // play. The native cleanup explicitly owns its older Combo exception.
     if (!r.from && !opts.comboCleanup && (from === "combo" || heldDestination)) continue;
@@ -135,7 +136,7 @@ export function replacementChoices(
     if (!causeMatches(game, state, id, r, reason, opts.actor, opts.requestedTo)) continue;
     // A timed substitute may refer to variables captured when installed.
     // Keep them on the frozen choice through a replacement prompt/reload.
-    out.push({ source, ...(r.to ? { to: r.to } : {}), ...(r.position ? { position: r.position } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.vars ? { vars: r.vars } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
+    out.push({ source, occurrence, ...(r.to ? { to: r.to } : {}), ...(r.position ? { position: r.position } : {}), mode: r.mode, optional: r.optional, ...(r.ops ? { ops: r.ops } : {}), ...(r.vars ? { vars: r.vars } : {}), master: r.master ?? master, ...((skillIndex ?? r.skillIndex) !== undefined ? { skillIndex: skillIndex ?? r.skillIndex } : {}) });
   }
   return offerable(ctx, game, state, id, out);
 }
@@ -228,7 +229,7 @@ function replacementFor(
 }
 
 /** What a departure becomes: the card stays where it is (a substitute ran, or will), or it goes here, in this mode. */
-export type LeaveRoute = { stays: true; replacement?: string } | { stays: false; to: string; mode?: string; position?: "top" | "bottom"; replacement?: string };
+export type LeaveRoute = ({ stays: true; replacement?: string; replacementApplied?: true } | { stays: false; to: string; mode?: string; position?: "top" | "bottom"; replacement?: string; replacementApplied?: true }) & { koProvenance: { skillReplacementApplied: boolean; nativeHook: "none" | "ultimate" | "unreviewed" } };
 
 /**
  * The 9-10 half of a move, read before the card goes anywhere — every mover
@@ -256,10 +257,15 @@ export function leaveRoute(
   id: string,
   from: string | null,
   to: string,
-  opts: { reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; usedReplacements?: ReadonlySet<string>; event?: string },
+  opts: { reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; usedReplacements?: ReadonlySet<string>; event?: string;
+    /** Synchronous KO preflight may defer this direct note; substitute events are unaffected. */
+    onRedirectNote?: (note: Extract<GameEvent, { type: "note" }>) => void;
+    /** Preserve the existing KO announcement before a substitute, without claiming a movement. */
+    beforeSubstitute?: () => void },
 ): LeaveRoute {
   const inPlay = inPlayZones(game);
   const held = (zone: string | null) => !!zone && (inPlay.includes(zone) || game.zones[zone]?.host === true);
+  let applied = false;
   let mode: string | undefined;
   let insteadPosition: "top" | "bottom" | undefined;
   const fromLife = from === LIFE_ZONE;
@@ -286,32 +292,43 @@ export function leaveRoute(
   if (((((from && inPlay.includes(from)) || fromLife) || answeredHandDeparture || answeredCostDeparture || answeredComboCleanup) && !held(to)) || (scopedDeparture && (selected || opts.replaced != null))) {
     const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : selected?.route ?? null;
     if (instead?.ops?.length) {
+      opts.beforeSubstitute?.();
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });
       if (!("deferred" in instead && instead.deferred)) runReplacement(ctx, game, state, ev, id, instead);
-      return { stays: true, ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
+      return { stays: true, koProvenance: { skillReplacementApplied: true, nativeHook: "none" }, replacementApplied: true, ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
     }
     if (instead?.to) {
-      log(ev, { type: "note", text: `${nameOf(ctx, state, id)} goes to the ${instead.to}${instead.mode === "rest" ? " in Rest Mode" : ""} instead` });
+      applied = true;
+      const note: Extract<GameEvent, { type: "note" }> = { type: "note", text: `${nameOf(ctx, state, id)} goes to the ${instead.to}${instead.mode === "rest" ? " in Rest Mode" : ""} instead` };
+      if (opts.onRedirectNote) opts.onRedirectNote(note); else log(ev, note);
       to = instead.to;
       mode = instead.mode;
       insteadPosition = instead.position;
     } else if (instead && opts.replaced !== undefined) {
+      applied = true;
       // A route the affected player picked says how the card arrives as well
       // as where, even when where is where it was going anyway.
       mode = instead.mode;
       insteadPosition = instead.position;
     }
   }
+  const skillReplacementApplied = applied;
+  let nativeHook: "none" | "ultimate" | "unreviewed" = "none";
   // The card's own rule (22-14-3): a `wouldLeave` body's `replace` record,
   // one move of the card itself, read as the redirect a [Permanent]'s is.
   if (held(from) && !held(to)) {
     for (const fact of queryHookStatics(ctx, game, state, id, "wouldLeave")) {
       if (fact.op !== "replace") continue;
       const redirect = redirectOf(fact.with);
-      if (redirect && redirect.to !== to) to = redirect.to;
+      if (redirect) {
+        const reviewed = fact.keyword.name === "Ultimate" && fact.event === "leave"
+          && canonicalTaxValue(fact.with) === canonicalTaxValue([{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }]);
+        nativeHook = nativeHook === "unreviewed" || !reviewed ? "unreviewed" : "ultimate";
+        to = redirect.to; applied = true;
+      }
     }
   }
-  return { stays: false, to, ...(mode ? { mode } : {}), ...(insteadPosition ? { position: insteadPosition } : {}), ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
+  return { stays: false, to, koProvenance: { skillReplacementApplied, nativeHook }, ...(applied ? { replacementApplied: true as const } : {}), ...(mode ? { mode } : {}), ...(insteadPosition ? { position: insteadPosition } : {}), ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
 }
 
 /**

@@ -1,0 +1,1602 @@
+{
+  "format": "arena-program-diff-v1",
+  "baseline": "3c9d708b",
+  "catalogSha256": "dcfba11b09fe10746a5f86176511bc9edd85c6156f239508a301326440339fb4",
+  "beforeSha256": "f0a37f43d4d60b36fc964d6bae19e083309c74b0209783857efbc31a16dd6f3f",
+  "afterSha256": "c5a6ef70aab360c7f2a865b849cd29a024130240c6e1a2e5bc93f59aca919504",
+  "skills": 13964,
+  "read": 12953,
+  "unread": 1011,
+  "changes": [
+    {
+      "key": "BT12-120#10",
+      "printed": "[Activate: Main/Battle] If your Leader Card is a ≪Shadow Dragon≫ card: Choose up to 1 ≪Shadow Dragon≫ card in your Leader Area or Battle Area and it gets +5000 power for the turn. If you paid the energy cost to activate this skill, choose up to 1 card in your opponent's Battle Area and negate its skills for the turn.",
+      "changedFields": [
+        "ops",
+        "reads"
+      ],
+      "before": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "play",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Shadow Dragon"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 ≪Shadow Dragon≫ card in your Leader Area or Battle Area"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "turn"
+          }
+        ],
+        "reads": "if your leader is ≪shadow dragon≫: choose up to 1 ≪Shadow Dragon≫ card you have in play, the chosen cards +5000 power for the turn"
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "leader",
+              "areas": [
+                "leader",
+                "battle"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Shadow Dragon"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 ≪Shadow Dragon≫ card in your Leader Area or Battle Area"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "turn"
+          }
+        ],
+        "reads": "if your leader is ≪shadow dragon≫: choose up to 1 ≪Shadow Dragon≫ card in your Leader Area or Battle Area, the chosen cards +5000 power for the turn"
+      }
+    },
+    {
+      "key": "BT15-088#20",
+      "printed": "[activate: main][once per turn] If there are 4 {King Kai's Training} under this card: Choose one- ・Choose up to 1 {Kaio-Ken Son Goku, Confronting Invasion} in your hand and play it. ・Choose all green <Son Goku> cards in your Leader Area and Battle Area and they get +5000 power for the turn. ・Draw 1 card, then choose 1 card in your hand and place it at the bottom of your deck.",
+      "changedFields": [
+        "ops",
+        "reads"
+      ],
+      "before": {
+        "ops": [
+          {
+            "op": "chooseMode",
+            "modes": [
+              {
+                "label": "Choose up to 1 {Kaio-Ken Son Goku, Confronting Invasion} in your hand and play it.",
+                "ops": [
+                  {
+                    "op": "choose",
+                    "sel": {
+                      "side": "you",
+                      "area": "hand",
+                      "filter": {
+                        "colors": [],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [
+                          "Kaio-Ken Son Goku, Confronting Invasion"
+                        ],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": null,
+                        "costMax": null,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      "count": 1,
+                      "upTo": true
+                    },
+                    "as": "c0",
+                    "reason": "Choose up to 1 {Kaio-Ken Son Goku, Confronting Invasion} in your hand"
+                  },
+                  {
+                    "op": "play",
+                    "target": {
+                      "var": "c0"
+                    }
+                  }
+                ]
+              },
+              {
+                "label": "Choose all green <Son Goku> cards in your Leader Area and Battle Area and they get +5000 power for the turn.",
+                "ops": [
+                  {
+                    "op": "choose",
+                    "sel": {
+                      "side": "you",
+                      "area": "play",
+                      "filter": {
+                        "colors": [
+                          "Green"
+                        ],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [
+                          "Son Goku"
+                        ],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": null,
+                        "costMax": null,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      "count": 99,
+                      "upTo": false
+                    },
+                    "as": "c0",
+                    "reason": "Choose all green <Son Goku> cards in your Leader Area and Battle Area"
+                  },
+                  {
+                    "op": "power",
+                    "target": {
+                      "var": "c0"
+                    },
+                    "amount": 5000,
+                    "until": "turn"
+                  }
+                ]
+              },
+              {
+                "label": "Draw 1 card, then choose 1 card in your hand and place it at the bottom of your deck.",
+                "ops": [
+                  {
+                    "op": "draw",
+                    "n": 1
+                  },
+                  {
+                    "op": "choose",
+                    "sel": {
+                      "side": "you",
+                      "area": "hand",
+                      "count": 1,
+                      "upTo": false
+                    },
+                    "as": "c0",
+                    "reason": "choose 1 card in your hand"
+                  },
+                  {
+                    "op": "moveTo",
+                    "target": {
+                      "var": "c0"
+                    },
+                    "to": "deck",
+                    "position": "bottom"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "reads": "if there are 4 or more {king kai's training} cards under this card: choose one — choose up to 1 {Kaio-Ken Son Goku, Confronting Invasion} card in your hand, play the chosen cards / choose all green <Son Goku> cards you have in play, the chosen cards +5000 power for the turn / draw 1, choose 1 card in your hand, move the chosen cards to the bottom of the deck"
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "chooseMode",
+            "modes": [
+              {
+                "label": "Choose up to 1 {Kaio-Ken Son Goku, Confronting Invasion} in your hand and play it.",
+                "ops": [
+                  {
+                    "op": "choose",
+                    "sel": {
+                      "side": "you",
+                      "area": "hand",
+                      "filter": {
+                        "colors": [],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [
+                          "Kaio-Ken Son Goku, Confronting Invasion"
+                        ],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": null,
+                        "costMax": null,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      "count": 1,
+                      "upTo": true
+                    },
+                    "as": "c0",
+                    "reason": "Choose up to 1 {Kaio-Ken Son Goku, Confronting Invasion} in your hand"
+                  },
+                  {
+                    "op": "play",
+                    "target": {
+                      "var": "c0"
+                    }
+                  }
+                ]
+              },
+              {
+                "label": "Choose all green <Son Goku> cards in your Leader Area and Battle Area and they get +5000 power for the turn.",
+                "ops": [
+                  {
+                    "op": "choose",
+                    "sel": {
+                      "side": "you",
+                      "area": "leader",
+                      "areas": [
+                        "leader",
+                        "battle"
+                      ],
+                      "filter": {
+                        "colors": [
+                          "Green"
+                        ],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [
+                          "Son Goku"
+                        ],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": null,
+                        "costMax": null,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      "count": 99,
+                      "upTo": false
+                    },
+                    "as": "c0",
+                    "reason": "Choose all green <Son Goku> cards in your Leader Area and Battle Area"
+                  },
+                  {
+                    "op": "power",
+                    "target": {
+                      "var": "c0"
+                    },
+                    "amount": 5000,
+                    "until": "turn"
+                  }
+                ]
+              },
+              {
+                "label": "Draw 1 card, then choose 1 card in your hand and place it at the bottom of your deck.",
+                "ops": [
+                  {
+                    "op": "draw",
+                    "n": 1
+                  },
+                  {
+                    "op": "choose",
+                    "sel": {
+                      "side": "you",
+                      "area": "hand",
+                      "count": 1,
+                      "upTo": false
+                    },
+                    "as": "c0",
+                    "reason": "choose 1 card in your hand"
+                  },
+                  {
+                    "op": "moveTo",
+                    "target": {
+                      "var": "c0"
+                    },
+                    "to": "deck",
+                    "position": "bottom"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "reads": "if there are 4 or more {king kai's training} cards under this card: choose one — choose up to 1 {Kaio-Ken Son Goku, Confronting Invasion} card in your hand, play the chosen cards / choose all green <Son Goku> cards in your Leader Area or Battle Area, the chosen cards +5000 power for the turn / draw 1, choose 1 card in your hand, move the chosen cards to the bottom of the deck"
+      }
+    },
+    {
+      "key": "BT3-087#10",
+      "printed": "[Permanent] If you have <Bardock> in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost.",
+      "changedFields": [
+        "cond",
+        "reads"
+      ],
+      "before": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "play",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "bardock"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "reads": "if there are 1 or more <bardock> cards you have in play: this card may be played for no energy"
+      },
+      "after": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "leader",
+            "areas": [
+              "leader",
+              "battle"
+            ],
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "bardock"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "reads": "if there are 1 or more <bardock> cards in your Leader Area or Battle Area: this card may be played for no energy"
+      }
+    },
+    {
+      "key": "BT7-094#10",
+      "printed": "[Permanent] If there is a <Goku Black> card in your Battle Area or Leader Area, you can play this card from your hand without paying its energy cost.",
+      "changedFields": [
+        "cond",
+        "reads"
+      ],
+      "before": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "play",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "goku black"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "reads": "if there are 1 or more <goku black> cards you have in play: this card may be played for no energy"
+      },
+      "after": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "leader",
+            "areas": [
+              "leader",
+              "battle"
+            ],
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "goku black"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "reads": "if there are 1 or more <goku black> cards in your Leader Area or Battle Area: this card may be played for no energy"
+      }
+    },
+    {
+      "key": "EX03-04#10",
+      "printed": "[Auto] When you play this card, if you have <Evil Wizard Babidi> in your Battle Area or Leader Area, for the duration of the turn this card gains +10000 power and [Dual Attack].",
+      "changedFields": [
+        "cond",
+        "reads"
+      ],
+      "before": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "play",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "evil wizard babidi"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "reads": "if there are 1 or more <evil wizard babidi> cards you have in play: this card +10000 power for the turn, this card gains [Dual Attack] for the turn"
+      },
+      "after": {
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "leader",
+            "areas": [
+              "leader",
+              "battle"
+            ],
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "evil wizard babidi"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "reads": "if there are 1 or more <evil wizard babidi> cards in your Leader Area or Battle Area: this card +10000 power for the turn, this card gains [Dual Attack] for the turn"
+      }
+    },
+    {
+      "key": "EX08-03#10",
+      "printed": "[Auto] When you play this card from your hand, if your Leader Card is a <Baby> card, choose all <Baby> and ≪Brainwashed≫ cards in your Battle Area and Leader Area, and they get +5000 power for the duration of the turn; choose up to 1 of your opponent's Leader Cards and negate its non-keyword skills for the duration of the turn.",
+      "changedFields": [
+        "ops",
+        "reads"
+      ],
+      "before": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "play",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Baby"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Brainwashed"
+                ],
+                "notTraits": [],
+                "characterOrTrait": true,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 99,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "choose all <Baby> and ≪Brainwashed≫ cards in your Battle Area and Leader Area"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "turn"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "leader",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c1",
+            "reason": "choose up to 1 of your opponent's Leader Cards"
+          },
+          {
+            "op": "negateSkillsOfKind",
+            "target": {
+              "var": "c1"
+            },
+            "kind": "auto",
+            "until": "turn"
+          },
+          {
+            "op": "negateSkillsOfKind",
+            "target": {
+              "var": "c1"
+            },
+            "kind": "activate",
+            "until": "turn"
+          },
+          {
+            "op": "negateSkillsOfKind",
+            "target": {
+              "var": "c1"
+            },
+            "kind": "permanent",
+            "until": "turn"
+          }
+        ],
+        "reads": "if your leader is <baby>: choose all ≪Brainwashed≫ or <Baby> cards you have in play, the chosen cards +5000 power for the turn, choose up to 1 card in your opponent's Leader Area, negate the [Auto] skills of the chosen cards for the turn, negate the [Activate] skills of the chosen cards for the turn, negate the [Permanent] skills of the chosen cards for the turn"
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "battle",
+              "areas": [
+                "battle",
+                "leader"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Baby"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Brainwashed"
+                ],
+                "notTraits": [],
+                "characterOrTrait": true,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 99,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "choose all <Baby> and ≪Brainwashed≫ cards in your Battle Area and Leader Area"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "turn"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "leader",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c1",
+            "reason": "choose up to 1 of your opponent's Leader Cards"
+          },
+          {
+            "op": "negateSkillsOfKind",
+            "target": {
+              "var": "c1"
+            },
+            "kind": "auto",
+            "until": "turn"
+          },
+          {
+            "op": "negateSkillsOfKind",
+            "target": {
+              "var": "c1"
+            },
+            "kind": "activate",
+            "until": "turn"
+          },
+          {
+            "op": "negateSkillsOfKind",
+            "target": {
+              "var": "c1"
+            },
+            "kind": "permanent",
+            "until": "turn"
+          }
+        ],
+        "reads": "if your leader is <baby>: choose all ≪Brainwashed≫ or <Baby> cards in your Battle Area or Leader Area, the chosen cards +5000 power for the turn, choose up to 1 card in your opponent's Leader Area, negate the [Auto] skills of the chosen cards for the turn, negate the [Activate] skills of the chosen cards for the turn, negate the [Permanent] skills of the chosen cards for the turn"
+      }
+    },
+    {
+      "key": "P-085#0",
+      "printed": "[Auto] When you play this card, choose up to 1 of your ≪Earthling≫ cards in your Leader Area or Battle Area, and it gets +5000 power for the duration of the turn.",
+      "changedFields": [
+        "ops",
+        "reads"
+      ],
+      "before": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "play",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Earthling"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your ≪Earthling≫ cards in your Leader Area or Battle Area"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "turn"
+          }
+        ],
+        "reads": "choose up to 1 ≪Earthling≫ card you have in play, the chosen cards +5000 power for the turn"
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "leader",
+              "areas": [
+                "leader",
+                "battle"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Earthling"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your ≪Earthling≫ cards in your Leader Area or Battle Area"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "turn"
+          }
+        ],
+        "reads": "choose up to 1 ≪Earthling≫ card in your Leader Area or Battle Area, the chosen cards +5000 power for the turn"
+      }
+    },
+    {
+      "key": "P-197#0",
+      "printed": "[activate: battle] Choose up to 1 <Majin Buu> card in your Leader Area or Battle Area and it gets +15000 power for the duration of the battle.",
+      "changedFields": [
+        "ops",
+        "reads"
+      ],
+      "before": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "play",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Majin Buu"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 <Majin Buu> card in your Leader Area or Battle Area"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 15000,
+            "until": "battle"
+          }
+        ],
+        "reads": "choose up to 1 <Majin Buu> card you have in play, the chosen cards +15000 power for the battle"
+      },
+      "after": {
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "leader",
+              "areas": [
+                "leader",
+                "battle"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Majin Buu"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 <Majin Buu> card in your Leader Area or Battle Area"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 15000,
+            "until": "battle"
+          }
+        ],
+        "reads": "choose up to 1 <Majin Buu> card in your Leader Area or Battle Area, the chosen cards +15000 power for the battle"
+      }
+    }
+  ]
+}

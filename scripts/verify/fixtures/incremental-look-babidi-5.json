@@ -1,0 +1,167 @@
+{
+  "card": {
+    "id": "BT3-045",
+    "type": "BATTLE",
+    "colors": [
+      "Blue"
+    ],
+    "cost": "1",
+    "specified": null,
+    "z": null,
+    "power": 5000,
+    "name": "Agent of Resurrection, Babidi",
+    "characters": [
+      "Evil Wizard Babidi"
+    ],
+    "traits": [
+      "Evil Wizard"
+    ],
+    "skill": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 &lt;Majin Buu&gt; among them and add it to your hand. Then, shuffle your deck.",
+    "backName": null,
+    "backSkill": null
+  },
+  "faq": {
+    "BT3-045": [
+      {
+        "name": "Agent of Resurrection, Babidi",
+        "qa": [
+          {
+            "q": "Do you need to reveal the card you added to your hand with this card ‘s auto skill?",
+            "a": "Yes, you do."
+          }
+        ]
+      }
+    ]
+  },
+  "candidateKeys": [
+    "BT3-045#0"
+  ],
+  "allRecords": {
+    "BT3-045#0": {
+      "cardId": "BT3-045",
+      "side": "front",
+      "skillIndex": 0,
+      "printed": "[Auto] When you play this card, look at up to 3 cards from the top of your deck. Choose up to 1 <Majin Buu> among them and add it to your hand. Then, shuffle your deck.",
+      "kind": "auto",
+      "trigger": [
+        "played"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "look",
+          "n": 3,
+          "as": "looked"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "Majin Buu"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true,
+            "fromVar": "looked"
+          },
+          "as": "c0",
+          "reason": "Choose up to 1 <Majin Buu> among them"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "hand"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "unread": [],
+      "pattern": "look→choose→moveTo→shuffle",
+      "reads": "look at the top 3, choose up to 1 <Majin Buu> card of the cards looked at, move the chosen cards to hand, shuffle"
+    }
+  },
+  "officialImage": {
+    "path": "/workspace/shared/arena-support5/recovery/BT3-045.png",
+    "sha256": "dfdff6f89c90957ea2708f71fc1a43edbdfb57ea4d64b7cd31623c45c0a54714",
+    "verifiedSpecifiedCost": {
+      "Blue": 1
+    }
+  }
+}

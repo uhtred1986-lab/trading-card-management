@@ -70,6 +70,9 @@ export function skillLinesUncached(text: string | null | undefined): string[] {
     // `orbsIn`, `costText`, `costIsOnlyOrbs`, `splitCost` — sees the one form.
     .replace(/[①-⑳]/g, (ch) => `{${ch.charCodeAt(0) - 0x245f}}`)
     .replace(/⓪/g, "{0}")
+    // R-390: official P-006 / BT2-084 images show a circled generic orb
+    // after the colored Evolve orbs; these feeds omit only its braces.
+    .replace(/(\[evolve\]\s*(?:\{[rugybkw]\}\s*)+)(\d+)(?=\s*:)/gi, "$1{$2}")
     // A count spelled out instead of printed as a digit. Every counted target
     // is read by a pattern that wants a digit, and a phrase that has none is
     // taken as *all* of them — "your opponent chooses two cards from their
@@ -91,9 +94,23 @@ export function skillLinesUncached(text: string | null | undefined): string[] {
   // The options of a "Choose one—" are printed on their own lines, but they
   // are not skills of their own (20-2): they belong to the line above them.
   const out: string[] = [];
+  let previousBullet = false;
   for (const line of raw) {
-    if (BULLET.test(line) && out.length) out[out.length - 1] += ` ・${line.replace(BULLET, "").trim()}`;
-    else out.push(...splitRunOn(line));
+    const bullet = BULLET.test(line);
+    if (bullet && out.length) out[out.length - 1] += ` ・${line.replace(BULLET, "").trim()}`;
+    else {
+      const pieces = splitRunOn(line), prior = out[out.length - 1] ?? "";
+      // R500 / 20-2: admit the reviewed continuation only. Other modal
+      // If-you-do tails need their own authoritative completion binding.
+      const modal = /\bchoose one\s*(?:[-–—―－ー?:]{1,3})?\s*・/i.test(prior) && (prior.match(/・/g)?.length ?? 0) >= 2;
+      const removal = /・remove 7 \[dragon ball\] cards in your drop area from the game\.$/i.test(prior);
+      const continuation = /^if you do, choose up to 2 green ≪frieza's army≫ cards with an energy cost of 2 or less from your deck and play them, then shuffle your deck and flip this card over at the end of the turn\.$/i.test(pieces[0]);
+      if (previousBullet && modal && removal && continuation) {
+        out[out.length - 1] += ` ${pieces[0]}`;
+        out.push(...pieces.slice(1));
+      } else out.push(...pieces);
+    }
+    previousBullet = bullet;
   }
   return out;
 }
@@ -133,7 +150,7 @@ function splitRunOn(line: string): string[] {
     const ch = line[i];
     if (ch === "(" || ch === "（") depth++;
     else if (ch === ")" || ch === "）") depth = Math.max(0, depth - 1);
-    else if (depth === 0 && ch === "[" && i > start && /[.]\s+$/.test(line.slice(start, i)) && opensASkill(line.slice(i))) {
+    else if (depth === 0 && ch === "[" && i > start && /[.]\s*$/.test(line.slice(start, i)) && opensASkill(line.slice(i))) {
       const piece = line.slice(start, i).trim();
       if (piece) out.push(piece);
       start = i;
@@ -631,6 +648,10 @@ function tidyEffect(effect: string): string {
 function makeSkill(index: number, tags: string[], keyword: KeywordSkill | null, cost: string, effect: string, raw: string): Skill {
   effect = tidyEffect(effect);
   cost = tidyEffect(cost);
+  // R-452: a circled generic orb before an EX-Evolve action price.
+  // Normalize only the parsed price; the printed raw line stays unchanged.
+  if (keyword?.name === "Evolve" && keyword.variant === "EX-Evolve")
+    cost = cost.replace(/^(\d+)(?=\s*,)/, "{$1}");
   const lower = tags.map((t) => t.toLowerCase());
   const num = (re: RegExp): number | null => {
     for (const t of lower) {

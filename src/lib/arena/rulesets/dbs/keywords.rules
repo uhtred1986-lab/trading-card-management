@@ -86,27 +86,18 @@ DEFINE KEYWORD Wish
 -- 22-3
 DEFINE KEYWORD Field
   TAKES ()
-  text: "An Extra Card that stays on the table in Active Mode instead of going to the Drop Area. Its other skills work from there, and playing another [Field] Extra drops the one already out."
-  -- A move (2 Oct 2026), offered as an [Activate: Main] from the hand
-  -- (22-3-2) — and at [Activate: Battle] timings as well while a [Permanent]
-  -- permits it for this card (`permit(what: fieldBattle)`, BT29-041/-042),
-  -- which `vm/activate.ts`'s `activationsOf` reads as widening the line's
-  -- kind to `activate:main/battle`. The price is the Extra's own energy cost
-  -- (12-2-2, `boundFor`), and the Extra is not put in the Drop as an Extra
-  -- used from the hand otherwise is: the `DO` plays it into the Battle Area in
-  -- Active Mode, and the onEnter hook below drops the [Field] Extra already
-  -- out (22-3-5). One difference from the legacy engine, recorded: the label
-  -- does not add the cost in brackets.
+  text: "An Extra Card placed in the Battle Area in Active Mode after its Field skill is activated. Other Field cards are placed in their owners' Drop Areas unless a card explicitly permits otherwise."
+  --12-2: native hand activation pays card energy, stages the original card
+  --in Drop, then pays the Field skill price. Invoked skills waive that price.
+  --R457 captures the authorized source occurrence and performs this placement
+  --without Battle Card play timing. fieldBattle can widen activation timing.
   offer: "activate:main"
   REFUSE zone(area: hand) UNLESS count([self] IN you.hand) >= 1
   label: "Field: place {card}"
   DO {
-    play(target: [self])
+    moveTo(target: [self], to: battle, mode: active)
   }
-  HOOK onEnter {
-    choose(sel: UP TO 1 "Extra Card with [Field]" IN you.battle otherThanSelf, as: "t")
-    moveTo(target: $t, to: drop)
-  }
+  --22-3-5 cleanup is mandatory rule processing (R469), including replacements.
 
 -- 22-4
 DEFINE KEYWORD Blocker
@@ -564,15 +555,11 @@ DEFINE KEYWORD "Over Realm"
   -- turn, two while a card with [Wormhole] is in play (22-24) — a counted
   -- player fact (`overRealms`, attributes.rules) — and want X or more cards
   -- in the Drop, black ones for the dark variant (`flag(value: $dark)`).
-  -- The price is the line's printed orbs. Taken, the use is counted, the
-  -- whole Drop goes to the Warp as the cost, the card is scheduled back to
-  -- the Warp as the turn ends (for the dark variant too, which 22-23 does not
-  -- ask for — the legacy engine's approximation, kept so the two agree), and
-  -- it is played through the [Counter: Play] window. "when you play a card
-  -- using [Over Realm]" is the move's `keywordActivated`; "when this card is
-  -- played using [Over Realm]" is the play's own `moved`, which `using:` marks
-  -- as this keyword's (`playedUsingOverRealm`). One difference,
-  -- recorded: the refusal for too few cards does not add "(N there)".
+  -- R456 / 1-6-3, 22-15-4, 22-23-4: pay the whole Drop first,
+  -- then determine/pay the printed resources and any admitted action price.
+  -- Only complete payment announces activation and spends the shared use.
+  -- Dark Over Realm has no end-turn departure (22-23-6); retain exact
+  -- variant identity on arrival, independent of the shared usage counter.
   -- From the Warp as well (owner-approved 2 Oct 2026) while the card's own
   -- [Permanent] says "This card's [Over Realm] skill can be activated from
   -- its owner's Warp under the same conditions as if it were in your hand"
@@ -591,12 +578,14 @@ DEFINE KEYWORD "Over Realm"
   REFUSE forbidden() UNLESS NOT forbidden(what: dropToWarp, from: drop)
   label: "{dark?Dark }Over Realm {x}: play {card} (Drop → Warp)"
   DO {
+    payActionPrice()
     setPlayerAttr(name: "overRealms", add: 1)
-    moveTo(target: IN you.drop, to: warp, cause: cost)
-    delay(at: turnCleanup, ops: {
-      moveTo(target: [self] IN you.battle, to: warp)
-    }, label: "back to the Warp as the turn ends")
-    play(target: [self], counterWindow: true, using: "Over Realm")
+    if(flag(value: $dark), then: {
+      play(target: [self], counterWindow: true, using: "Dark Over Realm")
+    }, else: {
+      -- The successful native arrival schedules occurrence-bound cleanup.
+      play(target: [self], counterWindow: true, using: "Over Realm")
+    })
   }
 
 -- 22-22
@@ -833,25 +822,26 @@ DEFINE KEYWORD Empower
 DEFINE KEYWORD "Z-Awaken"
   TAKES ()
   text: "From the Z-Deck, once a turn: pay the Z-Energy cost and the skill cost and place this Z-Leader on top of your already-awakened Leader, which has to match the printed description. The stack is one card from then on."
-  -- #155: a move, offered at the Main Phase (the legacy window; 22-46-1 also
-  -- allows a battle) from the Z-Deck, where `DEFINE ACTION activate` reads a
-  -- keyword's own move and nothing else, and paying the card's Z-Energy cost
-  -- after the line's orbs (the activation's `zEnergy` price, bound only from
-  -- the Z-Deck). Refused unless the Leader is awakened and no Z-card yet, and
-  -- matches the description the line prints (`asPrinted`). DO plays the card
-  -- onto the Leader: it takes the Leader Area, the old Leader and its pile go
-  -- under it, power effects and a battle role carry over (22-46-6-1), and
-  -- "when your Leader is placed" hears it (22-46-6-3). 22-46-4's once a turn
-  -- needs no count: once it has resolved the Leader is a Z-card, which the
-  -- third REFUSE already refuses, so a second [Z-Awaken] that turn is refused
-  -- by that reason rather than by the legacy `oncePerTurn` one.
-  offer: "activate:main"
-  REFUSE zone(area: zDeck) UNLESS count([self] IN you.zDeck) >= 1
+  -- R-395: a Main/Battle activation, once per player per global turn, even
+  -- if the old Leader is restored later. The description is matched against
+  -- current characteristics; `asPrinted` names the line's description.
+  -- The activation binds both occurrences before resolution. Placement is
+  -- not play (general Z-Awaken FAQ Q4), so it opens no Counter:Play window.
+  offer: "activate:main/battle"
+  REFUSE zone(area: zDeck) UNLESS all([count([self] IN you.zDeck) >= 1, NOT count([self] (faceUp = true) IN you.zDeck) >= 1])
+  REFUSE oncePerTurn(what: "Z-Awaken") UNLESS NOT playerAttr(name: "zAwakens", atLeast: 1)
   REFUSE condition(text: "your Leader is awakened and not yet a Z-Leader") UNLESS all([leaderFlipped(), NOT count("Z-card" IN you.leader) >= 1])
   REFUSE target(reason: "your Leader is not {line}") UNLESS count(IN you.leader asPrinted) >= 1
   label: "Z-Awaken: {card} on your Leader"
   DO {
-    play(target: [self], onto: IN you.leader)
+    payActionPrice()
+    setPlayerAttr(name: "zAwakens", add: 1)
+    if(cond: all([leaderFlipped(), NOT count("Z-card" IN you.leader) >= 1, NOT count(FROM $zAwakenSource (faceUp = true) IN you.zDeck) >= 1]), then: {
+      placeOnTop(target: FROM $zAwakenSource IN you.zDeck, onto: FROM $zAwakenBase IN you.leader asPrinted)
+    })
+    if(cond: NOT count([self] IN you.leader) >= 1, then: {
+      moveTo(target: FROM $zAwakenSource IN you.zDeck, to: removed)
+    })
   }
 
 -- 22-47

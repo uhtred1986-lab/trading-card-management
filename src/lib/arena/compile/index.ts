@@ -1,3 +1,12 @@
+import { reviewedIncrementalLook } from "./incremental-look";
+import {compilePaidHand} from './paid-hand';
+import {compilePaidWarp} from './paid-warp';
+import { activateUnderText, activateUnderPermit } from "../vm/activate-under-contract";
+import { compileEnergyEntryPolicy } from "./energy-entry";
+import { compileCounterArrival } from "./counter-arrival";
+import { counterUnderPermit } from "../vm/counter-under-contract";
+import { counterEnergyPermit } from "../vm/counter-energy-contract";
+import { counterDropPermit, COUNTER_DROP_COLORS } from "../vm/counter-drop-contract";
 import { compilePotaraMaterials } from "./potara-materials";
 import { isPotaraSkill, POTARA_REBUILD } from "../vm/potara-materials";
 import { isAbsorbSkill, ABSORB_REBUILD } from "../vm/absorb-procedure";
@@ -7,7 +16,7 @@ import { compileValidity, validityProblem } from "../vm/validity";
 import { compileUsage, usageProblem } from "../vm/usage";
 import { readsMomentsOneByOne, triggersOf, unreadMoments } from "../gaps";
 import { effectHead, keywordOf, maskNames, parseSkills, skillsOf, trailingTrigger, withoutTrailingTrigger } from "../text/cards";
-import { autoTriggerMatches, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, TURN_END_WHERE_PLAYED, type MomentCause } from "../text/triggers";
+import { autoTriggerMatches, YOUR_OTHER_BATTLE_DARK_PLAYED, compileComboQualification, BY_THIS_CARDS_SKILL, RETURNED_FROM_YOUR_BATTLE, discardedBySkillCause, restedCauseOf, playedOrUnplacedAlternative, playedOrActiveDuringYourTurn, playedOrComboBattleEnd, TURN_END_AFTER_PLACED, comboBattleEndOpponentTurn, comboBattleEndYourTurn, comboEntryQualifier, whiteCellPlayedSubjectFilter, triggeredPermanent, spiritBoostPayerOf, yourCardPlayedByUnion, yourCardPlayedUsingArrival, watchedMomentOf, momentsBatch1, momentCauseOf, momentPartSkills, battleEndPart, battleAttackerSaid, TURN_END_WHERE_PLAYED, type MomentCause } from "../text/triggers";
 import type { CardScripts, Cond, Op, Script, Selector } from "../vm/script";
 import type { CardDef, Color, KeywordSkill, Skill } from "../types";
 import type { CardFilter } from "../text/filters";
@@ -15,7 +24,7 @@ import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause, playedHowGate } from "./conditions";
-import { compileClauseList, holdForGame, isComboDropReplacement, oneAreaOfTwo, splitModal, taxWordings } from "./effects";
+import { bindBlindLifeHandChoice, bindCompletedChoice, compileClauseList, compileOriginalKoFollowup, compileBattleGrantRemoval, compilePaidRemovalFollowup, compilePaidDropFollowup, holdForGame, isComboDropReplacement, oneAreaOfTwo, splitModal, taxWordings } from "./effects";
 import { bondDescriptorOnly } from "../text/bond";
 import { readsAsNothingSilently } from "./silent";
 import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
@@ -55,7 +64,7 @@ export function compileSkill(skill: Skill): Script {
   // compiled as the skill it quotes; its record is the grant's program (which
   // says for itself when the granted [Auto]'s moment is not read).
   if (skill.granted) return compileQuotedSkill(skill.granted.skill);
-  const script = momentChoicesAreChoices(skill, opponentHandUnseen(attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))))));
+  const script = reviewedIncrementalLook(skill, momentChoicesAreChoices(skill, opponentHandUnseen(attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill)))))));
   // Audit effects 2: a line that reads as nothing and says nothing about it (`readsAsNothingSilently`, the
   // `KNOWN_SILENT` list) is unread — an honest gap — never a blank the engine plays as done: BT14-074's +5000 combo
   // power, BT18-003's battle ban, BT20-017/BT20-019's +5000 to the card above, BT25-133's combo cost, BT4-003's
@@ -275,7 +284,7 @@ export function momentClauseOf(skill: Pick<Skill, "effect">): string | null {
 }
 
 /** Audit triggers 3: the moments whose subject is a card just played into a Battle or Unison Area (5-5). */
-const PLAY_MOMENTS = new Set<string>(["youPlayed", "eitherCardPlayed", "opponentPlayed", "opponentPlayedBySkill", "opponentCardPlayedBySkill", "yourCardPlayedFromHand",
+const PLAY_MOMENTS = new Set<string>(["yourOtherBattlePlayedUsingDarkOverRealm", "youPlayed", "eitherCardPlayed", "opponentPlayed", "opponentPlayedBySkill", "opponentCardPlayedBySkill", "yourCardPlayedFromHand",
   "yourCardPlayedFromDrop", "yourCardPlayedFromWarp", "yourCardPlayedFromEnergy", "yourCardPlayedFromLife", "youPlayedByThisCard"]);
 
 /** Audit triggers 3: a `play` of the cards a choice of the moment's subject bound (`special: "subject"`). */
@@ -556,23 +565,24 @@ function hasBattleEndDelay(value: unknown): boolean {
   return Object.values(o).some(hasBattleEndDelay);
 }
 
-/** Mark every `play … onto` an [Union-Absorb] effect makes as the keyword's own (22-13-6-3, #929). */
+/** R-388: Absorb plays its specified arrival on the activating card (22-13-6-3).
+ * Future delayed/granted skills are separate execution trees, never Absorb arrivals. */
 function markAbsorbPlays(script: Script): Script {
-  const mark = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(mark);
-    if (!value || typeof value !== "object") return value;
-    const object = value as Record<string, unknown>;
-    if (object.op === "play" && object.onto && !object.using) return { ...object, using: "Union-Absorb", counterWindow: true };
-    let changed = false;
-    const next: Record<string, unknown> = {};
-    for (const [key, part] of Object.entries(object)) {
-      const mapped = mark(part);
-      next[key] = mapped;
-      changed ||= mapped !== part;
+  const count = (ops: Op[]): number => ops.reduce((n, op) => n + (op.op === "play" ? 1
+    : op.op === "if" ? count(op.then) + count(op.else ?? [])
+    : op.op === "may" ? count(op.ops)
+    : op.op === "chooseMode" ? op.modes.reduce((sum, mode) => sum + count(mode.ops), 0) : 0), 0);
+  const soleArrival = count(script.ops) === 1;
+  const mark = (ops: Op[]): Op[] => ops.map((op): Op => {
+    if (op.op === "play" && !op.using && (op.onto || soleArrival)) {
+      return { ...op, onto: op.onto ?? { sel: { special: "self" } }, using: "Union-Absorb", counterWindow: true };
     }
-    return changed ? next : value;
-  };
-  return { ...script, ops: mark(script.ops) as Op[] };
+    if (op.op === "if") return { ...op, then: mark(op.then), ...(op.else ? { else: mark(op.else) } : {}) };
+    if (op.op === "may") return { ...op, ops: mark(op.ops) };
+    if (op.op === "chooseMode") return { ...op, modes: op.modes.map(mode => ({ ...mode, ops: mark(mode.ops) })) };
+    return op;
+  });
+  return { ...script, ops: mark(script.ops) };
 }
 
 /**
@@ -842,6 +852,10 @@ function aegisAltPermit(text: string): { head: string | null; opener: string | n
 }
 
 function compileSkillText(skill: Skill): Script {
+  const energyEntry = compileEnergyEntryPolicy(skill);
+  if (energyEntry) return { ops: [{ op: "energyEntryExhaust", colors: energyEntry.colors }], trigger: [], unsupported: [] };
+  const arrivalPolicy = compileCounterArrival(skill);
+  if (arrivalPolicy) return arrivalPolicy;
   // [Union-Fusion] and [Union-Potara] print two character names where an
   // effect would go, and the engine reads those itself. [Union-Absorb] is
   // different (22-13-6-1): its line really is "cost : effect", and the effect
@@ -937,12 +951,36 @@ function compileSkillText(skill: Skill): Script {
     const leader = parseConditionClause(`if ${dropBottom[1]}`, true);
     if (leader) return { ops: [{ op: "if", cond: leader.cond, then: [{ op: "permit", what: "unionFusionDropBottom", target: { sel: { special: "self" } }, until: "game" }] }], unsupported: [] };
   }
+  // R469 / BT13-084: the whole permission has a narrower no-cleanup clause.
+  // Its first "any number" sentence does not exempt original-cost-1 Fields.
+  const fieldKeep = c.permanent ? /^if (your leader(?: card)? is a (?:red|blue|green|yellow|black|white) <[^>]+> card),? you can place any number of mono-(red|blue|green|yellow|black|white) extra cards with the \[field\] skill in your battle area,? and your mono-\2 extra cards with an original energy cost of ([1-9]\d*) and the \[field\] skill don't cause any of your other extra cards with the \[field\] skill to be placed in their owners' drop areas?\.?$/i.exec(text.trim()) : null;
+  if (fieldKeep) {
+    const leader = parseConditionClause(`if ${fieldKeep[1]}`, true);
+    const filter = filterFor(`mono-${fieldKeep[2]} Extra Card with [Field]`, null);
+    if (leader && filter) return { ops: [{ op: "if", cond: leader.cond, then: [{ op: "permit", what: "fieldKeepOthers", target: { sel: { special: "self" } }, until: "game", filter: { ...filter, originalCostMin: Number(fieldKeep[3]), originalCostMax: Number(fieldKeep[3]) } }] }], unsupported: [] };
+  }
+  if (c.permanent && /^you can't activate extra cards with the \[field\] skill that are copies of extra cards with the \[field\] skill in your battle area\.?$/i.test(text.trim())) {
+    return { ops: [{ op: "forbid", what: "activateSkill", keywordSkill: "Field", side: "you", until: "game", copiesOf: { side: "you", area: "battle", filter: { ...emptyFilter(), type: "EXTRA", keywords: ["Field"] } } }], unsupported: [] };
+  }
   const unionAreas = c.permanent ? unionFusionAreasPermit(text) : null;
   if (unionAreas) return { ops: [unionAreas], unsupported: [] };
   const potaraSources = c.permanent ? unionPotaraSourcePermit(text) : null;
   if (potaraSources) return { ops: potaraSources, unsupported: [] };
   const absorbUnder = c.permanent ? absorbMaterialUnderPermit(text) : null;
   if (absorbUnder) return { ops: [absorbUnder], unsupported: [] };
+  // R438: this entire sentence grants permission plus a mandatory price;
+  // splitting its conjunction would lose either the area or a removal.
+  const counterDrop = c.permanent ? /^if this card is in your drop(?: area)?,? you can activate it by paying its energy cost and removing it and 1 (red|blue|green|yellow) card in your hand from the game\.?$/i.exec(text.trim()) : null;
+  if (counterDrop) return { ops: [counterDropPermit(COUNTER_DROP_COLORS.find(color => color.toLowerCase() === counterDrop[1].toLowerCase())!)], unsupported: [] };
+  const activateUnder = c.permanent ? activateUnderText(text) : null;
+  if (activateUnder) return { ops: [activateUnderPermit(activateUnder)], unsupported: [] };
+  const counterUnder = c.permanent && /^if this card is under a \{universal tuffleization plan\} in your battle area,? you can activate this card['’]s \[counter\] skill under the same conditions as if it were in your hand\.?$/i.test(text.trim());
+  if (counterUnder) return { ops: [counterUnderPermit()], unsupported: [] };
+  const counterEnergy = c.permanent ? /^(?:if your leader(?: card)? is a blue ≪red ribbon army≫ card,? )?you can activate this card['’]s \[counter\] skill from your energy by paying its energy cost(?: and (choosing 1 card in your hand and discarding it|discarding 1 card from your hand))?\.?$/i.exec(text.trim()) : null;
+  if (counterEnergy) {
+    const leader = /^if /i.test(text.trim()), discard = !!counterEnergy[1];
+    if (leader || discard) return { ops: [counterEnergyPermit(leader, discard)], unsupported: [] };
+  }
   const evolveZ = c.permanent ? evolveFromZEnergyPermit(text) : null;
   if (evolveZ) return { ops: [evolveZ], unsupported: [] };
   const evolveAreas = c.permanent ? evolveEnergyBasesPermit(text) : null;
@@ -1045,6 +1083,9 @@ function compileSkillText(skill: Skill): Script {
   // price chose. The price is its own program, and the engine hands its
   // variables on (4-3-3), so the compiler only has to know the name.
   const priceOps = compileCostProgram(skill)?.ops ?? [];
+  if (skill.burst && !priceOps.length && (skill.kind === "auto" || skill.kind.startsWith("activate:"))) c.paidPile = { name: `paid_burst`, count: skill.burst };
+  const millPrice = priceOps.length === 1 ? priceOps[0] : undefined;
+  if (!skill.burst && millPrice?.op === "mill" && millPrice.as && typeof millPrice.n === "number" && millPrice.n > 0 && (!millPrice.side || millPrice.side === "you") && (skill.kind === "auto" || skill.kind.startsWith("activate:"))) c.paidPile = { name: `paid_mill_${millPrice.as}`, count: millPrice.n };
   for (const o of priceOps) {
     if (o.op !== "choose") continue;
     // Audit effects 2 review: a price's pick from the pile under its chosen card ("…and place 2 of the cards from under
@@ -1167,6 +1208,10 @@ function compileSkillText(skill: Skill): Script {
     // (BT31-015, #940): a coordinated alternative the trigger readers could
     // not place is left unread, not dropped silently with the clause.
     if (playedOrUnplacedAlternative(skill)) return { ops: [], unsupported: [trigger, ...clauses] };
+    // The comma-separated alternative belongs to WHEN; its own typed moment carries the turn restriction.
+    if (playedOrActiveDuringYourTurn(skill) && /^or when this card is switched to active mode by a skill during your turn[,.]?$/i.test(clauses[0]?.trim() ?? "")) clauses.shift();
+    // R-485: Sawar separates the already represented Hand-combo alternative with a comma.
+    if (playedOrComboBattleEnd(skill) && /^or at the end of a battle (?:in which|where) this card was used in a combo from your hand[,.]?$/i.test(clauses[0]?.trim() ?? "")) clauses.shift();
     // Audit triggers 1: a head that coordinates moments answers to each (`triggersOf`), and what it says about a card a
     // moment hands on is read off that moment. One that no reader places, or a condition one moment alone would carry,
     // leaves the moment clause unread (`momentIsRead`), the program kept as for any unread moment.
@@ -1224,7 +1269,7 @@ function compileSkillText(skill: Skill): Script {
     }
     // Audit triggers 3: "At the end of a turn where this card was played" (BT16-142): the turn's end, either player's, and
     // the card's memory of being played this turn (5-5, `VmCard.playedThisTurn`) the condition on it.
-    if (TURN_END_WHERE_PLAYED.test(maskNames(trigger.trim()).text.toLowerCase().replace(/[,.]$/, ""))) triggerCond = { kind: "placedThisTurn", sel: { special: "self" }, played: true };
+    if (TURN_END_WHERE_PLAYED.test(maskNames(trigger.trim()).text.toLowerCase().replace(/[,.]$/, ""))) triggerCond = { kind: "placedThisTurn", sel: { special: "self" }, played: true, ...(/ from your hand[,.]?$/i.test(trigger.trim()) ? { from: ["hand" as const] } : {}) };
     // #930: "When this card is played using [Union]" (BT14-114), "when you play
     // this card with [union]" (BT5-039, BT2-085 …), "when this card is played
     // by a [union] skill" (BT28-097, BT28-099): the moment is `played`, and
@@ -1233,7 +1278,7 @@ function compileSkillText(skill: Skill): Script {
     // a named variant ("using [Union-Potara]") only that one. `resolvePlay`
     // withdraws the Auto from any other play (`vm/triggers.ts`
     // `unionPlayGate`). Only the whole moment: "…using [union-potara] or
-    // attacks" (BT4-019) has no gate for one half and stays refused.
+    // attacks" (BT4-019) uses independent typed moments (R487), no shared gate.
     const unionPlay = UNION_PLAY_TRIGGER.exec(trigger.trim());
     if (unionPlay) triggerCond = { kind: "playedUsing", sel: { special: "self" }, what: unionPlay[1] ? UNION_VARIANT[unionPlay[1].toLowerCase() as keyof typeof UNION_VARIANT] : "Union" };
     // Audit conditions 2: how else the play had to be made — "with [Swap]", "using [Arrival]", "with the skill of
@@ -1396,6 +1441,7 @@ function compileSkillText(skill: Skill): Script {
       triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, has] } : has;
       if (clauses.some((cl) => /\bthat card\b/i.test(cl))) partnerTarget = { sel: yours };
     }
+    const arrivalPlay = yourCardPlayedUsingArrival(trigger);
     if (skill.kind === "auto" && triggersOf(skill).some((t) => t === "youPlayed" || t === "opponentPlayed")) c.playedSubject = true;
     if (/\bthis card\b/i.test(trigger.replace(BY_THIS_CARDS_SKILL, ""))) c.lastTarget = partnerTarget ?? { sel: { special: "self" } };
     // "When your green ≪Turtle School≫ card with an energy cost of 5 or less
@@ -1418,7 +1464,7 @@ function compileSkillText(skill: Skill): Script {
     // BT15-091: "when a player places a [Field] Extra Card in a Battle Area",
     // "when a player's [Field] Extra Card leaves a Battle Area" — either
     // player's card, its description the condition on it.
-    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim()) || /^when a player(?:'?s)? /i.test(trigger.trim()) || !!watchedMomentOf(trigger)) {
+    else if (/\byour\b|\byour opponent'?s\b/i.test(trigger) || /^when you (?:activate|play|combo with|use) (?:an?|1|up to \d+|\d+) /i.test(trigger.trim()) || /^when a player(?:'?s)? /i.test(trigger.trim()) || !!watchedMomentOf(trigger) || !!arrivalPlay) {
       // "When you play a red ≪Alien≫, **it** gains +5000 power" (BT1-006, phrasing batch 1): the card played is the
       // one thing the sentence has named, so "it" is that card too.
       // "When you combo with a skill-less card, **that card** gets +5000 combo power" (BT6-105b, phrasing batch 2): the
@@ -1458,11 +1504,24 @@ function compileSkillText(skill: Skill): Script {
       // "When you play a Battle Card **on your turn**" (BT13-026, phrasing batch 1): a card can be played on the
       // opponent's turn too (a [Counter: Play], a skill's play), and the words say this one only counts on yours.
       if (/^when you play [^,]+ on your turn$/i.test(trigger.trim())) triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, { kind: "isTurnPlayer" }] } : { kind: "isTurnPlayer" };
+      if (arrivalPlay) {
+        const filter = filterFor(arrivalPlay, null);
+        if (!filter || unreadFilterWords(arrivalPlay.replace(/\b(red|blue|green|yellow|black|white)\/(?=red|blue|green|yellow|black|white)/gi, "$1 "), filter).length) return { ops: [], unsupported: [trigger, ...clauses] };
+        triggerCond = { kind: "all", conds: [{ kind: "count", sel: { special: "subject", filter }, atLeast: 1 }, { kind: "playedUsing", sel: { special: "subject" }, what: "Arrival" }] };
+        c.lastTarget = { sel: { special: "subject" } };
+      }
       const byUnion = yourCardPlayedByUnion(trigger);
       if (byUnion) {
         const how: Cond = { kind: "playedUsing", sel: { special: "subject" }, what: byUnion.what };
         triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, how] } : how;
       }
+    }
+    // R472: "other than this card" qualifies the arrived subject, not the
+    // watcher. The moved trigger supplies controller and exact Dark procedure.
+    if (skill.kind === "auto" && YOUR_OTHER_BATTLE_DARK_PLAYED.test(trigger.trim())) {
+      const otherBattle: Cond = { kind: "count", sel: { special: "subject", notSelf: "card", filter: { ...emptyFilter(), type: "BATTLE" } }, atLeast: 1 };
+      triggerCond = triggerCond ? { kind: "all", conds: [triggerCond, otherBattle] } : otherBattle;
+      c.lastTarget = { sel: { special: "subject" } };
     }
     // Audit conditions 3: "When you combo with 1 of your cards **during your turn**" (BT6-080 both sides): a watched combo
     // (`youCombo`) only on your own turn — a defender combos too. ("When you combo with this card during your turn" is the
@@ -1506,7 +1565,20 @@ function compileSkillText(skill: Skill): Script {
     while (at < split.clauses.length && split.clauses[at] !== clauses[k]) at++;
     joins.push(at < split.clauses.length ? split.joined[at++] : false);
   }
-  let ops = compileClauseList(clauses, c, unsupported, joins);
+  const originalKo = skill.kind === "auto" && !skill.cost.trim() && !triggerCond && !unsupported.length
+    && JSON.stringify(triggersOf(skill)) === JSON.stringify(["played"])
+    ? compileOriginalKoFollowup(clauses, c, unsupported, joins) : null;
+  const battleGrantRemoval = skill.kind === "activate:battle" && !modal ? compileBattleGrantRemoval(clauses, c, unsupported, joins) : null;
+  const paidRemoval = skill.kind === "activate:battle" && !modal ? compilePaidRemovalFollowup(skill, { kind: skill.kind, ops: [], price: compileSkillPrice(skill), usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [] }, c) : null;
+  const paidDrop = skill.kind === "activate:main" && !modal ? compilePaidDropFollowup(skill, { kind: skill.kind, ops: [], price: compileSkillPrice(skill), usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [] }, c) : null;
+  const paidWarp = skill.kind === "auto" && !modal && !triggerCond && !unsupported.length ? compilePaidWarp(skill) : null;
+  const paidHand = skill.kind === "activate:main" && !modal && !triggerCond && !unsupported.length ? compilePaidHand(skill) : null;
+  let ops = paidHand?.ops ?? paidWarp?.ops ?? originalKo ?? battleGrantRemoval ?? paidRemoval ?? paidDrop ?? compileClauseList(clauses, c, unsupported, joins);
+  // R504: only the main unpriced Auto effect, never a price or recursive clause context.
+  if (skill.kind === "auto" && !skill.cost.trim() && bindBlindLifeHandChoice(clauses, ops) === false) {
+    unsupported.push(clauses.slice(0, 2).join(", "));
+  }
+
   // BT29-029 / 20-16: "If you do" requires the optional play itself,
   // not merely accepting its offer when a prohibition/replacement stops it.
   if (returnedFromBattle && ops[0]?.op === "may" && ops[0].ops.some((op) => op.op === "play")) {
@@ -1542,7 +1614,7 @@ function compileSkillText(skill: Skill): Script {
     }
     if (modes.some((mode) => mode.ops.length)) {
       // What "if you do" reads (20-16): the offer taken, or the choice made, just before it.
-      const gate: Cond | null = !modalIfDone ? null : c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? { kind: "chose", var: c.last } : null;
+      const gate: Cond | null = !modalIfDone ? null : c.lastOp === "may" ? { kind: "did", what: "may" } : c.last ? bindCompletedChoice(ops, c.last) ?? { kind: "chose", var: c.last } : null;
       if (modalIfDone && !gate) return { ops: [], unsupported: [...unsupported, "If you do"] };
       // Audit lane C: a head that ends on a condition hangs the menu on it — "…it gets +15000 power for the duration of
       // the battle, **and if it is your turn, also choose one—**" (EX06-21). Nested in a condition the head opened, the
@@ -1638,7 +1710,7 @@ function compileSkillText(skill: Skill): Script {
     return { ops: [], unsupported: [skill.cost, ...unsupported] };
   }
   if (ops.length && effectTriggerCond) return { ops: [{ op: "if", cond: effectTriggerCond, then: ops }], unsupported };
-  return { ops, unsupported };
+  return { ops, unsupported, ...(ops.length === 1 && c.resolutionCondition === ops[0] ? { keepResolutionCondition: true as const } : {}) };
 }
 
 /**
@@ -1744,7 +1816,7 @@ function batch1Condition(trigger: string): { cond: Cond | null } | null | undefi
   const whose = read.trigger.startsWith("opponentCardPower") ? ({ side: "opponent" } as const) : read.trigger === "yourCardPowerLowered" ? ({ side: "you" } as const) : {};
   if (read.subject === "battle") conds.push({ kind: "count", sel: { special: "subject", ...whose, area: "battle" }, atLeast: 1 });
   if (read.subject === "leader") conds.push({ kind: "count", sel: { special: "subject", ...whose, area: "leader" }, atLeast: 1 });
-  if (/\bduring your turn$/i.test(masked.text)) conds.push({ kind: "isTurnPlayer" });
+  if (read.trigger !== "activeBySkillDuringYourTurn" && /\bduring your turn$/i.test(masked.text)) conds.push({ kind: "isTurnPlayer" });
   return { cond: conds.length === 0 ? null : conds.length === 1 ? conds[0] : { kind: "all", conds } };
 }
 

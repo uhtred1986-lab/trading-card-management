@@ -139,6 +139,8 @@ export interface SideView {
   /** Null when the hand is the opponent's: only its size is public (3-3-3). */
   hand: CardView[] | null;
   handCount: number;
+  /** R461: declared alternative Counter sources revealed during payment; other hand cards remain secret. */
+  revealedHand?: CardView[];
   life: number;
   /**
    * 3-9-2-1: the life cards a skill turned face up, and the same in the
@@ -238,6 +240,8 @@ export interface BattleView {
 
 /** The one-line question the prompt bar asks, and what the engine knows about it beyond the words. */
 export interface PromptView {
+  /** Only the acting viewer receives already inspected cards. */
+  inspection?: {cards:CardView[];inspected:number;maximum:number;atLimit:boolean};
   kind: string;
   player: PlayerId | null;
   question: string;

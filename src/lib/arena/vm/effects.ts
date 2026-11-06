@@ -1,3 +1,13 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
+import { standingUnderPrinted, standingUnderScript } from "./standing-negation-under-policy";
+import { activateUnderDescriptor } from "./activate-under-contract";
+import { standingWholeDescriptor, standingComboWholeDescriptor } from "./standing-negation-policy";
+import { energyEntryDescriptor } from "./energy-entry-policy";
+import { freshAppliedEffectRoot } from "./applied-effect-receipt";
+import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
+import { standingSkillsNegated } from "./standing-negation-read";
+import { capturedResolvedGrant, captureResolvedGrantDeletions, prepareResolvedGrantChange, resolvedGrantDeleted } from "./resolved-grant-deletion";
+import { energyCouponContract } from "./energy-coupon-saves";
 import { sparkingIsValid } from "./validity";
 /**
  * What is in force, and for how long.
@@ -52,7 +62,7 @@ import type { EngineContext, GameEvent } from "../types";
 import { costModifierAs, modifyAttrAs, negateAs, replaceAs, type Amount, type Cond, type Op, type Ref, type ScriptFrame, type Selector } from "./script";
 import { redirectOf } from "./common";
 import { type AltCost, type Replacement } from "../types";
-import type { CardIdentityGain, Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat } from "../types";
+import type { CardIdentityGain, Color, ContinuousEffect, DelayedEffect, DelayTiming, Immunity, KeywordSkill, Permission, PlayerId, Prohibition, SkillKindPrefix, SkipWhat, Skill } from "../types";
 import { other as otherPlayer } from "../types";
 import type { GameDefinition } from "../rulesets";
 import type { CardFilter } from "../text/filters";
@@ -117,6 +127,16 @@ export function ownProhibitions(ctx: EngineContext, state: VmState, id: string, 
     }
     for (const op of program.ops) {
       if (op.op === "forbid" && op.fromArea === "under") continue;
+      // R423: only the typed self protection explicitly valid in every area.
+      // Preserve the negating player's/source filter; no other Permanent is widened.
+      if (op.op === "forbid" && op.what === "beNegated" && op.fromArea === "any" && op.until === "game" && op.target && "sel" in op.target && op.target.sel.special === "self" && Object.keys(op.target.sel).length === 1 && Object.keys(op).every(key => ["op", "what", "fromArea", "until", "target", "side", "byFilter", "unless"].includes(key))) {
+        out.push({ what: "beNegated", fromArea: "any", master,
+          ...(op.side && op.side !== "both" ? { player: op.side === "opponent" ? otherPlayer(master) : master } : {}),
+          ...(op.byFilter ? { byFilter: op.byFilter } : {}),
+          ...(op.unless ? { unless: op.unless } : {}),
+        });
+        continue;
+      }
       // P-474 (prohibition batch 6): "this card can't be added to a player's
       // hand" — the card's own rule wherever it is.
       if (op.op === "forbid" && op.what === "beMovedBySkill" && op.fromArea === "any" && op.toArea === "hand" && op.until === "game" && op.target && "sel" in op.target && op.target.sel.special === "self") {
@@ -209,6 +229,7 @@ export interface VmStatic {
   skillKind?: SkillKindPrefix;
   /** `skillCost`: "[Activate: Main]" or "[Activate: Battle]" alone (`ContinuousEffect.activateTiming`). */
   activateTiming?: "main" | "battle";
+  energyActivation?: import("./energy-coupons").EnergyActivation;
   /** `skillCost`: the keyword skill the change is about (`ContinuousEffect.tag`). */
   tag?: string;
   /** `skillCost`: the printed orbs the change takes off (or puts on), in order; `["any"]` for a colourless one. */
@@ -356,14 +377,18 @@ export function costLayerGaps(game: GameDefinition): string[] {
 
 /** Put a continuous effect in force, and say so. The `effect` beat is what a client draws the surge from. */
 export function addEffect(state: VmState, ev: GameEvent[], spec: EffectSpec): ContinuousEffect {
+  requireUnscopedStandingWrite(state);
+  prepareResolvedGrantChange(state, spec);
   const full: ContinuousEffect = { ...spec, master: spec.master ?? state.turnPlayer, id: state.nextEffect++, createdTurn: state.turn, ownerTurn: state.turnPlayer };
   state.effects.push(full);
+  captureResolvedGrantDeletions(state, full);
   log(ev, { type: "effect", effect: full });
   return full;
 }
 
 /** Every effect in force on one card of one kind, in the order they were made (9-9-2). */
 export function effectsOn(state: VmState, id: string, kind: ContinuousEffect["kind"]): ContinuousEffect[] {
+  guardEnergyEntryLifetimes(state);
   return state.effects.filter((e) => e.kind === kind && e.target === id);
 }
 
@@ -375,6 +400,7 @@ export function effectsOn(state: VmState, id: string, kind: ContinuousEffect["ki
  * stay, exactly as the legacy `dropEffects` does.
  */
 function dropEffects(state: VmState, ev: GameEvent[], keep: (e: ContinuousEffect) => boolean): ContinuousEffect[] {
+  requireUnscopedStandingWrite(state);
   const kept: ContinuousEffect[] = [];
   const ended: ContinuousEffect[] = [];
   for (const e of state.effects) {
@@ -465,10 +491,17 @@ export function dropEffectsOn(state: VmState, ev: GameEvent[], id: string): void
   dropEffects(state, ev, (e) => e.target !== id);
 }
 
+/** R505: retain only actual same-execution effects during an area reset. */
+export function dropEffectsOnExcept(state: VmState, ev: GameEvent[], id: string, retained: readonly number[]): void {
+  const keep = new Set(retained);
+  dropEffects(state, ev, effect => effect.target !== id || keep.has(effect.id));
+}
+
 // ── delayed effects (20-15) ─────────────────────────────────────────────────
 
 /** Write a program down for a later moment. */
 export function schedule(state: VmState, ev: GameEvent[], spec: DelaySpec): DelayedEffect {
+  requireUnscopedStandingWrite(state);
   const full: DelayedEffect = { ...spec, id: state.nextEffect++, createdTurn: state.turn };
   state.delayed.push(full);
   log(ev, { type: "delayed", card: spec.card, label: spec.label });
@@ -500,15 +533,17 @@ function ripe(state: VmState, d: DelayedEffect): boolean {
  * the runner's business and one of these can stop to ask a question.
  */
 export function dueDelays(state: VmState, at: DelayTiming): ScriptFrame[] {
+  requireUnscopedStandingWrite(state);
   const ready = state.delayed.filter((d) => d.at === at && ripe(state, d));
   if (!ready.length) return [];
   const ids = new Set(ready.map((d) => d.id));
   state.delayed = state.delayed.filter((d) => !ids.has(d.id));
-  return ready.map((d) => ({ ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject }));
+  return ready.map((d) => freshAppliedEffectRoot(state, { ...(d.overRealmReturn || d.label === "back to the Warp as the turn ends" ? { overRealmReturn: d.overRealmReturn ?? null } : {}), energyCouponContract: energyCouponContract(d.ops), ops: d.ops, ip: 0, vars: d.vars, card: d.card, master: d.master, subject: d.subject, skillEffectOrigin: { version: 2, kind: "delayed" } }, "delayed"));
 }
 
 /** An effect scheduled for "this turn" whose moment has gone never happens. Keeps the list from growing over a long game. */
 export function expireDelayed(state: VmState): void {
+  requireUnscopedStandingWrite(state);
   // Called from `endTurn` (`vm/flow.ts`), *before* the turn number moves on —
   // the legacy engine's call sits after it, which is why its filter keeps the
   // effects made on the turn now starting. Here the turn ending is the one
@@ -532,7 +567,8 @@ export function expireDelayed(state: VmState): void {
  * [Auto]s correctly did not.
  */
 export function skillsNegated(state: VmState, id: string): boolean {
-  return state.effects.some((e) => e.kind === "negateSkills" && e.target === id);
+  guardEnergyEntryLifetimes(state);
+  return standingSkillsNegated(state, id) || state.effects.some((e) => e.kind === "negateSkills" && e.target === id);
 }
 
 /**
@@ -544,8 +580,13 @@ export function skillsNegated(state: VmState, id: string): boolean {
  * stored value is a prefix of the skill kind rather than the whole of it.
  */
 export function skillNegated(state: VmState, id: string, index: number, kind?: string): boolean {
-  if (skillsNegated(state, id)) return true;
-  if (state.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index)) return true;
+  return standingSkillsNegated(state, id) || externallyNegatedSkill(state, id, index, kind);
+}
+
+/** R477 observation gate: only resolved negation, independent of standing generations. */
+export function externallyNegatedSkill(state: VmState, id: string, index: number, kind?: string): boolean {
+  if (state.effects.some(e => e.kind === "negateSkills" && e.target === id)) return true;
+  if (state.effects.some((e) => e.kind === "negateSkill" && e.target === id && e.value === index && (!e.skillSide || e.skillSide === (state.cards[id]?.flipped ? "back" : "front")))) return true;
   return !!kind && state.effects.some((e) => e.kind === "negateSkillKind" && e.target === id && kind.startsWith(e.value as string));
 }
 
@@ -561,16 +602,41 @@ export function keywordSkillsNegated(state: VmState, id: string): boolean {
 
 /** Negation of one effect-granted keyword, keyed by its persisted effect ID. */
 export function grantedSkillNegated(state: VmState, id: string, grantId: number | string): boolean {
-  return skillsNegated(state, id) || state.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === id && (typeof grantId === "number" ? e.value === grantId : typeof e.value === "object" && e.value !== null && "standingGrantId" in e.value && e.value.standingGrantId === grantId));
+  if (typeof grantId === "number" && resolvedGrantDeleted(state, id, grantId)) return true;
+  return skillsNegated(state, id) || state.effects.some((e) => e.kind === "negateGrantedSkill" && e.target === id && (typeof grantId === "number" ? e.value === grantId : typeof e.value === "object" && e.value !== null && "standingGrantId" in e.value && e.value.standingGrantId === grantId && (e.value.sourceHiddenCount === undefined || (state.cards[e.value.source ?? ""]?.hiddenCount ?? 0) === e.value.sourceHiddenCount)));
+}
+
+/** Pending numeric hooks refer to one observed grant, not a reentered card. */
+export function capturedGrantedSkillNegated(state: VmState, id: string, grantId: number, skillIndex?: number): boolean {
+  const receipt = capturedResolvedGrant(state, id, grantId);
+  if (receipt.deleted) return true;
+  if ((state.cards[id]?.zoneEpoch ?? 0) !== receipt.epoch || (state.cards[id]?.hiddenCount ?? 0) !== receipt.hiddenCount) return false;
+  return keywordSkillsNegated(state, id) || (skillIndex !== undefined && skillNegated(state, id, skillIndex, "keyword")) || state.effects.some(effect => effect.kind === "negateGrantedSkill" && effect.target === id && effect.value === grantId);
 }
 
 /** The skills of this card that are off, as `stepScript` reads them: `"all"`, or the indexes. */
 export function negatedSkillsOf(state: VmState, id: string): "all" | number[] {
   if (skillsNegated(state, id)) return "all";
-  return state.effects.filter((e) => e.kind === "negateSkill" && e.target === id).map((e) => e.value as number);
+  return state.effects.filter((e) => e.kind === "negateSkill" && e.target === id && (!e.skillSide || e.skillSide === (state.cards[id]?.flipped ? "back" : "front"))).map((e) => e.value as number);
 }
 
 // ── [Permanent] statics (9-5, 9-9) ──────────────────────────────────────────
+
+/** R478: source-area qualification is stored only on a standing self negation. */
+function selfKeywordInAllAreas(op: Op): boolean {
+  return op.op === "negateKeyword" && op.allAreas === true && !op.until &&
+    (!op.target || ("sel" in op.target && op.target.sel.special === "self" && Object.keys(op.target.sel).length === 1));
+}
+
+function allAreaKeywordOps(ops: readonly Op[]): Op[] {
+  return ops.flatMap((op): Op[] => {
+    if (op.op === "if") {
+      const then = allAreaKeywordOps(op.then), other = allAreaKeywordOps(op.else ?? []);
+      return then.length || other.length ? [{ ...op, then, else: other }] : [];
+    }
+    return selfKeywordInAllAreas(op) ? [op] : [];
+  });
+}
 
 /** A change to a card's identity (traits, characters, colours, names) printed "in all areas" (TB1-095, #936). */
 function identityInAllAreas(op: Op): boolean {
@@ -642,6 +708,22 @@ function dropSelfOps(ops: readonly Op[]): Op[] {
     } else if (op.op === "costReduction" && op.target && "sel" in op.target && op.target.sel.special === "self" && (op.target.sel.area === "drop" || !!op.target.sel.areas?.includes("drop"))) out.push(op);
   }
   return out;
+}
+
+/** A complete, destination-bound self replacement the Combo Area collector retains.
+ * Unrelated roots must not be silently dropped when admitting triggerless Autos. */
+export function isComboDepartureProgram(ops: readonly Op[]): boolean {
+  let leaves = 0;
+  const whole = (body: readonly Op[]): boolean => body.every(op => {
+    if (op.op === "if") return whole(op.then) && (!op.else || whole(op.else));
+    if (op.op !== "replace" && op.op !== "replaceLeave") return false;
+    const self = !op.target || ("sel" in op.target && op.target.sel.special === "self" && Object.keys(op.target.sel).length === 1);
+    const departure = self && op.from?.length === 1 && op.from[0] === "combo"
+      && ((op.op === "replaceLeave" && op.requestedTo === "drop") || (op.op === "replace" && op.event === "leave" && op.to === "drop"));
+    if (departure) leaves++;
+    return !!departure;
+  });
+  return whole(ops) && leaves > 0;
 }
 
 /**
@@ -718,6 +800,7 @@ export function permanents(
   targets: (frame: ScriptFrame, op: Op) => string[],
   holds: (frame: ScriptFrame, op: Op) => boolean,
   measure: (frame: ScriptFrame, amount: Amount) => number,
+  bondValid: (source: string, player: PlayerId, skill: Skill) => boolean,
   /** Walk only the programs this accepts — the immunity pass (`vm/program.ts`) skips every [Permanent] that grants none, on a path taken once per candidate of every selector. */
   only?: (ops: Op[]) => boolean,
 ): VmStatic[] {
@@ -765,12 +848,15 @@ export function permanents(
           // offered at all. The same zones `vm/activate.ts` counts.
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
+          // R507/R509: exact descriptors belong to native arrival/history writers, not standing layers.
+          if (energyEntryDescriptor(program.ops) || standingWholeDescriptor(program.ops) || standingComboWholeDescriptor(program.ops) || activateUnderDescriptor(program.ops) || standingUnderPrinted(sk) && standingUnderScript(program)) continue;
           if (!sparkingIsValid(state, p, sk.validity)) continue;
-          if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
-          const ops = extra ? [...program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy")), ...(zone === "drop" && areaFlags(printed).drop ? dropSelfOps(program.ops) : [])]
+          if (sk.bond != null && !bondValid(src, p, sk)) continue;
+          const areaOps = extra ? [...program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy")), ...(zone === "drop" && areaFlags(printed).drop ? dropSelfOps(program.ops) : [])]
             : zone === "life" ? lifeSelfOps(program.ops)
             : zone === "warp" ? [...program.ops.filter((op) => (overRealm && op.op === "permit" && op.what === "overRealmFromWarp") || identityInAllAreas(op)), ...warpSelfOps(program.ops)]
             : zone === "combo" ? comboDepartures(program.ops) : program.ops;
+          const ops = extra || zone === "life" || zone === "warp" || zone === "combo" ? [...areaOps, ...allAreaKeywordOps(program.ops)] : areaOps;
           if (!ops.length) continue;
           collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, inPlay.has(zone), targets, holds, measure);
         }
@@ -791,8 +877,10 @@ export function permanents(
             if (sk.kind !== "permanent" || skillNegated(state, src, sk.index, sk.kind)) continue;
             const program = showing.scripts.bySkill[sk.index];
             if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
+            // R507/R509: exact descriptors belong to native arrival/history writers, not standing layers.
+            if (energyEntryDescriptor(program.ops) || standingWholeDescriptor(program.ops) || standingComboWholeDescriptor(program.ops) || activateUnderDescriptor(program.ops) || standingUnderPrinted(sk) && standingUnderScript(program)) continue;
             if (!sparkingIsValid(state, p, sk.validity)) continue;
-            if (sk.bond != null && (state.sides[p].zones.battle ?? []).length < sk.bond) continue;
+            if (sk.bond != null && !bondValid(src, p, sk)) continue;
             const ops = pileOps(program.ops);
             if (!ops.length) continue;
             collect(ctx, state, out, { ops: [], ip: 0, vars: {}, card: src, master: p, skillIndex: sk.index }, ops, true, targets, holds, measure);
@@ -926,7 +1014,7 @@ function collect(
       const against = op.against ? targets(frame, { ...op, target: op.against }) : undefined;
       // "…in response to this card's attack" (DB3-014): the attackers whose attack it forbids blocking, now.
       const attacker = op.attacker ? targets(frame, { ...op, target: op.attacker }) : undefined;
-      const forbid: Prohibition = { what: op.what, ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(against ? { against } : {}), ...(attacker ? { attacker } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: op.cardsOf === "opponent" ? otherPlayer(frame.master) : frame.master } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: targets(frame, { ...op, target: op.exceptCards }) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}), ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}), player, bySkill: op.bySkill };
+      const forbid: Prohibition = { what: op.what, ...(op.copiesOf ? { copiesOf: op.copiesOf, master: frame.master } : {}), ...(op.attackTarget ? { attackTarget: op.attackTarget } : {}), ...(attackOnly ? { attackOnly } : {}), ...(against ? { against } : {}), ...(attacker ? { attacker } : {}), ...(op.fromArea ? { fromArea: op.fromArea } : {}), ...(op.fromOwnArea ? { fromOwnArea: true } : {}), ...(uses != null ? { uses } : {}), ...(op.unless ? { unless: op.unless, master: frame.master } : {}), ...(op.unlessPay?.length ? { pay: op.unlessPay } : {}), ...(op.byTypes?.length ? { byTypes: op.byTypes } : {}), ...(op.turnPlayer ? { turnPlayer: true } : {}), ...(op.counterKind ? { counterKind: op.counterKind } : {}), ...(op.otherCards ? { otherCards: true } : {}), ...(op.extraCardActivation ? { extraCardActivation: true } : {}), ...(op.exceptEvolve ? { exceptEvolve: true } : {}), ...(op.exceptUnion?.length ? { exceptUnion: [...op.exceptUnion] } : {}), ...(op.skillKinds?.length ? { skillKinds: [...op.skillKinds] } : {}), ...(op.exceptOwnSkills || op.exceptSourceName ? { exceptSource: { ...(op.exceptOwnSkills ? { self: true as const } : {}), ...(op.exceptSourceName ? { name: op.exceptSourceName } : {}) } } : {}), ...(op.toArea ? { toArea: op.toArea } : {}), ...(op.toBottom ? { toBottom: true } : {}), ...(op.byFilter ? { byFilter: op.byFilter } : {}), ...(op.cardsOf ? { cardsOf: op.cardsOf === "opponent" ? otherPlayer(frame.master) : frame.master } : {}), ...(op.exceptKeyword ? { exceptKeyword: op.exceptKeyword } : {}), ...(op.costVsEnergy ? { costVsEnergy: op.costVsEnergy } : {}), ...(op.keywordSkill ? { keywordSkill: op.keywordSkill } : {}), ...(op.exceptCards ? { exceptCards: targets(frame, { ...op, target: op.exceptCards }) } : {}), ...(op.sameCharacterUnder ? { sameCharacterUnder: true } : {}), ...(op.exceptFilter ? { exceptFilter: op.exceptFilter } : {}), ...(op.exceptByFilter ? { exceptByFilter: op.exceptByFilter } : {}), player, bySkill: op.bySkill };
       if (op.target) {
         for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "forbid", target: id, value: forbid });
       } else {
@@ -957,7 +1045,7 @@ function collect(
     // hand raised every Battle Card (#459, `verify/compiler.ts`'s AURA case).
     if (
       !inPlayNow &&
-      (op.op === "power" || op.op === "comboPower" || op.op === "grant" || op.op === "negateKeyword" ||
+      (op.op === "power" || op.op === "comboPower" || op.op === "grant" || (op.op === "negateKeyword" && !selfKeywordInAllAreas(op)) ||
         (op.op === "modifyAttr" && (op.attr === "power" || op.attr === "comboPower" || op.attr === "keywords" || ((op.attr === "traits" || op.attr === "characters" || op.attr === "colors" || op.attr === "alsoNames") && !op.allAreas))) ||
         (op.op === "gains" && !op.allAreas))
     ) continue;
@@ -1061,7 +1149,7 @@ function collect(
       if (value == null) continue;
       // 20-21-2: an energy cost reduced "by {r}" keeps the orbs it was said in.
       const named = kind === "cost" && op.colors?.length ? { colors: op.colors } : {};
-      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...named });
+      for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind, target: id, value, ...(op.energyActivation ? { energyActivation: op.energyActivation } : {}), ...named });
       continue;
     }
     // 5-3: another price for the card itself — "you can play this card from
@@ -1116,7 +1204,7 @@ function collect(
       const redirect = isMarker ? null : redirectOf(op.with);
       // "…would be KO'd **in battle**" (BT17-139) keeps its narrower cause on the `ko` moment.
       const by = op.event === "ko" ? (op.by === "koInBattle" ? ("koInBattle" as const) : ("ko" as const)) : isLife || isMarker || op.by === "attack" ? undefined : op.by;
-      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}), ...(lifeSelf ? { lifeSelf: true as const } : {}) } : isMarker ? { kind: "marker" as const } : {};
+      const lifeFields = isLife ? { kind: "life" as const, ...(op.to ? { lifeTo: op.to } : {}), ...(lifeSelf ? { lifeSelf: true as const } : {}) } : isMarker ? { kind: "marker" as const } : op.event === "leave" && op.to ? { requestedTo: op.to } : {};
       const value: Replacement = redirect
         ? { to: redirect.to, from: op.from, by, bySide: op.bySide, mode: redirect.mode, position: redirect.position, optional: op.optional, ...lifeFields }
         : { from: op.from, by, bySide: op.bySide, optional: op.optional, ops: op.with, source: frame.card, master: frame.master, ...lifeFields, ...(frame.skillIndex !== undefined ? { skillIndex: frame.skillIndex } : {}) };
@@ -1134,6 +1222,7 @@ function collect(
     // `permits` condition additionally enforces that source and exact copy;
     // unionFusionWarp is scoped by condHolds to this card's Fusion from hand.
     if (op.op === "permit") {
+      if (op.what === "activateFromUnder") continue; // R514: original descriptor discovery owns this permission.
       if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp" && op.what !== "evolveEnergyBases" && op.what !== "evolveFromZEnergy" && op.what !== "unionFusionWarp" && op.what !== "unionFusionDropBottom" && op.what !== "unionEnergy" && op.what !== "unionSourceOpponentBattle" && op.what !== "playInOpponentBattle") continue;
       const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}), ...(op.line ? { line: op.line } : {}), ...(op.unionVariant ? { unionVariant: op.unionVariant } : {}), ...(op.price ? { price: op.price } : {}), ...(op.source ? { source: op.source } : {}), ...(op.n !== undefined ? { n: op.n } : {}) };
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });

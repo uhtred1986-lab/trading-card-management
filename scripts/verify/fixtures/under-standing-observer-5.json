@@ -1,0 +1,557 @@
+{
+  "BT23-070": {
+    "card": {
+      "id": "BT23-070",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Abducted",
+      "characters": [],
+      "traits": [],
+      "skill": "[permanent] Negate the skills of Battle Cards on top of this card, and those cards can't attack.<br>[activate: main] Choose up to 1 of your opponent's Battle Cards with <Son Gohan> in its character name and place this card under it from your Drop after this card is activated.<br>[activate: main]{2}: Place this card in your Drop from under a Battle Card with <Son Gohan> in its character name.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT23-070#0": {
+        "cardId": "BT23-070",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[permanent] Negate the skills of Battle Cards on top of this card, and those cards can't attack.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "negateSkills",
+            "target": {
+              "sel": {
+                "special": "onTop",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              }
+            },
+            "until": "game"
+          },
+          {
+            "op": "forbid",
+            "what": "attack",
+            "until": "game",
+            "target": {
+              "sel": {
+                "special": "onTop",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              }
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "negateSkills→forbid:attack",
+        "reads": "negate the skills of the Battle Card on top of this card, the Battle Card on top of this card can't attack"
+      },
+      "BT23-070#10": {
+        "cardId": "BT23-070",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[activate: main] Choose up to 1 of your opponent's Battle Cards with <Son Gohan> in its character name and place this card under it from your Drop after this card is activated.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [
+                  "Son Gohan"
+                ],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 of your opponent's Battle Cards with <Son Gohan> in its character name"
+          }
+        ],
+        "unread": [
+          "place this card under it from your Drop after this card is activated"
+        ],
+        "pattern": "place this card under it from your drop after this card is activated",
+        "reads": "choose up to 1 Battle Card with <Son Gohan> in its character name in your opponent's Battle Area"
+      },
+      "BT23-070#20": {
+        "cardId": "BT23-070",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[activate: main]{2}: Place this card in your Drop from under a Battle Card with <Son Gohan> in its character name.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {
+            "any": 2
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "Place this card in your Drop from under a Battle Card with <Son Gohan> in its character name"
+        ],
+        "pattern": "place this card in your drop from under a battle card with … in its character name",
+        "reads": ""
+      }
+    }
+  },
+  "BT24-090": {
+    "card": {
+      "id": "BT24-090",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Great Ape Son Gohan, Rampaging Calamity",
+      "characters": [
+        "Son Gohan: Youth"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling",
+        "Great Ape"
+      ],
+      "skill": "[barrier]<br>[permanent] If this card is in Rest Mode, your opponent's Battle Cards and Unisons can't attack your Leader.<br>[auto] When this card attacks, use up to 1 mono-yellow card with 5000 combo power from your Drop in a combo with its skills negated for the turn.<br>[activate: main][limit 1][spirit boost 1]{y}, if you have 4 or more energy and you return 1 of your Rest Mode <Hire-Dragon> cards to its owner's hand: Switch this card to Active Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT7-008": {
+    "card": {
+      "id": "BT7-008",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Wilderness Training Son Gohan",
+      "characters": [
+        "Son Gohan: Youth"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "skill": "[Auto] When you play this card, draw 1 card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT1-034": {
+    "card": {
+      "id": "BT1-034",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 25000,
+      "name": "Mighty Striker Son Gohan",
+      "characters": [
+        "Son Gohan: Adolescence"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "skill": "[Double Strike] (This card inflicts 2 damage instead of 1 when attacking)",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT6-083": {
+    "card": {
+      "id": "BT6-083",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 19000,
+      "name": "Display of Power Son Gohan",
+      "characters": [
+        "Son Gohan: Childhood"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "skill": "[Barrier]<br>[Auto] At the end of your turn, switch this card to Active Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Display of Power Son Gohan",
+        "qa": [
+          {
+            "q": "This card’s effect was negated by {BT1-107 Cold Bloodlust}. Does its auto skill activate at the end of the turn?",
+            "a": "Yes, it does.\nAfter the “duration of the turn” part of {BT1-107 Cold Bloodlust}’s effect ends, this card’s auto skill activates."
+          }
+        ]
+      }
+    ]
+  },
+  "BT1-043": {
+    "card": {
+      "id": "BT1-043",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "12",
+      "specified": null,
+      "z": null,
+      "power": 40000,
+      "name": "Whis, Judge of the Gods",
+      "characters": [
+        "Whis"
+      ],
+      "traits": [
+        "God"
+      ],
+      "skill": "[Quadruple Strike] (This card inflicts 4 damage instead of 1 when attacking)<br>[Permanent] This card's attack and skill cannot be negated.[Auto] When you play this card, if your Leader Card is &lt;Beerus&gt;, after your current turn ends, take another turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "FAQ": [
+      {
+        "name": "Whis, Judge of the Gods",
+        "qa": [
+          {
+            "q": "What does {BT1-043 Whis, Judge of the Gods}’s auto skill “after your current turn ends, take another turn” mean?",
+            "a": "The opponent does not start their turn after you end your turn. You get to play a full extra turn - from Charge Phase to End Phase - instead."
+          },
+          {
+            "q": "Can {BT1-043 Whis, Judge of the Gods} attack even when there are active effects that prevent Battle Cards from attacking?",
+            "a": "No, it cannot.\n“Battle Cards cannot attack” and similar effects don’t negate attacks; they simply prevent Battle Cards from attacking at all."
+          }
+        ]
+      }
+    ]
+  },
+  "TB1-097": {
+    "card": {
+      "id": "TB1-097",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "8",
+      "specified": null,
+      "z": null,
+      "power": 45000,
+      "name": "Son Goku, The Awakened Power",
+      "characters": [
+        "Son Goku"
+      ],
+      "traits": [
+        "Saiyan",
+        "Universe 7"
+      ],
+      "skill": "[ex-evolve] {1}, place 1 ≪Universe 7≫ from your hand in the Drop Area: ≪Universe 7≫ <Son Goku> with an energy cost of 6 or more.<br>[ultimate] <br>[victory strike](When you deal life damage by attacking with this card, you win the game)<br>[permanent] This card's attack and skill cannot be negated.",
+      "backName": null,
+      "backSkill": null
+    },
+    "FAQ": [
+      {
+        "name": "Son Goku, The Awakened Power",
+        "qa": [
+          {
+            "q": "You use [EX-Evolve] to play a card on top of a card in Rest Mode. What position does the evolved card enter play in?",
+            "a": "It enters play in Rest Mode.\nCards played on top of other cards retain the position of the cards placed below them."
+          },
+          {
+            "q": "You use [EX-Evolve] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card?",
+            "a": "The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not carry over to the new card."
+          },
+          {
+            "q": "Can this card attack even when effects like “Battle Cards can’t attack” are in effect?",
+            "a": "No, it can’t.\n“Battle Cards can’t attack” effects are not effects which negate attacks."
+          },
+          {
+            "q": "When this card attacks, can your opponent activate [Blocker]?",
+            "a": "Yes, they can."
+          },
+          {
+            "q": "What happens when you deal damage to an opponent’s life using a card that has both [Double Strike] and [Victory Strike]?",
+            "a": "You win the game."
+          },
+          {
+            "q": "If your opponent’s Leader Card is {BT2-034 Absolute God Fused Zamasu}, can you win the game using [Victory Strike]?",
+            "a": "Yes, you can."
+          }
+        ]
+      }
+    ]
+  },
+  "P-680": {
+    "card": {
+      "id": "P-680",
+      "type": "BATTLE",
+      "colors": [
+        "Black"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Demon God Dabura, Counter",
+      "characters": [
+        "Dabura: Xeno"
+      ],
+      "traits": [
+        "Demon Realm Race",
+        "Demon God"
+      ],
+      "skill": "[Dark Over Realm 4] [Blocker]\n[br]\n[Permanent] Skills on your Battle Cards can't be negated by your opponent's skills.\n[br]\n[Permanent] Your cards can't be switched to Rest Mode by your opponent's skills.",
+      "backName": null,
+      "backSkill": null
+    },
+    "FAQ": []
+  }
+}

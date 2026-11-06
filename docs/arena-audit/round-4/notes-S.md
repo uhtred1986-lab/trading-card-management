@@ -1,5 +1,8 @@
 # Lane S (selectors), round 4 — what round 3 left
 
+**4 November follow-up:** [Seven condition misreads repaired](conditions-followup.md).
+The original findings below remain the historical round-3 handoff.
+
 From round 3's fix agent and adversarial reviewer (integration 4, #1246). Check each item against the printed text and the current reading (`npm run arena:compile-snapshot` on a fresh snapshot) before working it: some may have been fixed in passing.
 
 ## Audit findings still misread (10)
@@ -100,8 +103,8 @@ VERIFIER: The stored condition is any(count zEnergy >= 5, count your Battle Area
 ## Round 3 reviewer's open doubts (6)
 
 - **BT2-048#0 (and DB1-093#20, same wording)** — Not repaired. 'Choose 1 keyword skill … and negate it' still offers 'None'. The exact pick needs a field on negateChosenKeyword, which is a macro over negate with a DEFINE OP in both rulesets (dbs and fusion ops.rules plus the generated files.ts), so it is not a contained change. Low impact: the player can decline a negation they would normally take.
-- **BT12-005#0, BT12-006#10, BT12-009#10, BT12-010#10** — Pre-existing scope issue the fix agent's change kept. 'If you didn't play a card, place this face-up card in your Drop Area' is nested inside the 'you may'. If the player pays {r}{r} and then declines the offer, the card stays face up in the life instead of going to the Drop. Rare in practice, since a player who will not play it does not pay.
-- **BT7-094#10 (alreadyFixed)** — Now reads '<goku black> cards you have in play', which takes in the Unison Area as well as the Leader and Battle Areas the card prints. This only over-reads if a <Goku Black> Unison exists.
+- **BT12-005#0, BT12-006#10, BT12-009#10, BT12-010#10** — Audit inference corrected on 4 Nov 2026: the actual program is `may(top deck → life); choose self; play self; if not did(play): self from life → Drop`, under the printed Leader/energy condition. The fallback is already outside `may`; the prose reading obscured the scope. Play also runs outside the offer, matching the existing `then` convention and R-322's owner precedent for an offer without `If you do`. No direct card Q&A or erratum establishes an exception. Keep the current program; a card-specific ruling would be needed to change that interpretation. See [the structural review](on-board-area-followup.md).
+- **BT7-094#10** — Addressed in PR #1249's [explicit-area follow-up](on-board-area-followup.md): the condition now uses exactly the controller's Leader and Battle Areas. Matching cards in the Unison Area, other areas or the opponent's areas do not enable free play. Generic 'in play' still includes the Unison Area.
 - **P-487#10** — Out of lane (lane E's finding), but its describer line changed here ('all' to 'a'). This [Auto] ('when one of your green <Vegeta> cards with [blocker] and without ≪Great Ape≫ is removed…, play this card') is stored as a replacement on '≪great ape≫' cards. Its trait and kind are both wrong. Check lane E's branch.
 - **EX06-31#0, P-268, TB2-065** — Both-players readings still rest on pending owner rulings R-321 and R-323. EX06-31 has no Q&A.
 - **BT21-075#10, BT21-090#0, BT21-091#20** — The 'or 1 Earthling Token' alternative is read as the opponent's token, carrying 'your opponent's' over from the first description; P-507 prints 'of their' outright. These three have no Q&A.
@@ -131,6 +134,10 @@ VERIFIER: The stored condition is any(count zEnergy >= 5, count your Battle Area
 - BT21-118#10: 'all of the chosen cards' must include the price's two rested energy (official Q&A) — not reached.
 - DB3-023#0: [Blocker] ban must be scoped to the chosen card's attack (forbid block + attacker scope) — not reached.
 - DB3-129#10: Negate the opponent's [Counter: Attack] being answered, not one of your Battle Cards — not reached.
-- P-093#20: Skill ban scope (Battle Area only; combo [Auto]s allowed per official Q&A) — not reached.
+- P-093#20: The earlier Battle Area fix scoped ordinary activation but left its Counter prohibition global. PR #1249 now [scopes all three projections consistently](battle-skill-ban-followup.md), preserving hand Counters and Combo/Drop Autos.
 - P-645#10: 'in Active Mode or Rest Mode' play choice — not reached.
 - lane4-S-unread.md (278 skills, 256 clusters): Unread selector families not reached this round (context budget spent on the 72 findings).
+
+## Bounded keyword-negation follow-up
+
+The mandatory-choice gap for BT2-048 and DB1-093 and official-Q&A Barrier handling are addressed in [keyword-negation-followup.md](keyword-negation-followup.md). The same PR now preserves individual printed/timed/standing keyword instances, so other copies and later grants remain active. The receipt records saved-prompt compatibility and the remaining selector work. BT22-037's copied chosen skill remains unread.

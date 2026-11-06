@@ -250,7 +250,7 @@ let records = 0;
   // H4: P-093 — a Battle Card is one in a Battle Area (Q&A: the Drop's skills and combo [Auto]s still work); "in any Area" stays every area.
   const ban = opOf(record("[auto] [sparking 10] (This skill takes effect when you have 10 or more cards in your Drop Area.) When a card evolves into this card, your opponent can't activate skills on Battle Cards for the duration of the turn.", "AS3-H-P093").ops, "forbid");
   assert.equal(ban.find((o) => o.what === "activateSkill")?.fromArea, "battle", "H4 — the skills of Battle Cards in a Battle Area");
-  assert.ok(ban.some((o) => o.what === "activateCounter") && ban.some((o) => o.what === "block"), "H4 — [Counter] lines and [Blocker] stay A2's");
+  assert.deepEqual(ban.filter((o) => o.what === "activateCounter" || o.what === "block").map((o) => [o.what, o.fromArea]), [["activateCounter", "battle"], ["block", "battle"]], "H4 / R-403 — [Counter] and [Blocker] share the Battle Area scope");
   // H5: BT18-008 — "the Z-Battle Card" is the one this card was placed under.
   const pan = record("[Auto] If your Leader is a <Pan> card: When this card is placed under one of your Z-Battle Cards, the Z-Battle Card gets +5000 power for the turn.", "AS3-H-BT18008");
   assert.equal(selOf(opOf(pan.ops, "power")[0]).special, "onTop", "H5 — the card on top of this one, not every Z-Battle Card");

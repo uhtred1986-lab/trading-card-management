@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty, rulesFromCompiler } from "./harness";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
+import { vmHost } from "../../src/lib/arena/vm/host";
 import { run } from "../../src/lib/arena/vm/flow";
 import { moveCard, newCard } from "../../src/lib/arena/vm/zones";
 import { tokenCardId } from "../../src/lib/arena/vm/common";
@@ -269,9 +270,9 @@ try {
     assert.equal(unisonToLeader.move.to, "removed", "leaving Unison removes the Z-Card even when its destination is Leader");
 
     const zBattleTransfer = stage(state, "p1", "Z551_ZBATTLE", "battle");
-    const transfer = moveCard(state, dbs, zBattleTransfer, "battle", { owner: "p2" });
-    assert.ok(transfer.ok);
-    assert.equal(transfer.move.to, "removed", "16-1-4 removes a Z-Battle transferred out of its controller's Battle Area to the other player's Battle Area");
+    vmHost(stackCtx, dbs, state, []).move(zBattleTransfer, "battle", "p2", { reason: "effect", carry: true });
+    assert.ok(state.sides.p2.zones.battle.includes(zBattleTransfer), "Gaining Control FAQ Q5 preserves an actual Z-Battle transfer between Battle Areas");
+    assert.ok(!state.sides.p1.zones.removed.includes(zBattleTransfer));
 
     // Use the real 22-46 [Z-Awaken] action to create the stack. The old Leader
     // has awakened and carries another card underneath. The real attack

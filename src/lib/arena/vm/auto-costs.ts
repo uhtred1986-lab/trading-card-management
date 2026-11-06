@@ -1,3 +1,12 @@
+import { captureSelectedWarp, publishPaidWarp } from './paid-warp-runtime';
+import { WARP_PAYERS } from './paid-warp-contract';
+import { paymentEffectFrame } from "./applied-effect-receipt";
+import { requireAutoPlayCost, underOpponentPlayPrice } from "./auto-play-cost";
+import { payUnderOpponentPlay, prepareAutoPlayCost, requireAutoPlayProgram } from "./auto-play-cost-runtime";
+import { guardCostEnergyEntry } from "./energy-entry-preflight";
+import { captureTaxPayers, taxPayerProblem, taxPayerProgramProblem, markTaxPayerPaid, type TaxPayers } from "./tax-payers";
+import { bindPaidMarkers } from "./paid-markers";
+import { pooledPaymentVariants } from "./pooled-costs";
 import { skillPriceProblem } from "./skill-payment";
 /** Auto payment planning and its stored checkpoint continuation (#549). */
 import type { EngineContext, GameEvent, PlayerId, Skill } from "../types";
@@ -5,12 +14,12 @@ import type { GameDefinition } from "../rulesets";
 import { selectedCount, stepScript, type Op, type Ref, type Script, type ScriptFrame } from "./script";
 import type { ScriptHost } from "./script-host";
 import { vmHost } from "./host";
-import { boundFor, queueTaxGate, scopedPayersSpent, type TaxGate } from "./activate";
+import { activationTaxes, unpaidActivationTax, burstNegated, boundFor, queueTaxGate, scopedPayersSpent, type TaxGate } from "./activate";
 import { IllegalAction, sideOf } from "./common";
 import { NotYet, RulesetBroken } from "./errors";
 import { describeScript } from "./script-schema";
 import { activeEnergy, cardColors, chargeCost, payersFor, planCost, priceFor, spendSkillCostUses, type Price, type VmPayment } from "./costs";
-import { log } from "./events";
+import { fire, log } from "./events";
 import { hasPossibleReplacement, possibleAltPaymentReplacement, staticsNow } from "./program";
 import type { VmState } from "./state";
 import { skillsShowing } from "./triggers";
@@ -28,7 +37,8 @@ export interface AutomaticCost {
   effect: Op[];
   costs: string[];
   choices: { price: Price; payment: VmPayment; label: string; x?: number }[];
-  stage: "offer" | "action";
+  stage: "offer" | "pools" | "action";
+  selectedChoice?: number;
   /**
    * #677: the 20-14 prices a rule puts on activating this [Auto], part of the
    * one cost its master pays in its entirety or not at all (9-6-4) — named on
@@ -36,11 +46,39 @@ export interface AutomaticCost {
    * skill is activated (`vm/activate.ts`'s `TaxGate`). Additive.
    */
   taxGate?: Omit<TaxGate, "guards">;
+  reviveSource?: import("./revive-costs").ReviveSource;
+  reviveTax?: { version: 1; phase: "printed" | "tax"; paying?: string; aliases?: string[]; payers?: TaxPayers };
+}
+
+/** Only the current tax's aliases are payers: the original Revive source and
+ * already paid color aliases must not become a new source-presence condition. */
+export function reviveTaxPayers(state: VmState, frame: ScriptFrame, capture = false): void {
+  const tax = frame.autoCost?.reviveTax;
+  if (!tax) return;
+  if (tax.version !== 1 || !["printed", "tax"].includes(tax.phase) || (tax.phase === "tax" && (typeof tax.paying !== "string" || !tax.paying)) || (tax.phase === "printed" && (tax.paying !== undefined || tax.aliases !== undefined || tax.payers !== undefined))) throw new NotYet("rebuild saved Revive tax phase", "R467");
+  if (tax.phase === "printed") return;
+  if (!Array.isArray(tax.aliases) || tax.aliases.some(a => typeof a !== "string" || a.startsWith("§")) || new Set(tax.aliases).size !== tax.aliases.length || taxAliases(frame.ops).some(a => !tax.aliases!.includes(a)) || !tax.payers) throw new NotYet("rebuild saved Revive tax payer contract", "R467");
+  const vars = Object.fromEntries(Object.entries(frame.vars).filter(([name]) => tax.aliases!.includes(name)));
+  const problem = taxPayerProblem(state, vars, tax.payers, !capture);
+  if (problem === "stale") throw new IllegalAction("that Revive tax payer occurrence is no longer available");
+  if (problem) throw new NotYet("rebuild saved Revive tax payer occurrences", "R467");
+  if (capture) captureTaxPayers(state, vars, tax.payers);
+}
+function taxAliases(ops: Op[]): string[] {
+  const found: string[] = [];
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(walk); return; }
+    if (!value || typeof value !== "object") return;
+    const object = value as Record<string, unknown>;
+    if (typeof object.op === "string" && typeof object.as === "string") found.push(object.as);
+    Object.values(object).forEach(walk);
+  };
+  walk(ops); return found;
 }
 
 /** A supported action-price must complete every instruction (5-8-2-2). */
-export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): ScriptHost {
-  const host = vmHost(ctx, game, state, ev);
+export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], payingFrame?: ScriptFrame, receiptFrame: ScriptFrame | undefined = payingFrame): ScriptHost {
+  const host = vmHost(ctx, game, state, ev, paymentEffectFrame(receiptFrame));
   const unpaid = () => { throw new IllegalAction("the Auto skill cost cannot be paid in its entirety"); };
   /** The interpreter's KO skips these cards silently (`stepScript`'s `ko`,
    * `koCard`'s 20-14 read); a skipped KO is no payment (5-8-2-2). */
@@ -65,6 +103,21 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
   const poweredPrice = (id: string): boolean => !!state.cards[id] && ["battle", "leader"].includes(host.areaOf(id) ?? "");
   return {
     ...host,
+    playAsCost: true,
+    playThen: (cards, opts, frame) => payUnderOpponentPlay(ctx, game, state, ev, host, cards, opts, frame,
+      () => { throw new AutoPaymentFailed("the original Auto play payment did not complete"); }),
+    taxesOn: (what, opts) => {
+      const taxes = host.taxesOn(what, opts);
+      if (what === "play" && taxes.length) throw new NotYet("pay an Auto play cost with an additional play tax", "R510");
+      return taxes;
+    },
+    guardEnergyEntryFrame: frame => {
+      if (frame.autoPlayCost || underOpponentPlayPrice(frame.ops)) {
+        requireAutoPlayProgram(ctx, frame);
+        if (!frame.vars || typeof frame.vars !== "object" || Array.isArray(frame.vars)) throw new NotYet("rebuild this Auto play-cost variable bindings", "R510");
+      }
+      guardCostEnergyEntry(ctx,state,host,frame); host.guardEnergyEntryFrame?.(frame);
+    },
     forbids: (what, opts) => {
       if (host.forbids(what, opts)) unpaid();
       return false;
@@ -76,11 +129,16 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
     replacementsFor: (id, reason, opts) => host.replacementsFor(id, reason === "ko" ? "ko" : "cost", { ...opts, actor: undefined }),
     resolveSelector: (f, sel) => {
       let found = host.resolveSelector(f, sel);
-      // #716: a [Counter] declared from the hand is the card being activated;
-      // it cannot also be one of the cards its own price picks out.
-      if (f.counterCost && !sel.special) found = found.filter((id) => id !== f.card);
+      // R462 excludes the activating Extra from its energy alternative.
+      // R453 permits post-Drop skill costs to choose it unless printed otherwise;
+      // other Counter origins retain their existing exclusion.
+      if (f.counterCost && f.counterCost.extra?.phase !== "skillAction" && !sel.special) found = found.filter((id) => id !== f.card);
       const op = f.ops[f.ip];
       if (op?.op === "choose" && op.sel === sel) {
+        if (underOpponentPlayPrice(f.ops)?.as === op.as) {
+          requireAutoPlayProgram(ctx, f);
+          found = found.filter(id => !host.forbids("play", { player: f.master, card: id, source: f.card, bySkill: false }));
+        }
         const following = f.ops.slice(f.ip + 1).find((o) => (o.op === "switchMode" || o.op === "hidden" || o.op === "ko" || o.op === "comboFrom") && "var" in o.target && o.target.var === op.as);
         if (following?.op === "switchMode") found = found.filter((id) => host.modeOf(id) !== following.mode);
         if (following?.op === "hidden") found = found.filter((id) => host.isHidden(id) !== following.hidden);
@@ -99,8 +157,14 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       return found;
     },
     resolveRef: (f, ref) => {
+      reviveTaxPayers(state, f, true);
       const found = host.resolveRef(f, ref);
       const op = f.ops[f.ip];
+      if (f.paidWarp && op?.op === "moveTo" && op.completedAs === WARP_PAYERS && op.target === ref) captureSelectedWarp(ctx, state, f, found, host.nameOf);
+      if (op?.op === "play") {
+        requireAutoPlayProgram(ctx, f);
+        if (found.length !== 1) unpaid();
+      }
       // The ordinary effect interpreter skips Leader departures. A skipped
       // instruction cannot count as a completed cost.
       if (op?.op === "moveTo" && ref === op.target
@@ -161,12 +225,24 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       if (host.areaOf(id) === to) unpaid();
       // A combo paid as a cost is still a combo (5-7-3-1), as a cost KO is a
       // KO; its arrival in the Combo Area is verified below (5-8-2-2-1-1).
-      const actual = host.move(id, to, owner, { ...opts, reason: opts?.reason === "combo" && to === "combo" ? "combo" : "cost" });
-      if (actual !== to || host.areaOf(id) !== to || (to === "deck" && opts?.position === "bottom" && host.zone(owner, "deck").at(-1) !== id)) {
+      // R-427 / 5-8-2-2-1: a replaced original action is not paid merely
+      // because the replacement happens to land in the same area. Explicit
+      // alternative/modified price instructions already name their own `to`.
+      const originalEpoch = state.cards[id]?.zoneEpoch ?? 0;
+      let completed = false;
+      const actual = host.move(id, to, owner, { ...opts, reason: opts?.reason === "combo" && to === "combo" ? "combo" : "cost",
+        onResult: result => { completed = result.completed; opts?.onResult?.(result); } });
+      if (!completed || actual !== to || host.areaOf(id) !== to || (to === "deck" && opts?.position === "bottom" && host.zone(owner, "deck").at(-1) !== id)) {
         const replaced = opts?.replaced;
         if (replaced?.deferred && replaced.ops?.length) state.programs.unshift({ ops: replaced.ops, ip: 0, vars: {}, card: replaced.source ?? id, master: replaced.master ?? host.masterOf(id), subject: id, replacing: id, ...(replaced.skillIndex !== undefined ? { skillIndex: replaced.skillIndex } : {}), ...(replaced.optional ? { offered: true as const } : {}) });
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
       }
+      const tax = payingFrame?.autoCost?.reviveTax;
+      if (tax?.paying && tax.payers) markTaxPayerPaid(tax.payers, id, originalEpoch);
+      const revive = payingFrame?.reviveCost;
+      if (revive && to === "drop" && payingFrame!.vars[revive.variable]?.includes(id) && !revive.paid.includes(id)) revive.paid.push(id);
+      const extra = payingFrame?.counterCost?.extra;
+      if (extra?.phase === "skillAction" && id === payingFrame!.card) extra.source = { card: id, cardId: state.cards[id].cardId, epoch: state.cards[id].zoneEpoch ?? 0, area: host.areaOf(id) ?? "" };
       return actual;
     },
     // 5-12-1 / 5-8-2-2-1-1: a KO price is paid only when the Battle Card
@@ -183,8 +259,8 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
         throw new AutoPaymentFailed("a replacement caused the Auto skill cost payment to fail");
       }
     },
-    placeUnder: (id, top) => {
-      if (id === top || !state.cards[id] || !state.cards[top] || state.cards[top].under.includes(id) || !host.placeUnder(id, top)
+    placeUnder: (id, top, frame, onResult) => {
+      if (id === top || !state.cards[id] || !state.cards[top] || state.cards[top].under.includes(id) || !host.placeUnder(id, top, frame, onResult)
         || !state.cards[top].under.includes(id)) unpaid();
       return true;
     },
@@ -493,34 +569,48 @@ export function interchangeableCandidates(ctx: EngineContext, game: GameDefiniti
   return classes;
 }
 
+/** R-399: resource subsets can share the existing conservative state symmetry.
+ * A positional or bulk read of the destination also distinguishes payers. */
+export function interchangeablePoolCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, candidates: string[], source: string, destination: string): Map<string, string> {
+  const fixed = staticPositionalAreas(ctx, game, state);
+  for (const value of [state.programs, state.effects, state.delayed, state.pending, frame.ops]) positionalAreas(value, fixed);
+  if (ORDERED_ZONES.has(destination) || [...fixed].some(area => areaReads(game, area, destination)) || bulkReads(game, frame.ops.slice(frame.ip), destination)) fixed.add(source);
+  const simulated = { ...state, programs: state.programs[0] === frame ? state.programs : [frame, ...state.programs] };
+  return interchangeableCandidates(ctx, game, simulated, frame, candidates, fixed);
+}
+
 /** Preflight on an isolated board, including earlier instructions and all
  * source/event/X bindings. No cost, trigger or prompt escapes this simulation.
  * Choices are single-card interpreter answers, so every branch is replayable;
  * an interchangeable candidate is represented by the first of its class. */
-export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, { symmetry = true }: { symmetry?: boolean } = {}): boolean {
+export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, { symmetry = true, complete, hostForProof }: { symmetry?: boolean; complete?: (state: VmState, frame: ScriptFrame) => boolean; hostForProof?: (state: VmState, frame: ScriptFrame) => ScriptHost } = {}): boolean {
   // Other price grammars can have order-dependent choices and replacements.
   // Keep an explicit unknown when their search is too large; never equate an
   // unfinished proof with an unaffordable price.
   let budget = 2000;
   const failed = new Set<string>();
-  const fixedPositional = symmetry ? staticPositionalAreas(ctx, game, state) : null;
+  // An opaque remaining-cost proof may distinguish otherwise equivalent cards.
+  const fixedPositional = symmetry && !complete && !hostForProof ? staticPositionalAreas(ctx, game, state) : null;
   const visit = (s: VmState, f: ScriptFrame): boolean => {
     if (--budget < 0) throw new NotYet("plan this Auto action price within the bounded choice search", "#549");
-    if (cannotRestSourceAfterHandPrice(ctx, game, s, f)) return false;
+    if (!hostForProof && cannotRestSourceAfterHandPrice(ctx, game, s, f)) return false;
     // The same exact board, stored aliases and answer cursor has the same
     // continuations. This caches only proven failures; chosen order is kept.
     const key = JSON.stringify([s, f]);
     if (failed.has(key)) return false;
     s.programs = [];
     try {
-      const result = stepScript(automaticPriceHost(ctx, game, s, []), f);
-      if (result === "done") return true;
+      const result = stepScript(hostForProof ? hostForProof(s, f) : automaticPriceHost(ctx, game, s, [], f), f);
+      if (result === "done") {
+        if (f.autoPlayCost && requireAutoPlayCost(f).phase !== "paid") return false;
+        return complete ? complete(s, f) : true;
+      }
       if (s.programs[0] !== f) return false;
       const prompt = s.prompt;
       const same = prompt.kind === "chooseCards" && fixedPositional ? interchangeableCandidates(ctx, game, s, f, prompt.choice.candidates, fixedPositional) : new Map<string, string>();
       const choices = prompt.kind === "chooseCards" ? [ ...(prompt.choice.min === 0 ? [[]] : []), ...prompt.choice.candidates.filter((id) => !same.has(id)).map((id) => [id]) ] : [];
       const modes = prompt.kind === "replaceMove" || prompt.kind === "chooseMode" ? prompt.options.map((_, index) => index) : [];
-      const transfer = prompt.kind === "chooseCards" ? directNamedTransfer(ctx, game, s, f, prompt.choice.candidates) : null;
+      const transfer = !hostForProof && prompt.kind === "chooseCards" ? directNamedTransfer(ctx, game, s, f, prompt.choice.candidates) : null;
       if (transfer && !transfer.enough) return false;
       const ordered = transfer ? choices.sort((a, b) => Number(transfer.favored.has(b[0])) - Number(transfer.favored.has(a[0]))) : choices;
       for (const answer of [...ordered.map((cards) => ({ cards })), ...modes.map((index) => ({ index }))]) {
@@ -545,6 +635,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
 /** Refuse unimplemented instructions explicitly, rather than calling an
  * unsupported price unaffordable or letting its effect run for free. */
 export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549", { draw = false }: { draw?: boolean } = {}): void {
+  if (label === "Auto" && underOpponentPlayPrice(ops)) return;
   const pays = (branch: Op[]): boolean => branch.some((op) => op.op === "moveTo" || op.op === "discard" || op.op === "mill"
     || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal" || op.op === "faceUp"
     || op.op === "ko" || op.op === "addMarker" || op.op === "forbid" || op.op === "comboFrom" || op.op === "power"
@@ -696,6 +787,7 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
   if (paymentGap) throw new NotYet(`read this Auto's typed skill cost (${paymentGap})`, "#549");
   const ops = script.price?.ops ?? [];
   readableAutomaticPrice(ops);
+  if (underOpponentPlayPrice(ops)) prepareAutoPlayCost(ctx, state, frame, ops, vmHost(ctx, game, state, []));
   const costs = game.actions.activate?.cost;
   if (!costs) throw new RulesetBroken(game.id, "automatic skill costs need the declared activation prices");
   const line = { card: frame.card, skillIndex: skill.index, skill, kind: skill.kind, script: { ...script, price: script.price ? { ...script.price, payWith: [] } : undefined } };
@@ -725,16 +817,17 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
     const payments = plan.asks && plan.options.length > 1 ? plan.options.map((option) => planCost(ctx, game, state, frame.master, price, frame.card, option.rest)) : [plan];
     for (const paymentPlan of payments) {
       if (!paymentPlan.ok) continue;
-      const clone = structuredClone(state);
-      try {
-        chargeAutomaticPayment(ctx, game, clone, [], frame, paymentPlan.payment, costs);
-      } catch (err) {
-        if (err instanceof IllegalAction) continue;
-        throw err;
-      }
       const paying = { ...frame, ops, ...(x ? { x: n } : {}) };
-      if (!canFinishAutomaticPrice(ctx, game, clone, paying)) continue;
-      choices.push({ price, payment: paymentPlan.payment, label: `${x ? `X = ${n}; ` : ""}${automaticPriceLabel(paymentPlan.describe, ops)}`, ...(x ? { x: n } : {}) });
+      const variants = ops.length && !ops.every(op => op.op === "skip" || op.op === "draw")
+        ? pooledPaymentVariants(ctx, game, state, paying, price, paymentPlan.payment) : [paymentPlan.payment];
+      for (const payment of variants) {
+        const clone = structuredClone(state);
+        try { chargeAutomaticPayment(ctx, game, clone, [], frame, payment, costs); }
+        catch (err) { if (err instanceof IllegalAction) continue; throw err; }
+        if (!canFinishAutomaticPrice(ctx, game, clone, paying)) continue;
+        choices.push({ price, payment, label: `${x ? `X = ${n}; ` : ""}${automaticPriceLabel(paymentPlan.describe, ops)}`, ...(x ? { x: n } : {}) });
+        break;
+      }
     }
   }
   return { skill, effect: frame.ops, costs, choices, stage: "offer" };
@@ -743,6 +836,35 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
 /** Finish the activation only after the entire action price completed. */
 export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }): void {
   const cost = frame.autoCost!;
+  if (underOpponentPlayPrice(frame.ops) && !frame.autoPlayCost) requireAutoPlayCost(frame);
+  if (frame.autoPlayCost && (requireAutoPlayCost(frame).phase !== "paid" || cost.taxGate)) {
+    throw new NotYet("finish this Auto play cost before its full payment and supported activation", "R510");
+  }
+  if (frame.autoPlayCost) requireAutoPlayProgram(ctx, frame);
+  // R467: a Revive tax is still a cost. Reuse the strict action-price
+  // runner, rather than generic TaxGate's ordinary effect interpreter.
+  if (cost.reviveTax && cost.taxGate) {
+    const tax = cost.reviveTax, gate = cost.taxGate;
+    if (tax.version !== 1 || frame.viaKeyword !== "Revive" || cost.skill.keyword?.name !== "Revive" || gate.card !== frame.card || gate.player !== frame.master || gate.skillKind !== "auto") throw new NotYet("rebuild saved Revive activation tax", "R467");
+    if (tax.paying) {
+      reviveTaxPayers(state, frame);
+      if (cost.stage !== "action" || frame.ip < frame.ops.length || frame.awaiting) throw new NotYet("rebuild incomplete Revive tax settlement", "R467");
+      gate.paid.push(tax.paying); tax.phase = "printed"; delete tax.paying; delete tax.aliases; delete tax.payers;
+    }
+    const owed = activationTaxes(ctx, game, state, gate.player, gate.card, gate.skillKind, gate.from).filter(t => !gate.paid.includes(t.key) && !gate.free.includes(t.key));
+    if (owed.length) {
+      if (unpaidActivationTax(ctx, game, state, gate.player, gate.card, owed)) { log(ev, { type: "note", text: "Revive activation failed: its additional activation tax cannot be paid" }); return; }
+      if (taxPayerProgramProblem(owed[0].ops)) throw new NotYet("bind successive Revive tax aliases", "R467");
+      tax.phase = "tax"; tax.paying = owed[0].key; tax.aliases = taxAliases(owed[0].ops); tax.payers = {};
+      for (const alias of tax.aliases) { delete frame.vars[alias]; delete frame.vars[`${alias}@epoch`]; }
+      cost.stage = "action";
+      frame.ops = structuredClone(owed[0].ops); frame.ip = 0;
+      delete frame.awaiting; delete frame.moveLoop;
+      state.programs.unshift(frame);
+      return;
+    }
+    delete cost.taxGate; delete cost.reviveTax;
+  }
   // #677: the printed price is paid; the rule's prices come next, and the
   // activation itself only once they are — this same frame, with nothing left
   // to pay, is what the gate lets through (or drops, if they can't be paid).
@@ -755,12 +877,18 @@ export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, st
     queueTaxGate(state, gate, 1);
     return;
   }
+  publishPaidWarp(ctx, game, state, frame);
   // 22-11-2 / 22-44-3 (#741): the paid Auto is activated — one use spent, on
   // the copy for [Once per turn] and across copies for [Limit X].
   spendUse(state, frame.master, frame.card, cost.skill);
   spendSkillCostUses(ctx, game, state, ev, frame.card, cost.skill);
   log(ev, { type: "skill", card: frame.card, skill: frame.skillIndex ?? cost.skill.index, master: frame.master, text: cost.skill.raw, inBattle: !!state.battle,
     ...(frame.autoRevealEpoch === undefined ? {} : { reveal: true as const, revealEpoch: frame.autoRevealEpoch }) });
+  // R467 / 22-34-3: Revive activates only after both its original-colour
+  // payment and every additional price/tax. The later play may still fail.
+  if (frame.viaKeyword === "Revive" && cost.skill.keyword?.name === "Revive") {
+    fire(ctx, game, state, { event: "keywordActivated", card: frame.card, controller: frame.master, args: { keyword: "Revive", from: "drop" } });
+  }
   const effect = { ...frame, ops: cost.effect, ip: 0 };
   delete effect.autoCost;
   delete effect.awaiting;
@@ -770,11 +898,11 @@ export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, st
 
 /** Verify declared resource instructions completed too: Burst/life movement
  * replacements cannot turn a known price into a partial payment (5-8-2-2). */
-function chargeAutomaticPayment(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, payment: VmPayment, costs: string[]): void {
+export function chargeAutomaticPayment(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, payment: VmPayment, costs: string[]): ReturnType<typeof chargeCost> {
   for (const id of payment.rest) {
     if (state.cards[id]?.mode !== "active") throw new IllegalAction("this Auto payment is no longer payable");
   }
-  chargeCost(ctx, game, state, ev, frame.master, payment, frame.card, costs);
+  const paid = chargeCost(ctx, game, state, ev, frame.master, payment, frame.card, costs);
   for (const pooled of payment.pooled) {
     const op = game.costs[pooled.cost]?.do[0];
     if (op?.op !== "moveTo") throw new NotYet("verify this Auto's pooled payment", "#549");
@@ -783,6 +911,7 @@ function chargeAutomaticPayment(ctx: EngineContext, game: GameDefinition, state:
       if (!where) throw new IllegalAction("the Auto's pooled skill cost was replaced and cannot be paid");
     }
   }
+  return paid;
 }
 
 /** JSONB reload may reorder object keys; compare payment values, not encoding. */
@@ -793,22 +922,43 @@ function sameAutomaticPayment(a: VmPayment, b: VmPayment): boolean {
     && a.pooled.length === b.pooled.length && a.pooled.every((p, i) => p.cost === b.pooled[i].cost && ids(p.cards, b.pooled[i].cards))
     && a.markersOff.length === b.markersOff.length && a.markersOff.every((p, i) => {
       const q = b.markersOff[i];
-      return p.cost === q.cost && p.side === q.side && p.area === q.area && p.n === q.n && p.by === q.by;
+      return p.cost === q.cost && p.side === q.side && p.area === q.area && p.n === q.n && p.by === q.by && JSON.stringify(p.filter) === JSON.stringify(q.filter) && JSON.stringify(p.payer) === JSON.stringify(q.payer);
     });
+}
+
+/** Exact selected resources must leave the following action price payable. */
+export function automaticResourcesFinish(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, payment: VmPayment): boolean {
+  const clone = structuredClone(state);
+  const cost = frame.autoCost!;
+  const choice = cost.choices[cost.selectedChoice!];
+  // The pool question precedes beginAutomaticCost, which commits X to the
+  // live frame. Its isolated completion proof must already use that choice.
+  const paying = { ...frame, ...(choice?.x !== undefined ? { x: choice.x } : {}) };
+  try { chargeAutomaticPayment(ctx, game, clone, [], paying, payment, cost.costs); }
+  catch (err) { if (err instanceof IllegalAction && !(err instanceof NotYet)) return false; throw err; }
+  return canFinishAutomaticPrice(ctx, game, clone, paying);
 }
 
 /** Set the paid cursor before running any action price; reload cannot charge
  * the same energy/marker/Burst/Spirit Boost payment a second time. */
 export function beginAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame, choice: AutomaticCost["choices"][number]): void {
   const cost = frame.autoCost!;
-  const rechecked = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest);
+  const rechecked = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest, frame.poolPayment?.selection);
   if (!rechecked.ok || !sameAutomaticPayment(rechecked.payment, choice.payment)) throw new IllegalAction("this Auto payment is no longer payable");
   const clone = structuredClone(state);
   chargeAutomaticPayment(ctx, game, clone, [], frame, choice.payment, cost.costs);
   if (!canFinishAutomaticPrice(ctx, game, clone, { ...frame, ...(choice.x !== undefined ? { x: choice.x } : {}) })) throw new IllegalAction("this Auto's complete payment is no longer payable");
   const spent = scopedPayersSpent(ctx, game, state, frame.master, { card: frame.card, skillIndex: cost.skill.index, skill: cost.skill, kind: cost.skill.kind, script: undefined });
   cost.stage = "action";
+  delete frame.poolPayment;
   if (choice.x !== undefined) frame.x = choice.x;
-  chargeAutomaticPayment(ctx, game, state, ev, frame, choice.payment, cost.costs);
+  const paid = chargeAutomaticPayment(ctx, game, state, ev, frame, choice.payment, cost.costs);
+  if (cost.skill.burst && burstNegated(ctx, game, state, frame.card) && !paid.paidCardInfo?.paid_burst) {
+    paid.vars = { ...paid.vars, paid_burst: [], "paid_burst@epoch": [] };
+    paid.paidCardInfo = { ...paid.paidCardInfo, paid_burst: {} };
+  }
+  frame.paidMarkers = bindPaidMarkers(paid.paidMarkers, frame.card, cost.skill.index, { fixed: cost.skill.spiritBoost, x: null });
+  frame.vars = { ...frame.vars, ...paid.vars };
+  frame.paidCardInfo = { ...frame.paidCardInfo, ...paid.paidCardInfo };
   spent(choice.payment.rest);
 }

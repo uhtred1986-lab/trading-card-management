@@ -113,7 +113,7 @@ export function mirrorSides<T>(x: T): T {
 }
 
 /** A move the engine will not take: not the asked player's, or not legal now. Both engines throw it. */
-export class IllegalAction extends Error {}
+export { IllegalAction } from "./illegal-action";
 
 /** Deck lists as `CardDef` maps, for building a context from catalog rows. */
 export function defsFrom(cards: CardDef[]): Record<string, CardDef> {

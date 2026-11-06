@@ -1,3 +1,11 @@
+import {allHandPaymentMove} from './paid-hand-contract';
+import { activateUnderPermitProblem } from "./activate-under-contract";
+import { energyEntryPolicyProblem } from "./energy-entry-policy";
+import { counterArrivalPolicyProblem } from "./counter-arrival-policy";
+import { counterUnderPermitProblem } from "./counter-under-contract";
+import { counterEnergyPermitProblem } from "./counter-energy-contract";
+import { counterDropPermitProblem } from "./counter-drop-contract";
+import { ENERGY_ACTIVATIONS } from "./energy-coupons";
 import { potaraMaterialsProblem } from "./potara-materials";
 import { fusionMaterialsProblem } from "./fusion-materials";
 import { skillPriceProblem } from "./skill-payment";
@@ -255,6 +263,7 @@ const COST_REDUCTION_FIELDS: OpField[] = [
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "activateTiming", type: { enum: ["main", "battle"] } },
+  { name: "energyActivation", type: { enum: ENERGY_ACTIVATIONS } },
   { name: "tag", type: "string" },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
   { name: "until", type: "duration" },
@@ -278,6 +287,7 @@ const COST_MODIFIER_FIELDS: OpField[] = [
   { name: "target", type: "ref", default: { sel: { special: "self" } } },
   { name: "amount", type: "amount" },
   { name: "what", type: { enum: ["energy", "skill", "evolve", "combo", "zEnergy", "specified"] }, default: "energy" },
+  { name: "energyActivation", type: { enum: ENERGY_ACTIVATIONS } },
   { name: "skillKind", type: { enum: SKILL_KIND_PREFIXES } },
   { name: "tag", type: "string" },
   { name: "colors", type: { list: { enum: ["any", ...COLORS] } } },
@@ -327,10 +337,12 @@ const NEGATE_SCOPES = ["skills", "kind", "keyword", "own"] as const satisfies re
 /** `negate`'s fields, named so its `sentence` can hand the spelling it stands for to `describeScript`. */
 const NEGATE_FIELDS: OpField[] = [
   SELF,
+  { name: "allAreas", type: "boolean" },
   { name: "what", type: { enum: NEGATE_SCOPES }, required: true },
   { name: "kind", type: { enum: NEGATED_KINDS } },
   { name: "keyword", type: { enum: KEYWORD_NAMES } },
   { name: "chosen", type: "boolean" },
+  { name: "mandatory", type: "boolean" },
   { name: "until", type: "duration" },
 ];
 const POSITION = { enum: ["top", "bottom"] } as const;
@@ -349,7 +361,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "fieldBattle", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "comboFromDrop", "fieldBattle", "fieldKeepOthers", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "counterFromDrop", "counterFromEnergy", "counterFromUnder", "activateFromUnder", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "activateUnderPolicy", type: { enum: ["asHandV1", "asHandGreenBrolyLeaderV1"] } }, { name: "counterUnderPolicy", type: { enum: ["asHandV1"] } }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -394,6 +406,11 @@ const CHOOSE_FIELDS: OpField[] = [
         name: "exactly",
         type: "amount",
         offCard: "exactly this many of the selected cards, read off the board as the choice is made — \"switch the same number of your green energy as that card's specified cost to Rest Mode\" (BT26-088); the selector's count is not read; with too few cards nothing is chosen and an accepted \"you may\" around it counts as not done (20-16-1)",
+      },
+      {
+        name: "energyCostEquals",
+        type: "amount",
+        offCard: "each candidate must have this effective energy cost; this is a per-card filter and does not change the selector's cardinality or optionality",
       },
       {
         name: "specifiedCostAtMost",
@@ -453,17 +470,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: "the cards go back to that end of their owner's deck in the order the master picks, one card at a time, the first pick nearest the end; no card changes area (20-12-2), a card no longer in a deck is left out",
   },
   invokeSkill: {
-    fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:battle", "activate:main/battle"] }, required: true }, { name: "from", type: { enum: ["hand"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
+    fields: [{ name: "trait", type: "string" }, { name: "sel", type: "selector" }, { name: "skillKind", type: { enum: ["activate:main", "activate:battle", "activate:main/battle", "activate:any"] }, required: true }, { name: "from", type: { enum: ["hand", "deck", "drop"] }, required: true }, { name: "maxCost", type: { enum: ["currentEnergy"] } }],
     sentence: (raw) => {
       const op = raw as OpOf<"invokeSkill">;
       // Audit conditions 2: the trait form says which card is chosen — from the hand, within the current energy (SD7-01,
       // TB3-064) — where it read "the chosen card" of a choice no reading showed.
       // Audit effects 2 (describe only): the line's kind as the card prints it ("[Activate: Main/Battle]"), not the record's key.
-      const kind = ({ "activate:main": "[Activate: Main]", "activate:battle": "[Activate: Battle]", "activate:main/battle": "[Activate: Main/Battle]" } as Record<string, string>)[op.skillKind] ?? op.skillKind;
+      const kind = ({ "activate:main": "[Activate: Main]", "activate:battle": "[Activate: Battle]", "activate:main/battle": "[Activate: Main/Battle]", "activate:any": "[Activate]" } as Record<string, string>)[op.skillKind] ?? op.skillKind;
       if ("trait" in op) return `choose 1 ≪${op.trait}≫ card in your ${op.from}${op.maxCost === "currentEnergy" ? " with an energy cost less than or equal to your current energy" : ""} and activate its ${kind} skill`;
       return `activate up to 1 ${kind} skill of ${describeSelector(op.sel)} for free`;
     },
-    doc: "12-2-4: use either trait + currentEnergy with an Activate: Main line (SD7-01), a one-card hand selector whose filter is bounded by current energy with an Activate: Main line (the coloured Desire cards, #979), or an optional one-card hand selector with an Activate: Main/Battle line (BT31-116). The chosen Extra's original energy and skill costs are waived; its activation still occurs.",
+    doc: "R-420 / 12-2-4: invoke one Extra Activate line from hand, deck or Drop. Bare activate-card instructions allow Main, Battle or Main/Battle; a named line restricts the kind. The original energy and skill costs are waived, while conditions, usage limits, negation and external taxes remain. Hand/deck Extras enter Drop before resolving; Drop Extras stay there. A saved card/line choice is bound to the same zone occurrence. The legacy trait/currentEnergy form remains hand-only.",
   },
   energyMarker: { fields: [n(), SIDE], sentence: "{n} energy marker" },
   choose: {
@@ -495,12 +512,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       }
       // Audit selectors 2: a blind choice (the opponent's hand or face-down Life) is made without seeing the cards, and
       // the reading says so.
-      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {}) + (op.blind ? ", without seeing them" : "");
+      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}{energyCostEquals? with an energy cost equal to {energyCostEquals}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {}) + (op.blind ? ", without seeing them" : "");
     },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
   look: {
-    fields: [n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
+    fields: [{ name: "upTo", type: "boolean" }, n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
     // #907 round 4: the reading said "the top" for a look the op takes from the bottom ("look at
     // the bottom card of your deck", BT11-062b, BT11-104, EB1-54) - the op was right, the words wrong.
     // Audit-selectors-1: and whose cards, and where — "look at your opponent's hand" (BT10-004, EX11-02) read "look at
@@ -512,6 +529,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const where = ZONE_NOUNS[look.area as keyof typeof ZONE_NOUNS] ?? look.area;
         return look.n === 99 ? `look at ${whose} ${where}` : renderTemplate(`look at {n} cards in ${whose} ${where}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
       }
+      if (look.upTo) return renderTemplate(`look at up to {n} cards from the ${look.from === "bottom" ? "bottom" : "top"} of ${whose} deck`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
       return renderTemplate(`look at the ${look.from === "bottom" ? "bottom" : "top"} {n}${look.side === "opponent" ? " of your opponent's deck" : ""}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
     },
     doc: "top of your deck, seen only by you; the cards are bound to the name in \"as\" (20-11)",
@@ -520,7 +538,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   // act with the narrower audience — and reads as the `look` it stands for
   // when it is exactly the shape `ops.rules`'s `look` lowers to (`revealAs`).
   reveal: {
-    fields: [{ name: "sel", type: "selector", required: true }, { name: "as", type: "string", required: true }, { name: "audience", type: { enum: ["you", "both"] }, default: "both" }],
+    fields: [{ name: "incremental", type: "boolean" }, { name: "sel", type: "selector", required: true }, { name: "as", type: "string", required: true }, { name: "audience", type: { enum: ["you", "both"] }, default: "both" }],
     sentence: (raw, r) => {
       const op = raw as OpOf<"reveal">;
       const as = revealAs(op);
@@ -529,7 +547,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     },
     doc: 'shown to both players; the cards stay where they are (20-11-2). "audience":"you" is a look — shown to you alone, nothing logged (20-11); prefer "look", the spelling it means',
   },
-  ko: { fields: [TARGET], sentence: "KO {target}" },
+  ko: { fields: [TARGET, { name: "completedAs", type: "string" }], sentence: "KO {target}" },
   moveTo: {
     fields: [
       TARGET,
@@ -542,6 +560,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "faceUp", type: "boolean" },
       { name: "random", type: "boolean" },
       { name: "cause", type: { enum: MOVE_REASONS }, default: "effect" },
+      { name: "completedAs", type: "string" },
       { name: "as", type: "string", offCard: "names the cards this move takes for a later clause — \"if the card you placed in your energy with this skill is in your energy\" (BT10-054, mechanism batch 2)" },
     ],
     // A move a macro lowered to reads as the spelling it stands for (#137,
@@ -563,7 +582,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: '"to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent\'s energy" — the area is theirs, not the card owner\'s (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement\'s own scope and, on the rules engine, by `triggers.rules`\'s `moved(cause: …)`',
   },
   play: {
-    fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "alsoUnder", type: "ref", offCard: "more cards that go under the played card as part of the same play (22-13-5-4: [Union-Potara]'s second material) — none moves when the play fails" }, { name: "negated", type: { enum: ["turn", "game"] } }, {
+    fields: [TARGET, { name: "mode", type: MODE }, { name: "onto", type: "ref" }, { name: "alsoUnder", type: "ref", offCard: "more cards that go under the played card as part of the same play (22-13-5-4: [Union-Potara]'s second material) — none moves when the play fails" }, { name: "negated", type: { enum: ["turn", "game"] } }, { name: "negatedKinds", type: { list: { enum: NEGATED_KINDS } } }, { name: "negatedUntil", type: "duration" }, {
         name: "activating",
         type: "boolean",
         offCard: "\"activate {Tragedy Overground}\" (22-3-3): a card with a [Field] skill is activated through that skill, its price waived, not played; an Extra with none in its master's hand is activated through its [Activate: Main] line, its costs waived (12-2-4, \"choose 1 {Tora's Red Armband} … in your hand, activate it\", EB1-59); any other card is played as before",
@@ -579,7 +598,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       },
       {
         name: "using",
-        type: { enum: ["Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve", "Union-Fusion", "Union-Potara", "Union-Absorb", "Swap", "Arrival", "Successor"] },
+        type: { enum: ["Over Realm", "Dark Over Realm", "Evolve", "EX-Evolve", "Xeno-Evolve", "Union-Fusion", "Union-Potara", "Union-Absorb", "Swap", "Arrival", "Successor"] },
       },
       {
         name: "toOwners",
@@ -599,16 +618,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     ],
     sentence: (raw, r) => {
       const op = raw as OpOf<"play">;
+      const kinds = op.negatedKinds ? ` with its ${op.negatedKinds.map((kind) => `[${kind}]`).join(" and ")} skills negated${forThe(op.negatedUntil!, r)}` : "";
       if (op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve") {
         const base = op.onto && "sel" in op.onto && op.onto.sel.filter
           ? describeSelector({ side: "you", area: "battle", filter: op.onto.sel.filter, count: 1 }).replace(/^1 /, "") : "base";
         const source = "sel" in op.target && op.target.sel.area === "drop" ? " from its Drop Area" : "";
         const warp = op.using === "Xeno-Evolve" ? " (sending the base to the Warp)" : "";
-        return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}`;
+        return `evolve the chosen ${base} into ${describeRef(op.target)}${source}${warp}${kinds}`;
       }
       // Audit effects 2 (describe only): an Extra with no [Field] in the hand is activated through its [Activate: Main]
       // (EB1-59, the VM's `activating`), never played.
-      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, or in the hand its [Activate: Main]; else play)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
+      const played = renderTemplate(`${op.activating ? "activate (its [Field] skill, otherwise an eligible Extra [Activate] line)" : "play"} {target}{mode? in {mode} mode}{counterWindow? through a [Counter: Play] window}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.play.fields, r)
         // "…on top of this card with its skills negated for the game" (BT31-088/089, BT10-073): where it lands and what it arrives with.
         + (op.onto ? ` on top of ${describeRef(op.onto)}` : "")
         + (op.toOwners ? " in their owners' Battle Areas" : "")
@@ -617,13 +637,14 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         + (op.negated ? ` with its skills negated${op.negated === "game" ? " for the game" : " for the turn"}` : "");
       // "…with a marker on it" (13-2-3, #980): what the card arrives with.
       const on = op.markers === undefined ? "" : ` with ${describeAmount(op.markers)} marker${op.markers === 1 ? "" : "s"} on it`;
-      return played + on;
+      return played + on + kinds;
     },
-    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15). "using: Union-Fusion/Union-Potara/Union-Absorb" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; "alsoUnder" puts [Union-Potara]\'s second material under the card as part of the play.',
+    doc: '"onto" plays it on top of another card ([Union-Absorb], 22-13-6-3); "negated" is "played with its skills negated" (9-1-5). "negatedKinds" and "negatedUntil" are a nonempty exact kind list and its duration: those skills are negated on successful entry before played triggers and the landed counter window (R-388), respecting negation protection and the acting skill master/source. Use neither field for a later separate negation. "using: Evolve/EX-Evolve/Xeno-Evolve" marks evolution (22-5-2-3): requires the chosen eligible base, sends it to Warp for Xeno, and announces evolved-into only on successful play. "using: Over Realm" is that keyword\'s own play and marks its arrival (22-15); "using: Dark Over Realm" retains the distinct dark procedure (22-23), without the normal end-turn departure. "using: Union-Fusion/Union-Potara/Union-Absorb" (#929) marks a [Union] play: its card, host and materials are bound at the declaration, a card that fails to enter play goes to the Drop (22-13), and a second [Counter: Play] window follows the arrival; "alsoUnder" puts [Union-Potara]\'s second material under the card as part of the play.',
   },
   switchMode: {
     fields: [
       TARGET,
+      { name: "completedAs", type: "string" },
       { name: "mode", type: MODE, required: true },
       {
         name: "by",
@@ -715,13 +736,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     // The sentence is the spelling's own, so the workbench reads a lowered
     // program in the same words as the record it came from.
     sentence: (raw, r) => describeScript([negateAs(raw as OpOf<"negate">)], r),
-    doc: 'the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. "keyword" with "chosen" and no "keyword" lets the master pick one of the keyword skills the target has in force as the step resolves ("negateChosenKeyword"). Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
+    doc: 'the primitive under "negateSkills", "negateSkillsOfKind", "negateKeyword" and "negateOwnSkill" (docs/arena-ruleset-spec.md §2.2): a rule stops applying (9-1-5). "what" says which — "skills" is every skill of the target, "kind" one printed kind of them (say which in "kind"), "keyword" one named keyword in every area (say which in "keyword"), "own" the skill resolving now. "until" left out is for the game. "keyword" with "chosen" and no "keyword" lets the master pick one of the keyword skills the target has in force as the step resolves ("negateChosenKeyword"). For this chosen-keyword form, "mandatory" true requires one available choice; absent or false retains the optional None choice of existing stored rules. Those five spellings are still what the compiler writes and what a stored rule holds — prefer them; this row is what they mean',
   },
   negateSkills: { fields: [TARGET, UNTIL], sentence: "negate the skills of {target}{until}" },
   negateChosenKeyword: {
-    fields: [TARGET, UNTIL],
-    sentence: "choose up to 1 keyword skill of {target} and negate it{until}",
-    doc: '"choose up to 1 keyword skill on your opponent\'s Battle Cards and negate that skill for the turn" (9-1-5): the master picks one keyword skill among those the target cards have in force as the step resolves, and only that one is negated, on that card, for the duration. A card with no keyword skills is not asked about',
+    fields: [TARGET, UNTIL, { name: "mandatory", type: "boolean" }],
+    sentence: (raw, r) => renderTemplate(`choose ${(raw as OpOf<"negateChosenKeyword">).mandatory ? "" : "up to "}1 keyword skill of {target} and negate it{until}`, raw as unknown as Record<string, unknown>, [TARGET, UNTIL], r),
+    doc: '9-1-5: the master picks one keyword skill among those the target cards have in force. "mandatory":true means printed "choose 1"; absent/false preserves the optional "up to 1" choice of existing records. No available keyword means no question or effect (5-2-6). Choosing a skill bypasses Barrier (Q&A BT2-048, DB1-093, BT6-057), but a prohibition against negation still applies. Only the selected printed, timed-granted or standing-granted instance is negated; other copies and later grants remain in force. Saved menus retain instance identity. Legacy pending name-only menus keep their option indexes when unchanged; old resolved name-wide effects retain their saved semantics',
   },
   negateSkillsOfKind: {
     fields: [TARGET, { name: "kind", type: { enum: NEGATED_KINDS }, required: true }, UNTIL],
@@ -739,9 +760,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [TARGET, { name: "onto", type: "ref" }],
     sentence: (raw) => {
       const op = raw as OpOf<"placeOnTop">;
-      return `place ${describeRef(op.target)} on top of ${op.onto ? describeRef(op.onto) : "this card"}, from under it`;
+      return `place ${describeRef(op.target)} on top of ${op.onto ? describeRef(op.onto) : "this card"}`;
     },
-    doc: '"place a Z-Extra from under this card on top of this card" (23-2, 21-5-2): the target, a card in this card\'s pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card\'s position, the continuous effects on its power and its seat in a battle; this card\'s other effects end. "onto" (mechanism batch 3) names another card whose pile it is and whose place it takes — "place this card from under your Leader on top of your Leader" (BT20-058, 22-46-6 by analogy): exactly one card, or nothing moves. A Leader Area takes only a Leader or Z-Leader card on top (3-1-2), which then is the Leader, and "when your Leader is placed" answers it',
+    doc: '"place a Z-Extra from under this card on top of this card" (23-2, 21-5-2): the target, a card in this card\'s pile, becomes the top card where this card stands and this card goes directly under it, the rest of the pile following in its order. Placed, not played (5-5). The new top card takes over this card\'s position, the continuous effects on its power and its seat in a battle; this card\'s other effects end. "onto" (mechanism batch 3) names another card whose pile it is and whose place it takes — "place this card from under your Leader on top of your Leader" (BT20-058, 22-46-6 by analogy): exactly one card, or nothing moves. A Leader Area takes only a Leader or Z-Leader card on top (3-1-2), which then is the Leader, and "when your Leader is placed" answers it. R-395: a Z-Leader may also arrive from its owner\'s Z-Deck onto that player\'s Leader for Z-Awaken (22-46-6); this is placement, not play, with no Counter:Play window',
   },
   comboFrom: { fields: [TARGET, { name: "negated", type: "boolean" }], sentence: "use {target} in a combo{negated? with its skills negated}", doc: '"use it in a combo from your Drop (with its skills negated)" (5-7)' },
   flip: {
@@ -791,7 +812,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     sentence: (raw, r) => {
       const op = raw as OpOf<"costReduction">;
       if (op.what !== "specified") {
-        if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind) {
+        if ((op.what === undefined || op.what === "energy" || op.what === "combo" || op.what === "zEnergy") && !op.skillKind && !op.energyActivation) {
           // "…by {b}{w}" (BT29-140) takes those colours' orbs off, which "costs
           // 2 less" alone would not say.
           const orbs = costOrbs(op.colors);
@@ -801,7 +822,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
           return renderTemplate("{target} costs {amount:less|more}", raw as unknown as Record<string, unknown>, COST_REDUCTION_FIELDS, r) + price + orbs + costSpan(op.uses, op.until, r);
         }
         const noun = op.what === "combo" ? "combo cost" : op.what === "zEnergy" ? "Z-Energy cost" : op.what === "skill" ? "skill cost" : op.what === "evolve" ? "[Evolve] cost" : "cost";
-        const scoped = op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? `Activate${op.activateTiming === "main" ? ": Main" : op.activateTiming === "battle" ? ": Battle" : ""}` : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
+        const scoped = op.energyActivation ? ` when paying for ${op.energyActivation === "activate" ? "an Activate skill" : op.energyActivation === "main" ? "an exact Activate: Main skill or Field" : `an exact Activate: ${op.energyActivation} skill`}` : op.tag ? ` for [${op.tag}] skills` : op.skillKind ? ` for [${op.skillKind === "activate" ? `Activate${op.activateTiming === "main" ? ": Main" : op.activateTiming === "battle" ? ": Battle" : ""}` : op.skillKind === "counter" ? "Counter" : op.skillKind === "auto" ? "Auto" : "Permanent"}] skills` : "";
         // EX03-16: a change scoped to the card the [Evolve] lands on.
         // "The next time you activate …" (BT31-096): spent by the activations it reaches.
         const budget = costSpan(op.uses, op.until, r);
@@ -818,7 +839,12 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     },
     doc: '[Permanent] only unless a duration is given (20-21): "reduce the energy cost of your <Son Goku> cards in your hand by 1" — the selector names the area the text names, usually the hand; "skill"/"evolve" are orb costs read by `orbTotals` for one skill on one card, and "onto" scopes an "evolve" change to an [Evolve] played onto those cards (EX03-16: onto: [self]); "zEnergy" is the Z-Energy cost a Z-Card pays from the Z-Energy Area (5-4), read by `zEnergyCostOf`, never `d.zEnergyCost` raw. "specified" is the coloured part of an X-cost card\'s price (owner\'s ruling on BT19-039, 9 Sep 2026): it never touches the total, only which colours `playCost` demands, and `colors` carries the orbs it relaxes — always printed as `{u}`/`{y}{y}`/…, never a bare count. "uses" (with "skill"/"evolve" and a duration) is how many activations the change reaches before it ends — "the next time you activate an [Activate] skill of your Leader during this turn, reduce its skill cost by {b}" (BT31-096) is uses 1, until "turn"; the activation that pays a line it reaches spends one, and "until" still ends it unused. "tag" (with "skill"/"evolve") narrows the change to one keyword\'s line, lower-case — "z-awaken", "arrival", "swap", "union", "successor", "ex-evolve", "xeno-evolve" (a bare [Evolve] is all three variants, 22-5-2-2, and needs none); "skillKind" does the same for [Activate]/[Auto]/[Counter]. A skill-cost change said in a colour does nothing to a {1} orb and one said as {1} does nothing to a coloured orb (5-8-2-4). "uses" is also read on an energy cost ("what" absent) and on "specified": "the next time you play X, reduce its energy cost by {r}" is spent by the play or Extra activation that pays the card\'s price. The effects one op puts in force share its uses (a "group"): paying any one ends them all. An energy cost reduced by a plain number comes off the total alone, floored at the specified orbs that remain (FAQ Skills Q24, 1-2-2-1); one reduced "by {r}" takes that colour off the specified cost as well, as many as the card demands (20-21-2, 20-21-2-1).',
   },
-  negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF, { name: "until", type: "duration" }], sentence: "negate the [{keyword}] skill of {target}{until}", doc: 'take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker". With "until" (phrasing batch 6, owner\'s ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — "choose up to 1 of your opponent\'s Battle Cards, negate [Indestructible], and KO it" (BT23-081) is "turn"; without, it is standing (a [Permanent]\'s)' },
+  energyEntryExhaust: {
+    fields: [{ name: "colors", type: { list: { enum: ["Red", "Blue", "Green", "Yellow"] } }, required: true }],
+    sentence: raw => { const [a, b] = (raw as OpOf<"energyEntryExhaust">).colors; return `when entering Energy, optionally send 1 ${a} card and 1 ${b} card, two distinct cards from your Drop, to Warp to negate this card’s Energy-Exhaust`; },
+    doc: 'R476 stored pre-entry procedure descriptor, consumed only by the original Energy movement owner. Exactly two distinct color slots; ordinary effect choices and movement completion, never an action-price host. It is not an executable effect step.',
+  },
+  negateKeyword: { fields: [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, { name: "allAreas", type: "boolean" }, SELF, { name: "until", type: "duration" }], sentence: (raw, r) => renderTemplate(`negate the [{keyword}] skill of {target}${(raw as OpOf<"negateKeyword">).allAreas ? " in all areas" : ""}{until}`, raw as unknown as Record<string, unknown>, [{ name: "keyword", type: { enum: KEYWORD_NAMES }, required: true }, SELF, { name: "until", type: "duration" }], r), doc: 'With allAreas:true, only a standing self named-keyword negation is valid outside play; the qualifier does not widen an aura source or a timed effect. Take one named keyword away ("negate this card\'s [Energy-Exhaust] skill in all areas", 9-1-5); the keyword is its printed name, e.g. "Blocker". With "until" (phrasing batch 6, owner\'s ruling of 26 Oct 2026) the negation is made as the step resolves and lasts that span — "choose up to 1 of your opponent\'s Battle Cards, negate [Indestructible], and KO it" (BT23-081) is "turn"; without, it is standing (a [Permanent]\'s)' },
   gains: {
     fields: [
       { name: "traits", type: { list: "string" } },
@@ -853,6 +879,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     fields: [
       { name: "from", type: { list: { enum: ["battle", "combo"] } } },
       { name: "event", type: { enum: REPLACE_EVENTS }, required: true },
+      { name: "cardType", type: { enum: ["BATTLE", "UNISON", "EXTRA"] } },
       { name: "with", type: "ops", required: true },
       { name: "by", type: { enum: ["skill", "ko", "skillOrKo", "skillOrKoBySkill", "koInBattle", "attack"] } },
       { name: "bySide", type: { enum: ["opponent", "you"] } },
@@ -887,9 +914,9 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
                   : op.by === "skillOrKoBySkill"
                     ? `${who} would be removed from the Battle Area or KO'd by ${whose}`
                   : `${who} would leave ${op.from ? `the ${op.from.join(" or ")} area` : "the Battle Area"}`;
-      return `if ${moment}, ${instead}`;
+      return `if ${moment}${op.event === "leave" && op.to ? ` to the ${op.to}` : ""}, ${instead}`;
     },
-    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "from" optionally names the Battle/Combo departure areas for a leave redirect; "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only), "life" (a life card\'s own move to the hand or the Drop Area, 8-4-6-1\'s damage — narrowed by "to", absent for either destination; "by"/"bySide" mean nothing here, since nobody\'s skill puts a card out of the life area; with a "target" it is the rule of the life card that prints it — "if you would reveal this card from your life to add it to your hand" (BT10-036, 9-1-3-3) — read while that card lies in the Life Area and answering only when it is the card taken), "marker" (this Unison would lose a marker, only with "by":"attack" — 13-5-2\'s removal by an opponent\'s attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and "with" runs), "attack" (the attack in progress, 8-1-6-1) and "counter" (the [Counter] this one answers, 9-7) — those two only with an empty "with", read back as "negateAttack"/"negateCounter" (#137). "by":"ko" on a "leave" is the same moment as "ko", the spelling "replaceLeave" lowers to; "by":"koInBattle" on a "ko" is the battle\'s KO only (8-4-6-2, "if this card would be KO\'d in battle", BT17-139), never a skill\'s; "by":"skillOrKoBySkill" is a departure a skill causes or a skill\'s KO, never the battle\'s ("once per turn, this card can\'t be removed from a Battle Area by skills", BT22-117, P-638). "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107, #272); "optional" is 9-10-3\'s "you may". A "leave"/"ko"/"life"/"marker" replacement is [Permanent] only — or, for "leave", the leaf of a keyword\'s wouldLeave hook: [Ultimate]\'s "removed from the game instead" (22-14-3), read as a redirect after any [Permanent]\'s',
+    doc: 'an event happens differently, or not at all (9-10) — the primitive "replaceLeave" and the "instead" half of "resolvingPlay" are macros over. "from" optionally names the Battle/Combo departure areas for a leave redirect; "to" narrows the original destination for leave as well as life replacements; "event" is the moment: "leave" (the card would leave the Battle Area, narrowed by "by", and by "bySide" to the opponent\'s skill), "ko" (it would be KO\'d), "play" (the play being resolved, 9-6, [Counter: Play] only), "life" (a life card\'s own move to the hand or the Drop Area, 8-4-6-1\'s damage — narrowed by "to", absent for either destination; "by"/"bySide" mean nothing here, since nobody\'s skill puts a card out of the life area; with a "target" it is the rule of the life card that prints it — "if you would reveal this card from your life to add it to your hand" (BT10-036, 9-1-3-3) — read while that card lies in the Life Area and answering only when it is the card taken), "marker" (this Unison would lose a marker, only with "by":"attack" — 13-5-2\'s removal by an opponent\'s attack, asked once per marker on the Damage Step (5-13-4-2); always a substitute, so the marker stays and "with" runs), "attack" (the attack in progress, 8-1-6-1) and "counter" (the [Counter] this one answers, 9-7) — those two only with an empty "with", read back as "negateAttack"/"negateCounter" (#137). "by":"ko" on a "leave" is the same moment as "ko", the spelling "replaceLeave" lowers to; "by":"koInBattle" on a "ko" is the battle\'s KO only (8-4-6-2, "if this card would be KO\'d in battle", BT17-139), never a skill\'s; "by":"skillOrKoBySkill" is a departure a skill causes or a skill\'s KO, never the battle\'s ("once per turn, this card can\'t be removed from a Battle Area by skills", BT22-117, P-638). "with" is what happens in its place: one move of the card itself is a redirect, anything else is a substitute — the departure does not happen at all, the card stays, and the program runs with it bound as "subject". It may ask a question, and then it only applies where somebody can hear it (#107, #272); "optional" is 9-10-3\'s "you may". A "leave"/"ko"/"life"/"marker" replacement is standing: [Permanent], an Auto whose whole rule replaces its own Combo departure, or, for "leave", the leaf of a keyword\'s wouldLeave hook: [Ultimate]\'s "removed from the game instead" (22-14-3), read as a redirect after any [Permanent]\'s',
   },
   altCost: {
     fields: [
@@ -949,16 +976,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'a card that may be rested to pay an energy cost although it is not in the Energy Area (20-19) — "[Permanent] You can use this card to pay energy costs even when it\'s in your Battle Area" (BT3-039). The card does not move; it is rested exactly as an energy card is and stands in for one energy, of its own colours ("as":"energy") or of the colour named. Printed on the card itself this is [Permanent]-only and omits "target"/"until", the way "altCost" does; both are for a card granting the permission to others for a span. With "forSkillsOf" it is scoped (BT28-106): only the **skill costs** of skills on cards that filter describes, wherever those cards are, at most "max" of the cards on one payment, and — with "oncePerTurn" — spent for the turn once it has paid. Any other scope (one play, the energy cost of cards in the hand) is left unread rather than offered wider than it prints',
   },
   resolvingPlay: {
-    fields: [{ name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],
+    fields: [{ name: "cardType", type: { enum: ["BATTLE", "UNISON", "EXTRA"] } }, { name: "instead", type: "area" }, { name: "position", type: POSITION }, { name: "mode", type: { enum: ["rest"] } }, { name: "negated", type: "boolean" }],
     sentence: (raw) => {
       const op = raw as OpOf<"resolvingPlay">;
+      const subject = op.cardType ? `the ${op.cardType === "BATTLE" ? "Battle" : op.cardType === "UNISON" ? "Unison" : "Extra"} Card being played` : "the card being played";
       return op.instead
-        ? `the card being played is not played and goes to the ${op.instead} instead`
+        ? `${subject} is not played and goes to the ${op.instead} instead`
         : op.mode === "rest"
-          ? `the card being played is played in Rest Mode${op.negated ? " with its skills negated" : ""}`
-          : "the card being played is played with its skills negated";
+          ? `${subject} is played in Rest Mode${op.negated ? " with its skills negated" : ""}`
+          : `${subject} is played with its skills negated`;
     },
-    doc: '[Counter: Play] only (9-6). With "instead" the play is negated and the card goes there; without it the play happens and only the manner changes ("mode":"rest" or "negated":true)',
+    doc: '[Counter: Play] only (9-6). "cardType" preserves an explicit Battle, Unison or Extra qualifier; Battle includes Battle tokens and Z-Battle Cards. With "instead" the play is negated and the card goes there; without it the play happens and only the manner changes ("mode":"rest" or "negated":true)',
   },
   negateAttack: { fields: [], sentence: "negate the attack" },
   negateCounter: { fields: [], sentence: "negate the counter being answered", doc: "negate the [Counter] this one is answering (9-7)" },
@@ -977,6 +1005,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       { name: "fromArea", type: { enum: ["hand", "battle", "drop", "deck", "energy", "unison", "under", "any"] } },
       { name: "fromOwnArea", type: "boolean" },
       { name: "sameNameAsSelf", type: "boolean" },
+      { name: "copiesOf", type: "selector" },
       { name: "bySkill", type: "boolean" },
       { name: "exceptEvolve", type: "boolean" },
       { name: "exceptUnion", type: { list: { enum: ["Fusion", "Potara", "Absorb"] } } },
@@ -1022,7 +1051,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const who = op.target ? describeRef(op.target) : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         const kind = op.counterKind ? `[Counter: ${op.counterKind === "battleCardAttack" ? "Battle Card Attack" : op.counterKind[0].toUpperCase() + op.counterKind.slice(1)}]` : "[Counter]";
         // Audit lane E: "…the [Counter: Attack] skill on copies of this card" (BT13-035) says whose.
-        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.sameNameAsSelf ? " on copies of this card" : ""}${op.otherCards ? " of other cards" : ""}${escape}${forThe(op.until, r)}`;
+        return `${who} can't activate ${kind} skills${op.filter ? ` of ${describeFilter(op.filter, { plural: true })}` : ""}${op.sameNameAsSelf ? " on copies of this card" : ""}${op.otherCards ? " of other cards" : ""}${op.fromArea === "battle" ? " in a Battle Area" : ""}${escape}${forThe(op.until, r)}`;
       }
       // #677: 12-1-3's "activating an Extra Card" (BT10-097), and the skills
       // of particular cards (BT23-140's "the skills of Battle Cards").
@@ -1041,13 +1070,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       // activate skills" rule describes (BT18-019, BT14-097, P-093).
       if (op.what === "block" && !op.target && op.filter) {
         const who = op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
-        return `${who} can't activate [Blocker] on ${describeFilter(op.filter, { plural: true })}${op.otherCards ? " other than this card" : ""}${escape}${forThe(op.until, r)}`;
+        return `${who} can't activate [Blocker] on ${describeFilter(op.filter, { plural: true })}${op.otherCards ? " other than this card" : ""}${op.fromArea === "battle" ? " in a Battle Area" : ""}${escape}${forThe(op.until, r)}`;
       }
       // Prohibition batch 5's sentences, each said the way the card says it.
       {
         const who = op.turnPlayer ? "the turn player" : op.side === "opponent" ? "your opponent" : op.side === "both" ? "each player" : "you";
         // "You may not activate [EX-Evolve]" (BT4-003).
-        if (op.what === "activateSkill" && op.keywordSkill && !op.target) return `${who} can't activate [${op.keywordSkill}]${escape}${forThe(op.until, r)}`;
+        if (op.what === "activateSkill" && op.keywordSkill && !op.target) return `${who} can't activate [${op.keywordSkill}]${op.copiesOf ? ` on a card with the same card number as ${describeSelector(op.copiesOf)}` : ""}${escape}${forThe(op.until, r)}`;
         // BT30-146: the Charge Phase's switch of that player's cards in one area.
         if (op.what === "switchToActiveInCharge" && !op.target) {
           const cards = op.filter ? describeFilter(op.filter, { plural: true }) : "cards";
@@ -1171,6 +1200,10 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "comboRestSelf") return `${describeRef(op.target)} can be used in combos in Rest Mode${forThe(op.until, r)}`;
       // Phrasing batch 8: TB1-002's "you don't have to place cards from your hand in the Drop Area as a result of this card's skill".
       if (op.what === "ownDiscardOptional") return `you don't have to discard cards from your hand as a result of ${describeRef(op.target)}'s skills${forThe(op.until, r)}`;
+      if (op.what === "comboFromDrop") {
+        const cards = op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards";
+        return `you can use your ${cards} from your Drop in declared combos, paying their normal combo cost${forThe(op.until, r)}`;
+      }
       if (op.what === "comboRest") {
         const cards = op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards";
         return `you can use your ${cards} in Rest Mode in combos${forThe(op.until, r)}`;
@@ -1184,6 +1217,13 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "unionEnergy") return `this card’s [Union] skill from hand may choose Battle Cards in your energy`;
       if (op.what === "unionFusionAreas") return `${op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards"}' [Union-Fusion] can choose its specified cards in your Battle Area or Drop, those going to their owner's Warp${forThe(op.until, r)}`;
       if (op.what === "evolveEnergyBases") return `${describeRef(op.target)}'s [Evolve] skill used from hand may choose its specified Battle Card from your energy; that energy-base evolution plays this card in Active Mode`;
+      if (op.what === "activateFromUnder") return `${op.activateUnderPolicy === "asHandGreenBrolyLeaderV1" ? "if your Leader is green and has the character Broly: Br, " : ""}this Extra may activate its Activate skills from under a card with the character Broly: Br under the same conditions as from Hand`;
+      if (op.what === "counterFromUnder") return "this card’s [Counter] may be activated from under your Battle Area’s Universal Tuffleization Plan under the same conditions as from your hand";
+      if (op.what === "counterFromEnergy") return `${op.price?.condition ? `if ${describeCond(op.price.condition)}: ` : ""}this card’s [Counter] may be activated from your energy by paying its energy cost${op.price?.ops?.length ? " and discarding 1 card from your hand" : ""}`;
+      if (op.what === "counterFromDrop") {
+        const choice = op.price?.ops?.find(item => item.op === "choose");
+        return `this card's [Counter] may be activated from your Drop by paying its energy cost and removing this card and 1 ${(choice?.op === "choose" ? choice.sel.filter?.colors ?? [] : []).join("/").toLowerCase()} card from your hand from the game`;
+      }
       if (op.what === "evolveFromZEnergy") return `${describeRef(op.target)}'s [Evolve] skill can also be activated from your Z-Energy; its base is still chosen in the Battle Area`;
       if (op.what === "aegisAltDrop") return `you can pay your [Aegis] skills by sending 1 ${(op.filter?.colors ?? []).join(" card and 1 ").toLowerCase()} card from your Drop to your Warp instead of discarding cards from your hand${forThe(op.until, r)}`;
       if (op.what === "aegisAltOpponentHand") return `${describeRef(op.target)}'s [Aegis] skill can be paid by sending 1 card from your opponent's hand to the bottom of their deck instead of discarding cards from your hand${forThe(op.until, r)}`;
@@ -1194,16 +1234,17 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "absorbMaterialUnder") return `when placing Battle Cards under other cards to pay the skill costs of your ${op.filter ? describeFilter(op.filter, { plural: false }) : "card"}s' [Union-Absorb], you can use Battle Cards from under ${describeRef(op.target)} instead, one for one`;
       if (op.what === "startLife") return `you start the game with ${op.n ?? 8} life`;
       if (op.what === "awakenLife") return `${describeRef(op.target)} can activate its [Awaken] ${op.n !== undefined && op.n < 99 ? `while your life is at ${op.n} or less` : "at any life"}${forThe(op.until, r)}`;
+      if (op.what === "fieldKeepOthers") return `keep your other Fields when placing ${op.filter ? describeFilter(op.filter) : "a Field"}${forThe(op.until, r)}`;
       if (op.what === "fieldBattle") return `the [Field] skill on ${describeRef(op.target)} in your hand can also be activated at [Activate: Battle] timings`;
       return renderTemplate("{target} can attack {filter:cards} in Active Mode{until}", raw as unknown as Record<string, unknown>, PERMIT_FIELDS, r);
     },
-    doc: '"ownDiscardOptional" (phrasing batch 8: "you don\'t have to place cards from your hand in the Drop Area as a result of this card\'s skill", TB1-002) makes the discard of the target\'s own skills from its master\'s hand optional: the master picks up to that many; "comboRestSelf" (phrasing batch 7: "this card can be used in combos in Rest Mode", P-582) lets the target itself, rested, be used in a combo; "awakenLife" (phrasing batch 6: "you can activate your Leader\'s [Awaken] even if your life is at 6 or less", P-500; "…even if you have 5 or more life", BT1-051) raises the target Leader\'s [Awaken] life ceiling to "n" (99: none) while it lasts; the [Awaken]\'s other conditions still hold. "evolveFromZEnergy" (BT19-077/078/081/082; 22-5-2 and the official card Q&A on BT19-077) lets the target card use its own [Evolve] skill while the card is in your Z-Energy as well as from the hand: only the source area widens, the base is still chosen in the Battle Area and Active Mode is not granted. "evolveEnergyBases" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. "aegisAltDrop" / "aegisAltOpponentHand" (BT22-035, BT22-140; 22-30-3 "instead of", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card\'s own [Aegis] only) one card of your opponent\'s hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or "this card\'s [Over Realm] skill can be activated from its owner\'s Warp under the same conditions as if it were in your hand" (22-15, "overRealmFromWarp", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or "you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand" (22-13-4-2-1, "unionFusionAreas", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `attackUnnegatable` (EX03-14, #936) is "its attacks can\'t be negated": the attacks of the target (timed, or a [Permanent] standing one) stay un-negated when a skill would negate them, while a ban on attacking and removal of the attacker still work. `unionFusionDropBottom` (EX23-36 / P-519) is this hand copy’s own Fusion material-area permission: specified equal-power Battle Cards may come from hand and Drop together; only chosen Drop cards go to the deck bottom in the owner’s private order, while hand materials go to Drop. `absorbMaterialUnder` (BT17-082 back, #930; owner-accepted default of 25 Oct 2026) is read in play: when its master pays a [Union-Absorb] skill cost on a card the filter describes (≪Namekian≫) by placing cards under that card, each such card may instead be a Battle Card from under the granting card that the cost’s own description fits, one for one; the energy of the cost is untouched. `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does',
+    doc: '"comboFromDrop" (R473, BT31-055 back) permits its master to declare combos with qualifying own Drop Battle Cards, paying normal combo cost; it does not perform a free combo. "ownDiscardOptional" (phrasing batch 8: "you don\'t have to place cards from your hand in the Drop Area as a result of this card\'s skill", TB1-002) makes the discard of the target\'s own skills from its master\'s hand optional: the master picks up to that many; "comboRestSelf" (phrasing batch 7: "this card can be used in combos in Rest Mode", P-582) lets the target itself, rested, be used in a combo; "awakenLife" (phrasing batch 6: "you can activate your Leader\'s [Awaken] even if your life is at 6 or less", P-500; "…even if you have 5 or more life", BT1-051) raises the target Leader\'s [Awaken] life ceiling to "n" (99: none) while it lasts; the [Awaken]\'s other conditions still hold. "evolveFromZEnergy" (BT19-077/078/081/082; 22-5-2 and the official card Q&A on BT19-077) lets the target card use its own [Evolve] skill while the card is in your Z-Energy as well as from the hand: only the source area widens, the base is still chosen in the Battle Area and Active Mode is not granted. "evolveEnergyBases" (22-5-3-1-1, DB3 Great Apes) permits this hand copy to select a qualifying energy base; preliminary placement suppresses movement triggers and the resulting energy-base evolution enters Active Mode. It does not widen the evolving card source. "aegisAltDrop" / "aegisAltOpponentHand" (BT22-035, BT22-140; 22-30-3 "instead of", 20-1-11) are other ways to pay an [Aegis] skill than the hand cards: one card of each colour in the filter from your Drop to your Warp, or (this card\'s own [Aegis] only) one card of your opponent\'s hand to the bottom of their deck. Otherwise, a rule of the game a card may lift: "this card can attack Battle Cards in Active Mode" (8-1-1, "attackActive"), or "you can use your … Rest Mode … cards in combos" (5-7, "comboRest", whose target is the card granting it), "the [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings" (22-3, "fieldBattle", BT29-041/-042: read from the hand, where the [Field] line is used, and offered at the combo prompt as well as the Main Phase), or "this card\'s [Over Realm] skill can be activated from its owner\'s Warp under the same conditions as if it were in your hand" (22-15, "overRealmFromWarp", BT31-150: read while the card is in the Warp, where its [Over Realm] line is then offered with every other gate unchanged), or "you can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [Union] skill of a red <Veku> or <Gogeta> card from your hand" (22-13-4-2-1, "unionFusionAreas", BT31-001: read in play, widens [Union-Fusion] only, the filter naming the cards whose skill it widens). `attackUnnegatable` (EX03-14, #936) is "its attacks can\'t be negated": the attacks of the target (timed, or a [Permanent] standing one) stay un-negated when a skill would negate them, while a ban on attacking and removal of the attacker still work. `unionFusionDropBottom` (EX23-36 / P-519) is this hand copy’s own Fusion material-area permission: specified equal-power Battle Cards may come from hand and Drop together; only chosen Drop cards go to the deck bottom in the owner’s private order, while hand materials go to Drop. `absorbMaterialUnder` (BT17-082 back, #930; owner-accepted default of 25 Oct 2026) is read in play: when its master pays a [Union-Absorb] skill cost on a card the filter describes (≪Namekian≫) by placing cards under that card, each such card may instead be a Battle Card from under the granting card that the cost’s own description fits, one for one; the energy of the cost is untouched. `unionFusionWarp` (BT12-136/137, P-286; official FAQ Q1 for each) is read from hand and applies only to the card granting it: each equal-power named Fusion material may come from hand or Warp, and all go to Drop. The filter says *which* cards — leave it out only when the card does',
   },
   if: { fields: [{ name: "cond", type: "cond", required: true }, { name: "then", type: "ops", required: true }, { name: "else", type: "ops" }], sentence: "if {cond}: {then:nothing}{else?, otherwise {else}}" },
   chooseMode: {
-    fields: [{ name: "modes", type: "modes", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }],
+    fields: [{ name: "modes", type: "modes", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }, { name: "counterArrivalPolicy", type: { enum: ["eachQualifyingPlayV1"] } }],
     sentence: "choose one — {modes}",
-    doc: '"Choose one— ・A ・B" (20-2): the master picks one printed option, or "chooser" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty',
+    doc: '"Choose one— ・A ・B" (20-2): the master picks one printed option, or "chooser" does when the choice is not theirs — the field `may` reads too, since `may` is this op with the second option empty. R435 counterArrivalPolicy is restricted to the exact Ultrasonic Exchange whole-program contract: independently resolve this choice for each qualifying incoming Battle Card, under its original Counter controller',
   },
   may: {
     fields: [{ name: "ops", type: "ops", required: true }, { name: "reason", type: "string" }, { name: "chooser", type: "side" }],
@@ -1338,6 +1379,7 @@ export const OP_CLASS: Record<Op["op"], OpClass> = {
   token:              "primitive",
   costReduction:      "macro over `costModifier`",
   negateKeyword:      "macro over `negate`",
+  energyEntryExhaust: "primitive",
   gains:              "macro over `modifyAttr`",
   replace:            "primitive",
   control:            "primitive",
@@ -1398,6 +1440,7 @@ export function costModifierAs(op: Op): Op {
     amount: op.amount,
     ...(op.what !== undefined ? { what: op.what } : {}),
     ...(op.skillKind ? { skillKind: op.skillKind } : {}),
+    ...(op.energyActivation ? { energyActivation: op.energyActivation } : {}),
     ...(op.tag ? { tag: op.tag } : {}),
     ...(op.colors?.length ? { colors: op.colors } : {}),
     ...(op.until !== undefined ? { until: op.until } : {}),
@@ -1609,6 +1652,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     },
     doc: "was one of these cards played this turn by the keyword's own move — \"during the turn you played it with [Over Realm]\" (P-048, 22-15)? The card remembers the play its `play … using:` made until the turn ends or it changes area (3-1-4). `what: Union` (#930) is \"if you played this card using [union]\" (BT5-037, BT6-036): did the copy enter by a successful [Union-(type)] play — not a negated, replaced or failed one — at any time while it has stayed in the area (3-1-4); \"this card\" after it left as its own [Activate] cost is read as it was when activated, and an [Auto] reads it as it was when triggered — BT6-036 KO'd before its on-play [Auto] resolves still counts (owner's ruling, 25 Oct 2026). `what: Union-Fusion` / `Union-Potara` / `Union-Absorb` is that [Union] keyword only. As the lone IF of an [Auto] on `played` — \"when this card is played using [Union]\" (BT14-114, BT28-097 …) — it is the trigger's own condition: `resolvePlay` withdraws the Auto from any play that was not such an entry, so it is never triggered by an ordinary, failed or other-variant play. With `sel: subject`, beside the description of the played card in an `all`, on an [Auto] on `youPlayed` — \"when your <X> card is played by a [Union] skill\" (BT22-033, BT25-036 back, P-682), \"when you play a Battle Card using a [Union-Fusion] skill\" (BT12-122) — it is the same trigger condition about that card, and the [Auto] carries the subject's entry as it was when triggered. `what: Evolve` (prohibition batch 6, EX04-04's \"if you played this card with [evolve]\") is the same lasting memory of a successful entry by an [Evolve], [EX-Evolve] or [Xeno-Evolve] play (22-5-2-2: \"[Evolve]\" is every one of them), kept while the copy stays in the area. Audit conditions 2 (3 Nov 2026): `what: EX-Evolve` / `Swap` / `Arrival` / `Successor` is that keyword's own play alone (\"when you play this card with [Swap]\", BT4-083; \"…using [Arrival]\", BT25-129), the same lasting memory; `what: skill` is a play a skill made (\"…played using a skill\", BT16-051), `by: other` another card's skill (BT20-104), `by: self` the card's own (P-628), and `source` the card whose skill it was, as it stands (\"…with the skill of {Majin Buu's Sealed Ball}\", BT2-028; \"…with <Trunks: Future> skill\", BT2-041) — a play its player declared is no skill's. Under `not` it is \"…played without using skills\" (BT15-042). Every one of them, as a lone IF of an [Auto] on `played`, is the trigger's own condition (`playGates`)",
   },
+  counterActivatedFrom: { fields: [{ name: "from", type: { enum: ["energy"] }, required: true }, { name: "skill", type: { enum: ["counter:attack"] }, required: true }], sentence: () => "this card’s [Counter:Attack] was activated from your energy", doc: "R463: captured declaration area; not the source’s current area after payment or self-play." },
   placedThisTurn: {
     fields: [SEL, { name: "played", type: "boolean" }, { name: "from", type: { list: { enum: AREAS } } }],
     sentence: (raw) => {
@@ -1665,6 +1709,17 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     doc: 'whether an earlier step of this same skill did that — {"what":"may"} reads the answer to a "you may"',
   },
   not: { fields: [{ name: "cond", type: "cond", required: true }], sentence: (raw) => `not (${describeCond((raw as CondOf<"not">).cond)})` },
+  switched: {
+    fields: [{ name: "var", type: "string", required: true }],
+    sentence: () => "the chosen energy was switched to Rest Mode",
+    doc: "R-429: original Active-to-Rest completion, excluding prevented switches and already-Rest no-ops",
+  },
+  koedByThisSkill: { fields: [{ name: "var", type: "string", required: true }, { name: "costMax", type: "number", required: true }], sentence: raw => `this skill KO'd a card with final energy cost ${(raw as CondOf<"koedByThisSkill">).costMax} or less` },
+  moved: {
+    fields: [{ name: "var", type: "string", required: true }, AT_LEAST, { name: "all", type: "boolean" }],
+    sentence: (raw) => (raw as CondOf<"moved">).all ? "the chosen movement was completed in full" : `at least ${(raw as CondOf<"moved">).atLeast ?? 1} chosen original moves completed`,
+    doc: "R-426: reads a moveTo completedAs result; replacements and prevented movement do not complete the original action",
+  },
   chose: {
     fields: [{ name: "var", type: "string", required: true }, AT_LEAST],
     sentence: (raw) => {
@@ -1694,14 +1749,21 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
   xAtLeast: {
     fields: [{ name: "n", type: "number", required: true }],
     sentence: (raw) => `X is ${(raw as CondOf<"xAtLeast">).n} or more`,
-    doc: 'phrasing batch 10 (22-43): "if you removed a marker from one of your red Unison Cards using this skill" on a [Spirit Boost X] line (BT14-029) — the X its price was paid at is at least n. False when nothing bound X',
+    doc: 'the selected X is at least n; false when nothing bound X. Actual Spirit Boost payment conditions use paidMarkers instead (R-449), because chosen X is not proof that markers were removed.',
+  },
+  paidMarkers: {
+    fields: [{ name: "cost", type: { enum: ["spiritBoost"] }, required: true }, { name: "filter", type: "filter" }, { name: "atLeast", type: "number" }],
+    sentence: raw => { const c = raw as CondOf<"paidMarkers">; return `${c.atLeast ?? 1} or more markers were paid for this skill${c.filter ? ` from ${describeFilter(c.filter)}` : ""}`; },
+    doc: "R-449: actual successful marker payment and payer characteristics captured before removal; never chosen X or a current Unison. Missing history requires rebuilding the saved match.",
   },
   varMatches: {
     fields: [
       { name: "var", type: "string", required: true },
       { name: "filter", type: "filter", required: true },
+      { name: "paid", type: "boolean" },
     ],
-    sentence: (raw) => `that card is ${describeFilter((raw as CondOf<"varMatches">).filter)}`,
+    sentence: (raw) => `${(raw as CondOf<"varMatches">).paid ? "a card paid for this skill was" : "that card is"} ${describeFilter((raw as CondOf<"varMatches">).filter)}`,
+    doc: 'R-389: paid:true tests historical characteristics captured when a declared pooled payment succeeded; it does not reread the current card or the whole Drop. Missing paid history interrupts with a saved-match rebuild message. Omitted paid retains live variable matching; selecting/playing paid cards uses a separate live fromVar selector and its epoch stamp.',
   },
   isTurnPlayer: {
     fields: [{ name: "who", type: { enum: ["you", "opponent"] } }],
@@ -1855,6 +1917,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   inBattle:       "macro over `count`",
   battled:        "macro over `count`",
   playedUsing:    "macro over `count`",
+  counterActivatedFrom: "primitive",
   placedThisTurn: "macro over `count`",
   every:         "macro over `count` + `not`",
   any:            "primitive",
@@ -1863,9 +1926,13 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   power:          "macro over `count`",
   did:            "primitive",
   not:            "primitive",
+  koedByThisSkill: "primitive",
+  moved:          "primitive",
+  switched:       "primitive",
   chose:          "macro over `count`",
   choseFrom:      "primitive",
-  varMatches:     "macro over `count`",
+  paidMarkers:    "primitive",
+  varMatches:     "primitive",
   varAttrIsX:     "primitive",
   xAtLeast:       "primitive",
   isTurnPlayer:   "primitive",
@@ -1947,8 +2014,8 @@ export function negateAs(op: Op): Op {
       // "Choose up to 1 keyword skill on … and negate it": the keyword is the
       // master's pick at resolution, so the call names none. Naming one *and*
       // saying chosen is two answers to one question, and reads as neither.
-      if (op.chosen) return op.keyword ? { op: "note", text: "negate: a chosen keyword names none" } : { op: "negateChosenKeyword", target, until };
-      return op.keyword ? { op: "negateKeyword", keyword: op.keyword, ...(op.target ? { target: op.target } : {}), ...(op.until && op.until !== "game" ? { until: op.until } : {}) } : { op: "note", text: "negate: no keyword named" };
+      if (op.chosen) return op.keyword ? { op: "note", text: "negate: a chosen keyword names none" } : { op: "negateChosenKeyword", target, until, ...(op.mandatory === undefined ? {} : { mandatory: op.mandatory }) };
+      return op.keyword ? { op: "negateKeyword", keyword: op.keyword, ...(op.allAreas ? { allAreas: true } : {}), ...(op.target ? { target: op.target } : {}), ...(op.until && op.until !== "game" ? { until: op.until } : {}) } : { op: "note", text: "negate: no keyword named" };
     case "own":
       if (until === "turn" || until === "battle") return { op: "negateOwnSkill", until };
       return until === "game" ? { op: "negateOwnSkill" } : { op: "note", text: `negate: this skill cannot be negated ${DURATION_IN_WORDS[until].trim()}` };
@@ -2040,12 +2107,12 @@ const isResolving = (ref: unknown): boolean => {
  * Anything else in a play's place is the primitive's own business (`null`).
  */
 function resolvingPlayOf(op: OpOf<"replace">): Op | null {
-  if (!only(op, ["op", "event", "with"]) || op.with.length !== 1) return null;
+  if (!only(op, ["op", "event", "with", "cardType"]) || op.with.length !== 1) return null;
   const step = op.with[0];
   if (step.op === "moveTo" && only(step, ["op", "target", "to", "position"]) && isResolving(step.target))
-    return { op: "resolvingPlay", instead: step.to, ...(step.position ? { position: step.position } : {}) };
+    return { op: "resolvingPlay", ...(op.cardType ? { cardType: op.cardType } : {}), instead: step.to, ...(step.position ? { position: step.position } : {}) };
   if (step.op === "play" && only(step, ["op", "target", "mode", "negated"]) && isResolving(step.target) && step.mode !== "active" && step.negated !== "game" && (step.mode || step.negated))
-    return { op: "resolvingPlay", ...(step.mode ? { mode: step.mode } : {}), ...(step.negated ? { negated: true } : {}) };
+    return { op: "resolvingPlay", ...(op.cardType ? { cardType: op.cardType } : {}), ...(step.mode ? { mode: step.mode } : {}), ...(step.negated ? { negated: true } : {}) };
   return null;
 }
 
@@ -2103,11 +2170,11 @@ function lifeDownCount(n: Amount, side: Side): number | null {
  * comes back as it was.
  */
 export function revealAs(op: Op): Op {
-  if (op.op !== "reveal" || op.audience !== "you" || !only(op, ["op", "sel", "as", "audience"])) return op;
+  if (op.op !== "reveal" || op.audience !== "you" || !only(op, ["op", "sel", "as", "audience", "incremental"])) return op;
   const sel = op.sel as Selector & Record<string, unknown>;
   if (!sel.side || !sel.area) return op;
   if (sel.area === "deck" && sel.take !== undefined && only(sel, ["take", "side", "area", "fromEnd"]))
-    return { op: "look", n: sel.take as unknown as Amount, as: op.as, side: sel.side, ...(sel.fromEnd ? { from: "bottom" as const } : {}) };
+    return { op: "look", n: sel.take as unknown as Amount, as: op.as, side: sel.side, ...(op.incremental ? {upTo:true as const} : {}), ...(sel.fromEnd ? { from: "bottom" as const } : {}) };
   if (sel.area !== "deck" && only(sel, ["side", "area"])) return { op: "look", n: { count: { side: sel.side, area: sel.area } }, as: op.as, side: sel.side, area: sel.area };
   return op;
 }
@@ -2179,6 +2246,10 @@ export function validateProgram(ops: unknown, depth = 0, xBound = false): ops is
 export function programProblem(ops: unknown, depth = 0, xBound = false, at = "ops"): string | null {
   if (!Array.isArray(ops)) return `${at} is not a list of steps`;
   if (depth > 4) return `${at} is nested too deeply`;
+  if (depth === 0) {
+    const arrivalProblem = counterArrivalPolicyProblem(ops);
+    if (arrivalProblem) return `${at}: ${arrivalProblem}`;
+  }
   // 20-5: X is legal only once something has bound it — the price, said by
   // `CostRecord.x` and passed in as `xBound`, or a `choose` earlier in this
   // same program carrying `bindX`. A step is checked against what is bound
@@ -2193,12 +2264,37 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     const spec = typeof o.op === "string" ? OP_SCHEMA[o.op as Op["op"]] : undefined;
     if (!spec) return `${here}: the engine has no step called ${JSON.stringify(o.op)}`;
     const step = `${here} (${o.op as string})`;
+    if (o.energyActivation !== undefined && ((o.op !== "costReduction" && o.op !== "costModifier") || (o.what !== undefined && o.what !== "energy") || o.skillKind !== undefined || o.activateTiming !== undefined || o.tag !== undefined || o.pay !== undefined)) return `${step}: an activation energy coupon must modify only card energy and carry its own scope`;
     const stray = unknownKey(o, ["op", ...spec.fields.map((f) => f.name)]);
     if (stray) return `${step} has no field ${JSON.stringify(stray)}${hintFor(stray, spec.fields)}`;
     for (const f of spec.fields) {
       const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
       if (bad) return bad;
     }
+    if (o.op === "choose" && isRecord(o.energyCostEquals) && "var" in o.energyCostEquals && (typeof o.energyCostEquals.var !== "string" || !/^\w+$/.test(o.energyCostEquals.var))) return `${step}: per-card energy equality needs a named variable`;
+    if (o.op === "choose" && typeof o.energyCostEquals === "number" && (!Number.isSafeInteger(o.energyCostEquals) || o.energyCostEquals < 0)) return `${step}: per-card energy equality needs a nonnegative integer`;
+    if (o.op === "choose" && o.energyCostEquals !== undefined && (o.sumTo !== undefined || o.namedSet !== undefined || o.permission !== undefined || isRecord(o.sel) && o.sel.eachUnionName !== undefined)) return `${step}: per-card energy equality requires an ordinary choice, not a summed or specialized set`;
+    if ((o.op === "negateKeyword" || o.op === "negate") && o.allAreas !== undefined) {
+      const self = o.target === undefined || (isRecord(o.target) && Object.keys(o.target).length === 1 && isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self");
+      if (o.allAreas !== true || !self || o.until !== undefined || (o.op === "negate" && (o.what !== "keyword" || o.chosen !== undefined || typeof o.keyword !== "string"))) return `${step}: allAreas requires a standing self named-keyword negation`;
+    }
+    if (o.op === "energyEntryExhaust" && energyEntryPolicyProblem({ version: 1, colors: o.colors })) return `${step}: requires exactly two distinct supported color slots`;
+    if (o.op === "look" && o.upTo !== undefined && (o.upTo !== true || o.area !== undefined && o.area !== "deck" || o.side === "both")) return `${step}: optional inspection requires one deck`;
+    if (o.op === "reveal" && o.incremental !== undefined && (o.incremental !== true || o.audience !== "you" || !isRecord(o.sel) || o.sel.area !== "deck" || !["you", "opponent"].includes(String(o.sel.side)) || o.sel.take === undefined || Object.keys(o.sel).some(k => !["side","area","take","fromEnd"].includes(k)))) return `${step}: incremental reveal requires a private unfiltered deck prefix`;
+    if (o.op === "ko" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.completedAs !== o.completedAs.trim()
+      || !isRecord(o.target) || Object.keys(o.target).length !== 1 || o.target.var !== o.completedAs)) return `${step}: KO completion requires the same nonempty bound variable target and result name`;
+    if (o.op === "switchMode" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.mode !== "rest" || !isRecord(o.target) || typeof o.target.var !== "string")) return `${step}: switch completion needs a bound variable switched to Rest Mode`;
+    if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || !(allHandPaymentMove(o) || typeof o.target.var === "string" || isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self" && o.to !== "under") || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary move or under placement`;
+    if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
+      if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
+    }
+    if (o.op === "forbid" && o.copiesOf !== undefined && o.what !== "activateSkill") return `${step}: copiesOf currently qualifies skill activation only`;
+    if (o.op === "permit" && o.what === "activateFromUnder") { const bad = activateUnderPermitProblem(o); if (bad) return `${step}: ${bad}`; }
+    if (o.op === "permit" && o.what !== "activateFromUnder" && o.activateUnderPolicy !== undefined) return `${step}: activateUnderPolicy belongs only to activateFromUnder`;
+    if (o.op === "permit" && o.what === "counterFromUnder") { const bad = counterUnderPermitProblem(o); if (bad) return `${step}: ${bad}`; }
+    if (o.op === "permit" && o.what !== "counterFromUnder" && o.counterUnderPolicy !== undefined) return `${step}: counterUnderPolicy belongs only to counterFromUnder`;
+    if (o.op === "permit" && o.what === "counterFromEnergy") { const bad = counterEnergyPermitProblem(o); if (bad) return `${step}: ${bad}`; }
+    if (o.op === "permit" && o.what === "counterFromDrop") { const bad = counterDropPermitProblem(o); if (bad) return `${step}: ${bad}`; }
     if (o.op === "permit" && o.what === "unionLine" && (typeof o.line !== "string" || !o.line || !isRecord(o.price))) return `${step}: a granted Union line needs its typed skill price; regenerate the grant`;
     if (o.op === "permit" && o.what === "unionLine") {
       if (!["Fusion", "Potara"].includes(String(o.unionVariant))) return `${step}: missing typed Union grant identity; regenerate rules and rebuild saved matches/exports`;
@@ -2211,23 +2307,29 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
         if (problem) return `${step}: ${problem}`;
       }
     }
-    // 12-2-4: Desire and the optional hand-Extra choice are two bounded
-    // readings. Mixing their fields would silently change the old cost gate.
+    // R-420 / 12-2-4: keep legacy Desire bounds separate from one-card effect invocations.
+    // Only an explicit origin (or a variable already bound by the parent) can supply the selected card.
     if (o.op === "invokeSkill") {
       const desire = typeof o.trait === "string" && o.maxCost === "currentEnergy" && o.sel === undefined && o.skillKind === "activate:main";
       // #979: the Desire cards that name colours say it as a one-card hand
       // selector with the energy bound, for the Main line alone.
       const selected = o.trait === undefined && o.maxCost === undefined && isRecord(o.sel)
-        && o.sel.side === "you" && o.sel.area === "hand" && o.sel.count === 1
-        && (o.skillKind === "activate:main/battle" || o.skillKind === "activate:battle"
+        && (o.sel.side === "you" || (o.sel.side === undefined && typeof o.sel.fromVar === "string")) && (o.sel.area === o.from || (o.sel.area === undefined && typeof o.sel.fromVar === "string")) && o.sel.count === 1
+        && (o.skillKind === "activate:main/battle" || o.skillKind === "activate:battle" || o.skillKind === "activate:any"
           ? o.sel.upTo === true
           // Audit effects 2 (P-313): an optional one-card hand Extra's Main line, as its Main/Battle line above.
           : o.skillKind === "activate:main" && (o.sel.upTo === true || (isRecord(o.sel.filter) && o.sel.filter.costAtMostEnergy === true)));
-      if (!desire && !selected) return `${step}: use either Desire's trait/current-energy Main line, a one-card hand selector bounded by current energy for a Main line, or an optional one-card hand selector for a Main, Battle or Main/Battle line`;
+      if ((desire && o.from !== "hand") || (!desire && !selected)) return `${step}: use either Desire's hand trait/current-energy Main line, a one-card current-energy Main selector, or an optional one-card selector in the explicit hand/deck/drop origin for an Activate line`;
     }
     // A marker loss is read at one moment only — 13-5-2's, an attack on a
     // Unison — so `event: marker` names it and `by: attack` belongs to it
     // alone: either without the other is a moment nothing reads.
+    if (o.op === "replace" && o.to !== undefined && o.event !== "leave" && o.event !== "life") return `${step}: "to" is only supported for leave or life replacements`;
+    if (o.op === "forbid" && o.what === "beNegated" && o.fromArea === "any") {
+      const target = o.target;
+      if (o.until !== "game" || !isRecord(target) || !only(target, ["sel"]) || !isRecord(target.sel) || target.sel.special !== "self" || !only(target.sel, ["special"]) || !only(o, ["op", "what", "fromArea", "until", "target", "side", "byFilter", "unless"])) return `${step}: all-area negation protection requires a self Permanent with only actor, source and escape qualifications`;
+    }
+    if (o.op === "replace" && o.cardType !== undefined && o.event !== "play") return `${step}: cardType qualifies only a play replacement`;
     if (o.op === "replace" && (o.event === "marker") !== (o.by === "attack")) return `${step}: "event": "marker" and "by": "attack" are only ever written together`;
     // 20-14-1: a tax is charged where the action is taken, and only the
     // attack, a declared play, a skill's switch of energy to Active Mode and
@@ -2334,6 +2436,7 @@ function hintFor(stray: string, known: readonly (string | OpField)[]): string {
  * written here that the type lacks does too.
  */
 const SELECTOR_KEYS = {
+  requiredStamp: 1,
   side: 1,
   area: 1,
   areas: 1,
@@ -2412,6 +2515,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.ownedByYou !== undefined && v.ownedByYou !== true) return wrong("ownedByYou", "true");
   if (v.charactersNotInPlay !== undefined && v.charactersNotInPlay !== true) return wrong("charactersNotInPlay", "true");
   if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
+  if (v.requiredStamp !== undefined && (v.requiredStamp !== true || typeof v.fromVar !== "string" || !v.fromVar || v.special !== undefined)) return `${at}.requiredStamp needs true and a nonempty fromVar without special`;
   // A printed count is a whole number; a lowered one — `draw(n: X)` becomes
   // `TOP X IN you.deck` (`rulesets/*.rules`) — is the amount it was handed,
   // which the step that wrote it has already checked for an unbound X.
@@ -2551,7 +2655,7 @@ function refProblem(v: unknown, at: string): string | null {
   return selectorProblem(v.sel, `${at}.sel`);
 }
 
-const AMOUNT_KEYS = ["var", "count", "per", "times", "sumPower", "handUpTo", "markers", "x", "life", "attr", "name", "sumOf", "plus", "capped"];
+const AMOUNT_KEYS = ["paidMarkers", "var", "count", "per", "times", "sumPower", "handUpTo", "markers", "x", "life", "attr", "name", "sumOf", "plus", "capped"];
 
 function amountProblem(v: unknown, xBound: boolean, at: string): string | null {
   if (typeof v === "number") return Number.isFinite(v) ? null : `${at} is not a number`;
@@ -2560,6 +2664,7 @@ function amountProblem(v: unknown, xBound: boolean, at: string): string | null {
   const stray = unknownKey(v, AMOUNT_KEYS);
   if (stray) return `${at} has no field ${JSON.stringify(stray)}${hintFor(stray, AMOUNT_KEYS)}`;
   if (readsUnboundX(v, xBound)) return `${at} says X, and nothing before it binds one — X may only be used when the price charges an X or its own choice binds one`;
+  if (v.paidMarkers !== undefined && (v.paidMarkers !== "spiritBoost" || (v.times !== undefined && (typeof v.times !== "number" || !Number.isFinite(v.times))) || Object.keys(v).some(key => !["paidMarkers", "times"].includes(key)))) return `${at}.paidMarkers names one declared marker cost`;
   if (!perHolds(v)) return `${at}.per is a whole number of at least 2, on a count, markers or life`;
   for (const k of ["count", "markers", "sumOf"]) {
     if (v[k] === undefined) continue;
@@ -2637,6 +2742,8 @@ export function condProblem(v: unknown, depth = 0, xBound = false, at = "cond"):
     const bad = fieldProblem(f, v[f.name], depth, xBound, `${here}.${f.name}`);
     if (bad) return bad;
   }
+  if (v.kind === "koedByThisSkill" && (typeof v.var !== "string" || !v.var.trim() || v.var !== v.var.trim() || typeof v.costMax !== "number" || !Number.isFinite(v.costMax) || v.costMax < 0)) return `${here}: requires a nonempty result name and finite nonnegative final cost bound`;
+  if (v.kind === "moved" && v.atLeast !== undefined && (!Number.isSafeInteger(v.atLeast) || Number(v.atLeast) < 1)) return `${here}.atLeast must be a positive integer`;
   // A condition never chooses, so a summed bound in one is read as nothing.
   return strayBound(v, here);
 }
@@ -3221,6 +3328,7 @@ function describeAmount(a: Amount, noun?: string): string {
   if (typeof a === "number") return `${a}`;
   if ("plus" in a) return a.plus[1] < 0 ? `${describeAmount(a.plus[0])} less ${-a.plus[1]}` : `${describeAmount(a.plus[0])} and ${a.plus[1]} more`;
   if ("capped" in a) return `${describeAmount(a.capped[0])} (up to ${a.capped[1]})`;
+  if ("paidMarkers" in a) return `${a.times ?? 1} for each marker actually paid for this skill`;
   if ("var" in a) return "that many";
   if ("sumPower" in a) return "the total power of the cards rested";
   if ("handUpTo" in a) return `up to ${a.handUpTo} in hand`;
@@ -3330,8 +3438,8 @@ const PILE_NAMES: Record<string, string> = { hand: "hand", deck: "deck", drop: "
 function passiveSentence(op: OpOf<"forbid">, escape: string, r: RenderOptions): string | null {
   // Audit lane C: "…can't be negated by your opponent's skills" (DB1-021), "…by the skills of your red <Garlic Jr.>
   // cards" (P-641): whose negation the rule stops.
-  if (op.what === "beNegated" && (op.side || op.byFilter)) {
-    return `${op.target ? describeRef(op.target) : op.filter ? describeFilter(op.filter, { plural: true }) : "cards"} can't have their skills negated by ${whoseSkillsSaid(op)}${escape}${forThe(op.until, r)}`;
+  if (op.what === "beNegated" && (op.side || op.byFilter || op.fromArea === "any")) {
+    return `${op.target ? describeRef(op.target) : op.filter ? describeFilter(op.filter, { plural: true }) : "cards"} can't have their skills negated${op.fromArea === "any" ? " in any area" : ""}${op.side || op.byFilter ? ` by ${whoseSkillsSaid(op)}` : ""}${escape}${forThe(op.until, r)}`;
   }
   if (op.what !== "beMovedBySkill" && op.what !== "beKOdBySkill" && op.what !== "beRestedBySkill" && op.what !== "beChosen") return null;
   const by = ` by ${whoseSkillsSaid(op)}`;

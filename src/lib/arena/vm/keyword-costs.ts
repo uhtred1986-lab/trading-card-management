@@ -1,3 +1,8 @@
+import { canonicalTaxValue } from "./tax-receipt";
+import { isOverRealmPayment, stepOverRealmCost, type OverRealmCost } from "./over-realm-cost";
+import { chooseFramePools, primeFramePools, requirePoolOccurrence, resourceActionFinishes } from "./pooled-costs";
+import { isZAwakenChargeSkipPrice } from "./activation-price-support";
+import { resolveSelector, attrsNow } from "./program";
 import { hasDropBottomRoute } from "./fusion-materials";
 import { fusionLineProblem, evolutionLineProblem, absorbLineProblem, potaraLineProblem } from "./skill-identity";
 /**
@@ -47,7 +52,7 @@ import { fusionLineProblem, evolutionLineProblem, absorbLineProblem, potaraLineP
  */
 import { other, type Area, type EngineContext, type GameEvent, type PlayerId, type Requirement } from "../types";
 import type { GameDefinition } from "../rulesets";
-import { announce, boundFor, isFusionPayment, keywordActionPrice, scopedPayersSpent, type ActivationLine } from "./activate";
+import { zAwakenBindings, announce, boundFor, isFusionPayment, keywordActionPrice, scopedPayersSpent, type ActivationLine } from "./activate";
 import { AutoPaymentFailed, automaticPriceHost, canFinishAutomaticPrice, readableAutomaticPrice } from "./auto-costs";
 import { IllegalAction } from "./common";
 import { findCard } from "./zones";
@@ -58,6 +63,7 @@ import { chargeCost, chargesOf, planCost, priceFor, spendSkillCostUses, type Pri
 import { keywordProgram } from "./keyword-do";
 import { spendUse } from "./limits";
 import type { VmState } from "./state";
+import { isOrderedZAwaken, stepZAwakenCost, type ZAwakenCost } from "./z-awaken-costs";
 
 /** The price a keyword move still owes: on its `DO` frame until `payActionPrice`, then on the strict frame paying it. */
 export interface KeywordCost {
@@ -70,7 +76,9 @@ export interface KeywordCost {
   /** Set on the `DO` frame once its strict frame is queued, so the price is never queued twice. */
   queued?: true;
   /** #907: all Fusion resource payment follows material payment, including orb-only lines. */
-  fusion?: { stage: "resources" | "native" | "action"; choices?: { price: Price; payment: VmPayment; label: string }[]; payment?: VmPayment; nativeIndex?: number; poolIndex?: number };
+  zAwaken?: ZAwakenCost;
+  overRealm?: OverRealmCost;
+  fusion?: { stage: "resources" | "native" | "action"; selectedChoice?: number; choices?: { price: Price; payment: VmPayment; label: string }[]; payment?: VmPayment; nativeIndex?: number; poolIndex?: number };
 }
 
 /** The label and owner every refusal and gap of this module is filed under. */
@@ -104,6 +112,9 @@ function materialIndependent(ops: Op[]): boolean {
 
 /** Refuse what the strict host cannot charge, as a typed gap — never call it unaffordable, never let it be free. */
 function readable(line: ActivationLine, ops: Op[]): void {
+  // R-397: the cost is the future-phase commitment itself; the ordinary
+  // Auto/payment grammar does not thereby admit arbitrary skip operations.
+  if (line.keyword?.name === "Z-Awaken" && isZAwakenChargeSkipPrice(ops)) return;
   readableAutomaticPrice(ops, labelOf(line), OWNER, { draw: true });
   if (isFusion(line) && !materialIndependent(ops)) throw new NotYet(`pay a ${labelOf(line)} action price that may touch its materials`, OWNER);
 }
@@ -121,7 +132,9 @@ function finishes(ctx: EngineContext, game: GameDefinition, state: VmState, play
     if (err instanceof IllegalAction && !(err instanceof NotYet)) return false;
     throw err;
   }
-  return canFinishAutomaticPrice(ctx, game, clone, { ...priceFrame(line, player, ops), ...(x === undefined ? {} : { x }) });
+  const frame = priceFrame(line, player, ops, line.keyword?.name === "Z-Awaken" ? { key: `${line.card}:${line.skillIndex}`, line, moments: [] } : undefined);
+  if (line.keyword?.name === "Z-Awaken") frame.vars = zAwakenBindings(clone, player, line.card);
+  return canFinishAutomaticPrice(ctx, game, clone, { ...frame, ...(x === undefined ? {} : { x }) });
 }
 
 /**
@@ -154,9 +167,9 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
   const cost = frame.keywordPrice;
   if (!cost || cost.queued) return;
   const ops = keywordActionPrice(cost.line);
-  if (!ops && !cost.fusion) throw new RulesetBroken(state.game, `${cost.line.card}'s keyword move carries a price its record no longer has`);
+  if (!ops && !cost.fusion && !cost.overRealm) throw new RulesetBroken(state.game, `${cost.line.card}'s keyword move carries a price its record no longer has`);
   cost.queued = true;
-  state.programs.unshift({ ...priceFrame(cost.line, frame.master, ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.fusion ? { fusion: cost.fusion } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.fusionSourceEpoch !== undefined ? { fusionSourceEpoch: frame.fusionSourceEpoch } : {}), ...(frame.fusionDropBottom ? { fusionDropBottom: true as const } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
+  state.programs.unshift({ ...(frame.viaKeyword === "Z-Awaken" ? { viaKeyword: frame.viaKeyword } : {}), ...priceFrame(cost.line, frame.master, cost.overRealm ? [] : ops ?? [], { key: cost.key, line: cost.line, moments: cost.moments, ...(cost.overRealm ? { overRealm: cost.overRealm } : {}), ...(cost.fusion ? { fusion: cost.fusion } : {}), ...(cost.zAwaken ? { zAwaken: cost.zAwaken } : {}) }), ...(frame.evolutionIdentity ? { evolutionSourceEpoch: frame.evolutionSourceEpoch } : {}), ...(frame.absorbIdentity ? { absorbSourceEpoch: frame.absorbSourceEpoch } : {}), ...(frame.potaraIdentity ? { potaraSourceEpoch: frame.potaraSourceEpoch } : {}), ...(frame.fusionSourceEpoch !== undefined ? { fusionSourceEpoch: frame.fusionSourceEpoch } : {}), ...(frame.fusionDropBottom ? { fusionDropBottom: true as const } : {}), ...(frame.viaKeyword === "Z-Awaken" ? { vars: structuredClone(frame.vars) } : {}), ...(frame.x === undefined ? {} : { x: frame.x }) });
 }
 
 /**
@@ -168,11 +181,32 @@ export function queueKeywordCost(state: VmState, frame: ScriptFrame): void {
  */
 export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
   const cost = frame.keywordCost!;
+  if (isOrderedZAwaken(cost.line) && !cost.zAwaken) throw new IllegalAction("rebuild this saved Z-Awaken payment with its cost-order continuation");
   assertCurrentFusion(cost, !!frame.evolutionIdentity);
+  if (isOverRealmPayment(cost.line) && !cost.overRealm) throw new NotYet("rebuild this saved Over Realm payment", "R456");
+  if (cost.overRealm) {
+    const owner = state.programs.find(f => f.keywordPrice?.key === cost.key);
+    if (!owner || owner.card !== frame.card || owner.master !== frame.master || cost.line.card !== frame.card || cost.line.skillIndex !== frame.skillIndex || frame.master !== cost.overRealm.source?.player || canonicalTaxValue(owner.overRealmSource) !== canonicalTaxValue(cost.overRealm.source)) throw new NotYet("rebuild the saved Over Realm owner/source binding", "R456");
+  }
+  // R-396: payment is still for the originally chosen Z-Deck card and Leader.
+  // Failed/replaced source or base occurrences cancel the activation, not a new card.
+  if (cost.line.keyword?.name === "Z-Awaken") {
+    const source = resolveSelector(ctx, game, state, frame, { fromVar: "zAwakenSource", side: "you", area: "zDeck" });
+    const base = resolveSelector(ctx, game, state, frame, { fromVar: "zAwakenBase", side: "you", area: "leader", printed: true });
+    if (source.length !== 1 || state.cards[source[0]].faceUp || base.length !== 1 || !state.cards[base[0]].flipped || String(attrsNow(ctx, game, state, base[0]).type).startsWith("Z-")) return fail(state, ev, cost);
+    for (const op of frame.ops) if (op.op === "choose" && frame.vars[op.as] && (!cost.zAwaken || frame.ops.slice(frame.ip).some(next => next.op === "moveTo" && "var" in next.target && next.target.var === op.as))) {
+      const ids = frame.vars[op.as], epochs = frame.vars[`${op.as}@epoch`];
+      if (ids.length && (!epochs || ids.length !== epochs.length || ids.some((id, index) => epochs[index] !== `${id}@${state.cards[id]?.zoneEpoch ?? 0}`))) return fail(state, ev, cost);
+    }
+  }
   if (frame.fusionDropBottom && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.fusionSourceEpoch)) return fail(state, ev, cost);
   if (frame.potaraIdentity && (findCard(state, frame.card)?.zone !== "hand" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.potaraSourceEpoch)) return fail(state, ev, cost);
   if (frame.absorbIdentity && (findCard(state, frame.card)?.zone !== "battle" || findCard(state, frame.card)?.owner !== frame.master || (state.cards[frame.card]?.zoneEpoch ?? 0) !== frame.absorbSourceEpoch)) return fail(state, ev, cost);
   try {
+    if (cost.overRealm && stepOverRealmCost(ctx, game, state, ev, frame, cost.overRealm, cost.line) === "wait") return "wait";
+    if (cost.zAwaken) {
+      if (stepZAwakenCost(ctx, game, state, ev, frame) === "wait") return "wait";
+    }
     if (cost.fusion && cost.fusion.stage !== "action") {
       const result = payFusionResources(ctx, game, state, ev, frame);
       if (result !== "paid") return result;
@@ -198,14 +232,14 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
     throw err;
   }
   const owner = state.programs.find((f) => f.keywordPrice?.key === cost.key);
-  if (owner) owner.keywordPrice = undefined;
+  if (owner) { owner.keywordPrice = undefined; if (cost.overRealm) owner.overRealmPaidTaxes = cost.overRealm.paidTaxes.slice(); }
   // 20-5-3, 22-13-6-1 (#930): what an Absorb's cost chose is its effect's —
   // BT4-018's "the card you placed under this card" is the price's `c0`. The
   // `DO` frame runs the printed effect, so it is handed on there, as an
   // [Activate]'s price hands its names on through `saveVars`; names the frame
   // already holds win.
   if (owner && frame.absorbIdentity) owner.vars = { ...frame.vars, ...owner.vars };
-  if (cost.fusion) {
+  if (cost.fusion || cost.zAwaken || cost.overRealm) {
     if (cost.line.script?.price?.payment.marker != null) state.cards[frame.card].usedMarkerSkill = true;
     spendUse(state, frame.master, frame.card, cost.line.skill);
     spendSkillCostUses(ctx, game, state, ev, frame.card, cost.line.skill);
@@ -217,6 +251,7 @@ export function stepKeywordCost(ctx: EngineContext, game: GameDefinition, state:
 
 /** 5-8-4: the price could not be paid in full. What was paid stays paid; no skill, no moment, no play. */
 function fail(state: VmState, ev: GameEvent[], cost: KeywordCost): "done" {
+  if (cost.overRealm) { state.lastChoice = null; state.lastMode = null; }
   const at = state.programs.findIndex((f) => f.keywordPrice?.key === cost.key);
   if (at >= 0) state.programs.splice(at, 1);
   log(ev, { type: "note", text: `${labelOf(cost.line)} activation failed: its skill cost could not be paid in full` });
@@ -289,16 +324,21 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
   if (fusion.stage === "resources") {
     fusion.choices ??= fusionPlans(ctx, game, state, frame.master, cost.line, frame.x);
     if (!fusion.choices.length) return fail(state, ev, cost);
-    if (fusion.choices.length > 1 && frame.awaiting !== "fusionResources") {
+    primeFramePools(game, state, frame, fusion.choices[0].price);
+    if (fusion.selectedChoice === undefined && fusion.choices.length > 1 && frame.awaiting !== "fusionResources") {
       frame.awaiting = "fusionResources";
       state.programs.unshift(frame);
       state.prompt = { kind: "chooseMode", player: frame.master, reason: "Pay the Union-Fusion skill cost", options: fusion.choices.map((choice) => choice.label) };
       return "wait";
     }
-    const index = fusion.choices.length > 1 ? state.lastMode : 0;
+    const index = fusion.selectedChoice ?? (fusion.choices.length > 1 ? state.lastMode : 0);
     const choice = index === null ? undefined : fusion.choices[index];
     if (!choice) throw new IllegalAction("no such Fusion skill cost payment");
-    const current = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest);
+    fusion.selectedChoice = index!;
+    state.lastMode = null;
+    const following = keywordActionPrice(cost.line) ?? [];
+    if (chooseFramePools(ctx, game, state, frame, choice.price, choice.payment, following.length ? payment => resourceActionFinishes(ctx, game, state, frame, payment, game.actions.activate.cost ?? [], following) : undefined) === "wait") return "wait";
+    const current = planCost(ctx, game, state, frame.master, choice.price, frame.card, choice.payment.rest, frame.poolPayment?.selection);
     if (!current.ok || !samePayment(current.payment, choice.payment)) throw new IllegalAction("that Fusion skill cost payment is no longer available");
     delete frame.awaiting;
     state.lastMode = null;
@@ -315,6 +355,7 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
   const charges = chargesOf(game);
   const host = automaticPriceHost(ctx, game, state, ev);
   const payment = fusion.payment!;
+  requirePoolOccurrence(state, frame);
   while (fusion.nativeIndex! < costs.length) {
     const name = costs[fusion.nativeIndex!];
     const charge = charges[name];
@@ -325,6 +366,7 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
       if (!to) throw new RulesetBroken(game.id, `the price ${name} takes cards but has no destination`);
       const id = cards[fusion.poolIndex!];
       if (id) {
+        requirePoolOccurrence(state, frame, name, id);
         const from = charge.from ?? { side: "you", area: "life" };
         const side = from.side === "opponent" ? other(frame.master) : frame.master;
         if (host.areaOf(id) !== from.area || !state.sides[side].zones[from.area]?.includes(id)) throw new IllegalAction("that Fusion pool payment is no longer available");
@@ -336,6 +378,7 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
         }
         const result = stepScript(host, frame);
         if (result === "wait") return "wait";
+        if (id === frame.card && frame.poolPayment) frame.poolPayment.sourcePaid = true;
         fusion.poolIndex!++;
         frame.ops = [];
         frame.ip = 0;
@@ -355,6 +398,7 @@ function payFusionResources(ctx: EngineContext, game: GameDefinition, state: VmS
   frame.ip = 0;
   delete frame.vars["§fusionNativePayment"];
   fusion.stage = "action";
+  delete frame.poolPayment;
   return "paid";
 }
 

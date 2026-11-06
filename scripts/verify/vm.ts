@@ -205,7 +205,7 @@ const DBS: GameDefinition = dbs.ok ? dbs.definition : (undefined as never);
 // adapter and `attributes.rules` account for each other. Reported by name in
 // both directions — a count would say something changed and nothing about what.
 assert.deepEqual(attributeGaps(DBS), { unfilled: [], undeclared: [] }, "the catalog adapter and attributes.rules do not describe the same card");
-assert.deepEqual(playerAttributes(DBS), ["energyMarkers", "charged", "grewUnison", "overRealms"], "the player attributes of 1-14, 7-2-11, 13-3 and 22-15 are not what the game declares");
+assert.deepEqual(playerAttributes(DBS), ["energyMarkers", "charged", "grewUnison", "overRealms", "zAwakens"], "the player attributes of 1-14, 7-2-11, 13-3 and 22-15 are not what the game declares");
 assert.ok(cardAttributes(DBS).includes("costOf"), "the derived cost of 20-21 is not a declared card attribute");
 
 {
@@ -495,7 +495,7 @@ const SEED = 7;
 const SAME = { seed: SEED, p1: { name: "You", leader: "L-RED", main: fifty("V1") }, p2: { name: "Claude", leader: "L-BLUE", main: fifty("V-BLUE") } };
 
 const fresh = RULES.createGame(CTX, SAME).state as VmState;
-assert.deepEqual(fresh.sides.p1.attrs, { energyMarkers: 0, charged: false, grewUnison: false, overRealms: 0 }, "a side does not start with the player attributes the game declares (1-14, 7-2-11, 13-3, 22-15)");
+assert.deepEqual(fresh.sides.p1.attrs, { energyMarkers: 0, charged: false, grewUnison: false, overRealms: 0, zAwakens: 0 }, "a side does not start with the player attributes the game declares (1-14, 7-2-11, 13-3, 22-15)");
 
 const chooser = SEED_7_OPENING.chooser;
 assert.equal(fresh.chooser, chooser, "seed 7 chose the wrong player to decide who goes first (6-2-1-4)");
@@ -1022,6 +1022,7 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         (frame) => [frame.card],
         () => true,
         () => 0,
+        () => true, // This fixture has no Bond-qualified Permanent.
       ).length > 0,
       "the [Permanent] walk found no standing change on a board holding one",
     );
@@ -1452,8 +1453,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
         { card: "p1#9", player: "p1", replaced: true },
         { card: "p1#9", player: "p1", replaced: true },
         { card: "p1#9", player: "p1", rest: true },
-        { card: "p1#9", player: "p1", negated: true },
-        { card: "p1#9", player: "p1", rest: true, negated: true },
+        { card: "p1#9", player: "p1", negated: true, negatedBy: { player: "p1", source: "p1#0" } },
+        { card: "p1#9", player: "p1", rest: true, negated: true, negatedBy: { player: "p1", source: "p1#0" } },
       ];
       for (const [index, rec] of resolvingOps.entries()) {
         kept.r = [];
@@ -2521,8 +2522,9 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     const done = played(board, action);
     assert.deepEqual(done.r.events, [
       { type: "action", action },
-      { type: "move", card: "p1#46", from: "zEnergy", to: "drop", owner: "p1" },
+      // R-399: with the whole pool required, preserve its declared order.
       { type: "move", card: "p1#3", from: "zEnergy", to: "drop", owner: "p1" },
+      { type: "move", card: "p1#46", from: "zEnergy", to: "drop", owner: "p1" },
       { type: "mode", card: "p1#43", mode: "rest" },
       { type: "move", card: zCard, from: "zDeck", to: "battle", owner: "p1", reveal: true },
     ], "a Z-card play did not spend two Z-Energy before resting energy and arriving");
@@ -3901,13 +3903,11 @@ console.log("verify/vm: ok");
 // onEnter/onLeave (9-1-3-1's zones, scoped to a game's own `inPlay: true`
 // declarations) and afterSkill (9-6-9-4's "you play another card") both fire
 // from `moved()` itself, the one mover every arrival passes through —
-// tested here against three of the four keyword bodies #155 built: [Field]'s
-// onEnter (22-3) and [Heroic]/[Villainous]'s afterSkill (22-35/22-36).
-// [Servant]'s activeStep is not `moved()`'s to fire — it is `chargeActivate`'s
-// own query (7-2-7) — and is tested separately below. [Field]'s hook body is
-// fired here through `moved()` directly, which is what its own activation
-// (the keyword's `DO`, 2 Oct 2026) does by playing the card; the activation
-// itself is tested on both engines in `wordings.ts`.
+// tested here against [Heroic]/[Villainous]'s afterSkill (22-35/22-36),
+// and mandatory Field rule cleanup (22-3-5, R469). Field cleanup is no
+// longer an optional onEnter hook. Native staged activation is covered in
+// field-activation-5; this control also exercises direct successful placement.
+// [Servant]'s activeStep is tested separately below.
 {
   const rulesEngine = RULES;
 
@@ -3947,12 +3947,9 @@ console.log("verify/vm: ok");
     const events: GameEvent[] = [];
     moved(CTX, DBS, s, events, second, "battle", { owner: "p1", asPlay: true });
     run(CTX, DBS, s, events);
-    assert.equal(s.prompt.kind, "chooseCards", "[Field]'s onEnter did not ask which other [Field] Extra to drop (22-3)");
-    const pr = s.prompt as { choice: { candidates: string[] } };
-    assert.deepEqual(pr.choice.candidates, [first], "[Field]'s onEnter offered the wrong candidate to drop (22-3)");
-    const after = rulesEngine.apply(CTX, s, { type: "choose", player: "p1", cards: [first] }).state as VmState;
-    assert.ok(after.sides.p1.zones.drop.includes(first), "the [Field] Extra already out was not dropped (22-3)");
-    assert.ok(after.sides.p1.zones.battle.includes(second), "the newly-entered [Field] Extra did not stay in the Battle Area (22-3)");
+    assert.equal(s.prompt.kind, "main", "one mandatory old Field requires no target/omission choice");
+    assert.ok(s.sides.p1.zones.drop.includes(first), "all old Fields must be dropped by rule processing (22-3-5)");
+    assert.ok(s.sides.p1.zones.battle.includes(second), "the newly placed Field remains in Battle");
   }
 
   // [Heroic] (22-35): playing a second [Heroic] card draws 1 off the first

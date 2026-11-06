@@ -1,0 +1,396 @@
+{
+  "P-129#10": {
+    "ops": {
+      "before": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "hand",
+            "filter": {
+              "colors": [
+                "Yellow"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "you may choose 1 yellow card in your hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "drop",
+          "reveal": true
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "energy",
+                "filter": {
+                  "colors": [
+                    "Yellow"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c1",
+              "reason": "choose 1 of your yellow energy"
+            },
+            {
+              "op": "switchMode",
+              "target": {
+                "var": "c1"
+              },
+              "mode": "rest"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c1"
+          },
+          "then": [
+            {
+              "op": "negateAttack"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "hand",
+            "filter": {
+              "colors": [
+                "Yellow"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "you may choose 1 yellow card in your hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "drop",
+          "reveal": true,
+          "completedAs": "c0"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "energy",
+                "filter": {
+                  "colors": [
+                    "Yellow"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c1",
+              "reason": "choose 1 of your yellow energy"
+            },
+            {
+              "op": "switchMode",
+              "target": {
+                "var": "c1"
+              },
+              "mode": "rest",
+              "completedAs": "c1"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0:self"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "chose",
+                "var": "c0"
+              },
+              {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              {
+                "kind": "switched",
+                "var": "c1"
+              },
+              {
+                "kind": "moved",
+                "var": "c0:self",
+                "all": true
+              }
+            ]
+          },
+          "then": [
+            {
+              "op": "negateAttack"
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "choose\u2192moveTo\u2192if:chose[choose\u2192switchMode\u2192moveTo]\u2192if:chose[negateAttack]",
+      "after": "choose\u2192moveTo\u2192if:chose[choose\u2192switchMode\u2192moveTo]\u2192if:all[negateAttack]"
+    },
+    "reads": {
+      "before": "choose up to 1 yellow card in your hand, move the chosen cards to drop, if you took that choice: choose 1 yellow card in your Energy Area, switch the chosen cards to rest mode, move this card to drop (end if), if you took that choice: negate the attack",
+      "after": "choose up to 1 yellow card in your hand, move the chosen cards to drop, if you took that choice: choose 1 yellow card in your Energy Area, switch the chosen cards to rest mode, move this card to drop (end if), if you took that choice and the chosen movement was completed in full and the chosen energy was switched to Rest Mode and the chosen movement was completed in full: negate the attack"
+    }
+  }
+}

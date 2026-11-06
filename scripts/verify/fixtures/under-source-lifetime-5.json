@@ -1,0 +1,265 @@
+{
+  "BT1-014": {
+    "card": {
+      "id": "BT1-014",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Saiyan Cabba",
+      "characters": [
+        "Cabba"
+      ],
+      "traits": [
+        "Alien",
+        "Saiyan"
+      ],
+      "skill": "[Auto]  When this card attacks, you may choose 1 card from your life and add it to your hand.  If you do so, this card gains +10000 power and [Double Strike]  (This card inflicts 2 damage instead of 1 when attacking) for the duration of the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Saiyan Cabba",
+        "qa": [
+          {
+            "q": "When adding cards from your Life Area to your hand with {BT1-014 Saiyan Cabba}\u2019s auto skill, can you choose which card to add to your hand?",
+            "a": "You can, but you cannot look at the card beforehand."
+          }
+        ]
+      }
+    ]
+  },
+  "BT1-016": {
+    "card": {
+      "id": "BT1-016",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Unceasing Evolution Frost",
+      "characters": [
+        "Frost"
+      ],
+      "traits": [
+        "Alien",
+        "Frieza Clan"
+      ],
+      "skill": "[evolve] {r}{r}: <Frost> (Play this card on top of the specified card)[double strike] (This card inflicts 2 damage instead of 1 when attacking)",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT6-063": {
+    "card": {
+      "id": "BT6-063",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Broly, Unrealized Ambition",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "skill": "[Auto] When you play this card from your hand and if your Leader Card is a green \u226aFrieza's Army\u226b card, choose 2 cards from your life and add them to your hand.<br>[Auto] When this card is removed from a Battle Area by a skill or KO'd, and if your Leader Card is a green \u226aFrieza's Army\u226b card, choose 1 or 2 cards from your life and add them to your hand, then choose up to 1 green &lt;Broly: Br&gt; card with an energy cost of 4 from your hand and play it.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Broly, Unrealized Ambition",
+        "qa": [
+          {
+            "q": "When this card is moved to a non-open area by an opponent\u2019s skill, can you activate and resolve this card\u2019s auto skill?",
+            "a": "Yes, you can."
+          },
+          {
+            "q": "This card\u2019s effect was negated by {BT1-107 Cold Bloodlust}. If it then leaves the Battle Area by your opponent\u2019s skill, does this card\u2019s auto skill activate and resolve?",
+            "a": "No, it doesn\u2019t."
+          },
+          {
+            "q": "If this card is placed under one of your opponent\u2019s cards by your opponent\u2019s skill, does this card\u2019s auto skill activate and resolve?",
+            "a": "Yes, it activates. The master of the Battle Area prior to the card changing control becomes the master of this skill, and activates and resolves it."
+          },
+          {
+            "q": "If this card is placed under one of your cards by your skill, does this card\u2019s auto skill activate and resolve?",
+            "a": "No, it doesn\u2019t."
+          },
+          {
+            "q": "If your opponent gains control of this card with one of their skills, does this card\u2019s auto skill activate and resolve?",
+            "a": "Yes, it activates. The master of the Battle Area prior to the card changing control becomes the master of this skill, and activates and resolves it."
+          },
+          {
+            "q": "If this card is KO\u2019d or leaves the Battle Area after your opponent gains control of it, does its auto skill activate and resolve?",
+            "a": "Yes, the auto skill activates. However, since your opponent is the master of the skill, your opponent activates and resolves it."
+          },
+          {
+            "q": "When you are prevented from adding cards in your life to your hand by this card\u2019s auto skill, does the \u201cchoose up to 1 green \u3008Broly : Br\u3009 card with an energy cost of 4 from your hand and play it\u201d skill resolve?",
+            "a": "Yes, it does."
+          },
+          {
+            "q": "When this card has its power lowered by a skill, resulting in its power being lowered to 0 or lower and sent to its owner\u2019s Drop Area, can you activate and resolve this card\u2019s auto skill?",
+            "a": "Yes, you can"
+          }
+        ]
+      }
+    ]
+  },
+  "BT23-025": {
+    "card": {
+      "id": "BT23-025",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Android 17, Infinite Rotation",
+      "characters": [
+        "Android 17"
+      ],
+      "traits": [
+        "Android"
+      ],
+      "skill": "[auto][limit 1]{r}, if your Leader is a red \u226aAndroid\u226b card: At the end of a battle in which your <Android 18> Battle Card attacked, play this card from under a {Destroyed West City} in your Battle Area.<br>[auto][limit 1] When this card in your hand is placed under a {Destroyed West City} in your Battle Area, place up to 1 red <Android 18> card from your deck under a Z-Extra in your Battle Area, then shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT23-070": {
+    "card": {
+      "id": "BT23-070",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Abducted",
+      "characters": [],
+      "traits": [],
+      "skill": "[permanent] Negate the skills of Battle Cards on top of this card, and those cards can't attack.<br>[activate: main] Choose up to 1 of your opponent's Battle Cards with <Son Gohan> in its character name and place this card under it from your Drop after this card is activated.<br>[activate: main]{2}: Place this card in your Drop from under a Battle Card with <Son Gohan> in its character name.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT29-140": {
+    "card": {
+      "id": "BT29-140",
+      "type": "Z-BATTLE",
+      "colors": [
+        "Black",
+        "White"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "SSB Son Goku & SSB Vegeta, Battle With a God",
+      "characters": [
+        "Son Goku",
+        "Vegeta"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[Deflect][Dual Attack]\n[Permanent] If your Leader is a black <Son Goku>-only card and you have 3 or more energy, reduce the energy cost of this card in your Z-Deck by {b}{w}.\n[Auto] When this card is played, send up to 1 card from your Drop to its owner's Warp.\n[Auto][Limit 1] When this card is placed under a <Vegito> card with a [Union] skill, choose up to 1 of your cards and switch it to Revealed Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT2-013": {
+    "card": {
+      "id": "BT2-013",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "5",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Lightning Speed Vegito",
+      "characters": [
+        "Vegito"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[Union-Potara] \u2462: &lt;Son Goku&gt; and &lt;Vegeta&gt; (Place this card in Active Mode on top of the 2 specified cards stacked together)<br>[Permanent] This card can attack Battle Cards that are in Active Mode.<br>[Auto] At the end of the battle after this card attacks, place 10 cards from the top of your deck in your Drop Area. Then, choose up to 1 &lt;Vegito&gt; with 25000 power from your Drop Area and evolve into it by placing it on top of this card in Active Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Lightning Speed Vegito",
+        "qa": [
+          {
+            "q": "You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card?",
+            "a": "The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not."
+          },
+          {
+            "q": "Can you attack your own Battle Cards in Active Mode?",
+            "a": "No, you cannot."
+          },
+          {
+            "q": "Can you evolve into {BT2-012 Repeated Force Vegito} with {BT2-013 Lightning Speed Vegito}\u2019s skill?",
+            "a": "Yes, you can.\n{BT2-012 Repeated Force Vegito} has 25000 power, and its character name is \"Vegito,\" so the specified conditions are fulfilled."
+          },
+          {
+            "q": "Do you need to pay the energy cost or [Evolve] cost for cards evolved via card skills?",
+            "a": "No, you do not need to pay the unless specified otherwise."
+          },
+          {
+            "q": "If this card attacks a Battle Card with [Revenge], does its auto skill activate at the end of the battle?",
+            "a": "Yes, it does."
+          }
+        ]
+      }
+    ]
+  },
+  "BT23-006": {
+    "card": {
+      "id": "BT23-006",
+      "type": "Z-EXTRA",
+      "colors": [
+        "Red"
+      ],
+      "cost": "6",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Destroyed West City",
+      "characters": [],
+      "traits": [],
+      "skill": "[Z-Stack 1] {Time Machine Departure} or {Accel Dance}.<br>[Permanent] If your Leader is a red &lt;Son Gohan: Future&gt; or &lt;Gohanks: Xeno&gt; card or a red card with both &lt;Android 17&gt; and &lt;Android 18&gt;, reduce the energy cost of this card in your Z-Deck by 5.<br>[Activate: Main][Once per turn] Place 1 red \u226aSaiyan\u226b or \u226aAndroid\u226b card from your hand under this card: Draw 1 card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  }
+}

@@ -38,7 +38,9 @@ const rule = (src: string): Rule => {
   // Trimmed, it drops detail rather than rows.
   const tight = languageForPrompt(1);
   for (const op of ref.ops.filter((o) => !o.offCard)) assert.ok(tight.includes(`  ${op.name}(`), `trimmed, the prompt still names ${op.name}`);
-  assert.ok(tight.length < languageForPrompt().length, "a tighter budget gives a shorter reference");
+  const detailed = languageForPrompt(Number.POSITIVE_INFINITY);
+  assert.ok(tight.length < detailed.length, "a tighter budget drops detail when a richer tier is available");
+  assert.ok(detailed.includes(ref.ops.find(o => !o.offCard && o.sentence)?.sentence ?? "missing detail"), "generous reference retains operation detail");
   // Every worked example the prompt shows Claude is a rule the language accepts.
   const examples = GRAMMAR.split("Examples:")[1].trim().split(/\n\s*\n/);
   assert.ok(examples.length >= 3);

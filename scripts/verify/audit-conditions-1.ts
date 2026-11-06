@@ -261,7 +261,7 @@ const leaderFilters = (rec: Rec) => conds(rec).flatMap((c) => (c.kind === "leade
 {
   const tree = (rec: Rec): string => JSON.stringify(rec.ops, (k, v) => (k === "sel" || k === "target" || k === "label" || k === "reason" || k === "filter" ? undefined : v));
   const ifDo = record("[Auto] When you combo with this card, you may choose 1 card from your hand and place it in your Drop Area. If you do, choose one— ・Draw 1 card. ・Choose 1 Battle Card in your opponent's Drop Area, return it to your opponent's deck, then your opponent shuffles their deck.", "BT7-017");
-  assert.match(tree(ifDo), /"op":"if","cond":\{"kind":"chose","var":"c0"\},"then":\[\{"op":"chooseMode"/, "K: BT7-017 — the menu hangs on the discard");
+  assert.match(tree(ifDo), /"op":"if","cond":\{"kind":"moved","var":"c0","all":true\},"then":\[\{"op":"chooseMode"/, "K: BT7-017 — the menu hangs on the completed original discard");
   const nested = record("[Counter: Play] If the Battle Card being played has 15000 power or less, it is placed in its owner's Drop Area instead of being played, and if it's your opponent's turn, choose up to 1 of your Leader Cards and it gets +5000 power for the duration of the turn.", "BT8-022");
   // The lone outer condition is the record's own (`cond`); the turn's is inside it, beside the replacement.
   assert.ok(nested.cond?.kind === "count" && nested.ops.some((o) => o.op === "resolvingPlay") && nested.ops.some((o) => o.op === "if" && o.cond.kind === "isTurnPlayer"), "K: BT8-022 — R-163: the +5000 is asked inside the 15000-power check (Q&A BT8-022)");

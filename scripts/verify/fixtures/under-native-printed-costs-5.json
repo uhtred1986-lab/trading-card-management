@@ -1,0 +1,16 @@
+{
+  "DB1-066": {
+    "name": "King Vegeta, the Majestic Ruler",
+    "source": "https://www.dbs-cardgame.com/images/cardlist/cardimg/DB1-066.png",
+    "reviewed": "2026-11-06",
+    "energyCost": 6,
+    "specifiedCost": { "Yellow": 2 }
+  },
+  "BT10-153": {
+    "name": "SS3 Gotenks, Blazing Fusion",
+    "source": "https://www.dbs-cardgame.com/images/cardlist/cardimg/BT10-153.png",
+    "reviewed": "2026-11-06",
+    "energyCost": 8,
+    "specifiedCost": { "Yellow": 4 }
+  }
+}

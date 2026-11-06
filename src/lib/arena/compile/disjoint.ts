@@ -25,7 +25,7 @@ import { parseTarget } from "./targets";
 export interface DisjointMove {
   verb: "send" | "place" | "switch";
   /** Where every card goes, or (audit selectors 2) `rest`: switched to Rest Mode where it is (BT7-057). */
-  to: "warp" | "drop" | "rest";
+  to: "warp" | "drop" | "rest" | "under";
   source: string;
   slots: { count: number; selector: Selector; text: string }[];
 }
@@ -45,7 +45,7 @@ export function parseDisjointMove(clause: string): DisjointMove | null {
   const first = slots[0].selector;
   const same = (a: Selector) => a.side === first.side && JSON.stringify(a.areas ?? a.area) === JSON.stringify(first.areas ?? first.area);
   if (!slots.every((x) => same(x.selector))) return null;
-  return { verb: words.verb, to: words.verb === "send" ? "warp" : words.verb === "switch" ? "rest" : "drop", source: words.source, slots };
+  return { verb: words.verb, to: words.underSelf ? "under" : words.verb === "send" ? "warp" : words.verb === "switch" ? "rest" : "drop", source: words.source, slots };
 }
 
 /**
@@ -62,11 +62,11 @@ export function compileDisjointMove(clause: string, c: Ctx): Op[] | null | undef
     op: "choose",
     sel: { ...slot.selector, ...(i ? { notIn: vars.slice(0, i) } : {}) },
     as: vars[i],
-    reason: `${move.verb} ${slot.text} from ${move.source} ${move.to === "warp" ? "to your Warp" : move.to === "rest" ? "to Rest Mode" : "in your Drop Area"}`,
+    reason: `${move.verb} ${slot.text} from ${move.source} ${move.to === "warp" ? "to your Warp" : move.to === "rest" ? "to Rest Mode" : move.to === "under" ? "under this card" : "in your Drop Area"}`,
   }));
   // Audit selectors 2: the list is what a later "them" means (`Ctx.group`).
   c.group = vars;
   const to = move.to;
-  const moves: Op[] = vars.map((v): Op => (to === "rest" ? { op: "switchMode", target: { var: v }, mode: "rest" } : { op: "moveTo", target: { var: v }, to, ...(to === "drop" ? { reveal: true } : {}) }));
+  const moves: Op[] = vars.map((v): Op => (to === "rest" ? { op: "switchMode", target: { var: v }, mode: "rest" } : { op: "moveTo", target: { var: v }, to, ...(to === "under" ? { under: { sel: { special: "self" as const } } } : {}), ...(to === "drop" ? { reveal: true } : {}) }));
   return [...chooses, ...moves];
 }

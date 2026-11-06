@@ -1,0 +1,1310 @@
+{
+  "DB3-060": {
+    "card": {
+      "id": "DB3-060",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Trunks",
+      "characters": [
+        "Trunks: Youth"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT15-087": {
+    "card": {
+      "id": "BT15-087",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Plains Monster",
+      "characters": [
+        "Plains Monster"
+      ],
+      "traits": [
+        "Earthling",
+        "Monster"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT20-062": {
+    "card": {
+      "id": "BT20-062",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "SS4 Son Goku, Stygian Journey",
+      "characters": [
+        "Son Goku: GT"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[unique]<br>[permanent] While you have an <Android 18> card in play, this card gets +5000 power.<br>[auto] When this card is played, choose up to 1 of your opponent's Battle Cards and KO it.<br>[activate: main][limit 1]{g}, if you have 3 or more energy and there are 3 or more <Pan> cards and/or cards with <GT> in their character names\u2014all green and without <Son Goku: GT>\u2014in your Z-Energy, Battle Area, and/or Drop: Play this card from your Warp.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT20-062#10": {
+        "cardId": "BT20-062",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[permanent] While you have an <Android 18> card in play, this card gets +5000 power.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "play",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "android 18"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "ops": [
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 5000,
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[power]",
+        "reads": "if there are 1 or more <android 18> cards you have in play: this card +5000 power"
+      },
+      "BT20-062#20": {
+        "cardId": "BT20-062",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[auto] When this card is played, choose up to 1 of your opponent's Battle Cards and KO it.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "choose\u2192ko",
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards"
+      },
+      "BT20-062#30": {
+        "cardId": "BT20-062",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[activate: main][limit 1]{g}, if you have 3 or more energy and there are 3 or more <Pan> cards and/or cards with <GT> in their character names\u2014all green and without <Son Goku: GT>\u2014in your Z-Energy, Battle Area, and/or Drop: Play this card from your Warp.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 3 or more energy and there are 3 or more <Pan> cards and/or cards with <GT> in their character names\u2014all green and without <Son Goku: GT>\u2014in your Z-Energy, Battle Area, and/or Drop",
+          "orbs": {
+            "Green": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "energy"
+                },
+                "atLeast": 3
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "zEnergy",
+                  "areas": [
+                    "zEnergy",
+                    "battle",
+                    "drop"
+                  ],
+                  "filter": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [
+                      "son goku: gt"
+                    ],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null,
+                    "anyOf": [
+                      {
+                        "colors": [],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [
+                          "pan"
+                        ],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": null,
+                        "costMax": null,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      {
+                        "colors": [],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [
+                          "gt"
+                        ],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": null,
+                        "costMax": null,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": false,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      }
+                    ]
+                  }
+                },
+                "atLeast": 3
+              }
+            ]
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "energy"
+              },
+              "atLeast": 3
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "zEnergy",
+                "areas": [
+                  "zEnergy",
+                  "battle",
+                  "drop"
+                ],
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [
+                    "son goku: gt"
+                  ],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null,
+                  "anyOf": [
+                    {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "pan"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [
+                        "gt"
+                      ],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  ]
+                }
+              },
+              "atLeast": 3
+            }
+          ]
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self",
+              "area": "warp"
+            },
+            "as": "p0",
+            "reason": "Play this card from your Warp"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "if:all[choose\u2192play]",
+        "reads": "if there are 3 or more cards in your Energy Area and there are 3 or more <pan> cards or cards with <gt> in its character name (and green non-<son goku: gt> cards) in your Z-Energy Area or Battle Area or Drop Area: choose this card, play the chosen cards"
+      }
+    }
+  },
+  "BT24-071": {
+    "card": {
+      "id": "BT24-071",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 30000,
+      "name": "Ginyu",
+      "characters": [
+        "Ginyu"
+      ],
+      "traits": [
+        "Ginyu Force",
+        "Frieza's Army"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "P-764": {
+    "card": {
+      "id": "P-764",
+      "type": "Z-BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "6",
+      "specified": null,
+      "z": "1",
+      "power": 25000,
+      "name": "Son Goku, Earth's Roar",
+      "characters": [
+        "Son Goku: GT"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[deflect] [unique] [critical]\n[br]\n[permanent] If you have 15 or more green cards with different card names in your Drop, reduce the energy cost of this card in your Z-Deck by 5.\n[br]\n[auto] [burst 1] Send 3 or more cards with different card names from your Drop to their owner's Warp: When this card attacks, add up to 1 green card with an energy cost equal to the number of cards sent to their owner's Warp by this skill from your Drop to your hand.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "P-764#10": {
+        "cardId": "P-764",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[permanent] If you have 15 or more green cards with different card names in your Drop, reduce the energy cost of this card in your Z-Deck by 5.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "differentNames": true
+          },
+          "atLeast": 15
+        },
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "zDeck"
+              }
+            },
+            "amount": 5,
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[costReduction]",
+        "reads": "if there are 15 or more green cards in your Drop Area with different card names: this card costs 5 less"
+      },
+      "P-764#20": {
+        "cardId": "P-764",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[auto] [burst 1] Send 3 or more cards with different card names from your Drop to their owner's Warp: When this card attacks, add up to 1 green card with an energy cost equal to the number of cards sent to their owner's Warp by this skill from your Drop to your hand.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Send 3 or more cards with different card names from your Drop to their owner's Warp",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": 1,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "drop",
+                "count": 3,
+                "upTo": false,
+                "differentNames": true
+              },
+              "as": "c0",
+              "reason": "Send 3 or more cards with different card names from your Drop to their owner's Warp"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "warp"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "add up to 1 green card with an energy cost equal to the number of cards sent to their owner's Warp by this skill from your Drop to your hand"
+        ],
+        "pattern": "add up to N green card with an energy cost equal to the number of cards sent to their owner's warp by this skill from your drop to your hand",
+        "reads": ""
+      }
+    }
+  },
+  "DB2-084": {
+    "card": {
+      "id": "DB2-084",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 30000,
+      "name": "Jimeze",
+      "characters": [
+        "Jimeze"
+      ],
+      "traits": [
+        "Alien",
+        "Universe 2"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT8-052": {
+    "card": {
+      "id": "BT8-052",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Oolong",
+      "characters": [
+        "Oolong"
+      ],
+      "traits": [
+        "Earthling"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT4-066": {
+    "card": {
+      "id": "BT4-066",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Dark Vassal Drum",
+      "characters": [
+        "Drum"
+      ],
+      "traits": [
+        "Demon Clan"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "TB3-044": {
+    "card": {
+      "id": "TB3-044",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Dende",
+      "characters": [
+        "Dende"
+      ],
+      "traits": [
+        "Namekian"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "DB3-054": {
+    "card": {
+      "id": "DB3-054",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 30000,
+      "name": "Super Saiyan Son Goku",
+      "characters": [
+        "Son Goku"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT6-073": {
+    "card": {
+      "id": "BT6-073",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Beets",
+      "characters": [
+        "Beets: Br"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT7-061": {
+    "card": {
+      "id": "BT7-061",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Krillin",
+      "characters": [
+        "Krillin"
+      ],
+      "traits": [
+        "Earthling"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT17-071": {
+    "card": {
+      "id": "BT17-071",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Cooler",
+      "characters": [
+        "Cooler"
+      ],
+      "traits": [
+        "Frieza Clan"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT5-074": {
+    "card": {
+      "id": "BT5-074",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 30000,
+      "name": "General Rilldo",
+      "characters": [
+        "General Rilldo"
+      ],
+      "traits": [
+        "Machine Mutant"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT18-074": {
+    "card": {
+      "id": "BT18-074",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Chiaotzu",
+      "characters": [
+        "Chiaotzu"
+      ],
+      "traits": [
+        "Earthling",
+        "World Tournament"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT2-077": {
+    "card": {
+      "id": "BT2-077",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Vegeta",
+      "characters": [
+        "Vegeta"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT12-065": {
+    "card": {
+      "id": "BT12-065",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Zeiun",
+      "characters": [
+        "Zeiun"
+      ],
+      "traits": [
+        "Slug's Army"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT26-083": {
+    "card": {
+      "id": "BT26-083",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "5",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Fused Zamasu, Unified Ultimate God",
+      "characters": [
+        "Zamasu"
+      ],
+      "traits": [
+        "God"
+      ],
+      "skill": "[indestructible]\n[br]\n[union-potara]{1}, draw 2 cards: Green <Zamasu> card and green <Goku Black> card.\n[br]\n[activate: main][limit 1]{2}, if your Leader is green or a \u226aGod\u226b card, you have 3 or more energy, and you choose 2 \u226aGod\u226b cards in your Drop: Play this card from your hand, place all of the cards chosen with this skill under this card, and your opponent discards 1 card from their hand.\n[br]\n[activate: main] Add 1 card from under this card to your Z-Energy: Choose up to 1 of your opponent's Battle Cards and KO it.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "P-422": {
+    "card": {
+      "id": "P-422",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 4000,
+      "name": "Meta-Cooler, Replication's Beginning",
+      "characters": [
+        "Meta-Cooler"
+      ],
+      "traits": [
+        "Frieza Clan"
+      ],
+      "skill": "[permanent] This card is also treated as {Infinite Multiplication Meta-Cooler} in your energy, Battle Area, and Drop. [auto][burst 1] If there are 5 or more {Infinite Multiplication Meta-Cooler} in your energy, Battle Area, and/or Drop: When this card is played, choose up to 1 of your opponent's Battle Cards and KO it.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  }
+}

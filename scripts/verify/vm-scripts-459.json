@@ -134,7 +134,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -214,7 +215,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -414,7 +416,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -494,7 +497,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -642,7 +646,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -722,7 +727,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -852,7 +858,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -932,7 +939,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -1077,7 +1085,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -1157,7 +1166,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -1266,7 +1276,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -1346,7 +1357,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -1438,7 +1450,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -1518,7 +1531,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -1626,7 +1640,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -1706,7 +1721,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -1814,7 +1830,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -1894,7 +1911,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -2011,7 +2029,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -2091,7 +2110,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -2186,7 +2206,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -2266,7 +2287,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -2391,7 +2413,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -2471,7 +2494,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -2600,7 +2624,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -2680,7 +2705,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -2797,7 +2823,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -2877,7 +2904,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -3006,7 +3034,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -3086,7 +3115,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -3274,7 +3304,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -3354,7 +3385,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -3658,7 +3690,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -3738,7 +3771,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -3850,7 +3884,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -3930,7 +3965,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -4071,7 +4107,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -4151,7 +4188,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -4247,7 +4285,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -4327,7 +4366,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -4447,7 +4487,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -4527,7 +4568,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -4643,7 +4685,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -4723,7 +4766,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -4817,7 +4861,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -4897,7 +4942,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -4991,7 +5037,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -5071,7 +5118,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -5165,7 +5213,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -5245,7 +5294,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -5337,7 +5387,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -5417,7 +5468,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -5514,7 +5566,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -5594,7 +5647,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -5690,7 +5744,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -5770,7 +5825,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },
@@ -5868,7 +5924,8 @@
           "energyMarkers": 0,
           "charged": true,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       },
       "p2": {
@@ -5948,7 +6005,8 @@
           "energyMarkers": 1,
           "charged": false,
           "grewUnison": false,
-          "overRealms": 0
+          "overRealms": 0,
+        "zAwakens": 0
         }
       }
     },

@@ -232,6 +232,7 @@ const defs: Record<string, CardDef> = {
   REJRED: unison("REJRED", "[Rejuvenate][Once per turn] If your Leader Card is red and you remove 2 markers from this card."),
   // A2: the negation before the KO.
   NEGKO: card("NEGKO", { skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards, negate [Indestructible], and KO it." }),
+  KOIMMUNE: card("KOIMMUNE", { skill: "[Indestructible][Permanent] This card can't be KO'd." }),
   PLAINKO: card("PLAINKO", { skill: "[Activate: Main] Choose up to 1 of your opponent's Battle Cards and KO it." }),
   // A3: BT9-037's standing negation, and a mover into energy.
   EXHAUSTNEG: card("EXHAUSTNEG", { skill: "[Permanent] Negate the [Energy-Exhaust] of your Red/Blue multicolor cards in all areas." }),
@@ -366,7 +367,21 @@ for (const seat of ["p1", "p2"] as const) {
     const theirs = stage(s, foe, "INDESTRUCT", "battle");
     s = activateLine(s, me, pick(theirs));
     assert.equal(s.sides[foe].zones.drop.includes(theirs), negate, `${seat}: A2: ${negate ? "negated, then KO'd" : "[Indestructible] keeps it in play"}`);
-    if (negate) assert.ok(s.effects.some((e) => e.kind === "negateKeyword" && e.target === theirs && e.value === "Indestructible" && e.until === "turn"), `${seat}: A2: the negation lasts the turn`);
+    if (negate) assert.ok(!s.effects.some((e) => e.kind === "negateKeyword" && e.target === theirs), `${seat}: A2: Battle-to-Drop ends the old occurrence's negation (R505)`);
+    cases++;
+  }
+
+  // Separate synthetic survivor proves the original turn duration without a
+  // departure: independent KO immunity survives keyword-only negation.
+  {
+    let s = fresh(seat, seed(30));
+    const me = stage(s, seat, "NEGKO", "battle"), survivor = stage(s, foe, "KOIMMUNE", "battle");
+    s = activateLine(s, me, pick(survivor));
+    assert.ok(s.sides[foe].zones.battle.includes(survivor));
+    assert.ok(s.effects.some(e => e.kind === "negateKeyword" && e.target === survivor && e.value === "Indestructible" && e.until === "turn"));
+    assert.equal(hasKeyword(ctx, game, s, survivor, "Indestructible"), false);
+    s = take(s, { type: "endMain", player: seat });
+    assert.equal(hasKeyword(ctx, game, s, survivor, "Indestructible"), true, "surviving occurrence regains its keyword after turn expiry");
     cases++;
   }
 

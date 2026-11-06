@@ -140,9 +140,9 @@ export interface VmBattle {
     /** One 8-5-8 replacement offer, frozen through the affected player's answer/reload. */
     awaitingDeparture?: { card: string; choices: ReplacementChoice[]; allowNone: boolean };
     /** A substitute frame replacing this native departure; its own actual Combo-to-Drop move is captured for 8-5-9. */
-    substituteDeparture?: { card: string; origin?: ComboOrigin; hidden?: true; active?: true; actualDrop?: { controller: PlayerId } };
+    substituteDeparture?: { card: string; origin?: ComboOrigin; hidden?: true; active?: true; actualDrop?: { controller: PlayerId; movementHistory?: import("./movement-auto-history").MovementAutoHistory } };
     /** 8-5-10-1: actual Combo departures whose special battle-end Auto is announced at 8-5-9. */
-    specialSubjects?: { card: string; to: string; controller: PlayerId; origin?: ComboOrigin; hidden?: true }[];
+    specialSubjects?: { card: string; to: string; controller: PlayerId; origin?: ComboOrigin; hidden?: true; movementHistory?: import("./movement-auto-history").MovementAutoHistory }[];
     specialCursor?: number;
   };
 }
@@ -211,7 +211,11 @@ export const VM_STATE_VERSION = 10;
  * back on the queue once the counter's programs have run.
  */
 export interface VmResolving {
-  card: string;
+  card: string | null;
+  /** A skill window can open before any card has been selected. */
+  scopeWindow?: { scope: number; boundary: "before" | "after"; counterMotion?: true };
+  /** Original declared occurrence parked below a shared skill response. */
+  heldEpoch?: number;
   player: PlayerId;
   /** The `DO` frame of the move that declared the play, until the runner releases it. */
   frame?: ScriptFrame;
@@ -219,6 +223,7 @@ export interface VmResolving {
   rest?: boolean;
   /** 9-1-5: "played with its skills negated for the turn" (`setPlayNegated`). */
   negated?: boolean;
+  negatedBy?: { player: PlayerId; source?: string };
   /**
    * Phrasing batch 5 (owner's ruling of 26 Oct 2026 on DB2-126, EX12-07): "[Counter: Play] When the Battle Card is
    * played, you may choose it and switch it to Rest Mode" is a real switch, made once the card has landed — so the
@@ -308,6 +313,17 @@ export interface VmFrame {
 }
 
 export interface VmState {
+  /** R495 private metadata: never added to ContinuousEffect/event payloads. */
+  appliedEffectOwnership?: Record<number, import("./applied-effect-receipt").OwnerTag>;
+
+  /** R482 active ordinary Charge scope, consumed when its original frame finishes. */
+  energyCharge?: import("./energy-entry-charge").EnergyChargeScope;
+  /** Native standing-negation families; affected histories are never migrated implicitly. */
+  underStandingNegationHistory?: import("./standing-negation-under-history").UnderHistory;
+  mixedStandingNegationHistory?: import("./standing-negation-mixed-history").MixedStandingNegationHistory;
+  standingNegationHistory?: import("./standing-negation-history").StandingNegationHistory;
+  /** Resolved skill grants deleted by negation; standing grants are separate. */
+  resolvedGrantDeletions?: import("./resolved-grant-deletion").ResolvedGrantDeletion[];
   /** Which interpreter wrote this. The one field `legacyState` reads. */
   engine: "rules";
   /** The game definition this state was dealt from (`rulesets/<game>/`). */
@@ -386,6 +402,9 @@ export interface VmState {
    */
   /** A VM Auto may carry a private reveal epoch through its exact suspended frame. */
   programs: (ScriptFrame & { autoRevealEpoch?: number })[];
+  /** R-421: immediate effect lifetimes, outermost first; no frame pointers. */
+  skillPlayScopes?: import("./skill-play-scope").SkillPlayScope[];
+  nextSkillPlayScope?: number;
   /** 9-6-3-1-1: current declaration witnesses, bounded by source movement/concealment and the next unrelated action. */
   publicAutoReveals?: { card: string; skillIndex: number; epoch: number; trigger: string; sourceZoneEpoch: number; priced?: true }[];
   /** Monotone within one saved game so a repeated pending occurrence cannot inherit an older reveal. */
@@ -401,6 +420,8 @@ export interface VmState {
    * question would make the two engines unanswerable by one client.
    */
   prompt: Prompt;
+  /** R515: private one-hop resource answer, consumed by the replayed declaration. */
+  ordinaryResourceResume?: import("./ordinary-activate-runtime").OrdinaryActivation;
   /** Who won, once a `DEFINE WIN` has been met or someone conceded. Null for a draw as well as for a game still being played. */
   winner: PlayerId | null;
   /** Why it ended, in words, or null while it has not. */

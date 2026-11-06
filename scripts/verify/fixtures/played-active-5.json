@@ -1,0 +1,71 @@
+{
+  "EX08-06": {
+    "id": "EX08-06",
+    "type": "BATTLE",
+    "colors": [
+      "Green",
+      "Yellow"
+    ],
+    "cost": "6",
+    "specified": null,
+    "z": null,
+    "power": 25000,
+    "name": "SS Broly, All-Out Assault",
+    "characters": [
+      "Broly: Br"
+    ],
+    "traits": [
+      "Saiyan",
+      "Frieza's Army"
+    ],
+    "skill": "[arrival green/yellow]{g}{y}<br>[energy-exhaust]<br>[auto] When you play this card, or when this card is switched to Active Mode by a skill during your turn, choose one-<br>・ Choose 1 Battle Card with an energy cost greater than or equal to your opponent's current energy and KO it.<br>・ Draw 1 card, then choose up to 1 of your opponent's cards and switch it to Rest Mode.",
+    "backName": null,
+    "backSkill": null
+  },
+  "EX19-30": {
+    "id": "EX19-30",
+    "type": "BATTLE",
+    "colors": [
+      "Green",
+      "Yellow"
+    ],
+    "cost": "8",
+    "specified": null,
+    "z": null,
+    "power": 35000,
+    "name": "Full Power Broly, Impulsive Destroyer",
+    "characters": [
+      "Broly: Br"
+    ],
+    "traits": [
+      "Saiyan",
+      "Frieza's Army"
+    ],
+    "skill": "[energy-exhaust][double strike][blocker]<br>[arrival green/yellow]{g}{y}{1}<br>[auto] When this card is played, draw 1 card.<br>[auto] When this card is played, or when this card is switched to Active Mode by a skill during your turn, choose up to 1 of your opponent's Battle Cards or Unison Cards and negate its skills for the turn.<br>[activate: battle][once per turn] Choose up to 1 of your opponent's skill-less Battle Cards and KO it.",
+    "backName": null,
+    "backSkill": null
+  },
+  "EX19-31": {
+    "id": "EX19-31",
+    "type": "BATTLE",
+    "colors": [
+      "Green",
+      "Yellow"
+    ],
+    "cost": "5",
+    "specified": null,
+    "z": null,
+    "power": 19000,
+    "name": "SS Broly, Reckless Pursuit",
+    "characters": [
+      "Broly: Br"
+    ],
+    "traits": [
+      "Saiyan",
+      "Frieza's Army"
+    ],
+    "skill": "[energy-exhaust][blocker]<br>[swap 8]{g}{y}, if you have 3 or more energy: Green/Yellow <Broly: Br> with an energy cost of 8.<br>[arrival green/yellow]{g}/{y}<br>[auto] When this card is played, or when this card is switched to Active Mode by a skill during your turn, choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less and negate its skills for the turn.<br>[activate: main/battle][once per turn] Switch this card to Rest Mode: Choose up to 1 of your opponent's skill-less Battle Cards and KO it.",
+    "backName": null,
+    "backSkill": null
+  }
+}

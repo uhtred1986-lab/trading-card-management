@@ -33,6 +33,7 @@ import { describeFilter } from "../vm/script";
 /** The literal words a selector may end with, and what each sets. Exported so the generated language reference (`lang/reference.ts`) can list them without a second copy. */
 export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   any: () => {},
+  requiredStamp: (s) => (s.requiredStamp = true),
   active: (s) => (s.mode = "active"),
   rest: (s) => (s.mode = "rest"),
   hidden: (s) => (s.hidden = true),
@@ -248,6 +249,16 @@ class Parser {
   }
 
   private costItem(cost: CostRecord): void {
+    if (this.eatKw("AWAKENALT")) {
+      const text = this.string("a single-pile alternative Awaken contract as JSON");
+      try { cost.awakenAlternative = JSON.parse(text); } catch { this.fail("an alternative Awaken contract must be valid JSON"); }
+      return;
+    }
+    if (this.eatKw("SPIRITPAYER")) {
+      const text = this.string("a specified Spirit Boost payer filter as JSON");
+      try { cost.spiritBoostPayer = JSON.parse(text); } catch { this.fail("a Spirit Boost payer filter must be valid JSON"); }
+      return;
+    }
     if (this.eatKw("POTARA")) {
       const text = this.string("a typed Potara material contract as JSON");
       try { cost.potara = JSON.parse(text); } catch { this.fail("a Potara material contract must be valid JSON"); }
@@ -619,6 +630,7 @@ class Parser {
 
   private amountArg(kind: ExprArg): unknown {
     switch (kind) {
+      case "markerCost": return this.enumValue(["spiritBoost"]);
       case "selector":
         return this.selector();
       case "var":

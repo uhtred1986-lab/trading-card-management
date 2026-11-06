@@ -1,0 +1,526 @@
+{
+  "BT19-035#0": {
+    "cardId": "BT19-035",
+    "side": "front",
+    "skillIndex": 0,
+    "printed": "[Auto][Once per turn] When you use a blue card from your hand in a combo, draw 1 card.",
+    "kind": "auto",
+    "trigger": [],
+    "combo": null,
+    "usage": {
+      "version": 1,
+      "oncePerTurn": true,
+      "limit": null
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    },
+    "cost": {
+      "version": 1,
+      "readable": true,
+      "text": "",
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": null,
+      "program": null
+    },
+    "cond": {
+      "kind": "count",
+      "sel": {
+        "special": "subject",
+        "filter": {
+          "colors": [
+            "Blue"
+          ],
+          "notColors": [],
+          "monoColor": false,
+          "multiColor": false,
+          "characters": [],
+          "notCharacters": [],
+          "charactersIncluding": [],
+          "notCharactersIncluding": [],
+          "charactersAll": [],
+          "namesAll": [],
+          "traits": [],
+          "notTraits": [],
+          "characterOrTrait": false,
+          "onlyCharacters": false,
+          "names": [],
+          "notNames": [],
+          "namesIncluding": [],
+          "notNamesIncluding": [],
+          "notKeywords": [],
+          "keywords": [],
+          "skillKind": null,
+          "unreadable": false,
+          "noKeywords": false,
+          "type": null,
+          "notType": null,
+          "faceUp": false,
+          "token": false,
+          "notToken": false,
+          "costMin": null,
+          "costMax": null,
+          "powerMin": null,
+          "powerMax": null,
+          "originalPowerMin": null,
+          "originalPowerMax": null,
+          "comboPowerMin": null,
+          "comboPowerMax": null,
+          "markersMin": null,
+          "markersMax": null,
+          "specifiedCostMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostNone": false,
+          "costAtMostEnergy": false,
+          "costBelowEnergy": false,
+          "costAtLeastEnergy": false,
+          "costAboveEnergy": false,
+          "energyOfOpponent": false,
+          "originallySkillLess": false,
+          "skillLess": false,
+          "powerRel": null,
+          "nameInSkillTextOf": null,
+          "z": null
+        }
+      },
+      "atLeast": 1
+    },
+    "ops": [
+      {
+        "op": "draw",
+        "n": 1
+      }
+    ],
+    "unread": [
+      "When you use a blue card from your hand in a combo"
+    ],
+    "pattern": "when you use a blue card from your hand in a combo",
+    "reads": "if that card is a blue card: draw 1"
+  },
+  "TB1-025#10": {
+    "cardId": "TB1-025",
+    "side": "front",
+    "skillIndex": 10,
+    "printed": "[Auto] [Once per turn] When you combo with a ≪Universe 7≫ from your Battle Area during your turn, draw 2 cards.",
+    "kind": "auto",
+    "trigger": [],
+    "combo": null,
+    "usage": {
+      "version": 1,
+      "oncePerTurn": true,
+      "limit": null
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    },
+    "cost": {
+      "version": 1,
+      "readable": true,
+      "text": "",
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": null,
+      "program": null
+    },
+    "cond": {
+      "kind": "all",
+      "conds": [
+        {
+          "kind": "count",
+          "sel": {
+            "special": "subject",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "universe 7"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        {
+          "kind": "isTurnPlayer"
+        }
+      ]
+    },
+    "ops": [
+      {
+        "op": "draw",
+        "n": 2
+      }
+    ],
+    "unread": [
+      "When you combo with a ≪Universe 7≫ from your Battle Area during your turn"
+    ],
+    "pattern": "when you combo with a … from your battle area during your turn",
+    "reads": "if that card is a ≪universe 7≫ card and it is your turn: draw 2"
+  },
+  "TB1-025#20b": {
+    "cardId": "TB1-025",
+    "side": "back",
+    "skillIndex": 20,
+    "printed": "[Auto] [Once per turn] When you combo with a ≪Universe 7≫ from your Battle Area during your turn, draw 2 cards.",
+    "kind": "auto",
+    "trigger": [],
+    "combo": null,
+    "usage": {
+      "version": 1,
+      "oncePerTurn": true,
+      "limit": null
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    },
+    "cost": {
+      "version": 1,
+      "readable": true,
+      "text": "",
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": null,
+      "program": null
+    },
+    "cond": {
+      "kind": "all",
+      "conds": [
+        {
+          "kind": "count",
+          "sel": {
+            "special": "subject",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "universe 7"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        {
+          "kind": "isTurnPlayer"
+        }
+      ]
+    },
+    "ops": [
+      {
+        "op": "draw",
+        "n": 2
+      }
+    ],
+    "unread": [
+      "When you combo with a ≪Universe 7≫ from your Battle Area during your turn"
+    ],
+    "pattern": "when you combo with a … from your battle area during your turn",
+    "reads": "if that card is a ≪universe 7≫ card and it is your turn: draw 2"
+  },
+  "BT20-041#20": {
+    "cardId": "BT20-041",
+    "side": "front",
+    "skillIndex": 20,
+    "printed": "[auto][limit 1]{u}, if your Leader is blue and you have 3 or more energy: When you use a blue <Krillin> card from your hand or Battle Area in a combo, play this card from under your Leader or from your hand.",
+    "kind": "auto",
+    "trigger": [],
+    "combo": null,
+    "usage": {
+      "version": 1,
+      "oncePerTurn": false,
+      "limit": 1
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    },
+    "cost": {
+      "version": 1,
+      "readable": true,
+      "text": "if your Leader is blue and you have 3 or more energy",
+      "orbs": {
+        "Blue": 1
+      },
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": {
+        "kind": "all",
+        "conds": [
+          {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy"
+            },
+            "atLeast": 3
+          }
+        ]
+      },
+      "program": null
+    },
+    "cond": {
+      "kind": "all",
+      "conds": [
+        {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Blue"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy"
+          },
+          "atLeast": 3
+        }
+      ]
+    },
+    "ops": [
+      {
+        "op": "choose",
+        "sel": {
+          "special": "self",
+          "area": "under",
+          "underHost": {
+            "side": "you",
+            "area": "leader"
+          }
+        },
+        "as": "p0",
+        "reason": "play this card from under your Leader or from your hand"
+      },
+      {
+        "op": "play",
+        "target": {
+          "var": "p0"
+        }
+      }
+    ],
+    "unread": [
+      "When you use a blue <Krillin> card from your hand or Battle Area in a combo"
+    ],
+    "pattern": "when you use a blue … card from your hand or battle area in a combo",
+    "reads": "if your leader is Blue and there are 3 or more cards in your Energy Area: choose this card, play the chosen cards"
+  }
+}

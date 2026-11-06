@@ -1,3 +1,10 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
+import { hasStandingNegationHistory, expireStandingNegationBatch } from "./standing-negation-runtime";
+import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
+import { emptyUnisons } from "./unison-zero";
+import type { CardFilter } from "../text/filters";
+import { predicateOf } from "./filters";
+import { selectorProblem } from "./script-schema";
 /**
  * What a move costs, and what paying it takes — one planner over the **declared**
  * prices.
@@ -74,6 +81,7 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network,
  * nothing read at request time.
  */
+import type { PoolPaymentSelection } from "../types";
 import type { EngineContext, GameEvent, ActionCost, Payer, Payment } from "../types";
 import type { AltCost } from "../types";
 import type { Color, ContinuousEffect, PlayerId, Requirement, Skill } from "../types";
@@ -84,6 +92,7 @@ import type { PayerGrant, VmAltCost } from "./effects";
 import { attrsNow, resolveSelector, staticsNow } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
 import { NotYet, RulesetBroken } from "./errors";
+import { IllegalAction } from "./common";
 import { SETUP_ZONES, moved, type MoveCause } from "./flow";
 import { fire, log } from "./events";
 import type { VmState } from "./state";
@@ -122,7 +131,7 @@ export interface Charge {
   /**
    * The pool, read off the op's target: which side's zone, in which mode, and
    * which end the cards come off — `fromEnd` for the far end, last placed
-   * first (5-4's Z-Energy), and the top otherwise (22-27's deck).
+   * first for a deterministic bottom draw, and the top otherwise (22-27's deck).
    */
   from: { side: string; area: string; mode?: string; fromEnd?: boolean } | null;
   does: Op | null;
@@ -240,6 +249,8 @@ export interface PooledPrice {
 
 /** Markers paid off the card in a declared place (22-43): which price, where, how many (signed, like 13-4's), and the keyword that printed it. */
 export interface PooledMarkers {
+  filter?: CardFilter;
+  payer?: { card: string; epoch: number };
   cost: string;
   side: string;
   area: string;
@@ -281,7 +292,7 @@ export interface BoundAmounts {
    * `DO` targets, never by its name; `by` is the keyword the line prints it
    * under. A place left out is a price with nothing bound to it.
    */
-  markersFrom?: Partial<Record<string, { n: number; by?: string }>>;
+  markersFrom?: Partial<Record<string, { n: number; by?: string; filter?: CardFilter }>>;
   /** `consumes: life` — 21-3. */
   life?: number;
   /**
@@ -384,7 +395,7 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
         if (charge.from) {
           const bind = bound?.markersFrom?.[charge.from.area];
           if (bind === undefined) throw new NotYet(`charge the price ${name}, whose amount is on the skill line asking for it and has nothing to bind it to`, "#157");
-          if (bind.n) price.markersOff.push({ cost: charge.name, side: charge.from.side, area: charge.from.area, n: bind.n, ...(bind.by ? { by: bind.by } : {}) });
+          if (bind.n) price.markersOff.push({ cost: charge.name, side: charge.from.side, area: charge.from.area, n: bind.n, ...(bind.by ? { by: bind.by } : {}), ...(bind.filter ? { filter: bind.filter } : {}) });
           break;
         }
         if (bound?.markers === undefined) throw new NotYet(`charge the price ${name}, whose amount is on the card's own record and has nothing to bind it to`, "#149");
@@ -412,7 +423,7 @@ export function priceFor(ctx: EngineContext, game: GameDefinition, state: VmStat
  * `whyNot` into the `unread` requirement the legacy engine gives for a price it
  * cannot read.
  */
-function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, charge: Charge, card: string): { total: number | null; orbs: Partial<Record<Color, number>> } {
+function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, charge: Charge, card: string, payment?: EnergyPaymentContext, standing?: import("./effects").VmStatic[]): { total: number | null; orbs: Partial<Record<Color, number>> } {
   const inst = state.cards[card];
   const def = inst && ctx.defs[inst.cardId];
   if (!def) return { total: 0, orbs: {} };
@@ -421,7 +432,7 @@ function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, char
   // discounts, so the reading below is the printed total less every reduction
   // in force — standing from a [Permanent] or put there for the turn by a skill
   // that resolved, which are one list to `valueOf` as they are to `playCost`.
-  const now = charge.amount ? attrsNow(ctx, game, state, card) : {};
+  const now = charge.amount ? attrsNow(ctx, game, state, card, standing, payment) : {};
   const named = charge.amount ? now[charge.amount] : undefined;
   const total = charge.amount === null ? 0 : typeof named === "number" ? named : null;
   const orbs: Partial<Record<Color, number>> = {};
@@ -431,7 +442,7 @@ function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, char
   // specified cost by {u}" relaxes the colour without moving the total at all.
   // Only an energy price has one — cards taken out of a pool have no colour.
   if (charge.consumes === "energy") {
-    const specified = (charge.amount ? now : attrsNow(ctx, game, state, card)).specifiedCost;
+    const specified = (charge.amount ? now : attrsNow(ctx, game, state, card, standing, payment)).specifiedCost;
     if (Array.isArray(specified)) for (const colour of specified as Color[]) orbs[colour] = (orbs[colour] ?? 0) + 1;
   }
   return { total, orbs };
@@ -448,10 +459,10 @@ function amountOn(ctx: EngineContext, game: GameDefinition, state: VmState, char
  * the planner refuses it — because "nobody has named X" and "this card is free"
  * are different claims.
  */
-export function cardPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): { total: number; orbs: Partial<Record<Color, number>> } {
+export function cardPrice(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, payment?: EnergyPaymentContext, standing?: import("./effects").VmStatic[]): { total: number; orbs: Partial<Record<Color, number>> } {
   const charge = Object.values(chargesOf(game)).find((c) => c.consumes === "energy");
   if (!charge) return { total: 0, orbs: {} };
-  const read = amountOn(ctx, game, state, charge, card);
+  const read = amountOn(ctx, game, state, charge, card, payment, standing);
   return { total: read.total ?? 0, orbs: read.orbs };
 }
 
@@ -599,31 +610,72 @@ export type CostPlan =
  * Card to pay for something the energy could have covered is a cost the player
  * never agreed to.
  */
-export function planCost(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, price: Price, card: string | null, explicit?: string[]): CostPlan {
+export function planCost(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, price: Price, card: string | null, explicit?: string[], explicitPools?: PoolPaymentSelection): CostPlan {
   const why = whyNot(ctx, game, state, player, price, card);
+  const charges = chargesOf(game);
+  for (const pool of price.pooled) if (charges[pool.cost]?.asks === "choice" && choicePoolCards(game, state, player, pool).length < pool.n) why.push({ kind: "other", detail: `not enough eligible cards in the ${pool.area} payment pool` });
   if (why.length) return { ok: false, why };
 
   const energy = payEnergy(ctx, game, state, player, price, explicit);
   if (!energy) return { ok: false, why: [{ kind: "other", detail: "the active energy cannot cover the colours of the cost" }] };
+  const poolProblem = explicitPoolProblem(game, state, player, price, card, explicitPools, true);
+  if (poolProblem) return { ok: false, why: [{ kind: "other", detail: poolProblem }] };
   const lifeZone = state.sides[player].zones[SETUP_ZONES.life] ?? [];
   const payment: VmPayment = {
     rest: energy.rest,
     energyMarkers: energy.markers,
     markers: price.markers,
-    markersOff: price.markersOff,
+    markersOff: price.markersOff.map(off => {
+      const id = holderOf(state, player, off);
+      return { ...off, ...(id ? { payer: { card: id, epoch: state.cards[id].zoneEpoch ?? 0 } } : {}) };
+    }),
     // 3-9-4: any card in life may be chosen when one leaves, and the topmost is
     // the one damage takes — the same end the legacy engine deals from.
     life: price.life ? lifeZone.slice(0, price.life) : [],
-    // 5-4: the Z-Energy is spent from the end of the pile, one at a time, which
-    // is the order the legacy `payZEnergy` takes it in and therefore the order
-    // the Drop Area ends up in — the declaration's `fromEnd`. 22-27's [Burst]
-    // takes the top of the deck, first card first, as `payKeywordCosts` does.
-    pooled: price.pooled.map((p) => ({ cost: p.cost, cards: p.fromEnd ? poolCards(state, player, p).slice(-p.n).reverse() : poolCards(state, player, p).slice(0, p.n) })),
+    // R-399 / 3-13-2: choice pools retain the selected occurrences. The
+    // default is only an affordability witness until the player chooses.
+    // Deterministic pools (Burst) keep their declared top/bottom order.
+    pooled: price.pooled.map((p) => ({ cost: p.cost, cards: completePoolWitness(game, state, player, p, explicitPools?.pools.find(x => x.cost === p.cost)?.cards.map(x => x.card) ?? []) })),
     restsSelf: price.rest,
   };
-  const charges = chargesOf(game);
   const asks = Object.values(charges).some((c) => c.asks === "choice" && (c.consumes === "energy" ? price.energy > 0 : c.consumes === "cards" && price.payers.length > 0));
   return { ok: true, payment, options: paymentOptions(ctx, game, state, player, price), describe: describePayment(ctx, game, state, payment), asks };
+}
+
+/** Only freely selected resource pools apply their declared mode to candidates. */
+export function choicePoolCards(game: GameDefinition, state: VmState, player: PlayerId, pool: PooledPrice): string[] {
+  const charge = chargesOf(game)[pool.cost];
+  const mode = charge?.asks === "choice" ? charge.from?.mode : undefined;
+  return poolCards(state, player, pool).filter(id => mode === undefined || state.cards[id]?.mode === mode);
+}
+
+function completePoolWitness(game: GameDefinition, state: VmState, player: PlayerId, pool: PooledPrice, picked: string[]): string[] {
+  const candidates = choicePoolCards(game, state, player, pool).filter(id => !picked.includes(id));
+  if (pool.fromEnd) candidates.reverse();
+  return [...picked, ...candidates.slice(0, pool.n - picked.length)];
+}
+
+/** Validate untrusted actions and reloaded payment selections without repicking. */
+export function explicitPoolProblem(game: GameDefinition, state: VmState, player: PlayerId, price: Price, card: string | null, selection?: PoolPaymentSelection, partial = false): string | null {
+  if (selection === undefined) return null;
+  if (!selection || !Array.isArray(selection.pools)) return "invalid pooled payment";
+  const source = selection.source;
+  if (card === null ? source !== null : !source || source.card !== card || !Number.isSafeInteger(source.epoch) || !state.cards[card] || (state.cards[card].zoneEpoch ?? 0) !== source.epoch)
+    return "the pooled payment's source occurrence is no longer available";
+  const costs = chargesOf(game), seenCosts = new Set<string>(), seenCards = new Set<string>();
+  for (const picked of selection.pools) {
+    if (!picked || typeof picked.cost !== "string" || seenCosts.has(picked.cost) || !Array.isArray(picked.cards)) return "invalid or duplicate pooled cost";
+    seenCosts.add(picked.cost);
+    const pool = price.pooled.find(p => p.cost === picked.cost);
+    if (!pool || !Number.isSafeInteger(picked.n) || picked.n !== pool.n || costs[picked.cost]?.asks !== "choice" || (partial ? picked.cards.length > pool.n : picked.cards.length !== pool.n)) return "the selected pool or number of cards does not match the cost";
+    const candidates = new Set(choicePoolCards(game, state, player, pool));
+    for (const item of picked.cards) {
+      if (!item || typeof item.card !== "string" || !Number.isSafeInteger(item.epoch) || seenCards.has(item.card) || !candidates.has(item.card)
+        || !state.cards[item.card] || (state.cards[item.card].zoneEpoch ?? 0) !== item.epoch) return "a selected pooled payment occurrence is no longer available";
+      seenCards.add(item.card);
+    }
+  }
+  return null;
 }
 
 /**
@@ -681,6 +733,7 @@ function whyNot(ctx: EngineContext, game: GameDefinition, state: VmState, player
   // the legacy `whyNotActivate`'s, which asks it among the gates.
   for (const off of price.markersOff) {
     const holder = holderOf(state, player, off);
+    if (off.filter && (!holder || !predicateOf(off.filter, game)(attrsNow(ctx, game, state, holder)))) why.push({ kind: "other", detail: "Spirit Boost needs the specified Unison payer" });
     const on = holder ? state.cards[holder].markers : 0;
     if (on + off.n < 0) why.push({ kind: "other", detail: off.by ? `[${off.by}] needs the markers` : `needs ${-off.n} markers (${on} on it)` });
   }
@@ -920,6 +973,30 @@ export function describePayment(ctx: EngineContext, game: GameDefinition, state:
  * `arena:diff` compares: a `mode` per card rested, one `energyMarker` for the
  * markers spent, a `markers` for the card's own, and a `move` per life card.
  */
+export type PaidResources = Pick<ScriptFrame, "vars" | "paidCardInfo" | "paidMarkers">;
+/** Reserved effect variable for a declared pooled cost; not a card-specific binding. */
+export const paidPoolVar = (cost: string): string => `paid_${cost}`;
+
+/** Validate resource provenance before any energy/card/marker mutation. */
+export function requireMarkerPayers(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, payers: PooledMarkers[]): void {
+  if (!Array.isArray(payers)) throw new IllegalAction("malformed saved marker payment");
+  for (const off of payers) {
+    const declared = off && chargesOf(game)[off.cost];
+    if (!off || !declared || declared.consumes !== "markers" || declared.from?.area !== off.area || declared.from?.side !== off.side || !Number.isSafeInteger(off.n) || off.n >= 0 || (off.payer && (typeof off.payer.card !== "string" || (!Number.isSafeInteger(off.payer.epoch) || off.payer.epoch < 0)))) throw new IllegalAction("malformed saved marker payer");
+  }
+  const totals = new Map<string, number>();
+  for (const off of payers) {
+    const id = holderOf(state, player, off);
+    if (off.filter !== undefined && selectorProblem({ filter: off.filter }, "marker payer")) throw new IllegalAction("malformed saved marker payer filter");
+    if (off.by === "Spirit Boost" && !off.payer) throw new IllegalAction("rebuild the saved Spirit Boost payer occurrence");
+    if (off.filter && (!id || !off.payer || off.payer.card !== id || off.payer.epoch !== (state.cards[id].zoneEpoch ?? 0) || !predicateOf(off.filter, game)(attrsNow(ctx, game, state, id)))) throw new IllegalAction("the specified Spirit Boost payer changed; rebuild this payment");
+    if (off.payer && (!id || off.payer.card !== id || off.payer.epoch !== (state.cards[id].zoneEpoch ?? 0))) throw new IllegalAction("the marker payer occurrence changed");
+    const total = (id ? totals.get(id) ?? 0 : 0) - off.n;
+    if (!Number.isSafeInteger(total) || !id || state.cards[id].markers < total) throw new IllegalAction("the marker payment can no longer be completed");
+    totals.set(id, total);
+  }
+}
+
 export function chargeCost(
   ctx: EngineContext,
   game: GameDefinition,
@@ -931,9 +1008,16 @@ export function chargeCost(
   costs: string[],
   move?: (id: string, to: string, opts: MoveCause) => void,
   onRest?: (id: string) => void,
-): void {
+): PaidResources {
+  requireUnscopedStandingWrite(state);
+  requireMarkerPayers(ctx, game, state, player, payment.markersOff);
+  const paid: PaidResources = { vars: {}, paidCardInfo: {}, paidMarkers: {} };
   const charges = chargesOf(game);
   const payMove = move ?? ((id: string, to: string, opts: MoveCause) => moved(ctx, game, state, ev, id, to, opts));
+  const processEmptyUnisons = () => {
+    // 21-9-1: interruptive rule processing, not an Auto/checkpoint window.
+    for (const [id, owner] of emptyUnisons(state)) moved(ctx, game, state, ev, id, "drop", { owner, reason: "rule" });
+  };
   const payMode = (id: string, mode: string) => {
     const wasActive = state.cards[id]?.mode === "active";
     setMode(state, ev, id, mode);
@@ -970,7 +1054,19 @@ export function chargeCost(
         // out of an open pool (5-4's Z-Energy) was never hidden. Read off the
         // zone's declared visibility, never off the price's name.
         const reveal = game.zones[charge.from.area]?.visibility === "all" ? {} : { reveal: true };
-        for (const id of payment.pooled.find((x) => x.cost === name)?.cards ?? []) payMove(id, to, { owner: player, asPlay: false, ...reveal });
+        const cards = payment.pooled.find((x) => x.cost === name)?.cards ?? [];
+        if (!cards.length) break;
+        const binding = paidPoolVar(name);
+        paid.vars[binding] = [];
+        paid.vars[`${binding}@epoch`] = [];
+        paid.paidCardInfo![binding] = {};
+        for (const id of cards) {
+          payMove(id, to, { owner: player, asPlay: false, ...reveal });
+          if (!state.sides[player].zones[to]?.includes(id)) throw new IllegalAction("the pooled skill cost was replaced and cannot be paid");
+          paid.vars[binding].push(id);
+          paid.vars[`${binding}@epoch`].push(`${id}@${state.cards[id].zoneEpoch ?? 0}`);
+          paid.paidCardInfo![binding][id] = structuredClone(attrsNow(ctx, game, state, id));
+        }
         break;
       }
       case "markers": {
@@ -978,13 +1074,25 @@ export function chargeCost(
         // of its own — `markerRemoved` with the keyword it was paid under
         // (`spiritBoostPaid` in `triggers.rules`), the legacy `payKeywordCosts`.
         if (charge.from) {
+          const receipt = card && name === "spiritBoost" ? { version: 1 as const, cost: name, source: card, sourceEpoch: state.cards[card]?.zoneEpoch ?? 0, requested: 0, amount: 0, status: "paid" as const, payers: [] as import("./paid-markers").PaidMarkerReceipt["payers"] } : undefined;
+          if (receipt) paid.paidMarkers![name] = receipt;
           for (const off of payment.markersOff.filter((x) => x.cost === name)) {
             const id = holderOf(state, player, off);
             if (!id) continue;
             const inst = state.cards[id];
+            const info = receipt ? structuredClone(attrsNow(ctx, game, state, id)) : undefined;
+            const before = inst.markers;
             inst.markers = Math.max(0, inst.markers + off.n);
+            if (receipt && info) {
+              receipt.requested -= off.n;
+              receipt.amount += before - inst.markers;
+              receipt.payers.push({ card: id, epoch: inst.zoneEpoch ?? 0, amount: before - inst.markers, info });
+            }
             log(ev, { type: "markers", card: id, delta: off.n, total: inst.markers });
-            if (off.n < 0) fire(ctx, game, state, { event: "markerRemoved", card: id, controller: player, args: off.by ? { by: off.by } : {} });
+            if (off.n < 0) {
+              fire(ctx, game, state, { event: "markerRemoved", card: id, controller: player, args: off.by ? { by: off.by } : {} });
+              processEmptyUnisons();
+            }
           }
           break;
         }
@@ -992,6 +1100,7 @@ export function chargeCost(
         const inst = state.cards[card];
         inst.markers = Math.max(0, inst.markers + payment.markers);
         log(ev, { type: "markers", card, delta: payment.markers, total: inst.markers });
+        if (payment.markers < 0) processEmptyUnisons();
         break;
       }
       case "life": {
@@ -1013,6 +1122,7 @@ export function chargeCost(
         break;
     }
   }
+  return paid;
 }
 
 /** The card in the place a marker price names (22-43's Unison Area holds one), or null with none there. */
@@ -1155,7 +1265,7 @@ export function skillOrbs(ctx: EngineContext, game: GameDefinition, state: VmSta
  */
 export function spendSkillCostUses(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, sk: Skill): void {
   const channel = sk.keyword?.name === "Evolve" ? "evolveCost" : "skillCost";
-  spendUses(state, ev, state.effects.filter((e) => e.kind === channel && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)) && activateTimingReaches(sk, e.activateTiming) && skillTagMatches(sk, e.tag) && onCard(ctx, game, state, e, card)));
+  spendUses(ctx, state, ev, state.effects.filter((e) => e.kind === channel && e.uses != null && e.uses > 0 && (!e.skillKind || sk.kind.startsWith(e.skillKind)) && activateTimingReaches(sk, e.activateTiming) && skillTagMatches(sk, e.tag) && onCard(ctx, game, state, e, card)));
 }
 
 /**
@@ -1187,14 +1297,32 @@ function onCard(ctx: EngineContext, game: GameDefinition, state: VmState, e: Con
  * use however many cards its words reached, so a change with a `group` ends
  * together with every other change of its group.
  */
-function spendUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): void {
+function spendUses(ctx: EngineContext, state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): void {
   if (!spent.length) return;
+  if (hasStandingNegationHistory(state)) {
+    const groups = new Set(spent.filter(effect => effect.uses === 1 && effect.group !== undefined).map(effect => effect.group));
+    // Current writers group only one-use cost modifiers. Negation or protection
+    // ending during payment needs a separate cost/activation timing contract.
+    if (state.effects.some(effect => effect.group !== undefined && groups.has(effect.group)
+      && !["cost", "specifiedCost", "skillCost", "evolveCost"].includes(effect.kind)))
+      throw new NotYet("expire a coupon group containing non-cost effects before activation", "R477");
+  }
+  // Selection is fixed before payment. Preview and commit use the same complete
+  // group batch; no selector is re-read after one coupon has disappeared.
+  const positions = spent.map(effect => state.effects.indexOf(effect));
+  expireStandingNegationBatch(ctx, state, ev, (board, events) =>
+    spendSelectedUses(board, events, positions.map(position => board.effects[position])), [{ kind: "couponUses", ids: spent.map(effect => effect.id) }]);
+}
+export function spendSelectedUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): ContinuousEffect[] {
+  requireUnscopedStandingWrite(state);
+  if (!spent.length) return [];
   for (const e of spent) e.uses = e.uses! - 1;
   const groups = new Set(spent.filter((e) => e.uses === 0 && e.group !== undefined).map((e) => e.group));
   const ended = state.effects.filter((e) => (spent.includes(e) && e.uses === 0) || (e.group !== undefined && groups.has(e.group)));
-  if (!ended.length) return;
+  if (!ended.length) return [];
   state.effects = state.effects.filter((e) => !ended.includes(e));
   for (const e of ended) log(ev, { type: "effectEnded", effect: e });
+  return ended;
 }
 
 /**
@@ -1204,8 +1332,21 @@ function spendUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): 
  * Called where a move's price is charged (`vm/actions.ts`), never while a menu
  * is built.
  */
-export function spendPriceUses(state: VmState, ev: GameEvent[], card: string): void {
-  spendUses(state, ev, state.effects.filter((e) => (e.kind === "cost" || e.kind === "specifiedCost") && e.target === card && e.uses != null && e.uses > 0));
+export interface CapturedEnergyCouponUses { version: 1; ids: number[] }
+/** Capture before a paid Extra leaves its printed area; later costs must not re-read that selector. */
+export function captureActivationEnergyUses(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, payment: EnergyPaymentContext): CapturedEnergyCouponUses {
+  return { version: 1, ids: state.effects.filter(e => e.kind === "cost" && e.energyActivation !== undefined && energyActivationReaches(e.energyActivation, payment) && e.uses != null && e.uses > 0 && onCard(ctx, game, state, e, card)).map(e => e.id) };
+}
+/** Successful full payment consumes only captured, still-existing coupons; no expired effect is resurrected. */
+export function consumeActivationEnergyUses(ctx: EngineContext, state: VmState, ev: GameEvent[], captured: CapturedEnergyCouponUses): void {
+  if (captured.version !== 1 || !Array.isArray(captured.ids) || captured.ids.some(id => !Number.isSafeInteger(id) || id < 0) || new Set(captured.ids).size !== captured.ids.length) throw new IllegalAction("rebuild this saved activation-energy coupon payment");
+  const present = state.effects.filter(e => captured.ids.includes(e.id));
+  if (present.some(e => e.kind !== "cost" || !e.energyActivation || e.uses === undefined)) throw new IllegalAction("the captured activation-energy coupon changed");
+  spendUses(ctx, state, ev, present.filter(e => e.uses! > 0));
+}
+
+export function spendPriceUses(ctx: EngineContext, state: VmState, ev: GameEvent[], card: string): void {
+  spendUses(ctx, state, ev, state.effects.filter((e) => (e.kind === "cost" || e.kind === "specifiedCost") && !e.energyActivation && e.target === card && e.uses != null && e.uses > 0));
 }
 
 /**
@@ -1338,6 +1479,7 @@ function altEnergy(alt: AltCost): Price {
  * the hand (1-13-2: adding life to the hand is not damage).
  */
 export function payAltCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, alt: VmAltCost): void {
+  requireUnscopedStandingWrite(state);
   if (alt.pay === "none") return;
   // #155: [Invoker]'s price — the cards it names, rested where they stand in
   // the mode the declared energy price rests its cards in (22-37).

@@ -1,0 +1,4692 @@
+{
+  "BT8-033#10": {
+    "ops": {
+      "before": [
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "energy",
+                "filter": {
+                  "colors": [
+                    "Blue",
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": true,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 Blue/Green multicolor card in your energy"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ],
+          "label": "at the end of the turn"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c1",
+              "reason": "choose 1 card in your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c1"
+              },
+              "to": "energy",
+              "mode": "rest",
+              "reveal": true,
+              "owner": "you"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "energy",
+                "filter": {
+                  "colors": [
+                    "Blue",
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": true,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 Blue/Green multicolor card in your energy"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand",
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "hand",
+                    "count": 1,
+                    "upTo": false
+                  },
+                  "as": "c1",
+                  "reason": "choose 1 card in your hand"
+                },
+                {
+                  "op": "moveTo",
+                  "target": {
+                    "var": "c1"
+                  },
+                  "to": "energy",
+                  "mode": "rest",
+                  "reveal": true,
+                  "owner": "you"
+                }
+              ]
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ]
+    },
+    "pattern": {
+      "before": "delay:turnEnd[choose\u2192moveTo]\u2192if:chose[choose\u2192moveTo]",
+      "after": "delay:turnEnd[choose\u2192moveTo\u2192if:moved[choose\u2192moveTo]]"
+    },
+    "reads": {
+      "before": "at the end of the turn: choose up to 1 multicolour blue and green card in your Energy Area, move the chosen cards to hand, if you took that choice: choose 1 card in your hand, move the chosen cards to energy in Rest Mode",
+      "after": "at the end of the turn: choose up to 1 multicolour blue and green card in your Energy Area, move the chosen cards to hand, if the chosen movement was completed in full: choose 1 card in your hand, move the chosen cards to energy in Rest Mode"
+    }
+  },
+  "TB3-033#0": {
+    "ops": {
+      "before": [
+        {
+          "op": "negateAttack"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "bardock's crew"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [
+                    "Blue"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 blue card in your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "to": "hand"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "negateAttack"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "bardock's crew"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [
+                    "Blue"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 blue card in your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "moveTo",
+                  "target": {
+                    "sel": {
+                      "special": "self"
+                    }
+                  },
+                  "to": "hand"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "negateAttack\u2192if:leaderMatches[choose\u2192moveTo]\u2192if:chose[moveTo]",
+      "after": "negateAttack\u2192if:leaderMatches[choose\u2192moveTo\u2192if:moved[moveTo]]"
+    },
+    "reads": {
+      "before": "negate the attack, if your leader is \u226abardock's crew\u226b: choose up to 1 blue card in your hand, move the chosen cards to drop (end if), if you took that choice: move this card to hand",
+      "after": "negate the attack, if your leader is \u226abardock's crew\u226b: choose up to 1 blue card in your hand, move the chosen cards to drop, if the chosen movement was completed in full: move this card to hand"
+    }
+  },
+  "BT22-133#10": {
+    "ops": {
+      "before": [
+        {
+          "op": "grant",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "keyword": {
+            "name": "Critical"
+          },
+          "until": "turn"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy"
+            },
+            "atLeast": 3
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "Paragus"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose up to 1 of your <Paragus> cards"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "permit",
+              "what": "attackActive",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "until": "turn",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "grant",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "keyword": {
+            "name": "Critical"
+          },
+          "until": "turn"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy"
+            },
+            "atLeast": 3
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "Paragus"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose up to 1 of your <Paragus> cards"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "permit",
+                  "what": "attackActive",
+                  "target": {
+                    "sel": {
+                      "special": "self"
+                    }
+                  },
+                  "until": "turn",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "grant:Critical\u2192if:count[choose\u2192moveTo]\u2192if:chose[permit]",
+      "after": "grant:Critical\u2192if:count[choose\u2192moveTo\u2192if:moved[permit]]"
+    },
+    "reads": {
+      "before": "this card gains [Critical] for the turn, if there are 3 or more cards in your Energy Area: choose up to 1 <Paragus> card you have in play, move the chosen cards to drop (end if), if you took that choice: this card can attack battle card in Active Mode for the turn",
+      "after": "this card gains [Critical] for the turn, if there are 3 or more cards in your Energy Area: choose up to 1 <Paragus> card you have in play, move the chosen cards to drop, if the chosen movement was completed in full: this card can attack battle card in Active Mode for the turn"
+    }
+  },
+  "BT10-126#0": {
+    "ops": {
+      "before": [
+        {
+          "op": "forbid",
+          "what": "activateSkill",
+          "side": "you",
+          "until": "turn",
+          "sameNameAsSelf": true,
+          "skillKinds": [
+            "activate:main"
+          ]
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [
+                    "Black"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 black card in your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ],
+          "label": "at the end of the turn"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "draw",
+              "n": 2
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "forbid",
+          "what": "activateSkill",
+          "side": "you",
+          "until": "turn",
+          "sameNameAsSelf": true,
+          "skillKinds": [
+            "activate:main"
+          ]
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [
+                    "Black"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 black card in your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "draw",
+                  "n": 2
+                }
+              ]
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:all[forbid:activateSkill\u2192delay:turnEnd[choose\u2192moveTo]\u2192if:chose[draw]]",
+      "after": "if:all[forbid:activateSkill\u2192delay:turnEnd[choose\u2192moveTo\u2192if:moved[draw]]]"
+    },
+    "reads": {
+      "before": "if your leader is Black and every card in your Energy Area is also among the black cards in your Energy Area: you can't activate the [Activate: Main] skills on copies of this card for the turn, at the end of the turn: choose up to 1 black card in your hand, move the chosen cards to drop, if you took that choice: draw 2",
+      "after": "if your leader is Black and every card in your Energy Area is also among the black cards in your Energy Area: you can't activate the [Activate: Main] skills on copies of this card for the turn, at the end of the turn: choose up to 1 black card in your hand, move the chosen cards to drop, if the chosen movement was completed in full: draw 2"
+    }
+  },
+  "P-160#0": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "jackie chun"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "power",
+              "target": {
+                "sel": {
+                  "special": "leader"
+                }
+              },
+              "amount": 15000,
+              "until": "battle"
+            },
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true,
+                "mode": "rest"
+              },
+              "as": "c0",
+              "reason": "you may choose 1 of your Battle Cards in Rest Mode"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "draw",
+              "n": 1
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "jackie chun"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "power",
+              "target": {
+                "sel": {
+                  "special": "leader"
+                }
+              },
+              "amount": 15000,
+              "until": "battle"
+            },
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true,
+                "mode": "rest"
+              },
+              "as": "c0",
+              "reason": "you may choose 1 of your Battle Cards in Rest Mode"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "draw",
+                  "n": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:leaderMatches[power\u2192choose\u2192moveTo]\u2192if:chose[draw]",
+      "after": "if:leaderMatches[power\u2192choose\u2192moveTo\u2192if:moved[draw]]"
+    },
+    "reads": {
+      "before": "if your leader is <jackie chun>: your leader +15000 power for the battle, choose up to 1 Battle Card in your Battle Area in rest mode, move the chosen cards to drop (end if), if you took that choice: draw 1",
+      "after": "if your leader is <jackie chun>: your leader +15000 power for the battle, choose up to 1 Battle Card in your Battle Area in rest mode, move the chosen cards to drop, if the chosen movement was completed in full: draw 1"
+    }
+  },
+  "TB3-018#10b": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "bardock's crew"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 1
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card from your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "negateAttack"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "bardock's crew"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 1
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card from your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "negateAttack"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:count[choose\u2192moveTo]\u2192if:chose[negateAttack]",
+      "after": "if:count[choose\u2192moveTo\u2192if:moved[negateAttack]]"
+    },
+    "reads": {
+      "before": "if there are 1 or more \u226abardock's crew\u226b cards in your Drop Area: choose up to 1 card in your Life Area, move the chosen cards to drop (end if), if you took that choice: negate the attack",
+      "after": "if there are 1 or more \u226abardock's crew\u226b cards in your Drop Area: choose up to 1 card in your Life Area, move the chosen cards to drop, if the chosen movement was completed in full: negate the attack"
+    }
+  },
+  "TB1-039#10": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "universe 9"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card in your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "opponent",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "choose up to 1 of your opponent's Battle Cards"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c1"
+              },
+              "to": "deck",
+              "position": "bottom"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "universe 9"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card in your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand",
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "opponent",
+                    "area": "battle",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": "BATTLE",
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c1",
+                  "reason": "choose up to 1 of your opponent's Battle Cards"
+                },
+                {
+                  "op": "moveTo",
+                  "target": {
+                    "var": "c1"
+                  },
+                  "to": "deck",
+                  "position": "bottom"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:leaderMatches[choose\u2192moveTo]\u2192if:chose[choose\u2192moveTo]",
+      "after": "if:leaderMatches[choose\u2192moveTo\u2192if:moved[choose\u2192moveTo]]"
+    },
+    "reads": {
+      "before": "if your leader is \u226auniverse 9\u226b: choose up to 1 card in your Life Area, move the chosen cards to hand (end if), if you took that choice: choose up to 1 Battle Card in your opponent's Battle Area, move the chosen cards to the bottom of the deck",
+      "after": "if your leader is \u226auniverse 9\u226b: choose up to 1 card in your Life Area, move the chosen cards to hand, if the chosen movement was completed in full: choose up to 1 Battle Card in your opponent's Battle Area, move the chosen cards to the bottom of the deck"
+    }
+  },
+  "P-144#0": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "world tournament"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "if",
+              "cond": {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "energy"
+                },
+                "atLeast": 4
+              },
+              "then": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "hand",
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c0",
+                  "reason": "you may choose 1 card from your hand"
+                },
+                {
+                  "op": "moveTo",
+                  "target": {
+                    "var": "c0"
+                  },
+                  "to": "deck",
+                  "position": "top"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "deck",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [
+                    "Supreme Showdown Vegeta"
+                  ],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "choose up to 1 {Supreme Showdown Vegeta} from your deck"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "c1"
+              }
+            },
+            {
+              "op": "shuffle"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "world tournament"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "if",
+              "cond": {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "energy"
+                },
+                "atLeast": 4
+              },
+              "then": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "hand",
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c0",
+                  "reason": "you may choose 1 card from your hand"
+                },
+                {
+                  "op": "moveTo",
+                  "target": {
+                    "var": "c0"
+                  },
+                  "to": "deck",
+                  "position": "top",
+                  "completedAs": "c0"
+                },
+                {
+                  "op": "if",
+                  "cond": {
+                    "kind": "moved",
+                    "var": "c0",
+                    "all": true
+                  },
+                  "then": [
+                    {
+                      "op": "choose",
+                      "sel": {
+                        "side": "you",
+                        "area": "deck",
+                        "filter": {
+                          "colors": [],
+                          "notColors": [],
+                          "monoColor": false,
+                          "multiColor": false,
+                          "characters": [],
+                          "notCharacters": [],
+                          "charactersIncluding": [],
+                          "notCharactersIncluding": [],
+                          "charactersAll": [],
+                          "namesAll": [],
+                          "traits": [],
+                          "notTraits": [],
+                          "characterOrTrait": false,
+                          "onlyCharacters": false,
+                          "names": [
+                            "Supreme Showdown Vegeta"
+                          ],
+                          "notNames": [],
+                          "namesIncluding": [],
+                          "notNamesIncluding": [],
+                          "notKeywords": [],
+                          "keywords": [],
+                          "skillKind": null,
+                          "unreadable": false,
+                          "noKeywords": false,
+                          "type": null,
+                          "notType": null,
+                          "faceUp": false,
+                          "token": false,
+                          "notToken": false,
+                          "costMin": null,
+                          "costMax": null,
+                          "powerMin": null,
+                          "powerMax": null,
+                          "originalPowerMin": null,
+                          "originalPowerMax": null,
+                          "comboPowerMin": null,
+                          "comboPowerMax": null,
+                          "markersMin": null,
+                          "markersMax": null,
+                          "specifiedCostMin": null,
+                          "specifiedCostMax": null,
+                          "specifiedCostNone": false,
+                          "costAtMostEnergy": false,
+                          "costBelowEnergy": false,
+                          "costAtLeastEnergy": false,
+                          "costAboveEnergy": false,
+                          "energyOfOpponent": false,
+                          "originallySkillLess": false,
+                          "skillLess": false,
+                          "powerRel": null,
+                          "nameInSkillTextOf": null,
+                          "z": null
+                        },
+                        "count": 1,
+                        "upTo": true
+                      },
+                      "as": "c1",
+                      "reason": "choose up to 1 {Supreme Showdown Vegeta} from your deck"
+                    },
+                    {
+                      "op": "play",
+                      "target": {
+                        "var": "c1"
+                      }
+                    },
+                    {
+                      "op": "shuffle"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:leaderMatches[if:count[choose\u2192moveTo]]\u2192if:chose[choose\u2192play\u2192shuffle]",
+      "after": "if:leaderMatches[if:count[choose\u2192moveTo\u2192if:moved[choose\u2192play\u2192shuffle]]]"
+    },
+    "reads": {
+      "before": "if your leader is \u226aworld tournament\u226b: if there are 4 or more cards in your Energy Area: choose up to 1 card in your hand, move the chosen cards to the top of the deck (end if), if you took that choice: choose up to 1 {Supreme Showdown Vegeta} card in your deck, play the chosen cards, shuffle",
+      "after": "if your leader is \u226aworld tournament\u226b: if there are 4 or more cards in your Energy Area: choose up to 1 card in your hand, move the chosen cards to the top of the deck, if the chosen movement was completed in full: choose up to 1 {Supreme Showdown Vegeta} card in your deck, play the chosen cards, shuffle"
+    }
+  },
+  "TB2-008#10": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "if",
+              "cond": {
+                "kind": "life",
+                "side": "you",
+                "atMost": 4
+              },
+              "then": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "hand",
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c0",
+                  "reason": "you may choose 1 card in your hand"
+                },
+                {
+                  "op": "moveTo",
+                  "target": {
+                    "var": "c0"
+                  },
+                  "to": "drop",
+                  "reveal": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "comboPower",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "amount": 10000,
+              "until": "turn"
+            },
+            {
+              "op": "shuffle"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "if",
+              "cond": {
+                "kind": "life",
+                "side": "you",
+                "atMost": 4
+              },
+              "then": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "hand",
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c0",
+                  "reason": "you may choose 1 card in your hand"
+                },
+                {
+                  "op": "moveTo",
+                  "target": {
+                    "var": "c0"
+                  },
+                  "to": "drop",
+                  "reveal": true,
+                  "completedAs": "c0"
+                },
+                {
+                  "op": "if",
+                  "cond": {
+                    "kind": "moved",
+                    "var": "c0",
+                    "all": true
+                  },
+                  "then": [
+                    {
+                      "op": "comboPower",
+                      "target": {
+                        "sel": {
+                          "special": "self"
+                        }
+                      },
+                      "amount": 10000,
+                      "until": "turn"
+                    },
+                    {
+                      "op": "shuffle"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "reads": {
+      "before": "if your leader is Red: if your life is 4 or less: choose up to 1 card in your hand, move the chosen cards to drop (end if), if you took that choice: this card +10000 combo power for the turn, shuffle",
+      "after": "if your leader is Red: if your life is 4 or less: choose up to 1 card in your hand, move the chosen cards to drop, if the chosen movement was completed in full: this card +10000 combo power for the turn, shuffle"
+    }
+  },
+  "TB2-005#20": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "world tournament"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true,
+                "notSelf": "card"
+              },
+              "as": "c0",
+              "reason": "you may choose 1 of your Battle Cards other than this card"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "forbid",
+              "what": "block",
+              "side": "opponent",
+              "until": "turn"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "world tournament"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true,
+                "notSelf": "card"
+              },
+              "as": "c0",
+              "reason": "you may choose 1 of your Battle Cards other than this card"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "forbid",
+                  "what": "block",
+                  "side": "opponent",
+                  "until": "turn"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:leaderMatches[choose\u2192moveTo]\u2192if:chose[forbid:block]",
+      "after": "if:leaderMatches[choose\u2192moveTo\u2192if:moved[forbid:block]]"
+    },
+    "reads": {
+      "before": "if your leader is \u226aworld tournament\u226b: choose up to 1 Battle Card in your Battle Area other than this card, move the chosen cards to drop (end if), if you took that choice: your opponent can't block for the turn",
+      "after": "if your leader is \u226aworld tournament\u226b: choose up to 1 Battle Card in your Battle Area other than this card, move the chosen cards to drop, if the chosen movement was completed in full: your opponent can't block for the turn"
+    }
+  },
+  "P-127#0": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "universe 6"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 1
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card in your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "drop",
+                "filter": {
+                  "colors": [
+                    "Blue",
+                    "Yellow"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [
+                    "Cabba"
+                  ],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "Universe 6"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": 1,
+                  "costMax": 1,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "choose up to 1 blue or yellow non-<Cabba> \u226aUniverse 6\u226b card with an energy cost of 1 in your Drop Area"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "c1"
+              }
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "universe 6"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 1
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card in your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "drop",
+                    "filter": {
+                      "colors": [
+                        "Blue",
+                        "Yellow"
+                      ],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [
+                        "Cabba"
+                      ],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [
+                        "Universe 6"
+                      ],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": 1,
+                      "costMax": 1,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c1",
+                  "reason": "choose up to 1 blue or yellow non-<Cabba> \u226aUniverse 6\u226b card with an energy cost of 1 in your Drop Area"
+                },
+                {
+                  "op": "play",
+                  "target": {
+                    "var": "c1"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:count[choose\u2192moveTo]\u2192if:chose[choose\u2192play]",
+      "after": "if:count[choose\u2192moveTo\u2192if:moved[choose\u2192play]]"
+    },
+    "reads": {
+      "before": "if there are 1 or more \u226auniverse 6\u226b Battle Cards in your Drop Area: choose up to 1 card in your hand, move the chosen cards to drop (end if), if you took that choice: choose up to 1 blue or yellow \u226aUniverse 6\u226b non-<Cabba> card with an energy cost of 1 in your Drop Area, play the chosen cards",
+      "after": "if there are 1 or more \u226auniverse 6\u226b Battle Cards in your Drop Area: choose up to 1 card in your hand, move the chosen cards to drop, if the chosen movement was completed in full: choose up to 1 blue or yellow \u226aUniverse 6\u226b non-<Cabba> card with an energy cost of 1 in your Drop Area, play the chosen cards"
+    }
+  },
+  "TB1-013#0": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "saiyan"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card in your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "power",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "amount": 5000,
+              "until": "turn"
+            },
+            {
+              "op": "grant",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "keyword": {
+                "name": "Strike",
+                "x": 2
+              },
+              "until": "turn"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "saiyan"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card in your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand",
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "power",
+                  "target": {
+                    "sel": {
+                      "special": "self"
+                    }
+                  },
+                  "amount": 5000,
+                  "until": "turn"
+                },
+                {
+                  "op": "grant",
+                  "target": {
+                    "sel": {
+                      "special": "self"
+                    }
+                  },
+                  "keyword": {
+                    "name": "Strike",
+                    "x": 2
+                  },
+                  "until": "turn"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:leaderMatches[choose\u2192moveTo]\u2192if:chose[power\u2192grant:Strike]",
+      "after": "if:leaderMatches[choose\u2192moveTo\u2192if:moved[power\u2192grant:Strike]]"
+    },
+    "reads": {
+      "before": "if your leader is Red \u226asaiyan\u226b: choose up to 1 card in your Life Area, move the chosen cards to hand (end if), if you took that choice: this card +5000 power for the turn, this card gains [Double Strike] for the turn",
+      "after": "if your leader is Red \u226asaiyan\u226b: choose up to 1 card in your Life Area, move the chosen cards to hand, if the chosen movement was completed in full: this card +5000 power for the turn, this card gains [Double Strike] for the turn"
+    }
+  },
+  "EX23-50#20": {
+    "ops": {
+      "before": [
+        {
+          "op": "draw",
+          "n": 1
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "hand",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": true,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null,
+              "originalCostMax": 2,
+              "originalCostMin": 2
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 black multicolor Battle Card with an original energy cost of 2 from your hand"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "filter": {
+                "colors": [
+                  "Black"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": true,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "distinctColors": true
+            },
+            "atLeast": 4
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "energy",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "add up to 1 of your energy to your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c1"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c1"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c2",
+              "reason": "add 1 card from your hand to your energy"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c2"
+              },
+              "to": "energy",
+              "reveal": true,
+              "owner": "you"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "draw",
+          "n": 1
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "hand",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": true,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null,
+              "originalCostMax": 2,
+              "originalCostMin": 2
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 black multicolor Battle Card with an original energy cost of 2 from your hand"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "filter": {
+                "colors": [
+                  "Black"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": true,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "distinctColors": true
+            },
+            "atLeast": 4
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "energy",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "add up to 1 of your energy to your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c1"
+              },
+              "to": "hand",
+              "completedAs": "c1"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c1",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "hand",
+                    "count": 1,
+                    "upTo": false
+                  },
+                  "as": "c2",
+                  "reason": "add 1 card from your hand to your energy"
+                },
+                {
+                  "op": "moveTo",
+                  "target": {
+                    "var": "c2"
+                  },
+                  "to": "energy",
+                  "reveal": true,
+                  "owner": "you"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "draw\u2192choose\u2192play\u2192if:count[choose\u2192moveTo]\u2192if:chose[choose\u2192moveTo]",
+      "after": "draw\u2192choose\u2192play\u2192if:count[choose\u2192moveTo\u2192if:moved[choose\u2192moveTo]]"
+    },
+    "reads": {
+      "before": "draw 1, choose up to 1 multicolour black Battle Card with an original energy cost of 2 in your hand, play the chosen cards, if there are 4 or more multicolour black cards in your Energy Area (counting the different colors, not the cards): choose up to 1 card in your Energy Area, move the chosen cards to hand (end if), if you took that choice: choose 1 card in your hand, move the chosen cards to energy",
+      "after": "draw 1, choose up to 1 multicolour black Battle Card with an original energy cost of 2 in your hand, play the chosen cards, if there are 4 or more multicolour black cards in your Energy Area (counting the different colors, not the cards): choose up to 1 card in your Energy Area, move the chosen cards to hand, if the chosen movement was completed in full: choose 1 card in your hand, move the chosen cards to energy"
+    }
+  },
+  "BT6-022#0": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "frieza's army"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card from your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "opponent",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "choose up to 1 of your opponent's Battle Cards"
+            },
+            {
+              "op": "power",
+              "target": {
+                "var": "c1"
+              },
+              "amount": -5000,
+              "until": "turn"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "frieza's army"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 card from your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "opponent",
+                    "area": "battle",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": "BATTLE",
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c1",
+                  "reason": "choose up to 1 of your opponent's Battle Cards"
+                },
+                {
+                  "op": "power",
+                  "target": {
+                    "var": "c1"
+                  },
+                  "amount": -5000,
+                  "until": "turn"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:leaderMatches[choose\u2192moveTo]\u2192if:chose[choose\u2192power]",
+      "after": "if:leaderMatches[choose\u2192moveTo\u2192if:moved[choose\u2192power]]"
+    },
+    "reads": {
+      "before": "if your leader is Red \u226afrieza's army\u226b: choose up to 1 card in your hand, move the chosen cards to drop (end if), if you took that choice: choose up to 1 Battle Card in your opponent's Battle Area, the chosen cards -5000 power for the turn",
+      "after": "if your leader is Red \u226afrieza's army\u226b: choose up to 1 card in your hand, move the chosen cards to drop, if the chosen movement was completed in full: choose up to 1 Battle Card in your opponent's Battle Area, the chosen cards -5000 power for the turn"
+    }
+  },
+  "EX03-23#0": {
+    "ops": {
+      "before": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "frieza clan"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [
+                    "Frieza"
+                  ],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "Frieza Clan"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 \u226aFrieza Clan\u226b other than <Frieza> in your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "negateAttack"
+            },
+            {
+              "op": "negateOwnSkill",
+              "until": "turn"
+            }
+          ]
+        }
+      ],
+      "after": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "frieza clan"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [
+                    "Frieza"
+                  ],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "Frieza Clan"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "you may choose 1 \u226aFrieza Clan\u226b other than <Frieza> in your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true,
+              "completedAs": "c0"
+            },
+            {
+              "op": "if",
+              "cond": {
+                "kind": "moved",
+                "var": "c0",
+                "all": true
+              },
+              "then": [
+                {
+                  "op": "negateAttack"
+                },
+                {
+                  "op": "negateOwnSkill",
+                  "until": "turn"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "pattern": {
+      "before": "if:leaderMatches[choose\u2192moveTo]\u2192if:chose[negateAttack\u2192negateOwnSkill]",
+      "after": "if:leaderMatches[choose\u2192moveTo\u2192if:moved[negateAttack\u2192negateOwnSkill]]"
+    },
+    "reads": {
+      "before": "if your leader is \u226afrieza clan\u226b: choose up to 1 \u226aFrieza Clan\u226b non-<Frieza> card in your hand, move the chosen cards to drop (end if), if you took that choice: negate the attack, this skill does not happen again this turn",
+      "after": "if your leader is \u226afrieza clan\u226b: choose up to 1 \u226aFrieza Clan\u226b non-<Frieza> card in your hand, move the chosen cards to drop, if the chosen movement was completed in full: negate the attack, this skill does not happen again this turn"
+    }
+  }
+}

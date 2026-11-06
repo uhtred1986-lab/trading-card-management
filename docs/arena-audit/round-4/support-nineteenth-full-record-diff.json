@@ -1,0 +1,1162 @@
+[
+  {
+    "key": "P-624#10",
+    "changedFields": {
+      "ops": {
+        "before": [
+          {
+            "op": "draw",
+            "n": 1
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "areas": [
+                "hand",
+                "battle"
+              ],
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Saiyan"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 green \u226aSaiyan\u226b card from your hand or Battle Area"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "leader"
+              }
+            }
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            },
+            "then": [
+              {
+                "op": "switchMode",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "mode": "active"
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "op": "draw",
+            "n": 1
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "areas": [
+                "hand",
+                "battle"
+              ],
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "Saiyan"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 green \u226aSaiyan\u226b card from your hand or Battle Area"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "leader"
+              }
+            },
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "switchMode",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "mode": "active"
+              }
+            ]
+          }
+        ]
+      },
+      "pattern": {
+        "before": "if:count[draw\u2192choose\u2192moveTo\u2192if:chose[switchMode]]",
+        "after": "if:count[draw\u2192choose\u2192moveTo\u2192if:moved[switchMode]]"
+      },
+      "reads": {
+        "before": "if that card is a green <mai: future>-only Leader Card: draw 1, choose up to 1 green \u226aSaiyan\u226b card in your hand or Battle Area, move the chosen cards under your leader, if you took that choice: switch this card to active mode",
+        "after": "if that card is a green <mai: future>-only Leader Card: draw 1, choose up to 1 green \u226aSaiyan\u226b card in your hand or Battle Area, move the chosen cards under your leader, if the chosen movement was completed in full: switch this card to active mode"
+      }
+    }
+  },
+  {
+    "key": "P-327#20",
+    "changedFields": {
+      "ops": {
+        "before": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "deck",
+              "areas": [
+                "deck",
+                "drop"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "cell"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "You may place up to 1 <Cell> card from your deck or Drop Area under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "deck",
+                  "areas": [
+                    "deck",
+                    "hand"
+                  ],
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [
+                      "Super 17, Cell Absorbed",
+                      "Super 17, Hell's Storm Unleashed"
+                    ],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c1",
+                "reason": "choose up to 1 {Super 17, Cell Absorbed} or {Super 17, Hell's Storm Unleashed} in your deck or hand"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "c1"
+                },
+                "negatedKinds": [
+                  "keyword",
+                  "counter"
+                ],
+                "negatedUntil": "turn",
+                "onto": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "using": "Union-Absorb",
+                "counterWindow": true
+              },
+              {
+                "op": "shuffle"
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "deck",
+              "areas": [
+                "deck",
+                "drop"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "cell"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "You may place up to 1 <Cell> card from your deck or Drop Area under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "deck",
+                  "areas": [
+                    "deck",
+                    "hand"
+                  ],
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [
+                      "Super 17, Cell Absorbed",
+                      "Super 17, Hell's Storm Unleashed"
+                    ],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c1",
+                "reason": "choose up to 1 {Super 17, Cell Absorbed} or {Super 17, Hell's Storm Unleashed} in your deck or hand"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "c1"
+                },
+                "negatedKinds": [
+                  "keyword",
+                  "counter"
+                ],
+                "negatedUntil": "turn",
+                "onto": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "using": "Union-Absorb",
+                "counterWindow": true
+              },
+              {
+                "op": "shuffle"
+              }
+            ]
+          }
+        ]
+      },
+      "pattern": {
+        "before": "if:all[choose\u2192moveTo\u2192if:chose[choose\u2192play\u2192shuffle]]",
+        "after": "if:all[choose\u2192moveTo\u2192if:moved[choose\u2192play\u2192shuffle]]"
+      },
+      "reads": {
+        "before": "if your leader is \u226aandroid\u226b and there are 4 or more cards in your Energy Area: choose up to 1 <cell> card in your deck or Drop Area, move the chosen cards under this card, if you took that choice: choose up to 1 {Super 17, Cell Absorbed} or {Super 17, Hell's Storm Unleashed} card in your deck or hand, play the chosen cards through a [Counter: Play] window on top of this card with its [keyword] and [counter] skills negated for the turn, shuffle",
+        "after": "if your leader is \u226aandroid\u226b and there are 4 or more cards in your Energy Area: choose up to 1 <cell> card in your deck or Drop Area, move the chosen cards under this card, if the chosen movement was completed in full: choose up to 1 {Super 17, Cell Absorbed} or {Super 17, Hell's Storm Unleashed} card in your deck or hand, play the chosen cards through a [Counter: Play] window on top of this card with its [keyword] and [counter] skills negated for the turn, shuffle"
+      }
+    }
+  },
+  {
+    "key": "BT15-129#10",
+    "changedFields": {
+      "ops": {
+        "before": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "unison",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "UNISON",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 of your opponent's Unison Cards"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            },
+            "then": [
+              {
+                "op": "forbid",
+                "what": "combo",
+                "until": "turn",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "unison",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "UNISON",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 of your opponent's Unison Cards"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "forbid",
+                "what": "combo",
+                "until": "turn",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "reads": {
+        "before": "if your leader is Black <fin>: choose up to 1 card in your opponent's Unison Area, move the chosen cards under this card, if you took that choice: this card can't combo for the turn",
+        "after": "if your leader is Black <fin>: choose up to 1 card in your opponent's Unison Area, move the chosen cards under this card, if the chosen movement was completed in full: this card can't combo for the turn"
+      }
+    }
+  },
+  {
+    "key": "P-349#10",
+    "changedFields": {
+      "ops": {
+        "before": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "deck",
+              "areas": [
+                "deck",
+                "hand"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [
+                  "Son Goku, Guardian Angel"
+                ],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 {Son Goku, Guardian Angel} in your deck or hand"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "hand",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [
+                      "Finishing Blow Son Gohan"
+                    ],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c1",
+                "reason": "choose up to 1 {Finishing Blow Son Gohan} in your hand"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "c1"
+                },
+                "onto": {
+                  "sel": {
+                    "special": "self"
+                  }
+                }
+              },
+              {
+                "op": "shuffle"
+              }
+            ]
+          }
+        ],
+        "after": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "deck",
+              "areas": [
+                "deck",
+                "hand"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [
+                  "Son Goku, Guardian Angel"
+                ],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 {Son Goku, Guardian Angel} in your deck or hand"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "hand",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [
+                      "Finishing Blow Son Gohan"
+                    ],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c1",
+                "reason": "choose up to 1 {Finishing Blow Son Gohan} in your hand"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "c1"
+                },
+                "onto": {
+                  "sel": {
+                    "special": "self"
+                  }
+                }
+              },
+              {
+                "op": "shuffle"
+              }
+            ]
+          }
+        ]
+      },
+      "pattern": {
+        "before": "if:leaderMatches[choose\u2192moveTo\u2192if:chose[choose\u2192play\u2192shuffle]]",
+        "after": "if:leaderMatches[choose\u2192moveTo\u2192if:moved[choose\u2192play\u2192shuffle]]"
+      },
+      "reads": {
+        "before": "if your leader is Yellow \u226asaiyan\u226b: choose up to 1 {Son Goku, Guardian Angel} card in your deck or hand, move the chosen cards under this card, if you took that choice: choose up to 1 {Finishing Blow Son Gohan} card in your hand, play the chosen cards on top of this card, shuffle",
+        "after": "if your leader is Yellow \u226asaiyan\u226b: choose up to 1 {Son Goku, Guardian Angel} card in your deck or hand, move the chosen cards under this card, if the chosen movement was completed in full: choose up to 1 {Finishing Blow Son Gohan} card in your hand, play the chosen cards on top of this card, shuffle"
+      }
+    }
+  }
+]

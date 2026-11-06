@@ -532,9 +532,9 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
     { op: "choose", sel: { area: "battle", side: "opponent", count: 1 }, as: "paid" },
     { op: "moveTo", target: { var: "paid" }, to: "drop" },
   ]);
-  for (const mode of ["optional", "mandatory", "effect-only"] as const) {
+  for (const mode of ["optional", "optional-same-destination", "mandatory", "effect-only"] as const) {
     const a = mainWith("MIX549"); const energy = stage(a.state, "ENERGY549", "energy"); const target = stage(a.state, "V1", "battle", "p2");
-    addEffect(a.state, [], { master: "p2", source: target, target, kind: "replaceLeave", value: { to: "warp", ...(mode === "optional" ? { optional: true } : {}), ...(mode === "effect-only" ? { by: "skill" } : {}) }, until: "turn" });
+    addEffect(a.state, [], { master: "p2", source: target, target, kind: "replaceLeave", value: { to: mode === "optional-same-destination" ? "drop" : "warp", ...(mode.startsWith("optional") ? { optional: true } : {}), ...(mode === "effect-only" ? { by: "skill" } : {}) }, until: "turn" });
     const ev = pend(a.state, a.source);
     if (mode === "mandatory") {
       assert.equal(a.state.prompt.kind, "main"); assert.equal(a.state.cards[energy].mode, "active"); assert.ok(a.state.sides.p2.zones.battle.includes(target));
@@ -542,12 +542,12 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
     }
     assert.equal(a.state.prompt.kind, "chooseMode");
     let result = answer(a.state, 0);
-    if (mode === "optional") {
+    if (mode.startsWith("optional")) {
       assert.equal(result.state.prompt.kind, "replaceMove"); assert.equal(result.state.cards[energy].mode, "rest");
       assert.ok(result.state.sides.p2.zones.battle.includes(target)); assert.equal(draws(result.events), 0);
       assert.ok(result.state.prompt.kind === "replaceMove" && result.state.prompt.options.length === 2, "the affected opponent keeps both legal replacement choices");
       const failed = answer(result.state, 0, "p2");
-      assert.ok(failed.state.sides.p2.zones.warp.includes(target));
+      assert.ok(failed.state.sides.p2.zones[mode === "optional-same-destination" ? "drop" : "warp"].includes(target));
       assert.equal(failed.state.cards[energy].mode, "rest", "5-8-4 retains the earlier orb payment");
       assert.equal(draws(failed.events), 0); assert.equal(failed.events.some((e) => e.type === "skill" && e.card === a.source), false);
       assert.ok(failed.events.some((e) => e.type === "note" && /payment to fail/.test(e.text)));
@@ -1319,7 +1319,7 @@ function atPrompt(state: VmState, frame: ScriptFrame): { s: VmState; f: ScriptFr
     return a.state.prompt.kind === "chooseMode" ? a.state.prompt.options : [];
   };
   assert.deepEqual(labels("ACTION549"), ["Pay: choose 1 card in your hand, move the chosen cards to drop", "Don't pay"], "a hand price names itself");
-  assert.deepEqual(labels("FACEUP549"), ["Pay: choose 1 card in your Life Area, turn the chosen cards face up", "Don't pay"], "a Life-card price names itself");
+  assert.deepEqual(labels("FACEUP549"), ["Pay: choose 1 card in your Life Area, without seeing them, turn the chosen cards face up", "Don't pay"], "a Life-card price names itself");
   assert.deepEqual(labels("MIX549", 1), ["Pay: 1 Red; choose 1 card in your hand, move the chosen cards to drop", "Don't pay"], "orbs and a program are both said");
   assert.deepEqual(labels("A549", 1), ["Pay: 1 Red", "Don't pay"], "an orb-only price reads as before");
   for (const id of ["ACTION549", "MIX549", "FACEUP549"] as const) assert.ok(!labels(id, 1).some((o) => /nothing/.test(o)), `${id}: a real price is never labelled "nothing"`);
@@ -1395,8 +1395,19 @@ for (const [available, paid] of [[3, 1], [3, 2], [1, 1], [0, 0]] as const) {
     result = choose(s, paid === 1 ? [] : [life[1]]); events.push(...result.events); s = result.state;
   }
   assert.equal(s.sides.p1.zones.life.length, available - paid, "the paid count is the chosen one, not always the ceiling");
-  assert.equal(draws(events), 1, "the effect runs only after a complete bounded payment");
-  assert.equal(s.sides.p1.zones.hand.length, beforeHand + paid + 1);
+  // RM21-1-2-1, 21-2-1 and 21-2-2-1: paying the last Life ends the
+  // game interruptively. R436 clears the effect instead of drawing after loss.
+  if (available === paid) {
+    assert.equal(s.outcome?.kind, "win");
+    assert.equal(s.winner, "p2");
+    assert.equal(draws(events), 0, "no effect draws after terminal Life loss");
+    assert.equal(s.programs.length, 0);
+    assert.equal(s.pending.length, 0);
+    assert.equal(s.sides.p1.zones.hand.length, beforeHand + paid);
+  } else {
+    assert.equal(draws(events), 1, "the effect runs only after a complete bounded payment");
+    assert.equal(s.sides.p1.zones.hand.length, beforeHand + paid + 1);
+  }
 }
 console.log("  #820 bounded Auto Life payment: one/two, decline, one available and zero unavailable passed");
 

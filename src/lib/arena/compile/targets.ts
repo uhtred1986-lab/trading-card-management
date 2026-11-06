@@ -70,10 +70,6 @@ const AREA_PLACE_WORDS: [RegExp, ScriptArea][] = [
   [/\bz-deck\b/, "zDeck"],
   [/\bz-energy\b/, "zEnergy"],
   [/\bunder this card\b/, "under"],
-  // Naming both areas is how the text says "on the table" (20-1-6), and it
-  // has to be read before either area alone — otherwise "in your Battle Area
-  // or Leader Area" becomes a Battle Area holding a Leader, which is nothing.
-  [/\b(?:battle|leader) area (?:or|and) (?:battle|leader) area\b/, "play"],
   [/\bleader area\b/, "leader"],
   // (Audit-selectors-1: "in any Battle Areas", P-153 — the plural is the same area word.)
   [/\bbattle area\b|\b(?:any|either) battle areas\b/, "battle"],
@@ -133,22 +129,22 @@ const AREA_NAMED: Record<string, ScriptArea> = {
 };
 /**
  * Phrasing batch 5: "the Z-Cards in your **Leader Area**, Battle Area, and **Unison Area**" (P-658) — the areas a list of
- * three or more may name besides those, read only in such a list. A pair ("in your Battle Area or Leader Area", BT3-087)
- * stays the cards you have in play, as it always read.
+ * three or more may name besides those. Explicit pairs retain those same areas (R-402),
+ * rather than widening Leader + Battle to every area in play.
  */
 const AREA_LISTED: Record<string, ScriptArea> = { ...AREA_NAMED, "leader area": "leader", "unison area": "unison" };
 /**
  * Phrasing batch 7: a pair that names the Leader or Unison Area beside an area off the board — "for each green Unison
  * Card in your **Unison Area and Drop Area**" (P-379) — is the two areas, as a list of three is. Read as before, the
- * pair reader did not know the Unison Area and the count kept the Drop alone. Two areas on the board ("Battle Area or
- * Leader Area", BT3-087) stay the cards you have in play.
+ * pair reader did not know the Unison Area and the count kept the Drop alone. Explicit on-board pairs
+ * also retain exactly those areas: Leader + Battle excludes Unison (BT7-094, R-402).
  * Audit selectors 3: but "…in your **Battle Area or Unison Area**" (P-623's back) is those two — read as the Unison Area
  * alone, a green Battle Card with {Trunks} in its name could not be chosen.
  */
 const ON_BOARD = new Set<ScriptArea>(["battle", "leader", "unison"]);
-function pairOffBoard(words: string[]): boolean {
+function pairUsesListedAreas(words: string[]): boolean {
   const areas = words.map((w) => AREA_LISTED[w]);
-  if (areas.length === 2 && new Set(areas).size === 2 && areas.every((a) => a === "battle" || a === "unison")) return true;
+  if (areas.length === 2 && new Set(areas).size === 2 && areas.every((a) => ON_BOARD.has(a))) return true;
   return areas.length === 2 && areas.every(Boolean) && areas[0] !== areas[1] && !areas.every((a) => ON_BOARD.has(a)) && areas.some((a) => a === "leader" || a === "unison");
 }
 
@@ -165,7 +161,7 @@ export function countAreasSaidWithAnd(phrase: string): string {
     /\b((?:in|from|of|into) (?:your|their)(?: opponent'?s)? )((?:z-)?[a-z]+(?: area)?(?:, (?:z-)?[a-z]+(?: area)?)*),? and (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/,
     (all, pre: string, first: string, last: string) => {
       const words = [...first.split(/,\s*/), last].map((w) => w.trim());
-      if (!words.every((w) => (words.length >= 3 || pairOffBoard(words) ? AREA_LISTED : AREA_NAMED)[w])) return all;
+      if (!words.every((w) => (words.length >= 3 || pairUsesListedAreas(words) ? AREA_LISTED : AREA_NAMED)[w])) return all;
       return first.includes(",") ? `${pre}${first}, or ${last}` : `${pre}${first} or ${last}`;
     },
   );
@@ -183,6 +179,9 @@ export function countAreasSaidWithAnd(phrase: string): string {
 // dropped without a word and the count asked about a fraction of the board.
 const AREA_LIST_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?(?:, (?:z-)?[a-z]+(?: area)?)+,? (?:and\/or|or) (?:z-)?[a-z]+(?: area)?)\b/;
 const AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:z-)?[a-z]+(?: area)?) (?:and\/or|or) (?:(?:from|in) )?(?:the )?(?:your |their )?(?:opponent'?s )?((?:z-)?[a-z]+(?: area)?)\b/;
+// Explicit on-board area nouns joined by "and" are the same union. Keep this
+// bounded to areas, not a choice followed by another instruction (R-402).
+const BOARD_AREA_PAIR_RE = /\b(?:in|from|of|into) (?:your|their)(?: opponent'?s)? ((?:leader|battle|unison) area) and (?:(?:in|from) )?(?:your |their )?((?:leader|battle|unison) area)\b/;
 
 /**
  * "Add up to **a total of** 2 [Dragon Ball] cards **from among all cards in**
@@ -516,10 +515,24 @@ export function parseTarget(phrase: string, looked?: string, pool?: string): Sel
   // Audit selectors 2: the offer is not an owner — "**you may** choose 1 ≪Villainous≫ card and place it in its owner's
   // Drop" (P-435) names no one's cards, as the same words without the offer do (R-205).
   if (/^\s*(?:you may|you can) choose\b/i.test(phrase)) return parseTarget(phrase.replace(/^\s*(?:you may|you can) /i, ""), looked, pool);
+  // R-404: for a one-card choice, bounding its total energy cost is exactly the printed per-card bound.
+  // Reuse the existing live amount/choice machinery; do not mistake the counted area for the target's area.
+  // Multiple targets need a per-card predicate instead of a set sum and remain unread below.
+  const countedCost = /\bwith an energy cost less than or equal to the number of ((?:(mono-(?:red|blue|green|yellow|black|white)) (≪[^≫]+≫) )?cards) in (your opponent's|your|their) (z-deck|hand|drop(?: area)?)(?=\s*(?:,?\s*ignoring \[barrier\])?\s*$)/i.exec(phrase);
+  if (countedCost) {
+    const rest = phrase.replace(countedCost[0], " ").replace(/\s+/g, " ").trim();
+    const sel = parseTarget(rest, looked, pool);
+    const area = SELF_FROM[countedCost[5].toLowerCase().replace(/ area$/, "")];
+    // A filtered count in a hidden area would read information the skill never reveals. Only unfiltered hand/Z-Deck
+    // counts and filtered public-area counts are taught. The explicit owner also prevents any antecedent inference.
+    if (!sel || !/^(?:choose )?(?:up to )?1\b/i.test(rest) || sel.count !== 1 || sel.area !== "battle" || sel.filter?.type !== "BATTLE" || sel.special || sel.fromVar || sel.alsoFrom || sel.orSelf || sel.take != null || sel.minCount != null || sel.sumAtMost || sel.filter?.anyOf?.length || !area || (area === "drop" && countedCost[4].toLowerCase() !== "your") || (area === "zDeck" && countedCost[4].toLowerCase() !== "your") || (countedCost[2] && ["hand", "zDeck"].includes(area))) return null;
+    const count: Selector = { side: countedCost[4].toLowerCase() === "your" ? "you" : "opponent", area, ...(countedCost[2] ? { filter: parseFilter(countedCost[1]) } : {}) };
+    return { ...sel, sumAtMost: { attr: "energyCost", total: { count } } };
+  }
   // Audit selectors 2: "…Battle Cards with an energy cost **less than or equal to the number of cards in their hand**"
   // (P-300, BT15-145, BT22-127, BT20-064, BT14-140, BT17-147, BT17-149): a cost bound counted off the board, which no
   // filter field holds (the energy-count bounds, `costAtMostEnergy`…, count only energy). The count's area was read as
-  // where the card is — a Battle Card in the opponent's hand, in your Z-Deck, in your Drop. Unread until it is taught.
+  // where the card is — a Battle Card in the opponent's hand, in your Z-Deck, in your Drop. Forms not covered above stay unread.
   if (/\b(?:energy|combo) costs? (?:that is |which is )?(?:less|greater|lower|higher|more|fewer|equal)[a-z ]* (?:than|to)(?: or equal to)? the (?:number|total|amount) of\b/i.test(phrase)) return null;
   // Audit selectors 2: "Choose **up to X** cards in your opponent's hand" after a "{g}{g}{g}(X)" price (DB3-141, DB3-142,
   // BT27-140): a count no selector holds — X is what the price paid, a notation this compiler does not read (DB3-138).
@@ -1054,7 +1067,7 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   // catalog prints sixteen such pairs in both orders, so they are read from a
   // table of the area words rather than listed one by one.
   const tTarget = t.replace(/\b(?:for each|for every)\b.*$/, "");
-  const both = AREA_PAIR_RE.exec(tTarget) ?? AREA_PAIR_RE.exec(t);
+  const both = AREA_PAIR_RE.exec(tTarget) ?? BOARD_AREA_PAIR_RE.exec(tTarget) ?? AREA_PAIR_RE.exec(t) ?? BOARD_AREA_PAIR_RE.exec(t);
   // The list is tried first: it contains a pair, and read as one the pair
   // would keep two areas of the three or more printed. A list that names an
   // area word the table lacks, or the same area twice, is not read at all
@@ -1062,7 +1075,7 @@ function parseTargetPhrase(phrase: string, looked?: string, pool?: string): Sele
   const listed = AREA_LIST_RE.exec(tTarget) ?? AREA_LIST_RE.exec(t);
   const listAreas = listed ? listed[1].split(/,\s*(?:(?:and\/or|or)\s+)?|\s+(?:and\/or|or)\s+/).map((w) => AREA_LISTED[w.trim()]) : [];
   const list: ScriptArea[] | null = listed && listAreas.length >= 3 && listAreas.every((a) => a) && new Set(listAreas).size === listAreas.length ? listAreas : null;
-  const pair: ScriptArea[] | null = list ?? (both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : both && pairOffBoard([both[1], both[2]]) ? [AREA_LISTED[both[1]], AREA_LISTED[both[2]]] : null);
+  const pair: ScriptArea[] | null = list ?? (both && AREA_NAMED[both[1]] && AREA_NAMED[both[2]] && AREA_NAMED[both[1]] !== AREA_NAMED[both[2]] ? [AREA_NAMED[both[1]], AREA_NAMED[both[2]]] : both && pairUsesListedAreas([both[1], both[2]]) ? [AREA_LISTED[both[1]], AREA_LISTED[both[2]]] : null);
 
   let area: ScriptArea | null = null;
   let areaMatch: RegExpExecArray | null = null;

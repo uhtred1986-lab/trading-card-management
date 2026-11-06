@@ -368,8 +368,8 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   r = step(o, { type: "activate", player: "p1", card: orx, skill: 0 });
   assert.deepEqual(
     r.beats,
-    ["skill ORX", "mode V1 rest", "move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "delayed ORX", "move ORX hand>battle", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
-    "the orbs, the whole Drop to the Warp, the return scheduled, the play, and the watcher",
+    ["move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "mode V1 rest", "skill ORX", "move ORX hand>battle", "delayed ORX", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
+    "1-6-3: whole Drop then orbs, complete activation, successful arrival/cleanup, then watcher",
   );
   assert.deepEqual([...zoneOf(r.s, "p1", "warp")].sort(), [...drop].sort(), "22-15-4: every card of the Drop");
   r = step(r.s, { type: "endMain", player: "p1" });
@@ -553,7 +553,7 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   r = step(wp.g, { type: "activate", player: "p1", card: wp.w, skill: 0 });
   assert.deepEqual(
     r.beats,
-    ["skill ORWARP", "mode V1 rest", "move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "delayed ORWARP", "move ORWARP warp>battle", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
+    ["move V1 drop>warp", "move V1 drop>warp", "move V1 drop>warp", "mode V1 rest", "skill ORWARP", "move ORWARP warp>battle", "delayed ORWARP", "skill ORWATCH", "move V1 deck>hand", "draw V1"],
     "the same beats as from the hand, the play from the Warp",
   );
   assert.ok(wpDrop.every((id) => zoneOf(r.s, "p1", "warp").includes(id)), "22-15-4: every card of the Drop to the Warp");
@@ -660,10 +660,10 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
 }
 
 {
-  // Skill-cost modifiers: a red-scoped reduction lowers a red [Counter] skill's
-  // orbs, does not lower a blue one, and ends at its printed `until`.
-  DEFS.COUNTER_RR = { ...DEFS["E-NEGATE"], id: "COUNTER_RR", name: "COUNTER_RR", colors: ["Red"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };
-  DEFS.COUNTER_UU = { ...DEFS["E-NEGATE"], id: "COUNTER_UU", name: "COUNTER_UU", colors: ["Blue"], energyCost: 0, skill: "[Counter: Attack]{u}{u}: Negate the attack." };
+  // A Battle Counter retains its hand source during skill payment, so this
+  // timed hand reduction applies. R453 Extra placement is tested separately.
+  DEFS.COUNTER_RR = { ...DEFS["E-NEGATE"], id: "COUNTER_RR", name: "COUNTER_RR", type: "BATTLE", colors: ["Red"], energyCost: 0, skill: "[Counter: Attack]{r}{r}: Negate the attack." };
+  DEFS.COUNTER_UU = { ...DEFS["E-NEGATE"], id: "COUNTER_UU", name: "COUNTER_UU", type: "BATTLE", colors: ["Blue"], energyCost: 0, skill: "[Counter: Attack]{u}{u}: Negate the attack." };
   DEFS.SKILLCHEAP = {
     ...DEFS.V1,
     id: "SKILLCHEAP",
@@ -671,6 +671,11 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     energyCost: 1,
     skill: "[Auto] When you play this card, reduce the skill cost of your red cards in your hand by {r} until the start of your next turn.",
   };
+  DEFS.COUNTER_EXTRA_RR = { ...DEFS.COUNTER_RR, id: "COUNTER_EXTRA_RR", name: "COUNTER_EXTRA_RR", type: "EXTRA" };
+  let extra = arenaG({ hand: ["SKILLCHEAP", "COUNTER_EXTRA_RR"], energy: ["V1", "V1"] });
+  extra = playG(extra, { type: "play", player: "p1", card: findG(extra, "p1", "hand", "SKILLCHEAP") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, { type: "attack", player: "p2", attacker: leaderOf(extra, "p2"), target: leaderOf(extra, "p1") });
+  assert.equal(extra.prompt.kind, "combo", "R453: a targeted hand modifier ends before the Extra's post-Drop skill orbs");
+  delete DEFS.COUNTER_EXTRA_RR;
   let s = arenaG({ hand: ["SKILLCHEAP", "COUNTER_RR", "COUNTER_UU"], energy: ["V1", "V1"] });
   s = playG(s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "SKILLCHEAP") }, { type: "endMain", player: "p1" }, { type: "charge", player: "p2", card: null }, {
     type: "attack",
@@ -1314,14 +1319,14 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
 
 {
   // 12-1-3: "activating an Extra Card" is using its [Activate] or [Counter]
-  // skill from the hand — `extraActivated`, watched by that player's cards in
+  // skill from the hand — explicitly hand-qualified when printed, watched by that player's cards in
   // play, with the Extra as the subject (BT29-029 "Cooler").
   const COOLER = "[auto] If you have 2 or more energy: When you activate a blue Extra from your hand, draw 2 cards, add cards from your life to your hand until you have 6 life left, then flip this card to its back side.";
-  const trig = (text: string) => autoTriggerMatches(parseSkills(text)[0], "extraActivated");
+  const trig = (text: string) => autoTriggerMatches(parseSkills(text)[0], /from your hand[,]/i.test(text) ? "extraActivatedFromHand" : "extraActivated");
   assert.ok(trig(COOLER), "BT29-029's wording");
   assert.ok(trig("[auto][once per turn] When you activate a red Extra from your hand, draw 1 card."), "BT29-001b");
   assert.ok(trig("[Auto] When you activate a Red/Blue multicolor Extra, draw 1 card."), "12-1-3: from the hand unless it says otherwise");
-  assert.ok(!trig("[Auto] When you activate this card, draw 1 card."), "this card's own activation is `played`");
+  assert.ok(!trig("[Auto] When you activate this card, draw 1 card."), "this card's own activation is `selfExtraActivated`");
   // Audit triggers 3: the filter reads "…and the [Field] skill" (a keyword) and the original cost whole, so BT13-061 answers.
   assert.ok(trig("[Auto][Once per turn] When you activate a green Extra Card with an original energy cost of 2 and the [Field] skill, draw 1 card."), "BT13-061: a [Field] Extra the filter reads whole");
   assert.ok(!trig("[Auto] When you activate a green Extra Card with the [Union] skill, draw 1 card."), "a bracket the filter does not read here does not fire at all");
@@ -2561,8 +2566,8 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   const compiled = compileSkill(parseSkills(DEFS.PICKNEG.skill)[0]);
   assert.deepEqual(compiled.ops.map((o) => o.op), ["negateChosenKeyword"], "the one-clause-per-half wording reads as the one step");
   // Off a record, as `card_rules` hands it over: the selector ignores [Barrier]
-  // so the [Barrier] card itself is on offer — whether [Barrier] keeps a skill
-  // on it from being chosen is a ruling still open, and not this test's subject.
+  // so the [Barrier] card itself is on offer. Official Q&A BT2-048 / BT6-057
+  // confirms the operation itself bypasses Barrier too (audit-keyword-negation-4).
   const record = { ops: [{ op: "negateChosenKeyword", target: { sel: { side: "opponent", area: "battle", ignoreBarrier: true } }, until: "turn" }], unsupported: [], ...recordsWithPrice() };
   assert.equal(validateProgram(record.ops), true);
   const ctx = {
@@ -2608,14 +2613,14 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
     s = run(s, next);
   }
   assert.equal(hasG(s, guard, "Barrier"), true, "[Barrier] is back once the turn is over");
-  assert.equal(s.effects.some((e) => e.kind === "negateKeyword"), false, "…and the negation is no longer in force");
+  assert.equal(s.effects.some((e) => ["negateKeyword", "negateSkill", "negateGrantedSkill"].includes(e.kind)), false, "…and the negation is no longer in force");
 
   // A target with no keyword skills is nothing to choose from: no question, no effect.
   let bare = arenaG({ battle: ["PICKNEG"], oppBattle: ["V1"] });
   const mine = findG(bare, "p1", "battle", "PICKNEG");
   bare = run(bare, legal(bare).find((a) => a.type === "activate" && a.card === mine)!);
   assert.notEqual(bare.prompt.kind, "chooseMode", "a card with no keyword skills is not asked about");
-  assert.equal(bare.effects.some((e) => e.kind === "negateKeyword"), false, "…and nothing is negated");
+  assert.equal(bare.effects.some((e) => ["negateKeyword", "negateSkill", "negateGrantedSkill"].includes(e.kind)), false, "…and nothing is negated");
   assertConsistentG(bare);
 }
 // ── 9-10: a replacement whose substitute is a program (#125) ───────────────

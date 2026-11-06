@@ -227,6 +227,8 @@ export type MoveReason = "ko" | "effect" | "powerZero" | "rule" | "cost" | "play
  */
 export interface ReplacementChoice {
   source: string;
+  /** Standing source occurrence or installed timed-effect identity (RM 9-10-2-3). */
+  occurrence?: string;
   to?: Area;
   position?: "top" | "bottom";
   mode?: Mode;
@@ -447,6 +449,8 @@ export type ForbiddenAction =
   | "takeDamage";
 
 export interface Prohibition {
+  /** R469 / R074: match the card number of any observed card in this selector. */
+  copiesOf?: Selector;
   what: ForbiddenAction;
   /** Allowed uses before the prohibition starts applying. */
   uses?: number;
@@ -769,7 +773,7 @@ export interface Permission {
    * EX25-02), "…even if you have 5 or more life" (BT1-051, BT7-069): the target Leader's [Awaken] is offered with its
    * printed life ceiling raised to `n` — 99, no ceiling, for "N or more life". Its other conditions still hold.
    */
-  what: "attackActive" | "comboRest" | "fieldBattle" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional";
+  what: "attackActive" | "comboRest" | "comboFromDrop" | "fieldBattle" | "fieldKeepOthers" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "counterFromEnergy" | "counterFromUnder" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional";
   /** Which active (or rested) cards. Absent means any of them. */
   filter?: CardFilter;
   /** `startLife`: how many life cards the player starts with. */
@@ -778,6 +782,8 @@ export interface Permission {
   line?: string;
   unionVariant?: "Fusion" | "Potara";
   price?: import("./vm/script").SkillPrice;
+  /** R466: physical under origin with the reviewed hand-equivalent price policy. */
+  counterUnderPolicy?: "asHandV1";
   /** `unionSourceUnder`: which Unison cards' piles may be searched (BT24-112's "your black Z-Unison"). */
   source?: CardFilter;
 }
@@ -851,6 +857,8 @@ export interface CardIdentityGain {
 
 /** A continuous effect (9-9) with a duration. */
 export interface ContinuousEffect {
+  /** Optional entry negation belongs only to this newly arrived occurrence. */
+  energyEntryEpoch?: number;
   id: number;
   /** The card it is about; empty for a rule that is about a player, not a card. */
   target: string;
@@ -861,8 +869,8 @@ export interface ContinuousEffect {
    * `value`. `negateSkillKind`: every skill of one kind,
    * named by a `SkillKindPrefix` in `value` ("negate that card's [Auto] skill
    * for the turn"). `negateKeyword`: one keyword skill of the card, named in
-   * `value` — the one the master picked ("choose up to 1 keyword skill on … and
-   * negate that skill for the turn").
+   * `value`, suppressing every instance of that name. Chosen keyword negation
+   * uses negateSkill/negateGrantedSkill instead.
    */
   kind: "power" | "comboPower" | "keyword" | "gains" | "copiedSkills" | "negateSkills" | "negateSkill" | "negateGrantedSkill" | "negateSkillKind" | "negateKeyword" | "replaceLeave" | "forbid" | "permit" | "immune" | "cost" | "skillCost" | "evolveCost" | "comboCost" | "altCost" | "payer" | "zEnergy" | "specifiedCost" | "control";
   /**
@@ -871,7 +879,9 @@ export interface ContinuousEffect {
    * and `playCost` (state.ts), which keep it apart from an ordinary cost change
    * because it never touches the total, only which colours are required.
    */
-  value: number | KeywordSkill | KeywordSkill["name"] | NegatedSkillKind | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1; all?: true } | { standingGrantId: string };
+  value: number | KeywordSkill | KeywordSkill["name"] | NegatedSkillKind | CardIdentityGain | Replacement | { colors: (Color | "any")[]; sign: 1 | -1; all?: true } | { standingGrantId: string; source?: string; sourceHiddenCount?: number };
+  /** Chosen printed keyword's face; absent keeps legacy index-only negation semantics. */
+  skillSide?: "front" | "back";
   /** Set when `kind` is "forbid". */
   forbid?: Prohibition;
   /** Set when `kind` is "permit". */
@@ -915,6 +925,10 @@ export interface ContinuousEffect {
    * the first activation it applies to spends it and it ends there, still
    * bounded by `until`. Absent is every activation for the whole duration.
    */
+  /** Exact activation context for a card-energy coupon; absent does not narrow its price. */
+  energyActivation?: import("./vm/energy-coupons").EnergyActivation;
+  /** New cost effects distinguish a valid ordinary discount from an obsolete lost-scope save. */
+  costOrigin?: { version: 1; skillIndex: number | null; energyActivation: import("./vm/energy-coupons").EnergyActivation | null };
   uses?: number;
   /**
    * `skillCost` only: the change reaches only the keyword skill of this name -
@@ -983,7 +997,11 @@ export type DelayScope = "thisTurn" | "nextTurn" | "yourNextTurn" | "opponentNex
  * it keeps `master`, because the delayed part is still that player's effect
  * however many turns later it fires.
  */
+export interface OverRealmReturn { version: 1; card: string; token: number }
+
 export interface DelayedEffect {
+  /** R456: one successful native ordinary OR arrival, retained through carrying moves. */
+  overRealmReturn?: OverRealmReturn;
   id: number;
   at: DelayTiming;
   scope: DelayScope;
@@ -1016,6 +1034,8 @@ export type Trigger =
   | "koedByYourSkill"
   | "koedByOpponentSkill"
   | "attacks"
+  | "attacksOpponentBattle"
+  | "youGainControlBattle"
   | "attacked"
   | "koed"
   /** This card KO'd another — by battle or by its own skill ("When this card KOs an opponent's Battle Card"). */
@@ -1060,6 +1080,8 @@ export type Trigger =
   | "opponentAttacks"
   /** BT8-089: any player's Battle Card attacks (8-1-1), watched by every player's cards in play. The attacker is the `subject`. */
   | "battleCardAttacks"
+  /** R503: your Battle Card attacks an original opposing Leader target; power is checked at resolution. */
+  | "yourBattleAttacksLeader"
   /** BT15-091: any player places a [Field] Extra Card (or another card the subject condition names) in a Battle Area. The card placed is the `subject`. */
   | "aPlayerPlacesInBattle"
   /** BT15-091's back: any player's card leaves a Battle Area, for anywhere. The card that left is the `subject`. */
@@ -1082,6 +1104,8 @@ export type Trigger =
    * and the distinct explicit end-of-battle departure moment.
    */
   | "youCombo"
+  /** R-483: watched combo qualified by its actual entry origin. */
+  | "youComboFromHand" | "youComboFromBattle"
   /**
    * "When this card is removed from a Battle Area by a skill" (3-1): a move an
    * effect caused, which the cards themselves distinguish from a KO — they
@@ -1132,6 +1156,8 @@ export type Trigger =
   | "opponentCardPlayedBySkill"
   /** Phrasing batch 6: "When your energy is placed at the bottom of its owner's deck" (BT30-030). */
   | "yourEnergyToDeck"
+  /** R472: another own Battle Card successfully arrives using Dark Over Realm. */
+  | "yourOtherBattlePlayedUsingDarkOverRealm"
   /** Phrasing batch 6: "When {Destined Conclusion Piccolo Jr.} is played from your hand" (TB2-045). */
   | "yourCardPlayedFromHand"
   /** Phrasing batch 6: "When a <Son Goku: GT> card is played from your Drop" (BT26-001b). */
@@ -1166,6 +1192,8 @@ export type Trigger =
   | "droppedFromHandByOpponent"
   /** "When this card is switched to Active Mode by a <Dr. Hedo: SH> card skill" (BT22-019): a skill's switch; its card is the subject. */
   | "activeBySkill"
+  /** The skill-caused switch during this card controller's turn; a coordinated play is unrestricted. */
+  | "activeBySkillDuringYourTurn"
   /** "When your energy is switched to Active Mode by a skill" (BT22-137): each energy card a skill stands; it is the subject. */
   | "yourEnergyActiveBySkill"
   /** "When this card's power is increased by one of your <Paikuhan> card skills" (BT18-032): the skill's card is the subject. */
@@ -1400,13 +1428,16 @@ export type Trigger =
   /** "When this card's [Union-Absorb] is activated" (22-13): the keyword activation itself. */
   | "unionAbsorbActivated"
   | "overlordActivated"
+  | "reviveActivated"
   | "overRealmPlayed"
   /**
-   * "When you activate a blue Extra from your hand" (12-1-3, BT29-029): an
-   * Extra Card's [Activate] or [Counter] skill used from its owner's hand —
-   * [Field] included — watched by that player's cards in play. The Extra is
-   * the `subject`, so what the clause says about it is a condition on it.
+   * Extra card activation (12-1-3), including Field, has explicit provenance.
+   * The self trigger binds the activated source; other watchers bind it as
+   * their subject. Only the hand-qualified trigger requires hand origin;
+   * broad watchers also observe explicitly permitted nonhand activations.
    */
+  | "selfExtraActivated"
+  | "extraActivatedFromHand"
   | "extraActivated"
   /**
    * "When you play this card using [Over Realm]", "when this card is played
@@ -1416,6 +1447,8 @@ export type Trigger =
    * `overRealmPlayed` is the watcher on *other* cards.
    */
   | "playedUsingOverRealm"
+  | "playedUsingDarkOverRealm"
+  | "playedUsingUnionPotara"
   /** "When this card is added to your Z-Energy" (17-3). */
   | "addedToZEnergy"
   /**
@@ -1462,13 +1495,13 @@ export type Prompt =
   | { kind: "mulligan"; player: PlayerId }
   | { kind: "charge"; player: PlayerId }
   | { kind: "main"; player: PlayerId }
-  | { kind: "combo"; player: PlayerId; side: "offense" | "defense" }
+  | { kind: "combo"; player: PlayerId; side: "offense" | "defense"; comboDeclaration?: import("./vm/drop-combo").ComboDeclaration }
   | { kind: "blocker"; player: PlayerId; candidates: string[] }
-  | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[] }
+  | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[]; underOccurrences?: import("./vm/counter-under").CounterUnderOccurrences; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
-  | { kind: "chooseCards"; player: PlayerId; choice: CardChoice }
+  | { kind: "chooseCards"; player: PlayerId; choice: CardChoice; pooledPayment?: { action: Action; ordinaryActivation?: import("./vm/ordinary-activate-runtime").OrdinaryActivation; cost: string; n: number; source: CardOccurrence | null; candidates: CardOccurrence[] } }
   /** "Choose one— ・A ・B" (20-2): which printed option is taken. */
-  | { kind: "chooseMode"; player: PlayerId; reason: string; options: string[] }
+  | { kind: "chooseMode"; player: PlayerId; reason: string; options: string[]; inspection?: string }
   /** 9-10: the affected player chooses which replacement, if any, applies. */
   | { kind: "replaceMove"; player: PlayerId; card: string; reason: string; options: string[] }
   | { kind: "zEnergyFromCombo"; player: PlayerId; candidates: string[] }
@@ -1482,7 +1515,7 @@ export type Prompt =
    * Which energy to rest. Only asked when the choice can matter: when the
    * colours left active afterwards would differ (3-8-2).
    */
-  | { kind: "payCost"; player: PlayerId; action: Action; options: Payment[]; describe: string }
+  | { kind: "payCost"; player: PlayerId; action: Action; ordinaryActivation?: import("./vm/ordinary-activate-runtime").OrdinaryActivation; activateUnderOrigin?: import("./vm/activate-under").ActivateUnderOrigin; comboDeclaration?: import("./vm/drop-combo").ComboDeclaration; options: Payment[]; describe: string; underOccurrences?: import("./vm/counter-under").CounterUnderOccurrences; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; markerPayers?: import("./vm/costs").PooledMarkers[]; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
   | { kind: "offering"; player: PlayerId; card: string }
   /**
    * 22-45-3: [Empower]'s "may carry up to Y markers" — a choice, not the
@@ -1523,6 +1556,8 @@ export interface CardChoice {
   max: number;
   /** Continuation id the engine resolves when the choice comes back. */
   continuation: string;
+  /** A resource payment accepts its complete selected set in one action. */
+  atomic?: true;
   /**
    * The candidates are cards the chooser may not read (BT22-140: "1 card from
    * your opponent's hand"), so asking does not reveal them: they reach the
@@ -1538,27 +1573,35 @@ export interface CardChoice {
   cover?: Color[];
 }
 
+/** An exact card occurrence retained while a resource payment asks its owner. */
+export interface CardOccurrence { card: string; epoch: number }
+/** Explicit choices for declared resource pools; ordered draws such as Burst never use this. */
+export interface PoolPaymentSelection {
+  source: CardOccurrence | null;
+  pools: { cost: string; n: number; cards: CardOccurrence[] }[];
+}
+
 /** Everything a player can do, as sent to `apply()`. */
 export type Action =
   | { type: "chooseFirst"; player: PlayerId; first: PlayerId }
   | { type: "mulligan"; player: PlayerId; redraw: boolean }
   | { type: "charge"; player: PlayerId; card: string | null }
   /** `x` is the value the master picks for an X cost (1-2-2-2-1). */
-  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[]; alt?: boolean }
-  | { type: "playUnison"; player: PlayerId; card: string; x: number; pay?: string[] }
-  | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[] }
+  | { type: "play"; player: PlayerId; card: string; x?: number; pay?: string[]; payPools?: PoolPaymentSelection; alt?: boolean }
+  | { type: "playUnison"; player: PlayerId; card: string; x: number; pay?: string[]; payPools?: PoolPaymentSelection }
+  | { type: "playZ"; player: PlayerId; card: string; x?: number; pay?: string[]; payPools?: PoolPaymentSelection }
   | { type: "growUnison"; player: PlayerId; card: string }
   /** `alt`: pay the printed alternative instead of the energy cost ([Invoker], 22-37). */
   /** `x` is the value an X price is paid at (20-5) — the same field, and the same meaning, as `play`'s. */
   /** `onto`: an [Evolve]'s base, named with the activation — offered only where a price change is scoped to that base (`costReduction`'s `onto`, EX03-16); the card then lands on it without a question. */
-  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; alt?: boolean; x?: number; onto?: string }
+  | { type: "activate"; player: PlayerId; card: string; skill: number; pay?: string[]; payPools?: PoolPaymentSelection; alt?: boolean; x?: number; onto?: string }
   | { type: "attack"; player: PlayerId; attacker: string; target: string }
   | { type: "endMain"; player: PlayerId }
   | { type: "combo"; player: PlayerId; card: string; pay?: string[] }
   | { type: "pass"; player: PlayerId }
   | { type: "block"; player: PlayerId; card: string | null }
-  /** `alt` pays the other cost the card prints instead of its energy cost (5-3). */
-  | { type: "counter"; player: PlayerId; card: string | null; skill?: number; pay?: string[]; alt?: boolean }
+  /** `alt` pays the other cost instead of energy (5-3); `x` selects Spirit Boost markers only (R-450). */
+  | { type: "counter"; player: PlayerId; card: string | null; skill?: number; pay?: string[]; alt?: boolean; x?: number }
   | { type: "orderPending"; player: PlayerId; index: number; decline?: true }
   | { type: "optionalCost"; player: PlayerId; pay: boolean }
   | { type: "payCost"; player: PlayerId; option: number }
@@ -1944,6 +1987,12 @@ export interface ActionCost {
 }
 
 export interface MoveOptions {
+  /** Controller whose ordinary skill effect caused this move. */
+  actor?: PlayerId;
+  /** Requested move mode; resolved Energy entries settle it before observation. */
+  requestedMode?: "active" | "rest";
+  /** Internal synchronous result reporting; never stored in a card operation. */
+  onResult?: (result: import("./vm/movement-result").MovementOutcome) => void;
   /** "top" is the default: new cards go on top of Drop/Warp/Life (3-4-3, 3-9-2, 3-10-2). Deck bottom is used by some skills. */
   position?: "top" | "bottom";
   /** Entering an open area from a secret one shows the card. */

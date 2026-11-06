@@ -1,0 +1,120 @@
+[
+  {
+    "key": "BT21-036#0",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "you have 3 or less life and you place 1 blue <Mr. Buu> from your Drop under this card",
+        "orbs": {
+          "Blue": 1
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "you have 3 or less life and you place 1 blue <Mr. Buu> from your Drop under this card",
+        "orbs": {
+          "Blue": 1
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "life",
+          "side": "you",
+          "atMost": 3
+        },
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [
+                  "Blue"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "mr. buu"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "place 1 blue <Mr. Buu> from your Drop under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under"
+          }
+        ]
+      }
+    }
+  }
+]

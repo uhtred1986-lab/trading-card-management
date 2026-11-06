@@ -124,6 +124,7 @@ function printOperand(v: unknown): string {
 
 function printExprArg(kind: ExprArg, v: unknown): string {
   switch (kind) {
+    case "markerCost": return String(v);
     case "selector":
       return printSelector(v as Selector);
     case "var":
@@ -176,6 +177,7 @@ export function printSelector(sel: Selector): string {
   if (sel.mode !== undefined) parts.push(sel.mode);
   if (sel.hidden !== undefined) parts.push(sel.hidden ? "hidden" : "revealed");
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
+  if (sel.requiredStamp) parts.push("requiredStamp");
   if (sel.choice) parts.push("asChoice");
   if (sel.notInBattle) parts.push("notInBattle");
   if (sel.battleRole) parts.push(sel.battleRole === "any" ? "inBattle" : sel.battleRole === "attacker" ? "attacking" : "notAttacking");
@@ -410,6 +412,8 @@ export function printCost(cost: CostRecord): string {
   if (cost.marker !== null) items.push(`${cost.marker >= 0 ? "+" : ""}${cost.marker} marker`);
   if (cost.burst !== null) items.push(`burst ${cost.burst}`);
   if (cost.spiritBoost !== null) items.push(`spiritBoost ${cost.spiritBoost}`);
+  if (cost.awakenAlternative !== undefined) items.push(`AWAKENALT ${JSON.stringify(JSON.stringify(cost.awakenAlternative))}`);
+  if (cost.spiritBoostPayer !== undefined) items.push(`SPIRITPAYER ${JSON.stringify(JSON.stringify(cost.spiritBoostPayer))}`);
   if (cost.potara !== undefined) items.push(`POTARA ${JSON.stringify(JSON.stringify(cost.potara))}`);
   if (cost.absorb !== undefined) items.push(`ABSORB ${JSON.stringify(JSON.stringify(cost.absorb))}`);
   if (cost.evolution !== undefined) items.push(`EVOLUTION ${JSON.stringify(JSON.stringify(cost.evolution))}`);

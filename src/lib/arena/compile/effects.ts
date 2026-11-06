@@ -1,3 +1,7 @@
+import { paidDropTail, requirePaidDropShape } from '../vm/paid-drop-contract';
+import { paidRemovalTail, requirePaidRemovalShape } from '../vm/paid-removal-contract';
+import type { Skill } from '../types';
+import type { Script } from '../vm/script';
 import { keywordOf, orbsIn } from "../text/cards";
 import { playTaxWording } from "../text/play-tax";
 import { emptyFilter, expandSharedCardDescription, parseFilter, type CardFilter } from "../text/filters";
@@ -13,7 +17,7 @@ import { opponentChoiceWords } from "./opponent-choice-shape";
 import { TWO_NAMED_CARDS } from "./clauses";
 import { altCostHow, counterAltCost, orbsToList } from "./prices";
 import type { Ctx } from "./shared";
-import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_CHARACTER_AS_PLACED, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
+import { PLACED_IN_ENERGY, PLACED_UNDER_PLACEHOLDER, SAME_NAME_AS_CHOSEN, SAME_NAME_AS_CHOSEN_PLACEHOLDER, SWITCHED_BY_THIS_SKILL, countWord } from "./shared";
 import { boardCount, namesAPlace, EACH_COUNT, countAreasSaidWithAnd, SUMMED_COUNT, SUM_UNREAD, colorCountSelector, filterFor, parseTarget, selfFrom } from "./targets";
 import { unreadFilterWords } from "../lang/filter-words";
 
@@ -602,9 +606,9 @@ function negateNonKeyword(target: Ref, until: Duration): Op[] {
 function negateKeywordSkills(target: Ref, until: Duration): Op[] {
   return (["keyword", "counter"] as const).map((kind) => ({ op: "negateSkillsOfKind", target, kind, until }));
 }
-/** Which half of a card's skills a "…(non-)keyword skills negated" names, as the ops that negate it. */
-function negateHalf(half: string, target: Ref, until: Duration): Op[] {
-  return /^non-/.test(half) ? negateNonKeyword(target, until) : negateKeywordSkills(target, until);
+/** R-388: entry negation is part of the play, before any played Auto or landed counter. */
+function negateHalf(half: string, until: Duration): Pick<Extract<Op, { op: "play" }>, "negatedKinds" | "negatedUntil"> {
+  return { negatedKinds: /^non-/.test(half) ? [...NON_KEYWORD_KINDS] : ["keyword", "counter"], negatedUntil: until };
 }
 
 function durationOf(clause: string): Duration {
@@ -802,7 +806,7 @@ function parseWouldLeave(clause: string): { from?: ("battle" | "combo")[]; by?: 
   // as the DB2 errata above does, so it is not offered to a departure from the
   // Battle Area; what the card does instead is the next clause.
   if (/^when this card would be placed in (?:its owner'?s?|your) drop(?: area)? from (?:a|your|the) combo area$/.test(t))
-    return { from: ["combo"] };
+    return { from: ["combo"], requestedTo: "drop" };
   // Delayed/replacement batch 1: the same departure in the words the rest of
   // the catalog prints it in. "If this card would leave your Combo Area"
   // (EX19-05, EX19-07) names every departure from the Combo Area, so no
@@ -966,6 +970,8 @@ function parseDelayClause(clause: string): { at: DelayTiming; scope: DelayScope;
  */
 function parseTrailingDelay(clause: string): { at: DelayTiming; scope: DelayScope; label: string; head: string } | null {
   const t = clean(clause);
+  // R-397: this creates the skip now; it does not defer creating it until the skipped phase.
+  if (/^(?:you )?skip your charge phase during your next turn$/.test(t)) return null;
   const best = bestDelay(t, (src) => new RegExp(`^(.+?)[\\s,]+(?:${src})$`));
   if (!best) return null;
   const head = best.m[1].trim();
@@ -1008,6 +1014,112 @@ const REST_COMBO_DESCRIBED = /^(?:you (?:can|may) )?combo with ((?!this card\b).
 /** Audit effects 2: a ban on your own skills by the cards' description, or on [Field] cards (`compileProhibition`). */
 const OWN_SKILLS_BAN = /^you can't activate (?:(?:the )?skills (?:on|of) .+|\[field\] cards\b.*)$/;
 const OWN_ACTIVATION =/^you can't activate (?:(?:the )?\[counter(?:: [a-z ]+)?\] skills?|\{[^}]+\}(?:'s (?:\[(?:activate: main|activate: battle|auto)\] )?skills?)?)(?:\s+(?:for|during|until)\b.*)?$/;
+
+/** Keep this batch within one emitted body; conditional/delayed cross-body hinges need separate binding. */
+function retainAdjacentMovementHinges(ops: Op[]): void {
+  const used = new Set<string>();
+  for (let index = 0; index < ops.length; index++) {
+    const op = ops[index];
+    if (op.op === "if") {
+      const cond = op.cond.kind === "not" ? op.cond.cond : op.cond;
+      if (cond.kind === "moved") {
+        const choice = ops[index - 2], move = ops[index - 1];
+        if (choice?.op === "choose" && choice.as === cond.var && move?.op === "moveTo" && move.completedAs === cond.var) used.add(cond.var);
+        else op.cond = op.cond.kind === "not" ? { kind: "not", cond: { kind: "chose", var: cond.var } } : { kind: "chose", var: cond.var };
+      }
+      retainAdjacentMovementHinges(op.then); retainAdjacentMovementHinges(op.else ?? []);
+    } else if (op.op === "may" || op.op === "delay") retainAdjacentMovementHinges(op.ops);
+    else if (op.op === "chooseMode") for (const mode of op.modes) retainAdjacentMovementHinges(mode.ops);
+  }
+  for (const op of ops) if (op.op === "moveTo" && op.completedAs && !used.has(op.completedAs)) delete op.completedAs;
+}
+
+/** R-430: a positive hinge follows the action inside its conditional/delayed body. */
+function nestTerminalMovementHinges(ops: Op[]): void {
+  const terminal = (op: Op): Op[] | null => {
+    const body = op.op === "if" && !op.else ? op.then : op.op === "delay" ? op.ops : null;
+    if (!body?.length) return null;
+    if (body.length >= 2 && body[body.length - 2].op === "choose" && body[body.length - 1].op === "moveTo") return body;
+    return terminal(body[body.length - 1]);
+  };
+  for (let index = 0; index < ops.length; index++) {
+    const op = ops[index];
+    if (op.op === "if") {
+      nestTerminalMovementHinges(op.then); nestTerminalMovementHinges(op.else ?? []);
+      if (index && !op.else && (op.cond.kind === "chose" || op.cond.kind === "moved") && (op.cond.atLeast ?? 1) === 1) {
+        const body = terminal(ops[index - 1]);
+        if (body) {
+          const move = body[body.length - 1];
+          if (move.op === "moveTo" && move.to !== "under") {
+            const condition = bindCompletedChoice(body, op.cond.var);
+            if (condition) { op.cond = condition; body.push(op); ops.splice(index--, 1); }
+          }
+        }
+      }
+    } else if (op.op === "delay" || op.op === "may") nestTerminalMovementHinges(op.ops);
+    else if (op.op === "chooseMode") for (const mode of op.modes) nestTerminalMovementHinges(mode.ops);
+  }
+}
+
+/** R-429: one composite offer, with original completion of each instructed action. */
+function bindCompositeOffer(ops: Op[]): void {
+  if (ops.length !== 4) return;
+  const [choice, move, offer, hinge] = ops;
+  if (choice.op !== "choose" || choice.sel.count !== 1 || !choice.sel.upTo || choice.sel.area !== "hand"
+    || move.op !== "moveTo" || move.to !== "drop" || !("var" in move.target) || move.target.var !== choice.as
+    || offer.op !== "if" || offer.cond.kind !== "chose" || offer.cond.var !== choice.as || offer.else || offer.then.length !== 3
+    || hinge.op !== "if" || hinge.cond.kind !== "chose" || hinge.else || hinge.then.length !== 1 || hinge.then[0].op !== "negateAttack") return;
+  const [energy, rest, self] = offer.then;
+  if (energy.op !== "choose" || energy.sel.count !== 1 || energy.sel.upTo || energy.sel.area !== "energy"
+    || rest.op !== "switchMode" || rest.mode !== "rest" || !("var" in rest.target) || rest.target.var !== energy.as
+    || self.op !== "moveTo" || self.to !== "drop" || !("sel" in self.target) || Object.keys(self.target.sel).length !== 1 || self.target.sel.special !== "self"
+    || hinge.cond.var !== energy.as) return;
+  move.completedAs = choice.as;
+  rest.completedAs = energy.as;
+  self.completedAs = `${choice.as}:self`;
+  hinge.cond = { kind: "all", conds: [{ kind: "chose", var: choice.as }, { kind: "moved", var: choice.as, all: true }, { kind: "switched", var: energy.as }, { kind: "moved", var: self.completedAs, all: true }] };
+}
+
+/** R500: Cheelai's exact third option requires all seven original removals. */
+function bindSevenDragonBallRemoval(clauses: string[], ops: Op[]): boolean | null {
+  const exact = [
+    "remove 7 [dragon ball] cards in your drop area from the game",
+    "if you do",
+    "choose up to 2 green ≪frieza's army≫ cards with an energy cost of 2 or less from your deck",
+    "play them", "shuffle your deck", "flip this card over at the end of the turn",
+  ];
+  if (JSON.stringify(clauses.map(s => s.trim().replace(/[.]$/, "").toLowerCase())) !== JSON.stringify(exact)) return null;
+  const [choice, move, hinge] = ops;
+  if (ops.length !== 3 || choice?.op !== "choose" || choice.sel.count !== 7 || choice.sel.upTo !== false
+      || choice.sel.side !== "you" || choice.sel.area !== "drop" || JSON.stringify(choice.sel.filter?.keywords) !== '["Dragon Ball"]'
+      || move?.op !== "moveTo" || move.to !== "removed" || !("var" in move.target) || move.target.var !== choice.as
+      || hinge?.op !== "if" || hinge.else || hinge.cond.kind !== "chose" || hinge.cond.var !== choice.as || hinge.cond.atLeast !== 7) return false;
+  move.completedAs = choice.as;
+  hinge.cond = { kind: "moved", var: choice.as, atLeast: 7, all: true };
+  return true;
+}
+
+/** R504: an unfiltered optional own Life-to-Hand effect grants no look at hidden Life. */
+export function bindBlindLifeHandChoice(clauses: string[], ops: Op[]): boolean | null {
+  const prefix = clauses.slice(0, 2).map(text => text.trim().replace(/[.]$/, "").toLowerCase());
+  if (prefix[0] !== "you may choose 1 card from your life" || prefix[1] !== "add it to your hand") return null;
+  const [choice, move] = ops;
+  if (choice?.op !== "choose" || choice.chooser || choice.sel.side !== "you" || choice.sel.area !== "life"
+      || choice.sel.count !== 1 || choice.sel.upTo !== true || choice.sel.filter || choice.sel.areas
+      || choice.sel.fromVar || choice.sel.special || move?.op !== "moveTo" || move.to !== "hand"
+      || !("var" in move.target) || move.target.var !== choice.as || move.completedAs !== choice.as || move.owner) return false;
+  choice.blind = true;
+  return true;
+}
+
+/** R-426: only an adjacent optional one-card choice followed by one ordinary move. */
+export function bindCompletedChoice(ops: Op[], name: string): Cond | null {
+  const move = ops[ops.length - 1], choice = ops[ops.length - 2];
+  if (move?.op !== "moveTo" || move.to === "play" || !("var" in move.target) || move.target.var !== name
+    || choice?.op !== "choose" || choice.as !== name || choice.sel.count !== 1 || !choice.sel.upTo) return null;
+  move.completedAs = name;
+  return { kind: "moved", var: name, all: true };
+}
 
 function connective(clause: string): "skip" | "ifDone" | "ifNotDone" | "otherwise" | null {
   const t = clause.toLowerCase().replace(/[.,]$/, "").trim();
@@ -1102,6 +1214,8 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
   const lead = /^for (?:each|every) (?:(\d+) )?(markers?\s+on\s+.+?|of your [a-z0-9'’. -]+ tokens?|(?:card )?colou?rs?(?: types?)?\s+(?:among|on|in)\s+.+?)\s*,\s*(.+)$/.exec(t);
   const m = lead ? null : /^(.+?)\s+(for each|for every|equal to the number of)\s+(.+)$/.exec(t);
   if (!lead && !m) return null;
+  // R-404: this compares the selected card's cost; it never multiplies the number chosen, even for an exact choice.
+  if (/\bwith an energy cost less than or equal to the number of\b/.test(t)) return null;
   // Mechanism batch 4: "For each marker on this card, **it** gets +5000 power during your turn" (EX19-21): the pronoun
   // is the card the count just named, and nothing else in a [Permanent] that names no other card.
   const headSrc = lead ? (/^markers?\s+on\s+this card$/.test(lead[2].trim()) && !c.lastTarget ? lead[3].replace(/^it\b/, "this card") : lead[3]) : m![1];
@@ -1136,12 +1250,12 @@ function compileForEach(clause: string, c: Ctx, ledCost = false): Op[] | null {
     return [swapped, ...rest];
   }
   // Phrasing batch 10 (22-43): "…-5000 power for the turn **for each marker you removed using this skill**" on a [Spirit
-  // Boost X] line (BT14-029): X, the markers its price removed.
+  // Boost X] line (BT14-029): the actual payment, not merely selected X.
   if (step === 1 && c.spiritBoostX && /^markers? (?:that )?you (?:removed?|remove)(?: from (?:your|the) unison(?: card)?)? (?:with|using|by) this skill$/.test(counted)) {
     const head = compileClause(`${headSrc}${tail}`, c);
     if (!head?.length) return null;
     const [op, ...rest] = head;
-    const swapped = swapForEachAmount(op, (printed) => (printed === 1 ? { x: true } : { x: true, times: printed }));
+    const swapped = swapForEachAmount(op, (printed) => (printed === 1 ? { paidMarkers: "spiritBoost" } : { paidMarkers: "spiritBoost", times: printed }));
     return swapped ? [swapped, ...rest] : null;
   }
   // Audit lane E review: any other tally of what this skill (or its price) did — "+3000 power … for each card placed into
@@ -1416,6 +1530,8 @@ function awakenLifePermit(t: string, c: Ctx): Op[] | null | undefined {
 }
 
 function compileClause(clause: string, c: Ctx): Op[] | null {
+  // R-384: an explicit subject on this imperative still plays the skill's own card.
+  if (/^you play this card[.]?$/i.test(clause.trim())) return compileClause("play this card", c);
   // Phrasing batch 10: "look at up to 5 cards from the top of your deck, choose up to 2 ≪Universe 2≫ cards, **add up to 1
   // card to your hand, send up to 1 card to your Warp**" (BT30-101, BT30-104): the bare cards are the ones just chosen
   // out of the look, each pick taken out of that pool (`fromVar`); "look at up to 2 cards …, **place up to 1 card in your
@@ -1879,6 +1995,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // of its own. "…, then start your Main Phase" is again the same rule said
   // in words, dropped by `connective`.
   if (t === "skip all phases until the charge phase in your next turn") return [{ op: "skip", what: "span" }];
+
+  // R-397 / BT18-003: commit the next own Charge Phase as an activation cost.
+  if (/^(?:you )?skip your charge phase during your next turn$/.test(t)) return [{ op: "skip", what: "charge", when: "next" }];
 
   // Draw (5-1). "You may draw" is treated as taken: declining never helps.
   // "…, and **you draw** 1 card" (BT8-089b, TB2-033, BT19-022): the same draw with its subject said.
@@ -2498,6 +2617,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const subject = possessive[2] === "its" ? "it" : possessive[2] === "their" ? "them" : possessive[2];
     qq = `${possessive[1]} the ${possessive[3] ?? ""}cost of ${subject} by ${possessive[4]}`;
   }
+  // R-441: the possessive passive retains the entire described group, including original-cost bounds.
+  qq = qq.replace(/^(.+?) (?:has|have) (?:its|their) ((?:energy|skill|evolve|combo|z-energy) )?costs? (reduced|increased|decreased) by (.+)$/, "the $2cost of $1 is $3 by $4");
   let passive: RegExpExecArray | null;
   if ((passive = /^the ((?:energy|skill|evolve|combo|z-energy) )?costs? of (.+?) (?:is|are) (reduced|increased|decreased) by (.+)$/.exec(qq))) {
     const verb = passive[3].slice(0, -1); // "reduced"/"increased"/"decreased" -> the bare verb.
@@ -2684,6 +2805,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // both areas — a combo is made from either (2-9-1). A price is changed for every card it names, so "and" is the union.)
     let ref = refFor(countAreasSaidWithAnd(targetText), c);
     const kindWordTrim = kindWord?.trim();
+    // R502: these two exact self energy reducers name Hand AND Battle.
+    // Do not expand the shared selfFrom grammar used by unrelated movement/stack skills.
+    const handOrBattleReduction = kindWordTrim === "energy" && /^(?:reduce|decrease)\b/i.test(clause)
+      && /^this card in your hand or battle area$/i.test(targetText.trim());
+    if (handOrBattleReduction) {
+      ref = { sel: { special: "self", areas: ["hand", "battle"] } };
+    }
+
     // "…the combo cost of A cards and B cards in all of your areas by 1": the
     // list is two descriptions with a shared area, one reduction each (#907).
     const listed = kindWordTrim !== "skill" && kindWordTrim !== "evolve" && /\sand\s/.test(targetText) && /\bin all of your areas$/i.test(targetText) ? refsFor(targetText, c) : null;
@@ -2740,7 +2869,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // possessive normalisation above keeps the area only for the "for each"
     // reducer, so the plain one found the card wherever it was. The printed
     // scope is the hand, which is where a card is bought at (20-21).
-    if (!skillKind && "sel" in ref && ref.sel.special === "self" && !ref.sel.area && /\bthis card\b[^,]*\bin your hand\b/i.test(clause)) {
+    if (!skillKind && "sel" in ref && ref.sel.special === "self" && !ref.sel.area && !handOrBattleReduction && /\bthis card\b[^,]*\bin your hand\b/i.test(clause)) {
       ref = { sel: { ...ref.sel, area: "hand" } };
     }
     const orbs = /^\d+$/.test(amountText) ? null : orbsIn(amountText);
@@ -2807,7 +2936,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   }
   if ((m = /^negate its \[([a-z0-9\- ]+)\](?: skill)? in (?:all|any) areas?$/.exec(t)) && c.permanent && itsSelf) {
     const kw = keywordOf(m[1]);
-    if (kw) return [{ op: "negateKeyword", keyword: kw.name, target: { sel: { special: "self" } } }];
+    if (kw) return [{ op: "negateKeyword", keyword: kw.name, target: { sel: { special: "self" } }, allAreas: true }];
   }
   if ((m = /^negate (.+?)'s \[([a-z0-9\- ]+)\](?: skill)?(?: in (?:all|any) areas?)?$/.exec(t))) {
     // A tag that names a *kind* of skill rather than a keyword ("[Auto]") is
@@ -2815,7 +2944,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const kw = keywordOf(m[2]);
     if (kw) {
       const ref = refFor(m[1], c);
-      return ref ? [{ op: "negateKeyword", keyword: kw.name, target: ref }] : null;
+      const allAreas = c.permanent && ref && "sel" in ref && ref.sel.special === "self" && /in (?:all|any) areas?$/.test(t);
+      return ref ? [{ op: "negateKeyword", keyword: kw.name, target: ref, ...(allAreas ? { allAreas: true } : {}) }] : null;
     }
     if (!/^(?:auto|activate|counter|permanent)\b/.test(m[2])) return null;
   }
@@ -3099,16 +3229,19 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // offered, and the count printed on the cards ("1 of …") is the skill's, not
   // a choice of cards — kept, it would have made this a choice of a card and
   // negated all of its skills, which is what it used to read as.
-  if ((m = /^choose (?:up to )?(?:\d+|a|an|one) (?:of (?:the )?)?keyword skills? (?:on|of) (.+?),? (?:and )?(?:negate (?:it|that skill)|that skill is negated)$/.exec(q))) {
-    const ref = refFor(m[1], c);
+  if ((m = /^choose (up to )?(\d+|a|an|one) (?:of (?:the )?)?keyword skills? (?:on|of) (.+?),? (?:and )?(?:negate (?:it|that skill)|that skill is negated)$/.exec(q))) {
+    // The interpreter chooses one skill; a printed larger count is not one.
+    if (!/^(?:1|a|an|one)$/.test(m[2])) return null;
+    const mandatory = m[1] ? {} : { mandatory: true };
+    const ref = refFor(m[3], c);
     if (!ref) return null;
     if ("sel" in ref && !ref.sel.special) {
       const every = { ...ref.sel };
       delete every.count;
       delete every.upTo;
-      return [{ op: "negateChosenKeyword", target: { sel: every }, until: durationOf(t) }];
+      return [{ op: "negateChosenKeyword", target: { sel: every }, until: durationOf(t), ...mandatory }];
     }
-    return [{ op: "negateChosenKeyword", target: ref, until: durationOf(t) }];
+    return [{ op: "negateChosenKeyword", target: ref, until: durationOf(t), ...mandatory }];
   }
 
   // Granting keyword skills (20-18); one clause can grant several.
@@ -3142,6 +3275,26 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   {
     // Phrasing batch 4: "…it's **sent to** its owner's Warp instead of being played" (BT8-104, BT10-143, BT11-146) is
     // the same move to the Warp as "placed in" it (3-10).
+    // R-384: active-voice "send it to its owner's Warp instead" still replaces the unresolved play.
+    // Only the established resolving-card antecedent allows this shorter form.
+    if (c.skillKind === "counter:play" && /^send (?:it|that card) to (?:its owner'?s|your) warp instead[.]?$/i.test(clause.trim())) {
+      const ref = refFor("it", c);
+      if (ref && "sel" in ref && ref.sel.special === "resolving") return [{ op: "resolvingPlay", instead: "warp" }];
+    }
+    // R434: a short active replacement still replaces the unresolved play.
+    // Require the established incoming-card antecedent, not an arbitrary "it".
+    const shortDrop = /^place (?:it|that card) (?:in|into) its owner'?s drop(?: area)? instead[.]?$/i.test(clause.trim());
+    const shortBottom = /^place (?:it|that card) at the bottom of its owner'?s deck instead[.]?$/i.test(clause.trim());
+    const shortHand = /^return (?:it|that card) to its owner'?s hand instead[.]?$/i.test(clause.trim());
+    if (c.skillKind === "counter:play" && (shortDrop || shortBottom || shortHand)) {
+      const ref = refFor("it", c);
+      if (ref && "sel" in ref && ref.sel.special === "resolving") {
+        const type = ref.sel.filter?.type;
+        return [{ op: "resolvingPlay", instead: shortDrop ? "drop" : shortHand ? "hand" : "deck", ...(shortBottom ? { position: "bottom" as const } : {}), ...(type === "BATTLE" || type === "UNISON" || type === "EXTRA" ? { cardType: type } : {}) }];
+      }
+    }
+    const playedType = /\bbattle card\b/.test(t) ? "BATTLE" as const : /\bunison card\b/.test(t) ? "UNISON" as const : /\bextra card\b/.test(t) ? "EXTRA" as const : undefined;
+    const qualification = playedType ? { cardType: playedType } : {};
     const tSent = t.replace(/^(it'?s|it is|that card is|the (?:battle |extra |unison )?card being played is) sent to (its owner'?s?|their owners?'?s?|your|their) (warps?) instead of being played$/, "$1 placed in $2 $3 instead of being played");
     const stopped =
       /^(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card (?:being played|(?:that )?your opponent is playing) is) (?:(?:placed|put) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?)|(?:returned) to (?:its owner'?s?|their owners?'?s?|your|their) (hand)s?)(?: instead)?(?: of being played)?$/.exec(
@@ -3153,7 +3306,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const placedInstead = /^place (?:it|that card|the (?:battle |extra |unison )?card being played) (?:in|into|at) (?:its owner'?s?|their owners?'?s?|your|the|their) (?:(drop)(?: area)?|bottom of (?:its owner'?s?|their|your) deck|(warp)s?) instead of playing it$/.exec(t);
     if (placedInstead) {
       const to: ScriptArea = placedInstead[1] ? "drop" : placedInstead[2] ? "warp" : "deck";
-      return [{ op: "resolvingPlay", instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
+      return [{ op: "resolvingPlay", ...qualification, instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
     }
     // `t` has already lost a trailing "instead" (above), so the bare "…is placed in its owner's Drop Area **instead**"
     // (BT7-110) never reached here. Delayed/replacement batch 1: the printed clause says it, and only a [Counter: Play]
@@ -3162,27 +3315,27 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       // 22-13-4-5-1-1 names the hand form specially: a card "returned to its
       // owner's hand instead of being played" does *not* then go to the Drop.
       const to: ScriptArea = stopped[1] ? "drop" : stopped[2] ? "warp" : stopped[3] ? "hand" : "deck";
-      return [{ op: "resolvingPlay", instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
+      return [{ op: "resolvingPlay", ...qualification, instead: to, ...(to === "deck" ? { position: "bottom" as const } : {}) }];
     }
     // "The Battle Card being played is played in Rest Mode" (BT10-105).
     // "The Battle Card **played** is played in Rest Mode" (BT1-110) says the same
     // as "being played"; both name the card whose play is resolving (9-6).
     const THE_PLAY = String.raw`(?:it'?s|it is|that card is|the (?:battle |extra |unison )?card (?:being played|played|(?:that )?your opponent is playing) is)`;
     const SKILLS_OFF = String.raw`(?:its|their) skills? negated(?: for the (?:duration of the )?turn)?`;
-    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode$`).test(t)) return [{ op: "resolvingPlay", mode: "rest" }];
+    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode$`).test(t)) return [{ op: "resolvingPlay", ...qualification, mode: "rest" }];
     // "It's played with its skills negated for the turn" (BT11-099).
-    if (new RegExp(String.raw`^${THE_PLAY} played with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", negated: true }];
+    if (new RegExp(String.raw`^${THE_PLAY} played with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", ...qualification, negated: true }];
     // Both said at once: "played in Rest Mode with its skills negated for the
     // turn" (EB1-46, DB2-128).
-    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", mode: "rest", negated: true }];
+    if (new RegExp(String.raw`^${THE_PLAY} played in rest mode with ${SKILLS_OFF}$`).test(t)) return [{ op: "resolvingPlay", ...qualification, mode: "rest", negated: true }];
     // "The Battle Card played **has its skill negated** for the duration of the
     // turn" (BT1-107): the play goes ahead and the card arrives negated.
-    if (/^(?:it|that card|the (?:battle |extra |unison )?card (?:being )?played) (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", negated: true }];
+    if (/^(?:it|that card|the (?:battle |extra |unison )?card (?:being )?played) (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", ...qualification, negated: true }];
     // Phrasing batch 3 (owner's ruling of 26 Oct 2026 on BT14-154): "[Counter: Play] Play this card, then … **The played
     // Battle Card has its skills negated for the turn**" — the played card is the opponent's card whose play the counter
     // answers (9-6), not this card, which the skill played itself. Only in a [Counter: Play]: anywhere else "the played
     // card" is a play the skill made.
-    if (c.skillKind === "counter:play" && /^the played (?:battle |extra |unison )?card (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", negated: true }];
+    if (c.skillKind === "counter:play" && /^the played (?:battle |extra |unison )?card (?:has|have) (?:its|their) skills? negated(?: for the (?:duration of the )?turn)?$/.test(t)) return [{ op: "resolvingPlay", ...qualification, negated: true }];
   }
 
   // Negation (9-1).
@@ -3390,6 +3543,14 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     return [{ op: "permit", what: "attackActive", target: ref, until: durationOf(t), filter }];
   }
 
+  // R473: a standing Drop-area permission widens declared combo sources;
+  // it does not execute the ordinary skill-driven (free) combo operation.
+  if (c.permanent && (m = /^use (mono-(?:red|blue|green|yellow|black|white) ≪[^≫]+≫ cards? with \d+ combo power) from your drop(?: area)? in combos?$/.exec(t))) {
+    const filter = filterFor(m[1], null);
+    if (!filter || unreadFilterWords(m[1], filter).length || filter.type && filter.type !== "BATTLE") return null;
+    return [{ op: "permit", what: "comboFromDrop", target: { sel: { special: "self" } }, until: "game", filter: { ...filter, type: "BATTLE" } }];
+  }
+
   // 5-7 lifted: "you can use your mono-red Rest Mode ≪Saiyan≫ cards in
   // combos" (BT18-001), "during this turn, you can use white Rest Mode
   // <Vegeta: GT> cards in combos" (BT29-129). A combo normally takes a card
@@ -3590,7 +3751,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   if ((m = /^(?:you may )?flip (.+?) face[- ](up|down)$/.exec(t))) {
     const up = m[2] === "up";
     const ref = refFor(m[1], c);
-    return ref ? withChoice(ref, clause, c, (target) => ({ op: "faceUp", target, ...(up ? {} : { faceUp: false }) })) : null;
+    if (!ref) return null;
+    // R-363 / 3-9-2: a plain Life choice grants neither player a look at face-down cards before choosing.
+    // A face-up description or a pool already revealed/looked at retains its existing visibility.
+    return withChoice(ref, clause, c, (target) => ({ op: "faceUp", target, ...(up ? {} : { faceUp: false }) }))
+      .map(op => op.op === "choose" && op.sel.area === "life" && !op.sel.areas && !op.sel.fromVar && !op.sel.special && !op.sel.filter ? { ...op, blind: true as const } : op);
   }
   // "Your opponent adds 2 cards from their hand to their energy in Hidden
   // Mode" (BT28-136): their choice, out of their own hand (5-2), and the
@@ -3680,7 +3845,7 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
   // with — read whole, "this card" was the card used.
   if (
     (m = /^(?:use|combo with) (.+?)(?: from (?:your|their) (drop|warp|hand)(?: area)?)?(?:(?: |(?<=[—―–]))in a combo)?(?: from (?:your|their) (drop|warp|hand)(?: area)?)?( with (?:its|their) skills? negated)?$/.exec(
-      q.replace(/^(use .+?) (with (?:its|their) skills? negated)(?: for the (?:turn|battle))? in a combo$/, "$1 in a combo $2").replace(/^(use .+? in a combo) in your combo area$/, "$1").replace(/^(use (?:it|that card|the chosen card) in a combo) with this card$/, "$1"),
+      q.replace(/^combo (it|that card|the chosen card) with this card$/, "use $1 in a combo").replace(/^(use .+?) (with (?:its|their) skills? negated)(?: for the (?:turn|battle))? in a combo$/, "$1 in a combo $2").replace(/^(use .+? in a combo) in your combo area$/, "$1").replace(/^(use (?:it|that card|the chosen card) in a combo) with this card$/, "$1"),
     )) &&
     /\bcombo\b/.test(t)
   ) {
@@ -4353,9 +4518,10 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const half = m[5] && /skills negated/.test(t) ? m[5].trim() : undefined;
     if (!half && / until the end of your opponent's next turn$/.test(tOnTop)) return null;
     const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !half ? (m[6] === "game" ? "game" : "turn") : undefined;
-    const thenNegate = (target: Ref): Op[] => (half ? negateHalf(half, target, durationOf(tOnTop.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : []);
+    const entryNegation = half ? negateHalf(half, durationOf(tOnTop.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : {};
     if (!onto || !ref) return null;
-    const extra = { onto, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
+    const extra = { ...entryNegation, onto, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}) } as const;
+    if ("sel" in ref && ref.sel.fromVar === c.paidPile?.name && c.paidPile?.count === 1) return [...hostOps, { op: "play", target: ref, ...extra }];
     if ("sel" in ref) {
       const v = `p${c.n++}`;
       c.lastPlayed = v;
@@ -4363,10 +4529,9 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
         ...hostOps,
         { op: "choose", sel: ref.sel, as: v, reason: clause },
         { op: "play", target: { var: v }, ...extra },
-        ...thenNegate({ var: v }),
       ];
     }
-    return [...hostOps, { op: "play", target: ref, ...extra }, ...thenNegate(ref)];
+    return [...hostOps, { op: "play", target: ref, ...extra }];
   }
 
   // Audit effects 2: "…play up to 1 red ≪Bardock's Crew≫ card … among them **with its [auto] skills negated for the turn**"
@@ -4377,8 +4542,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     if (kindNegated) {
       const played = compileClause(kindNegated[1], c);
       const play = played?.filter((o): o is Extract<Op, { op: "play" }> => o.op === "play").pop();
-      if (!played || !play || play.negated) return null;
-      return [...played, { op: "negateSkillsOfKind", target: play.target, kind: kindNegated[2] as "auto" | "activate" | "permanent", until: kindNegated[3] === "game" ? "game" : "turn" }];
+      if (!played || !play || play.negated || play.negatedKinds) return null;
+      return played.map((op) => op === play ? { ...play, negatedKinds: [kindNegated[2] as "auto" | "activate" | "permanent"], negatedUntil: kindNegated[3] === "game" ? "game" : "turn" } : op);
     }
   }
   // Playing a card by a skill (5-5-3).
@@ -4483,8 +4648,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const mode = m[2] as "rest" | "active" | undefined;
     // 9-1-5: "played … with its skills negated", which the sets print with and
     // without the article before "game". Phrasing batch 4: "…with its **non-keyword** skills negated" is the
-    // negation of the card's [Auto], [Activate] and [Permanent] skills once it is played (`negateNonKeyword`), and
-    // may last "until the end of your opponent's next turn" (EX21-20); the play itself is plain.
+    // negation of the card's [Auto], [Activate] and [Permanent] skills as it enters, and
+    // may last "until the end of your opponent's next turn" (EX21-20); preserve that exact duration on the play.
     // Phrasing batch 5 (owner's ruling of 26 Oct 2026 on P-327): "…with its **keyword** skills negated" is the inverse
     // half, its keyword skills and [Counter]s (`negateHalf`); it used to read as every skill negated.
     const half = m[3] && /skills negated/.test(t) ? m[3].trim() : undefined;
@@ -4493,13 +4658,13 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     // was played (9-9-2 ends it when the card leaves the area); the sets that mean the turn print "for the turn" (DB2-068,
     // DB2-071, DB2-073). It used to last the turn.
     const negated: "turn" | "game" | undefined = /skills negated/.test(t) && !half ? (m[4] === "game" || /skills negated$/.test(tp) ? "game" : "turn") : undefined;
-    const thenNegate = (target: Ref): Op[] => (half ? negateHalf(half, target, durationOf(t.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : []);
+    const entryNegation = half ? negateHalf(half, durationOf(t.replace(/^.* with (?:its|their) (?:non-)?keyword skills negated/, ""))) : {};
     let ref = refFor(m[1], c);
     if (!ref) return null;
     // Audit effects 2: "…and if the Battle Card being played has an energy cost of 7 or less, **play it in Rest Mode**"
     // (BT23-118): the card being played lands rested — its own play, changed (`resolvingPlay`), as "it is played in Rest
     // Mode" reads (BT23-123). Read as a play, it was a second play of a card not yet in play.
-    if ("sel" in ref && ref.sel.special === "resolving" && mode === "rest" && !/skills negated/.test(t) && !/^activate\b/.test(tp)) return [{ op: "resolvingPlay", mode: "rest" }];
+    if ("sel" in ref && ref.sel.special === "resolving" && mode === "rest" && !/skills negated/.test(t) && !/^activate\b/.test(tp)) return [{ op: "resolvingPlay", mode: "rest", ...(ref.sel.filter?.type === "BATTLE" || ref.sel.filter?.type === "UNISON" || ref.sel.filter?.type === "EXTRA" ? { cardType: ref.sel.filter.type } : {}) }];
     // "Look at up to 1 card from the top of your deck, **play up to 1 black
     // ≪Maiden Squadron≫ card**, then send the rest to their owner's Warp"
     // (BT30-106): the play's twin of the `add … to your hand` rule above.
@@ -4538,7 +4703,8 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
     const chosenSel = "var" in ref ? c.choices.find((ch) => ch.var === (ref as { var: string }).var)?.sel : ref.sel;
     const activating = /^activate\b/.test(tp) && !/\bwithout paying\b|^(?:(?:up to )?\d+ |an? |the |its |their |this card's |that card's )?\[[^\]]*\] skills?\b|\bskills? (?:of|on)\b/.test(m[1])
       && (/^(?:(?:up to )?\d+ |an? |the )?\{[^}]+\}(?: cards?)?(?: from .+)?$/.test(m[1]) || (/^(?:it|them|that card|those cards|the chosen cards?)$/.test(m[1]) ? extraLike(chosenSel) : "sel" in ref && extraLike(ref.sel)));
-    const extra = { ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...(toOpponent ? { toOpponent: true as const } : {}), ...arrivesWith } as const;
+    const extra = { ...entryNegation, ...(mode ? { mode } : {}), ...(negated ? { negated } : {}), ...(activating ? { activating: true as const } : {}), ...(toOwners ? { toOwners: true as const } : {}), ...(toOpponent ? { toOpponent: true as const } : {}), ...arrivesWith } as const;
+    if ("sel" in ref && ref.sel.fromVar === c.paidPile?.name && c.paidPile?.count === 1) return [{ op: "play", target: ref, ...extra }];
     if ("sel" in ref) {
       // "play up to 1 X from your hand" is a choice followed by the play.
       const v = `p${c.n++}`;
@@ -4546,12 +4712,11 @@ function compileClauseRead(clause: string, c: Ctx): Op[] | null {
       return [
         { op: "choose", sel: ref.sel, as: v, reason: clause },
         { op: "play", target: { var: v }, ...extra },
-        ...thenNegate({ var: v }),
       ];
     }
     // Audit effects 2: "the card you played with this skill" (BT6-126) is the card a play of a bound name played too.
     if ("var" in ref) c.lastPlayed = ref.var;
-    return [{ op: "play", target: ref, ...extra }, ...thenNegate(ref)];
+    return [{ op: "play", target: ref, ...extra }];
   }
 
   // 5-2: the skill is yours, but the choice is *theirs* — "your opponent
@@ -5752,21 +5917,17 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       const span = lead ? (/\buntil the end of their(?: next)? turn\b/i.test(lead[1]) ? "nextTurn" : durationOf(lead[1])) : until;
       return lead && it ? [{ op: "forbid", what: "activateSkill", side, until: span, target: it, ...withUnless }, { op: "forbid", what: "block", until: span, target: it, ...withUnless }] : null;
     }
-    // "Your opponent can't activate skills on Battle Cards for the duration of
-    // the turn" (P-093): every skill of a Battle Card, in any area.
-    // Owner ruling 26 Oct 2026 (A2): "can't activate skills on Battle Cards"
-    // covers their [Counter] lines (`activateCounter`, asked on its own) and
-    // their [Blocker] (22-4: a [Blocker] is activated) as well.
-    // Review of audit selectors 3: but a Battle Card is one in a Battle Area (20-1-2) — the Q&A of P-093: the opponent
-    // "can activate skills on Battle Cards in their Drop Area" and "auto skills when they combo". The other skills are
-    // asked where the card is (`fromArea: battle`); the [Counter] lines stay A2's. "In any area" keeps every area.
+    // R-403 / RM 20-1-2 / Q&A P-093: Battle Cards here are in a Battle
+    // Area. The same scope applies to ordinary activations, Counter and
+    // Blocker (R-020); naming those skill kinds does not widen the area.
+    // Explicit "in any area" keeps every area.
     if (/^activate (?:the )?skills (?:of|on) battle cards(?: in any areas?)?(?:\s+(?:for|during|until)\b.*)?$/.test(rest)) {
       const battle = { ...parseFilter(""), type: "BATTLE" as const };
       const anyArea = /\bin any areas?\b/.test(rest);
       return [
         { op: "forbid", what: "activateSkill", side, until, filter: battle, ...(anyArea ? {} : { fromArea: "battle" as const }), ...withUnless },
-        { op: "forbid", what: "activateCounter", side, until, filter: battle, ...withUnless },
-        { op: "forbid", what: "block", side, until, filter: battle, ...withUnless },
+        { op: "forbid", what: "activateCounter", side, until, filter: battle, ...(anyArea ? {} : { fromArea: "battle" as const }), ...withUnless },
+        { op: "forbid", what: "block", side, until, filter: battle, ...(anyArea ? {} : { fromArea: "battle" as const }), ...withUnless },
       ];
     }
     // "When this card is in a battle, your opponent can't activate
@@ -6339,7 +6500,10 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
   // "This card's skills can't be negated in any area" (9-1-5). `durationOf`
   // already reads "in any area" as the game.
   if (/^be negated\b/.test(rest) && /\bskills?\b/.test(subject)) {
+    if (/\boriginal skills?\b/.test(subject)) return null;
+    const allAreas = /\bin (?:any|all) areas?\b/.test(t);
     const owner = refFor(subject.replace(/'?s skills?\b.*$/, ""), c);
+    if (allAreas && (!c.permanent || !owner || !("sel" in owner) || owner.sel.special !== "self" || Object.keys(owner.sel).length !== 1)) return null;
     // Audit lane C (2 Nov 2026): whose negation it stops. "…by your opponent's skills" (DB1-021, P-680) leaves the
     // player's own negation working; "…by the skills of your red <Garlic Jr.> cards" (P-641, P-642) stops only the
     // skills of those cards (`byFilter`, asked of the negating skill's card). Read without the words, both were immune
@@ -6356,7 +6520,7 @@ function compileProhibition(t: string, c: Ctx): Op[] | null {
       } else if (bySide) scope = { side: bySide };
       else return null;
     }
-    return owner ? [{ op: "forbid", what: "beNegated", until, target: owner, ...scope, ...withUnless }] : null;
+    return owner ? [{ op: "forbid", what: "beNegated", until, target: owner, ...(allAreas ? { fromArea: "any" as const } : {}), ...scope, ...withUnless }] : null;
   }
   return null;
 }
@@ -6870,17 +7034,13 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
     const filter = described(`card with ${m[1]} power or more`);
     return filter ? { kind: "count", sel: { special: "self", filter }, atLeast: 1 } : null;
   }
-  // Phrasing batch 9: "[Spirit Boost 1] … and **if you removed a marker from a red Unison Card with a specified cost of 3
-  // or more using this skill**, …" (BT15-001b): the price took its markers off your Unison — the one card in your Unison
-  // Area (22-43) — so the question is that Unison's description. Only with a printed number of at least 1: a [Spirit
-  // Boost X] may have removed none, which this cannot tell.
-  // Phrasing batch 10: on a [Spirit Boost X] line (BT14-029, BT14-030, BT14-090) the price may have removed none, so the
-  // question is also whether X — the markers it removed — is at least 1 (`xAtLeast`).
+  if (c.spiritBoostX && (m = /^if you removed (\d+) or more markers$/.exec(t))) return { kind: "paidMarkers", cost: "spiritBoost", atLeast: Number(m[1]) };
+  // R-449: inspect the actual marker payment and its payer before removal,
+  // including a last-marker departure. Current Unison/X is not history.
   if ((m = /^(?:and )?if you removed (?:a|1) markers? from (?:an? |your |one of your )?(.+?) using this skill$/.exec(t)) && ((c.spiritBoost && c.spiritBoost >= 1) || c.spiritBoostX)) {
     const filter = described(m[1]);
     if (!filter || !(filter.type === "UNISON" || /\bunison\b/.test(m[1]))) return null;
-    const unison: Cond = { kind: "count", sel: { side: "you", area: "unison", filter }, atLeast: 1 };
-    return c.spiritBoostX ? { kind: "all", conds: [{ kind: "xAtLeast", n: 1 }, unison] } : unison;
+    return { kind: "paidMarkers", cost: "spiritBoost", filter, atLeast: 1 };
   }
   if ((m = /^if that card has (\d+) power or (less|more)$/.exec(t)) && c.attacksBattleCard && !c.last && !(c.lastTarget && !("sel" in c.lastTarget && c.lastTarget.sel.special === "self"))) {
     const filter = described(`card with ${m[1]} power or ${m[2]}`);
@@ -6895,6 +7055,31 @@ function backReferenceCondition(clause: string, c: Ctx): Cond | null {
   if ((m = /^if the card you switched to (rest|active) mode (has|is|was) (?:an? )?(.+)$/.exec(t)) && lastVar && c.lastOp === "switchMode") {
     const filter = described(m[2] === "has" ? `card with ${m[3]}` : m[3]);
     return filter ? { kind: "varMatches", var: lastVar, filter } : null;
+  }
+  // R-389: Burst's paid cards, remembered when they reached the Drop. Historical
+  // predicates do not retarget an unrelated Drop card or reread a later occurrence.
+  if (c.paidPile) {
+    const placedColor = /^if you place an? (red|blue|green|yellow|black|white) card (?:in|into) (?:the|your) drop(?: area)? (?:with|using|by) this skill$/.exec(t);
+    if (placedColor) {
+      c.paidPile.otherThanColor = placedColor[1];
+      return { kind: "varMatches", var: c.paidPile.name, filter: filterFor(`${placedColor[1]} card`, null)!, paid: true };
+    }
+    if (/^if a card of any other colou?r is placed (?:in|into) (?:the|your) drop(?: area)?$/.test(t) && c.paidPile.otherThanColor) {
+      return { kind: "varMatches", var: c.paidPile.name, filter: { ...emptyFilter(), colors: (["Red", "Blue", "Green", "Yellow", "Black", "White"] as Color[]).filter(color => color.toLowerCase() !== c.paidPile!.otherThanColor) }, paid: true };
+    }
+    const single = /^if the card (?:you placed|placed) (?:in|into) (?:the|your|its owner'?s) drop(?: area)? (?:with|using|by) this skill (?:is|was) (?:an? )?(.+)$/.exec(t);
+    const any = /^if (?:an? )(.+?) card (?:is|was) placed (?:in|into) (?:your|the) drop(?: area)? (?:by|with|using) this skill$/.exec(t);
+    if ((single && c.paidPile.count === 1) || any) {
+      const said = single ? single[1] : `${any![1]} card`;
+      const nonColor = /^non-(red|blue|green|yellow|black|white) card$/.exec(said);
+      // SD16-001's own FAQ grants both bonuses for red SD16-03, whose
+      // Permanent also makes it black. This paid-history wording observes
+      // another colour; ordinary non-colour selectors retain their reading.
+      const filter = nonColor ? { ...emptyFilter(), colors: (["Red", "Blue", "Green", "Yellow", "Black", "White"] as Color[]).filter(color => color.toLowerCase() !== nonColor[1]) } : described(said);
+      if (!filter || filter.unreadable) return null;
+      if (single) { c.last = null; c.lastTarget = { sel: { fromVar: c.paidPile.name, area: "drop", side: "you" } }; }
+      return { kind: "varMatches", var: c.paidPile.name, filter, paid: true };
+    }
   }
   // Audit conditions 3: "…place 1 blue Battle Card … into its owner's Drop: Play this card from your hand. Additionally, if
   // **the card placed into its owner's Drop by this skill** is a ≪Phantom Demon≫ card" (P-628): the same price's card.
@@ -7233,14 +7418,17 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
   if (word === "energy") {
     // The card's own price: a play, a placement from the Z-Deck, an Extra's use.
     let target: Ref | null = null;
+    let energyActivation: import("../vm/energy-coupons").EnergyActivation | undefined;
     if (verb === "activate" || verb === "use") {
       const wide = skillScopeOf(scope, c, true);
       if (wide) {
-        // The price belongs to the card, not to one of its lines. An Extra is
-        // bought by activating it, so "[Activate]" adds nothing; a keyword
-        // names the cards that print it; any other line (a [Counter], an
-        // [Evolve]) would make the change wider than printed - unread.
+        // Card-energy coupons carry a payment-only activation scope. P-524's
+        // Main coupon excludes Main/Battle but includes Field; even bare
+        // Activate excludes Counter. Ordinary card attributes stay unchanged.
+        // Keyword tags still describe cards; Evolve/other line kinds remain
+        // outside this bounded activation-energy contract.
         if (wide.evolve || (wide.skillKind && wide.skillKind !== "activate")) return null;
+        if (wide.skillKind === "activate") energyActivation = wide.activateTiming ?? (/\[activate: ?main\/battle\]/i.test(scope) ? "main/battle" : "activate");
         target = wide.target;
         if (wide.tag) {
           const named = KEYWORD_NAMES[wide.tag];
@@ -7250,7 +7438,7 @@ function nextTimeReduction(verb: string, scopeRaw: string, noun: string | undefi
       } else target = /\bskills?\b/i.test(scope) ? null : refFor(scope, c);
     } else target = refFor(scope, c);
     if (!target || (c.stale && target === c.stale)) return null;
-    return [{ op: "costReduction", target: every(toHand(target)), amount, ...(colors ? { colors } : {}), until, ...budget }];
+    return [{ op: "costReduction", target: every(toHand(target)), amount, ...(colors ? { colors } : {}), ...(energyActivation ? { energyActivation } : {}), until, ...budget }];
   }
   // Skill cost (the default noun after "activate").
   if (verb !== "activate" && verb !== "use") return null;
@@ -7319,7 +7507,115 @@ const OWN_CHOICE_PRONOUN = /^choose (?:(?!\b(?:it|them|they|the rest|that card|t
  * the same sentence (`splitClausesJoined`). Omitted, every clause
  * starts a sentence of its own, which is what a caller that never asked meant.
  */
+/** R498: exactly one original Warp arrival, followed by its end-turn owner return. */
+function delayedWarpReturn(clauses: string[], c: Ctx, joined: boolean[]): Op[] | null {
+  const words = clauses.map(s => s.trim().replace(/[.]$/, "").toLowerCase());
+  const at = words.indexOf("at the end of the turn");
+  const tail = "play any cards sent to a warp by this skill to their owners' battle areas with their skills negated for the turn";
+  if (at < 1 || words[at + 1] !== tail) return null;
+  const alternative = words.length === at + 4 && words[at + 2] === "if your opponent has 15 or fewer cards in their deck"
+    && words[at + 3] === "place them in their owners' drop areas instead";
+  if (!alternative && words.length !== at + 2) return null;
+  const local = structuredClone(c), errors: string[] = [];
+  const ops = compileClauseList(clauses.slice(0, at), local, errors, joined.slice(0, at));
+  if (errors.length) return null;
+  let body = ops;
+  while (body.length === 1 && body[0].op === "if" && !body[0].else) body = body[0].then;
+  const [choice, move] = body;
+  const expectedFilter = { ...emptyFilter(), type: "BATTLE", ...(alternative ? { costAboveEnergy: true, energyOfOpponent: true } : {}) };
+  if (body.length !== 2 || choice?.op !== "choose" || choice.sel.side !== "opponent" || choice.sel.area !== "battle"
+      || choice.sel.count !== 1 || choice.sel.upTo !== true || Object.entries(choice.sel).some(([k, v]) => v !== undefined && !["side", "area", "filter", "count", "upTo"].includes(k))
+      || JSON.stringify(choice.sel.filter) !== JSON.stringify(expectedFilter)
+      || move?.op !== "moveTo" || move.to !== "warp" || !("var" in move.target) || move.target.var !== choice.as
+      || Object.entries(move).some(([k, v]) => v !== undefined && !["op", "target", "to"].includes(k))) return null;
+  const completed = bindCompletedChoice(body, choice.as);
+  if (!completed) return null;
+  const arrival = `warpArrival${local.n++}`;
+  move.as = arrival;
+  const target: Ref = { sel: { fromVar: arrival, area: "warp", count: 99, requiredStamp: true } };
+  const play: Op = { op: "play", target, toOwners: true, negated: "turn" };
+  const delayed: Op[] = alternative ? [{ op: "if", cond: { kind: "count", sel: { side: "opponent", area: "deck" }, atMost: 15 },
+    then: [{ op: "moveTo", target, to: "drop", reveal: true }], else: [play] }] : [play];
+  body.push({ op: "if", cond: completed, then: [{ op: "delay", at: "turnEnd", scope: "thisTurn", ops: delayed, label: "at the end of the turn" }] });
+  Object.assign(c, local);
+  return ops;
+}
+
+export function compileOriginalKoFollowup(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[]): Op[] | null {
+  // R506: exact original-KO follow-up, with postdeparture energy cost (RM9-12-1).
+  const originalKo = ["your opponent chooses 1 of their battle cards", "kos it", "if this skill is used to ko a battle card with an energy cost of 3 or less", "draw 1 card"];
+  if (JSON.stringify(rawClauses.map(x => x.trim().replace(/[.]$/, "").toLowerCase())) === JSON.stringify(originalKo)) {
+    const issues: string[] = [];
+    const prefix = compileClauseList(rawClauses.slice(0, 2), c, issues, rawJoined.slice(0, 2));
+    const [choice, ko] = prefix;
+    if (!issues.length && prefix.length === 2 && choice?.op === "choose" && choice.chooser === "opponent"
+        && choice.sel.side === "opponent" && choice.sel.area === "battle" && choice.sel.count === 1 && !choice.sel.upTo
+        && choice.sel.filter?.type === "BATTLE" && ko?.op === "ko" && "var" in ko.target && ko.target.var === choice.as) {
+      return [choice, { ...ko, completedAs: choice.as }, { op: "if", cond: { kind: "koedByThisSkill", var: choice.as, costMax: 3 }, then: [{ op: "draw", n: 1 }] }];
+    }
+    unsupported.push(rawClauses.join(", ")); return prefix;
+  }
+  return null;
+}
+
+/** R516: only the complete original ordinary Battle price/body may read this history. */
+export function compilePaidRemovalFollowup(skill: Skill, envelope: Script, c: Ctx): Op[] | null {
+  if (skill.effect.trim().replace(/\s+/g, ' ').replace(/\.$/, '').toLowerCase() !== 'choose up to 1 of your battle cards and it gets +10000 power for the battle. additionally, if you used this skill to remove a token from the game, draw 1 card') return null;
+  const local = structuredClone(c), issues: string[] = [];
+  const prefix = compileClauseList(['Choose up to 1 of your Battle Cards', 'it gets +10000 power for the battle'], local, issues);
+  const ops = [...prefix, paidRemovalTail()];
+  try { requirePaidRemovalShape(skill, { ...envelope, ops }); } catch { return null; }
+  if (issues.length) return null;
+  Object.assign(c, local); return ops;
+}
+
+/** R518: exact original Main price and self-play tail, with isolated speculative context. */
+export function compilePaidDropFollowup(skill: Skill, envelope: Script, c: Ctx): Op[] | null {
+  if (skill.effect.trim().replace(/\s+/g, ' ').replace(/\.$/, '').toLowerCase() !== 'play this card from your hand. additionally, if you used this skill to place a <general blue> card in your drop area, this card gets +5000 power for the turn') return null;
+  const local = structuredClone(c), issues: string[] = [];
+  const prefix = compileClauseList(['Play this card from your hand'], local, issues);
+  const ops = [...prefix, paidDropTail()];
+  try { requirePaidDropShape(skill, { ...envelope, ops }); } catch { return null; }
+  if (issues.length) return null;
+  Object.assign(c, local); return ops;
+}
+
+export function compileBattleGrantRemoval(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[] = []): Op[] | null {
+  // R512: this complete leading duration governs one self grant, not the delayed removal.
+  // Keep other duration fragments (including conditional self-negation) unread.
+  const battleGrantRemoval = ["for the battle", "this card gains [double strike]", "at the end of the battle", "remove this card from the game"];
+  if (c.skillKind === "activate:battle" && !c.permanent
+      && JSON.stringify(rawClauses.map(x => x.trim().replace(/[.]$/, "").toLowerCase())) === JSON.stringify(battleGrantRemoval)) {
+    const issues: string[] = [];
+    const ops = compileClauseList(["this card gains [double strike] for the battle", ...rawClauses.slice(2)], c, issues, rawJoined.slice(1));
+    const expected: Op[] = [{ op: "grant", target: { sel: { special: "self" } }, keyword: { name: "Strike", x: 2 }, until: "battle" },
+      { op: "delay", at: "battleEnd", scope: "thisTurn", ops: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }], label: "at the end of the battle" }];
+    if (issues.length || JSON.stringify(ops) !== JSON.stringify(expected)) unsupported.push(rawClauses.join(", "));
+    return ops;
+  }
+  return null;
+}
+
 export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[] = []): Op[] {
+  // R501: "was in Rest Mode" is a selected pre-KO fact, not a KO-success hinge.
+  // Choose the branch before KO so replacement pauses preserve it without rereading the Drop card.
+  const restKo = ["choose up to 1 of your opponent's battle cards", "ko it", "if it was in rest mode", "draw 1 card"];
+  if (JSON.stringify(rawClauses.map(x => x.trim().replace(/[.]$/, "").toLowerCase())) === JSON.stringify(restKo)) {
+    const issues: string[] = [];
+    const prefix = compileClauseList(rawClauses.slice(0, 2), c, issues, rawJoined.slice(0, 2));
+    const [choice, ko] = prefix;
+    if (!issues.length && prefix.length === 2 && choice?.op === "choose" && choice.sel.side === "opponent"
+        && choice.sel.area === "battle" && choice.sel.count === 1 && choice.sel.upTo === true
+        && choice.sel.filter?.type === "BATTLE" && !choice.chooser && ko?.op === "ko"
+        && "var" in ko.target && ko.target.var === choice.as) {
+      return [choice, { op: "if", cond: { kind: "count", sel: { fromVar: choice.as, mode: "rest" }, atLeast: 1 },
+        then: [ko, { op: "draw", n: 1 }], else: [ko] }];
+    }
+    unsupported.push(rawClauses.join(", "));
+    return prefix;
+  }
+  const warpReturn = delayedWarpReturn(rawClauses, c, rawJoined);
+  if (warpReturn) return warpReturn;
   const clauses = joinSplitPlacements(rawClauses);
   // Kept the same length as `clauses` at every splice below.
   const joined = clauses.map((_, k) => !!rawJoined[k]);
@@ -7813,6 +8109,14 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       clauses[i + 1] = `${clause.trim().replace(/[.,]$/, "")}, ${clauses[i + 1]}`;
       continue;
     }
+    // Unsupported counts/pronouns still name skills, never a choice of cards.
+    // Keep the supported all-keywords case above; refuse this pair before generic
+    // card selection can turn it into negation of every skill on a chosen card.
+    if (/^choose (?:up to )?(?:\d+(?: or more)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten) (?:of (?:the )?)?keyword skills? (?:on|of) /i.test(clause.trim()) && i + 1 < clauses.length && /^(?:and )?negate (?:it|them|that skill|those skills)\b/i.test(clauses[i + 1].trim())) {
+      refuse(clause);
+      refuse(clauses[++i]);
+      continue;
+    }
     // "For each marker on this card, this card gets +5000 power during your
     // turn" — the reverse of a duration: the count leads the effect it
     // multiplies rather than trailing it, so it is reattached in front, not
@@ -7998,6 +8302,13 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
       const all = exactCount(c, c.last);
       return all.atLeast ? ({ kind: "chose", var: c.last, atLeast: all.atLeast } as Cond) : null;
     })();
+    // R-426: preserve the one-card optional chooser, but witness its original
+    // movement rather than treating selection as completion (RM 20-16/17).
+    const completedChoice = (() => {
+      if (conn !== "ifDone" && conn !== "ifNotDone" || !c.last || ["may", "play", "flip"].includes(c.lastOp ?? "")) return null;
+      const open = groups[groups.length - 1], host = open.sink ?? open.ops;
+      return bindCompletedChoice(host, c.last);
+    })();
     const decided: Cond | null =
       c.lastOp === "may"
         ? offeredExact ? { kind: "all", conds: [{ kind: "did", what: "may" }, offeredExact] } : { kind: "did", what: "may" }
@@ -8012,7 +8323,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
         : c.lastOp === "play"
           ? { kind: "did", what: "play" }
         : c.last
-          ? { kind: "chose", var: c.last, ...exactCount(c, c.last) }
+          ? completedChoice ?? { kind: "chose", var: c.last, ...exactCount(c, c.last) }
           : mayBefore
             ? { kind: "did", what: "may" }
             : sentSelf
@@ -8721,6 +9032,7 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
             ...(replaceEvent === "life" ? (lifeTo ? { to: lifeTo } : {}) : by && by !== "ko" ? { by } : {}),
             ...(replaceEvent !== "life" && bySide ? { bySide } : {}),
             ...(replaceEvent !== "life" && from ? { from } : {}),
+            ...(replaceEvent !== "life" && requestedTo ? { to: requestedTo } : {}),
             with: withOps,
             ...(offered || heldOffer ? { optional: true } : {}),
             ...(target ? { target } : {}),
@@ -8927,5 +9239,11 @@ export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: str
     for (const cond of [...g.conds].reverse()) body = [{ op: "if", cond, then: body }];
     ops.push(...body);
   }
+  const formerOuter = ops.length > 1 && ops[0].op === "if" ? ops[0] : null;
+  nestTerminalMovementHinges(ops);
+  if (formerOuter && ops.length === 1 && ops[0] === formerOuter) c.resolutionCondition = formerOuter;
+  if (bindSevenDragonBallRemoval(rawClauses, ops) === false) refuse(rawClauses.join(", "));
+  retainAdjacentMovementHinges(ops);
+  bindCompositeOffer(ops);
   return ops;
 }

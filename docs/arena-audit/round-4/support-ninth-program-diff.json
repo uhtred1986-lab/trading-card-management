@@ -1,0 +1,2532 @@
+[
+  {
+    "key": "BT14-085#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any"
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area"
+    }
+  },
+  {
+    "key": "BT7-110#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "instead": "drop"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "both",
+            "area": "battle",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": 2,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 99,
+            "upTo": false,
+            "ignoreBarrier": true
+          },
+          "as": "c0",
+          "reason": "choose all Battle Cards with energy costs of 2 or less"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "warp"
+        }
+      ],
+      "reads": "if there are 3 or more Battle Cards with an energy cost of 2 or more in your opponent's Battle Area: the card being played is not played and goes to the drop instead, choose all Battle Cards with an energy cost of 2 or less in each player's Battle Area ignoring [Barrier], move the chosen cards to warp"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "instead": "drop"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "both",
+            "area": "battle",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": 2,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 99,
+            "upTo": false,
+            "ignoreBarrier": true
+          },
+          "as": "c0",
+          "reason": "choose all Battle Cards with energy costs of 2 or less"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "warp"
+        }
+      ],
+      "reads": "if there are 3 or more Battle Cards with an energy cost of 2 or more in your opponent's Battle Area: the Battle Card being played is not played and goes to the drop instead, choose all Battle Cards with an energy cost of 2 or less in each player's Battle Area ignoring [Barrier], move the chosen cards to warp"
+    }
+  },
+  {
+    "key": "BT10-044#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "may",
+          "ops": [
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self",
+                  "area": "hand"
+                }
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ],
+          "reason": "discard this card from your hand"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "did",
+            "what": "may"
+          },
+          "then": [
+            {
+              "op": "resolvingPlay",
+              "instead": "hand"
+            }
+          ]
+        }
+      ],
+      "reads": "you may: move this card to drop, if the offer was taken: the card being played is not played and goes to the hand instead"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "may",
+          "ops": [
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self",
+                  "area": "hand"
+                }
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ],
+          "reason": "discard this card from your hand"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "did",
+            "what": "may"
+          },
+          "then": [
+            {
+              "op": "resolvingPlay",
+              "cardType": "BATTLE",
+              "instead": "hand"
+            }
+          ]
+        }
+      ],
+      "reads": "you may: move this card to drop, if the offer was taken: the Battle Card being played is not played and goes to the hand instead"
+    }
+  },
+  {
+    "key": "DB1-021#20",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "side": "opponent"
+        }
+      ],
+      "reads": "this card can't have their skills negated by your opponent's skills"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any",
+          "side": "opponent"
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area by your opponent's skills"
+    }
+  },
+  {
+    "key": "P-474#0",
+    "fields": [
+      "ops",
+      "unread",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "unread": [],
+      "pattern": "forbid:beNegated",
+      "reads": "this card can't have their skills negated"
+    },
+    "after": {
+      "ops": [],
+      "unread": [
+        "This card's original skills can't be negated in any area"
+      ],
+      "pattern": "this card's original skills can't be negated in any area",
+      "reads": ""
+    }
+  },
+  {
+    "key": "BT1-110#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "mode": "rest"
+        }
+      ],
+      "reads": "the card being played is played in Rest Mode"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "mode": "rest"
+        }
+      ],
+      "reads": "the Battle Card being played is played in Rest Mode"
+    }
+  },
+  {
+    "key": "BT14-154#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "Play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "battle",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true,
+            "mode": "rest",
+            "ignoreBarrier": true
+          },
+          "as": "c1",
+          "reason": "choose up to 1 of your opponent's Battle Cards in Rest Mode"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c1"
+          },
+          "to": "under"
+        },
+        {
+          "op": "resolvingPlay",
+          "negated": true
+        }
+      ],
+      "reads": "choose this card, play the chosen cards, choose up to 1 Battle Card in your opponent's Battle Area in rest mode ignoring [Barrier], move the chosen cards under this card, the card being played is played with its skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "Play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "battle",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true,
+            "mode": "rest",
+            "ignoreBarrier": true
+          },
+          "as": "c1",
+          "reason": "choose up to 1 of your opponent's Battle Cards in Rest Mode"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c1"
+          },
+          "to": "under"
+        },
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "negated": true
+        }
+      ],
+      "reads": "choose this card, play the chosen cards, choose up to 1 Battle Card in your opponent's Battle Area in rest mode ignoring [Barrier], move the chosen cards under this card, the Battle Card being played is played with its skills negated"
+    }
+  },
+  {
+    "key": "XD1-10#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "mode": "rest",
+          "negated": true
+        },
+        {
+          "op": "draw",
+          "n": 1
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "life",
+            "side": "you",
+            "atMost": 3
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "energy",
+                "filter": {
+                  "colors": [
+                    "Blue",
+                    "Yellow"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "choose up to 1 of your blue or yellow energy"
+            },
+            {
+              "op": "switchMode",
+              "target": {
+                "var": "c0"
+              },
+              "mode": "active"
+            }
+          ]
+        }
+      ],
+      "reads": "the card being played is played in Rest Mode with its skills negated, draw 1, if your life is 3 or less: choose up to 1 blue or yellow card in your Energy Area, switch the chosen cards to active mode"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "mode": "rest",
+          "negated": true
+        },
+        {
+          "op": "draw",
+          "n": 1
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "life",
+            "side": "you",
+            "atMost": 3
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "energy",
+                "filter": {
+                  "colors": [
+                    "Blue",
+                    "Yellow"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c0",
+              "reason": "choose up to 1 of your blue or yellow energy"
+            },
+            {
+              "op": "switchMode",
+              "target": {
+                "var": "c0"
+              },
+              "mode": "active"
+            }
+          ]
+        }
+      ],
+      "reads": "the Battle Card being played is played in Rest Mode with its skills negated, draw 1, if your life is 3 or less: choose up to 1 blue or yellow card in your Energy Area, switch the chosen cards to active mode"
+    }
+  },
+  {
+    "key": "BT10-105#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "mode": "rest"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        }
+      ],
+      "reads": "the card being played is played in Rest Mode, choose this card, play the chosen cards"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "mode": "rest"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        }
+      ],
+      "reads": "the Battle Card being played is played in Rest Mode, choose this card, play the chosen cards"
+    }
+  },
+  {
+    "key": "BT11-139#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        },
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "unless": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "dark broly"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated, this card can't be played unless your leader is <dark broly>"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any"
+        },
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "unless": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "dark broly"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area, this card can't be played unless your leader is <dark broly>"
+    }
+  },
+  {
+    "key": "BT14-060#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any"
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area"
+    }
+  },
+  {
+    "key": "BT15-149#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "Play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "resolvingPlay",
+          "negated": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b: choose this card, play the chosen cards, the card being played is played with its skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "Play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "negated": true
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b: choose this card, play the chosen cards, the Battle Card being played is played with its skills negated"
+    }
+  },
+  {
+    "key": "BT11-140#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        },
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "unless": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "dark broly"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated, this card can't be played unless your leader is <dark broly>"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any"
+        },
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "unless": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "dark broly"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area, this card can't be played unless your leader is <dark broly>"
+    }
+  },
+  {
+    "key": "BT11-136#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        },
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "unless": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "dark broly"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated, this card can't be played unless your leader is <dark broly>"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any"
+        },
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "unless": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "dark broly"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area, this card can't be played unless your leader is <dark broly>"
+    }
+  },
+  {
+    "key": "EX09-05#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "mode": "rest"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        }
+      ],
+      "reads": "the card being played is played in Rest Mode, choose this card, play the chosen cards"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "mode": "rest"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        }
+      ],
+      "reads": "the Battle Card being played is played in Rest Mode, choose this card, play the chosen cards"
+    }
+  },
+  {
+    "key": "BT14-117#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any"
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area"
+    }
+  },
+  {
+    "key": "BT8-088#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "mode": "rest"
+        }
+      ],
+      "reads": "if your leader is Yellow and your life is 4 or less: the card being played is played in Rest Mode"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "mode": "rest"
+        }
+      ],
+      "reads": "if your leader is Yellow and your life is 4 or less: the Battle Card being played is played in Rest Mode"
+    }
+  },
+  {
+    "key": "EB1-46#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "mode": "rest",
+          "negated": true
+        }
+      ],
+      "reads": "if your leader is mono-colour Yellow and every card in your Energy Area is also among the mono-colour yellow cards in your Energy Area: the card being played is played in Rest Mode with its skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "mode": "rest",
+          "negated": true
+        }
+      ],
+      "reads": "if your leader is mono-colour Yellow and every card in your Energy Area is also among the mono-colour yellow cards in your Energy Area: the Battle Card being played is played in Rest Mode with its skills negated"
+    }
+  },
+  {
+    "key": "BT14-027#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any"
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area"
+    }
+  },
+  {
+    "key": "BT11-147#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        },
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "unless": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "dark broly"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated, this card can't be played unless your leader is <dark broly>"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any"
+        },
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "unless": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "dark broly"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area, this card can't be played unless your leader is <dark broly>"
+    }
+  },
+  {
+    "key": "P-641#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "side": "you",
+          "byFilter": {
+            "colors": [
+              "Red"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "garlic jr."
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated by the skills of your red <garlic jr.> cards"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any",
+          "side": "you",
+          "byFilter": {
+            "colors": [
+              "Red"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "garlic jr."
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area by the skills of your red <garlic jr.> cards"
+    }
+  },
+  {
+    "key": "BT15-096#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "mode": "rest"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "draw",
+          "n": 1
+        }
+      ],
+      "reads": "the card being played is played in Rest Mode, choose this card, play the chosen cards, draw 1"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "mode": "rest"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "draw",
+          "n": 1
+        }
+      ],
+      "reads": "the Battle Card being played is played in Rest Mode, choose this card, play the chosen cards, draw 1"
+    }
+  },
+  {
+    "key": "BT1-107#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "negated": true
+        }
+      ],
+      "reads": "if your leader is \u226afrieza's army\u226b: the card being played is played with its skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "negated": true
+        }
+      ],
+      "reads": "if your leader is \u226afrieza's army\u226b: the Battle Card being played is played with its skills negated"
+    }
+  },
+  {
+    "key": "P-642#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "side": "you",
+          "byFilter": {
+            "colors": [
+              "Red"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "garlic jr."
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated by the skills of your red <garlic jr.> cards"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any",
+          "side": "you",
+          "byFilter": {
+            "colors": [
+              "Red"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "garlic jr."
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area by the skills of your red <garlic jr.> cards"
+    }
+  },
+  {
+    "key": "P-171#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "draw",
+          "n": 1
+        },
+        {
+          "op": "may",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "opponent",
+                "area": "hand",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "EXTRA",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "choose 1 Extra Card from their hand",
+              "chooser": "opponent"
+            }
+          ],
+          "chooser": "opponent",
+          "reason": "choose 1 Extra Card from their hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "drop",
+          "reveal": true
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "not",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            }
+          },
+          "then": [
+            {
+              "op": "resolvingPlay",
+              "negated": true
+            }
+          ]
+        }
+      ],
+      "reads": "draw 1, your opponent may: your opponent chooses 1 Extra Card in your opponent's hand, move the chosen cards to drop, if not (you took that choice): the card being played is played with its skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "draw",
+          "n": 1
+        },
+        {
+          "op": "may",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "opponent",
+                "area": "hand",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "EXTRA",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "choose 1 Extra Card from their hand",
+              "chooser": "opponent"
+            }
+          ],
+          "chooser": "opponent",
+          "reason": "choose 1 Extra Card from their hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "drop",
+          "reveal": true
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "not",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            }
+          },
+          "then": [
+            {
+              "op": "resolvingPlay",
+              "cardType": "BATTLE",
+              "negated": true
+            }
+          ]
+        }
+      ],
+      "reads": "draw 1, your opponent may: your opponent chooses 1 Extra Card in your opponent's hand, move the chosen cards to drop, if not (you took that choice): the Battle Card being played is played with its skills negated"
+    }
+  },
+  {
+    "key": "EX12-03#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "mode": "rest"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        }
+      ],
+      "reads": "the card being played is played in Rest Mode, choose this card, play the chosen cards"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "resolvingPlay",
+          "cardType": "BATTLE",
+          "mode": "rest"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "play this card"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        }
+      ],
+      "reads": "the Battle Card being played is played in Rest Mode, choose this card, play the chosen cards"
+    }
+  },
+  {
+    "key": "DB1-087#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "reads": "this card can't have their skills negated"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "beNegated",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "fromArea": "any"
+        }
+      ],
+      "reads": "this card can't have their skills negated in any area"
+    }
+  }
+]

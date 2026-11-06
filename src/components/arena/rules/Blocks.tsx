@@ -1054,6 +1054,7 @@ function AmountChip({ value, path, bad, onChange, rule }: { value: unknown; path
           const val = v[f];
           const put = (x: unknown) => onChange({ ...v, [f]: x });
           if (arg === "selector") return <SelectorPhrase key={f} value={val as Selector} path={path} bad={false} onChange={put} rule={rule} inCond />;
+          if (arg === "markerCost") return <SelectChip key={f} label="marker payment" value={val as string} options={["spiritBoost"]} optional={false} bad={false} onChange={put} />;
           if (arg === "number") return <NumberChip key={f} label={f} value={val as number} bad={false} onChange={(n) => put(n ?? 0)} />;
           if (arg === "side") return <SelectChip key={f} label="whose" value={val as string} options={optionsOf("side")} labels={SIDE_WORDS} optional={false} bad={false} onChange={put} />;
           if (arg === "attr") return <SelectChip key={f} label="which measure" value={val as string} options={EXPR_ATTRS} optional={false} bad={false} onChange={put} />;

@@ -1,5 +1,7 @@
 # Arena — a life card's move as a fourth replacement moment: scope
 
+**Historical implementation scope, corrected 6 Nov 2026.** Code paths and line numbers below describe the original increment. Its damage-only implementation is not the full rules scope. BT10-031 and normalized SD18-001 own FAQs explicitly apply the Life replacement to BT5-050 Dimension Magic’s alternative cost. Current native probes reproduce the missing replacement offer; that repair remains in progress.
+
 Issue #272. BT10-031 and SD18-01 (and their `b` back prints) all print the same
 line: "During your opponent's turn, if you would add a card from your life to
 your hand or place it in your Drop Area, you may reveal it and add it to your
@@ -51,29 +53,26 @@ targeting a card taken from `s.players[p].life`/`h.zone(p, "life")`:
    on the line above the loop says so, and no `dealtDamage`/`lifeLeft` moment
    is pended for it. A card headed to hand this way still matches BT10-031's
    bare wording ("if you would add a card from your life to your hand"), but
-   it is not what either printed card is about (this op fires only from the
-   controller's *own* skill resolving on their *own* turn in every catalog
-   use, which the "during your opponent's turn" gate on both cards would
-   refuse anyway) — noted for completeness, not pursued.
-4. **`payAltCost`'s `pay: "life"` branch** (`state.ts:1912-1917`, 20-19/5-3's
-   "add N cards from your life to your hand" as another way to pay a
-   [Counter]'s price). To **hand** always, and — unlike the three above —
-   this is the *paying* player's own deliberate choice, not something that
-   "would" happen to them; 9-10 replaces an event, and choosing to pay a
-   price is not one. Also always on the payer's own turn in a [Counter]'s
-   ordinary case (answering the opponent's attack, i.e. paid on the
-   *defending* player's own following declaration, not "during your
-   opponent's turn" from the payer's chair — the two cards' gate would not
-   even open here). Excluded on both grounds.
+   the replacement's turn gate must be evaluated at the actual resolution.
+   An Awaken or other skill resolving during the opponent's turn cannot be
+   excluded merely because its controller activates it. This route was not
+   implemented by the original damage-only increment.
+4. **`payAltCost`'s `pay: "life"` branch** (now in `vm/costs.ts`).
+   Adding Life to Hand as a Counter's alternative energy payment is also
+   covered by the printed replacement. BT10-031 and SD18-001 own FAQs both
+   explicitly name BT5-050 Dimension Magic and answer yes. Answering the
+   opponent's attack takes place during the opponent's turn; declaring a
+   Counter does not change whose turn it is. Paying a cost does not exempt
+   its movement from replacement discovery. Whether the resulting action
+   completely pays the cost is a separate question under RM5-8 and R-427.
 
-**Conclusion: one site is in scope.** `battleDamage` is the only one of the
-four that can produce *either* named destination, the only one damage-shaped
-enough to trigger the "during your opponent's turn" gate as its normal case
-(an attack is always the opponent's, from the defender's chair), and the one
-a Drop-side reveal is actually observable on. `damage`/`lifeDownTo`/
-`payAltCost`'s life branch stay exactly as they are — additive, not universal,
-exactly as increment 1/2 of the Battle Area feature left 46 of 48 sites
-untouched.
+**Implementation boundary, not a rules exclusion.** The original increment
+implemented `battleDamage` only. Script Life movement and alternative Life
+payment need their own resumable replacement choices and completion handling.
+The native 6 Nov probe with complete SD18-01 and BT5-050 records confirms
+that the alternative currently moves Life directly to Hand without offering
+Trunks's replacement, despite the official FAQ. Do not treat that missing
+prompt as supported behavior or infer payment completion from final area alone.
 
 ### 1.2 Can `battleDamage` suspend? Yes, and more cheaply than the Battle Area case needed
 
@@ -191,10 +190,10 @@ same convention, aimed at a hand instead of a life area for the first time).
 
 ## 3. What is out of scope, named rather than silently dropped
 
-- The `damage` op, `lifeDownTo` and `payAltCost`'s life branch (§1.1 points
-  2-4) do not check the new replacement. A card that happened to print this
-  wording narrowed to one of those three moments would be refused, not
-  wrongly offered — no such card exists in the catalog today.
+- The original increment did not wire the script `damage`, `lifeDownTo` or
+  alternative-Life-payment routes (§1.1 points 2-4). These are completion
+  gaps, not evidence that the printed replacement excludes those movements.
+  The Dimension Magic interaction is explicitly documented by both Trunks FAQs.
 - Multiple simultaneous life-card replacements naming different destinations,
   or a redirect (as opposed to a substitute) version of this event: not
   printed by any card, so not built.

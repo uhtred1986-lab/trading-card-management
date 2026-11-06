@@ -1,5 +1,6 @@
 /** #574: the owned Charge duration and SD7 closed-area shuffle readings. */
 import assert from "node:assert/strict";
+import { emptyFilter } from "../../src/lib/arena/text/filters";
 import { compileCostProgram, compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { buildSnapshot } from "../../src/lib/arena/snapshot";
@@ -182,8 +183,11 @@ unavailable("C574-DESIRE", ["V1", "V1"], (state, id) => {
     const leader = leaderOf(state, "p1");
     if (nested) state.cards[leader].cardId = "C574-WISH";
     const id = zoneOf(state, "p1", "hand").find((item) => state.cards[item].cardId === "C574-ONCE")!;
-    state.effects.push({ id: 5743, target: id, kind: "forbid", value: 0,
-      forbid: { what: "activateSkill", pay: price!.ops }, until: "turn",
+    // This external tax describes the Extra by name, so it survives the
+    // original Extra's Hand-to-Drop activation staging. A resolved effect
+    // attached to that departing occurrence would correctly expire instead.
+    state.effects.push({ id: 5743, target: "", kind: "forbid", value: 0,
+      forbid: { what: "activateSkill", filter: { ...emptyFilter(), names: ["C574-ONCE"] }, pay: price!.ops }, until: "turn",
       source: leader, createdTurn: state.turn, ownerTurn: "p1", master: "p1" });
     const taxes = rulesTaxes(CTX, loaded.definition, state, "activateSkill", { player: "p1", card: id });
     assert.equal(taxes.length, 1, "#677: existing readers recognise the extra activation price");

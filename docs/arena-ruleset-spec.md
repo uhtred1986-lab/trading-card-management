@@ -91,7 +91,7 @@ else is a macro. Four things follow, and they are the reason the tables below ar
 
 ### 2.2 The primitive vocabulary
 
-Twenty-nine primitives carry every row below — twenty-two operations and seven conditions.
+Thirty primitives carry every row below — twenty-three operations and seven conditions.
 
 | Primitive | Today | What it says |
 |---|---|---|
@@ -110,6 +110,7 @@ Twenty-nine primitives carry every row below — twenty-two operations and seven
 | `copySkills` | `copySkills` | One card takes on another's printed skills, as they stood when the copy was made (20-18). |
 | `play` | `play` | The game's own play action is invoked for a card (5-5). |
 | `invokeSkill` | `invokeSkill` | A selected card's declared skill is activated through its own legality, declaration, nested resolution and return to the parent (12-2-4). |
+| `energyEntryExhaust` | `energyEntryExhaust` | A descriptor for an optional procedure owned by the original Energy movement; ordinary sequential effects cannot interpose before that arrival. Bounded native tests use synthetic stored descriptors; compiler and card admission remain blocked. |
 | `forbid` | `forbid` | A standing rule that an action may not happen, with a budget and an escape (20-14). |
 | `permit` | `permit` | A rule of the game is lifted for one card (8-1-1). |
 | `immune` | `immune` | A card no skill may touch (9-1-4). |
@@ -158,6 +159,7 @@ disagree or if a row is missing from either.
 | `moveTo` | primitive | This **is** `move`. |
 | `play` | primitive | The play action, not a destination (5-5); see §2.2 for why this row is provisional. |
 | `invokeSkill` | primitive | SD7-01 selects a qualifying ≪Desire≫ Extra from hand and invokes its actual [Activate: Main] line (12-2-4): the Extra moves to Drop before the nested skill and the parent resumes afterward. No sequence of `moveTo` and the nested effect body performs the legality, once/prohibition checks, skill announcement and saved parent continuation. The printed original energy and skill prices are waived, but external activation taxes remain a separate open gap (#677). |
+| `energyEntryExhaust` | primitive | Records two distinct colored Drop-to-Warp slots for the optional Energy-Exhaust entry procedure. Its parent movement must own suspension, occurrence identity and resumption before arrival; a detached `may` plus `negate` cannot express that timing. This descriptor is currently uncollected by Permanent loading and refused as an ordinary executable step; it grants no card admission. |
 | `switchMode` | macro over `modifyAttr` | Active or Rest is an attribute of the card; "switched to Rest Mode by one of your skills" (1-10) is a trigger on the change and its cause. |
 | `modifyAttr` | primitive | One attribute of one card, by a delta (`amount`) or by the values it also counts as (`values`), for a duration or — printed as a [Permanent] — for as long as the rule holds. The row the three below lower to, and the reason they are one mechanism rather than three. |
 | `power` | macro over `modifyAttr` | Attribute `power`, by a delta, for a duration. |
@@ -223,6 +225,7 @@ can name the attributes the engine keeps in code (§2.5).
 | `markers` | macro over `count` | `markers(SELECTOR)` is already an expression (§2.6); this row is a bound on it. |
 | `inBattle` | macro over `count` | "Attacking", "being attacked" and "in a battle" are roles of the battle in progress; as filter fields they are a count of the cards in the role. |
 | `battled` | macro over `count` | "Has been in a battle this turn" is a flag the engine keeps on the card; as a filter field it counts. |
+| `counterActivatedFrom` | primitive | Versioned Counter declaration origin, bound to the original source and skill; subsequent payment and self-play cannot change it (R-463). |
 | `playedUsing` | macro over `count` | "During the turn you played it with [Over Realm]" (P-048, 22-15): the keyword whose own move played the card this turn, a fact both engines keep on the card (`playedUsing`, set as the `play … using:` lands, cleared at the turn's end and on a change of area); as a filter field it counts. |
 | `placedThisTurn` | macro over `count` | "At the end of a turn in which this card was placed in a Battle Area" (BT15-118, 5-5-4): did the card arrive in a Battle Area this turn, played or placed by a skill (5-5-1, owner's ruling of 2 Oct 2026) — a fact both engines keep on the card (`placedThisTurn`, set as it lands there from another area, cleared at the turn's end and on a change of area); as a filter field it counts. |
 | `every` | macro over `count` + `not` | Every card the first selector finds is also one the second finds: a bound of zero on the difference, plus the bound that makes the empty case false (0-2-4-1) rather than vacuously true. |
@@ -230,13 +233,17 @@ can name the attributes the engine keeps in code (§2.5).
 | `all` | macro over `any` + `not` | De Morgan. The interpreter may keep the case for legibility; the language does not need it. |
 | `leaderFlipped` | macro over `count` | "Has awakened" is the `flipped` attribute of a Leader (§2.5). |
 | `power` | macro over `count` | Filters already carry `powerMin` and `powerMax`, so this is a count of the cards the filter finds. |
+| `switched` | primitive | Original one-card Active-to-Rest completion bound by `switchMode.completedAs`; saved candidate occurrences prevent switching a fresh card, and prevented or already-Rest actions do not fulfill the offer (R-429; 0-2-4-1, 20-16). |
+| `koedByThisSkill` | primitive | Original KO completion bound by `ko.completedAs`, with final effective energy cost under RM9-12-1. Skill substitutions do not satisfy it; reviewed native Z, token and Ultimate removal preserve original cause. Missing cost is not zero; KO-trigger admission remains separate (R-506). |
+| `moved` | primitive | Original movement results bound by `moveTo.completedAs`, including saved selected occurrences and replacement continuations (R-426; 20-16/17). A replacement or a merely chosen card does not complete the original action. |
 | `did` | primitive | The resolution's own record (20-16). No amount of counting the board says whether *this skill* drew a card. |
 | `not` | primitive | Negation. |
 | `chose` | macro over `count` | How many cards were bound to the named variable: a count over `FROM $var`. |
 | `choseFrom` | primitive | Phrasing batch 6: did a choice over more than one area take a card from one of `areas` — "If you placed a card from your hand at the bottom of your deck" (EX16-02)? Where each card was as it was chosen, kept on the frame (`chosenFrom`): the move after the choice has taken it elsewhere, so nothing counted on the board now says it. |
-| `varMatches` | macro over `count` | `count(FROM $var matching the filter) >= 1`. |
+| `paidMarkers` | primitive | R-449: the actual successful Spirit Boost quantity and historical payer attributes, including last-marker departure and known-empty zero/negated/waived payment; never the live Unison or chosen X. |
+| `varMatches` | primitive | Live variable matching is `count(FROM $var matching the filter) >= 1`; `paid: true` matches saved characteristics of successful payment cards (R-389), independent of their current area or characteristics. |
 | `varAttrIsX` | primitive | "If the revealed card's energy cost is the same as the declared number" (BT22-090): the card a reveal bound, measured against the X a `declare` bound. A comparison between a card's measure and a number the program holds, which `count` (a bound written into the program) cannot say. |
-| `xAtLeast` | primitive | Phrasing batch 10 (22-43): "If you removed a marker from one of your red Unison Cards using this skill" on a [Spirit Boost X] line (BT14-029): the X its price was paid at is at least n. A number the program holds, which `count` cannot say. |
+| `xAtLeast` | primitive | The selected X is at least n. R-449 historical Spirit Boost predicates instead use actual `paidMarkers`; this primitive remains available for genuine selected-number conditions. |
 | `isTurnPlayer` | primitive | A fact about the game rather than about any card or pile (7-1). Stage 3 declares the turn player as a game attribute, which will make this a comparison like the rest. |
 | `asking` | primitive | A fact about the game rather than about any card or pile: which question is being asked. Nothing counted on the board says it, and the prompt is the interpreter's own (§7). |
 | `countering` | primitive | Mechanism batch 3 (22-10-8): is the [Counter] this one answers of the named kind — "Negate the [Counter: Attack] skill" (EX09-06)? A fact about the counter motion waiting under the running one, not about anything counted on the board. |

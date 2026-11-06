@@ -121,6 +121,13 @@ function drive(s: VmState, pick: (s: VmState, options: ReturnType<typeof legal>)
 const skillsOf = (id: string): GameEvent[] => events.filter((e) => e.type === "skill" && e.card === id);
 
 const attrs = (s: VmState, id: string) => attrsNow(withTokens(ctx), game, s, id);
+// After confirmative zero-power removal (21-6), read the new Drop
+// occurrence: the departed Battle occurrence's modifier ended (3-1-4).
+function droppedForPower(s: VmState, id: string) {
+  assert.ok(zone(s, s.cards[id].owner, "drop").includes(id), "chosen Battle card reaches its owner's Drop after nonpositive power");
+  assert.equal(attrs(s, id).power, 10000, "old Battle power modifier ends at departure");
+}
+
 
 const promptOf = (s: VmState) => s.prompt as unknown as { kind: string; player: PlayerId; choice: { candidates: string[]; min: number; max: number; reason: string }; options: string[]; reason: string };
 const choose = (s: VmState, player: PlayerId, ids: string[]): VmState => play(s, { type: "choose", player, cards: ids });
@@ -374,7 +381,8 @@ const counterPaid = (s: VmState, card: string) => legal(s).find((l) => l.action.
   assert.deepEqual(q.candidates, [five.foe], "only the opponent's Battle Card");
   s = choose(s, "p1", [five.foe]);
   assert.equal(attrs(s, leaderOf(s, "p1")).power, 10000 + 40000, "+40000 for the battle");
-  assert.equal(attrs(s, five.foe).power, 10000 - 10000, "-10000 for the turn");
+  assert.ok(zone(s, "p2", "drop").includes(five.foe), "zero power sends the affected Battle card to Drop (21-6)");
+  assert.equal(attrs(s, five.foe).power, 10000, "the Drop occurrence no longer retains its old power modifier (3-1-4)");
   // 5-2-4: "up to" may be answered with nobody.
   let z = play(five.s, alt!);
   z = choose(z, "p1", []);
@@ -447,8 +455,8 @@ const counterPaid = (s: VmState, card: string) => legal(s).find((l) => l.action.
   assert.deepEqual([q.min, q.max], [0, 1], "second pick: 0 or 1");
   assert.ok(!q.candidates.includes(w.foes[0]) && q.candidates.includes(w.foes[1]), "the first pick is not offered again");
   s = choose(s, "p1", [w.foes[1]]);
-  assert.equal(attrs(s, w.foes[0]).power, 10000 - 15000, "-15000 power for the turn");
-  assert.equal(attrs(s, w.foes[1]).power, 10000 - 15000);
+  droppedForPower(s, w.foes[0]);
+  droppedForPower(s, w.foes[1]);
   assert.equal(attrs(s, w.foes[2]).power, 10000, "the third was not chosen");
   assert.ok(zone(s, "p1", "battle").includes(w.y), "...then play this card");
 }
@@ -836,8 +844,8 @@ const toMain = (s: VmState): VmState => drive(s, (t, o) => o.find((l) => l.actio
   q = ask(s);
   assert.ok(!q.candidates.includes(r.foes[0]) && q.candidates.includes(r.foes[1]));
   s = choose(s, "p1", [r.foes[1]]);
-  assert.equal(attrs(s, r.foes[0]).power, 10000 - 15000);
-  assert.equal(attrs(s, r.foes[1]).power, 10000 - 15000);
+  droppedForPower(s, r.foes[0]);
+  droppedForPower(s, r.foes[1]);
   const b = run("L-BLUE");
   assert.equal(counterPaid(b.s, b.c), undefined, "a blue Leader: the condition-only price fails, not offered");
 }
@@ -915,7 +923,7 @@ const toMain = (s: VmState): VmState => drive(s, (t, o) => o.find((l) => l.actio
   assert.deepEqual([q.min, q.max], [0, 1]);
   assert.deepEqual(q.candidates, [foe], "the opponent's Battle Card only");
   s = choose(s, "p2", [foe]);
-  assert.equal(attrs(s, foe).power, 10000 - 10000);
+  droppedForPower(s, foe);
 }
 
 // ── The flipped SD15-01 and the Unison / Spirit Boost Autos ────────────────

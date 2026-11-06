@@ -144,6 +144,8 @@ const instance = (fields: OpField[], wide: boolean): Record<string, unknown> => 
   // whole expression tree of 20-5 is written out here, because the sampler
   // never reaches any of it.
   const AMOUNTS: Amount[] = [
+    { paidMarkers: "spiritBoost" },
+    { paidMarkers: "spiritBoost", times: 5000 },
     1,
     { var: "n" },
     { count: { side: "you", area: "battle", count: 99 } },
@@ -536,7 +538,7 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     const def: Definition = { define: "OP", name: "holes", takes: takes as never, do: body };
     tripDefs([def], "a DEFINE OP with a hole in every field type");
     const text = printDefinition(def);
-    assert.match(text, /until: \$p_duration/, "a duration hole does not print as $name");
+    assert.match(text, /(?:until|negatedUntil): \$p_duration/, "a duration hole does not print as $name");
     assert.match(text, /UNDER \(TOP \$h IN battle\) \$n TOP \$k IN \$side\.\$area/, `a selector's slots do not print as holes:\n${text}`);
     assert.match(text, /"yes" \$yes/, "a mode's whole program does not print as a hole");
     assert.match(text, /power\(target: \$t, amount: \$n, until: turn\)/, "an amount or ref var prints differently from before");
@@ -1320,11 +1322,17 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
   // Battle line (BT21-070) as well as a Main/Battle one.
   const selectedMain: Op = { ...selected, skillKind: "activate:main" } as Op;
   const selectedBattle: Op = { ...selected, skillKind: "activate:battle" } as Op;
-  for (const [name, op] of [["SD7 Desire", desire], ["BT31 hand Extra", selected], ["coloured Desire", bounded], ["hand Extra Main line", selectedMain], ["hand Extra Battle line", selectedBattle]] as const) {
+  const deckAny: Op = { op: "invokeSkill", sel: { side: "you", area: "deck", count: 1, upTo: true }, skillKind: "activate:any", from: "deck" };
+  const dropBound: Op = { op: "invokeSkill", sel: { fromVar: "chosen", count: 1, upTo: true }, skillKind: "activate:main", from: "drop" };
+  for (const [name, op] of [["deck Extra any Activate", deckAny], ["bound Drop Extra", dropBound], ["SD7 Desire", desire], ["BT31 hand Extra", selected], ["coloured Desire", bounded], ["hand Extra Main line", selectedMain], ["hand Extra Battle line", selectedBattle]] as const) {
     assert.equal(validateProgram([op]), true, `${name} is a complete invokeSkill form`);
     tripOps([op], `${name} invokeSkill language round trip`);
   }
   for (const wrong of [
+    { ...deckAny, sel: { side: "opponent", area: "deck", count: 1, upTo: true } },
+    { ...deckAny, sel: { side: "you", area: "drop", count: 1, upTo: true } },
+    { ...dropBound, sel: { fromVar: "chosen", side: "opponent", count: 1, upTo: true } },
+    { ...desire, from: "deck" },
     { ...selected, trait: "Desire" },
     { ...selected, maxCost: "currentEnergy" },
     { ...selectedBattle, sel: { side: "you", area: "hand", count: 1 } },
@@ -1335,7 +1343,7 @@ const declaration = (kind: DefineKind, wide: boolean): Definition => {
     { ...bounded, maxCost: "currentEnergy" },
   ]) {
     assert.equal(validateProgram([wrong]), false, "mixed or widened invocation forms are refused");
-    assert.match(programProblem([wrong]) ?? "", /use either Desire's trait\/current-energy Main line, a one-card hand selector bounded by current energy for a Main line, or an optional one-card hand selector/);
+    assert.match(programProblem([wrong]) ?? "", /use either Desire's hand trait\/current-energy Main line/);
   }
 }
 

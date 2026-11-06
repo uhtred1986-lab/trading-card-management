@@ -1,3 +1,26 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
+import {incrementalLookIntent} from './incremental-look';
+import {paidHandIntent} from './paid-hand-contract';
+import {paidHandProblem} from './paid-hand-runtime';
+import { paidDropProblem } from './paid-drop-runtime';
+import { paidDropIntent } from './paid-drop-contract';
+import { IllegalAction } from './illegal-action';
+import { paidRemovalIntent } from './paid-removal-runtime';
+import { captureOrdinaryActivation, ordinaryActivationProblem } from "./ordinary-activate-runtime";
+import { activateUnderOrigin, activateUnderProblem, type ActivateUnderOrigin } from "./activate-under";
+import { freshAppliedEffectRoot } from "./applied-effect-receipt";
+import { projectStandingNegationMoves } from "./standing-negation-projection";
+import { hasStandingNegationHistory, validateStandingNegationRead } from "./standing-negation-runtime";
+import { captureCopiedSkill } from "./triggers";
+import { canPayAwakenAlternative, hasAwakenAlternative } from "./awaken-alternative-costs";
+import { fieldAction, fieldPaymentRefusals, isFieldPayment, queueFieldCost } from "./field-costs";
+import { sameCounterUnderDeclaration, sameCounterUnderSource, validCounterUnderOrigin, resetUnderCounterOccurrence } from "./counter-under";
+import { resetEnergyCounterOccurrence } from "./counter-energy";
+import { isOverRealmPayment, overRealmAction, overRealmCost } from "./over-realm-cost";
+import { rebuildScope } from "./skill-play-scope";
+import { bindPaidMarkers, markerHistoryContract } from "./paid-markers";
+import { energyCouponContract } from "./energy-coupon-saves";
+import { isExtraCardActivation, staleExtraSelfActivation } from "./extra-activation";
 import { sparkingIsValid } from "./validity";
 import { requireSkillPayment } from "./skill-payment";
 import { fusionIdentityProblem } from "./skill-identity";
@@ -90,13 +113,13 @@ import { disjointGroups, disjointPayable } from "./disjoint";
 import { HIDEABLE, selectedCount, type Cond, type Op, type Script, type ScriptFrame, type Selector } from "./script";
 import type { ActionDef, GameDefinition, KeywordDef } from "../rulesets";
 import { attrsOf } from "./cards";
-import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, restingFor, skillOrbs, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
-import { activationPriceProblem, isFixedUnderHost, taxPowerOnSelf } from "./activation-price-support";
-import { skillNegated, skillsNegated, type VmAltCost } from "./effects";
-import { RulesetBroken } from "./errors";
+import { activeEnergy, altCostFor, comboPriceOf, cardColors, cardPrice, paidPoolVar, restingFor, skillOrbs, captureActivationEnergyUses, consumeActivationEnergyUses, spendPriceUses, spendSkillCostUses, type BoundAmounts } from "./costs";
+import { supportedZAwakenActionPrice, activationPriceProblem, isFixedUnderHost, taxPowerOnSelf } from "./activation-price-support";
+import { keywordSkillsNegated, skillNegated, skillsNegated, type VmAltCost } from "./effects";
+import { NotYet, RulesetBroken } from "./errors";
 import { log } from "./events";
 import { moved } from "./flow";
-import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, namedCandidates, permissions, resolveRef, resolveSelector, standingKindNegated, staticsNow, taxesOn, type TaxInForce } from "./program";
+import { attrsNow, forbiddenBy, grantedLines, hasKeyword, keywordPlayForbiddenBy, keywordPlayTaxes, namedCandidates, permissions, resolveRef, resolveSelector, standingKeywordsNegated, standingKindNegated, staticsNow, taxesOn, type TaxInForce } from "./program";
 import { describeScript, taxHandNeed } from "./script-schema";
 import { predicateOf } from "./filters";
 import type { PayerGrant } from "./effects";
@@ -106,10 +129,12 @@ import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram 
 import { masterOf, skillsShowing } from "./triggers";
 import { replacementChoices } from "./replace";
 import { canCombo, coversColors } from "../text/cards";
-import { findCard, moveCard } from "./zones";
+import { findCard, moveCard, hostOf } from "./zones";
 import { lifeToHandForbidden } from "./life-movement";
 import { spendUse, usesLeft } from "./limits";
 import type { KeywordCost } from "./keyword-costs";
+import { bondIsValid } from "./bond";
+import { isOrderedZAwaken, zAwakenCost } from "./z-awaken-costs";
 
 /**
  * One candidate of an activation: the copy on the table, the printed line, and
@@ -120,6 +145,7 @@ import type { KeywordCost } from "./keyword-costs";
  * is refused, the second is a rule that says nothing happens.
  */
 export interface ActivationLine {
+  activateUnderOrigin?: ActivateUnderOrigin;
   card: string;
   skillIndex: number;
   skill: Skill;
@@ -199,7 +225,7 @@ export function windowOf(game: GameDefinition, def: ActionDef): string {
  * included, so it offers none and is asked about none — the same reading
  * `pendAutos` makes of the same rule.
  */
-export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef, card: string, game?: GameDefinition): ActivationLine[] {
+export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef, card: string, game?: GameDefinition, invokedFrom?: "hand" | "deck" | "drop"): ActivationLine[] {
   const families = new Set((def.skills ?? []).map(familyOf));
   const inst = state.cards[card];
   if (!inst || inst.hidden) return [];
@@ -228,8 +254,8 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     if (!keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.zDeck) continue;
     // #920 / 9-1-3-2: the Drop is a candidate area only when this
     // non-keyword line's persisted program explicitly takes this card from
-    // there. Unrelated lines and keyword moves gain no Drop permission.
-    if (findCard(state, card)?.zone === ACTIVATION_ZONES.drop &&
+    // there. R-420: a separate effect can expressly invoke a line from Drop; this never widens the ordinary menu.
+    if (invokedFrom !== "drop" && findCard(state, card)?.zone === ACTIVATION_ZONES.drop &&
       (keyword || !usableFrom(showing.scripts.bySkill[skill.index]).includes("drop"))) continue;
     // 22-15 widened: the Warp is where nothing is used from, except an [Over
     // Realm] line whose own card's [Permanent] says it "can be activated from
@@ -257,7 +283,13 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     // your Combo Area: …" (EX19-12), "You may place this card in its owner's Drop Area from your energy" (EX17-05).
     // A Combo Area holds cards only during a battle (21-4-2), so its lines come at the combo prompt.
     if ((zone === ACTIVATION_ZONES.combo || zone === ACTIVATION_ZONES.energy) && (keyword || !usedHere(showing.scripts.bySkill[skill.index], zone))) continue;
-    out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
+    const line: ActivationLine = { card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) };
+    if (hostOf(state, card)) {
+      const origin = game ? activateUnderOrigin(ctx, game, state, line) : null;
+      if (!origin) continue;
+      line.activateUnderOrigin = origin;
+    }
+    out.push(line);
   }
   // #930, P-360: a line this card in hand has been granted ("Red <Gogeta: Br>
   // cards in your hand gain the following skill: [Union-Fusion]…") is a move of
@@ -300,6 +332,20 @@ function widenedOffer(ctx: EngineContext, game: GameDefinition, state: VmState, 
 
 // ── what a line costs ───────────────────────────────────────────────────────
 
+/** SD16-001 FAQ: negating keyword skills removes Burst's payment, not its Activate line. */
+export function burstNegated(ctx: EngineContext, game: GameDefinition, state: VmState, card: string): boolean {
+  return keywordSkillsNegated(state, card) || standingKeywordsNegated(ctx, game, state, card);
+}
+
+/** Supplementary fixed resources shared by Activate/Auto and Counter prices. */
+export function supplementaryPaymentAmounts(ctx: EngineContext, game: GameDefinition, state: VmState, card: string, payment: import("./script").SkillPayment): Pick<BoundAmounts, "pooled" | "markersFrom"> {
+  const suppressed = !!(payment.burst || payment.spiritBoost) && burstNegated(ctx, game, state, card);
+  return {
+    pooled: { [ACTIVATION_ZONES.burst]: suppressed ? 0 : (payment.burst ?? 0) },
+    markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: suppressed ? 0 : -(payment.spiritBoost ?? 0), by: "Spirit Boost", ...(payment.spiritBoostPayer ? { filter: payment.spiritBoostPayer } : {}) } },
+  };
+}
+
 /**
  * The amounts this line binds to the prices the action names (#147).
  *
@@ -323,11 +369,12 @@ function widenedOffer(ctx: EngineContext, game: GameDefinition, state: VmState, 
 export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, line: ActivationLine, withCardPrice = true, onto?: string): BoundAmounts {
   const sk = line.skill;
   const payment = requireSkillPayment(line.script?.price);
+  const supplementary = supplementaryPaymentAmounts(ctx, game, state, line.card, payment);
   const own = skillOrbs(ctx, game, state, line.card, sk, onto, payment);
   const orbs: Partial<Record<Color, number>> = { ...own.orbs };
   let total = own.total;
-  if (withCardPrice && inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
-    const play = cardPrice(ctx, game, state, line.card);
+  if (withCardPrice && (inHand(state, line.card) || !!line.activateUnderOrigin) && isExtra(ctx, game, state, line.card)) {
+    const play = cardPrice(ctx, game, state, line.card, sk);
     total += play.total;
     for (const [colour, n] of Object.entries(play.orbs)) orbs[colour as Color] = (orbs[colour as Color] ?? 0) + (n ?? 0);
   }
@@ -339,10 +386,10 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
     // 22-46-3: a line used from the Z-Deck pays its card's Z-Energy cost, read
     // off the card as a Z-card played from there pays it (16-2) — [Z-Awaken]
     // (#155); bound to 0 everywhere else, so no line in play pays it again.
-    pooled: { [ACTIVATION_ZONES.burst]: payment.burst ?? 0, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
+    pooled: { ...supplementary.pooled, ...(findCard(state, line.card)?.zone === ACTIVATION_ZONES.zDeck ? {} : { [ACTIVATION_ZONES.zEnergy]: 0 }) },
     // 22-43: [Spirit Boost X]'s markers come off the Unison Card, the place
     // `DEFINE COST spiritBoost` names; bound to 0 on a line with no tag.
-    markersFrom: { [ACTIVATION_ZONES.spiritBoost]: { n: -(payment.spiritBoost ?? 0), by: "Spirit Boost" } },
+    markersFrom: supplementary.markersFrom,
     payers: payWithPayers(ctx, game, state, player, line),
     unreadable: chargeablePrice(line) ? null : "the stored skill payment is unreadable",
   };
@@ -494,8 +541,9 @@ function chargeablePrice(line: ActivationLine): boolean {
   // before the swap (`vm/swap-costs.ts`), on the strict action-price host.
   // [Union-Fusion], [Union-Potara] and the [Evolve] family are the third
   // (#926): their `DO` pays it where it says `payActionPrice`
-  // (`vm/keyword-costs.ts`), on the same strict host.
-  if (price.ops?.length) return !line.keyword || aegis || !!swapActionPrice(line) || !!keywordActionPrice(line);
+  // (`vm/keyword-costs.ts`), on the same strict host. R-387 admits Awaken's
+  // action price before its native effect, with source/material occurrences guarded.
+  if (price.ops?.length) return !line.keyword || line.keyword.name === "Awaken" || aegis || (isFieldPayment(line) && fieldAction(line).length > 0) || !!swapActionPrice(line) || !!keywordActionPrice(line);
   return true;
 }
 
@@ -520,7 +568,18 @@ export function activationRefusals(
   keywordRefusals: () => Requirement[] = () => [],
 ): { before: Requirement[]; after: Requirement[] } {
   const before: Requirement[] = [];
+  if(incrementalLookIntent(line.script?.ops))before.push({kind:"other",detail:"private inspection is not supported by this Activate producer (R527)"});
+  const handProblem = paidHandProblem(ctx, game, state, line);
+  if (handProblem) before.push({kind:"other",detail:handProblem});
+  const dropProblem = paidDropProblem(ctx, game, state, line);
+  if (dropProblem) before.push({ kind: "other", detail: dropProblem });
+  const ordinaryProblem = ordinaryActivationProblem(ctx, state, line);
+  if (ordinaryProblem) before.push({ kind: "other", detail: ordinaryProblem });
+  const underProblem = activateUnderProblem(ctx, game, state, line);
+  if (underProblem) before.push({ kind: "other", detail: underProblem });
   const after: Requirement[] = [];
+  const staleExtra = staleExtraSelfActivation(skillsShowing(ctx, state, line.card).scripts);
+  if (staleExtra && isExtraCardActivation(isExtra(ctx, game, state, line.card), findCard(state, line.card)?.zone ?? "", line.skill.kind, line.keyword?.name)) before.push({ kind: "other", detail: staleExtra });
   const { card, skill: sk } = line;
   const payment = requireSkillPayment(line.script?.price);
   const inst = state.cards[card];
@@ -558,18 +617,18 @@ export function activationRefusals(
   // Owner ruling 26 Oct 2026 (the batch 5 follow-up): on the board the move's
   // whole own price leaves — its energy and the cards it takes ([Union-Fusion]'s
   // materials, [Over Realm]'s Drop Area), `unpaidKeywordPlayTax`.
-  const unpaidPlay = playTaxes.length ? unpaidKeywordPlayTax(ctx, game, state, player, card, sk, playTaxes, boundFor(ctx, game, state, player, line).energy?.total ?? 0) : null;
+  const unpaidPlay = playTaxes.length && !isOverRealmPayment(line) ? unpaidKeywordPlayTax(ctx, game, state, player, card, sk, playTaxes, boundFor(ctx, game, state, player, line).energy?.total ?? 0) : null;
   if (unpaidPlay) before.push({ kind: "forbidden", by: unpaidPlay.by, until: unpaidPlay.until, unless: `you pay, each time: ${describeScript(unpaidPlay.ops).replace(/ other than this card\b/g, " other than the card being played")}` });
   // 20-14-1 (#677): a price on activating that cannot be paid is a ban, named
   // with the price — the legacy `whyNotActivate` asks it at the same place.
-  const unpaid = banned ? null : unpaidActivationTaxAfter(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind), boundFor(ctx, game, state, player, line).energy?.total ?? 0);
+  const unpaid = banned || isFieldPayment(line) ? null : unpaidActivationTaxAfter(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind), boundFor(ctx, game, state, player, line).energy?.total ?? 0);
   if (unpaid) before.push({ kind: "forbidden", by: unpaid.by, until: unpaid.until, unless: `you pay, each time: ${describeScript(unpaid.ops)}` });
   const left = usesLeft(state, player, card, sk);
   if (left === 0) before.push({ kind: "oncePerTurn", what: "skill", ...(sk.limit != null && !sk.oncePerTurn ? { limit: sk.limit } : {}) });
   // 22-6 / 22-31: [Bond X] and [Sparking X] are conditions on using the skill,
   // counted over a pool the game declares.
-  if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) {
-    before.push({ kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more Battle Cards in play` });
+  if (sk.bond != null && bondIsValid(ctx, game, state, player, sk, card) !== true) {
+    before.push({ kind: "condition", text: `[Bond ${sk.bond}]: ${sk.bond} or more matching Battle Cards in play` });
   }
   if (!sparkingIsValid(state, player, sk.validity)) {
     before.push({ kind: "condition", text: `[Sparking ${sk.sparking}]: ${sk.sparking} or more cards in your Drop Area` });
@@ -581,13 +640,13 @@ export function activationRefusals(
   // — and in its words, so the first requirement is the same one on both
   // engines. 22-43's [Spirit Boost], whose payment is a moment sixteen cards
   // answer, is still refused rather than charged (#149).
-  if (payment.burst != null && zone(state, player, ACTIVATION_ZONES.burst).length < payment.burst) {
+  if (payment.burst != null && !burstNegated(ctx, game, state, card) && zone(state, player, ACTIVATION_ZONES.burst).length < payment.burst) {
     before.push({ kind: "other", detail: `[Burst ${payment.burst}] needs that many cards in the deck` });
   }
   // 22-43-2: the same for [Spirit Boost X] — a Unison Card with X markers on it
   // — asked here for the same reason, in the legacy words (#157). The price is
   // `DEFINE COST spiritBoost`'s.
-  if (payment.spiritBoost != null) {
+  if (payment.spiritBoost != null && !burstNegated(ctx, game, state, line.card)) {
     const unison = zone(state, player, ACTIVATION_ZONES.spiritBoost)[0];
     if (!unison || (state.cards[unison]?.markers ?? 0) < payment.spiritBoost) before.push({ kind: "other", detail: "[Spirit Boost] needs the markers" });
   }
@@ -628,8 +687,9 @@ export function activationRefusals(
   // 4-3-3: an action price that cannot be paid on this board, asked where the
   // legacy `whyNotActivate` asks it — after the condition, before the energy —
   // and in its words (#458).
+  if (hasAwakenAlternative(line) && !canPayAwakenAlternative(ctx, game, state, player, line)) before.push({ kind: "other", detail: `cannot pay either alternative: ${sk.cost}` });
   const priceOps = actionPriceOf(line);
-  if (priceOps && !canPayPriceProgram(ctx, game, state, player, card, priceOps, payment.orbs)) before.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
+  if (priceOps && !line.activateUnderOrigin && !canPayPriceProgram(ctx, game, state, player, card, priceOps, payment.orbs)) before.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
 
   // …the price goes here, and `vm/actions.ts` puts it there.
 
@@ -658,13 +718,13 @@ export function activationRefusals(
  * Phrasing batch 6: the highest life ceiling an `awakenLife` permission of this player's gives this Leader's [Awaken]
  * ("…even if your life is at 6 or less": 6; "…even if you have 5 or more life": 99, none), or null for none in force.
  */
-function awakenCeiling(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): number | null {
+export function awakenCeiling(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string): number | null {
   const lifted = permissions(ctx, game, state, "awakenLife").filter((p) => p.master === player && p.target === card);
   return lifted.length ? Math.max(...lifted.map((p) => p.n ?? 99)) : null;
 }
 
 /** The condition with every ceiling on your own life raised to `n` (dropped at 99), and nothing else changed. */
-function raiseLifeCeiling(c: Cond, n: number): Cond {
+export function raiseLifeCeiling(c: Cond, n: number): Cond {
   if (c.kind === "all" || c.kind === "any") return { ...c, conds: c.conds.map((x) => raiseLifeCeiling(x, n)) };
   if (c.kind !== "life" || (c.side ?? "you") !== "you" || c.atMost === undefined) return c;
   if (n >= 99) {
@@ -779,22 +839,24 @@ export function fieldLineOf(ctx: EngineContext, game: GameDefinition, state: VmS
   const inst = state.cards[card];
   if (!inst || inst.owner !== player || inst.hidden || !isExtra(ctx, game, state, card)) return null;
   const showing = skillsShowing(ctx, state, card);
+  if (findCard(state, card)?.zone === "hand" && staleExtraSelfActivation(showing.scripts)) return "blocked";
   for (const skill of showing.skills) {
     const keyword = keywordMoveOf(game, skill);
     if (keyword?.name !== "Field") continue;
     // R-270: asked as the [Field] keyword skill, so "you can't activate [Field] cards" (XD3-01, `keywordSkill: Field`) holds here.
     if (skillsNegated(state, card) || skillNegated(state, card, skill.index, skill.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: skill.kind, keyword: "Field" })) return "blocked";
     const line: ActivationLine = { card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind: keyword.offer as string, keyword };
-    if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return "blocked";
+    if (fieldPaymentRefusals(ctx, game, state, player, line, true).length) return "blocked";
     if (usesLeft(state, player, card, skill) === 0 || !sparkingIsValid(state, player, skill.validity)) return "blocked";
     return line;
   }
   return null;
 }
 
-/** SD7-01: choose an Extra's real Main line, retaining every non-price activation gate. */
+/** R-420 / SD7-01: choose an Extra's real Activate line, retaining every non-price activation gate. */
 export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, op: Extract<Op, { op: "invokeSkill" }>): ActivationLine[] {
-  if (op.from !== "hand" || findCard(state, card)?.zone !== "hand" || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
+  if (op.from === "hand" && staleExtraSelfActivation(skillsShowing(ctx, state, card).scripts)) return [];
+  if (findCard(state, card)?.zone !== op.from || state.cards[card]?.owner !== player || !isExtra(ctx, game, state, card)) return [];
   if ("sel" in op) {
     // Audit effects 2: a selector over a name the program bound (the `activating` play of a hand Extra, EB1-59) was
     // resolved by the step, in its own frame; there is no frame here to read the name in.
@@ -809,16 +871,16 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
   }
   const def = game.actions.activate;
   if (!def) return [];
-  return activationsOf(ctx, state, def, card, game).filter((line) => {
+  return activationsOf(ctx, state, def, card, game, op.from).filter((line) => {
     const sk = line.skill;
-    if (line.kind !== op.skillKind || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
-    if (!requireSkillPayment(line.script.price).readable) return false;
+    if ((op.skillKind === "activate:any" ? !["activate:main", "activate:battle", "activate:main/battle"].includes(line.kind) : line.kind !== op.skillKind) || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
+    if (!requireSkillPayment(line.script.price).readable || paidRemovalIntent(line.script) || paidDropIntent(line.script) || paidHandIntent(line.script)) return false;
     if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: sk.kind })) return false;
     // #677: the printed price is waived (12-2-4); an external 20-14 tax is
     // not, so an Extra whose tax cannot be paid is not eligible at all.
     if (unpaidActivationTax(ctx, game, state, player, card, activationTaxes(ctx, game, state, player, card, line.kind))) return false;
     if (usesLeft(state, player, card, sk) === 0) return false;
-    if (sk.bond != null && zone(state, player, ACTIVATION_ZONES.bond).length < sk.bond) return false;
+    if (sk.bond != null && bondIsValid(ctx, game, state, player, sk, card) !== true) return false;
     if (!sparkingIsValid(state, player, sk.validity)) return false;
     const condition = line.script.price?.condition;
     return !condition || vmHost(ctx, game, state, []).condHolds({ ops: [], ip: 0, vars: {}, card, master: player }, condition);
@@ -869,6 +931,7 @@ export function unpaidActivationTaxAfter(ctx: EngineContext, game: GameDefinitio
   if (!taxes.length) return null;
   if (energy <= 0) return unpaidActivationTax(ctx, game, state, player, card, taxes);
   const copy = structuredClone(state);
+  validateStandingNegationRead(ctx, copy);
   for (const id of activeEnergy(game, copy, player).slice(0, energy)) copy.cards[id].mode = "rest";
   return unpaidActivationTax(ctx, game, copy, player, card, taxes);
 }
@@ -891,13 +954,15 @@ const KEYWORD_OUTLAYS_MAX = 128;
 export function unpaidKeywordPlayTax(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skill: Skill, taxes: TaxInForce[], energy: number): TaxInForce | null {
   if (!taxes.length) return null;
   const board = structuredClone(state);
+  validateStandingNegationRead(ctx, board);
   for (const id of activeEnergy(game, board, player).slice(0, energy)) board.cards[id].mode = "rest";
   const outlays = keywordOutlays(ctx, game, board, player, card, skill);
   if (!outlays?.length) return unpaidActivationTax(ctx, game, board, player, card, taxes);
   let first: TaxInForce | null = null;
   for (const outlay of outlays.slice(0, KEYWORD_OUTLAYS_MAX)) {
     const after = structuredClone(board);
-    for (const { id, to } of outlay) moveCard(after, game, id, to, { owner: after.cards[id].owner });
+    if (hasStandingNegationHistory(after)) projectStandingNegationMoves(ctx, game, after, outlay, "keywordPrice");
+    else for (const { id, to } of outlay) moveCard(after, game, id, to, { owner: after.cards[id].owner });
     const unpaid = unpaidActivationTax(ctx, game, after, player, card, taxes);
     if (!unpaid) return null;
     first ??= unpaid;
@@ -983,6 +1048,12 @@ export interface TaxGate {
   guards: number;
   /** A [Counter]: failing sends the card from the hand to the Drop. */
   counter?: true;
+  /** R438: a Drop Counter has already removed this exact source as payment. */
+  counterDropPaidEpoch?: number;
+  counterExtraSource?: import("./counter-extra-cost").ExtraCounterSource;
+  counterEnergyEpoch?: number;
+  counterUnderSource?: import("./counter-under").CounterUnderSource;
+  counterTaxPending?: {version:1;key:string};
 }
 
 /**
@@ -991,8 +1062,8 @@ export interface TaxGate {
  * on it. The caller has already refused an activation whose prices cannot be
  * paid whole (`unpaidActivationTax`).
  */
-export function activationTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skillKind: string): Omit<TaxGate, "guards"> | null {
-  const from = findCard(state, card)?.zone;
+export function activationTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, skillKind: string, declaredFrom?: string): Omit<TaxGate, "guards"> | null {
+  const from = declaredFrom ?? findCard(state, card)?.zone;
   if (!activationTaxes(ctx, game, state, player, card, skillKind, from).length) return null;
   const free = activationTaxes(ctx, game, state, player, card, skillKind, from, true).map((t) => t.key);
   return { player, card, skillKind, ...(from === undefined ? {} : { from }), paid: [], free };
@@ -1003,19 +1074,95 @@ export function queueTaxGate(state: VmState, gate: Omit<TaxGate, "guards">, guar
   state.programs.unshift({ ops: [], ip: 0, vars: {}, card: gate.card, master: gate.player, taxGate: { ...gate, guards, ...(counter ? { counter: true as const } : {}) } });
 }
 
+/** Validate a saved Extra tax choice before its operation can move a payer. */
+export function guardExtraCounterTaxPayment(ctx: EngineContext, state: VmState, ev: GameEvent[], frame: ScriptFrame): boolean {
+  if (frame.taxGate || frame.counterCost) return true;
+  const at = state.programs.findIndex(f => f.taxGate?.counter && f.taxGate.card === frame.card && f.taxGate.player === frame.master && (f.taxGate.counterExtraSource || f.taxGate.from === "hand" && ctx.defs[state.cards[f.card]?.cardId]?.type === "EXTRA" || state.programs.some(g => g.card === frame.card && g.counterCost?.extra)));
+  if (at < 0) {
+    if (frame.extraCounterTax) rebuildScope("rebuild the saved Extra Counter tax continuation");
+    return true;
+  }
+  const gate = state.programs[at].taxGate!, stamp = frame.extraCounterTax;
+  const source = gate.counterExtraSource;
+  if (!stamp || stamp.version !== 1 || !stamp.source || !source || stamp.source.card !== frame.card || source.card !== frame.card || stamp.source.cardId !== source.cardId || stamp.source.area !== source.area || stamp.source.epoch !== source.epoch || !Number.isSafeInteger(source.epoch) || source.epoch < 0) rebuildScope("rebuild the saved Extra Counter tax payment source");
+  const now = findCard(state, frame.card);
+  if (now?.owner === frame.master && now.zone === source.area && state.cards[frame.card]?.cardId === source.cardId && (state.cards[frame.card]?.zoneEpoch ?? 0) === source.epoch) return true;
+  state.programs.splice(0, at + 1 + gate.guards);
+  state.lastChoice = null; state.lastMode = null;
+  log(ev, { type: "note", text: "[Counter] activation failed: the original Extra source left before its tax payment" });
+  return false;
+}
+
 /** One look of the gate at the front of the queue (`vm/flow.ts`'s runner); the frame is already off the queue. */
 export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" {
   const gate = frame.taxGate!;
+  const underParent = state.programs[0];
+  if (gate.from === "under" || gate.counterUnderSource || underParent?.counterCost?.underOrigin) {
+    if (!gate.counter || gate.from !== "under" || gate.guards !== 1 || !underParent?.counterCost ||
+      underParent.card !== gate.card || underParent.master !== gate.player ||
+      !validCounterUnderOrigin(ctx, state, underParent) ||
+      !sameCounterUnderDeclaration(gate.counterUnderSource, underParent.counterCost.underOrigin?.source)) {
+      rebuildScope("rebuild the saved under-card Counter tax activation owner");
+    }
+    if (!sameCounterUnderSource(state, gate.card, gate.counterUnderSource!)) {
+      state.programs.splice(0, gate.guards);
+      log(ev, {type:"note",text:"[Counter] activation failed: the original under-card source or host left before its tax completed"});
+      return "done";
+    }
+  }
+  if (gate.counter && (gate.from === "energy" || gate.from === "drop") &&
+    (gate.guards !== 1 || !state.programs[0]?.counterCost || state.programs[0].card !== gate.card ||
+      state.programs[0].master !== gate.player || !Number.isSafeInteger(state.programs[0].skillIndex))) {
+    rebuildScope("rebuild the saved non-hand Counter tax activation owner");
+  }
+  if (gate.counter && gate.from === "hand" && (ctx.defs[state.cards[gate.card]?.cardId]?.type === "EXTRA" || state.programs.slice(0, gate.guards).some(f => f.card === gate.card && f.counterCost?.extra)) && !gate.counterExtraSource) rebuildScope("rebuild the saved hand-Extra Counter tax source");
+  if (gate.counterExtraSource) {
+    const source = gate.counterExtraSource;
+    if (source.card !== gate.card || !Number.isSafeInteger(source.epoch) || source.epoch < 0 || typeof source.area !== "string" || typeof source.cardId !== "string") rebuildScope("rebuild the saved Extra Counter tax source");
+    const now = findCard(state, gate.card);
+    if (now?.owner !== gate.player || now.zone !== source.area || state.cards[gate.card]?.cardId !== source.cardId || (state.cards[gate.card]?.zoneEpoch ?? 0) !== source.epoch) {
+      state.programs.splice(0, gate.guards);
+      log(ev, { type: "note", text: "[Counter] activation failed: the original paid Extra source left before its tax completed" });
+      return "done";
+    }
+  }
+  if (gate.counter && gate.from === "energy") {
+    if (!Number.isSafeInteger(gate.counterEnergyEpoch) || gate.counterEnergyEpoch! < 0) rebuildScope("rebuild the saved energy Counter tax source");
+    if (!state.sides[gate.player].zones.energy.includes(gate.card) || (state.cards[gate.card]?.zoneEpoch ?? 0) !== gate.counterEnergyEpoch) {
+      state.programs.splice(0, gate.guards);
+      log(ev, { type: "note", text: "[Counter] activation failed: the original energy source left before its tax completed" });
+      return "done";
+    }
+  }
+  if (gate.counter && gate.from === "drop") {
+    if (!Number.isSafeInteger(gate.counterDropPaidEpoch) || gate.counterDropPaidEpoch! < 0) rebuildScope("rebuild the saved Drop Counter tax source");
+    if (!state.sides[gate.player].zones.removed.includes(gate.card) || (state.cards[gate.card]?.zoneEpoch ?? 0) !== gate.counterDropPaidEpoch) {
+      state.programs.splice(0, gate.guards);
+      log(ev, { type: "note", text: "[Counter] activation failed: the original paid Drop source left before its tax completed" });
+      return "done";
+    }
+  }
   const owed = activationTaxes(ctx, game, state, gate.player, gate.card, gate.skillKind, gate.from).filter((t) => !gate.paid.includes(t.key) && !gate.free.includes(t.key));
   if (!owed.length) return "done";
   if (unpaidActivationTax(ctx, game, state, gate.player, gate.card, owed)) {
     state.programs.splice(0, gate.guards);
-    if (gate.counter && state.sides[gate.player].zones[ACTIVATION_ZONES.hand]?.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true });
+    if (gate.counter && gate.from === "under") moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, {owner:state.cards[gate.card].owner,reveal:true,standingArrival: [{ kind: "dropOn", card: gate.card }], beforeTriggers: resetUnderCounterOccurrence(state,ev,gate.card)});
+    if (gate.counter && gate.from === "energy" && state.sides[gate.player].zones.energy.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true, standingArrival: [{ kind: "dropOn", card: gate.card }], beforeTriggers: resetEnergyCounterOccurrence(state, ev, gate.card) });
+    if (gate.counter && gate.from !== "energy" && state.sides[gate.player].zones[ACTIVATION_ZONES.hand]?.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true });
     log(ev, { type: "note", text: "The skill's activation failed: a price a rule puts on it (20-14-1) can no longer be paid" });
     return "done";
   }
-  gate.paid.push(owed[0].key);
-  state.programs.unshift({ ops: owed[0].ops, ip: 0, vars: {}, card: gate.card, master: gate.player }, frame);
+  const counterNonhandTax = gate.counter && (gate.from === "energy" || gate.from === "drop" || gate.from === "under") ? {
+    version: 1 as const, card: gate.card, cardId: state.cards[gate.card].cardId,
+    epoch: (gate.from === "under" ? gate.counterUnderSource?.sourceEpoch : gate.from === "energy" ? gate.counterEnergyEpoch : gate.counterDropPaidEpoch)!,
+    area: gate.from === "under" ? "under" as const : gate.from === "energy" ? "energy" as const : "removed" as const,
+    ...(gate.counterUnderSource ? {under:structuredClone(gate.counterUnderSource)} : {}),
+    skillIndex: state.programs[0].skillIndex!,
+    paymentVersion: 1 as const, key: owed[0].key, payers: {},
+  } : undefined;
+  if (counterNonhandTax) gate.counterTaxPending = {version:1,key:owed[0].key};
+  else gate.paid.push(owed[0].key);
+  state.programs.unshift(freshAppliedEffectRoot(state, { ops: owed[0].ops, ip: 0, vars: {}, card: gate.card, master: gate.player, ...(counterNonhandTax ? { counterNonhandTax } : {}), ...(gate.counterExtraSource ? { extraCounterTax: { version: 1 as const, source: structuredClone(gate.counterExtraSource) } } : {}) }, "tax"), frame);
   return "done";
 }
 
@@ -1043,9 +1190,29 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
  * counter window around it is not opened: the legacy engine opens it with no
  * candidates at all, so there is nothing to answer it with.
  */
-export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Pick<ScriptFrame, "ops" | "vars">, waived = false): void {
+export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Partial<Pick<ScriptFrame, "ops" | "vars" | "paidCardInfo" | "paidMarkers" | "ordinaryActivation">>, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
+  requireUnscopedStandingWrite(state);
   const { card, skill: sk } = line;
+  if(incrementalLookIntent(line.script?.ops))throw new IllegalAction("private inspection requires its reviewed Auto producer (R527)");
+  if (waived && paidHandIntent(line.script)) throw new IllegalAction("waived entire-Hand payments require an original payment (R525)");
+  if (waived && paidDropIntent(line.script)) throw new IllegalAction("waived historical owner-Drop payments need a reviewed original source contract (R518)");
+  if (waived && paidRemovalIntent(line.script)) throw new IllegalAction("waived historical removal payments need a reviewed original source contract (R516)");
   const payment = requireSkillPayment(line.script?.price);
+  if (waived && (payment.spiritBoost != null || line.script?.price?.x?.spiritBoost) && !resolved?.paidMarkers?.spiritBoost) {
+    resolved = { ...resolved, paidMarkers: { ...resolved?.paidMarkers, spiritBoost: { version: 1, cost: "spiritBoost", source: card, sourceEpoch: state.cards[card]?.zoneEpoch ?? 0, requested: line.script?.price?.x?.spiritBoost ? x ?? 0 : payment.spiritBoost ?? 0, amount: 0, status: "waived", payers: [] } } };
+  }
+  const paidMarkers = bindPaidMarkers(resolved?.paidMarkers, card, sk.index, { fixed: payment.spiritBoost ?? null, x: line.script?.price?.x?.spiritBoost ? x ?? 0 : null });
+  // R-391/R-420: a waived or negated Burst paid no cards. Empty history must
+  // not look like an obsolete saved frame, nor match unrelated Drop cards.
+  if (payment.burst && (waived || burstNegated(ctx, game, state, card)) && !resolved?.paidCardInfo?.paid_burst) {
+    const name = paidPoolVar("burst");
+    resolved = { ...resolved, vars: { ...resolved?.vars, [name]: [], [`${name}@epoch`]: [] }, paidCardInfo: { ...resolved?.paidCardInfo, [name]: {} } };
+  }
+  const waivedMill = waived && line.script?.price?.ops?.length === 1 ? line.script.price.ops[0] : undefined;
+  if (waivedMill?.op === "mill" && waivedMill.as && typeof waivedMill.n === "number" && waivedMill.n > 0 && (!waivedMill.side || waivedMill.side === "you")) {
+    const name = `paid_mill_${waivedMill.as}`;
+    if (!resolved?.paidCardInfo?.[name]) resolved = { ...resolved, vars: { ...resolved?.vars, [name]: [], [`${name}@epoch`]: [] }, paidCardInfo: { ...resolved?.paidCardInfo, [name]: {} } };
+  }
   const inst = state.cards[card];
   if (!inst) throw new RulesetBroken(state.game, `there is no card ${card} to use a skill of`);
   // Capture the rule's trigger at the successful activation boundary, before
@@ -1053,23 +1220,31 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   const afterSkillKeywords: ("Heroic" | "Villainous")[] = isExtra(ctx, game, state, card)
     ? (["Heroic", "Villainous"] as const).filter((name) => hasKeyword(ctx, game, state, card, name))
     : [];
+  if (isFieldPayment(line) && !resolved) { queueFieldCost(ctx, game, state, player, line, waived); return; }
+  const priceOps = waived ? null : actionPriceOf(line);
+  const ordinaryActivation = !waived ? resolved?.ordinaryActivation ?? captureOrdinaryActivation(ctx, game, state, player, line) : undefined;
+  const activationEnergyPayment = !waived && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card) ? captureActivationEnergyUses(ctx, game, state, card, sk) : undefined;
+  const deferredOverRealm = !waived && isOverRealmPayment(line);
   const deferredFusion = !waived && isFusionPayment(line);
-  if (!deferredFusion) spendUse(state, player, card, sk);
-  if (!deferredFusion && (payment.marker != null || (line.keyword && isMarkerSkill(line.keyword)))) inst.usedMarkerSkill = true;
+  const deferredZAwaken = !waived && isOrderedZAwaken(line);
+  if (!ordinaryActivation && !deferredFusion && !deferredZAwaken && !deferredOverRealm) spendUse(state, player, card, sk);
+  if (!ordinaryActivation && !deferredFusion && !deferredZAwaken && !deferredOverRealm && (payment.marker != null || (line.keyword && isMarkerSkill(line.keyword)))) inst.usedMarkerSkill = true;
   // The price is charged (`vm/actions.ts`, before this): a one-use change to
   // the line's own orbs ("the next time you activate …", BT31-096) is spent.
-  if (!waived && !deferredFusion) {
+  if (!waived && !deferredFusion && !deferredZAwaken && !deferredOverRealm) {
     spendSkillCostUses(ctx, game, state, ev, card, sk);
+    if (!priceOps && activationEnergyPayment) consumeActivationEnergyUses(ctx, state, ev, activationEnergyPayment);
     // An Extra used from the hand pays its energy cost with the line (12-2-2):
     // "the next time you activate it, reduce the energy cost by {g}" is spent here.
-    if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) spendPriceUses(state, ev, card);
+    if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) spendPriceUses(ctx, state, ev, card);
   }
   // 12-2-2: the Extra is placed in the Drop Area as part of using it, before
   // its own effect resolves — so a skill that counts the Drop counts it.
-  // Not for a keyword's own move: its `DO` says where the card goes, and
-  // [Field]'s puts it in the Battle Area instead (22-3-2), as the legacy
-  // engine's `Field` case moves it straight there.
-  if (!line.keyword && findCard(state, card)?.zone === ACTIVATION_ZONES.hand && isExtra(ctx, game, state, card)) {
+  // R-420 / P-119 Q&A: an effect invoking a deck Extra also places it in Drop before activation.
+  // Keyword procedures own their staging. R457 FieldCost has already bound
+  // the original hand→Drop occurrence and paid the Field skill before this
+  // successful continuation places it in Battle (22-3-2).
+  if (!line.keyword && (findCard(state, card)?.zone === ACTIVATION_ZONES.hand || (invokedFrom === "deck" && findCard(state, card)?.zone === "deck")) && isExtra(ctx, game, state, card)) {
     moved(ctx, game, state, ev, card, ACTIVATION_ZONES.drop, { owner: player, reveal: true });
   }
   // `inBattle` is the legacy `!!s.battle`: an [Activate: Battle] taken at the
@@ -1077,12 +1252,11 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // 4-3-3: a line with an action price is announced once the price is paid —
   // the legacy `skill.resolve`, which runs after the price — so it is the
   // price's frame finishing that announces it (`vm/host.ts`'s `saveVars`).
-  const priceOps = waived ? null : actionPriceOf(line);
   // #926: a [Union]/[Evolve] move with an action price is announced, and its
   // moments fired, once its `DO` has paid it (`vm/keyword-costs.ts`) — read
   // now, while "from: hand" is still true.
-  const keywordPrice: KeywordCost | null = !waived && (keywordActionPrice(line) || deferredFusion)
-    ? { ...(deferredFusion ? { fusion: { stage: "resources" as const } } : {}), key: `${card}:${sk.index}`, line, moments: [activationMoment(ctx, game, state, player, line), ...keywordActivationMoments(state, player, line)] }
+  const keywordPrice: KeywordCost | null = !waived && (keywordActionPrice(line) || deferredFusion || deferredOverRealm)
+    ? { ...(deferredOverRealm ? { overRealm: overRealmCost(state, player, line) } : {}), ...(deferredZAwaken ? { zAwaken: zAwakenCost(ctx, game, state, player, line) } : {}), ...(deferredFusion ? { fusion: { stage: "resources" as const } } : {}), key: `${card}:${sk.index}`, line, moments: [activationMoment(ctx, game, state, player, line), ...keywordActivationMoments(state, player, line)] }
     : null;
   if (!announcesBeforePrice(line) && !priceOps && !keywordPrice) announce(state, ev, player, line);
   // A keyword's own move runs the keyword's `DO` — the keyword's rules are the
@@ -1097,7 +1271,12 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
   // EX03-16: an [Evolve]'s base named with the activation is the keyword's
   // `base` already chosen — `keywords.rules`' Evolve asks only when it is not.
   if (keywordPrice && !saysWhereItPays(program)) throw new RulesetBroken(state.game, `DEFINE KEYWORD ${line.keyword?.name} has an action price to pay and no payActionPrice to pay it at`);
-  const effect: ScriptFrame = { ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, vars: { ...resolved?.vars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  // R-395 / 22-46-3, -6: retain the chosen Leader and Z-Deck occurrences
+  // across saved continuations. `asPrinted` still checks their current traits.
+  const zAwakenVars = line.keyword?.name === "Z-Awaken" ? zAwakenBindings(state, player, card) : {};
+  const copiedSkillCapture = captureCopiedSkill(state, card, sk, line.script);
+  const effect: ScriptFrame = { ...(ordinaryActivation ? { ordinaryActivation: structuredClone(ordinaryActivation) } : {}), ...(copiedSkillCapture ? { copiedSkillCapture } : {}), ...(keywordPrice?.overRealm ? { overRealmSource: structuredClone(keywordPrice.overRealm.source) } : {}), markerHistoryContract: markerHistoryContract(program, line.script?.price), ...(priceOps && activationEnergyPayment ? { activationEnergyPayment } : {}), energyCouponContract: energyCouponContract(program), ...(!line.keyword ? { skillEffectOrigin: { version: 2 as const, kind: "activate" as const } } : {}), ...(line.script?.price?.potara ? { potaraIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, potaraSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.absorb ? { absorbIdentity: { kind: line.script.kind, price: structuredClone(line.script.price), ops: structuredClone(line.script.ops) }, absorbSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.evolution ? { evolutionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, evolutionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ...(line.script?.price?.fusion ? { fusionIdentity: { kind: line.script.kind, price: structuredClone(line.script.price) }, fusionSourceEpoch: state.cards[card].zoneEpoch ?? 0 } : {}), ops: program, ip: 0, ...(paidMarkers ? { paidMarkers } : {}), ...(resolved?.paidCardInfo ? { paidCardInfo: resolved.paidCardInfo } : {}), vars: { ...resolved?.vars, ...zAwakenVars, ...(onto === undefined ? {} : { base: [onto] }) }, card, master: player, ...(line.keyword ? { viaKeyword: line.keyword.name } : {}), ...(inst.enteredUsing ? { selfEnteredUsing: inst.enteredUsing } : {}), skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, ...(afterSkillKeywords.length ? { afterSkillSource: card, afterSkillKeywords } : {}), ...(x === undefined ? {} : { x }), ...(keywordPrice ? { keywordPrice } : {}) };
+  freshAppliedEffectRoot(state, effect, line.keyword?"keyword":"activate");
   if (priceOps) {
     // 4-3-3: the action price is paid on activation, as a program of its own in
     // front of the effect — the legacy `activate`'s `saveVarsAs` frame — and
@@ -1105,10 +1284,32 @@ export function resolveActivation(ctx: EngineContext, game: GameDefinition, stat
     // frame is queued even when it does nothing, because it is what is
     // announced when the price is paid.
     const key = costVarsKey(card, sk.index);
-    state.programs.unshift({ ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, saveVarsAs: key }, { ...effect, pricedBy: { key, text: sk.raw } });
+    state.programs.unshift(freshAppliedEffectRoot(state, { ...(ordinaryActivation ? { ordinaryActivation } : {}), ...(copiedSkillCapture ? { copiedSkillCapture } : {}), markerHistoryContract: markerHistoryContract(program, line.script?.price), ...(line.keyword?.name === "Awaken" ? { awakenPayment: { sourceEpoch: state.cards[card].zoneEpoch ?? 0, chosenEpochs: {} } } : {}), ops: priceOps, ip: 0, vars: {}, card, master: player, skillIndex: sk.index, usage: sk.usage as import("./usage").UsageRecord, validity: sk.validity as import("./validity").ValidityRecord, saveVarsAs: key }, "tax"), { ...effect, pricedBy: { key, text: sk.raw } });
     return;
   }
   if (program.length || afterSkillKeywords.length) state.programs.unshift(effect);
+}
+
+/** R-398: the same occurrence contract on the real and cloned payment boards. */
+export function zAwakenBindings(state: VmState, player: PlayerId, card: string): Record<string, string[]> {
+  const vars: Record<string, string[]> = {};
+  for (const [name, id] of [["zAwakenSource", card], ["zAwakenBase", state.sides[player].zones.leader[0]]] as const) {
+    vars[name] = id ? [id] : [];
+    vars[`${name}@epoch`] = id ? [`${id}@${state.cards[id].zoneEpoch ?? 0}`] : [];
+  }
+  return vars;
+}
+
+/** R-395: old saves contain an ordinary play DO and no selected occurrences. */
+export function requireZAwakenBindings(frame: ScriptFrame): void {
+  if (frame.viaKeyword !== "Z-Awaken") return;
+  const valid = ["zAwakenSource", "zAwakenBase"].every(name => {
+    const ids = frame.vars[name], stamps = frame.vars[`${name}@epoch`];
+    if (ids?.length !== 1 || stamps?.length !== 1 || typeof ids[0] !== "string" || typeof stamps[0] !== "string" || (name === "zAwakenSource" && ids[0] !== frame.card)) return false;
+    const prefix = `${ids[0]}@`;
+    return stamps[0].startsWith(prefix) && /^\d+$/.test(stamps[0].slice(prefix.length)) && Number.isSafeInteger(Number(stamps[0].slice(prefix.length)));
+  });
+  if (!valid) throw new NotYet("rebuild this saved Z-Awaken source and Leader occurrence binding", "R-395");
 }
 
 /**
@@ -1146,7 +1347,8 @@ const costVarsKey = (card: string, skillIndex: number) => `costvars:${card}:${sk
  * A keyword's own move pays its action at the point declared in its DO.
  */
 function actionPriceOf(line: ActivationLine): Script["ops"] | null {
-  if (line.keyword) return null;
+  // R-387: Awaken pays its printed action before the native effect and flip.
+  if (line.keyword && line.keyword.name !== "Awaken") return null;
   requireSkillPayment(line.script?.price);
   const ops = line.script?.price?.ops;
   return ops?.length ? ops : null;
@@ -1180,8 +1382,13 @@ export function swapActionPrice(line: Pick<ActivationLine, "keyword" | "script">
  */
 export function keywordActionPrice(line: Pick<ActivationLine, "keyword" | "script" | "skill">): Op[] | null {
   const name = line.keyword?.name;
+  if (name === "Over Realm") { const ops = overRealmAction(line); return ops.length ? ops : null; }
   const printed = line.skill.keyword;
   const variant = printed && printed.name === name && "variant" in printed ? printed.variant : undefined;
+  if (name === "Z-Awaken") {
+    const ops = line.script?.price?.ops;
+    return ops?.length && supportedZAwakenActionPrice(ops) ? ops : null;
+  }
   if (name !== "Evolve" && !(name === "Union" && (variant === "Fusion" || variant === "Potara" || variant === "Absorb"))) return null;
   const ops = line.script?.price?.ops;
   return ops?.length ? ops : null;
@@ -1255,6 +1462,12 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
     const movement = ops.find((o) => o.op === "moveTo" && "var" in o.target && o.target.var === variable);
     if (ops.some((o) => o.op === "ko" && "var" in o.target && o.target.var === variable) && !koable(id)) return false;
     if (ops.some((o) => o.op === "comboFrom" && "var" in o.target && o.target.var === variable) && !comboable(id)) return false;
+    // R-470: a fixed under-card destination must admit every selected payer,
+    // not merely have enough matching cards in the printed source area.
+    if (movement?.op === "moveTo" && movement.to === "under" && (!movement.under || isFixedUnderHost(movement.under))) {
+      const hosts = movement.under ? resolveRef(ctx, game, state, frame, movement.under) : [card];
+      if (!hosts.some(host => host !== id && !forbiddenBy(ctx, game, state, "placeUnder", { card: host, player, moving: id, source: card }))) return false;
+    }
     return movement?.op !== "moveTo" || (!lifeToHandForbidden(ctx, game, state, findCard(state, id)?.owner ?? state.cards[id].owner, findCard(state, id)?.zone ?? null, movement.to, undefined, id) && !dropToWarpForbidden(id, movement.to));
   };
   // 23-2 (placeOnTop): once the price has put a card from this card's pile on top of it, this card is under that
@@ -1329,7 +1542,7 @@ export function canPayPriceProgram(ctx: EngineContext, game: GameDefinition, sta
           const moving = movedChoice
             ? resolveSelector(ctx, game, state, frame, movedChoice.sel)
             : state.cards[card] && findCard(state, card) ? [card] : [];
-          if (!moving.some((m) => findCard(state, m)?.zone !== "leader" && hosts.some((h) => h !== m))) return false;
+          if (!moving.some((m) => findCard(state, m)?.zone !== "leader" && hosts.some((h) => h !== m && !forbiddenBy(ctx, game, state, "placeUnder", { card: h, player, moving: m, source: card })))) return false;
           break;
         }
         if ("var" in op.target) break;
@@ -1411,7 +1624,7 @@ function isMarkerSkill(def: KeywordDef): boolean {
  * fails (5-8-4) leaves no skill announced.
  */
 export function announcesBeforePrice(line: ActivationLine): boolean {
-  return !isFusionPayment(line) && !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length && !swapActionPrice(line) && !keywordActionPrice(line);
+  return !isFusionPayment(line) && !isOverRealmPayment(line) && !!line.keyword && line.keyword.name !== "Field" && line.keyword.name !== "Aegis" && !line.script?.ops.length && !swapActionPrice(line) && !keywordActionPrice(line);
 }
 
 /** The `skill` event for a line being used (9-6). */
@@ -1435,14 +1648,16 @@ export function activationMoment(
   player: PlayerId,
   line: ActivationLine,
 ): { event: string; card: string; controller: PlayerId; args: Record<string, string | boolean> } {
+  const from = findCard(state, line.card)?.zone ?? "";
+  const extra = isExtra(ctx, game, state, line.card);
+  const cardActivation = isExtraCardActivation(extra, from, line.skill.kind, line.keyword?.name);
   return {
     event: "skillActivated",
     card: line.card,
     controller: player,
-    // `extra` is 12-1-3's "activating an Extra Card" (`extraActivated`): the
-    // card's type, read here for the same reason as `from` — once it is in
-    // the Drop it is still an Extra, but nothing else about the moment is.
-    args: { kind: familyOf(line.skill.kind), from: findCard(state, line.card)?.zone ?? "", paid: true, extra: isExtra(ctx, game, state, line.card) },
+    // Preserve type and origin before payment moves the source. R460
+    // distinguishes actual card activation from an Extra's other skill uses.
+    args: { kind: familyOf(line.skill.kind), from, paid: true, extra, cardActivation },
   };
 }
 

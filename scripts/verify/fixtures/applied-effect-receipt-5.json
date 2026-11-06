@@ -1,0 +1,1406 @@
+{
+  "DB1-043": {
+    "def": {
+      "id": "DB1-043",
+      "name": "King Vegeta, Saiyan Ruler",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "energyCost": 3,
+      "zEnergyCost": null,
+      "power": 19000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] If your Leader Card is green: When you play this card, choose up to 2 Battle Cards in your Drop Area with an energy cost of 2 or less and 10000 power, negate their skills, play them, and they get +5000 power for the duration of the turn. <br>[Activate: Main][Once per turn] Choose 1 of your Battle Cards and place it in your Drop Area: This card gains [Double Strike] for the duration of the turn.",
+      "characters": [
+        "King Vegeta"
+      ],
+      "traits": [
+        "Saiyan"
+      ]
+    },
+    "records": [
+      {
+        "cardId": "DB1-043",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] If your Leader Card is green: When you play this card, choose up to 2 Battle Cards in your Drop Area with an energy cost of 2 or less and 10000 power, negate their skills, play them, and they get +5000 power for the duration of the turn.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader Card is green",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 2,
+                "powerMin": 10000,
+                "powerMax": 10000,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 2,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 2 Battle Cards in your Drop Area with an energy cost of 2 or less and 10000 power"
+          },
+          {
+            "op": "negateSkills",
+            "target": {
+              "var": "c0"
+            },
+            "until": "turn"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "c0"
+            }
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[choose→negateSkills→play→power]",
+        "reads": "if your leader is Green: choose up to 2 Battle Cards with an energy cost of 2 or less with 10000 power in your Drop Area, negate the skills of the chosen cards for the turn, play the chosen cards, the chosen cards +5000 power for the turn"
+      },
+      {
+        "cardId": "DB1-043",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main][Once per turn] Choose 1 of your Battle Cards and place it in your Drop Area: This card gains [Double Strike] for the duration of the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Choose 1 of your Battle Cards and place it in your Drop Area",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Choose 1 of your Battle Cards"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "grant",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "keyword": {
+              "name": "Strike",
+              "x": 2
+            },
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "grant:Strike",
+        "reads": "this card gains [Double Strike] for the turn"
+      }
+    ]
+  },
+  "EX21-15": {
+    "def": {
+      "id": "EX21-15",
+      "name": "Masked Saiyan, Belligerent Warrior",
+      "type": "BATTLE",
+      "colors": [
+        "Black"
+      ],
+      "energyCost": 7,
+      "zEnergyCost": null,
+      "power": 20000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Deflect]<br>[Permanent] If your Leader is black and you've sent a card from your Drop to your Warp this turn, reduce the energy cost of this card in your hand by 6.<br>[Auto][Limit 1] When this card is played, choose up to 2 of your opponent's Battle Cards, send them to their owners' Warps, and this card gains [Critical] for the turn. At the end of your opponent's next turn, negate the skills of all cards sent to Warps by this skill for the turn and play them in their owners' Battle Areas.",
+      "characters": [
+        "Masked Saiyan"
+      ],
+      "traits": [
+        "Saiyan"
+      ]
+    },
+    "records": [
+      {
+        "cardId": "EX21-15",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Permanent] If your Leader is black and you've sent a card from your Drop to your Warp this turn, reduce the energy cost of this card in your hand by 6.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Black"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              }
+            },
+            "amount": 6,
+            "until": "game"
+          }
+        ],
+        "unread": [
+          "you've sent a card from your Drop to your Warp this turn"
+        ],
+        "pattern": "you've sent a card from your drop to your warp this turn",
+        "reads": "if your leader is Black: this card costs 6 less"
+      },
+      {
+        "cardId": "EX21-15",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Auto][Limit 1] When this card is played, choose up to 2 of your opponent's Battle Cards, send them to their owners' Warps, and this card gains [Critical] for the turn. At the end of your opponent's next turn, negate the skills of all cards sent to Warps by this skill for the turn and play them in their owners' Battle Areas.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 2,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 2 of your opponent's Battle Cards"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "warp"
+          },
+          {
+            "op": "grant",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "keyword": {
+              "name": "Critical"
+            },
+            "until": "turn"
+          },
+          {
+            "op": "delay",
+            "at": "turnEnd",
+            "scope": "opponentNextTurn",
+            "ops": [
+              {
+                "op": "negateSkills",
+                "target": {
+                  "sel": {
+                    "fromVar": "c0",
+                    "area": "warp",
+                    "count": 99
+                  }
+                },
+                "until": "turn"
+              },
+              {
+                "op": "choose",
+                "sel": {
+                  "fromVar": "c0",
+                  "area": "warp",
+                  "count": 99
+                },
+                "as": "p1",
+                "reason": "play them in their owners' Battle Areas"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "p1"
+                },
+                "toOwners": true
+              }
+            ],
+            "label": "at the end of your opponent's next turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→moveTo→grant:Critical→delay:turnEnd[negateSkills→choose→play]",
+        "reads": "choose up to 2 Battle Cards in your opponent's Battle Area, move the chosen cards to warp, this card gains [Critical] for the turn, at the end of your opponent's next turn: negate the skills of all of the cards looked at for the turn, choose all of the cards looked at, play the chosen cards in their owners' Battle Areas"
+      }
+    ]
+  },
+  "BT13-096": {
+    "def": {
+      "id": "BT13-096",
+      "name": "SS Son Goku, the Hero Returns",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "energyCost": 2,
+      "zEnergyCost": null,
+      "power": 10000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Auto] When this card is played, choose this card and up to 1 of your opponent's Battle Cards with an energy cost of 3 or less and send them to their owners' Warps; at the end of the turn, negate the skills of all cards sent to Warps by this skill for the turn and play them to their owners' Battle Areas.<br>[Activate: Battle] If you have a yellow &lt;Trunks: Future&gt; card with an energy cost of 3 or more in play: Play this card from your hand, and you can't play copies of this card for the turn.",
+      "characters": [
+        "Son Goku"
+      ],
+      "traits": [
+        "Saiyan"
+      ]
+    },
+    "records": [
+      {
+        "cardId": "BT13-096",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When this card is played, choose this card and up to 1 of your opponent's Battle Cards with an energy cost of 3 or less and send them to their owners' Warps; at the end of the turn, negate the skills of all cards sent to Warps by this skill for the turn and play them to their owners' Battle Areas.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self"
+            },
+            "as": "c0",
+            "reason": "choose this card"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 3,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c1",
+            "reason": "up to 1 of your opponent's Battle Cards with an energy cost of 3 or less"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "warp",
+            "as": "g2"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c1"
+            },
+            "to": "warp",
+            "as": "g2"
+          },
+          {
+            "op": "delay",
+            "at": "turnEnd",
+            "scope": "thisTurn",
+            "ops": [
+              {
+                "op": "negateSkills",
+                "target": {
+                  "sel": {
+                    "fromVar": "g2",
+                    "area": "warp",
+                    "count": 99
+                  }
+                },
+                "until": "turn"
+              },
+              {
+                "op": "choose",
+                "sel": {
+                  "fromVar": "g2",
+                  "area": "warp",
+                  "count": 99
+                },
+                "as": "p3",
+                "reason": "play them to their owners' Battle Areas"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "p3"
+                },
+                "toOwners": true
+              }
+            ],
+            "label": "at the end of the turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→choose→moveTo→moveTo→delay:turnEnd[negateSkills→choose→play]",
+        "reads": "choose this card, choose up to 1 Battle Card with an energy cost of 3 or less in your opponent's Battle Area, move the chosen cards to warp, move the chosen cards to warp, at the end of the turn: negate the skills of all of the cards looked at for the turn, choose all of the cards looked at, play the chosen cards in their owners' Battle Areas"
+      },
+      {
+        "cardId": "BT13-096",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Battle] If you have a yellow <Trunks: Future> card with an energy cost of 3 or more in play: Play this card from your hand, and you can't play copies of this card for the turn.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If you have a yellow <Trunks: Future> card with an energy cost of 3 or more in play",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "play",
+              "filter": {
+                "colors": [
+                  "Yellow"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "trunks: future"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 3,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 1
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "play",
+            "filter": {
+              "colors": [
+                "Yellow"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "trunks: future"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 3,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self",
+              "area": "hand"
+            },
+            "as": "p0",
+            "reason": "Play this card from your hand"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          },
+          {
+            "op": "forbid",
+            "what": "play",
+            "side": "you",
+            "until": "turn",
+            "sameNameAsSelf": true
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[choose→play→forbid:play]",
+        "reads": "if there are 1 or more yellow <trunks: future> cards with an energy cost of 3 or more you have in play: choose this card, play the chosen cards, you can't play another copy of this card for the turn"
+      }
+    ]
+  },
+  "BT15-057": {
+    "def": {
+      "id": "BT15-057",
+      "name": "Universe 6, Assemble!",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "energyCost": 1,
+      "zEnergyCost": null,
+      "power": null,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Permanent] If your Leader Card is a ≪Universe 6≫ card, you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost.<br>[Activate: Main] Look at up to 7 cards from the top of your deck, add up to 1 blue ≪Universe 6≫ card with an energy cost of 5 or less among them to your hand, then shuffle your deck.<br>[Activate: Battle] Use up to 1 blue ≪Universe 6≫ card from your Drop Area in a combo; it gets -5000 combo power and has its skills negated for the turn.",
+      "characters": [],
+      "traits": []
+    },
+    "records": [
+      {
+        "cardId": "BT15-057",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] If your Leader Card is a ≪Universe 6≫ card, you can activate this card's [Activate: Battle] skill from your hand without paying its energy cost.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "universe 6"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "altCost",
+            "pay": "none",
+            "for": "activate:battle"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[altCost]",
+        "reads": "if your leader is ≪universe 6≫: this card's [Activate: Battle] may be activated from your hand for no energy"
+      },
+      {
+        "cardId": "BT15-057",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main] Look at up to 7 cards from the top of your deck, add up to 1 blue ≪Universe 6≫ card with an energy cost of 5 or less among them to your hand, then shuffle your deck.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [
+                  "Blue"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "universe 6"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 5,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "add up to 1 blue ≪Universe 6≫ card with an energy cost of 5 or less among them to your hand"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→moveTo→shuffle",
+        "reads": "look at the top 7, choose up to 1 blue ≪universe 6≫ card with an energy cost of 5 or less of the cards looked at, move the chosen cards to hand, shuffle"
+      },
+      {
+        "cardId": "BT15-057",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Activate: Battle] Use up to 1 blue ≪Universe 6≫ card from your Drop Area in a combo; it gets -5000 combo power and has its skills negated for the turn.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "drop",
+              "filter": {
+                "colors": [
+                  "Blue"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "universe 6"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Use up to 1 blue ≪Universe 6≫ card from your Drop Area in a combo"
+          },
+          {
+            "op": "comboFrom",
+            "target": {
+              "var": "c0"
+            }
+          },
+          {
+            "op": "comboPower",
+            "target": {
+              "var": "c0"
+            },
+            "amount": -5000,
+            "until": "turn"
+          },
+          {
+            "op": "negateSkills",
+            "target": {
+              "var": "c0"
+            },
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→comboFrom→comboPower→negateSkills",
+        "reads": "choose up to 1 blue ≪universe 6≫ card in your Drop Area, use the chosen cards in a combo, the chosen cards -5000 combo power for the turn, negate the skills of the chosen cards for the turn"
+      }
+    ]
+  }
+}

@@ -1,0 +1,1157 @@
+{
+  "BT8-089": {
+    "card": {
+      "id": "BT8-089",
+      "type": "LEADER",
+      "colors": [
+        "Black"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Dr.Lychee & Hatchhyack",
+      "characters": [
+        "Dr.Lychee",
+        "Hatchhyack"
+      ],
+      "traits": [
+        "Scientist",
+        "Ghost Warrior",
+        "Machine Mutant"
+      ],
+      "skill": "[Permanent] You can only play black Battle Cards and this card can't attack.<br>[Auto] When a Battle Card attacks, the player who attacked can't attack with tokens or Battle Cards with energy costs of 7 or less other than the card they attacked with for the duration of the turn.<br>[Activate: Main][Once per turn] Place the top card of your deck under this card: Place the top card of your deck in your Drop Area, then draw 1 card.<br>[Awaken] If you only have black cards in your energy, choose 3 cards under this card and place them in their owners' Drop Areas: You may draw 1 card and flip this card over.",
+      "backName": "Hatchhyack, Malice Assimilated",
+      "backSkill": "[Permanent] You can only play black Battle Cards.<br>[Auto] When a Battle Card attacks, the player who attacked can't attack with tokens or Battle Cards with energy costs of 7 or less other than the card they attacked with for the duration of the turn.<br>[Auto] When this card attacks, this card gets +5000 power for the duration of the turn, and you draw 1 card."
+    },
+    "faq": [
+      {
+        "name": "Hatchhyack, Malice Assimilated",
+        "qa": [
+          {
+            "q": "Can you play a Red/Black multicolor Battle Card when your Leader is this card?",
+            "a": "Yes, you can."
+          },
+          {
+            "q": "Can you play a Unison when your Leader is this card?",
+            "a": "Yes, you can."
+          }
+        ]
+      }
+    ]
+  },
+  "BT1-091": {
+    "card": {
+      "id": "BT1-091",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "King Cold, Father of the Emperor",
+      "characters": [
+        "King Cold"
+      ],
+      "traits": [
+        "Frieza Clan"
+      ],
+      "skill": "[Double Strike] <br>[Revenge] (When this card is attacked, KO the attacking card after the battle)<br>[Counter: Battle Card Attack] Play this card from your hand and change the target of the attack to this card.<br>[Auto] When you play this card, choose up to 1 opponent Battle Card and switch it to Rest Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "King Cold, Father of the Emperor",
+        "qa": [
+          {
+            "q": "When activating the [Counter] skill of a Battle Card, can you activate it without paying the card\u2019s energy cost?",
+            "a": "No, you must pay the energy cost.\n[Counter] skills can be activated from your hand by paying the card\u2019s energy cost."
+          },
+          {
+            "q": "When playing cards with card skills, do you need to pay the energy cost of that card?",
+            "a": "No, you do not need to pay unless specified otherwise."
+          },
+          {
+            "q": "You used this card\u2019s [Counter: Battle Card Attack] to make this card the target of an attack. Can you KO the attacking card using [Revenge] at the end of the battle?",
+            "a": "Yes, it does.\nRevenge activates when the card is attacked, or at the end of that battle, and KOs the opponent\u2019s card."
+          },
+          {
+            "q": "You activated {BT1-107Cold Bloodlust} against {BT1-091King Cold, Father of the Emperor}\u2019s [Counter]. In this case, does the target of the attack still change?",
+            "a": "Yes, it does."
+          }
+        ]
+      }
+    ]
+  },
+  "expectedRecords": [
+    {
+      "cardId": "BT8-089",
+      "side": "front",
+      "skillIndex": 0,
+      "printed": "[Permanent] You can't play non-black Battle Cards and this card can't attack.",
+      "kind": "permanent",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "text": "",
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "filter": {
+            "colors": [],
+            "notColors": [
+              "Black"
+            ],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": "BATTLE",
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        {
+          "op": "forbid",
+          "what": "attack",
+          "until": "game",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "unread": [],
+      "pattern": "forbid:play\u2192forbid:attack",
+      "reads": "you can't play non-black battle card, this card can't attack"
+    },
+    {
+      "cardId": "BT8-089",
+      "side": "front",
+      "skillIndex": 10,
+      "printed": "[Auto] When a Battle Card attacks, the player who attacked can't attack with tokens or Battle Cards with energy costs of 7 or less other than the card they attacked with for the duration of the turn.",
+      "kind": "auto",
+      "trigger": [
+        "battleCardAttacks"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "attack",
+          "side": "both",
+          "turnPlayer": true,
+          "until": "turn",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null,
+            "anyOf": [
+              {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": true,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 7,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            ]
+          },
+          "exceptCards": {
+            "sel": {
+              "special": "attacker"
+            }
+          }
+        }
+      ],
+      "unread": [],
+      "pattern": "forbid:attack",
+      "reads": "the turn player can't attack with tokens or Battle Cards with an energy cost of 7 or less other than the attacking card for the turn"
+    },
+    {
+      "cardId": "BT8-089",
+      "side": "front",
+      "skillIndex": 20,
+      "printed": "[Activate: Main][Once per turn] Place the top card of your deck under this card: Place the top card of your deck in your Drop Area, then draw 1 card.",
+      "kind": "activate:main",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": true,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Place the top card of your deck under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "moveTo",
+            "target": {
+              "sel": {
+                "side": "you",
+                "area": "deck",
+                "count": 1,
+                "upTo": false,
+                "take": 1
+              }
+            },
+            "to": "under"
+          }
+        ]
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "mill",
+          "n": 1,
+          "as": "m0"
+        },
+        {
+          "op": "draw",
+          "n": 1
+        }
+      ],
+      "unread": [],
+      "pattern": "mill\u2192draw",
+      "reads": "1 from the top of the deck to the Drop, draw 1"
+    },
+    {
+      "cardId": "BT8-089",
+      "side": "front",
+      "skillIndex": 30,
+      "printed": "[Awaken] If you only have black cards in your energy, choose 3 cards under this card and place them in their owners' Drop Areas: You may draw 1 card and flip this card over.",
+      "kind": "keyword",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "If you only have black cards in your energy, choose 3 cards under this card and place them in their owners' Drop Areas",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "every",
+          "sel": {
+            "side": "you",
+            "area": "energy"
+          },
+          "matching": {
+            "side": "you",
+            "area": "energy",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          }
+        },
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "under",
+              "count": 3,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "choose 3 cards under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop",
+            "reveal": true
+          }
+        ]
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "draw",
+          "n": 1
+        }
+      ],
+      "unread": [],
+      "pattern": "draw",
+      "reads": "draw 1"
+    },
+    {
+      "cardId": "BT8-089",
+      "side": "back",
+      "skillIndex": 0,
+      "printed": "[Permanent] You can't play non-black Battle Cards.",
+      "kind": "permanent",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "text": "",
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "play",
+          "side": "you",
+          "until": "game",
+          "filter": {
+            "colors": [],
+            "notColors": [
+              "Black"
+            ],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": "BATTLE",
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        }
+      ],
+      "unread": [],
+      "pattern": "forbid:play",
+      "reads": "you can't play non-black battle card"
+    },
+    {
+      "cardId": "BT8-089",
+      "side": "back",
+      "skillIndex": 10,
+      "printed": "[Auto] When a Battle Card attacks, the player who attacked can't attack with tokens or Battle Cards with energy costs of 7 or less other than the card they attacked with for the duration of the turn.",
+      "kind": "auto",
+      "trigger": [
+        "battleCardAttacks"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "forbid",
+          "what": "attack",
+          "side": "both",
+          "turnPlayer": true,
+          "until": "turn",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null,
+            "anyOf": [
+              {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": true,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 7,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            ]
+          },
+          "exceptCards": {
+            "sel": {
+              "special": "attacker"
+            }
+          }
+        }
+      ],
+      "unread": [],
+      "pattern": "forbid:attack",
+      "reads": "the turn player can't attack with tokens or Battle Cards with an energy cost of 7 or less other than the attacking card for the turn"
+    },
+    {
+      "cardId": "BT8-089",
+      "side": "back",
+      "skillIndex": 20,
+      "printed": "[Auto] When this card attacks, this card gets +5000 power for the duration of the turn, and you draw 1 card.",
+      "kind": "auto",
+      "trigger": [
+        "attacks"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "power",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "amount": 5000,
+          "until": "turn"
+        },
+        {
+          "op": "draw",
+          "n": 1
+        }
+      ],
+      "unread": [],
+      "pattern": "power\u2192draw",
+      "reads": "this card +5000 power for the turn, draw 1"
+    },
+    {
+      "cardId": "BT1-091",
+      "side": "front",
+      "skillIndex": 10,
+      "printed": "[Revenge] (When this card is attacked, KO the attacking card after the battle)",
+      "kind": "keyword",
+      "trigger": [
+        "attacked"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [],
+      "pattern": "keyword:Revenge",
+      "reads": ""
+    },
+    {
+      "cardId": "BT1-091",
+      "side": "front",
+      "skillIndex": 20,
+      "printed": "[Counter: Battle Card Attack] Play this card from your hand and change the target of the attack to this card.",
+      "kind": "counter:battle card attack",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self"
+          },
+          "as": "p0",
+          "reason": "Play this card from your hand"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "redirectAttack",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          }
+        }
+      ],
+      "unread": [],
+      "pattern": "choose\u2192play\u2192redirectAttack",
+      "reads": "choose this card, play the chosen cards, switch the target of the attack to this card"
+    },
+    {
+      "cardId": "BT1-091",
+      "side": "front",
+      "skillIndex": 30,
+      "printed": "[Auto] When you play this card, choose up to 1 opponent Battle Card and switch it to Rest Mode.",
+      "kind": "auto",
+      "trigger": [
+        "played"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "battle",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "choose up to 1 opponent Battle Card"
+        },
+        {
+          "op": "switchMode",
+          "target": {
+            "var": "c0"
+          },
+          "mode": "rest"
+        }
+      ],
+      "unread": [],
+      "pattern": "choose\u2192switchMode",
+      "reads": "choose up to 1 Battle Card in your opponent's Battle Area, switch the chosen cards to rest mode"
+    }
+  ]
+}

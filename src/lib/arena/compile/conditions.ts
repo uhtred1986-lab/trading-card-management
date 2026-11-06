@@ -16,6 +16,17 @@ import { unreadFilterWords } from "../lang/filter-words";
  */
 export function allConditions(printed: string): { cond: Cond; subject?: Ref }[] | null {
   const head = foldBothQualifier(printed);
+  // Awaken's life alternative stands alone: a conjunction in the other alternative
+  // must not turn (life OR energy) AND named-cards into its activation condition.
+  // R-442: a dash following the alternative conjunction is a separator (SD22-01).
+  const lifeAlternative = /^(?:(?:if|when) )?((?:your|a player's) life is at \d+ or (?:less|fewer|more)),? or(?: |[—―–]\s*)(.+)$/i.exec(head);
+  if (lifeAlternative) {
+    const life = parseConditionClause(lifeAlternative[1], true);
+    const rest = allConditions(lifeAlternative[2]);
+    if (!life || !rest) return null;
+    return [{ cond: { kind: "any", conds: [life.cond, rest.length === 1 ? rest[0].cond : { kind: "all", conds: rest.map(x => x.cond) }] } }];
+  }
+
   // #966: "… and―A, or B, or C" is the first half AND one of A, B or C.
   if (hasDashConjunction(head)) {
     const dashed = dashConjunction(head);
@@ -326,6 +337,10 @@ const BOTH_QUALIFIER = new RegExp(
  */
 export function foldBothQualifier(text: string): string {
   return text
+    // R-395: EX23-28 names the same aggregate areas with an explicit article.
+    .replace(/\bamong all the cards in\b/gi, "among all cards in")
+    // R-384: one colour predicate shared by the Leader and every energy, followed by any other condition.
+    .replace(/\b(your leader(?: card)?) and (?:your )?energy are all (mono-(?:red|blue|green|yellow|black|white))\b/gi, "$1 is $2 and all of your energy is $2")
     .replace(BOTH_QUALIFIER, (_whole, verb: string, article: string | undefined, names: string, noun: string, colour: string, token: string | undefined, end: string | undefined) => {
       // The colour goes in front of *each* name: the alternatives are cut apart
       // at their "or" later, and a colour written once would qualify only the
@@ -338,7 +353,9 @@ export function foldBothQualifier(text: string): string {
       return `${verb} ${article ?? "a "}${each} ${noun}${after}`;
     })
     .replace(/,?\s+and if\s+/gi, " and ")
-    .replace(/\s+or if\s+/gi, " or ");
+    .replace(/\s+or (?:if|when)\s+/gi, " or ")
+    .replace(/\blife is at(?=\d)/gi, "life is at ")
+    .replace(/\b(you have \d+ or more energy) while (?=you have |there are |\d+ or more )/gi, "$1 and ");
 }
 
 /**
@@ -398,6 +415,8 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     return dashed ? { cond: dashed.length === 1 ? dashed[0] : { kind: "all", conds: dashed } } : null;
   }
   clause = folded;
+  // A missing numerical bound must never degrade to an implicit one-card condition.
+  if (/\b(?:have|has|are|is) or (?:more|less|fewer)\b/i.test(clause)) return null;
   let m: RegExpExecArray | null;
   // "blue **and/or** yellow cards" (BT19-145) is the cards of either colour
   // counted together, which "blue or yellow cards" already says. Only between
@@ -414,10 +433,64 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // matched before this is reached, so they are not caught here.
   // "If your have 2 or more ≪Saiyan≫ cards in your Warp" (BT27-015) is a misprint of "you".
   const t = trimmed.replace(/^(?:if|when|while|during)\s+/, "").replace(/^your have /, "you have ");
+  if (/^you activated this card['’]s \[counter: ?attack\] skill from your energy$/.test(t)) return { cond: { kind: "counterActivatedFrom", from: "energy", skill: "counter:attack" } };
   // "if your Leader Card is yellow and your life is at 4 or less" splits on the
   // "and", so the second half arrives without a condition word in front of it.
   // It only counts as a condition when it continues one (9-1-3).
   if (t === trimmed && !allowBare) return null;
+  // R-394: an existential player is either player's own count, not their sum.
+  if ((m = /^a player'?s life is at (\d+) or (less|fewer|more)$/.exec(t))) return parseConditionClause(`you or your opponent's life is at ${m[1]} or ${m[2]}`, true);
+  if ((m = /^a player has (\d+) or (more|less|fewer) z-energy$/.exec(t))) return parseConditionClause(`you or your opponent has ${m[1]} or ${m[2]} z-energy`, true);
+  // Exact named pairs share their printed area, while each keeps its own colour.
+  if ((m = /^you have 1 (red|blue|green|yellow|black|white) (<[^>]+>) card and 1 (red|blue|green|yellow|black|white) (<[^>]+>) card in (your drop(?: area)?|your battle area|play)$/.exec(t))) {
+    const parts = [parseConditionClause(`you have 1 or more ${m[1]} ${m[2]} card in ${m[5]}`, true), parseConditionClause(`you have 1 or more ${m[3]} ${m[4]} card in ${m[5]}`, true)];
+    return parts.every(x => x) ? { cond: { kind: "all", conds: parts.map(x => x!.cond) } } : null;
+  }
+  if ((m = /^you have (\d+) or more each of (red|blue|green|yellow|black|white) (<[^>]+>) and (<[^>]+>) cards in (play|your battle area|your drop(?: area)?)$/.exec(t))) {
+    const [, n, color, first, second, area] = m;
+    const parts = [first, second].map(name => parseConditionClause(`you have ${n} or more ${color} ${name} card in ${area}`, true));
+    return parts.every(x => x) ? { cond: { kind: "all", conds: parts.map(x => x!.cond) } } : null;
+  }
+
+  // R-386: shared life subject and count-first existence wording preserve the stated bounds.
+  if ((m = /^your life or your opponent's life is at (\d+) or (less|fewer|more)$/.exec(t))) {
+    return parseConditionClause(`you or your opponent's life is at ${m[1]} or ${m[2]}`, true);
+  }
+  if ((m = /^(\d+ or (?:more|less|fewer) .+? cards?) (?:is|are) in your (.+)$/.exec(t))) {
+    return parseConditionClause(`you have ${m[1]} in your ${m[2]}`, true);
+  }
+
+  // A complete energy requirement followed by another stated subject must
+  // never become an energy filter if that second requirement cannot read.
+  if (!/,? or (?=you |your |there |it'?s |it is |this card |all )/.test(t) && (m = /^(you have \d+ or (?:more|less|fewer) (?:z-energy|energy)) and ((?:a player has|there (?:are|is)|\d+ or (?:more|less|fewer)) .+)$/.exec(t))) {
+    const first = parseConditionClause(m[1], true);
+    const tail = /^\d/.test(m[2]) && !/\b(?:is|are) in your\b/.test(m[2]) ? `you have ${m[2]}` : m[2];
+    const second = parseConditionClause(tail, true);
+    return first && second ? { cond: { kind: "all", conds: [first.cond, second.cond] } } : null;
+  }
+  // Audit conditions 4: a named character may be on either side, but its
+  // unqualified area is Leader/Battle (20-1-6). Card names can name Unisons.
+  if ((m = /^a player has (an? <[^>]+> card) in play$/.exec(t))) {
+    const filter = parseFilter(m[1]);
+    return { cond: { kind: "count", sel: { side: "both", areas: ["leader", "battle"], filter }, atLeast: 1 } };
+  }
+  // The number on the second alternative belongs to that alternative, not
+  // to the first count (BT19-145). A complete first area prevents a filter's
+  // "energy cost of 5 or more or 2 or more ..." from being treated as a list.
+  if (!/\band (?:you |your |there |it'?s |it is |this card |all )/.test(t) && (m = /^(you have|your opponent has) (\d+ or (?:more|less|fewer) (?:z-energy|energy|cards in (?:your|their) hand)) or (\d+ or (?:more|less|fewer) .+)$/.exec(t))) {
+    const first = parseConditionClause(`${m[1]} ${m[2]}`, true);
+    const second = parseConditionClause(`${m[1]} ${m[3]}`, true);
+    return first && second ? { cond: { kind: "any", conds: [first.cond, second.cond] } } : null;
+  }
+  // A pair described after a dash retains both exact costs and their shared
+  // name, combo cost and area. Distinct costs necessarily identify two cards.
+  if ((m = /^(?:there are|you have) 2 (<[^>]+>|\{[^}]+\}) cards with combo costs of (\d+) in your (z-energy|energy|drop area|battle area)[—―–]\s*1 with an energy cost of (\d+) and 1 with an energy cost of (\d+)$/.exec(t))) {
+    const [, name, comboCost, place, firstCost, secondCost] = m;
+    if (firstCost === secondCost) return null;
+    const areas: Record<string, ScriptArea> = { "z-energy": "zEnergy", energy: "energy", "drop area": "drop", "battle area": "battle" };
+    const conds: Cond[] = [firstCost, secondCost].map((cost) => ({ kind: "count", sel: { side: "you", area: areas[place], filter: parseFilter(`${name} card with an energy cost of ${cost} and combo cost of ${comboCost}`) }, atLeast: 1 }));
+    return { cond: { kind: "all", conds } };
+  }
   // #930: "if you played this card using [union]" (BT5-037), "if this card was
   // played using [union]" (BT6-036): the copy's memory of entering by a
   // [Union-(type)] skill's own play — only a successful one (owner's ruling,
@@ -682,6 +755,9 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // more" (EX23-22), "…in your Battle Area **and** Drop Area" (EB1-58): one count over the list (`areaListCondition`).
   const holdNames = (s: string) =>
     s
+      // "a <Lord Slug> card with an energy cost of 3 and combo cost of 1"
+      // is one description, not another requirement without a subject.
+      .replace(/(\bwith an? energy cost of \d+) and ((?:an? )?combo cost of \d+)/gi, "$1\u0001$2")
       // Audit conditions 3: "…, and **this card and all of your energy** are in Rest Mode" (BT29-071): one subject of two.
       .replace(/\bthis card and (all (?:of )?your energy (?:is|are) in (?:rest|active) mode)\b/gi, "this card\u0001$1")
       // …and "you only have **this card and** 1 red skill-less Battle Card in your Combo Area" (BT14-013).
@@ -839,6 +915,10 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   if ((m = /^your leader(?: card)? is (.+)$/.exec(t))) {
     if (leaderTailHoldsAClause(m[1])) return null;
+    // "both a yellow <Vegeta> and <Trunks: Future> card" (P-468):
+    // the article/colour between "both" and the first name is shared.
+    const both = /^(both) (an? (?:(?:mono-)?(?:red|blue|green|yellow|black|white) )?)(<[^>]+>) and (<[^>]+>) card$/.exec(m[1]);
+    if (both) return { cond: { kind: "leaderMatches", filter: parseFilter(`${both[2]}both ${both[3]} and ${both[4]} card`) }, subject: { sel: { special: "leader" } } };
     const every = everyColourLeader(m[1]);
     if (every) return { cond: { kind: "leaderMatches", filter: every }, subject: { sel: { special: "leader" } } };
     const parts = leaderAlternatives(m[1]);
@@ -936,7 +1016,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // [Counter: Play] asking about the card it is answering (9-6). The card is
   // not in play yet, so it can only be named, never chosen.
   // What happens to that card ("…is placed in its owner's Drop Area instead") is the effect, not a description.
-  if ((m = /^the (battle |extra |unison )?card (?:being played|(?:that )?your opponent is playing) (?:has|is) (?!(?:placed|put|returned|sent|played|removed)\b)(.+)$/.exec(t))) {
+  if ((m = /^(?:the|your opponent's) (battle |extra |unison )?card (?:being played|to be played|(?:that )?your opponent is playing) (?:has|is) (?!(?:placed|put|returned|sent|played|removed)\b)(.+)$/.exec(t))) {
     // The type word is a measure too: "the **Battle** Card being played"
     // (BT29-112) is not an Extra being played, whatever its cost.
     const filter = filterFor(`${m[1] ?? ""}card ${m[2]}`, null);
@@ -952,10 +1032,11 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // gains [Double Strike] whatever it is, which is a wider skill than the one
   // printed. The area a stack stands in is the area of the card on top
   // (23-2-2-2), so "in a Battle Area" narrows nothing and comes off.
-  if ((m = /^this card is under (.+?)(?: in (?:a|an|the|your|your opponent's) [a-z- ]*area)?$/.exec(t))) {
+  if ((m = /^this card is under (.+?)(?: in (a|an|the|your|your opponent's) (battle|leader|unison) area)?$/.exec(t))) {
     const above = filterFor(m[1], null);
     if (above === null) return null;
-    return { cond: { kind: "count", sel: { special: "onTop", filter: above }, atLeast: 1 }, subject: { sel: { special: "onTop", filter: above } } };
+    const host: Selector = { special: "onTop", filter: above, ...(m[3] ? { area: m[3] as "battle" | "leader" | "unison" } : {}), ...(m[2] === "your" ? { side: "you" as const } : m[2] === "your opponent's" ? { side: "opponent" as const } : {}) };
+    return { cond: { kind: "count", sel: host, atLeast: 1 }, subject: { sel: host } };
   }
   // "This card was used in a combo from your deck or hand" (BT12-071, -072,
   // -074, -075): the area the card left to enter the Combo Area, which the
@@ -1114,6 +1195,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   }
   // "If one of your yellow Battle Cards **is being attacked**" (BT4-085), "if
   // this card is attacking": one end of the battle rather than either (8-1).
+  // R450: present "is attacked" names the same current guard (BT14-090).
   // "One of" is the article, not a count — the condition asks whether any of
   // them is there.
   // Audit conditions 3: the same with what is attacked — "**during a battle in which** your <Broly> card is attacking **a
@@ -1121,7 +1203,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
   // Battle Card**" (BT16-043): the guard card of the battle too, as "attacks a Battle Card" is read below. Any other
   // object is not read here. And "if **your opponent's card** is attacking" (BT31-140): any card of theirs in play.
   // "…card**―both green and with an energy cost of 4―**is attacking" (BT22-067): the aside closes the subject.
-  if ((m = /^(?:if )?(?:(?:a|the) )?(?:battles? (?:in which|where|when) )?(.+?)\s*(?:[—―–]|--)?\s*(is|isn't|is not) (being attacked|attacking)(?: (.+))?$/.exec(t))) {
+  if ((m = /^(?:if )?(?:(?:a|the) )?(?:battles? (?:in which|where|when) )?(.+?)\s*(?:[—―–]|--)?\s*(is|isn't|is not) (being attacked|attacked|attacking)(?: (.+))?$/.exec(t))) {
     const guardOf = (said: string | undefined): Selector | null | undefined =>
       said === undefined
         ? undefined
@@ -1141,7 +1223,7 @@ export function parseConditionClause(clause: string, allowBare = false): { cond:
     if (sel && guard !== null && !(guard && (m[3] !== "attacking" || m[2] !== "is"))) {
       delete sel.count;
       delete sel.upTo;
-      const role = m[3] === "being attacked" ? "guard" : "attacker";
+      const role = m[3] === "attacking" ? "attacker" : "guard";
       const own: Cond = { kind: "inBattle", sel, role, ...(m[2] === "is" ? {} : { not: true }) };
       return { cond: guard ? { kind: "all", conds: [own, { kind: "inBattle", sel: guard, role: "guard" }] } : own, subject: { sel } };
     }
@@ -1590,7 +1672,9 @@ function priceConditionPhrasing(t: string): { cond: Cond; subject?: Ref } | null
     const energy = parseConditionClause(`all of your energy is ${m[1]}`, true);
     return leader && energy && energy.cond.kind === "every" ? { cond: { kind: "all", conds: [leader.cond, energy.cond] } } : null;
   }
-  if ((m = /^there(?: is|'s) a total of (\d+) or (more|less|fewer) energy between you and your opponent$/.exec(t))) {
+  // R-455: both printed orders observe the same two Energy Areas.
+  if ((m = /^you and your opponent have a total of (\d+) or (more|less|fewer) energy$/.exec(t))
+    || (m = /^there(?: is|'s) a total of (\d+) or (more|less|fewer) energy between you and your opponent$/.exec(t))) {
     return { cond: { kind: "count", sel: { side: "both", area: "energy" }, ...(m[2] === "more" ? { atLeast: Number(m[1]) } : { atMost: Number(m[1]) }) } };
   }
   if ((m = /^(?:an? (.+?) is in a(?: player's)? battle area|a player has an? (.+?) in their battle area)$/.exec(t))) {
@@ -1690,6 +1774,12 @@ function areaListCondition(t: string): { cond: Cond; subject?: Ref } | null | un
     const areas = areaList(m[4]);
     if (!areas) return null;
     const got = counted(m[3], areas, "you", m[1], m[2]);
+    return got ? { cond: got } : null;
+  }
+  // The same aggregate count before its verb, including a closing shared-colour dash.
+  if ((m = new RegExp(`^(\\d+) or (more|less|fewer) (.+?)(?:\\s+|(?<=[—―–?]))(?:is|are) in ${LIST}$`).exec(t)) && !clausey(m[3])) {
+    const areas = areaList(m[4]);
+    const got = areas && counted(m[3], areas, "you", m[1], m[2]);
     return got ? { cond: got } : null;
   }
   // "the total (number of) … in/among all cards in your A, B, and C is N or more".

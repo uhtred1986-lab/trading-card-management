@@ -116,6 +116,11 @@ export function yourCardPlayedByUnion(head: string): { said: string; what: "Unio
   return { said: m[1] !== undefined ? `your ${m[1]}` : m[2], what: m[3] ? UNION_VARIANT_NAME[m[3].toLowerCase() as keyof typeof UNION_VARIANT_NAME] : "Union" };
 }
 
+/** R-361: a successful [Arrival] play, not merely activating the keyword. */
+export function yourCardPlayedUsingArrival(head: string): string | null {
+  return /^when you use \[arrival\] to play ((?:an?|1) [^,]{1,120}?)\s*[,.]?$/i.exec(head.trim())?.[1] ?? null;
+}
+
 /**
  * Phrasing batch 5: "When this card **in your hand** is discarded by **one of your skills**" (BT26-015), "When this
  * card is discarded by one of your skills": the discard by a skill of the card's own master (`droppedFromHandByYou`),
@@ -158,6 +163,8 @@ const DISCARDED_BY_UNION = /^when this card(?: in your hand)? is (?:discarded fr
 const DISCARDED_BY_FUSION = /^when this card(?: in your hand)? is (?:discarded from (?:your|a) hand|placed from (?:your|a) hand (?:in|into) (?:your|its owner'?s) drop(?: area)?|placed (?:in|into) (?:your|its owner'?s) drop(?: area)? from (?:your|a) hand) (?:by an? |by |as a result of )\[union-fusion\](?: skill)?(?:,|$)/;
 /** Phrasing batch 6: "When one of your ≪Namekian≫ cards activates [Union Absorb]" (BT17-089): the card is the subject. */
 const YOUR_CARD_ABSORBS = /^when (?:one of your|your) ((?!opponent)[^,]{1,120}?) activates? (?:an? |the )?\[union[- ]absorb\](?: skill)?(?:,|$)/;
+/** R472: the named procedure is a successful other-card arrival, not activation. */
+export const YOUR_OTHER_BATTLE_DARK_PLAYED = /^when your battle card other than this card is played by a \[dark over realm\] skill(?:,|$)/i;
 /** Phrasing batch 6: "When {X} is played from your hand" (TB2-045), "When a <Son Goku: GT> card is played from your Drop" (BT26-001b). */
 const YOUR_CARD_PLAYED_FROM = /^when (?:an? |1 |one of your |your )?((?!this card\b|it\b|your opponent|an? opponent)[^,]{1,120}?) (?:is|are) played from your (hand|drop)(?: area)?(?:,|$)/;
 /**
@@ -305,6 +312,19 @@ export function comboEntrySelf(sk: Skill): boolean {
 export function comboEntryFromHand(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text).toLowerCase().replace(TURN_THEN_WHEN, "");
   return /when this card in your hand is (?:played or )?used in a combo\b|^when you combo with this card from your hand\b/.test(head);
+}
+/** R-483: one explicit origin on a watched combo; alternatives remain unread. */
+export function watchedComboOrigin(sk: Skill): "hand" | "battle" | null {
+  if (sk.kind !== "auto") return null;
+  const masked = maskNames(sk.effect);
+  const head = effectHead(masked.text);
+  const hand = /^when you use (?:a|an|1) (.+?) from your hand in a combo(?:,|$)/.exec(head);
+  const battle = /^when you combo with (?:a|an|1) (.+?) from your battle area during your turn(?:,|$)/.exec(head);
+  const match = hand ?? battle;
+  if (!match || /\bfrom\b|\busing\b|\bby\b/.test(match[1])) return null;
+  const said = masked.unmask(match[1]);
+  if (parseFilter(said).unreadable || (/ or /.test(said) && !readsOr(said))) return null;
+  return hand ? "hand" : "battle";
 }
 /**
  * A self-combo entry moment that says more than "this card was used in a combo"
@@ -543,9 +563,14 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   // your Unison Card to activate this skill.)** When you use a red skill-less Battle Card … in a combo" (BT14-001b) —
   // says how the skill is paid, not when it happens (1-5-8); the head is the moment after it.
   const printed = effectHead(effect.text).replace(/^\([^()]*\)\s*/, "").replace(TURN_THEN_WHEN, "");
+  if (playedUsingPotaraOrAttacks(sk)) return trigger === "playedUsingUnionPotara" || trigger === "attacks";
+  if (playedOrAttacksOpponentBattle(sk)) return trigger === "played" || trigger === "attacksOpponentBattle";
+  if (playedOrGainControlBattle(sk)) return trigger === "played" || trigger === "youGainControlBattle";
   const trailing = trailingTrigger(sk);
   const head = trailing ? `${trailing}, ${printed}` : printed;
   if (sk.kind === "auto" && momentsBatch1(head).some((m) => m.trigger === trigger)) return true;
+  if (trigger === "activeBySkillDuringYourTurn" && playedOrActiveDuringYourTurn(sk)) return true;
+  if (trigger === "youComboFromHand" || trigger === "youComboFromBattle") return watchedComboOrigin(sk) === (trigger === "youComboFromHand" ? "hand" : "battle");
   // Audit triggers 2: a watched card's moment, read by the grammar (`watchedMomentOf`) when its description reads whole.
   if (sk.kind === "auto") {
     const watched = watchedMomentOf(effect.unmask(printed));
@@ -559,19 +584,20 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     if (zone && zone.said === null && zone.trigger === trigger) return true;
     if (placedUnderFrom(printed).includes(trigger)) return true;
     // "At the end of a turn where this card was played" (BT16-142): either player's turn end (7-1), the play a condition
-    // the compiler reads (`placedThisTurn`, played). "…played from your hand" asks where from, which nothing remembers.
+    // the compiler reads (`placedThisTurn`, played/from), using the successful entry remembered this turn.
     if (TURN_END_WHERE_PLAYED.test(momentClause(printed)) && (trigger === "turnEnd" || trigger === "opponentTurnEnd")) return true;
   }
   switch (trigger) {
+    case "selfExtraActivated":
+      return /when (?:you activate this card(?!['’]s)|this card is activated)(?=\s*(?:,|:|\.|$))/.test(t);
     case "played":
-      // 12-2: activating an Extra *is* playing it, and the sets print both.
+      // Arrival wording stays distinct from activating an Extra Card (R460).
       // "When you play or combo with this card" and "when this card in your
       // hand is played or used in a combo" are this trigger and the self
       // combo entry trigger (`comboUsed`; `comboed` is its stored alias).
       // Each fires at its own moment, and only one of them happens.
       // "…using [Over Realm]" is `playedUsingOverRealm`'s and is not this.
-      // Phrasing batch 7: "When this card is activated" (BT10-058, a [Field] Extra) is the same moment said passively.
-      return /when (?:you play this card|this card is played)|when you activate this card(?!['’]s \[)|when this card is activated(?=\s*(?:,|:|\.|$))|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
+      return /when (?:you play this card|this card is played)|when you play or combo with this card|when this card(?: in your hand)? is played(?: or used in a combo)?/.test(
         t.replace(PLAYED_USING_OVER_REALM, "").replace(PLAYED_FROM_HAND_G, "").replace(PLAYED_FROM_DROP, ""),
       );
     case "playedFromHand":
@@ -579,7 +605,9 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     case "playedFromDrop":
       return new RegExp(PLAYED_FROM_DROP.source).test(t);
     case "playedUsingOverRealm":
-      return new RegExp(PLAYED_USING_OVER_REALM.source).test(t);
+      return /when (?:you play this card|this card is played) (?:using|with) \[over realm[^\]]*\]/.test(t);
+    case "playedUsingDarkOverRealm":
+      return /when (?:you play this card|this card is played) (?:using|with) (?:\[over realm[^\]]*\] or )?\[dark over realm[^\]]*\]/.test(t);
     case "attacks":
       // "When this card attacks and KOs an opponent's Battle Card" is the KO, not the attack.
       // "When you attack or combo with this card" is this trigger and the
@@ -707,6 +735,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     }
     case "yourEnergyToDeck":
       return /^when your energy is placed (?:at|on) the bottom of (?:its owner'?s|your) deck(?:,|$)/.test(head.toLowerCase());
+    case "yourOtherBattlePlayedUsingDarkOverRealm":
+      return YOUR_OTHER_BATTLE_DARK_PLAYED.test(head);
     case "yourCardPlayedFromHand":
     case "yourCardPlayedFromDrop": {
       const m = YOUR_CARD_PLAYED_FROM.exec(head.toLowerCase());
@@ -836,9 +866,11 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // "…with an original energy cost of 2 **and the [Field] skill**", "…from
     // your hand **by paying the cost**", "the [Activate: Battle] skill on a red
     // Extra … in your hand **or Drop Area**" are left as gaps.
+    case "extraActivatedFromHand":
     case "extraActivated": {
       const m = /^when you activate (?:an?|1) ([^,:]{0,90}?\bextra(?: cards?)?\b[^,:]{0,90}?)(?:,|$)/.exec(head);
       if (!m) return false;
+      if ((trigger === "extraActivatedFromHand") !== /\s+from your hand$/.test(m[1])) return false;
       const said = m[1].replace(/\s+from your hand$/, "");
       // "An energy cost of 1 **or** more" is one bound, not two kinds.
       const kinds = said.replace(/\b\d+ or (?:less|fewer|more|greater|higher|lower)\b/g, "");
@@ -974,6 +1006,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
     // ordinary play would be worse than not firing. "By a [Union] skill" is
     // the one it checks (#930, below).
     case "youPlayed": {
+      const arrival = yourCardPlayedUsingArrival(effect.unmask(momentClause(head)));
+      if (arrival) return readableSubject({ unmask: (s) => s }, arrival);
       // #930: "When your <X> card is played by a [Union] skill" (BT22-033,
       // BT25-036 back, P-682), "when you play a Battle Card using a
       // [Union-Fusion] skill" (BT12-122): the means is one the engine checks
@@ -1019,6 +1053,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return !parseFilter(said).unreadable;
     }
     // BT8-089: "When a Battle Card attacks" — any player's, said with nothing else.
+    case "yourBattleAttacksLeader":
+      return /^when your battle card attacks a leader card\s*(?:,|$)/.test(head.toLowerCase());
     case "battleCardAttacks":
       return /^when a battle card attacks\s*(?:,|:|\.|$)/.test(head.toLowerCase());
     // BT15-091: "When a player places a [Field] Extra Card in a Battle Area" and
@@ -1224,6 +1260,8 @@ export function momentsBatch1(head: string): { trigger: Trigger; cause?: string;
   if ((m = B1_USE_TO_DISCARD.exec(head))) return bySide(m[1], "droppedFromHand", "droppedFromHandByYou", "droppedFromHandByOpponent");
   // 1-10-1: a card switched to Active Mode — any switch, the Charge Phase's included (BT31-029's Q&A) — or by a skill.
   if (/^when this card is switched to active mode(?:,|$)/.test(head)) return [{ trigger: "selfRestToActive" }];
+  // The turn qualifies this switch alone, including beside an unrestricted play (EX08-06, EX19-30/31).
+  if (/^when this card is switched to active mode by a skill during your turn(?:,|$)/.test(head)) return [{ trigger: "activeBySkillDuringYourTurn" }];
   if ((m = /^when this card is switched to active mode by (.+?)(?:,|$)/.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "activeBySkill", cause: m[1] }] : [];
   if (/^when your energy is switched (?:from rest mode )?to active mode by (?:a|any) skills?(?:,|$)/.test(head)) return [{ trigger: "yourEnergyActiveBySkill" }];
   if ((m = B1_DROP_TO_WARP.exec(head))) return momentCauseOf(m[1]) ? [{ trigger: "dropToWarpBySkill", cause: m[1] }] : [];
@@ -1397,12 +1435,44 @@ export function momentPartSkills(sk: Skill): Skill[] | null {
  * clause (an unread gap) instead of keeping half of it.
  */
 const PLAYED_COORDINATED = /^when (?:this card (?:in your hand )?is played|you play this card)((?: from your hand| using \[[^\]]*\])?)\s*,?\s+or\s+(?:when\s+)?([\s\S]*)$/;
+/** Exact coordinated head: the qualified switch is a separate typed moment, never a condition on the play. */
+export function playedOrActiveDuringYourTurn(sk: Skill): boolean {
+  return sk.kind === "auto" && /^when (?:you play this card|this card is played),? or when this card is switched to active mode by a skill during your turn(?:,|$)/.test(effectHead(maskNames(sk.effect).text));
+}
+/** R-487: exact independent Potara arrival/attack and bounded draw/self-power body. */
+export function playedUsingPotaraOrAttacks(sk: Skill): boolean {
+  return sk.kind === "auto" && /^when this card is played using \[union-potara\] or attacks, draw 1 card, and this card gains \+5000 power for the duration of the turn\.?$/.test(effectHead(maskNames(sk.effect).text));
+}
+/** R490: declaration target qualifies only the attack; the exact body has a bounded self reference. */
+export function playedOrAttacksOpponentBattle(sk: Skill): boolean {
+  return sk.kind === "auto" && /^when this card is played or attacks an opponent's battle card, switch this card to active mode, then choose up to 1 of your opponent's battle cards, ignoring \[barrier\], and switch it to rest mode\.?$/.test(effectHead(maskNames(sk.effect).text));
+}
+/** R496: the complete paired head keeps the play independent of the historical control gain. */
+export function playedOrGainControlBattle(sk: Skill): boolean {
+  return sk.kind === "auto" && /^when this card is played or you gain control of an opponent's battle card, your opponent sends 1 card from their hand to their warp\.?$/.test(effectHead(maskNames(sk.effect).text));
+}
+/** R-485: only the represented unqualified pair or Hand-qualified pair. */
+export function playedOrComboBattleEnd(sk: Skill): boolean {
+  if (sk.kind !== "auto") return false;
+  const head = effectHead(maskNames(sk.effect).text);
+  const hand = /^when this card is played from your hand,? or at the end of a battle (?:in which|where) this card was used in a combo from your hand(?:,|$)/.test(head);
+  const plain = /^when this card is played or at the end of a battle in which this card was used in a combo(?:,|$)/.test(head);
+  if (!hand && !plain) return false;
+  const combo = compileComboQualification(sk);
+  const parts = momentPartSkills(sk) ?? [];
+  return combo?.timing === "battleEnd" && combo.subject === "self" && combo.turn === "any"
+    && (hand ? combo.origins?.length === 1 && combo.origins[0] === "hand" : combo.origins === null)
+    && parts.some(part => autoTriggerMatches(part, hand ? "playedFromHand" : "played"))
+    && parts.some(part => autoTriggerMatches(part, "comboed"));
+}
 export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (sk.kind !== "auto") return false;
   const head = effectHead(maskNames(sk.effect).text);
   const m = PLAYED_COORDINATED.exec(head);
   if (!m) return false;
   const [, qualifier, rest] = m;
+  if (playedOrActiveDuringYourTurn(sk)) return !autoTriggerMatches(sk, "activeBySkillDuringYourTurn");
+  if (playedOrComboBattleEnd(sk) || playedUsingPotaraOrAttacks(sk) || playedOrAttacksOpponentBattle(sk) || playedOrGainControlBattle(sk)) return false;
   // A qualifier on the play that `played` would ignore: only "from your hand"
   // and "using [Over Realm]" have readers of their own.
   if (/^ using \[/.test(qualifier) && !/^ using \[(?:dark )?over realm/.test(qualifier)) return true;
@@ -1666,6 +1736,7 @@ const KEYWORD_MOVE: Readonly<Record<string, { you?: Trigger; opponent?: Trigger 
   "over realm": { you: "overRealmPlayed" },
   "dark over realm": { you: "darkOverRealmActivated" },
   overlord: { you: "overlordActivated" },
+  revive: { you: "reviveActivated" },
   rejuvenate: { you: "rejuvenateActivated" },
   blocker: { you: "yourCardBlockerUsed", opponent: "opponentBlockerUsed" },
   counter: { you: "youCounter", opponent: "opponentCounter" },
@@ -1727,7 +1798,7 @@ export function watchedKeywordMove(clause: string): { triggers: Trigger[]; said:
 // ── audit triggers 3 (3 Nov 2026): a card's move between areas ──────────────
 
 /** Audit triggers 3: "At the end of a turn where this card was played" (BT16-142). */
-export const TURN_END_WHERE_PLAYED = /^at the end of a turn (?:where|in which) this card was played$/;
+export const TURN_END_WHERE_PLAYED = /^at the end of a turn (?:where|in which) this card was played(?: from your hand)?$/;
 
 /** The areas a moment's "in your …" / "from your …" names, as the zones a move carries (`moved`'s `from`). */
 const AREA_ZONE: Readonly<Record<string, string>> = { hand: "hand", drop: "drop", "drop area": "drop", "battle area": "battle", "z-energy": "zEnergy", "combo area": "combo" };

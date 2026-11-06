@@ -1,3 +1,31 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
+import { requireDormantNativePolicy } from "./under-native-observation";
+import type { NativeUnderWritePlan } from "./under-native-plan";
+import {stepIncrementalLook,recordInspectionChoice,recordInspectionMode,recordInspectionOrder} from './incremental-look';
+import { prepareUnderSourcePlacement, requireUnderSourcePlacement, cleanupUnderSourcePlacement, settleUnderSourcePlacement, requireUnderSourceTriggerHistory } from "./under-source-placement";
+import { preflightPlacedUnder, capturePlacedUnderRelation } from "./placed-under-master";
+import { captureUnderRelease, requireUnderReleaseCapture, cleanupUnderRelease } from "./under-release-cleanup";
+import { capturePileRelease, requirePileReleaseCapture, cleanupReleasedPile } from "./pile-release-cleanup";
+import { mixedStandingObservationFromHistory } from "./standing-negation-mixed-history";
+import { captureMovementAutoHistory, requireMovementAutoBodies, type LegacyMovementFacts, type MovementAutoHistory } from "./movement-auto-history";
+import { freshAppliedEffectRoot, executionReceipt, recordAppliedEffect, captureAppliedEffectMove, settleAppliedEffectMove, retireAppliedEffectRetarget, type Receipt } from "./applied-effect-receipt";
+import { captureEnergyBattleScope } from "./energy-entry-battle";
+import { cleanupScriptPlacement, clearScriptAutoReveal as clearAutoReveal } from "./script-placement-cleanup";
+import { captureEnergyComboScope } from "./energy-entry-combo";
+import { requireDeclaredCharge, requireEnergyCharge } from "./energy-entry-charge";
+import { guardEnergyEntryLifetimes, refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
+import { guardOptionalEnergyFrame, prepareOptionalEnergyEntry, optionalEnergyArrival, guardUnownedEnergyEntry, type OptionalEnergyArrival } from "./energy-entry-runtime";
+import { guardEnergyEntryBatch } from "./energy-entry-preflight";
+import { mixedStandingLeaderRestoration, beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
+import { captureEnergyEntryMode } from "./energy-entry-mode";
+import { queueFieldCleanup, takeFieldCleanup } from "./field-rules";
+import { queueFieldCost } from "./field-costs";
+import { captureCounterArrivalBatch, counterArrivalBatchFrameProblem, currentCounterArrival } from "./counter-arrival-batch";
+import { counterArrivalDescriptor } from "./counter-arrival-policy";
+import { checkedCounterArrivalTemplates, retainCounterArrivalTemplate, beginCounterArrivalDecision } from "./counter-arrival-runtime";
+import { canReplaceCounterArrival } from "./counter-arrival-offer";
+import { overRealmSourceProblem } from "./over-realm-cost";
+import { retainCounter, nextRetainedCounter, resumeRetainedCounter } from "./retained-counter";
 /**
  * The rules engine as a `ScriptHost` — the other implementation of the
  * interface `stepScript` runs on (`vm/script-host.ts`, #142 step 1).
@@ -57,28 +85,33 @@
  *
  * Pure and client-safe: no database, no network, no `fs`.
  */
+import { prepareReplacementAuto } from "./replacement-auto";
+import { applyArrivalBindings, deferArrivalOperation, retainedCounterShape, freezeOp } from "./skill-play-binding";
+import { rebuildScope, witnessArrivalAutos } from "./skill-play-scope";
 import type { EngineContext, GameEvent } from "../types";
 import { other as otherPlayer } from "../types";
 import type { ScriptHost } from "./script-host";
 import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
-import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule, skillNegated } from "./effects";
+import { addEffect, dropEffectsOn, negatedSkillsOf, schedule, skillNegated } from "./effects";
 import { IllegalAction, tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
 import { RulesetBroken, NotYet } from "./errors";
 import { savedXKey, type ScriptFrame } from "./script";
 import { answered, endGame, gameEndForbidden } from "./flow";
-import { emit, fire, log } from "./events";
-import { fireHook } from "./hooks";
+import { emit, fire, log, type Moment } from "./events";
+import { queryHookStatics } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
-import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard } from "./zones";
-import { attrsNow, amount, condHolds, staticsNow, forbiddenForCard, forbids, hasKeyword, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
+import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard, removedInsteadOfUnder } from "./zones";
+import { wordsFromRuleset } from "../board-words";
+import { untilWords } from "../effects";
+import { attrsNow, amount, condHolds, staticsNow, forbiddenForCard, forbids, hasKeyword, keywordInstancesInForce, namedCandidates, permissions, unionNamesOf, playsInOpponentBattle, resolveRef, resolveSelector, sideOf, spendProhibitionUse, taxesOn, unionPotaraExtras, zoneOf } from "./program";
 import { lifeToHandForbidden } from "./life-movement";
-import { activationMoment, activationTaxGate, canPayPriceProgram, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
-import { comboPriceOf } from "./costs";
+import { activationMoment, activationTaxGate, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
+import { consumeActivationEnergyUses, comboPriceOf } from "./costs";
 import { queueKeywordCost } from "./keyword-costs";
-import { masterOf, pendAutos, skillsShowing } from "./triggers";
+import { masterOf, pendAutos, skillsShowing, matchTriggers, type TriggerMatch } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
 import { addSkip } from "./skips";
 import { uniqueFrame } from "./unique";
@@ -93,11 +126,77 @@ import { shuffle as shuffleItems } from "./rng";
  * reading needs: the catalog, the definition, the state being changed and the
  * log being appended to.
  */
-export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): ScriptHost {
+interface SynchronousMovementReceipt {
+  history: MovementAutoHistory;
+  moment: Moment;
+  epoch: number;
+  remaining: Set<string>;
+}
+function movementMatchKey(match: TriggerMatch): string {
+  return JSON.stringify([match.trigger, match.card, match.subject, match.front, match.handWatcher]);
+}
+/** A receipt belongs only to the synchronous move/legacy-alias sequence. */
+function consumedMovementAlias(receipt: SynchronousMovementReceipt | undefined, moment: Moment, match: TriggerMatch): boolean {
+  if (!receipt || receipt.moment.event !== moment.event || receipt.moment.card !== moment.card
+    || receipt.moment.controller !== moment.controller) return false;
+  const originalSource = receipt.moment.source ?? receipt.moment.args.viaCard;
+  if (moment.source !== undefined && moment.source !== originalSource) return false;
+  if (moment.args.fromHolder !== undefined && moment.args.fromHolder !== receipt.moment.args.fromHolder) return false;
+  return receipt.remaining.delete(movementMatchKey(match));
+}
+
+export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], retainedFrame?: ScriptFrame): ScriptHost {
+  validateStandingNegationRead(ctx, state);
   const card = (id: string) => state.cards[id];
   const zoneList = (p: PlayerId, area: Area): string[] => (state.sides[p].zones[area] ?? []).slice();
+  const counterProtected = (frame: ScriptFrame, id: string): boolean => !!frame.counterPlay && frame.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter");
+
+  // R489: script.ts calls these legacy aliases synchronously after h.move.
+  // The host-local receipt covers that synchronous move/alias sequence; it
+  // ends at the next movement or host disposal and is never saved.
+  let movementReceipt: SynchronousMovementReceipt | undefined;
+  let energyDeparture: { card: string; epoch: number; remaining: Set<string> } | undefined;
+  const nativeMove = (...args: Parameters<typeof moveTo>): void => {
+    energyDeparture = undefined;
+    movementReceipt = undefined;
+    moveTo(...args);
+  };
 
   return {
+    recordInspectionChoice: (frame,op,picked) => { requireUnscopedStandingWrite(state); return recordInspectionChoice(ctx,game,state,frame,op,picked); },
+    recordInspectionMode: (frame,op,index) => { requireUnscopedStandingWrite(state); return recordInspectionMode(ctx,game,state,frame,op,index); },
+    recordInspectionOrder: (frame,picked) => { requireUnscopedStandingWrite(state); return recordInspectionOrder(ctx,game,state,frame,picked); },
+    incrementalLook: (frame, op) => { requireUnscopedStandingWrite(state); return stepIncrementalLook(ctx, game, state, frame, op); },
+    guardEnergyEntryFrame: frame => {
+      requireUnscopedStandingWrite(state);
+      requireDeclaredCharge(game,state,frame);
+      if (frame.energyCharge) requireEnergyCharge(game,state,frame);
+      guardOptionalEnergyFrame(ctx,state,vmHost(ctx,game,state,ev,frame),frame);
+    },
+    guardEnergyEntryBatch: (frame,ids) => { if (!frame.energyEntry) guardEnergyEntryBatch(ctx,state,vmHost(ctx,game,state,ev,frame),frame,ids); },
+    prepareEnergyEntry: (frame,id,destination) => {
+      requireUnscopedStandingWrite(state);
+      return prepareOptionalEnergyEntry(ctx,state,vmHost(ctx,game,state,ev,frame),child => {
+      const childHost=vmHost(ctx,game,state,ev,child);
+      return {...childHost,move:(card,to,owner,opts)=>childHost.move(card,to,owner,{...opts,source:child.card,actor:child.master})};
+    },frame,id,destination);
+    },
+    deferCounterOperation: (frame, op) => {
+      requireUnscopedStandingWrite(state);
+      if (!frame.counterPlay || frame.counterAnswerScope === undefined) return false;
+      const scope = state.skillPlayScopes?.find(s => s.id === frame.counterAnswerScope);
+      if (!scope || scope.phase !== "before") rebuildScope("rebuild this saved Counter arrival binding");
+      if (frame.ip === 0 && counterArrivalDescriptor(frame.ops) && !scope.profile.tokens && !scope.profile.explicitWindow) {
+        retainCounterArrivalTemplate(state, scope, frame);
+        return "retained";
+      }
+      if (!frame.retainedCounter && frame.ip === 0 && retainedCounterShape(frame.ops) && scope.profile.arrivals === 1 && !scope.profile.tokens && !scope.profile.explicitWindow) {
+        frame.ops = [freezeOp(vmHost(ctx, game, state, ev), frame, op)];
+        retainCounter(state, scope, frame);
+        return "retained";
+      }
+      return deferArrivalOperation(vmHost(ctx, game, state, ev), scope, frame, op);
+    },
     // ── what the program can find out ────────────────────────────────────
     exists: (id) => !!card(id),
     ownerOf: (id) => card(id).owner,
@@ -107,6 +206,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // equality is relied on, and `createGame` already refuses a definition
     // whose zone names the procedure cannot find.
     areaOf: (id) => (zoneOf(state, id) as Area | null) ?? null,
+    energyEntryBattleScope: (frame,id) => captureEnergyBattleScope(ctx,state,frame,id),
+    energyEntryComboScope: (frame,id) => captureEnergyComboScope(ctx,game,state,frame,id),
+    energyEntryLocation: id => { const at=findCard(state,id); return at ? {holder:at.owner,area:at.zone as Area} : null; },
     hostOf: (id) => hostOf(state, id),
     modeOf: (id) => (card(id).mode as Mode | null) ?? null,
     markersOf: (id) => card(id).markers,
@@ -124,6 +226,16 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     enteredTurnOf: () => state.turn,
     nameOf: (id) => nameOfCard(ctx, state, id),
     defOf: (id) => faceOf(ctx, state, id),
+    cardInfo: (id) => structuredClone(attrsNow(ctx, game, state, id)),
+    keywordInstances: (id, viewer) => keywordInstancesInForce(ctx, game, state, id).map(instance => {
+      const grant = instance.grantEffectId !== undefined ? state.effects.find(e => e.id === instance.grantEffectId)
+        : instance.standingGrantId !== undefined ? staticsNow(ctx, game, state).find(e => e.standingGrantId === instance.standingGrantId) : undefined;
+      if (!grant) return instance;
+      const sourceName = grant.source && state.cards[grant.source] ? nameOfCard(ctx, state, grant.source) : "a skill";
+      const duration = untilWords("until" in grant ? grant.until : "permanent", { master: grant.master, viewer, them: state.sides[viewer === "p1" ? "p2" : "p1"].name, sourceName }, wordsFromRuleset(game));
+      return { ...instance, grantDescription: `from ${sourceName}, ${duration}` };
+    }),
+    lastModeOptions: () => state.prompt.kind === "chooseMode" ? state.prompt.options : undefined,
     hasKeyword: (id, name) => hasKeyword(ctx, game, state, id, name as KeywordSkill["name"]),
     // 9-1-5: negation is a continuous effect here rather than a mark on the
     // instance, and `./effects.ts` is where that is read — once, for every
@@ -137,23 +249,19 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     invokableSkills: (player, id, op) => invokedMainLines(ctx, game, state, player, id, op).map((line) => ({ index: line.skillIndex, label: line.skill.raw })),
     // #926: `payActionPrice` — the strict frame that pays a keyword move's
     // printed action price, in front of the `DO` frame (`vm/keyword-costs.ts`).
-    payKeywordPrice: (frame) => queueKeywordCost(state, frame),
+    payKeywordPrice: (frame) => { requireUnscopedStandingWrite(state); return queueKeywordCost(state, frame); },
     fieldSkill: (player, id) => {
       const line = fieldLineOf(ctx, game, state, player, id);
       return line === null ? "none" : line === "blocked" ? "blocked" : "ready";
     },
     activateField: (player, id) => {
+      requireUnscopedStandingWrite(state);
       const line = fieldLineOf(ctx, game, state, player, id);
       if (!line || line === "blocked") throw new IllegalAction("that card's [Field] skill can no longer be activated");
-      const moment = activationMoment(ctx, game, state, player, line);
-      const gate = activationTaxGate(ctx, game, state, player, id, line.kind);
-      spendProhibitionUse(ctx, game, state, "activateSkill", { player, card: id });
-      const queued = state.programs.length;
-      resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true);
-      if (gate) queueTaxGate(state, gate, state.programs.length - queued);
-      fire(ctx, game, state, moment);
+      queueFieldCost(ctx, game, state, player, line, true);
     },
     invokeSkill: (player, id, skillIndex, op) => {
+      requireUnscopedStandingWrite(state);
       const line = invokedMainLines(ctx, game, state, player, id, op).find((candidate) => candidate.skillIndex === skillIndex);
       if (!line) throw new IllegalAction("the selected skill is no longer eligible");
       const moment = activationMoment(ctx, game, state, player, line);
@@ -163,7 +271,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const gate = activationTaxGate(ctx, game, state, player, id, line.kind);
       spendProhibitionUse(ctx, game, state, "activateSkill", { player, card: id });
       const queued = state.programs.length;
-      resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true);
+      resolveActivation(ctx, game, state, ev, player, line, undefined, undefined, undefined, true, op.from);
       if (gate) queueTaxGate(state, gate, state.programs.length - queued);
       fire(ctx, game, state, moment);
     },
@@ -177,12 +285,13 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     comboFree: () => comboPriceOf(game) === null,
     forbids: (what, opts) => forbids(ctx, game, state, what, opts ?? {}),
     permits: (what, card) => permissions(ctx, game, state, what).some((p) => p.target === card),
-    taxesOn: (what, opts) => taxesOn(ctx, game, state, what, opts).map((t) => t.ops),
+    taxesOn: (what, opts) => taxesOn(ctx, game, state, what, { ...opts, ...(opts.excludePaidTaxes ? { withIdentity: true } : {}) }).filter(t => !t.identity || !opts.excludePaidTaxes?.includes(t.identity)).map((t) => t.ops),
     canPayTax: (player, card, ops) => canPayTaxProgram(ctx, game, state, player, card, ops),
 
     // ── the language's own readings ──────────────────────────────────────
     resolveSelector: (frame, sel) => resolveSelector(ctx, game, state, frame, sel),
-    resolveRef: (frame, ref) => resolveRef(ctx, game, state, frame, ref),
+    resolveRef: (frame, ref) => resolveRef(ctx, game, state, frame, ref).filter(id => !counterProtected(frame, id)),
+    resolvedPlayCards: (frame) => frame.resolvedPlayCards ? resolveRef(ctx, game, state, frame, { sel: { special: "resolving" } }).filter(id => !counterProtected(frame, id)) : [],
     amount: (frame, a) => amount(ctx, game, state, frame, a),
     condHolds: (frame, c) => condHolds(ctx, game, state, frame, c),
     namedCandidates: (frame, sel, picked, samePower) => namedCandidates(ctx, game, state, frame, sel, picked, samePower),
@@ -193,24 +302,54 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
 
     // ── what the program can change ──────────────────────────────────────
     note: (text) => {
+      requireUnscopedStandingWrite(state);
       log(ev, { type: "note", text });
     },
     log: (event) => {
+      requireUnscopedStandingWrite(state);
       log(ev, event);
     },
     draw: (p, n) => {
+      requireUnscopedStandingWrite(state);
       let drawn = 0;
       for (let i = 0; i < n; i++) {
         const id = state.sides[p].zones[SETUP_ZONES.deck][0];
         if (!id) break;
-        moveTo(ctx, game, state, ev, id, SETUP_ZONES.hand, p, { reason: "draw" });
+        nativeMove(ctx, game, state, ev, id, SETUP_ZONES.hand, p, { reason: "draw" });
         log(ev, { type: "draw", player: p, card: id });
         drawn++;
       }
       return drawn;
     },
+    reportsMovement: true,
+    canReplaceCounterArrival: (frame) => !!frame.arrivalDecision && !counterProtected(frame, frame.arrivalDecision.arrival.card) && canReplaceCounterArrival(ctx, game, state, frame),
     move: (id, to, owner, opts) => {
-      moveTo(ctx, game, state, ev, id, to, owner, { position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(opts?.source ? { source: opts.source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      requireUnscopedStandingWrite(state);
+      energyDeparture = undefined;
+      movementReceipt = undefined;
+      let completedEnergyDeparture: { card: string; epoch: number } | undefined;
+      const arrival = retainedFrame?.arrivalDecision;
+      const energyEntry=to === "energy" ? optionalEnergyArrival(ctx,game,state,vmHost(ctx,game,state,ev,retainedFrame),retainedFrame,id,owner,opts?.requestedMode) : undefined;
+      const nativeBattleEnergy = to === "energy" && zoneOf(state,id) === "battle" && retainedFrame?.skillEffectOrigin?.version === 2
+        && ["activate", "auto"].includes(retainedFrame.skillEffectOrigin.kind) && Number.isSafeInteger(retainedFrame.skillIndex) && retainedFrame.skillIndex! >= 0 && !retainedFrame.declaredCharge
+        && !retainedFrame.replacing && !retainedFrame.replacementAuto && !retainedFrame.replacementFallback && !opts?.replaced
+        && opts?.reason !== "cost" && !retainedFrame.saveVarsAs && !retainedFrame.keywordPrice && !retainedFrame.keywordCost && !retainedFrame.counterCost && !retainedFrame.autoCost;
+      const actor=opts?.actor ?? (nativeBattleEnergy || energyEntry && !retainedFrame?.declaredCharge ? retainedFrame?.master : undefined);
+      const source=opts?.source ?? (nativeBattleEnergy || energyEntry && !retainedFrame?.declaredCharge ? retainedFrame?.card : undefined);
+      const onResult: NonNullable<typeof opts>["onResult"] = result => {
+        opts?.onResult?.(result);
+        if (nativeBattleEnergy && result.completed && result.from === "battle" && result.to === "energy") {
+          completedEnergyDeparture = { card: id, epoch: result.toEpoch };
+        }
+        if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
+          state.resolving?.card === id && (result.completed || result.toEpoch !== result.fromEpoch)) state.resolving.replaced = true;
+      };
+      nativeMove(ctx, game, state, ev, id, to, owner, { legacyMovement: opts?.legacyMovement,
+        ...(opts?.legacyMovement && retainedFrame ? { legacyCause: { actor: retainedFrame.master, source: retainedFrame.card } } : {}),
+        onMovement: (moment, history) => { movementReceipt = { moment, history, epoch: state.cards[id]?.zoneEpoch ?? 0,
+          remaining: new Set(matchTriggers(game, state, moment, true).map(movementMatchKey)) }; }, appliedEffects: executionReceipt(state, retainedFrame), onResult, energyEntry, actor, ...(nativeBattleEnergy ? { historicalBattleEnergy: true } : {}), requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(source ? { source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      if (completedEnergyDeparture) energyDeparture = { ...completedEnergyDeparture,
+        remaining: new Set(["removedFromBattle", "removedByOpponent", "yourCardRemovedByOpponent", "yourCardRemovedBySkill", "opponentCardRemovedBySkill"]) };
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -221,7 +360,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // loop settled on — asked, or the one replacement there was — and
     // `null` when none answers; the KO honours it rather than looking again.
     ko: (id, by, opts) => {
-      koCard(ctx, game, state, ev, id, by, opts && "replaced" in opts ? (opts.replaced ?? null) : undefined, "skill");
+      requireUnscopedStandingWrite(state);
+      koCard(ctx, game, state, ev, id, by, opts && "replaced" in opts ? (opts.replaced ?? null) : undefined, "skill", opts?.onKoResult);
     },
     // 23-2: `moveCard`'s own `under` option already carries 23-2-2 through
     // 23-2-6 (#152 taught it 23-2-5's "different area → Drop" half, which it
@@ -231,18 +371,71 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // moment fires (23-2 declares none, and the legacy engine's own
     // `placeUnder` fires none either — only the client-visible picture),
     // which is why this is `log`, not `emit`.
-    placeUnder: (id, host) => {
+    placeUnder: (id, host, frame, onResult) => {
+      requireUnscopedStandingWrite(state);
+      refuseEnergyEntryProcedure(state,[id,host]);
+      if (!state.underStandingNegationHistory) refuseStandingNegationMutation(state, "under placement", ctx);
       // Audit triggers 3: where it came from, read before it joins the pile (which is in no area, 23-2).
-      const from = zoneOf(state, id);
-      const result = moveCard(state, game, id, "drop", { under: host });
-      if (!result.ok) return false;
+      const from = zoneOf(state, id), fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
+      const destination = { card: host, epoch: state.cards[host]?.zoneEpoch ?? 0 };
+      const report = (completed: boolean) => onResult?.({ card: id, from, fromEpoch, to: completed ? "under" : zoneOf(state, id), toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed, ...(completed ? { host: destination } : {}) });
+      if (id === host) { report(false); return false; }
+      // R-398 / 0-2-2: a printed Z-Awaken self-payment may put its card
+      // under the activating Z-Leader before it leaves the Z-Deck.
+      const at = findCard(state, host);
+      const zAwaken = frame?.keywordCost?.line.keyword?.name === "Z-Awaken" && host === frame.card
+        && at?.zone === "zDeck" && at.owner === frame.master && findCard(state, id)?.owner === frame.master
+        && attrsNow(ctx, game, state, host).type === "Z-LEADER"
+        && frame.vars.zAwakenSource?.[0] === host && frame.vars["zAwakenSource@epoch"]?.[0] === `${host}@${state.cards[host].zoneEpoch ?? 0}`;
+      if (!state.cards[id] || !state.cards[host] || !at || !(game.zones[at.zone]?.host || zAwaken)) { report(false); return false; }
+      if (removedInsteadOfUnder(state, game, id, host, zAwaken)) {
+        const paying = frame && (frame.saveVarsAs || frame.autoCost || frame.keywordCost || frame.keywordPrice || frame.counterCost || frame.swapCost || frame.aegisCost || frame.reviveCost || frame.dropCost);
+        nativeMove(ctx, game, state, ev, id, "removed", state.cards[id].owner, { reason: paying ? "cost" : "effect", ...(frame ? { actor: frame.master, source: frame.card } : {}) });
+        report(false);
+        return false;
+      }
+      if (state.cards[id] && state.cards[host]) preflightPlacedUnder(state, id, host);
+      const options = { under: host, ...(zAwaken ? { underProcedure: "Z-Awaken" as const } : {}) };
+      // The host owns the execution receipt; a strict price host may wrap the
+      // explicit script cursor with its separate payment root.
+      const executionFrame = retainedFrame ?? frame;
+      const nativePlan: NativeUnderWritePlan = { moves: [{ route: "under", card: id, host, ...(executionFrame ? { frame: executionFrame } : {}),
+        ...(zAwaken ? { procedure: { kind: "Z-Awaken", frame: frame! } } : {}) }] };
+      const sourcePlacement = prepareUnderSourcePlacement(ctx, game, state, id, host, executionFrame);
+      const release = captureUnderRelease(state, id, host);
+      // Complete isolated lifecycle: source effects can end material effects and vice versa.
+      const projected = structuredClone(state);
+      const projectedSource = prepareUnderSourcePlacement(ctx, game, projected, id, host, executionFrame ? structuredClone(executionFrame) : undefined);
+      const projectedRelease = captureUnderRelease(projected, id, host);
+      const projectedTransaction = projected.mixedStandingNegationHistory || projected.underStandingNegationHistory ? beginStandingNegationMutation(ctx, projected, undefined, nativePlan) : undefined;
+      requireUnderSourcePlacement(projected, projectedSource);
+      const projectedMove = moveCard(projected, game, id, "drop", options);
+      if (!projectedMove.ok) { report(false); return false; }
+      cleanupUnderSourcePlacement(projected, [], projectedSource, projectedMove.move);
+      cleanupUnderRelease(projected, [], projectedRelease, projectedMove.move);
+      settleUnderSourcePlacement(projected, projectedSource, projectedMove.move);
+      finishStandingNegationMutation(ctx, projected, projectedTransaction, [id, host], undefined, [projectedMove.move]);
+      requireUnderSourceTriggerHistory(ctx, game, projected, projectedSource);
+      const transaction = state.mixedStandingNegationHistory || state.underStandingNegationHistory ? beginStandingNegationMutation(ctx, state, undefined, nativePlan) : undefined;
+      requireUnderReleaseCapture(state, release);
+      requireUnderSourcePlacement(state, sourcePlacement);
+      const result = moveCard(state, game, id, "drop", options);
+      if (!result.ok) { finishStandingNegationMutation(ctx, state, transaction); report(false); return false; }
+      cleanupUnderSourcePlacement(state, ev, sourcePlacement, result.move);
+      const released = cleanupUnderRelease(state, ev, release, result.move);
+      settleUnderSourcePlacement(state, sourcePlacement, result.move);
+      finishStandingNegationMutation(ctx, state, transaction, [id, host], undefined, [result.move]);
+      requireUnderSourceTriggerHistory(ctx, game, state, sourcePlacement);
+      for (const material of released) log(ev, { type: "move", card: material.card, from: material.from as Area, to: material.to as Area, owner: material.owner });
+      report(result.move.to === "under" && result.move.under === host);
       clearAutoReveal(state, id);
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
       // 23-2: going into the pile is a moment for the card itself — "when
       // this card is placed under a <Vegito> card" (BT29-140) — and where it
       // came from is part of it ("when this card in your hand is placed
       // under …", BT23-025; audit triggers 3).
-      emit(ctx, game, state, ev, { event: "placedUnder", card: id, controller: masterOf(game, state, host), args: { to: "under", ...(from ? { from } : {}) } }, null);
+      const underRelation = capturePlacedUnderRelation(game, state, id, host);
+      emit(ctx, game, state, ev, { event: "placedUnder", placedUnderRelation: underRelation, card: id, controller: underRelation.master, args: { to: "under", ...(from ? { from } : {}) } }, null);
       return true;
     },
     // "Place a Z-Extra from under this card on top of this card" (BT31-005,
@@ -256,6 +449,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // pile under it in its order (23-2-2-1, 23-2-6). Not in a Leader Area: a
     // Leader is the only card that stands there (3-1-2, 17-1-1).
     placeOnTop: (id, host) => {
+      requireUnscopedStandingWrite(state);
+      refuseEnergyEntryProcedure(state,[id,host]);
+      if (!state.underStandingNegationHistory) refuseStandingNegationMutation(state, "stack placement", ctx, zoneOf(state, host) === "battle" ? id : undefined);
       const top = state.cards[host];
       const at = findCard(state, host);
       // Mechanism batch 3 (3-1-2, 22-46-6 by analogy): a Leader Area takes a card on top only when it is a Leader
@@ -269,17 +465,33 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const seat = findCard(state, id);
       const fromZDeck = !fromPile && leaderStack && leaderCard && seat?.zone === SETUP_ZONES.zDeck && seat.owner === at?.owner;
       if (!top || !state.cards[id] || !(fromPile || fromZDeck) || !at || (leaderStack ? !leaderCard : game.zones[at.zone]?.host !== true)) return false;
+      preflightPlacedUnder(state, host, id);
       const mode = top.mode;
+      const incomingPile = state.cards[id].under.slice();
+      const incomingBase = state.cards[id].leaderBase;
       // A single-card area (the Leader Area) takes the new top card beside the old one only as a card placed onto it.
+      const transaction = state.mixedStandingNegationHistory || state.underStandingNegationHistory ? beginStandingNegationMutation(ctx, state, id, { stack: { route: "top", card: id, host } }) : undefined;
+      const roles = (["attacker", "guard"] as const).filter(role => state.battle?.[role] === host);
       const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: fromPile, ...(leaderStack ? { onto: host } : {}) });
-      if (!up.ok) return false;
+      if (!up.ok) { finishStandingNegationMutation(ctx, state, transaction); return false; }
       const down = moveCard(state, game, host, at.zone, { under: id });
       if (!down.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${id}: ${down.refused}`);
+      if (leaderStack && state.cards[id].zCard) {
+        // The incoming paid pile precedes the old Leader and its own pile.
+        // Capture the actual post-stack occurrence, not the pre-move epoch.
+        state.cards[id].under = [...incomingPile, ...state.cards[id].under.filter(x => !incomingPile.includes(x))];
+        if (top.leaderBase?.card === id) {
+          if (incomingBase && incomingBase.card !== host) top.leaderBase = incomingBase;
+          else { delete top.leaderBase; delete top.leaderStackVersion; }
+        }
+        state.cards[id].leaderBase = { card: host, epoch: state.cards[host].zoneEpoch ?? 0 };
+        state.cards[id].leaderStackVersion = 1;
+      }
       const list = state.sides[at.owner].zones[at.zone];
       list.splice(list.indexOf(id), 1);
       list.splice(Math.min(at.index, list.length), 0, id);
       if (mode !== undefined && mode !== null) state.cards[id].mode = mode;
-      for (const e of state.effects) if (e.target === host && e.kind === "power") e.target = id;
+      for (const e of state.effects) if (e.target === host && e.kind === "power") { retireAppliedEffectRetarget(state, e); e.target = id; }
       state.effects = state.effects.filter((e) => e.target !== host);
       const b = state.battle;
       if (b && (b.attacker === host || b.guard === host)) {
@@ -288,14 +500,17 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (b.guard === host) b.guard = id;
       }
       clearAutoReveal(state, host);
+      finishStandingNegationMutation(ctx, state, transaction, [id, host], roles.length ? { kind: "assign", roles } : undefined, [up.move, down.move]);
       log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} is placed on top of ${nameOfCard(ctx, state, host)}` });
       log(ev, { type: "stack", top: id, under: state.cards[id].under.slice() });
-      emit(ctx, game, state, ev, { event: "placedUnder", card: host, controller: masterOf(game, state, id), args: { to: "under", from: at.zone } }, null);
+      const underRelation = capturePlacedUnderRelation(game, state, host, id);
+      emit(ctx, game, state, ev, { event: "placedUnder", placedUnderRelation: underRelation, card: host, controller: underRelation.master, args: { to: "under", from: at.zone } }, null);
       // 6-2-4, 22-46-6-3: a card placed in the Leader Area — "when your Leader is placed" answers it.
       if (leaderStack) emit(ctx, game, state, ev, { event: "moved", card: id, controller: at.owner, args: { to: at.zone, asPlay: false } }, null);
       return true;
     },
     setMode: (id, mode, by) => {
+      requireUnscopedStandingWrite(state);
       const at = zoneOf(state, id);
       const declared = at ? game.zones[at] : undefined;
       if (!declared?.modes?.includes(mode)) return false;
@@ -327,10 +542,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       return true;
     },
     setFaceUp: (id, faceUp) => {
+      requireUnscopedStandingWrite(state);
       clearAutoReveal(state, id);
       card(id).faceUp = faceUp;
     },
     setHidden: (id, hidden, by) => {
+      requireUnscopedStandingWrite(state);
+      refuseEnergyEntryProcedure(state,[id]);
+      if (!state.underStandingNegationHistory) refuseStandingNegationMutation(state, "Hidden switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
+      const transaction = state.mixedStandingNegationHistory || state.underStandingNegationHistory ? beginStandingNegationMutation(ctx, state, undefined, { hidden: { card: id, hidden } }) : undefined;
       clearAutoReveal(state, id);
       card(id).hidden = hidden;
       if (hidden) card(id).hiddenCount = (card(id).hiddenCount ?? 0) + 1;
@@ -342,6 +562,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // 23-5-4: face down, an attack card or guard card is neither any more.
       const b = state.battle;
       if (hidden && b && (b.attacker === id || b.guard === id)) b.hiddenOut = true;
+      finishStandingNegationMutation(ctx, state, transaction, id);
       // 1-10-2: the switch is a moment, with what caused it and where the card
       // is — the same shape as `modeSwitched` above (`hiddenBySkill`,
       // `triggers.rules`).
@@ -350,71 +571,114 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       emit(ctx, game, state, ev, { event: "hiddenSwitched", card: id, controller, args: { hidden, in: zoneOf(state, id) ?? "", ...cause } }, null);
     },
     flip: (id, toBack = true) => {
+      requireUnscopedStandingWrite(state);
+      refuseEnergyEntryProcedure(state,[id]);
+      if (state.underStandingNegationHistory && card(id).flipped === toBack) { log(ev, { type: "flip", card: id, flipped: toBack }); return; }
+      if (!state.underStandingNegationHistory) refuseStandingNegationMutation(state, "face switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
+      const transaction = state.mixedStandingNegationHistory || state.underStandingNegationHistory ? beginStandingNegationMutation(ctx, state, undefined, { battle: { kind: "face", card: id } }) : undefined;
+      const participation = state.mixedStandingNegationHistory ? mixedStandingObservationFromHistory(state.mixedStandingNegationHistory).battle : undefined;
+      const roles = card(id).flipped === toBack ? [] : (["attacker", "guard"] as const).filter(role => state.battle?.[role] === id
+        && (!state.mixedStandingNegationHistory || participation?.[role].present));
+      if (roles.length && state.mixedStandingNegationHistory && (ctx.defs[card(id).cardId]?.type !== "LEADER"
+          || card(id).zCard || card(id).hidden || !ctx.defs[card(id).cardId]?.back || zoneOf(state, id) !== "leader"))
+        throw new NotYet("switch an unreviewed participating mixed-history source face", "R513");
       card(id).flipped = toBack;
+      finishStandingNegationMutation(ctx, state, transaction, id, roles.length ? { kind: "face", roles } : undefined);
       log(ev, { type: "flip", card: id, flipped: toBack });
     },
     changeMarkers: (id, delta) => {
+      requireUnscopedStandingWrite(state);
       const inst = card(id);
       inst.markers = Math.max(0, inst.markers + delta);
       log(ev, { type: "markers", card: id, delta, total: inst.markers });
       return inst.markers;
     },
     changeEnergyMarkers: (p, delta) => {
+      requireUnscopedStandingWrite(state);
       const now = Number(state.sides[p].attrs.energyMarkers ?? 0);
       state.sides[p].attrs.energyMarkers = Math.max(0, now + delta);
       log(ev, { type: "energyMarker", player: p, delta });
     },
     setPlayerAttr: (p, name, value) => {
+      requireUnscopedStandingWrite(state);
       // #157: a counted fact goes up rather than being set.
       state.sides[p].attrs[name] = typeof value === "object" ? Number(state.sides[p].attrs[name] ?? 0) + value.add : value;
     },
     // 21-3: script.ts calls this only when it emits a damage event. A saved
     // game from before the counter existed stays unknown, even after a hit.
     // 20-14 (P-032): a skill's win is refused while the winner may not win or the other may not lose.
-    winGame: (p, reason) => { if (!gameEndForbidden(ctx, game, state, p === "p1" ? "p2" : "p1", p)) endGame(ctx, game, state, ev, p, reason); },
+    winGame: (p, reason) => {
+      requireUnscopedStandingWrite(state); if (!gameEndForbidden(ctx, game, state, p === "p1" ? "p2" : "p1", p)) endGame(ctx, game, state, ev, p, reason); },
     addDamageTaken: (p, n) => {
+      requireUnscopedStandingWrite(state);
       if (state.damageTotals) state.damageTotals[p] += n;
     },
     shuffleDecks: (players) => {
+      requireUnscopedStandingWrite(state);
       for (const p of players) {
         log(ev, { type: "note", text: `${state.sides[p].name} shuffles their deck` });
         shuffle(state, p);
       }
     },
     shuffleLives: (players) => {
+      requireUnscopedStandingWrite(state);
       for (const p of players) shuffle(state, p, SETUP_ZONES.life);
     },
     arrangeDeck: (p, ids, position) => {
+      requireUnscopedStandingWrite(state);
       const deck = state.sides[p].zones[SETUP_ZONES.deck];
       const placed = ids.filter((id) => deck.includes(id));
       const rest = deck.filter((id) => !placed.includes(id));
       deck.splice(0, deck.length, ...(position === "bottom" ? [...rest, ...[...placed].reverse()] : [...placed, ...rest]));
     },
     pickAtRandom: (ids, n) => {
+      requireUnscopedStandingWrite(state);
       const mixed = shuffleItems(ids, state.rngState);
       state.rngState = mixed.state;
       return mixed.items.slice(0, Math.max(0, n));
     },
     setEnteredTurn: () => {},
     negateAll: (id) => {
-      addEffect(state, ev, { target: id, kind: "negateSkills", value: 0, until: "game", source: id });
+      requireUnscopedStandingWrite(state);
+      const spec = { target: id, kind: "negateSkills" as const, value: 0, until: "game" as const, source: id };
+      const transaction = beginStandingNegationMutation(ctx, state, undefined, { effects: [retainedFrame ? { kind: "scriptAdd", spec, frame: retainedFrame } : { kind: "add", spec }] });
+      recordAppliedEffect(state, retainedFrame, id, () => addEffect(state, ev, spec));
+      finishStandingNegationMutation(ctx, state, transaction);
     },
     negateSkillIndex: (id, index) => {
-      addEffect(state, ev, { target: id, kind: "negateSkill", value: index, until: "game", source: id });
+      requireUnscopedStandingWrite(state);
+      const spec = { target: id, kind: "negateSkill" as const, value: index, until: "game" as const, source: id };
+      const transaction = beginStandingNegationMutation(ctx, state, undefined, { effects: [retainedFrame ? { kind: "scriptAdd", spec, frame: retainedFrame } : { kind: "add", spec }] });
+      recordAppliedEffect(state, retainedFrame, id, () => addEffect(state, ev, spec));
+      finishStandingNegationMutation(ctx, state, transaction);
     },
     addEffect: (e) => {
+      requireUnscopedStandingWrite(state);
       // "…while this card is in a Battle Area": a source already gone by the
       // time the effect resolves gives it no period to last for at all.
       if (e.until === "whileSourceInPlay" && (!e.source || zoneOf(state, e.source) !== "battle")) return undefined;
-      return addEffect(state, ev, e);
+      const transaction = beginStandingNegationMutation(ctx, state, undefined, { effects: [retainedFrame ? { kind: "scriptAdd", spec: e, frame: retainedFrame } : { kind: "add", spec: e }] });
+      const added = recordAppliedEffect(state, retainedFrame, e.target, () => addEffect(state, ev, e));
+      finishStandingNegationMutation(ctx, state, transaction);
+      return added;
+    },
+    setEffectGroup: (effectId, group) => {
+      requireUnscopedStandingWrite(state);
+      const effect = state.effects.find(item => item.id === effectId);
+      if (!effect) throw new IllegalAction("the effect to group is no longer available");
+      const transaction = beginStandingNegationMutation(ctx, state, undefined, { effects: [{ kind: "group", effect: effectId, group }] });
+      effect.group = group;
+      finishStandingNegationMutation(ctx, state, transaction);
     },
     schedule: (d) => {
+      requireUnscopedStandingWrite(state);
       schedule(state, ev, d);
     },
     // 20-13: an entry on the player's skip list, spent by the occurrence it
     // names — a phase by its declared `skip:` word (`vm/flow.ts`), a battle
     // step by `vm/battle.ts`'s own work, a whole turn as it begins.
     addSkip: (p, what, when) => {
+      requireUnscopedStandingWrite(state);
       // Audit effects 3: "Skip your turn and begin your opponent's Charge Phase" (BT31-097) — the rest of the turn in
       // progress. Its Main Phase ends now (the question it is asking the player is answered for them, so the runner
       // moves on once this program and its checkpoint are done), and the Main Phase End and End Phase are skipped as
@@ -435,13 +699,38 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `moved` moment fires here, because the interpreter pends the token's
     // own `played` next (`stepScript`'s `token` case), exactly as it does
     // for the legacy host.
-    createToken: (p, name, power, comboCost, comboPower, colors, mode) => {
+    createToken: (p, name, power, comboCost, comboPower, colors, mode, frame) => {
+      requireUnscopedStandingWrite(state);
+      if (!state.underStandingNegationHistory) refuseStandingNegationMutation(state, "token creation", ctx);
       const id = `${p}#token${Object.keys(state.cards).length}`;
-      state.cards[id] = newCard(id, tokenCardId(name, power, comboCost, comboPower, colors), p);
+      const scope = frame?.skillEffectOrigin?.scope === undefined ? undefined : state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin!.scope);
+      if (state.underStandingNegationHistory && scope) refuseStandingNegationMutation(state, "token arrival replacement scope", ctx);
+      const cardId = tokenCardId(name, power, comboCost, comboPower, colors);
+      const nativeTransaction = state.underStandingNegationHistory ? beginStandingNegationMutation(ctx, state, undefined,
+        { token: { id, cardId, owner: p, rest: mode === "rest" } }) : undefined;
+      state.cards[id] = newCard(id, cardId, p);
+      const previous = state.resolving;
+      let rest = mode === "rest", negated = false;
+      let negatedBy: { player: PlayerId; source?: string } | undefined;
+      if (scope) {
+        state.resolving = { card: id, player: p };
+        const host = vmHost(ctx, game, state, ev);
+        applyArrivalBindings({ ...host, replaceResolvingPlay: () => { state.resolving!.replaced = true; } }, scope, () => false);
+        const arrival = state.resolving;
+        state.resolving = previous;
+        if (arrival.replaced) { delete state.cards[id]; return null; }
+        rest ||= !!arrival.rest;
+        negated = !!arrival.negated;
+        negatedBy = arrival.negatedBy;
+      }
+      const transaction = nativeTransaction ?? (state.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, state) : undefined);
       const placed = moveCard(state, game, id, TOKEN_ZONE, { owner: p });
       if (!placed.ok) throw new RulesetBroken(state.game, `a token cannot be made in the ${TOKEN_ZONE}: ${placed.refused}`);
       // Phrasing batch 4: "…in Rest Mode" is how the token arrives (5-5-3), not a switch after it.
-      if (mode && game.zones[TOKEN_ZONE]?.modes?.includes(mode)) state.cards[id].mode = mode;
+      if (rest && game.zones[TOKEN_ZONE]?.modes?.includes("rest")) state.cards[id].mode = "rest";
+      if (negated) addEffect(state, ev, { target: id, kind: "negateSkills", value: 0, until: "turn", source: negatedBy?.source ?? frame?.card ?? id, master: negatedBy?.player ?? frame?.master ?? p });
+      if (scope) scope.played.push({ card: id, epoch: state.cards[id].zoneEpoch ?? 0 });
+      finishStandingNegationMutation(ctx, state, transaction, id, undefined, [placed.move]);
       log(ev, { type: "token", card: id, owner: p });
       return id;
     },
@@ -451,9 +740,20 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // The moment, in the words `triggers.rules` is written in. A program that
     // pends is naming a legacy trigger, and `pendByName` is the one translation
     // — see its note.
-    pend: (trigger, cardId, subject, sourceNegated) => pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated),
+    pend: (trigger, cardId, subject, sourceNegated, sourceMaster) => {
+      requireUnscopedStandingWrite(state);
+      const movedCard = WATCHED_MOVE.has(trigger) && subject ? subject : cardId;
+      const receipt = movementReceipt?.history.card === movedCard && movementReceipt.epoch === (state.cards[movedCard]?.zoneEpoch ?? 0) ? movementReceipt : undefined;
+      if (energyDeparture?.card === cardId && energyDeparture.epoch === (state.cards[cardId]?.zoneEpoch ?? 0)
+        && energyDeparture.remaining.delete(trigger)) return;
+      const before = new Set(state.pending);
+      pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated, sourceMaster, receipt?.history, receipt);
+      const scope = state.skillPlayScopes?.at(-1);
+      if (trigger === "played" && scope?.played.some(item => item.card === cardId && item.epoch === (state.cards[cardId]?.zoneEpoch ?? 0))) witnessArrivalAutos(state, scope, cardId, before);
+    },
     autosNegatedNow: (cardId) => skillsShowing(ctx, state, cardId).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, cardId, sk.index, sk.kind)).map((sk) => sk.index),
-    dropPendsOfOtherColours: (before, source) => {
+    dropPendsOfOtherColours: (before, source, sourceMaster) => {
+      requireUnscopedStandingWrite(state);
       const colors = source && state.cards[source] ? (attrsNow(ctx, game, state, source).colors ?? []) : [];
       state.pending = state.pending.filter((e, i) => {
         if (i < before) return true;
@@ -461,7 +761,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         const m = /flipped face up by (?:one of )?your (red|blue|green|yellow|black|white) card skills?/i.exec(sk ? sk.cost + " " + sk.effect : "");
         if (!m) return true;
         const want = m[1][0].toUpperCase() + m[1].slice(1);
-        return (colors as readonly string[]).includes(want);
+        return sourceMaster === e.master && (colors as readonly string[]).includes(want);
       });
     },
 
@@ -469,25 +769,29 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // Every [Permanent] replacement standing in front of this departure, for
     // the interpreter's two loops that can ask 9-10-2/9-10-3's question
     // (`vm/replace.ts`, the legacy `replacementChoicesFor`).
+    prepareReplacement: (frame, id, to, cause) => { requireUnscopedStandingWrite(state); return prepareReplacementAuto(ctx, game, state, frame, id, to, cause); },
     replacementsFor: (id, reason, opts) => replacementChoices(ctx, game, state, id, reason, opts ?? {}),
     // 9-6: a play *being resolved* — declared and paid for, not landed — is
     // `state.resolving`, which `vm/battle.ts`'s `openPlayCounterWindow` writes
     // when a [Counter: Play] could answer it (#150). Null outside that window,
     // and null again once a counter has replaced the play, the legacy
     // `s.resolving = null` in its own `replaceResolvingPlay`.
-    resolvingCard: () => (state.resolving && !state.resolving.replaced && !state.resolving.landed ? state.resolving.card : null),
+    resolvingCard: () => (state.resolving && !state.resolving.replaced && !state.resolving.landed && !(retainedFrame && state.resolving.card && counterProtected(retainedFrame, state.resolving.card)) ? state.resolving.card : null),
     // 5-5: the manner of the arrival, read by `playThen` below as the card
     // lands — the legacy `continuations.playRest`/`playNegated`, kept on the
     // one record the window opened.
     setPlayRest: (id) => {
+      requireUnscopedStandingWrite(state);
       if (state.resolving?.card === id && !state.resolving.landed) state.resolving.rest = true;
     },
-    setPlayNegated: (id) => {
-      if (state.resolving?.card === id && !state.resolving.landed) state.resolving.negated = true;
+    setPlayNegated: (id, by) => {
+      requireUnscopedStandingWrite(state);
+      if (state.resolving?.card === id && !state.resolving.landed) { state.resolving.negated = true; state.resolving.negatedBy = by; }
     },
     // Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126/EX12-07): held on the play's own record and made by
     // `playThen` once the card has landed, as a frame of the counter's own (`switchMode`), so its moments are pended.
     switchOnLanding: (id, mode, source, master) => {
+      requireUnscopedStandingWrite(state);
       const r = state.resolving;
       if (!r || r.card !== id || r.landed || r.replaced) return false;
       r.switchAfter = { mode, source, master };
@@ -500,8 +804,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `DO` frame is dropped unrun (`vm/flow.ts`'s runner, on `replaced`), which
     // is the legacy engine filtering its `play.resolve` step out of the flow.
     replaceResolvingPlay: (ops) => {
+      requireUnscopedStandingWrite(state);
       const r = state.resolving;
-      if (!r || r.replaced || r.landed) return;
+      if (!r?.card || r.replaced || r.landed) return;
+      if (retainedFrame && counterProtected(retainedFrame, r.card)) return;
       const only = ops.length === 1 ? ops[0] : null;
       if (!only || only.op !== "moveTo") return;
       const id = r.card;
@@ -509,7 +815,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // "Under" is not an area a card can simply be put in (23-2), and no card
       // says so here; the Drop is the printed default — the legacy mapping.
       const dest = only.to === "play" ? "battle" : only.to === "under" ? "drop" : only.to;
-      moveTo(ctx, game, state, ev, id, dest, card(id).owner, { reason: "effect", position: only.position, reveal: true });
+      nativeMove(ctx, game, state, ev, id, dest, card(id).owner, { reason: "effect", position: only.position, reveal: true });
       r.replaced = true;
     },
 
@@ -524,18 +830,26 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // are already primitive cases the interpreter reads directly).
     battle: () => (state.battle ? { attacker: state.battle.attacker, guard: state.battle.guard, negated: state.battle.negated } : null),
     setGuard: (guard, by) => {
+      requireUnscopedStandingWrite(state);
       if (!state.battle) return;
+      const same = state.battle.guard === guard;
+      const transaction = same ? undefined : beginStandingNegationMutation(ctx, state, undefined, { battle: { kind: "assign", role: "guard", card: guard } });
       state.battle.guard = guard;
+      if (!same || !state.underStandingNegationHistory) finishStandingNegationMutation(ctx, state, transaction, undefined, { kind: "assign", roles: ["guard"] });
       log(ev, { type: "guardChanged", guard, by });
     },
     swapBattleCard: (out, into) => {
+      requireUnscopedStandingWrite(state);
       const b = state.battle;
       if (!b || (b.attacker !== out && b.guard !== out)) return;
       // 8-1-7-2: the new card is in the battle from here on, as a card played
       // on top of one is (`vm/play.ts`'s `stackOnto`).
+      const role = b.attacker === out ? "attacker" : "guard";
+      const transaction = out === into ? undefined : beginStandingNegationMutation(ctx, state, undefined, { battle: { kind: "assign", role, card: into } });
       state.cards[into].battledThisTurn = true;
       if (b.attacker === out) b.attacker = into;
       else b.guard = into;
+      if (out !== into || !state.underStandingNegationHistory) finishStandingNegationMutation(ctx, state, transaction, undefined, { kind: "assign", roles: [role] });
       log(ev, { type: "note", text: `${nameOfCard(ctx, state, into)} takes ${nameOfCard(ctx, state, out)}'s place in the battle` });
     },
     // #936: an attacker whose attacks can't be negated (EX03-14, a
@@ -543,6 +857,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // instruction fails and says so (`false`), so "if you negated" reads it.
     // Read at the moment of negation, off the card now attacking (8-1-7-2).
     negateAttack: () => {
+      requireUnscopedStandingWrite(state);
       if (!state.battle) return false;
       const attacker = state.battle.attacker;
       if (permissions(ctx, game, state, "attackUnnegatable").some((p) => p.target === attacker)) {
@@ -561,6 +876,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // queued is the one directly under this — the opponent's, 22-10-3-4. Its
     // card stays in the Drop (22-10-7-1); its costs stay paid.
     negateCounterInFlight: () => {
+      requireUnscopedStandingWrite(state);
+      const window = state.resolving?.scopeWindow;
+      const scope = window?.counterMotion ? state.skillPlayScopes?.find(s => s.id === window.scope) : undefined;
+      const held = scope?.window?.programs[0];
+      if (held?.counterMotion) {
+        scope!.window!.programs.shift();
+        scope!.canceled = true;
+        return held.card;
+      }
       const at = state.programs.findIndex((f) => f.counterMotion);
       if (at < 0) return null;
       const [countered] = state.programs.splice(at, 1);
@@ -569,14 +893,17 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
 
     // ── the questions, and the flow that carries them ────────────────────
     ask: (prompt: Prompt) => {
+      requireUnscopedStandingWrite(state);
       state.prompt = prompt;
     },
     lastMode: () => state.lastMode,
     clearLastMode: () => {
+      requireUnscopedStandingWrite(state);
       state.lastMode = null;
     },
     lastChoice: () => state.lastChoice,
     clearLastChoice: () => {
+      requireUnscopedStandingWrite(state);
       state.lastChoice = null;
     },
     // 4-3-3: a price's names, left where the effect can start from them. The
@@ -585,14 +912,18 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // `saveVarsAs` and the effect behind it with `pricedBy` under the same key
     // (#458). The price being paid is also the moment the line is announced —
     // the legacy `skill.resolve`, which runs after the price for that reason.
-    saveVars: (key, vars) => {
+    saveVars: (key, vars, paidCardInfo) => {
+      requireUnscopedStandingWrite(state);
       const effect = state.programs.find((f) => f.pricedBy?.key === key);
       if (!effect) throw new RulesetBroken(state.game, `a price finished with no effect waiting for what it chose (${key})`);
+      if (effect.activationEnergyPayment) consumeActivationEnergyUses(ctx, state, ev, effect.activationEnergyPayment);
       effect.vars = { ...vars, ...effect.vars };
+      if (paidCardInfo) effect.paidCardInfo = { ...paidCardInfo, ...effect.paidCardInfo };
       log(ev, { type: "skill", card: effect.card, skill: effect.skillIndex ?? 0, master: effect.master, text: effect.pricedBy!.text, inBattle: !!state.battle });
     },
     // #1117: the price did not happen whole, so the effect it was paying for is dropped, unannounced.
     priceUnpaid: (key, why) => {
+      requireUnscopedStandingWrite(state);
       const at = state.programs.findIndex((f) => f.pricedBy?.key === key);
       if (at < 0) throw new RulesetBroken(state.game, `a price failed with no effect waiting on it (${key})`);
       const [effect] = state.programs.splice(at, 1);
@@ -602,17 +933,20 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // activation already charged an energy X, which wins, as in the legacy
     // `runSkill` (`x ?? paidX`).
     saveX: (key, x) => {
+      requireUnscopedStandingWrite(state);
       const effect = state.programs.find((f) => f.pricedBy && savedXKey(f.pricedBy.key) === key);
       if (!effect) throw new RulesetBroken(state.game, `a price finished with no effect waiting for the X it bound (${key})`);
       if (effect.x === undefined) effect.x = x;
     },
 
     resume: (frame) => {
+      requireUnscopedStandingWrite(state);
       state.programs.unshift(frame);
     },
     interrupt: (first, frame) => {
+      requireUnscopedStandingWrite(state);
       state.programs.unshift(frame);
-      state.programs.unshift(first);
+      state.programs.unshift(first.uniqueKeep || first.fieldCleanup ? first : freshAppliedEffectRoot(state, first, first.replacing ? "replacement" : "tax"));
     },
     // 21-11 (#730): two same-named [Unique] cards the instruction just put
     // in one Battle Area are processed before the next instruction. A price
@@ -620,13 +954,17 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // paid as one unit, so it is not cut; the runner's own look takes the
     // violation the moment the price frame hands back control.
     ruleInterrupt: (frame) => {
-      if (frame.autoCost || frame.swapCost || frame.keywordCost || frame.aegisCost || frame.counterCost || frame.reviveCost) return null;
+      requireUnscopedStandingWrite(state);
       // 21-9-2 (#759): a Unison the instruction just left without markers
       // goes to the Drop Area before the next instruction.
       for (const [id, owner] of emptyUnisons(state)) {
         log(ev, { type: "note", text: `${state.cards[id].cardId} has no markers left (21-9): it is placed in its owner's Drop Area` });
-        moveTo(ctx, game, state, ev, id, "drop", owner, { reason: "rule" });
+        nativeMove(ctx, game, state, ev, id, "drop", owner, { reason: "rule" });
       }
+      const fields = takeFieldCleanup(state);
+      if (fields) return fields;
+      // 21-9 is interruptive even during costs (EX19-06 own FAQ).
+      if (frame.fieldCost || frame.autoCost || frame.swapCost || frame.keywordCost || frame.aegisCost || frame.counterCost || frame.reviveCost || frame.dropCost) return null;
       return uniqueFrame(ctx, game, state);
     },
     // 5-5-3: the `play` op, and therefore **every** play on this engine — an
@@ -640,13 +978,19 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // keyword's own play opens (#155) and [Empower]'s "how many markers to
     // carry" (#157, the `markerCarry` hook).
     playThen: (cards, opts, frame) => {
+      requireUnscopedStandingWrite(state);
+      if (frame.viaKeyword === "Over Realm") {
+        const problem = overRealmSourceProblem(state, frame.overRealmSource, frame.card);
+        if (problem?.includes("rebuild")) throw new NotYet(problem, "R456");
+        if (problem) { if (state.resolving?.card === frame.card) state.resolving = null; state.programs.unshift(frame); return; }
+      }
       const evolution = opts.using === "Evolve" || opts.using === "EX-Evolve" || opts.using === "Xeno-Evolve";
       if (frame.evolutionIdentity) {
         if (!Number.isSafeInteger(frame.evolutionSourceEpoch)) throw new NotYet("rebuild this saved EX-Evolve source occurrence (#907)", "#907");
         if (cards.some(id => findCard(state, id)?.zone !== "hand" || (state.cards[id]?.zoneEpoch ?? 0) !== frame.evolutionSourceEpoch)) {
           // A card paid from hand is a new card after moving (3-1-4). The
           // activated hand-only EX-Evolve cannot play it from its new area.
-          if (state.resolving && cards.includes(state.resolving.card)) state.resolving = null;
+          if (state.resolving?.card && cards.includes(state.resolving.card)) state.resolving = null;
           state.programs.unshift(frame);
           return;
         }
@@ -657,9 +1001,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (!base || bound.card !== opts.onto || bound.zoneEpoch !== (base.zoneEpoch ?? 0)) {
           // A changed-area copy is not the chosen base, even if it returned
           // to an otherwise permitted area during the counter response.
-          for (const id of cards) if (findCard(state, id)?.zone === "hand") moveTo(ctx, game, state, ev, id, "drop", state.cards[id].owner, { reason: "rule" });
+          for (const id of cards) if (findCard(state, id)?.zone === "hand") nativeMove(ctx, game, state, ev, id, "drop", state.cards[id].owner, { reason: "rule" });
           frame.evolutionBase = undefined;
-          if (state.resolving && cards.includes(state.resolving.card)) state.resolving = null;
+          if (state.resolving?.card && cards.includes(state.resolving.card)) state.resolving = null;
           state.programs.unshift(frame);
           return;
         }
@@ -692,7 +1036,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (declared && union === "Union-Potara" && materials.length && sourceAt?.zone === "hand" && sourceAt.owner === opts.player) {
           const extras = unionPotaraExtras(ctx, game, state, opts.player, source, frame.potaraIdentity?.price?.potara);
           if (materials.every((m) => inBattle(m) || extras.includes(m))) {
-            for (const m of materials) if (!inBattle(m, dest)) moveTo(ctx, game, state, ev, m, "battle", dest, { reason: "areaExtension" });
+            for (const m of materials) if (!inBattle(m, dest)) nativeMove(ctx, game, state, ev, m, "battle", dest, { reason: "areaExtension" });
           }
         }
         const bound = frame.unionBound ??= watch.map((id) => ({ card: id, zoneEpoch: epoch(id) }));
@@ -709,7 +1053,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           // not the old activating card placed in Drop by 22-13-5-4-2.
           const fails = union === "Union-Absorb" ? stood || bound[0].zoneEpoch === epoch(source) : sourceAt?.zone === "hand" && (!frame.potaraIdentity || epoch(source) === frame.potaraSourceEpoch) && (!frame.fusionDropBottom || epoch(source) === frame.fusionSourceEpoch);
           const there = findCard(state, source);
-          if (fails && there && there.zone !== "drop") moveTo(ctx, game, state, ev, source, "drop", state.cards[source].owner, { reason: "rule" });
+          if (fails && there && there.zone !== "drop") nativeMove(ctx, game, state, ev, source, "drop", state.cards[source].owner, { reason: "rule" });
           frame.unionBound = undefined;
           if (state.resolving && state.resolving.card === source) state.resolving = null;
           state.programs.unshift(frame);
@@ -720,9 +1064,54 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // declared, and the opponent may answer it with a [Counter: Play] before
       // it lands — the window `vm/battle.ts` opens over a declared play. With
       // no counter they could use, nothing is asked and the play lands now.
-      if (opts.counterWindow && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
+      if (opts.counterWindow && frame.skillEffectOrigin?.scope === undefined && cards.length === 1 && !state.resolving && openKeywordPlayWindow(ctx, game, state, cards[0], opts.player, frame)) return "wait";
+      const batchOwner = state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin?.scope);
+      if (batchOwner?.arrivalCounters?.length && !frame.arrivalBatch) frame.arrivalBatch = captureCounterArrivalBatch(batchOwner.id, cards, state.cards, { source: frame.card, master: frame.master, skillIndex: frame.skillIndex, operation: frame.ops[frame.ip - 1], options: opts });
+      const batch = frame.arrivalBatch;
+      if (batch && (!batchOwner || counterArrivalBatchFrameProblem(batch, frame, batchOwner, opts) || JSON.stringify(cards) !== JSON.stringify(batch.cards.map(item => item.card)))) rebuildScope("rebuild this original Counter arrival batch");
       const landedSwitches: ScriptFrame[] = [];
-      for (const id of cards) {
+      for (const id of batch ? cards.slice(batch.cursor) : cards) {
+        if (batch && !frame.pendingArrival && !currentCounterArrival(batch, state.cards)?.current) { batch.cursor++; continue; }
+        const retainedScope = frame.skillEffectOrigin?.scope === undefined ? undefined : state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin!.scope);
+        if (retainedScope && (retainedScope.retainedCounters?.length || retainedScope.arrivalCounters?.length)) {
+          if (retainedScope.retainedCounters?.length && (cards.length !== 1 || retainedScope.profile.arrivals !== 1) || retainedScope.profile.tokens || retainedScope.profile.explicitWindow) rebuildScope("rebuild this single-arrival retained Counter play");
+          if (!frame.pendingArrival) {
+            frame.pendingArrival = { version: 1, owner: retainedScope.id, card: id, epoch: state.cards[id]?.zoneEpoch ?? 0, cursor: 0, previous: structuredClone(state.resolving ?? null), ...(retainedScope.arrivalCounters?.length ? { decisions: [] } : {}) };
+            state.resolving = { card: id, player: opts.player };
+          }
+          const pending = frame.pendingArrival;
+          if (pending.version !== 1 || pending.owner !== retainedScope.id || pending.card !== id || !Number.isSafeInteger(pending.epoch) || pending.epoch < 0 || !Number.isSafeInteger(pending.cursor) || pending.cursor < 0 || pending.cursor > (retainedScope.bindings?.length ?? 0) || state.resolving?.card !== id || state.resolving.landed) rebuildScope("rebuild this saved retained arrival occurrence");
+          if ((state.cards[id]?.zoneEpoch ?? 0) !== pending.epoch && !state.resolving.replaced) state.resolving.replaced = true;
+          const single = nextRetainedCounter(retainedScope);
+          const templates = checkedCounterArrivalTemplates(retainedScope);
+          if (templates.length && (!Array.isArray(pending.decisions) || new Set(pending.decisions).size !== pending.decisions.length || pending.decisions.some(id => !templates.some(item => item.id === id)))) rebuildScope("rebuild this per-arrival decision cursor");
+          const repeated = state.resolving.replaced ? undefined : templates.find(item => !pending.decisions?.includes(item.id));
+          const entry = single && (!repeated || single.at < repeated.at || single.at === repeated.at && single.id < repeated.id) ? single : repeated;
+          if (retainedScope.retainedCounters?.some(item => item.state === "running") || templates.some(item => item.state === "running") || pending.complete !== undefined && pending.complete !== true || pending.complete && (entry || pending.cursor !== (retainedScope.bindings?.length ?? 0))) rebuildScope("rebuild this retained arrival completion cursor");
+          if (!pending.complete) {
+            if (entry && entry.at < pending.cursor) rebuildScope("rebuild this retained arrival ordering");
+            const stop = entry?.at ?? retainedScope.bindings?.length ?? 0;
+            applyArrivalBindings(vmHost(ctx, game, state, ev), retainedScope, binding => counterProtected(binding, id), pending.cursor, stop);
+            pending.cursor = stop;
+            if (entry && !(entry === repeated && state.resolving.replaced)) {
+              if (entry === repeated) beginCounterArrivalDecision(state, retainedScope, repeated!, { card: id, epoch: pending.epoch }, { cards: cards.slice(), options: structuredClone(opts), frame });
+              else resumeRetainedCounter(state, retainedScope, single!, { version: 1, kind: "play", owner: retainedScope.id, cards: cards.slice(), options: structuredClone(opts), frame });
+              return;
+            }
+            pending.complete = true;
+            if (state.resolving.replaced) pending.cursor = retainedScope.bindings?.length ?? 0;
+          }
+          const permission = opts.playPermission;
+          if (!permission || permission.player !== frame.master || permission.source !== frame.card || typeof permission.bySkill !== "boolean" || typeof permission.evolution !== "boolean") rebuildScope("rebuild this retained parent play permission");
+          // Permission may change while the answering Counter resolves. The
+          // original script already paid the play's taxes; check permission only.
+          const blocked = forbids(ctx, game, state, "play", { ...permission, card: id });
+          if (state.resolving.replaced || blocked) {
+            state.resolving = pending.previous; delete frame.pendingArrival;
+            if (batch) { batch.cursor++; continue; }
+            state.programs.unshift(frame); return;
+          }
+        }
         // 22-45-3 (#157): a `markerCarry` keyword ([Empower]) on a card
         // replacing one that carries markers asks how many come across —
         // before the old one leaves, since leaving clears them (5-13-3) — and
@@ -731,11 +1120,19 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         const carry = carryFor(ctx, game, state, id, opts.player);
         const answered = state.carried?.card === id ? state.carried.n : undefined;
         if (carry && carry.max > 0 && answered === undefined) {
-          state.programs.unshift({ ...frame, ip: frame.ip - 1 });
+          if (frame.pendingArrival) state.programs.unshift({ ops: [], ip: 0, vars: {}, card: frame.card, master: frame.master, retainedResume: { version: 1, kind: "play", owner: frame.pendingArrival.owner, cards: cards.slice(), options: structuredClone(opts), frame } });
+          else state.programs.unshift({ ...frame, ip: frame.ip - 1 });
           state.prompt = { kind: "empowerCarry", player: opts.player, card: id, from: carry.from, max: carry.max, ...(opts.markers !== undefined ? { markers: opts.markers } : {}) };
           return "wait";
         }
         if (answered !== undefined) state.carried = null;
+        const scope = frame.skillEffectOrigin?.scope === undefined ? undefined : state.skillPlayScopes?.find(s => s.id === frame.skillEffectOrigin!.scope);
+        const previousResolving = frame.pendingArrival ? frame.pendingArrival.previous : state.resolving;
+        if (scope && !frame.pendingArrival) {
+          state.resolving = { card: id, player: opts.player };
+          applyArrivalBindings(vmHost(ctx, game, state, ev), scope, binding => binding.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter"));
+          if (state.resolving.replaced) { state.resolving = previousResolving; continue; }
+        }
         // 9-6: the play a [Counter: Play] window was open over lands here, in
         // the manner the counter left it (5-5) — and is no longer being
         // resolved once it has, the legacy `s.resolving = null`.
@@ -746,26 +1143,42 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         // card, first place its expanded-area base in Battle. This is not a
         // play or a Rest-to-Active switch of the underlying card, and opens
         // no second counter window. Normal stacking/play remains shared.
-        if (energyBase && opts.onto) moveTo(ctx, game, state, ev, opts.onto, "battle", opts.player, { evolutionBase: true });
+        if (energyBase && opts.onto) nativeMove(ctx, game, state, ev, opts.onto, "battle", opts.player, { evolutionBase: true });
         // BT20-125 (#927): its own [Permanent] has a [Union] card played from the hand
         // in the opponent's Battle Area.
         // Mechanism batch 3: "play them to their owners' Battle Areas" (BT13-096, EX21-15) - each into its owner's.
         // Audit selectors 2: "…from your deck to your opponent's Battle Area" (BT13-028, BT22-006) - the other player's side.
         const side = opts.toOpponent && !union && !opts.onto ? otherPlayer(opts.player) : opts.toOwners && !union && !opts.onto ? state.cards[id].owner : union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
+        const beforeArrival = new Set(state.pending);
         const played = resolvePlay(ctx, game, state, ev, id, opts.player, {
+          appliedEffects: executionReceipt(state, frame),
           mode: r?.rest ? "rest" : energyBase ? "active" : opts.mode,
           onto: opts.onto,
           ...(union === "Union-Potara" && opts.under?.length ? { under: opts.under } : {}),
           ...(side !== opts.player ? { side } : {}),
           negated: opts.negated,
+          negatedKinds: opts.negatedKinds,
+          negatedUntil: opts.negatedUntil,
+          negatedBy: r?.negatedBy ?? { player: frame.master, source: frame.card },
           ...(r?.negated ? { negatedForTurn: true } : {}),
           ...(opts.markers !== undefined ? { markers: opts.markers } : {}),
           ...(carry && answered ? { carry: { from: carry.from, n: Math.min(Math.max(0, answered), carry.max) } } : {}),
           ...(opts.using ? { using: opts.using } : {}),
           // #1015: a play a skill makes names its cause; a declared play (5-5-2) does not.
           ...(frame.declaredPlay ? {} : { by: "skill" as const, byOpponent: frame.master !== opts.player, byCard: frame.card }),
-        }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
+        }, (base) => nativeMove(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
         if (played) { (frame.did ??= {}).play = true; frame.acted = (frame.acted ?? 0) + 1; }
+        // 22-15-6 / 3-1-4: only the original successful OR arrival returns.
+        // A failed play, or a later fresh occurrence, creates no such departure.
+        if (played && frame.viaKeyword === "Over Realm" && opts.using === "Over Realm" && frame.overRealmSource?.card === id) {
+          const witness = { version: 1 as const, card: id, token: state.nextEffect };
+          state.cards[id].overRealmReturn = witness;
+          schedule(state, ev, { at: "turnCleanup", scope: "thisTurn", card: id, master: frame.master,
+            overRealmReturn: { ...witness }, vars: {},
+            ops: [{ op: "moveTo", target: { sel: { special: "self", side: "both", area: "battle" } }, to: "warp" }],
+            label: "back to the Warp as the turn ends" });
+        }
+        if (played && scope) { scope.played.push({ card: id, epoch: state.cards[id].zoneEpoch ?? 0 }); witnessArrivalAutos(state, scope, id, beforeArrival); }
         // Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126/EX12-07): the [Counter: Play]'s switch of this card,
         // held while it was being played, is made now that it has landed — a frame of the counter's, run before the
         // rest of the play's, so "switched to Rest Mode" moments are pended as for any skill's switch.
@@ -778,13 +1191,24 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (played && union === "Union-Potara") for (const m of [opts.onto, ...(opts.under ?? [])]) if (m) clearAutoReveal(state, m);
         frame.evolutionBase = undefined;
         frame.unionBound = undefined;
-        if (r) state.resolving = null;
+        if (scope) { state.resolving = previousResolving; delete frame.pendingArrival; }
+        else if (r) state.resolving = null;
+        if (batch) {
+          batch.cursor++;
+          const rule = vmHost(ctx, game, state, ev).ruleInterrupt?.(frame);
+          if (rule || landedSwitches.length) {
+            state.programs.unshift(...landedSwitches, ...(rule ? [rule] : []), { ops: [], ip: 0, vars: {}, card: frame.card, master: frame.master,
+              arrivalBatchResume: { version: 1, owner: batch.owner, cards: cards.slice(), options: structuredClone(opts), frame } });
+            return;
+          }
+        }
         // FAQ BT1-107/BT1-110: the second counter timing, once the card is on the table.
-        if (played && union && cards.length === 1 && !state.resolving && openLandedPlayWindow(ctx, game, state, id, opts.player, frame)) {
+        if (played && union && !scope && cards.length === 1 && !state.resolving && openLandedPlayWindow(ctx, game, state, id, opts.player, frame)) {
           state.programs.unshift(...landedSwitches);
           return "wait";
         }
       }
+      if (batch) delete frame.arrivalBatch;
       state.programs.unshift(frame);
       state.programs.unshift(...landedSwitches);
     },
@@ -829,14 +1253,17 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
+  opts: { legacyMovement?: LegacyMovementFacts; legacyCause?: { actor: PlayerId; source: string }; onMovement?: (moment: Moment, history: MovementAutoHistory) => void; appliedEffects?: Receipt; historicalBattleEnergy?: true; energyEntry?: OptionalEnergyArrival; requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
+  requireUnscopedStandingWrite(state);
+  guardEnergyEntryLifetimes(state);
+  if (to === "energy" && !opts.energyEntry) guardUnownedEnergyEntry(ctx,state,id);
   const from = zoneOf(state, id);
+  const fromEpoch = state.cards[id]?.zoneEpoch ?? 0, asked = to;
+  const report = (completed: boolean, actual = zoneOf(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
   const returnInfo = from === "battle" || from === "unison" ? attrsNow(ctx, game, state, id) : undefined;
-  const sourceNegated = from === "battle"
-    ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
   // Audit triggers 3 (3-9-2-1): a face-up Life card, read before the move turns it face down (3-1-4).
@@ -844,9 +1271,11 @@ function moveTo(
   // 9-10: what stands in front of a card leaving play (`vm/replace.ts`) — a
   // redirect changes `to`, a substitute keeps the card where it is.
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
-  if (route.stays) return;
+  if (route.stays) { report(false); return; }
   to = route.to;
-  if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source, id)) return;
+  if (to === "energy" && !opts.energyEntry) guardUnownedEnergyEntry(ctx,state,id);
+  if (opts.energyEntry && (route.replacementApplied || to !== "energy" || opts.energyEntry.card !== id || opts.energyEntry.epoch !== fromEpoch || opts.energyEntry.player !== owner)) throw new NotYet("optional Energy entry changed its final native route", "R476");
+  if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source, id)) { report(false); return; }
   const fromOwner = from ? ownerOfZone(state, id) : null;
   // 23-2-2-2: a card under another is in the area of the card on top, and
   // taking it out is shown as a move out of that area followed by the pile
@@ -862,26 +1291,83 @@ function moveTo(
   // `verify/compiler.ts`'s STEALER case).
   const held = (zone: string | null) => !!zone && (inPlayZones(game).includes(zone) || game.zones[zone]?.host === true);
   const carry = !!opts.carry || (held(from) && held(to));
-  const placed = moveCard(state, game, id, to, { owner, position: route.position ?? opts.position, carry, ...(route.mode ? { mode: route.mode } : {}) });
+  // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
+  const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode, opts.energyEntry?.negate).mode : route.mode;
+  const restoredLeader = mixedStandingLeaderRestoration(state, id, from, to);
+  const controlTransfer = from === "battle" && to === "battle" && fromOwner !== owner;
+  if (state.underStandingNegationHistory && controlTransfer) requireDormantNativePolicy(state, "actual control transfer");
+  if (state.cards[id]?.hidden || ((state.cards[id]?.under.length && !restoredLeader || host) || controlTransfer) && !state.underStandingNegationHistory) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
+  const movementHistory = captureMovementAutoHistory(ctx, game, state, id);
+  // Legacy consumers receive the same final snapshot; no pre-replacement list.
+  const sourceNegated = movementHistory.declarations.filter(line => line.negated).map(line => line.index);
+  const prospectiveMoment = (destination: string, holder: PlayerId): Moment => ({ event: "moved", card: id, controller: holder,
+    args: { from: from ?? "", to: destination, asPlay: false, cause: opts.reason ?? "effect",
+      ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}),
+      ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}),
+      ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}),
+      ...(from === "battle" && destination === "battle" && fromOwner !== holder
+        && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(returnInfo?.type)) ? { controlGained: true } : {}),
+      ...(state.battle?.endCombo?.substituteDeparture?.active
+        && state.battle.endCombo.substituteDeparture.card === id && from === "combo" && destination === "drop"
+        ? { cleanupDeparture: true } : {}) } });
+  const nativePlan: NativeUnderWritePlan = { moves: [{ route: "host", card: id, to,
+    options: { energyEntryCleanup: true, owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}),
+      ...(returnInfo?.type === "Z-BATTLE" && controlTransfer && fromOwner ? { zBattleControl: { from: fromOwner, to: owner } } : {}) },
+    ...(opts.appliedEffects ? { receipt: opts.appliedEffects } : {}) }],
+    ...(opts.energyEntry?.negate ? { effects: [{ kind: "add", spec: { target: id, source: id, master: opts.energyEntry.player,
+      kind: "negateKeyword", value: "Energy-Exhaust", until: "game", energyEntryEpoch: opts.energyEntry.epoch + 1 } }] } : {}) };
+  const cleanupSpecial: Moment | undefined = state.battle?.endCombo?.substituteDeparture?.active
+    && state.battle.endCombo.substituteDeparture.card === id && from === "combo" && to === "drop"
+    ? { event: "moved", card: id, controller: owner, args: { from: "combo", to: "drop", cleanupSpecial: true } } : undefined;
+  const needsHistoryProjection = movementHistory.unresolved.length && !opts.evolutionBase && opts.reason !== "areaExtension";
+  if (state.cards[id]?.under.length || needsHistoryProjection) {
+    const projected = structuredClone(state);
+    const projectedPile = capturePileRelease(projected, id, { carry });
+    const projectedEffect = captureAppliedEffectMove(projected, id, opts.appliedEffects ? structuredClone(opts.appliedEffects) : undefined);
+    const projectedStanding = beginStandingNegationMutation(ctx, projected, ["battle", "leader"].includes(to) ? id : undefined, nativePlan);
+    requirePileReleaseCapture(projected, projectedPile);
+    const projectedMove = moveCard(projected, game, id, to, { energyEntryCleanup: true, owner,
+      position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}),
+      ...(returnInfo?.type === "Z-BATTLE" && from === "battle" && to === "battle" && fromOwner && fromOwner !== owner
+        ? { zBattleControl: { from: fromOwner, to: owner } } : {}) });
+    if (projectedMove.ok) {
+      cleanupScriptPlacement(projected, [], projectedMove.move, from, carry);
+      cleanupReleasedPile(projected, [], projectedPile, projectedMove.move);
+      settleAppliedEffectMove(projected, projectedEffect);
+      if (projected.underStandingNegationHistory && opts.energyEntry?.negate) addEffect(projected, [], { target: id, source: id, master: opts.energyEntry.player, kind: "negateKeyword", value: "Energy-Exhaust", until: "game", energyEntryEpoch: projected.cards[id].zoneEpoch });
+      finishStandingNegationMutation(ctx, projected, projectedStanding, projected.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined, undefined, [projectedMove.move]);
+      if (needsHistoryProjection) requireMovementAutoBodies(game, projected, movementHistory,
+        prospectiveMoment(projectedMove.move.to, projectedMove.move.owner), carry, opts.legacyMovement, cleanupSpecial, opts.legacyCause);
+    }
+  }
+  const effectMove = captureAppliedEffectMove(state, id, opts.appliedEffects);
+  const pileRelease = capturePileRelease(state, id, { carry });
+  requirePileReleaseCapture(state, pileRelease);
+  const transaction = beginStandingNegationMutation(ctx, state, ["battle", "leader"].includes(to) ? id : undefined, nativePlan);
+  const zBattleControl = returnInfo?.type === "Z-BATTLE" && from === "battle" && to === "battle" && fromOwner && fromOwner !== owner
+    ? { from: fromOwner, to: owner } : undefined;
+  const placed = moveCard(state, game, id, to, { energyEntryCleanup: true, owner, position: route.position ?? opts.position, carry, ...(zBattleControl ? { zBattleControl } : {}), ...(mode ? { mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
+    finishStandingNegationMutation(ctx, state, transaction);
+    report(false);
     return;
   }
-  clearAutoReveal(state, id);
-  for (const released of placed.move.released ?? []) clearAutoReveal(state, released.card);
-  // Where it really went, which a rule about what the card *is* may change
-  // (19-1-7: a token leaving play is removed, `moveCard`'s own redirect) — and
-  // the owner whose copy of the zone it landed in (3-1-6-1's clamp).
+  cleanupScriptPlacement(state, ev, placed.move, from, carry);
+  const released = cleanupReleasedPile(state, ev, pileRelease, placed.move);
+  settleAppliedEffectMove(state, effectMove);
+  // Use the actual destination (including native token/Z-card redirects).
   to = placed.move.to;
-  // 3-1-4: a card that changed area is a new card, so nothing that was in force
-  // on it still is. A card moving *within* play carries them (3-1-4-1).
-  if (!carry && from !== to) dropEffectsOn(state, ev, id);
-  // "…while this card is in a Battle Area": what the card made for that long
-  // ends as it leaves — a move from one Battle Area to another (20-9) is not
-  // leaving.
-  if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
-  // 5-5-4: arriving in a Battle Area is remembered for the turn (`placedThisTurn`).
-  if (to === "battle" && from !== "battle") state.cards[id].placedThisTurn = true;
+  if (opts.energyEntry?.negate) {
+    if (to !== "energy" || state.cards[id].zoneEpoch !== opts.energyEntry.epoch + 1) throw new NotYet("optional Energy negation lost its new occurrence", "R476");
+    addEffect(state,ev,{target:id,source:id,master:opts.energyEntry.player,kind:"negateKeyword",value:"Energy-Exhaust",until:"game",energyEntryEpoch:state.cards[id].zoneEpoch});
+  }
+  finishStandingNegationMutation(ctx, state, transaction, state.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined, undefined, [placed.move]);
+  report(!route.replacementApplied && placed.move.to === asked, placed.move.to);
+  // RM23-2-5-1: show the actual material releases first, without movement Autos.
+  for (const material of released) {
+    log(ev, { type: "move", card: material.card, from: material.from as Area, to: material.to as Area, owner: material.owner });
+  }
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}), ...(from === "drop" && to === "deck" && (route.position ?? opts.position) === "bottom" && opts.reason === "cost" ? { privateOrder: true as const } : {}) });
   } else if (host && hostZone) {
@@ -896,21 +1382,20 @@ function moveTo(
   // this earlier movement moment. Its other moves keep their ordinary timing.
   const substitute = state.battle?.endCombo?.substituteDeparture;
   const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
-  if (cleanupDeparture) substitute.actualDrop = { controller: owner };
-  if (!opts.evolutionBase && opts.reason !== "areaExtension") emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
-    ...(returnInfo && (to === "hand" || from === "unison") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
-    args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
-  // #157: a keyword's own `chargeLimit` hook (22-31, "valid in every area") —
-  // this is the one script-level mover every DO program's own `moveTo` op
-  // runs through (the charge action's own `DO { moveTo(..., to: energy) }`
-  // included), so wiring it here reaches "any source" the way the contract's
-  // own doc asks for, without a special case per action. `flow.ts`'s `moved()`
-  // is a *different* mover (native moves — KO, combo-to-drop, battle) and
-  // fires its own `onEnter`/`onLeave`/`afterSkill` (#155); neither wraps the
-  // other, so a card reaching an Energy Area through *that* path still would
-  // not answer here, which is the same edge the legacy site's own comment
-  // about a granted (not printed) [Energy-Exhaust] already names.
-  if (to === "energy") fireHook(ctx, game, state, id, "chargeLimit");
+  if (cleanupDeparture) substitute.actualDrop = { controller: owner, movementHistory };
+  // R496 / 20-9: an actual change of Battle Area holder, not a play or requested transfer.
+  const controlGained = placed.move.from === "battle" && placed.move.to === "battle" && placed.move.fromOwner !== null
+    && placed.move.fromOwner !== placed.move.owner && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(returnInfo?.type));
+  if (!opts.evolutionBase && opts.reason !== "areaExtension") {
+    const movementMoment: Moment = { event: "moved", card: id, controller: owner, movementHistory,
+    ...(returnInfo && (to === "hand" || from === "unison" || opts.historicalBattleEnergy && from === "battle" && to === "energy") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
+    args: { from: from ?? "", to, asPlay: false, ...(controlGained ? { controlGained: true } : {}), cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } };
+    emit(ctx, game, state, ev, movementMoment, null);
+    opts.onMovement?.(movementMoment, movementHistory);
+  }
+  queueFieldCleanup(ctx, game, state, id, from, fromOwner);
+  // Energy-Exhaust was captured before entry; a post-entry query could let the arrival count itself.
+
 }
 
 /**
@@ -922,6 +1407,7 @@ function moveTo(
  * one that took it did (20-9-2).
  */
 export function returnLoans(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], ended: ContinuousEffect[]): void {
+  requireUnscopedStandingWrite(state);
   for (const e of ended) {
     if (e.kind !== "control" || !e.control) continue;
     if (zoneOf(state, e.target) !== "battle" || ownerOfZone(state, e.target) === e.control.from) continue;
@@ -938,6 +1424,7 @@ function ownerOfZone(state: VmState, id: string): PlayerId | null {
 
 /** One player's deck, randomised with the game's seeded RNG (5-11). */
 function shuffle(state: VmState, p: PlayerId, area: string = SETUP_ZONES.deck): void {
+  requireUnscopedStandingWrite(state);
   const deck = state.sides[p].zones[area];
   // A shuffled closed area conceals every card it contains, including a
   // one-card pile or an unchanged seeded permutation (9-6-3-1-1).
@@ -952,10 +1439,6 @@ function shuffle(state: VmState, p: PlayerId, area: string = SETUP_ZONES.deck): 
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   state.rngState = rng;
-}
-
-function clearAutoReveal(state: VmState, card: string): void {
-  if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== card);
 }
 
 /**
@@ -974,19 +1457,16 @@ function clearAutoReveal(state: VmState, card: string): void {
  * covers only the names a program says outright, and a name with no moment of
  * its own is a note rather than a silent miss.
  */
-function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string, sourceNegated?: number[]): void {
+function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string, sourceNegated?: number[], sourceMaster?: PlayerId, movementHistory?: MovementAutoHistory, receipt?: SynchronousMovementReceipt): void {
+  requireUnscopedStandingWrite(state);
   // A switch to Rest Mode by a skill is `setMode`'s own moment, fired as the
   // card switched and saying what switched it (#157); the name the program
   // also says is that same happening, already answered.
   if (FIRED_BY_SET_MODE.has(trigger) || FIRED_BY_MOVE.has(trigger)) return;
-  // For a watched face-up Life Auto, `id` is the card answering and `subject`
-  // is the Life card whose transition happened. Match the declaration against
-  // that event card while retaining `only`'s narrow answer-card filter. The
-  // Life card's own call has `id` in Life and keeps that same event card.
-  const eventCard = (trigger === "flippedFaceUp" && subject && zoneOf(state, subject) === "life" && zoneOf(state, id) !== "life") || (WATCHED_MOVE.has(trigger) && subject)
-    ? subject!
-    : id;
-  const master = state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer;
+  // R-362: one face-up transition is broadcast about the actual Life card. Its source is separate;
+  // explicit hand watchers and the Life card itself join the controller's ordinary watchers.
+  const eventCard = trigger === "flippedFaceUp" ? id : (WATCHED_MOVE.has(trigger) && subject) ? subject : id;
+  const master = sourceMaster ?? (state.cards[eventCard] ? masterOf(game, state, eventCard) : state.turnPlayer);
   // Phrasing batch 8: "when your opponent takes damage from a skill" is pended on each of the dealer's cards, and the
   // moment is about the damaged player (`watcher: opponent` asks the other side of it), so its side is the other one.
   const controller = ABOUT_THE_OTHER_SIDE.has(trigger) ? otherPlayer(master) : master;
@@ -1009,8 +1489,9 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // over `by` it turned `by: skill` into a card id, which no declaration asks.
   // A watched move (phrasing batch 5) is pended once, about the moved card: every watcher the declaration names
   // answers — in play, and in a hand when its skill plays itself from there (DB2-174, `matchTriggers`' hand watchers).
-  const watched = WATCHED_MOVE.has(trigger);
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: moment.args, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && m.trigger === trigger);
+  const watched = WATCHED_MOVE.has(trigger) || trigger === "flippedFaceUp";
+  const legacyMoment: Moment = { event: moment.event, card: eventCard, controller, ...(movementHistory ? { movementHistory } : {}), args: { ...moment.args, ...(sourceMaster && moment.args.from === "battle" ? { fromHolder: sourceMaster } : {}) }, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) };
+  const pended = pendAutos(ctx, game, state, legacyMoment, (m) => ((watched || m.card === id) && (m.trigger === trigger || trigger === "youCombo" && (m.trigger === "youComboFromHand" || m.trigger === "youComboFromBattle"))) && !consumedMovementAlias(receipt, legacyMoment, m));
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 
@@ -1051,6 +1532,7 @@ function powerMomentHeard(ctx: EngineContext, state: VmState): boolean {
  * (`script.ts`'s `pendPowerChanged`) for each one that is new, the [Permanent]'s card the cause.
  */
 export function pendStandingPower(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[]): void {
+  requireUnscopedStandingWrite(state);
   if (state.game !== "dbs") return;
   // Integration 2: the standing changes are worked out only in a game where some card can answer one. With none, the
   // last look is dropped, so the first look after a listener appears is a baseline, as after a load. (The look reads
@@ -1129,7 +1611,7 @@ const MOMENT_OF: Record<string, { event: string; args: Record<string, string | n
   deckToWarpBySkill: { event: "moved", args: { from: "deck", to: "warp", asPlay: false, by: "skill", byOpponent: false } },
   // §3-9-2-1: the program's `faceUp` op pends this declared moment only when
   // the card actually changes from face down to face up. Its caller then
-  // filters by the source skill's colours and asks the controller's watchers.
+  // filters by the source skill's colours/controller after the single broadcast.
   flippedFaceUp: { event: "faceUpTurned", args: { in: "life" } },
   // 5-13: `removeMarker` says it (#155: [Rejuvenate]'s printed price is the
   // first keyword to run one), and `triggers.rules` declares the moment.

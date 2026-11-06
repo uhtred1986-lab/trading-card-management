@@ -1,0 +1,78 @@
+{
+  "record": {
+    "cardId": "BT4-019",
+    "side": "front",
+    "skillIndex": 30,
+    "printed": "[auto] When this card is played using [union-potara] or attacks, draw 1 card, and this card gains +5000 power for the duration of the turn.",
+    "kind": "auto",
+    "trigger": [
+      "played",
+      "attacks"
+    ],
+    "combo": null,
+    "usage": {
+      "version": 1,
+      "oncePerTurn": false,
+      "limit": null
+    },
+    "validity": {
+      "version": 1,
+      "sparking": null
+    },
+    "cost": {
+      "version": 1,
+      "readable": true,
+      "text": "",
+      "orbs": {},
+      "either": [],
+      "marker": null,
+      "burst": null,
+      "spiritBoost": null,
+      "condition": null,
+      "program": null
+    },
+    "cond": null,
+    "ops": [],
+    "unread": [
+      "When this card is played using [union-potara] or attacks",
+      "draw 1 card",
+      "this card gains +5000 power for the duration of the turn"
+    ],
+    "pattern": "when this card is played using [union-potara] or attacks",
+    "reads": ""
+  },
+  "catalogCard": {
+    "id": "BT4-019",
+    "type": "BATTLE",
+    "colors": [
+      "Red"
+    ],
+    "cost": "5",
+    "specified": null,
+    "z": null,
+    "power": 25000,
+    "name": "Saiyan Onslaught Kefla",
+    "characters": [
+      "Kefla"
+    ],
+    "traits": [
+      "Saiyan",
+      "Alien",
+      "Universe 6"
+    ],
+    "skill": "[union-potara] {r}{r}{r}: <Caulifla> and <Kale><br>[deflect] (This card isn't affected by [counter: play] skills)<br>[dual attack]<br>[auto] When this card is played using [union-potara] or attacks, draw 1 card, and this card gains +5000 power for the duration of the turn.",
+    "backName": null,
+    "backSkill": null
+  },
+  "ownFaq": [
+    {
+      "name": "Saiyan Onslaught Kefla",
+      "qa": [
+        {
+          "q": "You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card?",
+          "a": "The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not."
+        }
+      ]
+    }
+  ]
+}

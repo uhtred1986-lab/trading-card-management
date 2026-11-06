@@ -1,0 +1,15 @@
+# Own-Drop Counter activation — 5 Nov 2026
+
+Intermediate checkpoint in PR #1249, source `654f479e`. Complete card support remains in progress.
+
+BT7-024, BT7-048, BT7-073 and BT7-098 now activate from Drop through their typed own Permanent: pay the normal energy cost, remove the original source and one matching-color hand card, then activate. Current Leader conditions, permission negation, taxes and Counter response timing remain required. The source remains Removed. Its own activation Auto and actual BT10-092 observe the activation; hand-only watchers do not. [Source and detailed proof](../round-5/drop-counter-permissions.md).
+
+Saved Drop candidates, energy selections, removal payments and taxes retain their original source occurrence. Menu, ability and rejection views agree with execution when that binding is stale or missing. A failed tax cannot move a new hand occurrence of an already paid source. Private hand payers remain concealed from the other player.
+
+Combined validation passes **612 counted cases**: Drop Counter 164, alternative lifecycle 24, Extra activation 55, paid-marker history 52, scoped coupons 46, Counter costs 76, Counter choices 43 and retained Counter 152. Existing Counter action-price/chain checks and the 53-record effect audit also pass. Typecheck, changed-file lint, language/lang/Teach, rulesets, capability assertions and 229 rulings pass. Fusion fixture fuzz completes 40/40 with no crash, interruption or action limit.
+
+The effect audit's old BT14-029 assertion required selected X; separate follow-up `e3f1db05` now requires the actual paid Spirit Boost amount and rejects the old X form. The Teach reference grew across its existing whole-detail-tier boundary. Its test now compares an explicitly generous reference with a tight reference, while retaining default-budget and row-coverage checks. The runtime budget is unchanged. R462 follow-up `8debb1d1` records the official Phantom Fist precedent and four actual Counter source-exclusion cases; it changes no runtime/compiler behavior.
+
+The full 6,597-card comparison changes exactly **four complete records**, BT7-024/048/073/098#10, only ops, unread, pattern and reads. Every record matches the independent worker artifact, including each required hand-payer color. Totals: **12,987 readable / 977 unread**, **24 additional readable runtime gaps**, 13,964 records; additional blocked 337, contextual unknown 2,559. SHA-256: `8b9979b1b3995fa094890b848827680ac6a00f023112c64ec78247033303c94a`. Evidence is under `/workspace/shared/arena-support5/recovery/thirtythird-*`.
+
+Native Counter Spirit Boost X selection and energy-origin Counter permissions continue. BT14-090's attacked-Unison alternative condition also needs its stored reading; protected cards must still be observable by that condition. Ordinary Extra staging, other payment/permission families and the remaining unread clauses stay in scope. No production refresh, database change, deployment or merge occurred; the full gate remains for complete combined integration.

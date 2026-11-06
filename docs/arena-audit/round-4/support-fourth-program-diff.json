@@ -1,0 +1,4103 @@
+[
+  {
+    "key": "BT13-001#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "ops": [],
+      "pattern": "all of your red \u2026 cards in your battle area with original energy costs of N have their energy costs increased by N",
+      "reads": "",
+      "unread": [
+        "All of your red \u226aBardock's Crew\u226b cards in your Battle Area with original energy costs of 1 have their energy costs increased by 2"
+      ]
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "costReduction",
+          "target": {
+            "sel": {
+              "side": "you",
+              "area": "battle",
+              "filter": {
+                "colors": [
+                  "Red"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "bardock's crew"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "originalCostMax": 1,
+                "originalCostMin": 1
+              },
+              "count": 99,
+              "upTo": false
+            }
+          },
+          "amount": -2,
+          "until": "game"
+        }
+      ],
+      "pattern": "costReduction",
+      "reads": "all red \u226abardock's crew\u226b cards with an original energy cost of 1 in your Battle Area costs 2 more",
+      "unread": []
+    }
+  },
+  {
+    "key": "BT13-001#10b",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "ops": [],
+      "pattern": "all of your red \u2026 cards in your battle area with original energy costs of N have their energy costs increased by N",
+      "reads": "",
+      "unread": [
+        "All of your red \u226aBardock's Crew\u226b cards in your Battle Area with original energy costs of 1 have their energy costs increased by 2"
+      ]
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "costReduction",
+          "target": {
+            "sel": {
+              "side": "you",
+              "area": "battle",
+              "filter": {
+                "colors": [
+                  "Red"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "bardock's crew"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "originalCostMax": 1,
+                "originalCostMin": 1
+              },
+              "count": 99,
+              "upTo": false
+            }
+          },
+          "amount": -2,
+          "until": "game"
+        }
+      ],
+      "pattern": "costReduction",
+      "reads": "all red \u226abardock's crew\u226b cards with an original energy cost of 1 in your Battle Area costs 2 more",
+      "unread": []
+    }
+  },
+  {
+    "key": "BT16-079#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "chooseMode",
+          "modes": [
+            {
+              "label": "Draw 1 card.",
+              "ops": [
+                {
+                  "op": "draw",
+                  "n": 1
+                }
+              ]
+            },
+            {
+              "label": "Play up to 1 {Trunks, Father-Son Teamwork} from your deck or Drop Area with its non-keyword skills negated for the turn, then shuffle your deck if you looked through it.",
+              "ops": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "deck",
+                    "areas": [
+                      "deck",
+                      "drop"
+                    ],
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [
+                        "trunks, father-son teamwork"
+                      ],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "p0",
+                  "reason": "Play up to 1 {Trunks, Father-Son Teamwork} from your deck or Drop Area with its non-keyword skills negated for the turn"
+                },
+                {
+                  "op": "play",
+                  "target": {
+                    "var": "p0"
+                  }
+                },
+                {
+                  "op": "negateSkillsOfKind",
+                  "target": {
+                    "var": "p0"
+                  },
+                  "kind": "auto",
+                  "until": "turn"
+                },
+                {
+                  "op": "negateSkillsOfKind",
+                  "target": {
+                    "var": "p0"
+                  },
+                  "kind": "activate",
+                  "until": "turn"
+                },
+                {
+                  "op": "negateSkillsOfKind",
+                  "target": {
+                    "var": "p0"
+                  },
+                  "kind": "permanent",
+                  "until": "turn"
+                },
+                {
+                  "op": "shuffle"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "pattern": "if:leaderMatches[choose one[draw/choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192shuffle]]",
+      "reads": "if your leader is Yellow <trunks: future>: choose one \u2014 draw 1 / choose up to 1 {trunks, father-son teamwork} card in your deck or Drop Area, play the chosen cards, negate the [Auto] skills of the chosen cards for the turn, negate the [Activate] skills of the chosen cards for the turn, negate the [Permanent] skills of the chosen cards for the turn, shuffle"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "chooseMode",
+          "modes": [
+            {
+              "label": "Draw 1 card.",
+              "ops": [
+                {
+                  "op": "draw",
+                  "n": 1
+                }
+              ]
+            },
+            {
+              "label": "Play up to 1 {Trunks, Father-Son Teamwork} from your deck or Drop Area with its non-keyword skills negated for the turn, then shuffle your deck if you looked through it.",
+              "ops": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "deck",
+                    "areas": [
+                      "deck",
+                      "drop"
+                    ],
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [
+                        "trunks, father-son teamwork"
+                      ],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "p0",
+                  "reason": "Play up to 1 {Trunks, Father-Son Teamwork} from your deck or Drop Area with its non-keyword skills negated for the turn"
+                },
+                {
+                  "op": "play",
+                  "target": {
+                    "var": "p0"
+                  },
+                  "negatedKinds": [
+                    "auto",
+                    "activate",
+                    "permanent"
+                  ],
+                  "negatedUntil": "turn"
+                },
+                {
+                  "op": "shuffle"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "pattern": "if:leaderMatches[choose one[draw/choose\u2192play\u2192shuffle]]",
+      "reads": "if your leader is Yellow <trunks: future>: choose one \u2014 draw 1 / choose up to 1 {trunks, father-son teamwork} card in your deck or Drop Area, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the turn, shuffle"
+    }
+  },
+  {
+    "key": "BT16-083#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "chooseMode",
+          "modes": [
+            {
+              "label": "Draw 1 card.",
+              "ops": [
+                {
+                  "op": "draw",
+                  "n": 1
+                }
+              ]
+            },
+            {
+              "label": "Play up to 1 {Vegeta, Father-Son Teamwork} from your deck or Drop Area with its non-keyword skills negated for the turn, then shuffle your deck if you looked through it.",
+              "ops": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "deck",
+                    "areas": [
+                      "deck",
+                      "drop"
+                    ],
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [
+                        "vegeta, father-son teamwork"
+                      ],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "p0",
+                  "reason": "Play up to 1 {Vegeta, Father-Son Teamwork} from your deck or Drop Area with its non-keyword skills negated for the turn"
+                },
+                {
+                  "op": "play",
+                  "target": {
+                    "var": "p0"
+                  }
+                },
+                {
+                  "op": "negateSkillsOfKind",
+                  "target": {
+                    "var": "p0"
+                  },
+                  "kind": "auto",
+                  "until": "turn"
+                },
+                {
+                  "op": "negateSkillsOfKind",
+                  "target": {
+                    "var": "p0"
+                  },
+                  "kind": "activate",
+                  "until": "turn"
+                },
+                {
+                  "op": "negateSkillsOfKind",
+                  "target": {
+                    "var": "p0"
+                  },
+                  "kind": "permanent",
+                  "until": "turn"
+                },
+                {
+                  "op": "shuffle"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "pattern": "if:leaderMatches[choose one[draw/choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192shuffle]]",
+      "reads": "if your leader is Yellow <trunks: future>: choose one \u2014 draw 1 / choose up to 1 {vegeta, father-son teamwork} card in your deck or Drop Area, play the chosen cards, negate the [Auto] skills of the chosen cards for the turn, negate the [Activate] skills of the chosen cards for the turn, negate the [Permanent] skills of the chosen cards for the turn, shuffle"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "chooseMode",
+          "modes": [
+            {
+              "label": "Draw 1 card.",
+              "ops": [
+                {
+                  "op": "draw",
+                  "n": 1
+                }
+              ]
+            },
+            {
+              "label": "Play up to 1 {Vegeta, Father-Son Teamwork} from your deck or Drop Area with its non-keyword skills negated for the turn, then shuffle your deck if you looked through it.",
+              "ops": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "deck",
+                    "areas": [
+                      "deck",
+                      "drop"
+                    ],
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [
+                        "vegeta, father-son teamwork"
+                      ],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "p0",
+                  "reason": "Play up to 1 {Vegeta, Father-Son Teamwork} from your deck or Drop Area with its non-keyword skills negated for the turn"
+                },
+                {
+                  "op": "play",
+                  "target": {
+                    "var": "p0"
+                  },
+                  "negatedKinds": [
+                    "auto",
+                    "activate",
+                    "permanent"
+                  ],
+                  "negatedUntil": "turn"
+                },
+                {
+                  "op": "shuffle"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "pattern": "if:leaderMatches[choose one[draw/choose\u2192play\u2192shuffle]]",
+      "reads": "if your leader is Yellow <trunks: future>: choose one \u2014 draw 1 / choose up to 1 {vegeta, father-son teamwork} card in your deck or Drop Area, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the turn, shuffle"
+    }
+  },
+  {
+    "key": "BT20-097#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self",
+            "area": "drop"
+          },
+          "as": "p0",
+          "reason": "play this card from your Drop with its non-keyword skills negated for the game"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "auto",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "activate",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "permanent",
+          "until": "game"
+        }
+      ],
+      "pattern": "if:leaderMatches[choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind]",
+      "reads": "if your leader is Yellow Z-Leader: choose this card, play the chosen cards, negate the [Auto] skills of the chosen cards for the rest of the game, negate the [Activate] skills of the chosen cards for the rest of the game, negate the [Permanent] skills of the chosen cards for the rest of the game"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self",
+            "area": "drop"
+          },
+          "as": "p0",
+          "reason": "play this card from your Drop with its non-keyword skills negated for the game"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "negatedKinds": [
+            "auto",
+            "activate",
+            "permanent"
+          ],
+          "negatedUntil": "game"
+        }
+      ],
+      "pattern": "if:leaderMatches[choose\u2192play]",
+      "reads": "if your leader is Yellow Z-Leader: choose this card, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the rest of the game"
+    }
+  },
+  {
+    "key": "BT20-100#0",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [
+                "ss son goku & ss vegeta, ultimate duo"
+              ],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "Play up to 1 {SS Son Goku & SS Vegeta, Ultimate Duo} from your deck with its keyword skills negated for the turn"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "keyword",
+          "until": "turn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "counter",
+          "until": "turn"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "pattern": "if:any[choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192shuffle]",
+      "reads": "if your leader is Yellow <son goku>, or your leader is Yellow <vegeta>: choose up to 1 {ss son goku & ss vegeta, ultimate duo} card in your deck, play the chosen cards, negate the keyword skills of the chosen cards for the turn, negate the [Counter] skills of the chosen cards for the turn, shuffle"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [
+                "ss son goku & ss vegeta, ultimate duo"
+              ],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "Play up to 1 {SS Son Goku & SS Vegeta, Ultimate Duo} from your deck with its keyword skills negated for the turn"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "negatedKinds": [
+            "keyword",
+            "counter"
+          ],
+          "negatedUntil": "turn"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "pattern": "if:any[choose\u2192play\u2192shuffle]",
+      "reads": "if your leader is Yellow <son goku>, or your leader is Yellow <vegeta>: choose up to 1 {ss son goku & ss vegeta, ultimate duo} card in your deck, play the chosen cards with its [keyword] and [counter] skills negated for the turn, shuffle"
+    }
+  },
+  {
+    "key": "BT20-135#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "ops": [],
+      "pattern": "mono-black \u2026 cards with a combo cost of N and N combo power in your hand and battle area have their combo costs reduced by N",
+      "reads": "",
+      "unread": [
+        "Mono-black \u226aSaiyan\u226b cards with a combo cost of 1 and 5000 combo power in your hand and Battle Area have their combo costs reduced by 1"
+      ]
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "costReduction",
+          "target": {
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "areas": [
+                "hand",
+                "battle"
+              ],
+              "filter": {
+                "colors": [
+                  "Black"
+                ],
+                "notColors": [],
+                "monoColor": true,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "saiyan"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": 5000,
+                "comboPowerMax": 5000,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "comboCostMax": 1,
+                "comboCostMin": 1
+              },
+              "count": 1,
+              "upTo": false
+            }
+          },
+          "amount": 1,
+          "what": "combo",
+          "until": "game"
+        }
+      ],
+      "pattern": "costReduction",
+      "reads": "1 mono-colour black \u226asaiyan\u226b card with a combo cost of 1 with 5000 combo power in your hand or Battle Area costs 1 less (combo cost)",
+      "unread": []
+    }
+  },
+  {
+    "key": "BT21-066#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "special": "subject",
+              "filter": {
+                "colors": [
+                  "Blue"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "baby"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 4,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 1
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "under",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": 3,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": 10000,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "p0",
+              "reason": "play up to 1 Battle Card with an energy cost of 3 or less and an original power of 10000 or less from under this card with its non-keyword skills negated for the turn"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              }
+            },
+            {
+              "op": "negateSkillsOfKind",
+              "target": {
+                "var": "p0"
+              },
+              "kind": "auto",
+              "until": "turn"
+            },
+            {
+              "op": "negateSkillsOfKind",
+              "target": {
+                "var": "p0"
+              },
+              "kind": "activate",
+              "until": "turn"
+            },
+            {
+              "op": "negateSkillsOfKind",
+              "target": {
+                "var": "p0"
+              },
+              "kind": "permanent",
+              "until": "turn"
+            }
+          ]
+        }
+      ],
+      "pattern": "if:all[if:count[choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind]]",
+      "reads": "if your leader is Blue <baby> with an original power of 15000 or more and it is your turn: if that card is a blue <baby> card with an energy cost of 4 or more: choose up to 1 Battle Card with an energy cost of 3 or less with an original power of 10000 or less under this card, play the chosen cards, negate the [Auto] skills of the chosen cards for the turn, negate the [Activate] skills of the chosen cards for the turn, negate the [Permanent] skills of the chosen cards for the turn"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "if",
+          "cond": {
+            "kind": "count",
+            "sel": {
+              "special": "subject",
+              "filter": {
+                "colors": [
+                  "Blue"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "baby"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 4,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            "atLeast": 1
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "under",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": 3,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": 10000,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "p0",
+              "reason": "play up to 1 Battle Card with an energy cost of 3 or less and an original power of 10000 or less from under this card with its non-keyword skills negated for the turn"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              },
+              "negatedKinds": [
+                "auto",
+                "activate",
+                "permanent"
+              ],
+              "negatedUntil": "turn"
+            }
+          ]
+        }
+      ],
+      "pattern": "if:all[if:count[choose\u2192play]]",
+      "reads": "if your leader is Blue <baby> with an original power of 15000 or more and it is your turn: if that card is a blue <baby> card with an energy cost of 4 or more: choose up to 1 Battle Card with an energy cost of 3 or less with an original power of 10000 or less under this card, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the turn"
+    }
+  },
+  {
+    "key": "BT23-044#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": true,
+              "multiColor": false,
+              "characters": [
+                "piccolo"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 3,
+              "costMax": 3,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 mono-blue <Piccolo> card with an energy cost of 3 from your Drop with its non-keyword skills negated for the turn"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "auto",
+          "until": "turn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "activate",
+          "until": "turn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "permanent",
+          "until": "turn"
+        }
+      ],
+      "pattern": "choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind",
+      "reads": "choose up to 1 mono-colour blue <piccolo> card with an energy cost of 3 in your Drop Area, play the chosen cards, negate the [Auto] skills of the chosen cards for the turn, negate the [Activate] skills of the chosen cards for the turn, negate the [Permanent] skills of the chosen cards for the turn"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": true,
+              "multiColor": false,
+              "characters": [
+                "piccolo"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 3,
+              "costMax": 3,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 mono-blue <Piccolo> card with an energy cost of 3 from your Drop with its non-keyword skills negated for the turn"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "negatedKinds": [
+            "auto",
+            "activate",
+            "permanent"
+          ],
+          "negatedUntil": "turn"
+        }
+      ],
+      "pattern": "choose\u2192play",
+      "reads": "choose up to 1 mono-colour blue <piccolo> card with an energy cost of 3 in your Drop Area, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the turn"
+    }
+  },
+  {
+    "key": "BT23-045#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": true,
+              "multiColor": false,
+              "characters": [
+                "piccolo"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 3,
+              "costMax": 3,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 mono-blue <Piccolo> card with an energy cost of 3 from your Drop with its non-keyword skills negated for the turn"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "auto",
+          "until": "turn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "activate",
+          "until": "turn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "permanent",
+          "until": "turn"
+        }
+      ],
+      "pattern": "choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind",
+      "reads": "choose up to 1 mono-colour blue <piccolo> card with an energy cost of 3 in your Drop Area, play the chosen cards, negate the [Auto] skills of the chosen cards for the turn, negate the [Activate] skills of the chosen cards for the turn, negate the [Permanent] skills of the chosen cards for the turn"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": true,
+              "multiColor": false,
+              "characters": [
+                "piccolo"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 3,
+              "costMax": 3,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 mono-blue <Piccolo> card with an energy cost of 3 from your Drop with its non-keyword skills negated for the turn"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "negatedKinds": [
+            "auto",
+            "activate",
+            "permanent"
+          ],
+          "negatedUntil": "turn"
+        }
+      ],
+      "pattern": "choose\u2192play",
+      "reads": "choose up to 1 mono-colour blue <piccolo> card with an energy cost of 3 in your Drop Area, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the turn"
+    }
+  },
+  {
+    "key": "BT25-023#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "under",
+            "underHost": {
+              "special": "leader"
+            },
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [
+                "king piccolo's egg, terror is born"
+              ],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 {king piccolo's egg, terror is born} from under your leader"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "auto",
+          "until": "turn"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "sel": {
+              "special": "self",
+              "area": "hand"
+            }
+          },
+          "to": "under",
+          "under": {
+            "var": "p0"
+          }
+        }
+      ],
+      "pattern": "if:count[choose\u2192play\u2192negateSkillsOfKind\u2192moveTo]",
+      "reads": "if that card is a <king piccolo> card: choose up to 1 {king piccolo's egg, terror is born} card under your leader card, play the chosen cards, negate the [Auto] skills of the chosen cards for the turn, move this card under the chosen cards"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "under",
+            "underHost": {
+              "special": "leader"
+            },
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [
+                "king piccolo's egg, terror is born"
+              ],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 {king piccolo's egg, terror is born} from under your leader"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "negatedKinds": [
+            "auto"
+          ],
+          "negatedUntil": "turn"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "sel": {
+              "special": "self",
+              "area": "hand"
+            }
+          },
+          "to": "under",
+          "under": {
+            "var": "p0"
+          }
+        }
+      ],
+      "pattern": "if:count[choose\u2192play\u2192moveTo]",
+      "reads": "if that card is a <king piccolo> card: choose up to 1 {king piccolo's egg, terror is born} card under your leader card, play the chosen cards with its [auto] skills negated for the turn, move this card under the chosen cards"
+    }
+  },
+  {
+    "key": "BT27-094#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "warp",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [
+                "Over Realm"
+              ],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": 5,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null,
+              "keywordsExact": [
+                "Dark Over Realm"
+              ]
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "Play up to 1 black Battle Card with an energy cost of 5 or less and a [Dark Over Realm] skill from your Warp with its non-keyword skills negated for the game"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "auto",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "activate",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "permanent",
+          "until": "game"
+        }
+      ],
+      "pattern": "if:count[choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind]",
+      "reads": "if there are 1 or more Battle Cards with [Dark Over Realm] you have in play: choose up to 1 black Battle Card with [Dark Over Realm] with an energy cost of 5 or less in your Warp, play the chosen cards, negate the [Auto] skills of the chosen cards for the rest of the game, negate the [Activate] skills of the chosen cards for the rest of the game, negate the [Permanent] skills of the chosen cards for the rest of the game"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "warp",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [
+                "Over Realm"
+              ],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": 5,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null,
+              "keywordsExact": [
+                "Dark Over Realm"
+              ]
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "Play up to 1 black Battle Card with an energy cost of 5 or less and a [Dark Over Realm] skill from your Warp with its non-keyword skills negated for the game"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "negatedKinds": [
+            "auto",
+            "activate",
+            "permanent"
+          ],
+          "negatedUntil": "game"
+        }
+      ],
+      "pattern": "if:count[choose\u2192play]",
+      "reads": "if there are 1 or more Battle Cards with [Dark Over Realm] you have in play: choose up to 1 black Battle Card with [Dark Over Realm] with an energy cost of 5 or less in your Warp, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the rest of the game"
+    }
+  },
+  {
+    "key": "BT28-051#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "demon realm"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 3,
+              "costMax": 3,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 blue \u226aDemon Realm\u226b card with an energy cost of 3 from your Drop with its non-keyword skills negated for the game"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "auto",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "activate",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "permanent",
+          "until": "game"
+        }
+      ],
+      "pattern": "choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind",
+      "reads": "choose up to 1 blue \u226ademon realm\u226b card with an energy cost of 3 in your Drop Area, play the chosen cards, negate the [Auto] skills of the chosen cards for the rest of the game, negate the [Activate] skills of the chosen cards for the rest of the game, negate the [Permanent] skills of the chosen cards for the rest of the game"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "demon realm"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 3,
+              "costMax": 3,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 blue \u226aDemon Realm\u226b card with an energy cost of 3 from your Drop with its non-keyword skills negated for the game"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "negatedKinds": [
+            "auto",
+            "activate",
+            "permanent"
+          ],
+          "negatedUntil": "game"
+        }
+      ],
+      "pattern": "choose\u2192play",
+      "reads": "choose up to 1 blue \u226ademon realm\u226b card with an energy cost of 3 in your Drop Area, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the rest of the game"
+    }
+  },
+  {
+    "key": "EB1-45#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "Goku's Lineage"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "choose up to 1 \u226aGoku's Lineage\u226b card from your deck"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "hand",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "Goku's Lineage"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c1",
+          "reason": "up to 1 \u226aGoku's Lineage\u226b card from your hand"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "c1"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c0"
+          },
+          "kind": "keyword",
+          "until": "turn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c1"
+          },
+          "kind": "keyword",
+          "until": "turn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c0"
+          },
+          "kind": "counter",
+          "until": "turn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c1"
+          },
+          "kind": "counter",
+          "until": "turn"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "reads": "if this card was played using [Swap]: choose up to 1 \u226aGoku's Lineage\u226b card in your deck, choose up to 1 \u226aGoku's Lineage\u226b card in your hand, play the chosen cards, play the chosen cards, negate the keyword skills of the chosen cards for the turn, negate the keyword skills of the chosen cards for the turn, negate the [Counter] skills of the chosen cards for the turn, negate the [Counter] skills of the chosen cards for the turn, shuffle"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "Goku's Lineage"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "choose up to 1 \u226aGoku's Lineage\u226b card from your deck"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "hand",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "Goku's Lineage"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c1",
+          "reason": "up to 1 \u226aGoku's Lineage\u226b card from your hand"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "c0"
+          },
+          "negatedKinds": [
+            "keyword",
+            "counter"
+          ],
+          "negatedUntil": "turn"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "c1"
+          },
+          "negatedKinds": [
+            "keyword",
+            "counter"
+          ],
+          "negatedUntil": "turn"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "reads": "if this card was played using [Swap]: choose up to 1 \u226aGoku's Lineage\u226b card in your deck, choose up to 1 \u226aGoku's Lineage\u226b card in your hand, play the chosen cards with its [keyword] and [counter] skills negated for the turn, play the chosen cards with its [keyword] and [counter] skills negated for the turn, shuffle"
+    }
+  },
+  {
+    "key": "EX21-20#30",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "hand",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "gogeta: br"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 8,
+              "costMax": 8,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "Play up to 1 red <Gogeta: Br> card with an energy cost of 8 from your hand on top of this card in Active Mode with its non-keyword skills negated until the end of your opponent's next turn"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "onto": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "mode": "active"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "auto",
+          "until": "nextTurn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "activate",
+          "until": "nextTurn"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "permanent",
+          "until": "nextTurn"
+        }
+      ],
+      "pattern": "if:leaderMatches[choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind]",
+      "reads": "if your leader is Red <gogeta: br>: choose up to 1 red <gogeta: br> card with an energy cost of 8 in your hand, play the chosen cards in active mode on top of this card, negate the [Auto] skills of the chosen cards until the end of your opponent's turn, negate the [Activate] skills of the chosen cards until the end of your opponent's turn, negate the [Permanent] skills of the chosen cards until the end of your opponent's turn"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "hand",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "gogeta: br"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 8,
+              "costMax": 8,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "Play up to 1 red <Gogeta: Br> card with an energy cost of 8 from your hand on top of this card in Active Mode with its non-keyword skills negated until the end of your opponent's next turn"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "negatedKinds": [
+            "auto",
+            "activate",
+            "permanent"
+          ],
+          "negatedUntil": "nextTurn",
+          "onto": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "mode": "active"
+        }
+      ],
+      "pattern": "if:leaderMatches[choose\u2192play]",
+      "reads": "if your leader is Red <gogeta: br>: choose up to 1 red <gogeta: br> card with an energy cost of 8 in your hand, play the chosen cards in active mode on top of this card with its [auto] and [activate] and [permanent] skills negated until the end of your opponent's turn"
+    }
+  },
+  {
+    "key": "P-326#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "filter": {
+              "colors": [
+                "Red",
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "vegeta"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 4,
+              "costMax": 4,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "up to 1 red or green <vegeta> card with an energy cost of 4 from your deck"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "filter": {
+              "colors": [
+                "Red",
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "nappa"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 4,
+              "costMax": 4,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true,
+            "notIn": [
+              "c0"
+            ]
+          },
+          "as": "c1",
+          "reason": "up to 1 red or green <nappa> card with an energy cost of 4 from your deck"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "c1"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c0"
+          },
+          "kind": "auto",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c1"
+          },
+          "kind": "auto",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c0"
+          },
+          "kind": "activate",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c1"
+          },
+          "kind": "activate",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c0"
+          },
+          "kind": "permanent",
+          "until": "game"
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "c1"
+          },
+          "kind": "permanent",
+          "until": "game"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "pattern": "if:count[choose\u2192choose\u2192play\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192shuffle]",
+      "reads": "if there are 4 or more cards in your Energy Area: choose up to 1 red or green <vegeta> card with an energy cost of 4 in your deck, choose up to 1 red or green <nappa> card with an energy cost of 4 in your deck other than the cards already chosen, play the chosen cards, play the chosen cards, negate the [Auto] skills of the chosen cards for the rest of the game, negate the [Auto] skills of the chosen cards for the rest of the game, negate the [Activate] skills of the chosen cards for the rest of the game, negate the [Activate] skills of the chosen cards for the rest of the game, negate the [Permanent] skills of the chosen cards for the rest of the game, negate the [Permanent] skills of the chosen cards for the rest of the game, shuffle"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "filter": {
+              "colors": [
+                "Red",
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "vegeta"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 4,
+              "costMax": 4,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "up to 1 red or green <vegeta> card with an energy cost of 4 from your deck"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "filter": {
+              "colors": [
+                "Red",
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "nappa"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 4,
+              "costMax": 4,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true,
+            "notIn": [
+              "c0"
+            ]
+          },
+          "as": "c1",
+          "reason": "up to 1 red or green <nappa> card with an energy cost of 4 from your deck"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "c0"
+          },
+          "negatedKinds": [
+            "auto",
+            "activate",
+            "permanent"
+          ],
+          "negatedUntil": "game"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "c1"
+          },
+          "negatedKinds": [
+            "auto",
+            "activate",
+            "permanent"
+          ],
+          "negatedUntil": "game"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "pattern": "if:count[choose\u2192choose\u2192play\u2192play\u2192shuffle]",
+      "reads": "if there are 4 or more cards in your Energy Area: choose up to 1 red or green <vegeta> card with an energy cost of 4 in your deck, choose up to 1 red or green <nappa> card with an energy cost of 4 in your deck other than the cards already chosen, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the rest of the game, play the chosen cards with its [auto] and [activate] and [permanent] skills negated for the rest of the game, shuffle"
+    }
+  },
+  {
+    "key": "P-327#20",
+    "fields": [
+      "cost",
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "if your Leader Card is an \u226aAndroid\u226b card and you have 4 or more energy",
+        "orbs": {},
+        "either": [
+          [
+            "Green",
+            "Yellow"
+          ]
+        ],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "android"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "energy"
+              },
+              "atLeast": 4
+            }
+          ]
+        },
+        "program": null
+      },
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "areas": [
+              "deck",
+              "drop"
+            ],
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "cell"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "You may place up to 1 <Cell> card from your deck or Drop Area under this card"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "under"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "deck",
+                "areas": [
+                  "deck",
+                  "hand"
+                ],
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [
+                    "Super 17, Cell Absorbed",
+                    "Super 17, Hell's Storm Unleashed"
+                  ],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "choose up to 1 {Super 17, Cell Absorbed} or {Super 17, Hell's Storm Unleashed} in your deck or hand"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "c1"
+              }
+            },
+            {
+              "op": "negateSkillsOfKind",
+              "target": {
+                "var": "c1"
+              },
+              "kind": "keyword",
+              "until": "turn"
+            },
+            {
+              "op": "negateSkillsOfKind",
+              "target": {
+                "var": "c1"
+              },
+              "kind": "counter",
+              "until": "turn"
+            },
+            {
+              "op": "shuffle"
+            }
+          ]
+        }
+      ],
+      "pattern": "if:all[choose\u2192moveTo\u2192if:chose[choose\u2192play\u2192negateSkillsOfKind\u2192negateSkillsOfKind\u2192shuffle]]",
+      "reads": "if your leader is \u226aandroid\u226b and there are 4 or more cards in your Energy Area: choose up to 1 <cell> card in your deck or Drop Area, move the chosen cards under this card, if you took that choice: choose up to 1 {Super 17, Cell Absorbed} or {Super 17, Hell's Storm Unleashed} card in your deck or hand, play the chosen cards, negate the keyword skills of the chosen cards for the turn, negate the [Counter] skills of the chosen cards for the turn, shuffle"
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "if your Leader Card is an \u226aAndroid\u226b card and you have 4 or more energy",
+        "orbs": {},
+        "either": [
+          [
+            "Green",
+            "Yellow"
+          ]
+        ],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "android"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "energy"
+              },
+              "atLeast": 4
+            }
+          ]
+        },
+        "program": null,
+        "absorb": {
+          "version": 1,
+          "variant": "Absorb",
+          "area": "battle"
+        }
+      },
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "areas": [
+              "deck",
+              "drop"
+            ],
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "cell"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "You may place up to 1 <Cell> card from your deck or Drop Area under this card"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "under"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "chose",
+            "var": "c0"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "deck",
+                "areas": [
+                  "deck",
+                  "hand"
+                ],
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [
+                    "Super 17, Cell Absorbed",
+                    "Super 17, Hell's Storm Unleashed"
+                  ],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "choose up to 1 {Super 17, Cell Absorbed} or {Super 17, Hell's Storm Unleashed} in your deck or hand"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "c1"
+              },
+              "negatedKinds": [
+                "keyword",
+                "counter"
+              ],
+              "negatedUntil": "turn",
+              "onto": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "using": "Union-Absorb",
+              "counterWindow": true
+            },
+            {
+              "op": "shuffle"
+            }
+          ]
+        }
+      ],
+      "pattern": "if:all[choose\u2192moveTo\u2192if:chose[choose\u2192play\u2192shuffle]]",
+      "reads": "if your leader is \u226aandroid\u226b and there are 4 or more cards in your Energy Area: choose up to 1 <cell> card in your deck or Drop Area, move the chosen cards under this card, if you took that choice: choose up to 1 {Super 17, Cell Absorbed} or {Super 17, Hell's Storm Unleashed} card in your deck or hand, play the chosen cards through a [Counter: Play] window on top of this card with its [keyword] and [counter] skills negated for the turn, shuffle"
+    }
+  },
+  {
+    "key": "P-437#0",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "look",
+          "n": 5,
+          "as": "looked"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "bardock's crew"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 1,
+              "costMax": 1,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true,
+            "fromVar": "looked"
+          },
+          "as": "p0",
+          "reason": "play up to 1 red \u226abardock's crew\u226b card with an energy cost of 1 among them"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "negateSkillsOfKind",
+          "target": {
+            "var": "p0"
+          },
+          "kind": "auto",
+          "until": "turn"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "pattern": "look\u2192choose\u2192play\u2192negateSkillsOfKind\u2192shuffle",
+      "reads": "look at the top 5, choose up to 1 red \u226abardock's crew\u226b card with an energy cost of 1 of the cards looked at, play the chosen cards, negate the [Auto] skills of the chosen cards for the turn, shuffle"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "look",
+          "n": 5,
+          "as": "looked"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "filter": {
+              "colors": [
+                "Red"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "bardock's crew"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 1,
+              "costMax": 1,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true,
+            "fromVar": "looked"
+          },
+          "as": "p0",
+          "reason": "play up to 1 red \u226abardock's crew\u226b card with an energy cost of 1 among them"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          },
+          "negatedKinds": [
+            "auto"
+          ],
+          "negatedUntil": "turn"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "pattern": "look\u2192choose\u2192play\u2192shuffle",
+      "reads": "look at the top 5, choose up to 1 red \u226abardock's crew\u226b card with an energy cost of 1 of the cards looked at, play the chosen cards with its [auto] skills negated for the turn, shuffle"
+    }
+  }
+]

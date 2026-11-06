@@ -32,7 +32,7 @@
  *
  * Pure: no database, no network, no `fs`.
  */
-import type { Amount, Cond, Op, Ref, ScriptFrame, Selector } from "./script";
+import type { Amount, Cond, Duration, Op, Ref, ScriptFrame, Selector } from "./script";
 import type {
   Area,
   CardDef,
@@ -43,6 +43,7 @@ import type {
   GameEvent,
   KeywordSkill,
   Mode,
+  NegatedSkillKind,
   MoveActor,
   MoveOptions,
   MoveReason,
@@ -82,6 +83,8 @@ export interface ReplacementLookup {
  * mutable handle into the state — with the one exception named on `battle`.
  */
 export interface ScriptHost {
+  /** VM-only: retain a pure Counter transformation until its actual arrival. */
+  deferCounterOperation?(frame: ScriptFrame, op: Op): boolean | "retained";
   // ── what the program can find out ────────────────────────────────────────
 
   /** Is there a card with this instance id at all? A selector can name one that has since gone. */
@@ -92,6 +95,12 @@ export interface ScriptHost {
   masterOf(id: string): PlayerId;
   /** Which area it stands in, or null for a card that is nowhere (under another card, or gone). */
   areaOf(id: string): Area | null;
+  /** Plain owned Battle source and original native skill provenance. */
+  energyEntryBattleScope?(frame: ScriptFrame, id: string): import("./energy-entry-battle").EnergyBattleScope;
+  /** Original native Combo activation facts, captured and rechecked on resume. */
+  energyEntryComboScope?(frame: ScriptFrame, id: string): import("./energy-entry-combo").EnergyComboScope;
+  /** Physical zone holder, independent of card ownership or skill master. */
+  energyEntryLocation?(id: string): { holder: PlayerId; area: Area } | null;
   /** The card this one is under (23-2), or null. */
   hostOf(id: string): string | null;
   /** Active or Rest (1-10), or null where the area has no modes. */
@@ -118,8 +127,14 @@ export interface ScriptHost {
   nameOf(id: string): string;
   /** The card as it is right now, effects and all: what a program reads a printed value off. */
   defOf(id: string): CardDef;
+  /** Current characteristics captured when a payment actually reaches its destination. */
+  cardInfo(id: string): import("./cards").Attrs;
   /** 22: does it have this keyword skill, printed or granted? */
   hasKeyword(id: string, name: KeywordSkill["name"]): boolean;
+  /** Individual in-force keyword copies, retaining their printed/grant identity. */
+  keywordInstances(id: string, viewer: PlayerId): import("./program").KeywordInstance[];
+  /** Original option texts for migrating a pre-instance saved keyword menu. */
+  lastModeOptions(): readonly string[] | undefined;
   /** Which of its skills are switched off: `"all"`, or the indexes (9-1-5). */
   negatedSkills(id: string): "all" | number[];
   /** Every card this player has in play (9-1-3-1) — who watches a moment. */
@@ -141,7 +156,7 @@ export interface ScriptHost {
    * program the acting player runs in their own frame — the rules `forbids`
    * skips. `source` is the card whose skill takes the action (BT8-051).
    */
-  taxesOn(what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; keyword?: string }): Op[][];
+  taxesOn(what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; keyword?: string; excludePaidTaxes?: string[] }): Op[][];
   /** Can this player pay this price program right now, with `card` as "this card"? The engine's own payability check (`canPayPriceProgram` / `canPayCostProgram`). */
   canPayTax(player: PlayerId, card: string, ops: Op[]): boolean;
 
@@ -169,11 +184,28 @@ export interface ScriptHost {
   /** 5-4: draw, and say how many really came. */
   draw(p: PlayerId, n: number): number;
   /** 3-1-4: move a card to an area, with everything that entails. Returns where it really ended. */
-  move(id: string, to: Area, owner: PlayerId, opts?: MoveOptions): Area;
+  /** Optional Energy-entry preparation: validate saved ownership/payment routes
+   * before this frame executes, and a whole batch before its first mutation. */
+  recordInspectionMode?: (frame: ScriptFrame, op: Extract<Op, {op:'chooseMode'}>, index: number) => void;
+  recordInspectionChoice?(frame:ScriptFrame,op:Extract<Op,{op:"choose"}>,picked:string[]):void;
+  recordInspectionOrder?(frame: ScriptFrame, picked: string): void;
+  incrementalLook?(frame: ScriptFrame, op: Extract<Op, {op:"look"}>): "wait" | "done";
+  guardEnergyEntryFrame?(frame: ScriptFrame): void;
+  guardEnergyEntryBatch?(frame: ScriptFrame, ids: string[]): void;
+  /** Run the original movement's optional child before the native mover captures
+   * final mode. A waiting child must requeue this parent, never itself.
+   * First completion returns recheck so payer effects cannot stale earlier
+   * prohibition/replacement checks on the original movement. */
+  prepareEnergyEntry?(frame: ScriptFrame, id: string, destination: { player: PlayerId; area: "energy"; mode?: "active" | "rest" }): "ready" | "wait" | "recheck";
+  reportsMovement?: true;
+  move(id: string, to: Area, owner: PlayerId, opts?: MoveOptions & {
+    /** Synchronous qualification facts for the legacy aliases following this move. */
+    legacyMovement?: import("./movement-auto-history").LegacyMovementFacts;
+  }): Area;
   /** 5-9: KO a card, by this source. */
-  ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced">): void;
+  ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced"> & { onKoResult?: (outcome: import("./ko-result").KoOutcome) => void }): void;
   /** 23-2: put a card under another. */
-  placeUnder(id: string, host: string): boolean;
+  placeUnder(id: string, host: string, frame?: ScriptFrame, onResult?: (result: import("./movement-result").MovementOutcome) => void): boolean;
   /** 23-2, 21-5-2: a card from `host`'s pile becomes the top card in its place, and `host` goes directly under it. Returns whether it happened. */
   placeOnTop(id: string, host: string): boolean;
   /**
@@ -234,40 +266,44 @@ export interface ScriptHost {
   negateSkillIndex(id: string, index: number): void;
   /** 9-1-4: put a continuous effect in force. */
   addEffect(e: EffectSpec): ContinuousEffect | undefined;
+  /** Update a new effect group through the native standing-history writer. */
+  setEffectGroup?(effectId: number, group: number): void;
   /** 20-15: schedule a program for a later moment. */
   schedule(d: DelaySpec): void;
   /** 20-13: skip a step, this time round or the next. */
   addSkip(p: PlayerId, what: SkipWhat, when: "this" | "next"): void;
   /** 19-1: make a token in this player's Battle Area, and log it. Returns its instance id. */
   /** `mode` (phrasing batch 4): the token arrives in Rest Mode ("play 1 Ghost Token in Rest Mode") — placed so, never switched. */
-  createToken(p: PlayerId, name: string, power: number, comboCost: number | null, comboPower: number | null, colors: Color[], mode?: "rest"): string;
+  createToken(p: PlayerId, name: string, power: number, comboCost: number | null, comboPower: number | null, colors: Color[], mode?: "rest", frame?: ScriptFrame): string | null;
 
   // ── moments ──────────────────────────────────────────────────────────────
 
   /** How many [Auto]s are waiting (9-6-2) — the mark a `dropPendsOfOtherColours` measures from. */
   pendingCount(): number;
   /** 9-6: this moment happened to this card; whatever answers to it waits for the next checkpoint. */
-  pend(trigger: Trigger, card: string, subject?: string, sourceNegated?: number[]): void;
+  pend(trigger: Trigger, card: string, subject?: string, sourceNegated?: number[], sourceMaster?: PlayerId): void;
   /** 9-6-9-2: the [Auto] skills of this card that are negated right now, read before a move ends the effects on it. */
   autosNegatedNow(card: string): number[];
   /**
    * "Flipped face up **by one of your red card skills**": the trigger text is
    * read without state, so the colour is checked where the source is known and
-   * the entries pended since `before` that name a colour it has not got are
-   * dropped again.
+   * the entries pended since `before` with the wrong colour or skill master are
+   * dropped again. The actor is captured by the resolving frame even if its source moved.
    */
-  dropPendsOfOtherColours(before: number, source: string | undefined): void;
+  dropPendsOfOtherColours(before: number, source: string | undefined, sourceMaster: PlayerId): void;
 
   // ── replacements and the play being resolved (9-10, 9-6) ─────────────────
 
   /** The replacements standing in front of this card's departure, most-specific order. */
+  prepareReplacement?(frame: ScriptFrame, id: string, to: string, cause: import("./replacement-auto").ReplacementMove): void;
   replacementsFor(id: string, reason: MoveReason | undefined, opts?: ReplacementLookup): ReplacementChoice[];
   /** The card whose play is being resolved, for a [Counter: Play] (9-6). */
   resolvingCard(): string | null;
+  resolvedPlayCards?(frame: ScriptFrame): string[];
   /** 5-5: the card being played arrives in Rest Mode. */
   setPlayRest(card: string): void;
   /** 5-5: the card being played arrives with its skills negated. */
-  setPlayNegated(card: string): void;
+  setPlayNegated(card: string, by?: { player: PlayerId; source?: string }): void;
   /**
    * Phrasing batch 5 (owner's ruling of 26 Oct 2026, DB2-126): a switch of the card being played, made by `source`'s
    * skill, happens once the card has landed — a real switch, with its moments. False when the card is not one being
@@ -311,7 +347,7 @@ export interface ScriptHost {
   /** Take that answer off the state. */
   clearLastChoice(): void;
   /** 4-3-3: leave this program's names where the next one can start from them. */
-  saveVars(key: string, vars: Record<string, string[]>): void;
+  saveVars(key: string, vars: Record<string, string[]>, paidCardInfo?: ScriptFrame["paidCardInfo"]): void;
   /**
    * #1117: the price behind `key` was not paid — a step of it did not really happen. The effect queued behind it
    * is dropped and the line is not announced: nothing is resolved for a price that was not paid.
@@ -330,6 +366,8 @@ export interface ScriptHost {
    * rules engine. Absent on a host that processes none mid-program.
    */
   ruleInterrupt?(frame: ScriptFrame): ScriptFrame | null;
+  /** R435: whether the voluntary original incoming-to-Drop action can complete. */
+  canReplaceCounterArrival?(frame: ScriptFrame): boolean;
   /** 5-5-3: play these cards, then come back to `frame`. */
   /**
    * `counterWindow` (#155): the play a keyword's own move makes opens the
@@ -338,5 +376,7 @@ export interface ScriptHost {
    * keyword whose own move this play is ([Over Realm], 22-15), carried onto
    * the arrival so `playedUsingOverRealm` can tell it from an ordinary play.
    */
-  playThen(cards: string[], opts: { player: PlayerId; mode?: Mode; onto?: string; under?: string[]; negated?: "turn" | "game"; counterWindow?: true; markers?: number; using?: string; toOwners?: true; toOpponent?: true }, frame: ScriptFrame): "wait" | void;
+  /** R510: an action-price play is not a play made by the skill's effect. */
+  playAsCost?: true;
+  playThen(cards: string[], opts: { playPermission?: NonNullable<Parameters<ScriptHost["forbids"]>[1]>; player: PlayerId; mode?: Mode; onto?: string; under?: string[]; negated?: "turn" | "game"; negatedKinds?: NegatedSkillKind[]; negatedUntil?: Duration; counterWindow?: true; markers?: number; using?: string; toOwners?: true; toOpponent?: true }, frame: ScriptFrame): "wait" | void;
 }

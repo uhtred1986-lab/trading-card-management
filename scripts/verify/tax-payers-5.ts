@@ -1,0 +1,20 @@
+/** Shared strict-tax occurrence receipts: protocol proof, not card admission. */
+import assert from "node:assert/strict";
+import {captureTaxPayers, markTaxPayerPaid, taxPayerProblem, taxPayerProgramProblem, type TaxPayers} from "../../src/lib/arena/vm/tax-payers";
+import type {VmState} from "../../src/lib/arena/vm/state";
+const state={cards:{a:{zoneEpoch:2},b:{zoneEpoch:3}}} as unknown as VmState;
+let cases=0;
+const payers:TaxPayers={};captureTaxPayers(state,{selected:["a"],reserved:["not-a-card"],"selected@epoch":["a@2"]},payers);
+assert.deepEqual(payers,{"selected:a":{card:"a",epoch:2,paid:false}});cases++;
+assert.equal(taxPayerProblem(state,{selected:["a"]},payers),null);cases++;
+const stale:TaxPayers={"selected:a":{card:"a",epoch:1,paid:false}};
+assert.equal(taxPayerProblem(state,{selected:["a"]},stale),"stale");cases++;
+assert.equal(taxPayerProblem(state,{selected:["a"],other:["b"]},stale),"missing");cases++;
+assert.equal(taxPayerProblem(state,{selected:["a"]},{...stale,bad:{card:"b",epoch:-1,paid:false}}),"malformed");cases++;
+assert.equal(taxPayerProblem(state,{selected:["a"]},{"selected:a":{card:"b",epoch:3,paid:false}}),"malformed");cases++;
+const epochs:TaxPayers={old:{card:"a",epoch:1,paid:false},fresh:{card:"a",epoch:2,paid:false}};
+markTaxPayerPaid(epochs,"a",1);assert.equal(epochs.old.paid,true);assert.equal(epochs.fresh.paid,false);cases++;
+assert.equal(taxPayerProblem(state,{},epochs),null);cases++;
+assert.ok(taxPayerProgramProblem([{op:"choose",as:"same",sel:{area:"hand"}},{op:"choose",as:"same",sel:{area:"drop"}}]));cases++;
+assert.equal(taxPayerProgramProblem([{op:"choose",as:"first",sel:{area:"hand"}},{op:"choose",as:"second",sel:{area:"drop"}}]),null);cases++;
+console.log(`tax-payers-5: ${cases} protocol cases passed`);

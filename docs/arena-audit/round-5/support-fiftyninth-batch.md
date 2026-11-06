@@ -1,0 +1,13 @@
+# Support checkpoint 59: P-419 control-gain Auto
+
+Runtime `fdf6a21a`, registered by `c9a23edb`, supports P-419's exact independent played/control-gain Auto and its opponent Hand-to-Warp body. [The detailed receipt](control-pair.md) records native procedures, source evidence and boundaries.
+
+The successful native mover records actual Battle-area holder changes using original Battle type information. Ordinary Battle, Z-Battle and token subjects qualify. The transferred watcher itself retains its historical controller and does not become a new recipient watcher; other recipient copies qualify. This follows RM 9-6-9-1-2 and the cited original-controller FAQs. Existing pending effects retain their original player and shared Limit.
+
+A bounded source-occurrence contract prevents a replayed source's new negation from canceling its old pending Auto. Exact stored/expanded body and saved price checks preserve the opponent's private choice, including external Auto taxes. This does not broaden copied-source or general lifetime support. Native Z-Battle control now remains in Battle per Gaining Control FAQ Q5, through a native-verified type/holder witness; Z-Unison and Z-Extra removal behavior remains unchanged.
+
+Root verification passes 4,930 counted native/contract cases and 78 additional record cases, including 244 new P-419 cases. VM/rulesets, TypeScript, changed-file lint, language/round-trip/Teach, typed combat reader, 269 rulings and 198 capability sites pass. Legacy Z-Energy/Combo and activation-tax compatibility pass. Browser privacy/immutability/replay passes with 204 modules and 121 steps. Fusion completes 40/40 without crashes, interruptions or action limits. Legacy P-419 refusal and Z-Battle removal expectations were replaced with source-backed positive checks; unrelated negatives remain.
+
+Root independently compared every frozen record and the final-compiler snapshot hash. Exactly P-419#10 changes trigger, ops and reading fields; all other 13,965 records and its other fields remain unchanged. Totals: 6,597 cards, 13,966 records, 13,014 readable /952 unread. The combined runtime census remains 12 readable runtime gaps, 318 additional blocked records and 2,559 contextual unknowns. These are record diagnostics, not fully supported card counts. SHA-256: `34307fbed76877a11f210cfd34595f74db0604960fe961f19a147524eec71dc3`.
+
+The separate Bardock FAQ lifetime failure remains tracked. Work continues on explicit same-skill effect provenance before general cleanup, and on activation/delayed-play prerequisites for further cards. No database write, refresh, migration, dependency, merge or deployment is included.

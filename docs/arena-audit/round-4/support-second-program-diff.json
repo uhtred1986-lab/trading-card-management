@@ -1,0 +1,1882 @@
+[
+  {
+    "key": "BT10-031#20",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life or your opponent's life is at 4 or less",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life or your opponent's life is at 4 or less",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "life",
+              "side": "opponent",
+              "atMost": 4
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT14-121#30",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at 4 or less or 7 or more black \u226aShadow Dragon\u226b cards are in your Drop Area",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or 7 or more black \u226aShadow Dragon\u226b cards are in your Drop Area",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "drop",
+                "filter": {
+                  "colors": [
+                    "Black"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "shadow dragon"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 7
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT17-001#20",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at 4 or less or one of your Unison Cards has 7 or more markers on it",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or one of your Unison Cards has 7 or more markers on it",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "unison",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "UNISON",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": 7,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT19-002#20",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at 4 or less, or you have 2 or more energy and 1 or more <Android 14> and <Android 15> cards\u2014both red and with an energy cost of 1\u2014in your Battle Area and/or Drop",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less, or you have 2 or more energy and 1 or more <Android 14> and <Android 15> cards\u2014both red and with an energy cost of 1\u2014in your Battle Area and/or Drop",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                },
+                {
+                  "kind": "all",
+                  "conds": [
+                    {
+                      "kind": "count",
+                      "sel": {
+                        "side": "you",
+                        "area": "battle",
+                        "areas": [
+                          "battle",
+                          "drop"
+                        ],
+                        "filter": {
+                          "colors": [
+                            "Red"
+                          ],
+                          "notColors": [],
+                          "monoColor": false,
+                          "multiColor": false,
+                          "characters": [
+                            "android 14"
+                          ],
+                          "notCharacters": [],
+                          "charactersIncluding": [],
+                          "notCharactersIncluding": [],
+                          "charactersAll": [],
+                          "namesAll": [],
+                          "traits": [],
+                          "notTraits": [],
+                          "characterOrTrait": false,
+                          "onlyCharacters": false,
+                          "names": [],
+                          "notNames": [],
+                          "namesIncluding": [],
+                          "notNamesIncluding": [],
+                          "notKeywords": [],
+                          "keywords": [],
+                          "skillKind": null,
+                          "unreadable": false,
+                          "noKeywords": false,
+                          "type": null,
+                          "notType": null,
+                          "faceUp": false,
+                          "token": false,
+                          "notToken": false,
+                          "costMin": 1,
+                          "costMax": 1,
+                          "powerMin": null,
+                          "powerMax": null,
+                          "originalPowerMin": null,
+                          "originalPowerMax": null,
+                          "comboPowerMin": null,
+                          "comboPowerMax": null,
+                          "markersMin": null,
+                          "markersMax": null,
+                          "specifiedCostMin": null,
+                          "specifiedCostMax": null,
+                          "specifiedCostNone": false,
+                          "costAtMostEnergy": false,
+                          "costBelowEnergy": false,
+                          "costAtLeastEnergy": false,
+                          "costAboveEnergy": false,
+                          "energyOfOpponent": false,
+                          "originallySkillLess": false,
+                          "skillLess": false,
+                          "powerRel": null,
+                          "nameInSkillTextOf": null,
+                          "z": null
+                        }
+                      },
+                      "atLeast": 1
+                    },
+                    {
+                      "kind": "count",
+                      "sel": {
+                        "side": "you",
+                        "area": "battle",
+                        "areas": [
+                          "battle",
+                          "drop"
+                        ],
+                        "filter": {
+                          "colors": [
+                            "Red"
+                          ],
+                          "notColors": [],
+                          "monoColor": false,
+                          "multiColor": false,
+                          "characters": [
+                            "android 15"
+                          ],
+                          "notCharacters": [],
+                          "charactersIncluding": [],
+                          "notCharactersIncluding": [],
+                          "charactersAll": [],
+                          "namesAll": [],
+                          "traits": [],
+                          "notTraits": [],
+                          "characterOrTrait": false,
+                          "onlyCharacters": false,
+                          "names": [],
+                          "notNames": [],
+                          "namesIncluding": [],
+                          "notNamesIncluding": [],
+                          "notKeywords": [],
+                          "keywords": [],
+                          "skillKind": null,
+                          "unreadable": false,
+                          "noKeywords": false,
+                          "type": null,
+                          "notType": null,
+                          "faceUp": false,
+                          "token": false,
+                          "notToken": false,
+                          "costMin": 1,
+                          "costMax": 1,
+                          "powerMin": null,
+                          "powerMax": null,
+                          "originalPowerMin": null,
+                          "originalPowerMax": null,
+                          "comboPowerMin": null,
+                          "comboPowerMax": null,
+                          "markersMin": null,
+                          "markersMax": null,
+                          "specifiedCostMin": null,
+                          "specifiedCostMax": null,
+                          "specifiedCostNone": false,
+                          "costAtMostEnergy": false,
+                          "costBelowEnergy": false,
+                          "costAtLeastEnergy": false,
+                          "costAboveEnergy": false,
+                          "energyOfOpponent": false,
+                          "originallySkillLess": false,
+                          "skillLess": false,
+                          "powerRel": null,
+                          "nameInSkillTextOf": null,
+                          "z": null
+                        }
+                      },
+                      "atLeast": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT19-068#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or you have 2 or more energy and there are 5 or more Extras under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "any",
+              "conds": [
+                {
+                  "kind": "life",
+                  "side": "you",
+                  "atMost": 4
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                }
+              ]
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "under",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "EXTRA",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 5
+            }
+          ]
+        },
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or you have 2 or more energy and there are 5 or more Extras under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "under",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": "EXTRA",
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  },
+                  "atLeast": 5
+                }
+              ]
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT19-100#30",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at 2 or less, or your opponent has 2 or more energy and 2 or more \u226aSlug's Army\u226b cards are in your Z-Energy",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 2 or less, or your opponent has 2 or more energy and 2 or more \u226aSlug's Army\u226b cards are in your Z-Energy",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 2
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "opponent",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "zEnergy",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [
+                        "slug's army"
+                      ],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  },
+                  "atLeast": 2
+                }
+              ]
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT20-054#20",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at 4 or less, or when you have 2 or more energy while there are 2 or more <Son Goku: GT> cards in your Warp",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less, or when you have 2 or more energy while there are 2 or more <Son Goku: GT> cards in your Warp",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "warp",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "son goku: gt"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  },
+                  "atLeast": 2
+                }
+              ]
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT20-055#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at 4 or less, or when you have 2 or more energy while 1 or more <Android 17> and <Hell Fighter 17> cards are in your Z-Energy and Battle Area",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less, or when you have 2 or more energy while 1 or more <Android 17> and <Hell Fighter 17> cards are in your Z-Energy and Battle Area",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                },
+                {
+                  "kind": "all",
+                  "conds": [
+                    {
+                      "kind": "count",
+                      "sel": {
+                        "side": "you",
+                        "area": "zEnergy",
+                        "areas": [
+                          "zEnergy",
+                          "battle"
+                        ],
+                        "filter": {
+                          "colors": [],
+                          "notColors": [],
+                          "monoColor": false,
+                          "multiColor": false,
+                          "characters": [
+                            "android 17"
+                          ],
+                          "notCharacters": [],
+                          "charactersIncluding": [],
+                          "notCharactersIncluding": [],
+                          "charactersAll": [],
+                          "namesAll": [],
+                          "traits": [],
+                          "notTraits": [],
+                          "characterOrTrait": false,
+                          "onlyCharacters": false,
+                          "names": [],
+                          "notNames": [],
+                          "namesIncluding": [],
+                          "notNamesIncluding": [],
+                          "notKeywords": [],
+                          "keywords": [],
+                          "skillKind": null,
+                          "unreadable": false,
+                          "noKeywords": false,
+                          "type": null,
+                          "notType": null,
+                          "faceUp": false,
+                          "token": false,
+                          "notToken": false,
+                          "costMin": null,
+                          "costMax": null,
+                          "powerMin": null,
+                          "powerMax": null,
+                          "originalPowerMin": null,
+                          "originalPowerMax": null,
+                          "comboPowerMin": null,
+                          "comboPowerMax": null,
+                          "markersMin": null,
+                          "markersMax": null,
+                          "specifiedCostMin": null,
+                          "specifiedCostMax": null,
+                          "specifiedCostNone": false,
+                          "costAtMostEnergy": false,
+                          "costBelowEnergy": false,
+                          "costAtLeastEnergy": false,
+                          "costAboveEnergy": false,
+                          "energyOfOpponent": false,
+                          "originallySkillLess": false,
+                          "skillLess": false,
+                          "powerRel": null,
+                          "nameInSkillTextOf": null,
+                          "z": null
+                        }
+                      },
+                      "atLeast": 1
+                    },
+                    {
+                      "kind": "count",
+                      "sel": {
+                        "side": "you",
+                        "area": "zEnergy",
+                        "areas": [
+                          "zEnergy",
+                          "battle"
+                        ],
+                        "filter": {
+                          "colors": [],
+                          "notColors": [],
+                          "monoColor": false,
+                          "multiColor": false,
+                          "characters": [
+                            "hell fighter 17"
+                          ],
+                          "notCharacters": [],
+                          "charactersIncluding": [],
+                          "notCharactersIncluding": [],
+                          "charactersAll": [],
+                          "namesAll": [],
+                          "traits": [],
+                          "notTraits": [],
+                          "characterOrTrait": false,
+                          "onlyCharacters": false,
+                          "names": [],
+                          "notNames": [],
+                          "namesIncluding": [],
+                          "notNamesIncluding": [],
+                          "notKeywords": [],
+                          "keywords": [],
+                          "skillKind": null,
+                          "unreadable": false,
+                          "noKeywords": false,
+                          "type": null,
+                          "notType": null,
+                          "faceUp": false,
+                          "token": false,
+                          "notToken": false,
+                          "costMin": null,
+                          "costMax": null,
+                          "powerMin": null,
+                          "powerMax": null,
+                          "originalPowerMin": null,
+                          "originalPowerMax": null,
+                          "comboPowerMin": null,
+                          "comboPowerMax": null,
+                          "markersMin": null,
+                          "markersMax": null,
+                          "specifiedCostMin": null,
+                          "specifiedCostMax": null,
+                          "specifiedCostNone": false,
+                          "costAtMostEnergy": false,
+                          "costBelowEnergy": false,
+                          "costAtLeastEnergy": false,
+                          "costAboveEnergy": false,
+                          "energyOfOpponent": false,
+                          "originallySkillLess": false,
+                          "skillLess": false,
+                          "powerRel": null,
+                          "nameInSkillTextOf": null,
+                          "z": null
+                        }
+                      },
+                      "atLeast": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT20-114#20",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at 4 or less, or when you have 2 or more energy while you have a <Fu> Z-Battle Card in play",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less, or when you have 2 or more energy while you have a <Fu> Z-Battle Card in play",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "battle",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "fu"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": "BATTLE",
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": true
+                    }
+                  },
+                  "atLeast": 1
+                }
+              ]
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT22-054#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or you have 2 or more energy and you have a {Family Kamehameha, Emotions Delivered} in your Battle Area",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "any",
+              "conds": [
+                {
+                  "kind": "life",
+                  "side": "you",
+                  "atMost": 4
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                }
+              ]
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [
+                    "family kamehameha, emotions delivered"
+                  ],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            }
+          ]
+        },
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or you have 2 or more energy and you have a {Family Kamehameha, Emotions Delivered} in your Battle Area",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "battle",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [
+                        "family kamehameha, emotions delivered"
+                      ],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  },
+                  "atLeast": 1
+                }
+              ]
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT26-031#20",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at 4 or less, or when you have 3 or more Z-Energy",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less, or when you have 3 or more Z-Energy",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "zEnergy"
+              },
+              "atLeast": 3
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "BT29-029#30",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "When your life is at5 or less",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at5 or less",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "life",
+          "side": "you",
+          "atMost": 5
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "P-434#20",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or 2 or more \u226aVillainous\u226b cards are in your energy",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "villainous"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or 2 or more \u226aVillainous\u226b cards are in your energy",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "energy",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "villainous"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 2
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  },
+  {
+    "key": "SD23-01#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or you have 2 or more energy and you have a black <Mai : Future> Z-Battle Card in play",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "any",
+              "conds": [
+                {
+                  "kind": "life",
+                  "side": "you",
+                  "atMost": 4
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                }
+              ]
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "battle",
+                "filter": {
+                  "colors": [
+                    "Black"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "mai : future"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": true
+                }
+              },
+              "atLeast": 1
+            }
+          ]
+        },
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "When your life is at 4 or less or you have 2 or more energy and you have a black <Mai : Future> Z-Battle Card in play",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "life",
+              "side": "you",
+              "atMost": 4
+            },
+            {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "energy"
+                  },
+                  "atLeast": 2
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "battle",
+                    "filter": {
+                      "colors": [
+                        "Black"
+                      ],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "mai : future"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": "BATTLE",
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": true
+                    }
+                  },
+                  "atLeast": 1
+                }
+              ]
+            }
+          ]
+        },
+        "program": null
+      }
+    }
+  }
+]

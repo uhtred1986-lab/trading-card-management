@@ -201,6 +201,12 @@ export function splitClauses(text: string): string[] {
  * readings of 40-odd [Awaken] lines already treat as outside the offer.
  */
 export function splitClausesJoined(text: string): { clauses: string[]; joined: boolean[] } {
+  // R-384: restore the punctuation between a complete condition and its following instruction.
+  text = text.replace(/\b(if you have a multicolor card in your energy) (reduce the combo cost)\b/gi, "$1, $2");
+  // The paired dash surrounds shared host properties; its closing edge also ends the condition.
+  text = text.replace(/\b(while this card is under) (an? <[^>]+> or <[^>]+> card)[―—–]both (red|blue|green|yellow|black|white) and in your battle area[―—–]the card above it\b/gi,
+    (_all, lead: string, hosts: string, colour: string) => `${lead} ${colour} ${hosts.replace(/^an? /i, "")} in your Battle Area, the card above it`);
+  text = text.replace(/\b(your leader(?: card)?) and (?:your )?energy are all (mono-(?:red|blue|green|yellow|black|white))\b/gi, "$1 is $2 and all of your energy is $2");
   // (BT30-150's "…Battle Cards—all ignoring [barrier]—and place them…": the closing dash opens the next clause below, and
   // the aside's "all" is every choice of the list — `effects.ts`, audit selectors 2; integration 3 kept that reading over
   // a rewrite that gave "ignoring [Barrier]" to the last choice only.)
@@ -226,6 +232,10 @@ export function splitClausesJoined(text: string): { clauses: string[]; joined: b
   // Mechanism batch 4: "If you have **at least 1 <Lavender> and 1 <Basil> card** in play" (P-268b): one of each, the
   // wording "a <Lavender> card and a <Basil> card" already reads as (each its own count).
   text = text.replace(/\byou have at least 1 (<[^>]+>) and 1 (<[^>]+>) cards? in play\b/gi, "you have a $1 card and a $2 card in play");
+  // BT19-080: each named card is a presence condition in the shared area,
+  // never a choice after a condition about a card somewhere else.
+  text = text.replace(/\b(if you have) at least (\d+) (<[^>]+>)(?: cards?)? and (\d+) (<[^>]+>) cards? in your (z-energy|combo area|drop area|battle area)\b/gi,
+    (_whole, head: string, first: string, a: string, second: string, b: string, area: string) => `${head} ${first} or more ${a} cards in your ${area} and you have ${second} or more ${b} cards in your ${area}`);
   text = text.replace(/\b(your leader(?: card)?) and all of your energy are (mono-(?:red|blue|green|yellow|black|white))\b/gi, "$1 is $2 and all of your energy is $2");
   // Phrasing batch 9: "for each of your <Pan> cards **and** cards with <GT> in their character names" (EX23-52) is one
   // count of every card of either kind — the "and" joins two kinds of card, not two clauses. Said with "or", the

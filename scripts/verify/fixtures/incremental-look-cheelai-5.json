@@ -1,0 +1,407 @@
+{
+  "card": {
+    "id": "EX24-13",
+    "type": "BATTLE",
+    "colors": [
+      "Black"
+    ],
+    "cost": "1",
+    "specified": null,
+    "z": null,
+    "power": 4000,
+    "name": "Cheelai, Guided by the Dragon Balls",
+    "characters": [
+      "Cheelai: Br"
+    ],
+    "traits": [
+      "Frieza's Army",
+      "Power Wish"
+    ],
+    "skill": "[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 ≪Power Wish≫ card to your hand, then shuffle your deck. [activate: main][limit 1] If your Leader is a ≪Power Wish≫ card and you add this card and 1 non-<Cheelai: Br> ≪Power Wish≫ card from your hand to your Z-Energy: Draw 2 cards.",
+    "backName": null,
+    "backSkill": null
+  },
+  "faq": {
+    "EX24-013": [
+      {
+        "name": "Cheelai, Guided by the Dragon Balls",
+        "qa": [
+          {
+            "q": "Does this card's [Activate : Main] skill activate when this card is played into a Battle Area?",
+            "a": "No, it doesn't. It only activates when this card is in your hand."
+          }
+        ]
+      }
+    ]
+  },
+  "candidateKeys": [
+    "EX24-13#0"
+  ],
+  "allRecords": {
+    "EX24-13#0": {
+      "cardId": "EX24-13",
+      "side": "front",
+      "skillIndex": 0,
+      "printed": "[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 ≪Power Wish≫ card to your hand, then shuffle your deck.",
+      "kind": "auto",
+      "trigger": [
+        "played"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "look",
+          "n": 5,
+          "as": "looked"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "power wish"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true,
+            "fromVar": "looked"
+          },
+          "as": "c0",
+          "reason": "add up to 1 ≪Power Wish≫ card to your hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "hand"
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "unread": [],
+      "pattern": "look→choose→moveTo→shuffle",
+      "reads": "look at the top 5, choose up to 1 ≪power wish≫ card of the cards looked at, move the chosen cards to hand, shuffle"
+    },
+    "EX24-13#10": {
+      "cardId": "EX24-13",
+      "side": "front",
+      "skillIndex": 10,
+      "printed": "[activate: main][limit 1] If your Leader is a ≪Power Wish≫ card and you add this card and 1 non-<Cheelai: Br> ≪Power Wish≫ card from your hand to your Z-Energy: Draw 2 cards.",
+      "kind": "activate:main",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": 1
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "If your Leader is a ≪Power Wish≫ card and you add this card and 1 non-<Cheelai: Br> ≪Power Wish≫ card from your hand to your Z-Energy",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "power wish"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [
+                  "cheelai: br"
+                ],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [
+                  "power wish"
+                ],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false,
+              "notSelf": "card"
+            },
+            "as": "c0",
+            "reason": "add this card and 1 non-<Cheelai: Br> ≪Power Wish≫ card from your hand to your Z-Energy"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              }
+            },
+            "to": "zEnergy"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "zEnergy"
+          }
+        ]
+      },
+      "cond": {
+        "kind": "leaderMatches",
+        "filter": {
+          "colors": [],
+          "notColors": [],
+          "monoColor": false,
+          "multiColor": false,
+          "characters": [],
+          "notCharacters": [],
+          "charactersIncluding": [],
+          "notCharactersIncluding": [],
+          "charactersAll": [],
+          "namesAll": [],
+          "traits": [
+            "power wish"
+          ],
+          "notTraits": [],
+          "characterOrTrait": false,
+          "onlyCharacters": false,
+          "names": [],
+          "notNames": [],
+          "namesIncluding": [],
+          "notNamesIncluding": [],
+          "notKeywords": [],
+          "keywords": [],
+          "skillKind": null,
+          "unreadable": false,
+          "noKeywords": false,
+          "type": null,
+          "notType": null,
+          "faceUp": false,
+          "token": false,
+          "notToken": false,
+          "costMin": null,
+          "costMax": null,
+          "powerMin": null,
+          "powerMax": null,
+          "originalPowerMin": null,
+          "originalPowerMax": null,
+          "comboPowerMin": null,
+          "comboPowerMax": null,
+          "markersMin": null,
+          "markersMax": null,
+          "specifiedCostMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostNone": false,
+          "costAtMostEnergy": false,
+          "costBelowEnergy": false,
+          "costAtLeastEnergy": false,
+          "costAboveEnergy": false,
+          "energyOfOpponent": false,
+          "originallySkillLess": false,
+          "skillLess": false,
+          "powerRel": null,
+          "nameInSkillTextOf": null,
+          "z": null
+        }
+      },
+      "ops": [
+        {
+          "op": "draw",
+          "n": 2
+        }
+      ],
+      "unread": [],
+      "pattern": "if:leaderMatches[draw]",
+      "reads": "if your leader is ≪power wish≫: draw 2"
+    }
+  },
+  "officialImage": {
+    "url": "https://www.dbs-cardgame.com/images/cardlist/cardimg/EX24-13.png",
+    "sha256": "6c931520d797429a3df441c66cda2c69e6667116b591e03aaca88b6c64b0c7b5",
+    "verifiedSpecifiedCost": {}
+  }
+}

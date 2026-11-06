@@ -1,0 +1,4720 @@
+[
+  {
+    "key": "BT1-077#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 card in your hand, if you took that choice: move the chosen cards to drop, choose 1 {broly's ring} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 card in your hand, if you took that choice: move the chosen cards to drop, choose 1 {broly's ring} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT10-052#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {tragedy overground} card in your hand or Drop Area or deck or Energy Area, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 {tragedy overground} card in your hand or Drop Area or deck or Energy Area, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT10-133#10",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "hand",
+            "count": 1
+          },
+          "as": "c0",
+          "chooser": "opponent",
+          "reason": "your opponent chooses 1 card in their hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "warp",
+          "reveal": true
+        }
+      ],
+      "pattern": "combo it with this card",
+      "reads": "your opponent chooses 1 card in your opponent's hand, move the chosen cards to warp",
+      "unread": [
+        "combo it with this card"
+      ]
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "hand",
+            "count": 1
+          },
+          "as": "c0",
+          "chooser": "opponent",
+          "reason": "your opponent chooses 1 card in their hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "warp",
+          "reveal": true
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "varMatches",
+            "var": "c0",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "then": [
+            {
+              "op": "comboFrom",
+              "target": {
+                "var": "c0"
+              }
+            }
+          ]
+        }
+      ],
+      "pattern": "choose\u2192moveTo\u2192if:varMatches[comboFrom]",
+      "reads": "your opponent chooses 1 card in your opponent's hand, move the chosen cards to warp, if that card is battle card: use the chosen cards in a combo",
+      "unread": []
+    }
+  },
+  {
+    "key": "BT11-031#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {planet tuffle} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {planet tuffle} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT11-055#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {super blutz wave generator} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 {super blutz wave generator} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT11-071#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose one \u2014 choose up to 1 {the majin quickening} card in your deck or hand, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle / look at the top 7, choose up to 1 <vegeta> card with [Servant] of the cards looked at, move the chosen cards to hand, shuffle"
+    },
+    "after": {
+      "reads": "choose one \u2014 choose up to 1 {the majin quickening} card in your deck or hand, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle / look at the top 7, choose up to 1 <vegeta> card with [Servant] of the cards looked at, move the chosen cards to hand, shuffle"
+    }
+  },
+  {
+    "key": "BT12-003#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only with 10000 power or less: choose up to 1 card in your Life Area, turn the chosen cards face up, at the end of the turn: turn all cards that are face up in your Life Area face down"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only with 10000 power or less: choose up to 1 card in your Life Area, without seeing them, turn the chosen cards face up, at the end of the turn: turn all cards that are face up in your Life Area face down"
+    }
+  },
+  {
+    "key": "BT12-011#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only with 10000 power or less: choose up to 1 card in your Life Area, turn the chosen cards face up, at the end of the turn: turn all cards that are face up in your Life Area face down"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only with 10000 power or less: choose up to 1 card in your Life Area, without seeing them, turn the chosen cards face up, at the end of the turn: turn all cards that are face up in your Life Area face down"
+    }
+  },
+  {
+    "key": "BT12-013#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            },
+            {
+              "op": "forbid",
+              "what": "activateSkill",
+              "side": "you",
+              "until": "turn",
+              "sameNameAsSelf": true,
+              "skillKinds": [
+                "auto"
+              ]
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only with 10000 power or less: choose up to 1 card in your Life Area, turn the chosen cards face up, at the end of the turn: turn all cards that are face up in your Life Area face down, you can't activate the [Auto] skills on copies of this card for the turn"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            },
+            {
+              "op": "forbid",
+              "what": "activateSkill",
+              "side": "you",
+              "until": "turn",
+              "sameNameAsSelf": true,
+              "skillKinds": [
+                "auto"
+              ]
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only with 10000 power or less: choose up to 1 card in your Life Area, without seeing them, turn the chosen cards face up, at the end of the turn: turn all cards that are face up in your Life Area face down, you can't activate the [Auto] skills on copies of this card for the turn"
+    }
+  },
+  {
+    "key": "BT12-049#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose one \u2014 draw 1 / choose up to 1 {soul cleansing machine} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose one \u2014 draw 1 / choose up to 1 {soul cleansing machine} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT12-058#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "Flip up to 1 card in your opponent's life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "choose up to 1 card in your opponent's Life Area, turn the chosen cards face up"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "Flip up to 1 card in your opponent's life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "choose up to 1 card in your opponent's Life Area, without seeing them, turn the chosen cards face up"
+    }
+  },
+  {
+    "key": "BT12-069#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "draw",
+          "n": 2
+        },
+        {
+          "op": "power",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "amount": 5000,
+          "until": "nextTurn"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your opponent's life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "draw 2, this card +5000 power until the end of your opponent's turn, choose up to 1 card in your opponent's Life Area, turn the chosen cards face up"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "draw",
+          "n": 2
+        },
+        {
+          "op": "power",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "amount": 5000,
+          "until": "nextTurn"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your opponent's life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "draw 2, this card +5000 power until the end of your opponent's turn, choose up to 1 card in your opponent's Life Area, without seeing them, turn the chosen cards face up"
+    }
+  },
+  {
+    "key": "BT12-070#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your opponent's life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "choose up to 1 card in your opponent's Life Area, turn the chosen cards face up"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your opponent's life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "choose up to 1 card in your opponent's Life Area, without seeing them, turn the chosen cards face up"
+    }
+  },
+  {
+    "key": "BT12-078#20",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "switchMode",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "mode": "active"
+        },
+        {
+          "op": "discard",
+          "n": 1,
+          "side": "opponent",
+          "to": "warp"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 2,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 2 cards in your opponent's life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "switch this card to active mode, opponent discards 1 to the Warp, choose up to 2 cards in your opponent's Life Area, turn the chosen cards face up"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "switchMode",
+          "target": {
+            "sel": {
+              "special": "self"
+            }
+          },
+          "mode": "active"
+        },
+        {
+          "op": "discard",
+          "n": 1,
+          "side": "opponent",
+          "to": "warp"
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 2,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 2 cards in your opponent's life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "switch this card to active mode, opponent discards 1 to the Warp, choose up to 2 cards in your opponent's Life Area, without seeing them, turn the chosen cards face up"
+    }
+  },
+  {
+    "key": "BT12-079#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "may",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "opponent",
+                "area": "hand",
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "choose 1 card in their hand",
+              "chooser": "opponent"
+            }
+          ],
+          "chooser": "opponent",
+          "reason": "choose 1 card in their hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "drop",
+          "reveal": true
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "not",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            }
+          },
+          "then": [
+            {
+              "op": "draw",
+              "n": 1
+            },
+            {
+              "op": "choose",
+              "sel": {
+                "side": "opponent",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "flip up to 1 card in your opponent's life face up"
+            },
+            {
+              "op": "faceUp",
+              "target": {
+                "var": "c1"
+              }
+            }
+          ]
+        }
+      ],
+      "reads": "your opponent may: your opponent chooses 1 card in your opponent's hand, move the chosen cards to drop, if not (you took that choice): draw 1, choose up to 1 card in your opponent's Life Area, turn the chosen cards face up"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "may",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "opponent",
+                "area": "hand",
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "choose 1 card in their hand",
+              "chooser": "opponent"
+            }
+          ],
+          "chooser": "opponent",
+          "reason": "choose 1 card in their hand"
+        },
+        {
+          "op": "moveTo",
+          "target": {
+            "var": "c0"
+          },
+          "to": "drop",
+          "reveal": true
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "not",
+            "cond": {
+              "kind": "chose",
+              "var": "c0"
+            }
+          },
+          "then": [
+            {
+              "op": "draw",
+              "n": 1
+            },
+            {
+              "op": "choose",
+              "sel": {
+                "side": "opponent",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "flip up to 1 card in your opponent's life face up",
+              "blind": true
+            },
+            {
+              "op": "faceUp",
+              "target": {
+                "var": "c1"
+              }
+            }
+          ]
+        }
+      ],
+      "reads": "your opponent may: your opponent chooses 1 card in your opponent's hand, move the chosen cards to drop, if not (you took that choice): draw 1, choose up to 1 card in your opponent's Life Area, without seeing them, turn the chosen cards face up"
+    }
+  },
+  {
+    "key": "BT12-084#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "Flip up to 1 card in your opponent's life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "chooseMode",
+          "modes": [
+            {
+              "label": "Leader Cards",
+              "ops": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "leader",
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c1",
+                  "reason": "choose up to 1 of your Leader Cards or Battle Cards"
+                }
+              ]
+            },
+            {
+              "label": "Battle Cards",
+              "ops": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "battle",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": "BATTLE",
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c1",
+                  "reason": "choose up to 1 of your Leader Cards or Battle Cards"
+                }
+              ]
+            }
+          ],
+          "reason": "choose up to 1 of your Leader Cards or Battle Cards"
+        },
+        {
+          "op": "power",
+          "target": {
+            "var": "c1"
+          },
+          "amount": 10000,
+          "until": "battle"
+        },
+        {
+          "op": "chooseMode",
+          "modes": [
+            {
+              "label": "Draw 1 card.",
+              "ops": [
+                {
+                  "op": "draw",
+                  "n": 1
+                }
+              ]
+            },
+            {
+              "label": "If it's your turn, choose up to 1 of your opponent's Battle Cards with an energy cost greater than their current energy and KO it.",
+              "ops": [
+                {
+                  "op": "if",
+                  "cond": {
+                    "kind": "isTurnPlayer"
+                  },
+                  "then": [
+                    {
+                      "op": "choose",
+                      "sel": {
+                        "side": "opponent",
+                        "area": "battle",
+                        "filter": {
+                          "colors": [],
+                          "notColors": [],
+                          "monoColor": false,
+                          "multiColor": false,
+                          "characters": [],
+                          "notCharacters": [],
+                          "charactersIncluding": [],
+                          "notCharactersIncluding": [],
+                          "charactersAll": [],
+                          "namesAll": [],
+                          "traits": [],
+                          "notTraits": [],
+                          "characterOrTrait": false,
+                          "onlyCharacters": false,
+                          "names": [],
+                          "notNames": [],
+                          "namesIncluding": [],
+                          "notNamesIncluding": [],
+                          "notKeywords": [],
+                          "keywords": [],
+                          "skillKind": null,
+                          "unreadable": false,
+                          "noKeywords": false,
+                          "type": "BATTLE",
+                          "notType": null,
+                          "faceUp": false,
+                          "token": false,
+                          "notToken": false,
+                          "costMin": null,
+                          "costMax": null,
+                          "powerMin": null,
+                          "powerMax": null,
+                          "originalPowerMin": null,
+                          "originalPowerMax": null,
+                          "comboPowerMin": null,
+                          "comboPowerMax": null,
+                          "markersMin": null,
+                          "markersMax": null,
+                          "specifiedCostMin": null,
+                          "specifiedCostMax": null,
+                          "specifiedCostNone": false,
+                          "costAtMostEnergy": false,
+                          "costBelowEnergy": false,
+                          "costAtLeastEnergy": false,
+                          "costAboveEnergy": true,
+                          "energyOfOpponent": true,
+                          "originallySkillLess": false,
+                          "skillLess": false,
+                          "powerRel": null,
+                          "nameInSkillTextOf": null,
+                          "z": null
+                        },
+                        "count": 1,
+                        "upTo": true
+                      },
+                      "as": "c2",
+                      "reason": "choose up to 1 of your opponent's Battle Cards with an energy cost greater than their current energy"
+                    },
+                    {
+                      "op": "ko",
+                      "target": {
+                        "var": "c2"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b: choose up to 1 card in your opponent's Life Area, turn the chosen cards face up, choose one \u2014 choose up to 1 card in your Leader Area / choose up to 1 Battle Card in your Battle Area, the chosen cards +10000 power for the battle, choose one \u2014 draw 1 / if it is your turn: choose up to 1 Battle Card with an energy cost greater than your opponent's current energy in your opponent's Battle Area, KO the chosen cards"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "opponent",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "Flip up to 1 card in your opponent's life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "chooseMode",
+          "modes": [
+            {
+              "label": "Leader Cards",
+              "ops": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "leader",
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c1",
+                  "reason": "choose up to 1 of your Leader Cards or Battle Cards"
+                }
+              ]
+            },
+            {
+              "label": "Battle Cards",
+              "ops": [
+                {
+                  "op": "choose",
+                  "sel": {
+                    "side": "you",
+                    "area": "battle",
+                    "filter": {
+                      "colors": [],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": "BATTLE",
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 1,
+                    "upTo": true
+                  },
+                  "as": "c1",
+                  "reason": "choose up to 1 of your Leader Cards or Battle Cards"
+                }
+              ]
+            }
+          ],
+          "reason": "choose up to 1 of your Leader Cards or Battle Cards"
+        },
+        {
+          "op": "power",
+          "target": {
+            "var": "c1"
+          },
+          "amount": 10000,
+          "until": "battle"
+        },
+        {
+          "op": "chooseMode",
+          "modes": [
+            {
+              "label": "Draw 1 card.",
+              "ops": [
+                {
+                  "op": "draw",
+                  "n": 1
+                }
+              ]
+            },
+            {
+              "label": "If it's your turn, choose up to 1 of your opponent's Battle Cards with an energy cost greater than their current energy and KO it.",
+              "ops": [
+                {
+                  "op": "if",
+                  "cond": {
+                    "kind": "isTurnPlayer"
+                  },
+                  "then": [
+                    {
+                      "op": "choose",
+                      "sel": {
+                        "side": "opponent",
+                        "area": "battle",
+                        "filter": {
+                          "colors": [],
+                          "notColors": [],
+                          "monoColor": false,
+                          "multiColor": false,
+                          "characters": [],
+                          "notCharacters": [],
+                          "charactersIncluding": [],
+                          "notCharactersIncluding": [],
+                          "charactersAll": [],
+                          "namesAll": [],
+                          "traits": [],
+                          "notTraits": [],
+                          "characterOrTrait": false,
+                          "onlyCharacters": false,
+                          "names": [],
+                          "notNames": [],
+                          "namesIncluding": [],
+                          "notNamesIncluding": [],
+                          "notKeywords": [],
+                          "keywords": [],
+                          "skillKind": null,
+                          "unreadable": false,
+                          "noKeywords": false,
+                          "type": "BATTLE",
+                          "notType": null,
+                          "faceUp": false,
+                          "token": false,
+                          "notToken": false,
+                          "costMin": null,
+                          "costMax": null,
+                          "powerMin": null,
+                          "powerMax": null,
+                          "originalPowerMin": null,
+                          "originalPowerMax": null,
+                          "comboPowerMin": null,
+                          "comboPowerMax": null,
+                          "markersMin": null,
+                          "markersMax": null,
+                          "specifiedCostMin": null,
+                          "specifiedCostMax": null,
+                          "specifiedCostNone": false,
+                          "costAtMostEnergy": false,
+                          "costBelowEnergy": false,
+                          "costAtLeastEnergy": false,
+                          "costAboveEnergy": true,
+                          "energyOfOpponent": true,
+                          "originallySkillLess": false,
+                          "skillLess": false,
+                          "powerRel": null,
+                          "nameInSkillTextOf": null,
+                          "z": null
+                        },
+                        "count": 1,
+                        "upTo": true
+                      },
+                      "as": "c2",
+                      "reason": "choose up to 1 of your opponent's Battle Cards with an energy cost greater than their current energy"
+                    },
+                    {
+                      "op": "ko",
+                      "target": {
+                        "var": "c2"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "reads": "if your leader is \u226aturles crusher corps\u226b: choose up to 1 card in your opponent's Life Area, without seeing them, turn the chosen cards face up, choose one \u2014 choose up to 1 card in your Leader Area / choose up to 1 Battle Card in your Battle Area, the chosen cards +10000 power for the battle, choose one \u2014 draw 1 / if it is your turn: choose up to 1 Battle Card with an energy cost greater than your opponent's current energy in your opponent's Battle Area, KO the chosen cards"
+    }
+  },
+  {
+    "key": "BT12-086#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {cutting-edge recovery device} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {cutting-edge recovery device} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT13-002#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {young invaders} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {young invaders} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT13-061#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {king cold's dynasty} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {king cold's dynasty} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT13-064#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 mono-colour green Extra Card with [Field] with an energy cost of 2 or less in your hand, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 mono-colour green Extra Card with [Field] with an energy cost of 2 or less in your hand, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT13-080#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is <king cold: br>: choose 1 mono-colour green Extra Card with [Field] with an energy cost of 2 in your Drop Area, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "if your leader is <king cold: br>: choose 1 mono-colour green Extra Card with [Field] with an energy cost of 2 in your Drop Area, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT14-031#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {foreboding music box} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {foreboding music box} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT15-061#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {king kai's planet} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {king kai's planet} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT15-094#20",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "if your leader is Yellow \u226aturles crusher corps\u226b: choose up to 1 card in your Life Area, turn the chosen cards face up"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "reads": "if your leader is Yellow \u226aturles crusher corps\u226b: choose up to 1 card in your Life Area, without seeing them, turn the chosen cards face up"
+    }
+  },
+  {
+    "key": "BT15-099#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if there are no Extra Cards with [Field] in your Battle Area: choose up to 1 yellow Extra Card with [Field] with an energy cost of 1 in your Drop Area, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "if there are no Extra Cards with [Field] in your Battle Area: choose up to 1 yellow Extra Card with [Field] with an energy cost of 1 in your Drop Area, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT15-106#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "areas": [
+              "deck",
+              "drop"
+            ],
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [
+                "turles's power ball"
+              ],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p1",
+          "reason": "activate up to 1 {Turles's Power Ball} from your deck or Drop Area"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p1"
+          },
+          "activating": true
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "reads": "if your leader is Yellow \u226aturles crusher corps\u226b: choose up to 1 card in your Life Area, turn the chosen cards face up, choose up to 1 {turles's power ball} card in your deck or Drop Area, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "deck",
+            "areas": [
+              "deck",
+              "drop"
+            ],
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [
+                "turles's power ball"
+              ],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p1",
+          "reason": "activate up to 1 {Turles's Power Ball} from your deck or Drop Area"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p1"
+          },
+          "activating": true
+        },
+        {
+          "op": "shuffle"
+        }
+      ],
+      "reads": "if your leader is Yellow \u226aturles crusher corps\u226b: choose up to 1 card in your Life Area, without seeing them, turn the chosen cards face up, choose up to 1 {turles's power ball} card in your deck or Drop Area, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT15-109#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self",
+            "area": "drop"
+          },
+          "as": "p0",
+          "reason": "play this card from your Drop Area"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c1",
+          "reason": "flip up to 1 card in your life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c1"
+          }
+        }
+      ],
+      "reads": "if your leader is Yellow \u226aturles crusher corps\u226b: choose this card, play the chosen cards, choose up to 1 card in your Life Area, turn the chosen cards face up"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self",
+            "area": "drop"
+          },
+          "as": "p0",
+          "reason": "play this card from your Drop Area"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c1",
+          "reason": "flip up to 1 card in your life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c1"
+          }
+        }
+      ],
+      "reads": "if your leader is Yellow \u226aturles crusher corps\u226b: choose this card, play the chosen cards, choose up to 1 card in your Life Area, without seeing them, turn the chosen cards face up"
+    }
+  },
+  {
+    "key": "BT15-111#0",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self",
+            "area": "drop"
+          },
+          "as": "p0",
+          "reason": "play this card from your Drop Area"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c1",
+          "reason": "flip up to 1 card in your life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c1"
+          }
+        }
+      ],
+      "reads": "if your leader is Yellow \u226aturles crusher corps\u226b: choose this card, play the chosen cards, choose up to 1 card in your Life Area, turn the chosen cards face up"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "special": "self",
+            "area": "drop"
+          },
+          "as": "p0",
+          "reason": "play this card from your Drop Area"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        },
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c1",
+          "reason": "flip up to 1 card in your life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c1"
+          }
+        }
+      ],
+      "reads": "if your leader is Yellow \u226aturles crusher corps\u226b: choose this card, play the chosen cards, choose up to 1 card in your Life Area, without seeing them, turn the chosen cards face up"
+    }
+  },
+  {
+    "key": "BT16-048#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if there are no Extra Cards with [Field] in your Battle Area: choose up to 1 {the nameless planet} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "if there are no Extra Cards with [Field] in your Battle Area: choose up to 1 {the nameless planet} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT16-049#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if there are no Extra Cards with [Field] in your Battle Area: choose up to 1 {the nameless planet} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "if there are no Extra Cards with [Field] in your Battle Area: choose up to 1 {the nameless planet} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT16-066#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is Green <beerus>, or your leader is Green <champa>: choose one \u2014 choose up to 1 {the nameless planet} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle / if there are no Battle Cards in your opponent's Battle Area: reveal all cards in your opponent's hand, choose up to 1 Battle Card with an energy cost of 3 or less of the cards looked at, play the chosen cards in your opponent's Battle Area"
+    },
+    "after": {
+      "reads": "if your leader is Green <beerus>, or your leader is Green <champa>: choose one \u2014 choose up to 1 {the nameless planet} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle / if there are no Battle Cards in your opponent's Battle Area: reveal all cards in your opponent's hand, choose up to 1 Battle Card with an energy cost of 3 or less of the cards looked at, play the chosen cards in your opponent's Battle Area"
+    }
+  },
+  {
+    "key": "BT17-018#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is <dr. myuu>: you may: draw 1, if not (the offer was taken): choose up to 1 {planet m-2} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "if your leader is <dr. myuu>: you may: draw 1, if not (the offer was taken): choose up to 1 {planet m-2} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT17-060#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {big gete star, nightmarish regeneration} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {big gete star, nightmarish regeneration} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT18-059#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {master roshi's training} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {master roshi's training} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT20-084#20b",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {spirit bomb} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle, this skill does not happen again"
+    },
+    "after": {
+      "reads": "choose up to 1 {spirit bomb} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle, this skill does not happen again"
+    }
+  },
+  {
+    "key": "BT20-114#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {prison planet} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {prison planet} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT21-035#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {universal tuffleization plan} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {universal tuffleization plan} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT21-067#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {hyperbolic time chamber} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {hyperbolic time chamber} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT22-032#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {barrier around check-in station} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {barrier around check-in station} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT22-074#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {broly's ring} card in your deck or Drop Area, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 {broly's ring} card in your deck or Drop Area, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT22-075#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "draw 1, choose up to 1 {broly's ring} card in your hand, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "draw 1, choose up to 1 {broly's ring} card in your hand, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT22-076#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose one \u2014 choose up to 1 {broly's ring} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle / look at the top 5, choose up to 1 green <broly> card of the cards looked at, move the chosen cards to hand, shuffle"
+    },
+    "after": {
+      "reads": "choose one \u2014 choose up to 1 {broly's ring} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle / look at the top 5, choose up to 1 green <broly> card of the cards looked at, move the chosen cards to hand, shuffle"
+    }
+  },
+  {
+    "key": "BT22-082#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {fortuneteller baba's palace} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {fortuneteller baba's palace} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT22-133#30",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {dormant legend} card in your deck or hand or Drop Area, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 {dormant legend} card in your deck or hand or Drop Area, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT26-002#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {power absorption and release} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {power absorption and release} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT26-135#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {tournament of power arena} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 {tournament of power arena} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT27-131#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {battle on namek} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 {battle on namek} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT28-055#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {world tournament - reunion of fate} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 {world tournament - reunion of fate} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT28-070#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is <chi-chi> and there are 1 or more <son goku> cards with [Alliance] you have in play: choose this card, play the chosen cards, choose up to 1 {world tournament - reunion of fate} card in your hand, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "if your leader is <chi-chi> and there are 1 or more <son goku> cards with [Alliance] you have in play: choose this card, play the chosen cards, choose up to 1 {world tournament - reunion of fate} card in your hand, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT30-107#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {serpent road} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {serpent road} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT31-027#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {conflict} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {conflict} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT6-064#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {Broly Control Mechanism} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 {Broly Control Mechanism} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT7-002#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {Dormant Legend} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {Dormant Legend} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT7-010#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is <raditz>: choose up to 1 card in your hand, move the chosen cards to drop, if you took that choice: choose up to 1 {Power Ball} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "if your leader is <raditz>: choose up to 1 card in your hand, move the chosen cards to drop, if you took that choice: choose up to 1 {Power Ball} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT7-044#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {Mass Replication} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose up to 1 {Mass Replication} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "BT7-127#30",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is <broly>: choose up to 1 {Broly's Ring} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle, if you took that choice: choose 1 to 2 cards in your Life Area, move the chosen cards to hand"
+    },
+    "after": {
+      "reads": "if your leader is <broly>: choose up to 1 {Broly's Ring} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle, if you took that choice: choose 1 to 2 cards in your Life Area, move the chosen cards to hand"
+    }
+  },
+  {
+    "key": "BT8-023#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {Android 21's Scheme} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {Android 21's Scheme} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT8-024#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {Android 21's Scheme} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {Android 21's Scheme} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT8-034#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is \u226aandroid\u226b: choose 1 {Android 21's Scheme} card in your Drop Area, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "if your leader is \u226aandroid\u226b: choose 1 {Android 21's Scheme} card in your Drop Area, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT8-045#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {Dr.Uiro's Lab} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {Dr.Uiro's Lab} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT9-100#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "Choose 1 red card and 1 blue card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Choose 1 red card and 1 blue card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Red"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "place 1 red card from your hand under this card"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Blue"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false,
+              "notIn": [
+                "c0"
+              ]
+            },
+            "as": "c1",
+            "reason": "place 1 blue card from your hand under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c1"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "key": "BT9-112#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "Choose 1 green card and 1 yellow card from your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Choose 1 green card and 1 yellow card from your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "place 1 green card from your hand under this card"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Yellow"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false,
+              "notIn": [
+                "c0"
+              ]
+            },
+            "as": "c1",
+            "reason": "place 1 yellow card from your hand under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c1"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "key": "BT9-112#10b",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "Choose 1 green card and 1 yellow card from your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Choose 1 green card and 1 yellow card from your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "place 1 green card from your hand under this card"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Yellow"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false,
+              "notIn": [
+                "c0"
+              ]
+            },
+            "as": "c1",
+            "reason": "place 1 yellow card from your hand under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c1"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "key": "BT9-129#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {Big Gete Star} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {Big Gete Star} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "BT9-129#0b",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {Big Gete Star} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 {Big Gete Star} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "DB3-125#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is Green, or your leader is \u226aphantom demon\u226b: choose one \u2014 draw 1, at the end of the turn: choose this card, play the chosen cards / choose up to 1 {sealed music box} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "if your leader is Green, or your leader is \u226aphantom demon\u226b: choose one \u2014 draw 1, at the end of the turn: choose this card, play the chosen cards / choose up to 1 {sealed music box} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "EB1-59#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is \u226abardock's crew\u226b: choose 1 {Tora's Red Armband} or {Assault of the Great Apes} card in your hand, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, this skill does not happen again"
+    },
+    "after": {
+      "reads": "if your leader is \u226abardock's crew\u226b: choose 1 {Tora's Red Armband} or {Assault of the Great Apes} card in your hand, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, this skill does not happen again"
+    }
+  },
+  {
+    "key": "EX06-06#10",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is \u226amachine mutant\u226b: choose up to 1 {Planet M-2} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "if your leader is \u226amachine mutant\u226b: choose up to 1 {Planet M-2} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "EX06-26#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "draw 1, choose up to 1 {Big Gete Star} card in your Drop Area, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "draw 1, choose up to 1 {Big Gete Star} card in your Drop Area, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "EX09-03#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "Choose 1 red card and 1 yellow card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Choose 1 red card and 1 yellow card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Red"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "place 1 red card from your hand under this card"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Yellow"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false,
+              "notIn": [
+                "c0"
+              ]
+            },
+            "as": "c1",
+            "reason": "place 1 yellow card from your hand under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c1"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "key": "EX10-03#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "Choose 1 blue card and 1 green card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Choose 1 blue card and 1 green card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Blue"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "place 1 blue card from your hand under this card"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false,
+              "notIn": [
+                "c0"
+              ]
+            },
+            "as": "c1",
+            "reason": "place 1 green card from your hand under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c1"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "key": "EX24-30#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 mono-colour green Extra Card with [Field] with an energy cost of 2 in your Drop Area, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards"
+    },
+    "after": {
+      "reads": "choose up to 1 mono-colour green Extra Card with [Field] with an energy cost of 2 in your Drop Area, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards"
+    }
+  },
+  {
+    "key": "P-119#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is Red \u226ashenron\u226b: choose up to 3 cards with [Dragon Ball] in your deck, move the chosen cards to drop, shuffle (end if), if you took that choice: choose up to 1 {A King's Return to Youth} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "if your leader is Red \u226ashenron\u226b: choose up to 3 cards with [Dragon Ball] in your deck, move the chosen cards to drop, shuffle (end if), if you took that choice: choose up to 1 {A King's Return to Youth} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "P-179#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is Red <broly>: choose up to 1 {Dormant Legend} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "if your leader is Red <broly>: choose up to 1 {Dormant Legend} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "P-181#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "Choose 1 red card and 1 green card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Choose 1 red card and 1 green card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Red"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "place 1 red card from your hand under this card"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false,
+              "notIn": [
+                "c0"
+              ]
+            },
+            "as": "c1",
+            "reason": "place 1 green card from your hand under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c1"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "key": "P-184#10",
+    "fields": [
+      "cost"
+    ],
+    "before": {
+      "cost": {
+        "version": 1,
+        "readable": false,
+        "text": "Choose 1 blue card and 1 yellow card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      }
+    },
+    "after": {
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "Choose 1 blue card and 1 yellow card in your hand and place them under this card",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Blue"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "place 1 blue card from your hand under this card"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Yellow"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false,
+              "notIn": [
+                "c0"
+              ]
+            },
+            "as": "c1",
+            "reason": "place 1 yellow card from your hand under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c1"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "key": "P-274#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up"
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            },
+            {
+              "op": "forbid",
+              "what": "activateSkill",
+              "side": "you",
+              "until": "turn",
+              "sameNameAsSelf": true,
+              "skillKinds": [
+                "auto"
+              ]
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only with 10000 power or less: choose up to 1 card in your Life Area, turn the chosen cards face up, at the end of the turn: turn all cards that are face up in your Life Area face down, you can't activate the [Auto] skills on copies of this card for the turn"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "life",
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "flip up to 1 card in your life face up",
+          "blind": true
+        },
+        {
+          "op": "faceUp",
+          "target": {
+            "var": "c0"
+          }
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            },
+            {
+              "op": "forbid",
+              "what": "activateSkill",
+              "side": "you",
+              "until": "turn",
+              "sameNameAsSelf": true,
+              "skillKinds": [
+                "auto"
+              ]
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only with 10000 power or less: choose up to 1 card in your Life Area, without seeing them, turn the chosen cards face up, at the end of the turn: turn all cards that are face up in your Life Area face down, you can't activate the [Auto] skills on copies of this card for the turn"
+    }
+  },
+  {
+    "key": "P-328#10",
+    "fields": [
+      "ops",
+      "reads"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "may",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              },
+              "as": "p0",
+              "reason": "you may play this card from your hand"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              }
+            }
+          ],
+          "reason": "play this card from your hand"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "did",
+            "what": "may"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "flip up to 1 card in your life face up"
+            },
+            {
+              "op": "faceUp",
+              "target": {
+                "var": "c1"
+              }
+            }
+          ]
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only: you may: choose this card, play the chosen cards, if the offer was taken: choose up to 1 card in your Life Area, turn the chosen cards face up (end if), at the end of the turn: turn all cards that are face up in your Life Area face down"
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "may",
+          "ops": [
+            {
+              "op": "choose",
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              },
+              "as": "p0",
+              "reason": "you may play this card from your hand"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              }
+            }
+          ],
+          "reason": "play this card from your hand"
+        },
+        {
+          "op": "if",
+          "cond": {
+            "kind": "did",
+            "what": "may"
+          },
+          "then": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": true
+              },
+              "as": "c1",
+              "reason": "flip up to 1 card in your life face up",
+              "blind": true
+            },
+            {
+              "op": "faceUp",
+              "target": {
+                "var": "c1"
+              }
+            }
+          ]
+        },
+        {
+          "op": "delay",
+          "at": "turnEnd",
+          "scope": "thisTurn",
+          "ops": [
+            {
+              "op": "faceUp",
+              "target": {
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": true,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "faceUp": false
+            }
+          ],
+          "label": "at the end of the turn"
+        }
+      ],
+      "reads": "if your leader is Red \u226aearthling\u226b-only: you may: choose this card, play the chosen cards, if the offer was taken: choose up to 1 card in your Life Area, without seeing them, turn the chosen cards face up (end if), at the end of the turn: turn all cards that are face up in your Life Area face down"
+    }
+  },
+  {
+    "key": "P-363#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "if your leader is Red \u226afrieza's army\u226b and there are 2 or more cards in your Energy Area: choose up to 1 {frieza's spaceship} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "if your leader is Red \u226afrieza's army\u226b and there are 2 or more cards in your Energy Area: choose up to 1 {frieza's spaceship} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "P-389#20",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose one \u2014 choose up to 1 {dragon balls, negative energy overflow} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, shuffle / you may: choose 4 cards in your Energy Area in active mode, switch the chosen cards to rest mode, if the offer was taken: choose up to 1 {black smoke dragon, eternal evil} card in your deck or hand, play the chosen cards, shuffle"
+    },
+    "after": {
+      "reads": "choose one \u2014 choose up to 1 {dragon balls, negative energy overflow} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle / you may: choose 4 cards in your Energy Area in active mode, switch the chosen cards to rest mode, if the offer was taken: choose up to 1 {black smoke dragon, eternal evil} card in your deck or hand, play the chosen cards, shuffle"
+    }
+  },
+  {
+    "key": "XD3-01#0",
+    "fields": [
+      "reads"
+    ],
+    "before": {
+      "reads": "choose up to 1 {Cell Games Arena} card in your deck, activate (its [Field] skill, or in the hand its [Activate: Main]; else play) the chosen cards, you can't activate Extra Cards with [Field] for the rest of the game, you can't activate [Counter] skills of Extra Cards with [Field] for the rest of the game, you can't activate [Field] for the rest of the game"
+    },
+    "after": {
+      "reads": "choose up to 1 {Cell Games Arena} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, you can't activate Extra Cards with [Field] for the rest of the game, you can't activate [Counter] skills of Extra Cards with [Field] for the rest of the game, you can't activate [Field] for the rest of the game"
+    }
+  },
+  {
+    "key": "XD3-08#30",
+    "fields": [
+      "ops",
+      "pattern",
+      "reads",
+      "unread"
+    ],
+    "before": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Yellow"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "Son Goku"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "choose up to 1 yellow <Son Goku> card in your Drop Area"
+        }
+      ],
+      "pattern": "combo it with this card",
+      "reads": "choose up to 1 yellow <Son Goku> card in your Drop Area",
+      "unread": [
+        "combo it with this card"
+      ]
+    },
+    "after": {
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Yellow"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "Son Goku"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "c0",
+          "reason": "choose up to 1 yellow <Son Goku> card in your Drop Area"
+        },
+        {
+          "op": "comboFrom",
+          "target": {
+            "var": "c0"
+          }
+        }
+      ],
+      "pattern": "choose\u2192comboFrom",
+      "reads": "choose up to 1 yellow <Son Goku> card in your Drop Area, use the chosen cards in a combo",
+      "unread": []
+    }
+  }
+]

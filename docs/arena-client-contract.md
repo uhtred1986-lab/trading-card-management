@@ -1012,3 +1012,7 @@ and stakes use the new Blocker while the attack's original target remains
 unchanged. An unresolved skill or variable event yields `notEvaluated` with a
 reason. Declining the Blocker has no row. This additive field also leaves
 contract version 2 unchanged.
+
+### Declared alternative Counter source
+
+`SideView.revealedHand?: CardView[]` is present only while a versioned alternative Counter payment reveals its original source occurrence in hand (R461). It contains the declared source, never the remaining hand or payment candidates. The opponent's ordinary `hand` remains null. After payment, departure/reentry or completion, this optional field is absent. This is an engine projection contract; ordinary Counter action-price declaration visibility remains a separate audit.

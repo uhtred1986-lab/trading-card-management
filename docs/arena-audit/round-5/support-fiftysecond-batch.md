@@ -1,0 +1,11 @@
+# Support checkpoint 52: own Warp and Z-Energy entry
+
+Runtime `8aa9c6ff` adds bounded optional Energy entry from the owner's Warp and Z-Energy. R484 uses the printed from-any-area Permanent and the manual's open-area rules. The native mover independently checks physical zone holder, card owner and skill master, then preserves that source binding across each saved payer choice. Existing Hand/Deck entries receive the same physical-holder checks. See [source and native evidence](energy-entry-origins.md).
+
+Whole-source and individual-Permanent negation suppress the optional procedure. Original movement and payer attribution remain distinct; partial payment does not earn negation. Protection, final mode, a single new occurrence and stamped negation cleanup retain the existing mechanism. Battle, Combo, Life, Drop, Hidden, stacks, costs, other controllers, batches and replacement routes remain bounded. The six product records are still unadmitted; this is runtime groundwork, not complete-card support.
+
+Combined verification passes 1,151 focused cases: origins152, Charge126, native Energy115, payer44, witness54, continuation246, bridge18, effect20, stack4, policy21, preflight155 and watched Combo196. VM, rulesets, TypeScript, changed-file lint, 258 rulings and the unchanged 183-site inventory pass. Browser privacy/immutability/replay passes with 200 modules and 121 steps. Fusion completes 40 games without crashes, interruptions or action limits.
+
+The exact six-card/12-record comparison remains unchanged, including all six unadmitted optional Permanents and absence of emitted Energy-entry descriptors. Its canonical hash is `8c65c93245e7685375c04db195edc45499e6861c36312978578bfc959f4eb07d`. This runtime-only batch changes neither compiler nor stored-record readers, so the complete checkpoint51 catalog evidence is retained rather than recompiled: 6,597 cards / 13,966 records, 13,008 readable / 958 unread, 12 readable runtime gaps, 318 additional blocked records and 2,559 contextual unknowns. Full snapshot SHA-256 remains `68925ded56f66859b3c295922f55c09bc3682b6b61e6ccbfc83e38268187b8d0`.
+
+Plain live-Combo entry and paired play/battle-end triggers continue in the same PR. The incoming-Drop self-payment decision remains unanswered. No database write, production refresh, migration, dependency change, merge or deployment is included.

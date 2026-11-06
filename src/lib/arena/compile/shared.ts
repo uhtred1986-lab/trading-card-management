@@ -25,6 +25,8 @@ export const PLACED_IN_ENERGY = "placedInEnergy";
 export const SAME_NAME_AS_CHOSEN = /\s*,?\s*with the same (?:card )?name as the chosen card\b/i;
 
 export interface Ctx {
+  /** R430: the exact outer operation made sole by terminal hinge relocation. */
+  resolutionCondition?: Op;
   /** The variable the last `choose` bound. */
   last: string | null;
   /**
@@ -166,6 +168,8 @@ export interface Ctx {
    * of 1 per card, so "them" is all of them.
    */
   milledPile?: string[];
+  /** R-389/R-392: native Burst and explicit mill prices retain historical facts and separate live epoch-bound references. */
+  paidPile?: { name: string; count: number; otherThanColor?: string };
   lastTarget: Ref | null;
   /**
    * The antecedent that was standing when a clause in this skill went unread.

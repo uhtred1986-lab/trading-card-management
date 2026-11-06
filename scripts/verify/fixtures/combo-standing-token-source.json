@@ -1,0 +1,50 @@
+{
+  "BT3-075": {
+    "card": {
+      "id": "BT3-075",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Terror Scythe Goku Black",
+      "characters": [
+        "Goku Black"
+      ],
+      "traits": [
+        "Saiyan",
+        "God"
+      ],
+      "skill": "[Auto] When you play this card, play 2 Shadow tokens. (Shadow tokens have 10000 power, 0 combo costs, and 5000 combo power) Then, you may choose 1 &lt;Zamasu&gt; from your deck and add it to your hand. If you do so, choose 1 card in your hand and place it in the Drop Area. Then, shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "BT3-075",
+    "faq": [
+      {
+        "name": "Terror Scythe Goku Black",
+        "qa": [
+          {
+            "q": "You activated a skill that allows you to search through your deck. As part of resolving that skill, can you take a thorough look at the cards in your deck and confirm what cards are in your deck and Life Area?",
+            "a": "No, you cannot.\nResolve the skill as quickly as possible, and do not look at other cards unless absolutely necessary."
+          },
+          {
+            "q": "Do you need to reveal the card you added to your hand with this card \u2018s auto skill?",
+            "a": "Yes, you do."
+          },
+          {
+            "q": "Can a Shadow token be KO-ed by skills that KO Battle Cards with energy costs of 3 or less.",
+            "a": "No, you can\u2019t. Unless otherwise specified, tokens don\u2019t have an energy cost, and can\u2019t be chosen by skills that reference energy costs."
+          },
+          {
+            "q": "Can Shadow tokens be KO-ed by skills that KO Battle Cards?",
+            "a": "Yes, they can."
+          }
+        ]
+      }
+    ]
+  }
+}

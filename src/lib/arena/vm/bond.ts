@@ -4,7 +4,8 @@ import { bondSelector } from "../text/bond";
 import type { EngineContext, PlayerId, Skill } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { predicateOf } from "./filters";
-import { attrsNow } from "./program";
+import { keywordSkillsNegated } from "./effects";
+import { attrsNow, standingKeywordsNegated } from "./program";
 import type { VmState } from "./state";
 
 export { bondSelector, type BondSelector } from "../text/bond";
@@ -21,9 +22,15 @@ export function bondIsValid(
   state: VmState,
   player: PlayerId,
   skill: Skill,
+  source?: string,
+  standingSuppressed?: boolean,
+  readAttributes: (id: string) => ReturnType<typeof attrsNow> = id => attrsNow(ctx, game, state, id),
 ): boolean | null {
   const selector = bondSelector(skill);
   if (selector == null) return true;
+  // RM 22-1-3: the supplementary requirement is not applied while the
+  // source's keyword skills are negated; ordinary printed conditions remain.
+  if (source && (keywordSkillsNegated(state, source) || (standingSuppressed ?? standingKeywordsNegated(ctx, game, state, source)))) return true;
   if (selector.kind === "unknown") return null;
   const cards = state.sides[player].zones.battle ?? [];
   // The keyword names Battle Cards specifically. An Extra with [Field] can
@@ -33,7 +40,7 @@ export function bondIsValid(
   const matches = cards.filter((id) => {
       const instance = state.cards[id];
       if (!instance || !ctx.defs[instance.cardId]) return false;
-      return matchesFilter(attrsNow(ctx, game, state, id));
+      return matchesFilter(readAttributes(id));
     });
   return matches.length >= skill.bond!;
 }
@@ -52,6 +59,7 @@ export function keywordBondHolds(
   state: VmState,
   player: PlayerId,
   skill: Skill,
+  source?: string,
 ): boolean {
   if (skill.bond == null) return true;
   // Counting reads each Battle Card's attributes as they stand (`attrsNow`),
@@ -61,7 +69,7 @@ export function keywordBondHolds(
   if (countingKeywordBond) return true;
   countingKeywordBond = true;
   try {
-    return bondIsValid(ctx, game, state, player, skill) ?? bondIsValid(ctx, game, state, player, { ...skill, cost: "", effect: "" }) === true;
+    return bondIsValid(ctx, game, state, player, skill, source) ?? bondIsValid(ctx, game, state, player, { ...skill, cost: "", effect: "" }, source) === true;
   } finally {
     countingKeywordBond = false;
   }

@@ -1,0 +1,11 @@
+# Support checkpoint 84: fourteen ordinary played searches
+
+R531 (`360f003b`, runner `2d28fe70`) admits fourteen exact complete played Auto lines through the existing incremental inspection procedure. [The source and native receipt](incremental-look-played.md) lists each card, official image, printed cost, sibling boundary and privacy proof. No generic wording or VM boundary changes in this admission.
+
+Root independently verified **394 native cases** and the entire frozen catalog comparison. Exactly the fourteen listed records change only `ops` and `reads`; all other **13,952 records and field sets are identical** to checkpoint83. Totals remain **6,597 cards /13,966 records /13,032 readable /934 unread**. Snapshot SHA-256: `1c3763e64da6335deddd04fa9e5169a6827905f14f396d91968b6308d39d233c`. The runtime census and complete gap list remain identical: **2 readable-but-blocked /307 additionally blocked /2,575 contextual-unknown**.
+
+Subsequent integration includes the independent Chi-Chi trait correction and R532 admission, with **422 total native search cases** and its source regression passing. The fifteen-card full comparison is still running at this receipt. Combined TypeScript, focused lint, capability inventory (**270 sites**) and rulings (**304/170**) pass. Real Chromium passes **232 modules /121 steps to turn18 main**, identical to Node and offline after load, final hash `d4f7c3ee11c0ed0bca30c6e0dfc91ab4176bb7a5196309e21864656227f3c09a`.
+
+The separate [Combo cleanup repair](combo-cleanup-history-regression.md) preserves actual departure skill history and preflights copied/granted special bodies before substitute movement; its integrated **220 cases pass**. [Older regression repairs](regression-recovery-83.md) retain their original substantive assertions while updating authentic activation fixtures and reviewed semantics. Immediate loss after a final-Life instruction remains an explicit runtime gap.
+
+The original contract-emission run is still progressing on frozen `6576daa2`; it has failures being repaired in this integration checkout. No combined full-gate/build success or all-card completion is claimed. R528 native standing admission and attack-triggered inspection research continue. No database writes, migration, dependency changes, merge or deployment occurred.
