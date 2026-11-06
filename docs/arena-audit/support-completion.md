@@ -216,6 +216,10 @@ Runtime `3ee59da5` adds the exact P-656, BT16-131 and BT16-143 paired records wi
 
 Runtime `2ffb87c6` binds optional entry from Combo to the original native activation, battle and source occurrence. Combined validation passes 2,379 native/contract cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Compiler/collector admission is unchanged; the six Energy-entry records remain unsupported overall and checkpoint53 catalog totals remain applicable. See [checkpoint 54](round-5/support-fiftyfourth-batch.md). Kefla and the shared movement cleanup prerequisite for Battle entry continue.
 
+## Checkpoint 67: standing whole-negation admission
+
+Source `fb28ccf4` and registry `32dff0ee` admit the exact King Vegeta/Gotenks policy on bounded native routes, include Z-Battle observation, and refuse unsupported source forms. 1,323 counted controls, final TypeScript/lint/rulesets, integrated metadata282/207 and browser212/121 pass. Compiler remains13,019 readable/946 unread; fresh runtime census improves to4/309/2567, with exactly two blocked entries removed. See [checkpoint67](round-5/support-sixtyseventh-batch.md). Play-as-Auto-cost and Life replacement work continue.
+
 ## Checkpoint 66: original KO results and Drop Energy entry
 
 Sources `59f59d97`/`d565d0d3` and registry `17deacde` add Android 14's final-cost original-KO result and Gogeta's Drop Energy route with distinct other payers. Combined412 cases, TypeScript, lint, language/Teach, typed combat,281 rulings/207 capability sites and browser211/121 pass. Exactly one compiler record changes:13,019 readable/946 unread; runtime census6/311/2565. Incoming self-payment remains unresolved. See [checkpoint66](round-5/support-sixtysixth-batch.md). Work continues on the remaining runtime and compiler gaps.
