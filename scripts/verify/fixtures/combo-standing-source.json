@@ -1,0 +1,300 @@
+{
+  "BT20-086": {
+    "card": {
+      "id": "BT20-086",
+      "type": "Z-LEADER",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": "4",
+      "power": 20000,
+      "name": "SS Son Goku, Majin Showdown",
+      "characters": [
+        "Son Goku"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[z-awaken]{y}{y}{y}{y}: Yellow <Son Goku> <Vegeta> card.<br>[permanent] While there are 7 or more cards in your Combo Area and this card is in a battle, negate the skills of all cards in your opponent's Combo Area.<br>[auto] When this card attacks, draw 1 card.<br>[activate: battle] If there are 7 or more cards in your Combo Area and this card is in a battle: For the battle, this card gains [double strike], and at the end of the battle, remove this card from the game.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "BT20-086",
+    "faq": []
+  },
+  "DB2-086": {
+    "card": {
+      "id": "DB2-086",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Prum, Reflective Fighter",
+      "characters": [
+        "Prum"
+      ],
+      "traits": [
+        "Alien",
+        "Universe 2"
+      ],
+      "skill": "[Auto] When you combo with this card from your Battle Area, draw 1 card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "DB2-086",
+    "faq": []
+  },
+  "BT20-067": {
+    "card": {
+      "id": "BT20-067",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Pan, Spirit of Resistance",
+      "characters": [
+        "Pan"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "skill": "[Super Combo]<br>[Auto] If your Leader is green and your life is at 4 or less: When this card is used in a combo, draw 1 card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "BT20-067",
+    "faq": []
+  },
+  "P-035": {
+    "card": {
+      "id": "P-035",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Bardock, Will of Iron",
+      "characters": [
+        "Bardock"
+      ],
+      "traits": [
+        "Saiyan",
+        "Great Ape"
+      ],
+      "skill": "[Double Strike] <br>[Blocker]<br>[Auto] During your turn, at the end of the battle after you combo with this card, choose up to 1 of your &lt;Bardock&gt;, and evolve it into this card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "P-035",
+    "faq": [
+      {
+        "name": "Bardock, Will of Iron",
+        "qa": [
+          {
+            "q": "When playing a card using card skills, do you need to pay the energy cost of that card?",
+            "a": "No, you do not need to pay unless specified otherwise."
+          }
+        ]
+      }
+    ]
+  },
+  "DB1-066": {
+    "card": {
+      "id": "DB1-066",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "6",
+      "specified": null,
+      "z": null,
+      "power": 25000,
+      "name": "King Vegeta, the Majestic Ruler",
+      "characters": [
+        "King Vegeta"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[Permanent] Negate the skills of all other Battle Cards.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "DB1-066",
+    "faq": [
+      {
+        "name": "King Vegeta, the Majestic Ruler",
+        "qa": [
+          {
+            "q": "When this card is in play, can it negate skills of your opponent's Battle Cards that have [Barrier]?",
+            "a": "Yes, it can."
+          },
+          {
+            "q": "If there is a {DB04-66 King Vegeta, the Majestic Ruler} in play in your opponent's Battle Area and you play this card, can you negate the skill of your opponent's {DB04-66 King Vegeta, the Majestic Ruler}?",
+            "a": "No, you can't.\nThe continuous effect of your opponent's {DB04-66 King Vegeta, the Majestic Ruler} negates this card\u2019s skill."
+          },
+          {
+            "q": "If you have this card in play in your Battle Area and you use {P-069 Miracle Strike Gogeta} to negate the skill of your opponent's {DB04-66 King Vegeta, the Majestic Ruler}, does your opponent's {DB04-66 King Vegeta, the Majestic Ruler} get its skill back during the end phase?",
+            "a": "No, it doesn't.\nAfter you negate the skill of your opponent's {DB04-66 King Vegeta, the Majestic Ruler}, this card's skill remains active; once {P-069 Miracle Strike Gogeta}'s effect wears off, the skill of your opponent's {DB04-66 King Vegeta, the Majestic Ruler} remains negated."
+          },
+          {
+            "q": "If you have this card in play, do any Battle Cards played with [Over Realm] get sent to their owners' Warps at end of turn?",
+            "a": "Yes, they do.\nThe skills of all other Battle Cards are negated, but since [Over Realm] is activated and resolved in advance, any cards played with [Over Realm] are sent to their owners' Warps at end of turn."
+          },
+          {
+            "q": "{BT1-043 Whis, Judge of the Gods} is played when this card is already in play. Are {BT1-043 Whis, Judge of the Gods}\u2019s skills negated?",
+            "a": "No, they aren\u2019t."
+          },
+          {
+            "q": "If you have this card in play and there are Shadow Tokens being given [Blocker] by {BT7-046 Mass Replication}'s permanent skill, are the skills on those Shadow Tokens negated?",
+            "a": "Yes, they are."
+          },
+          {
+            "q": "You have this card in play, and activate {TB3-048 Preemptive Strike} in response to your opponent playing a Battle Card with an energy cost of 4 or less. If the Battle Card being played has [Deflect], is that Battle Card affected by the [Counter : Play] of {TB3-048 Preemptive Strike}?",
+            "a": "No, it isn't."
+          },
+          {
+            "q": "You have this card in play and activate {DB04-020 Galick Cannon} in response to your opponent playing a Battle Card. If the Battle Card being played has [Deflect], is that Battle Card affected by the [Counter : Play] of {DB04-020 Galick Cannon}?",
+            "a": "Yes, it is.\n{DB04-020 Galick Cannon}'s [Counter : Play] skill is applied to Battle Cards that are played in a Battle Area, and once the card is played its [Deflect] is negated by this card's permanent skill."
+          },
+          {
+            "q": "If you have this card and {BT6-047 Babidi, Overseer of Destruction} in play in your Battle Area, can you use {BT3-029 Baby's Subdual} to gain control of your opponent's {BT6-047 Babidi, Overseer of Destruction}?",
+            "a": "Yes, you can.\nThe permanent skills of both players\u2019 {BT6-047 Babidi, Overseer of Destruction} cards are negated, so you can gain control of your opponent\u2019s copy."
+          },
+          {
+            "q": "Does DB1-066 King Vegeta, the Majestic Ruler negate skills on Battle Cards in your hand, drop area, etc.?",
+            "a": "No, it only negates the skills on Battle Cards in the Battle Area."
+          },
+          {
+            "q": "How come I can use the effect of {BT1-043 Whis, Judge of the Gods} and {TB1-097 Son Goku, The Awakened Power} when my opponent has {DB1-066 King Vegeta, the Majestic Ruler} in play? How is this different from {BT1-107 Cold Bloodlust} negating their skills?",
+            "a": "The [Permanent] skill of {Whis, Judge of the Gods} and {Son Goku, The Awakened Power} is only applied when in your Battle Area. This is the same as how the {BT7-119 Champa and Vados, Gracious Aid} effect that reduces combo cost is not applied unless the card is played in your Battle Area.\nBecause {Cold Bloodlust} negates the skills of your opponent\u2019s Battle Card in hand before it is played, the [Permanent] skill of {Whis, Judge of the Gods} and {Son Goku, The Awakened Power} are not activated when they are played in the Battle Area. Therefore, {Cold Bloodlust} negates the skills of {Whis, Judge of the Gods} and {Son Goku, The Awakened Power}."
+          },
+          {
+            "q": "How come if {DB1-066 King Vegeta, the Majestic Ruler} is already in play, {BT1-043 Whis, Judge of the Gods} and {TB1-097 Son Goku, The Awakened Power} can activate their [Permanent] skill?",
+            "a": "Cards like {Whis, Judge of the Gods} and {Son Goku, The Awakened Power} have [Permanent] skills that apply as soon as they move from your hand to your Battle Area. {King Vegeta, the Majestic Ruler}\u2019s skill works in the same way.\nTherefore, {Whis, Judge of the Gods} and {Son Goku, The Awakened Power}\u2019s skills can\u2019t be negated at that point. If you wanted to negate skills like these, you have to negate them before the cards are played.\nReference:\nOfficial Rules: 0-2-5: If a card effect directs a player to carry out a certain action, yet there is an active effect prohibiting that action, that effect is prioritized and the action is not conducted."
+          },
+          {
+            "q": "Why can\u2019t you use the effects of a second {DB1-066 King Vegeta, the Majestic Ruler} when another {King Vegeta, the Majestic Ruler} is in play?",
+            "a": "{King Vegeta, the Majestic Ruler} doesn\u2019t have an effect that prevents his skills from being negated, so {King Vegeta, the Majestic Ruler} is different from {BT1-043 Whis, Judge of the Gods} in that 1-3-3 from the General Rules doesn\u2019t apply to him. As such, the skills of the {King Vegeta, the Majestic Ruler} played first are given priority.\nReference:\nOfficial Rules: 0-2-5: If a card effect directs a player to carry out a certain action, yet there is an active effect prohibiting that action, that effect is prioritized and the action is not conducted."
+          }
+        ]
+      }
+    ]
+  },
+  "BT10-153": {
+    "card": {
+      "id": "BT10-153",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "8",
+      "specified": null,
+      "z": null,
+      "power": 40000,
+      "name": "SS3 Gotenks, Blazing Fusion",
+      "characters": [
+        "Gotenks: Adolescence"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling"
+      ],
+      "skill": "[Ultimate][Double Strike]<br>[Permanent] Reduce the energy cost of this card by 1 for each Battle Card with 15000 power in your Drop Area.<br>[Permanent] Negate the skills of all other Battle Cards.<br>[Auto] When this card is removed from your Battle Area by an opponent's skill, choose all of your opponent's Battle Cards and energy in Rest Mode, ignoring [Barrier], and place them in their owners' Drop Areas.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "BT10-153",
+    "faq": [
+      {
+        "name": "SS3 Gotenks, Blazing Fusion",
+        "qa": [
+          {
+            "q": "When you have this card in play, are the skills of your opponent's Battle Cards with [Barrier] negated?",
+            "a": "Yes, they are."
+          },
+          {
+            "q": "If your opponent has {DB1-066 King Vegeta, the Majestic Ruler} in play in their Battle Area and you play this card, are your opponent's skills negated?",
+            "a": "No, they aren't. The permanent skill of your opponent's {DB1-066 King Vegeta, the Majestic Ruler} takes effect, negating the skills on your cards (including this one)."
+          },
+          {
+            "q": "If you have this card in play in your Battle Area and you use {P-069 Miracle Strike Gogeta}'s skill to negate your opponent's {DB1-066 King Vegeta, the Majestic Ruler}'s skill, will the skill of your opponent's {DB1-066 King Vegeta, the Majestic Ruler} come back into effect during the End Phase?",
+            "a": "No, it won't. Once your opponent's {DB1-066 King Vegeta, the Majestic Ruler}'s skill is negated, this card's skill comes into effect. Even when {P-069 Miracle Strike Gogeta}'s skill wears off, {DB1-066 King Vegeta, the Majestic Ruler}'s skill will remain negated."
+          },
+          {
+            "q": "When this card is in play, will Battle Cards played using [Over Realm] still be sent to their owners\u2019 Warps at the end of the turn?",
+            "a": "Yes, they will. The Battle Card's skills will be negated, but [Over Realm] was activated and resolved, so the cards are still sent to their owners\u2019 Warps."
+          },
+          {
+            "q": "When this card is in play and {BT1-043 Whis, Judge of the Gods} is played, are {BT1-043 Whis, Judge of the Gods}'s skills negated?",
+            "a": "No, they aren\u2019t."
+          },
+          {
+            "q": "When this card is in play and there are Shadow Tokens in play with [Blocker] that were created by the permanent skill of {BT7-046 Mass Replication}, are the skills of those Shadow Tokens negated?",
+            "a": "Yes, they are."
+          },
+          {
+            "q": "This card is in play and your opponent activates {TB3-048 Preemptive Strike} in response to a Battle Card with an energy cost of 4 or less being played. If the Battle Card being played has [Deflect], is that card affected by {TB3-048 Preemptive Strike}'s [Counter : Play] skill?",
+            "a": "No, it isn't. {TB3-048 Preemptive Strike} is used during Counter Window 1, before the Battle Card is played, so the Battle Card still has [Deflect]."
+          },
+          {
+            "q": "This card is in play and your opponent activates {DB1-020 Galick Cannon} in response to a Battle Card being played. If the Battle Card being played has [Deflect], is that card affected by {DB1-020 Galick Cannon}'s [Counter : Play] skill?",
+            "a": "Yes, it is. {DB1-020 Galick Cannon} is used during Counter Window 2, so the Battle Card is already played. This card's permanent skill negates the Battle Card's [Deflect], and the Battle Card is affected by {DB1-020 Galick Cannon}'s [Counter : Play] skill."
+          },
+          {
+            "q": "If you have this card and {BT6-047 Babidi, Overseer of Destruction} in play, can you gain control of another copy of {BT6-047 Babidi, Overseer of Destruction} using {BT3-029 Baby's Subdual}?",
+            "a": "Yes, you can. The [Permanent] skill on both players' copies of {BT6-047 Babidi, Overseer of Destruction} is negated, so you can have more than one copy in play."
+          },
+          {
+            "q": "If your opponent uses a skill to gain control of this card, can they activate and resolve this card\u2019s auto skill?",
+            "a": "Yes, it activates. The master of the Battle Area prior to the card changing control becomes the master of this skill, and activates and resolves it."
+          },
+          {
+            "q": "Can you add this card to your hand using {BT3-105 Planet Vegeta}\u2019s auto skill?",
+            "a": "No, you can\u2019t."
+          }
+        ]
+      }
+    ]
+  },
+  "DB2-140": {
+    "card": {
+      "id": "DB2-140",
+      "type": "BATTLE",
+      "colors": [
+        "Black"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Secret Technique Paparoni",
+      "characters": [
+        "Paparoni"
+      ],
+      "traits": [
+        "Alien",
+        "Universe 3"
+      ],
+      "skill": "[Permanent] When this card is placed in a Drop Area from a Battle Area or Combo Area, it is placed at the bottom of its owner's deck instead.<br>[Activate: Main/Battle] Choose 1 of your black Battle Cards with an energy cost of 2 and send it to its owner's Warp: Play this card from your Drop Area.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "DB2-140",
+    "faq": []
+  }
+}

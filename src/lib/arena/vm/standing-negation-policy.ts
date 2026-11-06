@@ -26,3 +26,24 @@ export function standingWholeScript(script: Script | undefined): boolean {
     && !script.paidAdmission && !script.keepResolutionCondition && !script.playReplacement
     && !skillPriceProblem(script.price) && canonical(script.price) === canonical(zeroSkillPrice());
 }
+
+/** R513 isolated policy contract; native admission is deliberately separate. */
+const comboOperation: Op = {
+  op: "if", cond: { kind: "count", sel: { side: "you", area: "combo" }, atLeast: 7 }, then: [{
+    op: "if", cond: { kind: "inBattle", sel: { special: "self" } }, then: [{
+      op: "negateSkills", target: { sel: { side: "opponent", area: "combo", count: 99, upTo: false } }, until: "game",
+    }],
+  }],
+};
+export function standingComboWholeDescriptor(ops: unknown): boolean {
+  return canonical(ops) === canonical([comboOperation]);
+}
+export function standingComboWholePrinted(skill: Skill): boolean {
+  // Reuse the exact qualification checks without relaxing the legacy wording.
+  return !!skill && skill.effect?.trim().toLowerCase() === "while there are 7 or more cards in your combo area and this card is in a battle, negate the skills of all cards in your opponent's combo area."
+    && standingWholePrinted({ ...skill, effect: "Negate the skills of all other Battle Cards." });
+}
+export function standingComboWholeScript(script: Script | undefined): boolean {
+  return !!script && standingComboWholeDescriptor(script.ops)
+    && standingWholeScript({ ...script, ops: [operation] });
+}
