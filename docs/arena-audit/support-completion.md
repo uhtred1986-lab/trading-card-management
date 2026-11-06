@@ -203,3 +203,7 @@ Runtime `4a1b8ff4` adds three paired-trigger Auto records with the own-turn rest
 ## Checkpoint 51: ordinary Charge and watched Combo origins
 
 Runtime `e41f7c2a` preserves ordinary Charge through optional Energy-entry choices and adds three watched Combo-origin records. Native source attribution, counted allowances, saved continuation and captured trigger attributes have explicit regression coverage. The complete catalog is 13,008 readable / 958 unread records; runtime census is 12 readable gaps, 318 additional blocked records and 2,559 contextual unknowns. Combined validation passes 899 focused cases, adjacent Combo suites, VM/rulesets/wordings, TypeScript, metadata, browser privacy/replay and 40 Fusion games. See [checkpoint 51](round-5/support-fiftyfirst-batch.md). Warp/Z-Energy entry and remaining paired triggers continue.
+
+## Checkpoint 52: own Warp and Z-Energy entry
+
+Runtime `8aa9c6ff` adds bounded optional Energy entry from own Warp/Z-Energy, with physical holder checks shared by existing Hand/Deck routes. Combined validation passes 1,151 focused cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Compiler/readers are unchanged; the exact six-card comparison and checkpoint51 full catalog evidence remain unchanged. See [checkpoint 52](round-5/support-fiftysecond-batch.md). Live-Combo entry and the three paired play/battle-end records continue.
