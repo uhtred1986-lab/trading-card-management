@@ -102,6 +102,13 @@ export function cleanupReleasedPile(state: VmState, events: GameEvent[], token: 
         || move.under !== null || !topAt || topAt.zone !== move.to || topAt.owner !== move.owner)
         return fail("bind pile release to the actual regular top movement");
     const original = JSON.parse(value.topIdentity) as { card: string; cardId: string; owner: string; epoch: number };
+    // RM14-1-5 and the general Z-Battle FAQ do not yet have an agreed
+    // Battle↔Combo material destination. Live callers reach this on their
+    // complete clone preflight before making any physical movement.
+    if (((value.from.zone === "battle" && move.to === "combo")
+        || (value.from.zone === "combo" && move.to === "battle"))
+        && value.materials.some(material => material.zCard))
+        return fail("resolve Z-material Battle/Combo release destination before movement");
     const changed = move.from !== move.to || move.fromOwner !== move.owner;
     if (!top || top.cardId !== original.cardId || top.owner !== original.owner
         || (top.zoneEpoch ?? 0) !== original.epoch + (changed && !value.carry ? 1 : 0))

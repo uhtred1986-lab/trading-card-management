@@ -173,4 +173,16 @@ for(const p of ['p1','p2'] as PlayerId[]){
  assert.equal(t.events.some(e=>e.type==='move'&&e.card===base&&e.to==='drop'),false);
  results.push({p,nativeComboSubjectProjection:true,constructedPile:true});
 }
-console.log(`pile-release-5: ${results.length} cases PASS (2 native paid routes; 34 constructed helper/writer controls)`);
+// Pending destination ruling: refuse the affected native route before any live write.
+for(const p of ['p1','p2'] as PlayerId[])for(const from of ['battle','combo'])for(const writer of ['host','flow']){
+ const t=setup(p),top=t.stage(p,from,'BT1-016'),base=t.stage(p,'under','BT1-016',top),source=t.stage(p,'battle','F');
+ t.s.cards[base].zCard=true; // constructed Z-material identity, not a printed Frost property
+ const events:GameEvent[]=[];
+ const h=writer==='host'?vmHost(ctx,game,t.s,events):undefined;
+ const before=JSON.stringify(t.s),to=from==='battle'?'combo':'battle';
+ assert.throws(()=>h?h.move(top,to,p,{reason:'effect',actor:p,source}):moved(ctx,game,t.s,events,top,to,{owner:p,reason:'effect',actor:p,by:'skill',byCard:source}),NotYet);
+ assert.equal(JSON.stringify(t.s),before);assert.deepEqual(events,[]);
+ assert.equal(findCard(t.s,top)?.zone,from);assert.equal(findCard(t.s,base),null);assert.deepEqual(t.s.cards[top].under,[base]);
+ results.push({p,from,writer,pendingZMaterialDestination:true});
+}
+console.log(`pile-release-5: ${results.length} cases PASS (2 native paid routes; 42 constructed helper/writer controls)`);
