@@ -12,7 +12,7 @@
  * B.  Cost changes say their orbs and span; "[Activate: Main]" / "[Activate: Battle]" reach that timing alone; a "next time
  *     you activate X on <described> card" waits for the next such activation on any card it describes (R-201, pending).
  * C.  "You can activate this card (or {X}) from your hand without paying its energy cost" is the `altCost` waiver; a skill
- *     used from the energy or from under a card, or an Extra used for an action price, is unread — never a play.
+ *     used from another area needs a typed permission; remaining unsupported origins or action prices stay unread, never a play.
  * D.  "Your opponent reveals the top card of their deck" is followed by their shuffle (R-203); "top or bottom … in any
  *     order" is one end for all of them (R-202, superseding R-007 for "or").
  * E.  Your own activation bans ("you can't activate {X} / {X}'s [kind] skill / [Counter: Attack] skills for the turn") are read.
@@ -219,10 +219,26 @@ for (const [id, text, forWhat] of [
   assert.ok(opsDeep(rec.ops).some(op => op.op === "permit" && op.what === "counterFromEnergy"));
   assert.ok(!opsDeep(rec.ops).some(op => op.op === "play"));
 }
+// R466: the actual Battle Card's permission preserves its hand-equivalent Counter policy.
+{
+  const rec = skillRecords(card("BT21-048", { type: "BATTLE", skill: "[Permanent] If this card is under a {Universal Tuffleization Plan} in your Battle Area, you can activate this card's [Counter] skill under the same conditions as if it were in your hand." }))[0];
+  assert.deepEqual(rec.unread, []);
+  assert.equal(rec.ops.length, 1);
+  const permit = rec.ops[0];
+  assert.equal(permit.op, "permit");
+  if (permit.op !== "permit") throw new Error("expected under-card Counter permission");
+  assert.equal(permit.what, "counterFromUnder");
+  assert.equal(permit.counterUnderPolicy, "asHandV1");
+  assert.deepEqual(permit.target, { sel: { special: "self" } });
+  assert.deepEqual(permit.source?.names, ["universal tuffleization plan"]);
+  assert.equal(permit.until, "game");
+  assert.deepEqual(permit.price, { payment: { version: 1, readable: true, orbs: {}, either: [], marker: null, burst: null, spiritBoost: null }, condition: null, ops: [] });
+  assert.ok(!opsDeep(rec.ops).some(op => op.op === "play"));
+  records++;
+}
 // Areas no engine offers a skill from, and an action price for an Extra's use: unread, where each was a play.
 for (const [id, text] of [
   ["BT19-093", "[Permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand."],
-  ["BT21-048", "[Permanent] If this card is under a {Universal Tuffleization Plan} in your Battle Area, you can activate this card's [Counter] skill under the same conditions as if it were in your hand."],
   ["DB2-164", "[Permanent] If you have 4 or more energy, you can activate this card from your hand by placing 1 red card in your hand in your Drop Area instead of paying this card's energy cost."],
   ["BT14-119", "[Permanent] You can activate the [Activate: Battle] skill on this card from your hand without paying its energy cost by placing 1 card from under one of your Battle Cards in its owner's Drop Area."],
 ] as const) {

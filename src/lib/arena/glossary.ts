@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Control transfers respect movement protection (R-494)",
+    body: "A control instruction checks the same cannot-be-moved-by-skill prohibition as an ordinary movement instruction. The relevant actor is the skill's controller, not the receiving player: an opponent cannot steal an Indestructible card, while giving your own protected card to the opponent is still your own skill. Temporary control records a loan only after an authoritative successful Battle-to-Battle transfer to the requested controller; refusal, replacement, missing completion, wrong area and unchanged holder cannot create a loan. The transferred card's original entry bookkeeping is restored only after that success. Position, markers, effects and stack remain carried; return or later departure still respects the physical owner's areas. Hosts without movement completion support refuse rather than infer a transfer. This corrects the existing control operation and adds no control-gain Auto trigger or compiler admission.",
+  },
+  {
     title: "Battle attackers include Z-Battle Cards and tokens (R-492)",
     body: "An ordinary Battle Card attack condition includes a Z-Battle Card or skill-created token attacking from the Battle Area. BT8-089's watched Auto therefore restricts the attacking player's other tokens and cost-seven-or-less Battle Cards, preserving the original attacker exception; Leader and Unison attacks do not qualify. Each actual attacker declaration broadcasts once, including when a Counter later redirects its target. Counter: Battle Card Attack also accepts token attackers as Battle Cards. King Cold still requires its Counter energy payment, plays and redirects the attack, and can use Revenge after that battle. Z-Battle, Leader, Unison and Extra Counter staging otherwise retain their existing paths. This changes native classification, not any compiled card record or the separate original-target qualification.",
   },
