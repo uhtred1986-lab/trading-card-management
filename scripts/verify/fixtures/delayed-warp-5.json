@@ -1,0 +1,730 @@
+{
+  "BT13-135": {
+    "card": {
+      "id": "BT13-135",
+      "type": "BATTLE",
+      "colors": [
+        "Black"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Supreme Kai of Time, Time Labyrinth Unleashed",
+      "characters": [
+        "Supreme Kai of Time"
+      ],
+      "traits": [
+        "God"
+      ],
+      "skill": "[Counter: Attack] Negate the attack and play this card.<br>[Permanent] If you or your opponent have 3 or more cards in their Warp, reduce the energy cost of this card in your hand by 2.<br>[Auto] If your Leader Card is black: When this card is played using its [Counter: Attack] skill, choose up to 1 of your opponent's Battle Cards and send it to its owner's Warp. At the end of the turn, play any cards sent to a Warp by this skill to their owners' Battle Areas with their skills negated for the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "records": {
+      "BT13-135#0": {
+        "cardId": "BT13-135",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Counter: Attack] Negate the attack and play this card.",
+        "kind": "counter:attack",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "negateAttack"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self"
+            },
+            "as": "p0",
+            "reason": "play this card"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "negateAttack\u2192choose\u2192play",
+        "reads": "negate the attack, choose this card, play the chosen cards"
+      },
+      "BT13-135#10": {
+        "cardId": "BT13-135",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Permanent] If you or your opponent have 3 or more cards in their Warp, reduce the energy cost of this card in your hand by 2.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "any",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "warp"
+              },
+              "atLeast": 3
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "opponent",
+                "area": "warp"
+              },
+              "atLeast": 3
+            }
+          ]
+        },
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              }
+            },
+            "amount": 2,
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:any[costReduction]",
+        "reads": "if there are 3 or more cards in your Warp, or there are 3 or more cards in your opponent's Warp: this card costs 2 less"
+      },
+      "BT13-135#20": {
+        "cardId": "BT13-135",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Auto] If your Leader Card is black: When this card is played using its [Counter: Attack] skill, choose up to 1 of your opponent's Battle Cards and send it to its owner's Warp. At the end of the turn, play any cards sent to a Warp by this skill to their owners' Battle Areas with their skills negated for the turn.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader Card is black",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Black"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Black"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "playedUsing",
+              "sel": {
+                "special": "self"
+              },
+              "what": "skill",
+              "by": "self"
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "opponent",
+                  "area": "battle",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c0",
+                "reason": "choose up to 1 of your opponent's Battle Cards"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "warp"
+              }
+            ]
+          }
+        ],
+        "unread": [
+          "play any cards sent to a Warp by this skill to their owners' Battle Areas with their skills negated for the turn"
+        ],
+        "pattern": "play any cards sent to a warp by this skill to their owners' battle areas with their skills negated for the turn",
+        "reads": "if your leader is Black: if this card was played by its own skill: choose up to 1 Battle Card in your opponent's Battle Area, move the chosen cards to warp"
+      }
+    },
+    "ownFAQ": [
+      {
+        "name": "Supreme Kai of Time, Time Labyrinth Unleashed",
+        "qa": [
+          {
+            "q": "You have 2 cards in your Warp, and your opponent has 1 card in their Warp. Does this card\u2019s permanent skill reduce its energy cost by 2?",
+            "a": "No, it doesn\u2019t. The energy reduction only takes effect if you or your opponent have 3 or more cards in your Warp."
+          }
+        ]
+      }
+    ]
+  },
+  "BT14-141": {
+    "card": {
+      "id": "BT14-141",
+      "type": "EXTRA",
+      "colors": [
+        "Black"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Ultimate Dragon Quake",
+      "characters": [],
+      "traits": [],
+      "skill": "[Permanent] This card gains \u226aShadow Dragon\u226b in all areas.<br>[Activate: Main/Battle][Limit 1] (You can only activate this skill once per turn across all copies of this card.) If your Leader Card is a \u226aShadow Dragon\u226b card: Choose up to 1 of your opponent's Battle Cards with an energy cost greater than their current energy and send it to its owner's Warp. At the end of the turn, play any cards sent to a Warp by this skill to their owners' Battle Areas with their skills negated for the turn. If your opponent has 15 or fewer cards in their deck, place them in their owners' Drop Areas instead.",
+      "backName": null,
+      "backSkill": null
+    },
+    "records": {
+      "BT14-141#0": {
+        "cardId": "BT14-141",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] This card gains \u226aShadow Dragon\u226b in all areas.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "gains",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "traits": [
+              "shadow dragon"
+            ],
+            "characters": [],
+            "colors": [],
+            "allAreas": true
+          }
+        ],
+        "unread": [],
+        "pattern": "gains",
+        "reads": "this card also counts as \u226ashadow dragon\u226b"
+      },
+      "BT14-141#10": {
+        "cardId": "BT14-141",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main/Battle][Limit 1] (You can only activate this skill once per turn across all copies of this card.) If your Leader Card is a \u226aShadow Dragon\u226b card: Choose up to 1 of your opponent's Battle Cards with an energy cost greater than their current energy and send it to its owner's Warp. At the end of the turn, play any cards sent to a Warp by this skill to their owners' Battle Areas with their skills negated for the turn. If your opponent has 15 or fewer cards in their deck, place them in their owners' Drop Areas instead.",
+        "kind": "activate:main/battle",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader Card is a \u226aShadow Dragon\u226b card",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "shadow dragon"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "shadow dragon"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": true,
+                "energyOfOpponent": true,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 of your opponent's Battle Cards with an energy cost greater than their current energy"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "warp"
+          },
+          {
+            "op": "delay",
+            "at": "turnEnd",
+            "scope": "thisTurn",
+            "ops": [
+              {
+                "op": "if",
+                "cond": {
+                  "kind": "count",
+                  "sel": {
+                    "side": "opponent",
+                    "area": "deck"
+                  },
+                  "atMost": 15
+                },
+                "then": [
+                  {
+                    "op": "moveTo",
+                    "target": {
+                      "var": "c0"
+                    },
+                    "to": "drop",
+                    "reveal": true
+                  }
+                ]
+              }
+            ],
+            "label": "at the end of the turn"
+          }
+        ],
+        "unread": [
+          "play any cards sent to a Warp by this skill to their owners' Battle Areas with their skills negated for the turn"
+        ],
+        "pattern": "play any cards sent to a warp by this skill to their owners' battle areas with their skills negated for the turn",
+        "reads": "if your leader is \u226ashadow dragon\u226b: choose up to 1 Battle Card with an energy cost greater than your opponent's current energy in your opponent's Battle Area, move the chosen cards to warp, at the end of the turn: if there are 15 or fewer cards in your opponent's deck: move the chosen cards to drop"
+      }
+    },
+    "ownFAQ": [
+      {
+        "name": "Ultimate Dragon Quake",
+        "qa": [
+          {
+            "q": "At the time you activate this card\u2019s activate skill, your opponent has 16 cards in their deck. At the end of the turn, however, your opponent now has 15 cards in their deck. Can you play the Battle Card sent to its owner\u2019s Warp with this skill?",
+            "a": "No, you can\u2019t."
+          }
+        ]
+      }
+    ]
+  }
+}

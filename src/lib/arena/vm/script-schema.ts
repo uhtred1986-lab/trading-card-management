@@ -2416,6 +2416,7 @@ function hintFor(stray: string, known: readonly (string | OpField)[]): string {
  * written here that the type lacks does too.
  */
 const SELECTOR_KEYS = {
+  requiredStamp: 1,
   side: 1,
   area: 1,
   areas: 1,
@@ -2494,6 +2495,7 @@ export function selectorProblem(v: unknown, at = "sel", depth = 0): string | nul
   if (v.ownedByYou !== undefined && v.ownedByYou !== true) return wrong("ownedByYou", "true");
   if (v.charactersNotInPlay !== undefined && v.charactersNotInPlay !== true) return wrong("charactersNotInPlay", "true");
   if (v.fromVar !== undefined && typeof v.fromVar !== "string") return wrong("fromVar", "a bound name");
+  if (v.requiredStamp !== undefined && (v.requiredStamp !== true || typeof v.fromVar !== "string" || !v.fromVar || v.special !== undefined)) return `${at}.requiredStamp needs true and a nonempty fromVar without special`;
   // A printed count is a whole number; a lowered one — `draw(n: X)` becomes
   // `TOP X IN you.deck` (`rulesets/*.rules`) — is the amount it was handed,
   // which the step that wrote it has already checked for an unbound X.

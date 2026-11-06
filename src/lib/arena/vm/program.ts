@@ -1,3 +1,4 @@
+import { requiredStampedCards } from "./required-stamp";
 import { requirePairedSelf } from "./paired-self";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { beginStandingNegationMutation, finishStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
@@ -1685,6 +1686,7 @@ function narrowsBy(f: CardFilter): string[] {
  * `observing` skips only selection/immunity protections, preserving area, ownership and every description.
  */
 export function resolveSelector(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, observing = false): string[] {
+  const required = sel.requiredStamp !== undefined ? requiredStampedCards(state, frame, sel) : undefined;
   if (sel.special === "self" && frame.pairedSelf) {
     requirePairedSelf(state, frame.card, frame.pairedSelf);
     if (state.cards[frame.card].pairedSelfToken !== frame.pairedSelf.token) return [];
@@ -1696,7 +1698,9 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     if (!source?.faceUp || (source.zoneEpoch ?? 0) !== frame.faceUpLifeEpoch) return [];
   }
   let out: string[] = [];
-  if (sel.special === "resolving" && frame.resolvedPlayCards && !observing) {
+  if (required) {
+    out = required;
+  } else if (sel.special === "resolving" && frame.resolvedPlayCards && !observing) {
     out = frame.resolvedPlayCards.filter(item => state.cards[item.card] && (state.cards[item.card].zoneEpoch ?? 0) === item.epoch).map(item => item.card);
   } else if (sel.special) {
     const pick = specialCard(state, frame, sel.special);

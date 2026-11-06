@@ -33,6 +33,7 @@ import { describeFilter } from "../vm/script";
 /** The literal words a selector may end with, and what each sets. Exported so the generated language reference (`lang/reference.ts`) can list them without a second copy. */
 export const SELECTOR_FLAGS: Record<string, (s: Selector) => void> = {
   any: () => {},
+  requiredStamp: (s) => (s.requiredStamp = true),
   active: (s) => (s.mode = "active"),
   rest: (s) => (s.mode = "rest"),
   hidden: (s) => (s.hidden = true),

@@ -4341,6 +4341,10 @@
       "part": "fromVar"
     },
     {
+      "field": "requiredStamp",
+      "part": "flag"
+    },
+    {
       "field": "underHost",
       "part": "places"
     },
@@ -4477,6 +4481,10 @@
     {
       "word": "any",
       "doc": "no filter, no count — every card the area holds (the printer's own word for an empty selector)"
+    },
+    {
+      "word": "requiredStamp",
+      "doc": "requires FROM and saved occurrence stamps for every bound card; missing or malformed stamps refuse, later occurrences do not match"
     },
     {
       "word": "active",

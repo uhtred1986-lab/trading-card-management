@@ -141,6 +141,8 @@ export interface Selector {
   hidden?: boolean;
   /** Draw the candidates from a bound variable instead of an area. */
   fromVar?: string;
+  /** Require the named move's saved arrival occurrences; missing stamps are invalid. */
+  requiredStamp?: true;
   /**
    * For `area: "under"`, whose pile that is: "from under your <Kefla> Battle
    * Card", "from under your Leader Card". Absent means this card's own pile.

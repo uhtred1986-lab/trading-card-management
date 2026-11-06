@@ -7463,7 +7463,43 @@ const OWN_CHOICE_PRONOUN = /^choose (?:(?!\b(?:it|them|they|the rest|that card|t
  * the same sentence (`splitClausesJoined`). Omitted, every clause
  * starts a sentence of its own, which is what a caller that never asked meant.
  */
+/** R498: exactly one original Warp arrival, followed by its end-turn owner return. */
+function delayedWarpReturn(clauses: string[], c: Ctx, joined: boolean[]): Op[] | null {
+  const words = clauses.map(s => s.trim().replace(/[.]$/, "").toLowerCase());
+  const at = words.indexOf("at the end of the turn");
+  const tail = "play any cards sent to a warp by this skill to their owners' battle areas with their skills negated for the turn";
+  if (at < 1 || words[at + 1] !== tail) return null;
+  const alternative = words.length === at + 4 && words[at + 2] === "if your opponent has 15 or fewer cards in their deck"
+    && words[at + 3] === "place them in their owners' drop areas instead";
+  if (!alternative && words.length !== at + 2) return null;
+  const local = structuredClone(c), errors: string[] = [];
+  const ops = compileClauseList(clauses.slice(0, at), local, errors, joined.slice(0, at));
+  if (errors.length) return null;
+  let body = ops;
+  while (body.length === 1 && body[0].op === "if" && !body[0].else) body = body[0].then;
+  const [choice, move] = body;
+  const expectedFilter = { ...emptyFilter(), type: "BATTLE", ...(alternative ? { costAboveEnergy: true, energyOfOpponent: true } : {}) };
+  if (body.length !== 2 || choice?.op !== "choose" || choice.sel.side !== "opponent" || choice.sel.area !== "battle"
+      || choice.sel.count !== 1 || choice.sel.upTo !== true || Object.entries(choice.sel).some(([k, v]) => v !== undefined && !["side", "area", "filter", "count", "upTo"].includes(k))
+      || JSON.stringify(choice.sel.filter) !== JSON.stringify(expectedFilter)
+      || move?.op !== "moveTo" || move.to !== "warp" || !("var" in move.target) || move.target.var !== choice.as
+      || Object.entries(move).some(([k, v]) => v !== undefined && !["op", "target", "to"].includes(k))) return null;
+  const completed = bindCompletedChoice(body, choice.as);
+  if (!completed) return null;
+  const arrival = `warpArrival${local.n++}`;
+  move.as = arrival;
+  const target: Ref = { sel: { fromVar: arrival, area: "warp", count: 99, requiredStamp: true } };
+  const play: Op = { op: "play", target, toOwners: true, negated: "turn" };
+  const delayed: Op[] = alternative ? [{ op: "if", cond: { kind: "count", sel: { side: "opponent", area: "deck" }, atMost: 15 },
+    then: [{ op: "moveTo", target, to: "drop", reveal: true }], else: [play] }] : [play];
+  body.push({ op: "if", cond: completed, then: [{ op: "delay", at: "turnEnd", scope: "thisTurn", ops: delayed, label: "at the end of the turn" }] });
+  Object.assign(c, local);
+  return ops;
+}
+
 export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[] = []): Op[] {
+  const warpReturn = delayedWarpReturn(rawClauses, c, rawJoined);
+  if (warpReturn) return warpReturn;
   const clauses = joinSplitPlacements(rawClauses);
   // Kept the same length as `clauses` at every splice below.
   const joined = clauses.map((_, k) => !!rawJoined[k]);

@@ -177,6 +177,7 @@ export function printSelector(sel: Selector): string {
   if (sel.mode !== undefined) parts.push(sel.mode);
   if (sel.hidden !== undefined) parts.push(sel.hidden ? "hidden" : "revealed");
   if (sel.ignoreBarrier) parts.push("ignoringBarrier");
+  if (sel.requiredStamp) parts.push("requiredStamp");
   if (sel.choice) parts.push("asChoice");
   if (sel.notInBattle) parts.push("notInBattle");
   if (sel.battleRole) parts.push(sel.battleRole === "any" ? "inBattle" : sel.battleRole === "attacker" ? "attacking" : "notAttacking");

@@ -70,6 +70,7 @@ export type SelectorPart = "special" | "fromVar" | "count" | "take" | "filter" |
 export const SELECTOR_FIELDS: Record<keyof Selector, SelectorPart> = {
   special: "special",
   fromVar: "fromVar",
+  requiredStamp: "flag",
   underHost: "places",
   count: "count",
   upTo: "count",
