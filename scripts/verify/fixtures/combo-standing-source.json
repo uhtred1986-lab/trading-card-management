@@ -296,5 +296,44 @@
     },
     "faqKey": "DB2-140",
     "faq": []
+  },
+  "BT1-043": {
+    "card": {
+      "id": "BT1-043",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "12",
+      "specified": null,
+      "z": null,
+      "power": 40000,
+      "name": "Whis, Judge of the Gods",
+      "characters": [
+        "Whis"
+      ],
+      "traits": [
+        "God"
+      ],
+      "skill": "[Quadruple Strike] (This card inflicts 4 damage instead of 1 when attacking)<br>[Permanent] This card's attack and skill cannot be negated.[Auto] When you play this card, if your Leader Card is &lt;Beerus&gt;, after your current turn ends, take another turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "BT1-043",
+    "faq": [
+      {
+        "name": "Whis, Judge of the Gods",
+        "qa": [
+          {
+            "q": "What does {BT1-043 Whis, Judge of the Gods}\u2019s auto skill \u201cafter your current turn ends, take another turn\u201d mean?",
+            "a": "The opponent does not start their turn after you end your turn. You get to play a full extra turn - from Charge Phase to End Phase - instead."
+          },
+          {
+            "q": "Can {BT1-043 Whis, Judge of the Gods} attack even when there are active effects that prevent Battle Cards from attacking?",
+            "a": "No, it cannot.\n\u201cBattle Cards cannot attack\u201d and similar effects don\u2019t negate attacks; they simply prevent Battle Cards from attacking at all."
+          }
+        ]
+      }
+    ]
   }
 }

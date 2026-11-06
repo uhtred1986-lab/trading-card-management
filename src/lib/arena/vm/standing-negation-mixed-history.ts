@@ -150,7 +150,7 @@ function observationKey(observation: MixedStandingNegationObservation): string {
             targets: candidate.targets.map(cardOf).sort((a, b) => cardKey(a).localeCompare(cardKey(b))),
         })).sort((a, b) => mixedStandingNegationSourceKey(a.source).localeCompare(mixedStandingNegationSourceKey(b.source))) });
 }
-function validateHistory(history: MixedStandingNegationHistory): void {
+export function validateMixedStandingNegationHistory(history: MixedStandingNegationHistory): void {
     if (!history || !shape(history, ["version", "policy", "nextSerial", "observation", "active", "suppressed"]) || history.version !== 2 || history.policy !== "mixedWholeV1" || !natural(history.nextSerial) || history.nextSerial < 1
         || typeof history.observation !== "string" || !Array.isArray(history.active) || !Array.isArray(history.suppressed))
         rebuild("rebuild standing-negation generation history");
@@ -187,7 +187,7 @@ export function settleMixedStandingNegation(history: MixedStandingNegationHistor
     if (!history && observation.candidates.length)
         rebuild("rebuild affected standing-negation history before entry");
     const previous = history ?? emptyMixedStandingNegationHistory();
-    validateHistory(previous);
+    validateMixedStandingNegationHistory(previous);
     const candidates = new Map(observation.candidates.map(candidate => [mixedStandingNegationSourceKey(candidate.source), candidate]));
     if (enablingOrder !== undefined && (!Array.isArray(enablingOrder) || enablingOrder.some(key => typeof key !== "string" || !candidates.has(key)) || new Set(enablingOrder).size !== enablingOrder.length))
         rebuild("rebuild standing-negation transaction enabling order");
@@ -237,7 +237,7 @@ export function mixedStandingNegationAffects(history: MixedStandingNegationHisto
 /** Validate a captured pre-mutation observation, including an empty board. */
 export function validateMixedStandingNegationObservation(history: MixedStandingNegationHistory, observation: MixedStandingNegationObservation): void {
     const observed = observationKey(observation);
-    validateHistory(history);
+    validateMixedStandingNegationHistory(history);
     if (history.observation !== observed)
         rebuild("standing-negation mutation has not been settled");
     const expected: MixedStandingNegationHistory["suppressed"] = [];
