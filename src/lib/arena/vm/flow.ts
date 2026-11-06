@@ -925,6 +925,14 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     && !skill.effect.trim() && !skill.cost.trim() && !automaticHasPrice(skill, undefined);
   const program = captured.script
     ?? (nativeBattleKeyword ? { ops: [], unsupported: [] } : undefined);
+  // R483: these entry-qualified watchers always retain the actual subject's
+  // event attributes. A later Auto may already have moved that subject.
+  if (["youComboFromHand", "youComboFromBattle"].includes(next.trigger)
+    && (!next.subject || !next.subjectInfo)) {
+    interruptGame(ctx, game, state, ev, { sourceCard: next.card, skillIndex: next.skillIndex,
+      trigger: next.trigger, issue: "R483", detail: "saved watched Combo entry is missing its subject attributes; rebuild the match" });
+    return true;
+  }
   // Validate saved pending data without rechecking an occurrence that already
   // happened (9-6-11: Angila still resolves after a Jaco return to hand).
   if (program?.combo !== undefined || ["comboUsed", "comboed"].includes(next.trigger)) {
