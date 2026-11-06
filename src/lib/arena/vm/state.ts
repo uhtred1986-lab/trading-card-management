@@ -419,6 +419,8 @@ export interface VmState {
    * question would make the two engines unanswerable by one client.
    */
   prompt: Prompt;
+  /** R515: private one-hop resource answer, consumed by the replayed declaration. */
+  ordinaryResourceResume?: import("./ordinary-activate-runtime").OrdinaryActivation;
   /** Who won, once a `DEFINE WIN` has been met or someone conceded. Null for a draw as well as for a game still being played. */
   winner: PlayerId | null;
   /** Why it ended, in words, or null while it has not. */

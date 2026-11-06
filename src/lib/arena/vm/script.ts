@@ -1950,6 +1950,8 @@ export interface ScriptFrame {
    * what the price chose (4-3-3).
    */
   saveVarsAs?: string;
+  /** Original ordinary Activate price and successful effect continuation. */
+  ordinaryActivation?: import("./ordinary-activate-runtime").OrdinaryActivation;
   /** R-387: an Awaken action payment keeps the Leader and its chosen material occurrences across reloads. */
   overRealmSource?: OverRealmSource;
   overRealmPaidTaxes?: string[];
@@ -2462,6 +2464,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
   const master = frame.master;
 
   for (let guard = 0; guard < 200; guard++) {
+    if (frame.ordinaryActivation && frame.saveVarsAs && frame.priceUnpaid) { frame.ip = frame.ops.length; frame.moveLoop = undefined; }
     if (frame.awakenPayment && frame.saveVarsAs) {
       const payment = frame.awakenPayment;
       if (h.areaOf(frame.card) !== "leader" || h.zoneEpoch(frame.card) !== payment.sourceEpoch
@@ -3322,6 +3325,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
             if (substitute) h.prepareReplacement?.(substitute, id, "drop", { owner: h.ownerOf(id), reason: "ko", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
             h.ko(id, frame.card, { ...(recordKo ? { onKoResult: recordKo } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+            if (frame.ordinaryActivation && frame.saveVarsAs && frame.priceUnpaid) {
+              if (deferred) h.interrupt(substitute!, frame); else h.resume(frame);
+              return "done";
+            }
             if (op.completedAs) requireKoResult(frame.koResults?.[op.completedAs], frame.koBinding!, frame.moveLoop.index + 1);
             // "If you KO'd a card" (20-16): only a KO that happened counts.
             if (h.zone(h.ownerOf(id), "drop").length > before) { (frame.did ??= {}).ko = true; frame.acted = (frame.acted ?? 0) + 1; }
@@ -3515,7 +3522,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           }
           const deferred = defers(replaced);
           const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
-          if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: frame.declaredCharge ? "charge" : op.cause ?? "effect", ...(frame.declaredCharge ? {} : { actor: master, by: "skill" as const, byCard: frame.card, byOpponent: h.masterOf(id) !== master }) });
+          if (substitute) h.prepareReplacement?.(substitute, id, dest, { owner, reason: frame.declaredCharge ? "charge" : frame.ordinaryActivation && frame.saveVarsAs ? "cost" : op.cause ?? "effect", ...(frame.declaredCharge || frame.ordinaryActivation && frame.saveVarsAs ? {} : { actor: master, by: "skill" as const, byCard: frame.card, byOpponent: h.masterOf(id) !== master }) });
           if (substitute?.replacementAuto) frame.replacementMove = { card: id, epoch: substitute.replacementAuto.epoch, ...(op.completedAs ? { completedAs: op.completedAs } : {}) };
           // 3-10: "when this card is sent from your deck to your Warp by your
           // <Heles> card's skill" (BT30-106) asks where it came from, which is
@@ -3544,6 +3551,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ...(legacyUnion ? { union: legacyUnion } : {}), ...(op.reveal ? { revealedTop: true as const } : {}),
             ...(pileHost ? { fromPile: h.areaOf(pileHost) === "leader" ? "leader" as const : "other" as const } : {}) };
           const movedTo = h.move(id, dest, owner, { legacyMovement, ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(op.mode ? { requestedMode: op.mode } : {}), position: op.position, reveal: shown, reason: frame.declaredCharge ? "charge" : op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          if (frame.ordinaryActivation && frame.saveVarsAs && frame.priceUnpaid) {
+            if (deferred) h.interrupt(substitute!, frame); else h.resume(frame);
+            return "done";
+          }
           // The original movement owns this child only until its one native
           // movement attempt returns (including a refused movement).
           if (dest === "energy" && h.prepareEnergyEntry) frame.energyEntry = undefined;

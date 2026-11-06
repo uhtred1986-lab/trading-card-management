@@ -1,3 +1,4 @@
+import { requireOrdinaryResourceDeclaration } from "./ordinary-activate-runtime";
 import { requireActivateUnderSource } from "./activate-under";
 import { prepareEnergyCharge, ownEnergyCharge, requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
@@ -496,6 +497,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       const pr = prev.prompt;
       if (pr.kind !== "payCost") throw new IllegalAction("no payment is being asked for");
       if (action.player !== pr.player) throw new IllegalAction("that payment belongs to another player");
+      requireOrdinaryResourceDeclaration(ctx, state, pr.ordinaryActivation, pr.action);
       if (pr.activateUnderOrigin || pr.action.type === "activate" && hostOf(state, pr.action.card)) {
         if (pr.action.type !== "activate") throw new IllegalAction("rebuild the saved under-card activation payment");
         requireActivateUnderSource(ctx, game, state, pr.activateUnderOrigin, pr.action.card, pr.player, pr.action.skill);
@@ -532,6 +534,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       const native = restoreNativePrompt(ctx, game, restored, pr.action);
       if (native) { if (native.kind === "counter" && pr.extraCounter) native.extraCounter = structuredClone(pr.extraCounter); restored.prompt = native; }
       else run(ctx, game, restored, events);
+      if (pr.ordinaryActivation) restored.ordinaryResourceResume = structuredClone(pr.ordinaryActivation);
       const inner = { ...pr.action, pay: option.rest } as Action;
       const again = apply(ctx, restored, inner);
       return { state: again.state, events: [...events, ...again.events] };
@@ -552,6 +555,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       if (action.cards.length < choice.min) throw new IllegalAction(`choose at least ${choice.min}`);
       if (pr.pooledPayment) {
         const pending = pr.pooledPayment;
+        requireOrdinaryResourceDeclaration(ctx, state, pending.ordinaryActivation, pending.action);
         const selected = selectedPoolAnswer(state, pending, action.cards);
         const prior = (pending.action as { payPools?: import("../types").PoolPaymentSelection }).payPools;
         const pools = structuredClone(prior?.pools ?? []);
@@ -561,6 +565,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
         const native = restoreNativePrompt(ctx, game, state, pending.action);
         if (native) state.prompt = native;
         else run(ctx, game, state, events);
+        if (pending.ordinaryActivation) state.ordinaryResourceResume = structuredClone(pending.ordinaryActivation);
         const again = apply(ctx, state, inner);
         return { state: again.state, events: [...events, ...again.events] };
       }

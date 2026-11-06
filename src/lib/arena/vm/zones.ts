@@ -1,3 +1,4 @@
+import { renewOrdinaryUseGeneration } from "./limits";
 import { refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 /**
  * Where a card *is*, read off the `ZONE` declarations rather than off a field
@@ -130,6 +131,8 @@ export interface VmCard {
    * copy's own history. `endTurn` empties it.
    */
   usedThisTurn: number[];
+  /** R515: increments only when this physical card loses its usage history. */
+  ordinaryUseGeneration?: number;
   /** 13-4: a card may use no second marker skill this turn. Emptied with the list above. */
   usedMarkerSkill: boolean;
   /**
@@ -383,6 +386,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     if (!leaderUnderZLeader) {
       card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;
       if (card.pairedSelfToken !== undefined) card.pairedSelfToken = card.zoneEpoch;
+      renewOrdinaryUseGeneration(card);
       card.usedThisTurn = []; // 3-1-4: a new card, so a fresh [Once per turn] (#746)
       reset(card, null);
     }
@@ -491,7 +495,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
       // Battle/Unison -> Battle/Unison/Combo, or Combo -> Battle, carries what was
       // on the card, and the use with it. [Limit X] is counted on the master
       // (`VmSide.limitUses`), not here, and is untouched (22-44-3, #741).
-      if (!(from && KEEPS_USES[from.zone]?.includes(to))) card.usedThisTurn = [];
+      if (!(from && KEEPS_USES[from.zone]?.includes(to))) { renewOrdinaryUseGeneration(card); card.usedThisTurn = []; }
     }
     reset(card, zone);
   }

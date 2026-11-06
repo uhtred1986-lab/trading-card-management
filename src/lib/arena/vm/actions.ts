@@ -1,3 +1,4 @@
+import { captureOrdinaryActivation, requireOrdinaryResourceDeclaration } from "./ordinary-activate-runtime";
 import { activateUnderCards, requireActivateUnderSource } from "./activate-under";
 import { activateUnderPriceRefusals, queueActivateUnderCost, captureActivateUnderEnergy, type ActivateUnderEnergy } from "./activate-under-cost";
 import { ordinaryChargeDeclaration } from "./energy-entry-charge";
@@ -882,6 +883,9 @@ export type Applied = "none" | "done" | "asked";
  * was not offered being refused rather than quietly taken.
  */
 export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action, as?: ActionDef): Applied {
+  const resumedOrdinary = state.ordinaryResourceResume;
+  if (resumedOrdinary) requireOrdinaryResourceDeclaration(ctx, state, resumedOrdinary, action);
+  delete state.ordinaryResourceResume;
   // `as` is the declaration read against another window — the combo prompt's
   // `activate` (`vm/battle.ts`, #150) — and is checked exactly as the
   // declaration itself would be.
@@ -939,6 +943,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (def.again !== true) answered(state);
     return "done";
   }
+  const ordinaryDeclared = resumedOrdinary ?? (line ? captureOrdinaryActivation(ctx, game, state, player, line) : undefined);
   const gate = line ? activationTaxGate(ctx, game, state, player, line.card, line.kind) : null;
   if (line?.keyword && gate) throw new NotYet(`charge a 20-14 activation tax on a keyword's own [${line.keyword.name}] move`, "#677");
   if (line && hasAwakenAlternative(line)) {
@@ -1009,7 +1014,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       // "play Son Goku" — the legacy engine's own wording for this prompt, which
       // is the move's label with its first letter lowered.
       const label = labelFor(ctx, game, state, def, chosen, true);
-      state.prompt = { kind: "payCost", player, action: line && action.type === "activate" ? { ...action, skill: line.skillIndex } : action, options: plan.options, ...(line?.activateUnderOrigin ? { activateUnderOrigin: structuredClone(line.activateUnderOrigin) } : {}), ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe: label.charAt(0).toLowerCase() + label.slice(1) };
+      state.prompt = { kind: "payCost", player, action: line && action.type === "activate" ? { ...action, skill: line.skillIndex } : action, options: plan.options, ...(ordinaryDeclared ? { ordinaryActivation: structuredClone(ordinaryDeclared) } : {}), ...(line?.activateUnderOrigin ? { activateUnderOrigin: structuredClone(line.activateUnderOrigin) } : {}), ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe: label.charAt(0).toLowerCase() + label.slice(1) };
       return "asked";
     }
     const poolOps = line?.script?.price?.ops ?? [];
@@ -1019,7 +1024,10 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
         && !keywordPriceRefusals(ctx, game, state, player, line, charge).length
         && !dropPriceRefusals(ctx, game, state, player, line, charge, chosen.x).length;
     } : undefined;
-    if (card !== null && askActionPool(ctx, game, state, player, action, chosen.price, card, plan.payment, poolOps, completePool)) return "asked";
+    if (card !== null && askActionPool(ctx, game, state, player, line && action.type === "activate" ? { ...action, skill: line.skillIndex } : action, chosen.price, card, plan.payment, poolOps, completePool)) {
+      if (ordinaryDeclared && state.prompt.kind === "chooseCards" && state.prompt.pooledPayment) state.prompt.pooledPayment.ordinaryActivation = structuredClone(ordinaryDeclared);
+      return "asked";
+    }
     // #729 (5-8-3): the energy chosen must leave a [Swap]'s whole action price
     // payable; refused here, on a copy, while nothing is paid.
     if (line?.activateUnderOrigin) {
@@ -1059,15 +1067,16 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     // [Overlord] skill" (Stage 7) — read at the same instant for the same reason.
     const keywordMoments = keywordActivationMoments(state, player, line);
     const queued = state.programs.length;
-    const strictDrop = hasDropActionPrice(state, line);
+    const strictDrop = !ordinaryDeclared && hasDropActionPrice(state, line);
+    const ordinaryPrice = !!ordinaryDeclared;
     if (strictDrop) queueDropCost(ctx, game, state, player, line, chosen.x, paidResources);
-    else resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto, paidResources);
+    else resolveActivation(ctx, game, state, ev, player, line, chosen.x, chosen.onto, ordinaryDeclared ? { ...paidResources, ordinaryActivation: ordinaryDeclared } : paidResources);
     // #677: the prices are charged in front of everything the activation
     // queued, re-read live after each one (`vm/activate.ts`'s `TaxGate`).
     if (gate) queueTaxGate(state, gate, state.programs.length - queued);
     // #926: a keyword move with an action price fires its moments once its
     // `DO` has paid it (`vm/keyword-costs.ts`), not as it is declared.
-    if (!strictDrop && !keywordActionPrice(line)) {
+    if (!strictDrop && !keywordActionPrice(line) && !ordinaryPrice) {
       fire(ctx, game, state, moment);
       for (const m of keywordMoments) fire(ctx, game, state, m);
     }

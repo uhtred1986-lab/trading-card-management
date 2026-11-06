@@ -1499,7 +1499,7 @@ export type Prompt =
   | { kind: "blocker"; player: PlayerId; candidates: string[] }
   | { kind: "counter"; player: PlayerId; window: CounterWindow; candidates: string[]; underOccurrences?: import("./vm/counter-under").CounterUnderOccurrences; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
-  | { kind: "chooseCards"; player: PlayerId; choice: CardChoice; pooledPayment?: { action: Action; cost: string; n: number; source: CardOccurrence | null; candidates: CardOccurrence[] } }
+  | { kind: "chooseCards"; player: PlayerId; choice: CardChoice; pooledPayment?: { action: Action; ordinaryActivation?: import("./vm/ordinary-activate-runtime").OrdinaryActivation; cost: string; n: number; source: CardOccurrence | null; candidates: CardOccurrence[] } }
   /** "Choose one— ・A ・B" (20-2): which printed option is taken. */
   | { kind: "chooseMode"; player: PlayerId; reason: string; options: string[] }
   /** 9-10: the affected player chooses which replacement, if any, applies. */
@@ -1515,7 +1515,7 @@ export type Prompt =
    * Which energy to rest. Only asked when the choice can matter: when the
    * colours left active afterwards would differ (3-8-2).
    */
-  | { kind: "payCost"; player: PlayerId; action: Action; activateUnderOrigin?: import("./vm/activate-under").ActivateUnderOrigin; comboDeclaration?: import("./vm/drop-combo").ComboDeclaration; options: Payment[]; describe: string; underOccurrences?: import("./vm/counter-under").CounterUnderOccurrences; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; markerPayers?: import("./vm/costs").PooledMarkers[]; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
+  | { kind: "payCost"; player: PlayerId; action: Action; ordinaryActivation?: import("./vm/ordinary-activate-runtime").OrdinaryActivation; activateUnderOrigin?: import("./vm/activate-under").ActivateUnderOrigin; comboDeclaration?: import("./vm/drop-combo").ComboDeclaration; options: Payment[]; describe: string; underOccurrences?: import("./vm/counter-under").CounterUnderOccurrences; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; markerPayers?: import("./vm/costs").PooledMarkers[]; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
   | { kind: "offering"; player: PlayerId; card: string }
   /**
    * 22-45-3: [Empower]'s "may carry up to Y markers" — a choice, not the

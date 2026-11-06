@@ -1,4 +1,4 @@
-/** Isolated continuation preparation. Native runners remain unchanged. */
+/** Pure ordinary Activate continuation contract; native integration has its own suite. */
 import assert from 'node:assert/strict';
 import fixture from './fixtures/ordinary-activate-cost-5.json';
 import {card} from './harness';
@@ -71,4 +71,4 @@ for(const master of ['p1','p2'] as const)for(const variant of ['twoDiscards','tw
  const bad=clone(f);if(variant==='twoDiscards'){const pick=bad[0].ops[2];if(pick.op==='choose')pick.as=`discarded1${master}`;}else {const last=bad[0].ops.at(-1)!;if(last.op==='reveal')last.sel.fromVar='wrong';else if(last.op==='moveTo')last.target={var:'wrong'};}
  refused(()=>requireOrdinaryActivatePair(c,bad));
 }
-console.log(`ordinary-activate-cost-5: ${cases} isolated preparation cases PASS; native integration deferred`);
+console.log(`ordinary-activate-cost-5: ${cases} isolated continuation cases PASS`);

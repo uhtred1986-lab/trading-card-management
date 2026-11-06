@@ -1,4 +1,4 @@
-/** Preparatory only; no native caller. Caller supplies authentic source facts,
+/** Pure continuation contract. The native adapter supplies authentic source facts,
  * original stored program and strict payment outcome. No ctx/state authentication
  * or shared ledger mutation is performed by this pure continuation contract. */
 import type {PlayerId,Skill} from '../types';
@@ -28,7 +28,7 @@ function requireSource(value:unknown):asserts value is OrdinaryActivateSource {
  if(!object(value)||!object(value.occurrence)||!object(value.skill)||!object(value.script)||!['p1','p2'].includes(String(value.master))||typeof value.flipped!=='boolean'||!object(value.priceContext)||typeof value.priceContext.optionalOwnDiscard!=='boolean')fail();
  const s=value as unknown as OrdinaryActivateSource,o=s.occurrence,sk=s.skill,script=s.script;
  if(typeof o.card!=='string'||!o.card||typeof o.cardId!=='string'||!o.cardId||!integer(o.epoch)||!integer(o.hiddenCount)||!['p1','p2'].includes(o.holder)||typeof o.area!=='string'||!o.area||!integer(sk.index)||!['activate:main','activate:battle','activate:main/battle'].includes(sk.kind)||sk.keyword||sk.granted||sk.grants)fail();
- if(script.kind!==sk.kind||!same(script.trigger,[])||!same(script.unsupported,[])||!Array.isArray(script.ops)||programProblem(script.ops)||!script.price||skillPriceProblem(script.price)||!Array.isArray(script.price.ops)||!script.price.ops.length||script.price.ops.some(op=>!object(op))||activationPriceProblem(script.price.ops)||!object(script.validity)||script.combo!=null||script.playReplacement)fail();
+ if(script.kind!==sk.kind||!(script.trigger===undefined||same(script.trigger,[]))||!same(script.unsupported,[])||!Array.isArray(script.ops)||programProblem(script.ops)||!script.price||skillPriceProblem(script.price)||!Array.isArray(script.price.ops)||!script.price.ops.length||script.price.ops.some(op=>!object(op))||activationPriceProblem(script.price.ops)||!object(script.validity)||script.combo!=null||script.playReplacement)fail();
  const u=requireUsage(script.usage);
  if(sk.oncePerTurn!==u.oncePerTurn||sk.limit!==u.limit||!same(script.validity,{version:1,sparking:sk.sparking})||typeof sk.raw!=='string'||!sk.raw)fail();
 }
@@ -40,7 +40,7 @@ export function beginOrdinaryActivateCost(source:OrdinaryActivateSource):Ordinar
  requireSource(source);
  return {version:1,source:structuredClone(source),key:`costvars:${source.occurrence.card}:${source.skill.index}`,limitKey:expectedLimitKey(source),phase:'paying'};
 }
-/** Expected is obtained by the future native caller from the original captured
+/** Expected is obtained by the native caller from the original captured
  * source/definition, not from a fresh source occurrence after payment. */
 export function requireOrdinaryActivateCost(value:unknown,expected:OrdinaryActivateSource):asserts value is OrdinaryActivateCost {
  requireSource(expected);

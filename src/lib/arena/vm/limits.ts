@@ -1,3 +1,4 @@
+import { IllegalAction } from "./illegal-action";
 import { requireUsage, usageProblem } from "./usage";
 /**
  * How many more times a skill line may be used this turn: 22-11's
@@ -100,4 +101,12 @@ export function usedForView(state: VmState, master: PlayerId, card: string, skil
     for (let n = limitUsed(state, master, card, sk); n > 0; n--) out.push(sk.index);
   }
   return out;
+}
+
+/** R515: ordinary pending prices follow the same lifetime as the usage ledger. */
+export function renewOrdinaryUseGeneration(card: {ordinaryUseGeneration?: number}): void {
+  const n = card.ordinaryUseGeneration;
+  if (n === undefined) return;
+  if (!Number.isSafeInteger(n) || n < 0 || n >= Number.MAX_SAFE_INTEGER) throw new IllegalAction("invalid ordinary Activate usage generation");
+  card.ordinaryUseGeneration = n + 1;
 }

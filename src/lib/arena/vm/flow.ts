@@ -1,3 +1,5 @@
+import { renewOrdinaryUseGeneration } from "./limits";
+import { stepOrdinaryActivateCost, requireOrdinaryActivation, requireOrdinaryPriceFrame } from "./ordinary-activate-runtime";
 import { stepActivateUnderCost } from "./activate-under-cost";
 import { koResultScript, requireKoBinding, requireKoFrame } from "./ko-source";
 import { requireKoRoute, type KoOutcome } from "./ko-result";
@@ -401,6 +403,7 @@ const STEP_WORK: Record<string, Work> = {
       // game rather than on the cards in play, because a card that left play
       // and came back is a new copy and has to start from nothing either way.
       for (const inst of Object.values(state.cards)) {
+        renewOrdinaryUseGeneration(inst);
         inst.usedThisTurn = [];
         inst.usedMarkerSkill = false;
         // 8-1-2-2: the battle roles end with the battle, but the memory of
@@ -1429,6 +1432,10 @@ function stepReplacementFallback(ctx: EngineContext, game: GameDefinition, state
 }
 
 function programSourceScript(ctx: EngineContext, state: VmState, frame: ScriptFrame): Script | undefined {
+  if (frame.ordinaryActivation) {
+    if (!frame.saveVarsAs && frame.ordinaryActivation.cost?.phase !== "committed") throw new IllegalAction("the ordinary Activate effect has no completed payment");
+    return requireOrdinaryActivation(ctx, state, frame.ordinaryActivation, frame.card, frame.master, frame.skillIndex);
+  }
   const declaration = frame.counterDeclaredScript;
   if (declaration && (declaration.version !== 1 || declaration.card !== frame.card || !Number.isSafeInteger(declaration.skillIndex) || declaration.skillIndex < 0 || declaration.skillIndex !== frame.skillIndex || !declaration.script || (declaration.script.kind !== undefined && declaration.script.kind !== declaration.kind) || !counterKindOf(declaration.kind))) {
     rebuildScope("rebuild this Counter continuation against its current stored rule: mismatched declared skill identity");
@@ -1453,6 +1460,8 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   if (!frame) return "done";
   try {
     requireCounterArrivalTiming(ctx, state);
+    requireOrdinaryPriceFrame(frame);
+    if (frame.ordinaryActivation && frame.saveVarsAs) return stepOrdinaryActivateCost(ctx, game, state, ev, frame);
     if (frame.activateUnderPayment || "activateUnderCost" in frame) return stepActivateUnderCost(ctx, game, state, ev, frame);
     if (frame.energyCharge || state.energyCharge) requireEnergyCharge(game,state,frame);
     if (frame.fieldCleanup) return stepFieldCleanup(ctx, game, state, ev, frame);
