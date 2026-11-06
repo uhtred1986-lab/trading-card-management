@@ -1,3 +1,4 @@
+import { placedUnderMaster } from "./placed-under-master";
 import { captureKoBinding, koResultScript } from "./ko-source";
 import { originalMovementSkillNegated } from "./movement-auto-history";
 import { capturePairedSelf, pairedSelfScript, type PairedSelf } from "./paired-self";
@@ -223,7 +224,7 @@ export function matchTriggers(game: GameDefinition, state: VmState, moment: Mome
       // its own area-movement [Auto]s, "unless specified otherwise" — and the
       // declaration that names `hidden: true` is what specifies it.
       if (card === moment.card && moment.args.hidden === true && !asksHidden) continue;
-      if (!holdsFor(game, state, trigger, card)) continue;
+      if (!holdsFor(game, state, trigger, card, placedUnderMaster(game, state, moment, card, trigger.name))) continue;
       // #1163: `byWatcher: true` — only the card whose own skill made the move
       // is asked ("…is played by this card's skill", BT29-083). The moment
       // names that card as `byCard`; a move no card's skill made names none.
@@ -392,13 +393,13 @@ function inPlay(game: GameDefinition, state: VmState, sides: PlayerId[]): string
  * condition read as `true` is a skill firing at the wrong moment, and read as
  * `false` a skill that never fires — both worse than being told.
  */
-function holdsFor(game: GameDefinition, state: VmState, trigger: TriggerDef, card: string): boolean {
+function holdsFor(game: GameDefinition, state: VmState, trigger: TriggerDef, card: string, suppliedMaster?: PlayerId): boolean {
   const cond = trigger.where;
   if (!cond) return true;
   if (cond.kind !== "isTurnPlayer") {
     throw new RulesetBroken(state.game, `trigger ${JSON.stringify(trigger.name)} is narrowed by ${cond.kind}, and this interpreter reads only isTurnPlayer so far (#142)`);
   }
-  const master = masterOf(game, state, card);
+  const master = suppliedMaster ?? masterOf(game, state, card);
   return cond.who === "opponent" ? state.turnPlayer !== master : state.turnPlayer === master;
 }
 
@@ -602,7 +603,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
     const originalHolder = moment.event === "moved" && moment.card === match.card
       && moment.args.from === "battle" && (LEFT_BATTLE_BY_SKILL.has(match.trigger) || SELF_MOVE_FROM_BATTLE.has(match.trigger) || battleEnergyDeparture && match.trigger === "placedInEnergy")
       ? moment.args.fromHolder : undefined;
-    const master = originalHolder === "p1" || originalHolder === "p2" ? originalHolder : masterOf(game, state, match.card);
+    const master = placedUnderMaster(game, state, moment, match.card, match.trigger) ?? (originalHolder === "p1" || originalHolder === "p2" ? originalHolder : masterOf(game, state, match.card));
     // Read once per card: a text box is parsed by a regex, and a moment that
     // every card in play hears would otherwise parse each of them twice.
     const showing = skillsShowing(ctx, state, match.card);

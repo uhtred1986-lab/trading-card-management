@@ -1,3 +1,4 @@
+import { preflightPlacedUnder, capturePlacedUnderRelation } from "./placed-under-master";
 import { retireAppliedEffectRetarget, type Receipt } from "./applied-effect-receipt";
 import { refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 import { beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation } from "./standing-negation-runtime";
@@ -417,6 +418,7 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
     if (!at || at.zone !== to || at.owner !== player)
       throw new NotYet("stack materials must reach the actual play area before stack placement", "under-release-cleanup");
   }
+  for (const material of [host, ...extra]) preflightPlacedUnder(state, material, card);
   const slot = state.sides[player].zones[to].indexOf(host);
   const mode = state.cards[host].mode;
   // 22-13-5-4 (#927): [Union-Potara] stacks two cards, "in any order" - the
@@ -471,7 +473,8 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   // the card may name: "when this card is placed under a … card" (BT29-140).
   for (const id of placed) {
     const from = cameFrom.get(id);
-    fire(ctx, game, state, { event: "placedUnder", card: id, controller: player, args: { to: "under", ...(from ? { from } : {}) } });
+    const underRelation = capturePlacedUnderRelation(game, state, id, card);
+    fire(ctx, game, state, { event: "placedUnder", placedUnderRelation: underRelation, card: id, controller: underRelation.master, args: { to: "under", ...(from ? { from } : {}) } });
   }
 }
 

@@ -66,6 +66,8 @@ import type { VmState } from "./state";
  * out and being read as either.
  */
 export interface Moment {
+  /** Private synchronous RM23-2 source/top relation; never a public event. */
+  placedUnderRelation?: import("./placed-under-master").PlacedUnderRelation;
   /** R499 original moved-source declaration history; never a public event. */
   movementHistory?: import("./movement-auto-history").MovementAutoHistory;
   event: string;

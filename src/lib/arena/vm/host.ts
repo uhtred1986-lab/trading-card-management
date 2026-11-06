@@ -1,3 +1,4 @@
+import { preflightPlacedUnder, capturePlacedUnderRelation } from "./placed-under-master";
 import { captureUnderRelease, requireUnderReleaseCapture, cleanupUnderRelease } from "./under-release-cleanup";
 import { capturePileRelease, requirePileReleaseCapture, cleanupReleasedPile } from "./pile-release-cleanup";
 import { mixedStandingObservationFromHistory } from "./standing-negation-mixed-history";
@@ -356,6 +357,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const from = zoneOf(state, id), fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
       const destination = { card: host, epoch: state.cards[host]?.zoneEpoch ?? 0 };
       const report = (completed: boolean) => onResult?.({ card: id, from, fromEpoch, to: completed ? "under" : zoneOf(state, id), toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed, ...(completed ? { host: destination } : {}) });
+      if (id === host) { report(false); return false; }
       // R-398 / 0-2-2: a printed Z-Awaken self-payment may put its card
       // under the activating Z-Leader before it leaves the Z-Deck.
       const at = findCard(state, host);
@@ -369,6 +371,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         report(false);
         return false;
       }
+      if (state.cards[id] && state.cards[host]) preflightPlacedUnder(state, id, host);
       const options = { under: host, ...(zAwaken ? { underProcedure: "Z-Awaken" as const } : {}) };
       const release = captureUnderRelease(state, id, host);
       if (release) {
@@ -393,7 +396,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // this card is placed under a <Vegito> card" (BT29-140) — and where it
       // came from is part of it ("when this card in your hand is placed
       // under …", BT23-025; audit triggers 3).
-      emit(ctx, game, state, ev, { event: "placedUnder", card: id, controller: masterOf(game, state, host), args: { to: "under", ...(from ? { from } : {}) } }, null);
+      const underRelation = capturePlacedUnderRelation(game, state, id, host);
+      emit(ctx, game, state, ev, { event: "placedUnder", placedUnderRelation: underRelation, card: id, controller: underRelation.master, args: { to: "under", ...(from ? { from } : {}) } }, null);
       return true;
     },
     // "Place a Z-Extra from under this card on top of this card" (BT31-005,
@@ -422,6 +426,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const seat = findCard(state, id);
       const fromZDeck = !fromPile && leaderStack && leaderCard && seat?.zone === SETUP_ZONES.zDeck && seat.owner === at?.owner;
       if (!top || !state.cards[id] || !(fromPile || fromZDeck) || !at || (leaderStack ? !leaderCard : game.zones[at.zone]?.host !== true)) return false;
+      preflightPlacedUnder(state, host, id);
       const mode = top.mode;
       const incomingPile = state.cards[id].under.slice();
       const incomingBase = state.cards[id].leaderBase;
@@ -459,7 +464,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       finishStandingNegationMutation(ctx, state, transaction, [id, host], roles.length ? { kind: "assign", roles } : undefined);
       log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} is placed on top of ${nameOfCard(ctx, state, host)}` });
       log(ev, { type: "stack", top: id, under: state.cards[id].under.slice() });
-      emit(ctx, game, state, ev, { event: "placedUnder", card: host, controller: masterOf(game, state, id), args: { to: "under", from: at.zone } }, null);
+      const underRelation = capturePlacedUnderRelation(game, state, host, id);
+      emit(ctx, game, state, ev, { event: "placedUnder", placedUnderRelation: underRelation, card: host, controller: underRelation.master, args: { to: "under", from: at.zone } }, null);
       // 6-2-4, 22-46-6-3: a card placed in the Leader Area — "when your Leader is placed" answers it.
       if (leaderStack) emit(ctx, game, state, ev, { event: "moved", card: id, controller: at.owner, args: { to: at.zone, asPlay: false } }, null);
       return true;

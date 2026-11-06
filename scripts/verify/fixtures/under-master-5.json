@@ -1,0 +1,122 @@
+{
+  "BT23-025": {
+    "card": {
+      "id": "BT23-025",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Android 17, Infinite Rotation",
+      "characters": [
+        "Android 17"
+      ],
+      "traits": [
+        "Android"
+      ],
+      "skill": "[auto][limit 1]{r}, if your Leader is a red \u226aAndroid\u226b card: At the end of a battle in which your <Android 18> Battle Card attacked, play this card from under a {Destroyed West City} in your Battle Area.<br>[auto][limit 1] When this card in your hand is placed under a {Destroyed West City} in your Battle Area, place up to 1 red <Android 18> card from your deck under a Z-Extra in your Battle Area, then shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT23-070": {
+    "card": {
+      "id": "BT23-070",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Abducted",
+      "characters": [],
+      "traits": [],
+      "skill": "[permanent] Negate the skills of Battle Cards on top of this card, and those cards can't attack.<br>[activate: main] Choose up to 1 of your opponent's Battle Cards with <Son Gohan> in its character name and place this card under it from your Drop after this card is activated.<br>[activate: main]{2}: Place this card in your Drop from under a Battle Card with <Son Gohan> in its character name.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT29-140": {
+    "card": {
+      "id": "BT29-140",
+      "type": "Z-BATTLE",
+      "colors": [
+        "Black",
+        "White"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "SSB Son Goku & SSB Vegeta, Battle With a God",
+      "characters": [
+        "Son Goku",
+        "Vegeta"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[Deflect][Dual Attack]\n[Permanent] If your Leader is a black <Son Goku>-only card and you have 3 or more energy, reduce the energy cost of this card in your Z-Deck by {b}{w}.\n[Auto] When this card is played, send up to 1 card from your Drop to its owner's Warp.\n[Auto][Limit 1] When this card is placed under a <Vegito> card with a [Union] skill, choose up to 1 of your cards and switch it to Revealed Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT2-013": {
+    "card": {
+      "id": "BT2-013",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "5",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Lightning Speed Vegito",
+      "characters": [
+        "Vegito"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[Union-Potara] \u2462: &lt;Son Goku&gt; and &lt;Vegeta&gt; (Place this card in Active Mode on top of the 2 specified cards stacked together)<br>[Permanent] This card can attack Battle Cards that are in Active Mode.<br>[Auto] At the end of the battle after this card attacks, place 10 cards from the top of your deck in your Drop Area. Then, choose up to 1 &lt;Vegito&gt; with 25000 power from your Drop Area and evolve into it by placing it on top of this card in Active Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Lightning Speed Vegito",
+        "qa": [
+          {
+            "q": "You use [Union-Potara] to play a card on top of a card that received +5000 power and [Double Strike] for the duration of the turn. Do these power boosts and skills transfer to the new card?",
+            "a": "The new card retains the +5000 power boost, but does not receive [Double Strike]. When playing cards on top of other cards, only changes to power transfer. Any skills granted to the cards placed below do not."
+          },
+          {
+            "q": "Can you attack your own Battle Cards in Active Mode?",
+            "a": "No, you cannot."
+          },
+          {
+            "q": "Can you evolve into {BT2-012 Repeated Force Vegito} with {BT2-013 Lightning Speed Vegito}\u2019s skill?",
+            "a": "Yes, you can.\n{BT2-012 Repeated Force Vegito} has 25000 power, and its character name is \"Vegito,\" so the specified conditions are fulfilled."
+          },
+          {
+            "q": "Do you need to pay the energy cost or [Evolve] cost for cards evolved via card skills?",
+            "a": "No, you do not need to pay the unless specified otherwise."
+          },
+          {
+            "q": "If this card attacks a Battle Card with [Revenge], does its auto skill activate at the end of the battle?",
+            "a": "Yes, it does."
+          }
+        ]
+      }
+    ]
+  }
+}
