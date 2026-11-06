@@ -313,6 +313,9 @@ export interface VmFrame {
 }
 
 export interface VmState {
+  /** R495 private metadata: never added to ContinuousEffect/event payloads. */
+  appliedEffectOwnership?: Record<number, import("./applied-effect-receipt").OwnerTag>;
+
   /** R482 active ordinary Charge scope, consumed when its original frame finishes. */
   energyCharge?: import("./energy-entry-charge").EnergyChargeScope;
   /** R477 prototype only: no gameplay writer or card admission yet. */

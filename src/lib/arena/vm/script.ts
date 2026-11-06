@@ -1736,6 +1736,10 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  /** R495 effect execution and dormant body/payment provenance. */
+  appliedEffects?: import("./applied-effect-receipt").Receipt;
+  appliedPaymentEffects?: import("./applied-effect-receipt").Receipt;
+
   /** The DO queued by the Charge action; its movement is not a skill. */
   declaredCharge?: true;
   /** R482 original Charge action; never a skill activation. */

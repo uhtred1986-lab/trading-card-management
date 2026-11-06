@@ -1,3 +1,4 @@
+import { freshAppliedEffectRoot, executionReceipt, captureAppliedEffectMove, settleAppliedEffectMove, type Receipt } from "./applied-effect-receipt";
 import { pairedSelfScript, requirePairedSelf, requirePairedSelfShape, requirePairedSourceFrame } from "./paired-self";
 import { requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
@@ -911,7 +912,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     // Captured keyword effects use the same owner-choice checkpoint queue as
     // ordinary Autos. Put the already-compiled frame on the runner only after
     // the confirmative rule check above has completed.
-    state.programs.unshift({ ...next.frame, skillEffectOrigin: { version: 2, kind: "hook" } });
+    state.programs.unshift(freshAppliedEffectRoot(state, { ...next.frame, skillEffectOrigin: { version: 2, kind: "hook" } }, "hook"));
     return true;
   }
   const named = state.cards[next.card]?.cardId ?? next.card;
@@ -994,6 +995,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     usage: skill?.usage as import("./usage").UsageRecord,
     validity: skill?.validity as import("./validity").ValidityRecord,
   };
+  freshAppliedEffectRoot(state, frame, skill?.kind === "auto" ? "auto" : "keyword");
   // #677: a 20-14 price on activating this [Auto] (EX06-35's "your opponent
   // can't activate skills unless …") makes it a priced one — read now, on the
   // board it is chosen on, before anything is paid.
@@ -1447,6 +1449,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     if (!guardCounterSelfTaxPayment(state, frame, parent => programSourceScript(ctx, state, parent))) return "done";
     if (frame.replacementFallback) return stepReplacementFallback(ctx, game, state, ev, frame);
     if (frame.replacementAuto && !beginReplacementAuto(ctx, game, state, frame, (skill, program) => {
+      freshAppliedEffectRoot(state, frame, "replacement");
       const tax = activationTaxGate(ctx, game, state, frame.master, frame.card, "auto");
       if (tax && unpaidActivationTax(ctx, game, state, frame.master, frame.card, activationTaxes(ctx, game, state, frame.master, frame.card, "auto"))) {
         log(ev, { type: "note", text: "The replacement Auto cannot activate: its additional price cannot be paid" });
@@ -1587,7 +1590,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       // Recheck the submitted choice on an isolated board before any mutation.
       // Invalid or dead-ending answers leave the persisted payment cursor intact.
       if (!(frame.awaiting === "replaceMove" && state.lastMode !== null) && !canFinishAutomaticPrice(ctx, game, state, frame)) throw new IllegalAction("that choice cannot pay the entire Auto skill cost");
-      const result = stepScript(automaticPriceHost(ctx, game, state, ev, frame.autoCost?.reviveTax ? frame : undefined), frame);
+      const result = stepScript(automaticPriceHost(ctx, game, state, ev, frame.autoCost?.reviveTax ? frame : undefined, frame), frame);
       if (result === "wait") reviveTaxPayers(state, frame, true);
       if (result === "done") finishAutomaticCost(ctx, game, state, ev, frame);
       else if (state.prompt.kind === "chooseCards") {
@@ -1641,7 +1644,8 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     const ownCleanupSubstitute = !!substitute && frame.replacing === substitute.card;
     if (ownCleanupSubstitute) substitute.active = true;
     try {
-      const result=stepScript(vmHost(ctx, game, state, ev, frame), frame);
+      executionReceipt(state, frame);
+      const result = stepScript(vmHost(ctx, game, state, ev, frame), frame);
       if (result === "done" && frame.energyCharge) delete state.energyCharge;
       return result;
     } finally {
@@ -1766,6 +1770,8 @@ export function draw(ctx: EngineContext, game: GameDefinition, state: VmState, e
 
 /** How a card came to move, for the pattern arguments that ask (`moved(asPlay: true)`, `moved(by: skill)`). */
 export interface MoveCause {
+  /** Private current-execution provenance, never an event field. */
+  appliedEffects?: Receipt;
   /** Internal synchronous result reporting, never serialized with a frame. */
   onResult?: (result: MovementOutcome) => void;
   owner?: PlayerId;
@@ -1851,6 +1857,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (route.stays) { report(false); return; }
   if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { report(false); return; }
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || from === null || (from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, route.to === "battle" ? id : undefined);
+  const effectMove = captureAppliedEffectMove(state, id, opts.appliedEffects);
   const transaction = beginStandingNegationMutation(ctx, state, route.to === "battle" ? id : undefined);
   const result = moveCard(state, game, id, route.to, { ...opts, energyEntryCleanup: true, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
@@ -1882,6 +1889,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
+  settleAppliedEffectMove(state, effectMove);
   if (to === asked) opts.beforeTriggers?.();
   finishStandingNegationMutation(ctx, state, transaction, to === "battle" && from !== "battle" ? id : undefined);
   report(!route.replacementApplied && result.move.to === asked, result.move.to);

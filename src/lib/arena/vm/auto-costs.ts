@@ -1,3 +1,4 @@
+import { paymentEffectFrame } from "./applied-effect-receipt";
 import { guardCostEnergyEntry } from "./energy-entry-preflight";
 import { captureTaxPayers, taxPayerProblem, taxPayerProgramProblem, markTaxPayerPaid, type TaxPayers } from "./tax-payers";
 import { bindPaidMarkers } from "./paid-markers";
@@ -72,8 +73,8 @@ function taxAliases(ops: Op[]): string[] {
 }
 
 /** A supported action-price must complete every instruction (5-8-2-2). */
-export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], payingFrame?: ScriptFrame): ScriptHost {
-  const host = vmHost(ctx, game, state, ev);
+export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], payingFrame?: ScriptFrame, receiptFrame: ScriptFrame | undefined = payingFrame): ScriptHost {
+  const host = vmHost(ctx, game, state, ev, paymentEffectFrame(receiptFrame));
   const unpaid = () => { throw new IllegalAction("the Auto skill cost cannot be paid in its entirety"); };
   /** The interpreter's KO skips these cards silently (`stepScript`'s `ko`,
    * `koCard`'s 20-14 read); a skipped KO is no payment (5-8-2-2). */

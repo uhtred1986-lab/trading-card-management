@@ -1,3 +1,4 @@
+import { retireAppliedEffectRetarget, type Receipt } from "./applied-effect-receipt";
 import { refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 import { refuseStandingNegationMutation } from "./standing-negation-runtime";
 /**
@@ -102,6 +103,8 @@ export const PLAY_ZONE_NAMES = [...new Set([...Object.values(PLAY_ZONES), ...Obj
  * carries across land after them (22-45-3), the legacy `play.resolve`'s order.
  */
 export interface PlayOptions {
+  /** Private same-execution provenance, not a play/event attribute. */
+  appliedEffects?: Receipt;
   /** 5-5: "play it in Rest Mode". */
   mode?: Mode;
   /** 22-13-6-3 / 22-5-5: played *onto* another card, which goes under it (23-2's pile, `stackOnto`). */
@@ -271,8 +274,8 @@ export function resolvePlay(
     const by = negating;
     for (const kind of opts.negatedKinds) addEffect(state, ev, { target: card, kind: "negateSkillKind", value: kind, until: opts.negatedUntil, master: by.player, source: by.source });
   };
-  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], { ...cause, ...(opts.using ? { using: opts.using } : {}), beforeTriggers });
-  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause, beforeTriggers });
+  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], { ...cause, ...(opts.using ? { using: opts.using } : {}), appliedEffects: opts.appliedEffects, beforeTriggers });
+  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause, appliedEffects: opts.appliedEffects, beforeTriggers });
   // 22-15: the card remembers which keyword played it, for the rest of the
   // turn — P-048's "during the turn you played it with [Over Realm]"
   // (`playedUsing`). Set after the arrival, which resets the copy (3-1-4).
@@ -396,7 +399,7 @@ export function resolvePlay(
  * (8-1-7-1). The card underneath answers no moment: it has not left the area
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
-function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; using?: string; beforeTriggers?: () => void } = {}): void {
+function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; using?: string; beforeTriggers?: () => void; appliedEffects?: Receipt } = {}): void {
   refuseEnergyEntryProcedure(state, [card, host, ...extra]);
   refuseStandingNegationMutation(state, "stack play", ctx, to === "battle" ? card : undefined);
   const slot = state.sides[player].zones[to].indexOf(host);
@@ -437,7 +440,7 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   // that were played onto carry over - from every material, and from the
   // cards in each one's pile - and the others end.
   const carried = new Set(groups.filter((g) => placed.includes(g[0])).flat());
-  for (const e of state.effects) if (carried.has(e.target) && e.kind === "power") e.target = card;
+  for (const e of state.effects) if (carried.has(e.target) && e.kind === "power") { retireAppliedEffectRetarget(state, e); e.target = card; }
   state.effects = state.effects.filter((e) => !carried.has(e.target));
   const b = state.battle;
   if (b && (b.attacker === host || b.guard === host)) {

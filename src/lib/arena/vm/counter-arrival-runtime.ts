@@ -1,3 +1,4 @@
+import { freshAppliedEffectRoot } from "./applied-effect-receipt";
 /** R435 repeatable effects have separate template and execution lifetimes. */
 import type { ScriptFrame } from "./script";
 import type { VmState } from "./state";
@@ -78,7 +79,7 @@ export function beginCounterArrivalDecision(
     source: template.card, skillIndex: template.skillIndex,
     profile: { arrivals: 0, tokens: false, explicitWindow: false }, phase: "effect", played: [],
   };
-  const frame = counterArrivalExecutionFrame(template, child);
+  const frame = freshAppliedEffectRoot(state, counterArrivalExecutionFrame(template, child), "counter");
   frame.arrivalDecision = { version: 1, kind: "repeat", owner: owner.id, binding: template.id, scope: child, arrival: { ...arrival } };
   state.skillPlayScopes!.push(scope);
   state.programs.unshift(frame,

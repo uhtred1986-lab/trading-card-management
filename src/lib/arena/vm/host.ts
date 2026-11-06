@@ -1,3 +1,4 @@
+import { freshAppliedEffectRoot, executionReceipt, recordAppliedEffect, captureAppliedEffectMove, settleAppliedEffectMove, retireAppliedEffectRetarget, type Receipt } from "./applied-effect-receipt";
 import { captureEnergyBattleScope } from "./energy-entry-battle";
 import { cleanupScriptPlacement, clearScriptAutoReveal as clearAutoReveal } from "./script-placement-cleanup";
 import { captureEnergyComboScope } from "./energy-entry-combo";
@@ -296,7 +297,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
           state.resolving?.card === id && (result.completed || result.toEpoch !== result.fromEpoch)) state.resolving.replaced = true;
       };
-      nativeMove(ctx, game, state, ev, id, to, owner, { onResult, energyEntry, actor, ...(nativeBattleEnergy ? { historicalBattleEnergy: true } : {}), requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(source ? { source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      nativeMove(ctx, game, state, ev, id, to, owner, { appliedEffects: executionReceipt(state, retainedFrame), onResult, energyEntry, actor, ...(nativeBattleEnergy ? { historicalBattleEnergy: true } : {}), requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(source ? { source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       if (completedEnergyDeparture) energyDeparture = { ...completedEnergyDeparture,
         remaining: new Set(["removedFromBattle", "removedByOpponent", "yourCardRemovedByOpponent", "yourCardRemovedBySkill", "opponentCardRemovedBySkill"]) };
       return (zoneOf(state, id) as Area | null) ?? to;
@@ -400,7 +401,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       list.splice(list.indexOf(id), 1);
       list.splice(Math.min(at.index, list.length), 0, id);
       if (mode !== undefined && mode !== null) state.cards[id].mode = mode;
-      for (const e of state.effects) if (e.target === host && e.kind === "power") e.target = id;
+      for (const e of state.effects) if (e.target === host && e.kind === "power") { retireAppliedEffectRetarget(state, e); e.target = id; }
       state.effects = state.effects.filter((e) => e.target !== host);
       const b = state.battle;
       if (b && (b.attacker === host || b.guard === host)) {
@@ -523,12 +524,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     setEnteredTurn: () => {},
     negateAll: (id) => {
       const transaction = beginStandingNegationMutation(ctx, state);
-      addEffect(state, ev, { target: id, kind: "negateSkills", value: 0, until: "game", source: id });
+      recordAppliedEffect(state, retainedFrame, id, () => addEffect(state, ev, { target: id, kind: "negateSkills", value: 0, until: "game", source: id }));
       finishStandingNegationMutation(ctx, state, transaction);
     },
     negateSkillIndex: (id, index) => {
       const transaction = beginStandingNegationMutation(ctx, state);
-      addEffect(state, ev, { target: id, kind: "negateSkill", value: index, until: "game", source: id });
+      recordAppliedEffect(state, retainedFrame, id, () => addEffect(state, ev, { target: id, kind: "negateSkill", value: index, until: "game", source: id }));
       finishStandingNegationMutation(ctx, state, transaction);
     },
     addEffect: (e) => {
@@ -536,7 +537,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // time the effect resolves gives it no period to last for at all.
       if (e.until === "whileSourceInPlay" && (!e.source || zoneOf(state, e.source) !== "battle")) return undefined;
       const transaction = beginStandingNegationMutation(ctx, state);
-      const added = addEffect(state, ev, e);
+      const added = recordAppliedEffect(state, retainedFrame, e.target, () => addEffect(state, ev, e));
       finishStandingNegationMutation(ctx, state, transaction);
       return added;
     },
@@ -788,7 +789,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     },
     interrupt: (first, frame) => {
       state.programs.unshift(frame);
-      state.programs.unshift(first);
+      state.programs.unshift(first.uniqueKeep || first.fieldCleanup ? first : freshAppliedEffectRoot(state, first, first.replacing ? "replacement" : "tax"));
     },
     // 21-11 (#730): two same-named [Unique] cards the instruction just put
     // in one Battle Area are processed before the next instruction. A price
@@ -991,6 +992,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         const side = opts.toOpponent && !union && !opts.onto ? otherPlayer(opts.player) : opts.toOwners && !union && !opts.onto ? state.cards[id].owner : union && union !== "Union-Absorb" && playsInOpponentBattle(ctx, game, state, opts.player, id) ? otherPlayer(opts.player) : opts.player;
         const beforeArrival = new Set(state.pending);
         const played = resolvePlay(ctx, game, state, ev, id, opts.player, {
+          appliedEffects: executionReceipt(state, frame),
           mode: r?.rest ? "rest" : energyBase ? "active" : opts.mode,
           onto: opts.onto,
           ...(union === "Union-Potara" && opts.under?.length ? { under: opts.under } : {}),
@@ -1092,7 +1094,7 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { historicalBattleEnergy?: true; energyEntry?: OptionalEnergyArrival; requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
+  opts: { appliedEffects?: Receipt; historicalBattleEnergy?: true; energyEntry?: OptionalEnergyArrival; requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
@@ -1137,6 +1139,7 @@ function moveTo(
   // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
   const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode, opts.energyEntry?.negate).mode : route.mode;
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
+  const effectMove = captureAppliedEffectMove(state, id, opts.appliedEffects);
   const transaction = beginStandingNegationMutation(ctx, state, to === "battle" ? id : undefined);
   const zBattleControl = returnInfo?.type === "Z-BATTLE" && from === "battle" && to === "battle" && fromOwner && fromOwner !== owner
     ? { from: fromOwner, to: owner } : undefined;
@@ -1148,6 +1151,7 @@ function moveTo(
     return;
   }
   cleanupScriptPlacement(state, ev, placed.move, from, carry);
+  settleAppliedEffectMove(state, effectMove);
   // Use the actual destination (including native token/Z-card redirects).
   to = placed.move.to;
   if (opts.energyEntry?.negate) {
