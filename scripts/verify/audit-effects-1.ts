@@ -27,6 +27,7 @@
  */
 import assert from "node:assert/strict";
 import { card } from "./harness";
+import { emptyFilter } from "../../src/lib/arena/text/filters";
 import { skillRecords } from "../../src/lib/arena/draft";
 import { parseRule, printRule, validateRule, type Rule } from "../../src/lib/arena/lang";
 import { correctSkillText } from "../../src/lib/catalog/errata";
@@ -236,9 +237,20 @@ for (const [id, text, forWhat] of [
   assert.ok(!opsDeep(rec.ops).some(op => op.op === "play"));
   records++;
 }
-// Areas no engine offers a skill from, and an action price for an Extra's use: unread, where each was a play.
+// R514: the original under-Broly permission is now typed, including its green Leader condition.
+{
+  const rec = record("BT19-093", "[Permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand.", { type: "EXTRA", power: null, comboCost: null, comboPower: null });
+  assert.deepEqual(rec.unread, []);
+  assert.deepEqual(rec.ops, [{
+    op: "permit", what: "activateFromUnder", activateUnderPolicy: "asHandGreenBrolyLeaderV1",
+    until: "game", target: { sel: { special: "self" } },
+    source: { ...emptyFilter(), characters: ["broly: br"] },
+  }]);
+  assert.ok(!opsDeep(rec.ops).some(op => op.op === "play"));
+  records++;
+}
+// Remaining unsupported action prices for an Extra's use stay unread, never a play.
 for (const [id, text] of [
-  ["BT19-093", "[Permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand."],
   ["DB2-164", "[Permanent] If you have 4 or more energy, you can activate this card from your hand by placing 1 red card in your hand in your Drop Area instead of paying this card's energy cost."],
   ["BT14-119", "[Permanent] You can activate the [Activate: Battle] skill on this card from your hand without paying its energy cost by placing 1 card from under one of your Battle Cards in its owner's Drop Area."],
 ] as const) {

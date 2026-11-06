@@ -45,18 +45,21 @@ test("actual complete printed and compiled conditional Permanent", () => {
   assert.equal(standingComboWholeDescriptor(script.ops), true);
   assert.equal(standingComboWholeScript(script), true);
 });
+// Deliberately malformed policy fields remain explicit in these negative controls.
+type PolicyMutation = { cond: { atLeast: number }; then: { cond: { sel: { side: string } }; then: { target: { sel: { side: string; count: number; filter: { type: string } } } }[] }[]; else?: unknown[] };
+const mutablePolicy = (s: typeof script) => s.ops[0] as unknown as PolicyMutation;
 for (const [label, change] of Object.entries({
   price: (s: typeof script) => { s.price!.payment.orbs = { Yellow: 1 }; },
   usage: (s: typeof script) => { s.usage!.oncePerTurn = true; },
   validity: (s: typeof script) => { s.validity!.sparking = 1; },
   trigger: (s: typeof script) => { s.trigger = ["played"]; },
   mixed: (s: typeof script) => { s.ops.push({ op: "draw", n: 1 }); },
-  threshold: (s: typeof script) => { (s.ops[0] as any).cond.atLeast = 6; },
-  sourceRole: (s: typeof script) => { (s.ops[0] as any).then[0].cond.sel.side = "you"; },
-  targetSide: (s: typeof script) => { (s.ops[0] as any).then[0].then[0].target.sel.side = "both"; },
-  targetCount: (s: typeof script) => { (s.ops[0] as any).then[0].then[0].target.sel.count = 1; },
-  targetFilter: (s: typeof script) => { (s.ops[0] as any).then[0].then[0].target.sel.filter = { type: "BATTLE" }; },
-  extraElse: (s: typeof script) => { (s.ops[0] as any).else = []; },
+  threshold: (s: typeof script) => { mutablePolicy(s).cond.atLeast = 6; },
+  sourceRole: (s: typeof script) => { mutablePolicy(s).then[0].cond.sel.side = "you"; },
+  targetSide: (s: typeof script) => { mutablePolicy(s).then[0].then[0].target.sel.side = "both"; },
+  targetCount: (s: typeof script) => { mutablePolicy(s).then[0].then[0].target.sel.count = 1; },
+  targetFilter: (s: typeof script) => { mutablePolicy(s).then[0].then[0].target.sel.filter = { type: "BATTLE" }; },
+  extraElse: (s: typeof script) => { mutablePolicy(s).else = []; },
 })) test(`exact policy rejects ${label}`, () => { const changed = copy(script); change(changed); assert.equal(standingComboWholeScript(changed), false); });
 for (const p of ["p1", "p2"] as const) {
   const seven = board(p), target = seven.cards.find(card => card.card === "target")!;
@@ -143,16 +146,16 @@ for (const p of ["p1", "p2"] as const) {
     selfBattle: (o: Observation) => { o.battle!.guard = o.battle!.attacker; },
     sameHolderBattle: (o: Observation) => { o.battle!.guard.occurrence.holder = p; },
     attackingCombo: (o: Observation) => { o.battle!.attacker.occurrence.area = "combo"; },
-    extraObservationField: (o: Observation) => { (o as any).serial = 99; },
-    extraSourceField: (o: Observation) => { (o.candidates[0].source as any).invented = true; },
+    extraObservationField: (o: Observation) => { Object.assign(o, { serial: 99 }); },
+    extraSourceField: (o: Observation) => { Object.assign(o.candidates[0].source, { invented: true }); },
     duplicateCard: (o: Observation) => { o.cards.push(copy(o.cards[0])); },
     missingBattleCard: (o: Observation) => { o.battle!.guard.occurrence.card = "absent"; },
-    inventedArea: (o: Observation) => { (o.cards[0] as any).area = "fake"; },
+    inventedArea: (o: Observation) => { Object.assign(o.cards[0], { area: "fake" }); },
     misplacedSource: (o: Observation) => { o.candidates[0].source.area = "combo"; },
-    invalidHolder: (o: Observation) => { (o.cards[0] as any).holder = "p3"; },
+    invalidHolder: (o: Observation) => { Object.assign(o.cards[0], { holder: "p3" }); },
     duplicateTarget: (o: Observation) => { o.candidates[0].targets.push(copy(o.candidates[0].targets[0])); },
     ownTarget: (o: Observation) => { o.candidates[0].targets = [o.cards.find(card => card.card === "own0")!]; },
-    missingPolicy: (o: Observation) => { delete (o.candidates[0].source as any).policy; },
+    missingPolicy: (o: Observation) => { Reflect.deleteProperty(o.candidates[0].source, "policy"); },
   })) test(`${p} malformed ${label} refuses deliberately`, () => {
     const bad = copy(seven); change(bad); assert.throws(() => settle(active, bad), /mixed|standing|negation/);
   });
@@ -220,7 +223,7 @@ for (const [label, change] of Object.entries({
   leaderEpoch: (s: VmState) => { s.cards[s.sides.p1.zones.leader[0]].zoneEpoch = 9; },
   leaderOwner: (s: VmState) => { s.cards[s.sides.p1.zones.leader[0]].owner = "p2"; },
   battleRole: (s: VmState) => { s.battle = { attacker: s.sides.p1.zones.leader[0], guard: s.sides.p2.zones.leader[0] } as NonNullable<VmState["battle"]>; },
-  grantDeletion: (s: VmState) => { (s as any).resolvedGrantDeletions = { changed: true }; },
+  grantDeletion: (s: VmState) => { Object.assign(s, { resolvedGrantDeletions: { changed: true } }); },
 })) test(`mixed read seal detects ${label} without repair`, () => {
   const s = copy(state), h = empty(); issue(ctx, s, h, observation); assert.equal(matches(ctx, s, h), true);
   change(s); assert.equal(matches(ctx, s, h), false); assert.throws(() => read(s, h, "anything"), /changed board/);
