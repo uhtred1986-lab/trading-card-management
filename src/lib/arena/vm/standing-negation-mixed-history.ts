@@ -1,4 +1,4 @@
-/** R513 isolated mixed-policy contract. No native writer or admission uses it yet.
+/** R513 mixed-policy contract used by native observation and movement writers.
  * The v1 Battle-only module remains unchanged. Serial priority follows that
  * algorithm; v2 adds explicit area membership and conditional source facts.
  */
@@ -27,7 +27,7 @@ export interface MixedStandingNegationCandidate {
     source: MixedStandingNegationSource;
     /** External validity/negation; threshold and battle membership are derived. */
     externalEnabled: boolean;
-    /** Protection-filtered targets, supplied by the future native observer. */
+    /** Protection-filtered targets, supplied by the native observer. */
     targets: MixedStandingNegationCard[];
 }
 /** Native participation outlives a vanished opposing combatant until 8-5-13.

@@ -29,12 +29,12 @@ function context(definitions = defs): EngineContext {
 }
 const ctx = context();
 function setup(p: PlayerId) {
-  // Native createGame cannot yet dispatch the v2 adapter. Build without the
-  // old BattleWhole definitions, then use the full context for this adapter.
+  // Native createGame now initializes the mixed family. This mechanism suite
+  // still owns the staged mutation protocol; the full context adds no live source.
   const initial = context({ L: defs.L, F: defs.F, "BT20-086": defs["BT20-086"] });
   const state = RULES.createGame(initial, { seed: 513, p1: { name: "one", leader: p === "p1" ? "BT20-086" : "L", main: fifty("F") },
     p2: { name: "two", leader: p === "p2" ? "BT20-086" : "L", main: fifty("F") } }).state as State;
-  initialize(ctx, game, state);
+  check(ctx, game, state);
   const source = state.sides[p].zones.leader[0], guard = state.sides[other(p)].zones.leader[0];
   function raw(id: string, def: string, holder: PlayerId, area: Area, owner = holder) {
     state.cards[id] = newCard(id, def, owner); state.sides[holder].zones[area].push(id); return id;
@@ -277,7 +277,7 @@ for (const p of ["p1", "p2"] as const) {
 for (const [label, mutate] of Object.entries({
   missingProgram: (c: EngineContext) => { delete c.scripts!["BT20-086"].bySkill[10]; },
   changedPrice: (c: EngineContext) => { c.scripts!["BT20-086"].bySkill[10].price!.payment.orbs = { Yellow: 1 }; },
-  changedCondition: (c: EngineContext) => { (c.scripts!["BT20-086"].bySkill[10].ops[0] as any).cond.atLeast = 6; },
+  changedCondition: (c: EngineContext) => { (c.scripts!["BT20-086"].bySkill[10].ops[0] as { cond: { atLeast: number } }).cond.atLeast = 6; },
   addedUsage: (c: EngineContext) => { c.scripts!["BT20-086"].bySkill[10].usage!.oncePerTurn = true; },
 })) test(`actual stored source refuses ${label} before capture`, () => {
   const b = setup("p1"), changed = clone(ctx); mutate(changed);
@@ -287,7 +287,7 @@ for (const [label, mutate] of Object.entries({
 for (const options of [null, [], { arrivals: null }, { arrivals: [null] }, { invented: true }]) {
   test("malformed native transaction options refuse without ledger publication", () => {
     const b = setup("p1"), token = capture(ctx, game, b.state), history = b.state.mixedStandingNegationHistory;
-    assert.throws(() => settle(ctx, game, b.state, token, options as any), error => {
+    assert.throws(() => settle(ctx, game, b.state, token, options as unknown as Parameters<typeof settle>[4]), error => {
       assert.ok(error instanceof Error); assert.notEqual(error.name, "TypeError"); return /transaction/.test(error.message);
     });
     assert.equal(b.state.mixedStandingNegationHistory, history);

@@ -1,3 +1,4 @@
+import { mixedStandingSkillsNegated } from "./standing-negation-mixed-read";
 /** R477 transient read witness. This stores no history and never repairs it. */
 import type { EngineContext } from "../types";
 import type { VmState } from "./state";
@@ -28,6 +29,7 @@ export function standingNegationReadSealMatches(ctx: EngineContext, state: VmSta
 }
 /** No-context readers cannot bless a changed source, board, effect or receipt. */
 export function standingSkillsNegated(state: VmState, id: string): boolean {
+  if (state.mixedStandingNegationHistory) return mixedStandingSkillsNegated(state, state.mixedStandingNegationHistory, id);
   if (!state.standingNegationHistory) return false;
   const seal = seals.get(state);
   if (!seal || seal.fingerprint !== fingerprint(seal.ctx, state)) throw new NotYet("validate standing-negation history before reading the changed board", "R477");

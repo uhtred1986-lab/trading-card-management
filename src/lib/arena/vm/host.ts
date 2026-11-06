@@ -1,3 +1,4 @@
+import { mixedStandingObservationFromHistory } from "./standing-negation-mixed-history";
 import { captureMovementAutoHistory, requireMovementAutoBodies, type LegacyMovementFacts, type MovementAutoHistory } from "./movement-auto-history";
 import { freshAppliedEffectRoot, executionReceipt, recordAppliedEffect, captureAppliedEffectMove, settleAppliedEffectMove, retireAppliedEffectRetarget, type Receipt } from "./applied-effect-receipt";
 import { captureEnergyBattleScope } from "./energy-entry-battle";
@@ -7,7 +8,7 @@ import { requireDeclaredCharge, requireEnergyCharge } from "./energy-entry-charg
 import { guardEnergyEntryLifetimes, refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 import { guardOptionalEnergyFrame, prepareOptionalEnergyEntry, optionalEnergyArrival, guardUnownedEnergyEntry, type OptionalEnergyArrival } from "./energy-entry-runtime";
 import { guardEnergyEntryBatch } from "./energy-entry-preflight";
-import { beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
+import { mixedStandingLeaderRestoration, beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureEnergyEntryMode } from "./energy-entry-mode";
 import { queueFieldCleanup, takeFieldCleanup } from "./field-rules";
 import { queueFieldCost } from "./field-costs";
@@ -366,8 +367,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         report(false);
         return false;
       }
+      const transaction = state.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, state) : undefined;
       const result = moveCard(state, game, id, "drop", { under: host, ...(zAwaken ? { underProcedure: "Z-Awaken" as const } : {}) });
-      if (!result.ok) { report(false); return false; }
+      if (!result.ok) { finishStandingNegationMutation(ctx, state, transaction); report(false); return false; }
+      finishStandingNegationMutation(ctx, state, transaction, [id, host]);
       report(result.move.to === "under" && result.move.under === host);
       clearAutoReveal(state, id);
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
@@ -408,8 +411,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const incomingPile = state.cards[id].under.slice();
       const incomingBase = state.cards[id].leaderBase;
       // A single-card area (the Leader Area) takes the new top card beside the old one only as a card placed onto it.
+      const transaction = state.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, state, id) : undefined;
+      const roles = (["attacker", "guard"] as const).filter(role => state.battle?.[role] === host);
       const up = moveCard(state, game, id, at.zone, { owner: at.owner, carry: fromPile, ...(leaderStack ? { onto: host } : {}) });
-      if (!up.ok) return false;
+      if (!up.ok) { finishStandingNegationMutation(ctx, state, transaction); return false; }
       const down = moveCard(state, game, host, at.zone, { under: id });
       if (!down.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${id}: ${down.refused}`);
       if (leaderStack && state.cards[id].zCard) {
@@ -436,6 +441,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (b.guard === host) b.guard = id;
       }
       clearAutoReveal(state, host);
+      finishStandingNegationMutation(ctx, state, transaction, [id, host], roles.length ? { kind: "assign", roles } : undefined);
       log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} is placed on top of ${nameOfCard(ctx, state, host)}` });
       log(ev, { type: "stack", top: id, under: state.cards[id].under.slice() });
       emit(ctx, game, state, ev, { event: "placedUnder", card: host, controller: masterOf(game, state, id), args: { to: "under", from: at.zone } }, null);
@@ -481,6 +487,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     setHidden: (id, hidden, by) => {
       refuseEnergyEntryProcedure(state,[id]);
       refuseStandingNegationMutation(state, "Hidden switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
+      const transaction = state.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, state) : undefined;
       clearAutoReveal(state, id);
       card(id).hidden = hidden;
       if (hidden) card(id).hiddenCount = (card(id).hiddenCount ?? 0) + 1;
@@ -492,6 +499,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // 23-5-4: face down, an attack card or guard card is neither any more.
       const b = state.battle;
       if (hidden && b && (b.attacker === id || b.guard === id)) b.hiddenOut = true;
+      finishStandingNegationMutation(ctx, state, transaction, id);
       // 1-10-2: the switch is a moment, with what caused it and where the card
       // is — the same shape as `modeSwitched` above (`hiddenBySkill`,
       // `triggers.rules`).
@@ -502,7 +510,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     flip: (id, toBack = true) => {
       refuseEnergyEntryProcedure(state,[id]);
       refuseStandingNegationMutation(state, "face switch", ctx, zoneOf(state, id) === "battle" ? id : undefined);
+      const transaction = state.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, state) : undefined;
+      const participation = state.mixedStandingNegationHistory ? mixedStandingObservationFromHistory(state.mixedStandingNegationHistory).battle : undefined;
+      const roles = card(id).flipped === toBack ? [] : (["attacker", "guard"] as const).filter(role => state.battle?.[role] === id
+        && (!state.mixedStandingNegationHistory || participation?.[role].present));
+      if (roles.length && state.mixedStandingNegationHistory && (ctx.defs[card(id).cardId]?.type !== "LEADER"
+          || card(id).zCard || card(id).hidden || !ctx.defs[card(id).cardId]?.back || zoneOf(state, id) !== "leader"))
+        throw new NotYet("switch an unreviewed participating mixed-history source face", "R513");
       card(id).flipped = toBack;
+      finishStandingNegationMutation(ctx, state, transaction, id, roles.length ? { kind: "face", roles } : undefined);
       log(ev, { type: "flip", card: id, flipped: toBack });
     },
     changeMarkers: (id, delta) => {
@@ -620,12 +636,14 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         negated = !!arrival.negated;
         negatedBy = arrival.negatedBy;
       }
+      const transaction = state.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, state) : undefined;
       const placed = moveCard(state, game, id, TOKEN_ZONE, { owner: p });
       if (!placed.ok) throw new RulesetBroken(state.game, `a token cannot be made in the ${TOKEN_ZONE}: ${placed.refused}`);
       // Phrasing batch 4: "…in Rest Mode" is how the token arrives (5-5-3), not a switch after it.
       if (rest && game.zones[TOKEN_ZONE]?.modes?.includes("rest")) state.cards[id].mode = "rest";
       if (negated) addEffect(state, ev, { target: id, kind: "negateSkills", value: 0, until: "turn", source: negatedBy?.source ?? frame?.card ?? id, master: negatedBy?.player ?? frame?.master ?? p });
       if (scope) scope.played.push({ card: id, epoch: state.cards[id].zoneEpoch ?? 0 });
+      finishStandingNegationMutation(ctx, state, transaction, id);
       log(ev, { type: "token", card: id, owner: p });
       return id;
     },
@@ -720,7 +738,9 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     battle: () => (state.battle ? { attacker: state.battle.attacker, guard: state.battle.guard, negated: state.battle.negated } : null),
     setGuard: (guard, by) => {
       if (!state.battle) return;
+      const transaction = state.battle.guard === guard ? undefined : beginStandingNegationMutation(ctx, state);
       state.battle.guard = guard;
+      finishStandingNegationMutation(ctx, state, transaction, undefined, { kind: "assign", roles: ["guard"] });
       log(ev, { type: "guardChanged", guard, by });
     },
     swapBattleCard: (out, into) => {
@@ -728,9 +748,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       if (!b || (b.attacker !== out && b.guard !== out)) return;
       // 8-1-7-2: the new card is in the battle from here on, as a card played
       // on top of one is (`vm/play.ts`'s `stackOnto`).
+      const role = b.attacker === out ? "attacker" : "guard";
+      const transaction = out === into ? undefined : beginStandingNegationMutation(ctx, state);
       state.cards[into].battledThisTurn = true;
       if (b.attacker === out) b.attacker = into;
       else b.guard = into;
+      finishStandingNegationMutation(ctx, state, transaction, undefined, { kind: "assign", roles: [role] });
       log(ev, { type: "note", text: `${nameOfCard(ctx, state, into)} takes ${nameOfCard(ctx, state, out)}'s place in the battle` });
     },
     // #936: an attacker whose attacks can't be negated (EX03-14, a
@@ -1161,7 +1184,8 @@ function moveTo(
   const carry = !!opts.carry || (held(from) && held(to));
   // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
   const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode, opts.energyEntry?.negate).mode : route.mode;
-  if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
+  const restoredLeader = mixedStandingLeaderRestoration(state, id, from, to);
+  if (state.cards[id]?.hidden || state.cards[id]?.under.length && !restoredLeader || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
   const movementHistory = captureMovementAutoHistory(ctx, game, state, id);
   // Legacy consumers receive the same final snapshot; no pre-replacement list.
   const sourceNegated = movementHistory.declarations.filter(line => line.negated).map(line => line.index);
@@ -1188,7 +1212,7 @@ function moveTo(
     }
   }
   const effectMove = captureAppliedEffectMove(state, id, opts.appliedEffects);
-  const transaction = beginStandingNegationMutation(ctx, state, to === "battle" ? id : undefined);
+  const transaction = beginStandingNegationMutation(ctx, state, ["battle", "leader"].includes(to) ? id : undefined);
   const zBattleControl = returnInfo?.type === "Z-BATTLE" && from === "battle" && to === "battle" && fromOwner && fromOwner !== owner
     ? { from: fromOwner, to: owner } : undefined;
   const placed = moveCard(state, game, id, to, { energyEntryCleanup: true, owner, position: route.position ?? opts.position, carry, ...(zBattleControl ? { zBattleControl } : {}), ...(mode ? { mode } : {}) });
@@ -1206,7 +1230,7 @@ function moveTo(
     if (to !== "energy" || state.cards[id].zoneEpoch !== opts.energyEntry.epoch + 1) throw new NotYet("optional Energy negation lost its new occurrence", "R476");
     addEffect(state,ev,{target:id,source:id,master:opts.energyEntry.player,kind:"negateKeyword",value:"Energy-Exhaust",until:"game",energyEntryEpoch:state.cards[id].zoneEpoch});
   }
-  finishStandingNegationMutation(ctx, state, transaction, to === "battle" && from !== "battle" ? id : undefined);
+  finishStandingNegationMutation(ctx, state, transaction, state.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined);
   report(!route.replacementApplied && placed.move.to === asked, placed.move.to);
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}), ...(from === "drop" && to === "deck" && (route.position ?? opts.position) === "bottom" && opts.reason === "cost" ? { privateOrder: true as const } : {}) });

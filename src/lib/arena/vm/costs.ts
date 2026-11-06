@@ -1,4 +1,4 @@
-import { expireStandingNegationBatch } from "./standing-negation-runtime";
+import { hasStandingNegationHistory, expireStandingNegationBatch } from "./standing-negation-runtime";
 import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
 import { emptyUnisons } from "./unison-zero";
 import type { CardFilter } from "../text/filters";
@@ -1297,7 +1297,7 @@ function onCard(ctx: EngineContext, game: GameDefinition, state: VmState, e: Con
  */
 function spendUses(ctx: EngineContext, state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): void {
   if (!spent.length) return;
-  if (state.standingNegationHistory) {
+  if (hasStandingNegationHistory(state)) {
     const groups = new Set(spent.filter(effect => effect.uses === 1 && effect.group !== undefined).map(effect => effect.group));
     // Current writers group only one-use cost modifiers. Negation or protection
     // ending during payment needs a separate cost/activation timing contract.

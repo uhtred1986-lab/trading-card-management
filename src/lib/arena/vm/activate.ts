@@ -1,7 +1,7 @@
 import { activateUnderOrigin, activateUnderProblem, type ActivateUnderOrigin } from "./activate-under";
 import { freshAppliedEffectRoot } from "./applied-effect-receipt";
 import { projectStandingNegationMoves } from "./standing-negation-projection";
-import { validateStandingNegationRead } from "./standing-negation-runtime";
+import { hasStandingNegationHistory, validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureCopiedSkill } from "./triggers";
 import { canPayAwakenAlternative, hasAwakenAlternative } from "./awaken-alternative-costs";
 import { fieldAction, fieldPaymentRefusals, isFieldPayment, queueFieldCost } from "./field-costs";
@@ -945,7 +945,7 @@ export function unpaidKeywordPlayTax(ctx: EngineContext, game: GameDefinition, s
   let first: TaxInForce | null = null;
   for (const outlay of outlays.slice(0, KEYWORD_OUTLAYS_MAX)) {
     const after = structuredClone(board);
-    if (after.standingNegationHistory) projectStandingNegationMoves(ctx, game, after, outlay, "keywordPrice");
+    if (hasStandingNegationHistory(after)) projectStandingNegationMoves(ctx, game, after, outlay, "keywordPrice");
     else for (const { id, to } of outlay) moveCard(after, game, id, to, { owner: after.cards[id].owner });
     const unpaid = unpaidActivationTax(ctx, game, after, player, card, taxes);
     if (!unpaid) return null;

@@ -6,12 +6,11 @@ import {skillRecords} from '../../src/lib/arena/draft';
 import {rulesFromRows,type RuleRow} from '../../src/lib/arena/rules-store';
 import {RULES} from '../../src/lib/arena/vm';
 import {rulesetFor} from '../../src/lib/arena/rulesets';
-import {moveCard} from '../../src/lib/arena/vm/zones';
 import {correctSkillText} from '../../src/lib/catalog/errata';
 import {hasKeyword} from '../../src/lib/arena/vm/program';
 import {vmHost} from '../../src/lib/arena/vm/host';
 import {parseRule,printRule,type Rule} from '../../src/lib/arena/lang';
-import type {Action,CardDef,EngineContext,GameEvent,PlayerId} from '../../src/lib/arena/types';
+import type {Action,CardDef,EngineContext,GameEvent,PlayerId,Area} from '../../src/lib/arena/types';
 import type {VmState} from '../../src/lib/arena/vm/state';
 const copy=<T,>(v:T):T=>JSON.parse(JSON.stringify(v));
 const defs:Record<string,CardDef>={F:card('F',{colors:['Yellow'],skill:null,comboCost:0}),L:card('L',{type:'LEADER',skill:null,power:10000})};
@@ -31,7 +30,7 @@ const parsed=parseRule(printRule(rule));assert.ok(parsed.ok);assert.deepEqual(co
 const effect='For the battle, this card gains [double strike], and at the end of the battle, remove this card from the game.';
 for(const text of [`[Activate: Battle] If an unrepresented condition holds: ${effect}`,`[Activate: Battle] ${effect.replace('this card gains','your Leader gains')}`,`[Activate: Main] ${effect}`,`[Auto] When this card attacks, ${effect}`,`[Permanent] ${effect}`,`[Activate: Battle] ${effect.replace('For the battle','For the turn')}`,`[Activate: Battle] ${effect.replace('double strike','critical')}`,`[Activate: Battle] ${effect.replace('at the end of the battle','at the end of the turn')}`,`[Activate: Battle] ${effect.replace('remove this card from the game','draw 1 card')}`,`[Activate: Battle] ${effect} Unrepresented trailing instruction.`,`[Activate: Battle] Choose one—\n・${effect}\n・Draw 1 card.`])assert.ok(skillRecords(card('NEAR',{skill:text})).some(r=>r.unread.length),text);
 const ctx:EngineContext={defs,scripts:rulesFromRows(records.map((r,id)=>({...r,id,status:r.unread.length?'open':'confirmed',source:'compiler'}) as RuleRow),defs)};
-assert.ok(ctx.scripts!['BT20-086'].bySkill[10].unsupported.length);
+assert.equal(ctx.scripts!['BT20-086'].bySkill[10].unsupported.length,0,'R513 now admits the exact conditional Combo Permanent');
 const loaded=rulesetFor('dbs');assert.ok(loaded.ok);const game=loaded.definition,other=(p:PlayerId):PlayerId=>p==='p1'?'p2':'p1';
 let cases=0;
 for(const p of ['p1','p2'] as PlayerId[])for(const role of ['attack','defend'] as const)for(const variant of ['activate','decline','sourceLost','missingUnder','wrongUnder','negated','otherBattle','mixedCounts'] as const){
@@ -42,10 +41,10 @@ for(const p of ['p1','p2'] as PlayerId[])for(const role of ['attack','defend'] a
  const advance=()=>{for(let i=0;i<40&&!['main','charge','combo'].includes(s.prompt.kind);i++){const pr=s.prompt;let a:Action|undefined;if(pr.kind==='zEnergyFromCombo')a={type:'zEnergyFromCombo',player:pr.player,card:null};else if(pr.kind==='chooseCards')a={type:'choose',player:pr.player,cards:pr.choice.candidates.slice(0,pr.choice.min??0)};else if(pr.kind==='orderPending')a={type:'orderPending',player:pr.player,index:s.pendingOrder!.candidates[0]};else a=actions().find(a=>a.type==='counter'&&a.card===null);assert.ok(a,JSON.stringify(pr));take(a);}};
  for(const a of [{type:'chooseFirst',player:s.chooser,first:p},{type:'mulligan',player:p,redraw:false},{type:'mulligan',player:q,redraw:false},{type:'charge',player:p,card:null}] as Action[])take(a);
  // Resources/ordinary cards are staged; ZA, attack, Combo and skill actions are native.
- const stage=(owner:PlayerId,zone:string)=>{const id=s.sides[owner].zones.deck.at(-1)!;assert.ok(moveCard(s,game,id,zone,{owner}).ok);return id;};
+ const stage=(owner:PlayerId,zone:Area)=>{const id=s.sides[owner].zones.deck.at(-1)!;assert.ok(vmHost(ctx,game,s,events).move(id,zone,owner));return id;};
  for(let i=0;i<4;i++){stage(p,'energy');stage(p,'zEnergy');}
  take({type:'endMain',player:p});take({type:'charge',player:q,card:null});advance();take({type:'endMain',player:q});take({type:'charge',player:p,card:null});advance();
- const base=s.sides[p].zones.leader[0];assert.equal(s.cards[base].flipped,false,'base front Auto remains unsupported');s.cards[base].flipped=true;
+ const base=s.sides[p].zones.leader[0];assert.equal(s.cards[base].flipped,false,'base front Auto remains unsupported');vmHost(ctx,game,s,events).flip(base,true);
  const z=s.sides[p].zones.zDeck[0];let a=actions().find(a=>a.type==='activate'&&a.card===z&&a.skill===0);assert.ok(a);take(a);advance();assert.equal(s.sides[p].zones.leader[0],z);assert.equal(s.sides[p].zones.zEnergy.length,0);assert.equal(s.sides[p].zones.energy.filter(id=>s.cards[id].mode==='rest').length,4);assert.ok(s.cards[z].under.includes(base));assert.ok(!actions().some(a=>a.type==='activate'&&a.card===z&&a.skill===30),'no battle');
  if(role==='defend'){take({type:'endMain',player:p});take({type:'charge',player:q,card:null});advance();}
  const attacker=role==='defend'?s.sides[q].zones.leader[0]:variant==='otherBattle'?stage(p,'battle'):z;
@@ -58,7 +57,7 @@ for(const p of ['p1','p2'] as PlayerId[])for(const role of ['attack','defend'] a
  if(variant==='negated')vmHost(ctx,game,s,events).negateAll(z);
  a=actions().find(a=>a.type==='activate'&&a.card===z&&a.skill===30);
  if(['missingUnder','wrongUnder','negated','otherBattle','mixedCounts'].includes(variant)){assert.equal(a,undefined,variant);cases++;continue;}
- assert.ok(a);assert.equal(s.sides[q].zones.combo.length,0,'positive proof does not exercise unsupported #10');
+ assert.ok(a);assert.equal(s.sides[q].zones.combo.length,0,'R512 duration proof does not require an opposing Combo target');
  if(variant!=='decline'){take(a);advance();assert.equal(hasKeyword(ctx,game,s,z,'Strike'),true);assert.ok(s.sides[p].zones.leader.includes(z),'no immediate removal');}
  else assert.equal(hasKeyword(ctx,game,s,z,'Strike'),false);
  if(variant==='sourceLost'){vmHost(ctx,game,s,events).move(z,'removed',p);assert.equal(s.sides[p].zones.leader[0],base);}

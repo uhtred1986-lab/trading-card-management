@@ -1,4 +1,4 @@
-/** R513 standalone native observation. No live writer imports this adapter. */
+/** R513 native mixed-policy observation, shared by live writers and isolated proofs. */
 import type { EngineContext } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { parseSkills } from "../text/cards";
@@ -150,6 +150,22 @@ export function observeMixedStandingNegation(ctx: EngineContext, game: GameDefin
     }
     if (!candidates.length)
         return { version: 2, policy: "mixedWholeV1", cards, battle, candidates };
+    // A prospective opposing Combo target may print protection valid outside
+    // its ordinary Battle Area. An unread Permanent cannot prove its absence.
+    for (const candidate of candidates) {
+        if (candidate.source.policy !== "opponentComboSevenInBattleV1") continue;
+        for (const occurrence of cards.filter(card => card.area === "combo" && card.holder !== candidate.source.master)) {
+            const instance = state.cards[occurrence.card];
+            if (instance.hidden) continue;
+            const def = ctx.defs[occurrence.cardId], scripts = programsOf(ctx, def, occurrence.side);
+            for (const skill of parseSkills((occurrence.side === "back" ? def.back?.skill : def.skill) ?? null)) {
+                if (skill.kind !== "permanent") continue;
+                const script = scripts.bySkill[skill.index];
+                if (!script || !Array.isArray(script.unsupported) || script.unsupported.length || !Array.isArray(script.ops))
+                    refuse("observe complete opposing Combo Permanent records before mixed suppression");
+            }
+        }
+    }
     if (state.effects.some(effect => effect.kind === "forbid" && effect.forbid?.what === "beNegated"))
         refuse("observe timed beNegated protection with reviewed mixed-policy qualification");
     // Public sources outside the target areas can supply protections or grants.

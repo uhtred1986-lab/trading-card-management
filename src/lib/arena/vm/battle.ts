@@ -1,9 +1,10 @@
+import { needsComboDropBatch, prepareComboDropBatch, commitComboDropBatch } from "./combo-drop-batch";
 import { captureFlowPlacement, cleanupFlowPlacement } from "./flow-placement-cleanup";
 import { requireCounterArrivalTiming } from "./auto-play-cost-runtime";
 import type { MovementAutoHistory } from "./movement-auto-history";
 import { freshAppliedEffectRoot } from "./applied-effect-receipt";
 import { projectStandingNegationMoves } from "./standing-negation-projection";
-import { validateStandingNegationRead } from "./standing-negation-runtime";
+import { validateStandingNegationRead, beginStandingNegationMutation, finishStandingNegationMutation, hasStandingNegationHistory } from "./standing-negation-runtime";
 import { captureComboDeclaration, dropComboPermission, requireComboDeclaration } from "./drop-combo";
 import { counterArrivalParentProblem } from "./counter-arrival-parent";
 import { counterArrivalDescriptor } from "./counter-arrival-policy";
@@ -170,8 +171,10 @@ export function declareAttack(ctx: EngineContext, game: GameDefinition, state: V
   setMode(ctx, game, state, ev, attacker, "rest");
   // 8-1, #156: the count [Dual Attack]'s `attacked` condition reads.
   state.cards[attacker].attacksThisTurn = (state.cards[attacker].attacksThisTurn ?? 0) + 1;
+  const battleMutation = beginStandingNegationMutation(ctx, state);
   state.battle = { attacker, guard: action.target, target: action.target, step: "declared", negated: false, blockerOffered: false, counters: [] };
   joinsBattle(state, attacker, action.target);
+  finishStandingNegationMutation(ctx, state, battleMutation, undefined, { kind: "begin" });
   log(ev, { type: "attack", attacker, target: action.target });
   enterPhase(ctx, game, state, ev, "battle");
 }
@@ -423,7 +426,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
             validateStandingNegationRead(ctx, projected);
             const route = leaveRoute(ctx, game, projected, [], id, "combo", "drop", {});
             if (route.stays || route.to !== "drop") throw new NotYet("resolve a replacement of a pre-announced Combo-to-Drop Auto", "#609");
-            if (projected.standingNegationHistory) {
+            if (hasStandingNegationHistory(projected)) {
               projectStandingNegationMoves(ctx, game, projected, [{ id, to: "drop", owner: holder,
                 ...(route.mode ? { mode: route.mode } : {}), ...(route.position ? { position: route.position } : {}) }], "comboSubject");
             } else {
@@ -449,6 +452,12 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
           end.departureCursor = 0;
           end.specialSubjects = [];
           end.specialCursor = 0;
+        }
+        if (end.stage === "departures" && needsComboDropBatch(state)) {
+          const batch = prepareComboDropBatch(ctx, game, state);
+          end.specialSubjects = commitComboDropBatch(ctx, game, state, ev, batch);
+          end.departureCursor = end.departureSubjects!.length;
+          end.stage = "battleEndCheckpoint";
         }
         if (end.stage === "departures") {
           // A substitute has finished its saved interpreter frame. Its own
@@ -543,6 +552,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
           const subject = end.specialSubjects![end.specialCursor ?? 0];
           end.specialCursor = (end.specialCursor ?? 0) + 1;
           pendAutos(ctx, game, state, { event: "moved", card: subject.card, controller: subject.controller,
+            ...(subject.movementHistory ? { movementHistory: subject.movementHistory } : {}),
             args: { from: "combo", to: subject.to, cleanupSpecial: true, ...(subject.hidden ? { hidden: true } : {}) } },
           (match) => match.trigger === "comboed", undefined, undefined, subject.origin);
         }
@@ -1848,8 +1858,10 @@ export function applyBlock(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (!pr.candidates.includes(action.card)) throw new IllegalAction("that card can't block now");
   const b = state.battle!;
   setMode(ctx, game, state, ev, action.card, "rest");
+  const battleMutation = beginStandingNegationMutation(ctx, state);
   b.guard = action.card;
   joinsBattle(state, action.card);
+  finishStandingNegationMutation(ctx, state, battleMutation, undefined, { kind: "assign", roles: ["guard"] });
   log(ev, { type: "guardChanged", guard: action.card, by: action.card });
   fire(ctx, game, state, { event: "keywordActivated", card: action.card, controller: masterOf(game, state, action.card), args: { keyword: "Blocker" } });
   // The new guard is attacked too (8-1-2-1), the same `attacked`/`yourLeaderAttacked` moment the original target answered to.

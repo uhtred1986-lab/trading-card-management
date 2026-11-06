@@ -1,6 +1,6 @@
 import { retireAppliedEffectRetarget, type Receipt } from "./applied-effect-receipt";
 import { refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
-import { refuseStandingNegationMutation } from "./standing-negation-runtime";
+import { beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation } from "./standing-negation-runtime";
 /**
  * A card being played, and what that comes to on the board (5-5, 8-3-2).
  *
@@ -429,6 +429,8 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   if (!arrived || arrived.zone !== to || arrived.owner !== player) {
     throw new RulesetBroken(state.game, `${card} was played onto ${host} but is in ${arrived ? `${arrived.owner}'s ${arrived.zone}` : "no area"}, not ${player}'s ${to} (23-2-1)`);
   }
+  const transaction = state.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, state) : undefined;
+  const roles = (["attacker", "guard"] as const).filter(role => state.battle?.[role] === host);
   const under = moveCard(state, game, host, to, { under: card });
   if (!under.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${card}: ${under.refused}`);
   const list = state.sides[player].zones[to];
@@ -456,6 +458,7 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
     if (b.attacker === host) b.attacker = card;
     if (b.guard === host) b.guard = card;
   }
+  finishStandingNegationMutation(ctx, state, transaction, [card, ...placed], roles.length ? { kind: "assign", roles } : undefined);
   log(ev, { type: "stack", top: card, under: state.cards[card].under.slice() });
   // It has not left the area (23-2-2-2), but going under is still a moment
   // the card may name: "when this card is placed under a … card" (BT29-140).

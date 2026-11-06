@@ -27,8 +27,8 @@ export function standingWholeScript(script: Script | undefined): boolean {
     && !skillPriceProblem(script.price) && canonical(script.price) === canonical(zeroSkillPrice());
 }
 
-/** R513 isolated policy contract; native admission is deliberately separate. */
-const comboOperation: Op = {
+/** R513 exact conditional Combo policy shared by native history and admission. */
+const comboOperation: Extract<Op, { op: "if" }> = {
   op: "if", cond: { kind: "count", sel: { side: "you", area: "combo" }, atLeast: 7 }, then: [{
     op: "if", cond: { kind: "inBattle", sel: { special: "self" } }, then: [{
       op: "negateSkills", target: { sel: { side: "opponent", area: "combo", count: 99, upTo: false } }, until: "game",
@@ -36,7 +36,14 @@ const comboOperation: Op = {
   }],
 };
 export function standingComboWholeDescriptor(ops: unknown): boolean {
-  return canonical(ops) === canonical([comboOperation]);
+  // The DSL omits explicit default-false upTo. Only that one target field
+  // has a second canonical representation; no other optional field is erased.
+  const implicitDefault: Op = { ...comboOperation, then: [{
+    op: "if", cond: { kind: "inBattle", sel: { special: "self" } }, then: [{
+      op: "negateSkills", target: { sel: { side: "opponent", area: "combo", count: 99 } }, until: "game",
+    }],
+  }] };
+  return canonical(ops) === canonical([comboOperation]) || canonical(ops) === canonical([implicitDefault]);
 }
 export function standingComboWholePrinted(skill: Skill): boolean {
   // Reuse the exact qualification checks without relaxing the legacy wording.

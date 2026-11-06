@@ -8,7 +8,7 @@ import { pairedSelfScript, requirePairedSelf, requirePairedSelfShape, requirePai
 import { requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { guardUnownedEnergyEntry } from "./energy-entry-runtime";
-import { expireStandingNegationBatch, beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
+import { mixedStandingLeaderRestoration, hasStandingNegationHistory, expireStandingNegationBatch, beginStandingNegationMutation, finishStandingNegationMutation, refuseStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { capturedGrantedSkillNegated } from "./effects";
 import { capturedSkillShowing } from "./triggers";
 import { requireAwakenAlternativeFrame, stepAwakenAlternative } from "./awaken-alternative-costs";
@@ -298,7 +298,7 @@ const STEP_WORK: Record<string, Work> = {
     run: (ctx, game, state, ev) => {
       // 7-4-5/6: "for the turn" effects end, and 20-15's last timing is the
       // one that happens as the turn closes over them.
-      if (state.standingNegationHistory) {
+      if (hasStandingNegationHistory(state)) {
         returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
           ...endEffectsOfDuration(s, events, "turn"),
           ...endEffectsOfDuration(s, events, "battleOrTurn"),
@@ -370,7 +370,7 @@ const STEP_WORK: Record<string, Work> = {
       // step it was written for has now happened, so it is spent — on this
       // player's cards only, which is what makes "next" the right one
       // whichever turn the effect was made on (the legacy `turn.activeAll`).
-      if (state.standingNegationHistory) {
+      if (hasStandingNegationHistory(state)) {
         returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
           ...endAfterChargeEffects(s, events, covered), ...endAfterOpponentChargeEffects(s, events),
         ]));
@@ -497,7 +497,7 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
       // ends them after [Revenge]'s KO and [Dual Attack]'s stand (#154 found
       // the rules engine never ending them at all, through [Alliance]).
       if (top.phase === "battle") {
-        if (state.standingNegationHistory) {
+        if (hasStandingNegationHistory(state)) {
           returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
             ...endEffectsOfDuration(s, events, "battle"), ...endEffectsOfDuration(s, events, "battleOrTurn"),
           ]));
@@ -505,7 +505,9 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
           returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battle"));
           returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
         }
+        const battleMutation = beginStandingNegationMutation(ctx, state);
         state.battle = null;
+        finishStandingNegationMutation(ctx, state, battleMutation, undefined, { kind: "end" });
       }
       // 7-3: a phase running out of steps is the moment "at the end of your
       // Main Phase" names. No client draws a phase *ending* and the legacy
@@ -746,7 +748,7 @@ export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmSt
     // 20-13-5: a duration ending in this Charge Phase ends immediately when
     // that phase is skipped, even though its Active Step will never run.
     if (name === game.game?.phases?.[0]) {
-      if (state.standingNegationHistory) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endAfterOpponentChargeEffects(s, events)));
+      if (hasStandingNegationHistory(state)) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endAfterOpponentChargeEffects(s, events)));
       else endAfterOpponentChargeEffects(state, ev);
     }
     // …and so does "until the start of your next Main Phase" (#1163) when the
@@ -1896,26 +1898,27 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (opts.onKoResult) requireKoRoute({ ...route.koProvenance, primitiveRemoval });
   if (route.stays) { reportKo(route.koProvenance, false); report(false); return; }
   if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { reportKo(route.koProvenance, false); report(false); return; }
-  if (state.cards[id]?.hidden || state.cards[id]?.under.length || from === null || (from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, route.to === "battle" ? id : undefined);
+  const restoredLeader = mixedStandingLeaderRestoration(state, id, from, route.to);
+  if (state.cards[id]?.hidden || state.cards[id]?.under.length && !restoredLeader || from === null || (from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, ["battle", "leader"].includes(route.to) ? id : undefined);
   const movementHistory = captureMovementAutoHistory(ctx, game, state, id);
   // Legacy consumers receive the same final snapshot; no pre-replacement list.
   const sourceNegated = movementHistory.declarations.filter(line => line.negated).map(line => line.index);
   const placement = captureFlowPlacement(state, id, opts.appliedEffects);
   if (movementHistory.unresolved.length || needsFlowPaymentPreview(placement)) {
     const projected = structuredClone(state);
-    const projectedMutation = beginStandingNegationMutation(ctx, projected, route.to === "battle" ? id : undefined);
+    const projectedMutation = beginStandingNegationMutation(ctx, projected, ["battle", "leader"].includes(route.to) ? id : undefined);
     const projectedMove = moveCard(projected, game, id, route.to, { ...opts, energyEntryCleanup: true,
       ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
     if (projectedMove.ok) {
       cleanupFlowPlacement(projected, [], projectedMove.move, structuredClone(placement));
-      finishStandingNegationMutation(ctx, projected, projectedMutation, projectedMove.move.to === "battle" && from !== "battle" ? id : undefined);
+      finishStandingNegationMutation(ctx, projected, projectedMutation, projected.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : projectedMove.move.to === "battle" && from !== "battle" ? id : undefined);
       const prospective = movement(id, from, projectedMove.move.to, projectedMove.move.owner, opts, wasHidden, fromHolder);
       requireMovementAutoBodies(game, projected, movementHistory, prospective, areaCarries(from ?? "", projectedMove.move.to, fromHolder === projectedMove.move.owner), undefined, opts.movementAuto?.also);
     }
   }
   opts.movementAuto?.beforeMutation(movementHistory);
   if (redirectNote) log(ev, redirectNote);
-  const transaction = beginStandingNegationMutation(ctx, state, route.to === "battle" ? id : undefined);
+  const transaction = beginStandingNegationMutation(ctx, state, ["battle", "leader"].includes(route.to) ? id : undefined);
   const result = moveCard(state, game, id, route.to, { ...opts, energyEntryCleanup: true, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
   const to = result.move.to;
@@ -1930,7 +1933,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
   if (to === asked) opts.beforeTriggers?.();
-  finishStandingNegationMutation(ctx, state, transaction, to === "battle" && from !== "battle" ? id : undefined);
+  finishStandingNegationMutation(ctx, state, transaction, state.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined);
   reportKo(route.koProvenance, from !== result.move.to);
   report(!route.replacementApplied && result.move.to === asked, result.move.to);
   const moment = movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder);

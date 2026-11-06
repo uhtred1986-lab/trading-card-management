@@ -1,4 +1,4 @@
-/** R513 isolated read-seal contract. Native initialization is not wired yet. */
+/** R513 private read seals issued by the validated native mixed-policy observer. */
 import type { EngineContext } from "../types";
 import type { VmState } from "./state";
 import type { MixedStandingNegationHistory, MixedStandingNegationObservation } from "./standing-negation-mixed-history";
@@ -36,7 +36,7 @@ function fingerprint(ctx: EngineContext, state: VmState): string {
             attacker: occurrence(state.battle.attacker), guard: occurrence(state.battle.guard),
         } : null, effects: state.effects, grants: state.resolvedGrantDeletions });
 }
-/** The future observer must derive observation from this board and validate
+/** The native observer derives observation from this board and validates
  * grant history before issuing this transient witness, as for the v1 seal.
  */
 export function issueMixedStandingNegationReadSeal(ctx: EngineContext, state: VmState, history: MixedStandingNegationHistory, observation: MixedStandingNegationObservation): void {

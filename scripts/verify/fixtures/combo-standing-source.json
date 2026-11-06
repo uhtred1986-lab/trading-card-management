@@ -145,7 +145,7 @@
           },
           {
             "q": "If there is a {DB04-66 King Vegeta, the Majestic Ruler} in play in your opponent's Battle Area and you play this card, can you negate the skill of your opponent's {DB04-66 King Vegeta, the Majestic Ruler}?",
-            "a": "No, you can't.\nThe continuous effect of your opponent's {DB04-66 King Vegeta, the Majestic Ruler} negates this card\u2019s skill."
+            "a": "No, you can't.\nThe continuous effect of your opponent's {DB04-66 King Vegeta, the Majestic Ruler} negates this card’s skill."
           },
           {
             "q": "If you have this card in play in your Battle Area and you use {P-069 Miracle Strike Gogeta} to negate the skill of your opponent's {DB04-66 King Vegeta, the Majestic Ruler}, does your opponent's {DB04-66 King Vegeta, the Majestic Ruler} get its skill back during the end phase?",
@@ -156,8 +156,8 @@
             "a": "Yes, they do.\nThe skills of all other Battle Cards are negated, but since [Over Realm] is activated and resolved in advance, any cards played with [Over Realm] are sent to their owners' Warps at end of turn."
           },
           {
-            "q": "{BT1-043 Whis, Judge of the Gods} is played when this card is already in play. Are {BT1-043 Whis, Judge of the Gods}\u2019s skills negated?",
-            "a": "No, they aren\u2019t."
+            "q": "{BT1-043 Whis, Judge of the Gods} is played when this card is already in play. Are {BT1-043 Whis, Judge of the Gods}’s skills negated?",
+            "a": "No, they aren’t."
           },
           {
             "q": "If you have this card in play and there are Shadow Tokens being given [Blocker] by {BT7-046 Mass Replication}'s permanent skill, are the skills on those Shadow Tokens negated?",
@@ -173,7 +173,7 @@
           },
           {
             "q": "If you have this card and {BT6-047 Babidi, Overseer of Destruction} in play in your Battle Area, can you use {BT3-029 Baby's Subdual} to gain control of your opponent's {BT6-047 Babidi, Overseer of Destruction}?",
-            "a": "Yes, you can.\nThe permanent skills of both players\u2019 {BT6-047 Babidi, Overseer of Destruction} cards are negated, so you can gain control of your opponent\u2019s copy."
+            "a": "Yes, you can.\nThe permanent skills of both players’ {BT6-047 Babidi, Overseer of Destruction} cards are negated, so you can gain control of your opponent’s copy."
           },
           {
             "q": "Does DB1-066 King Vegeta, the Majestic Ruler negate skills on Battle Cards in your hand, drop area, etc.?",
@@ -181,15 +181,15 @@
           },
           {
             "q": "How come I can use the effect of {BT1-043 Whis, Judge of the Gods} and {TB1-097 Son Goku, The Awakened Power} when my opponent has {DB1-066 King Vegeta, the Majestic Ruler} in play? How is this different from {BT1-107 Cold Bloodlust} negating their skills?",
-            "a": "The [Permanent] skill of {Whis, Judge of the Gods} and {Son Goku, The Awakened Power} is only applied when in your Battle Area. This is the same as how the {BT7-119 Champa and Vados, Gracious Aid} effect that reduces combo cost is not applied unless the card is played in your Battle Area.\nBecause {Cold Bloodlust} negates the skills of your opponent\u2019s Battle Card in hand before it is played, the [Permanent] skill of {Whis, Judge of the Gods} and {Son Goku, The Awakened Power} are not activated when they are played in the Battle Area. Therefore, {Cold Bloodlust} negates the skills of {Whis, Judge of the Gods} and {Son Goku, The Awakened Power}."
+            "a": "The [Permanent] skill of {Whis, Judge of the Gods} and {Son Goku, The Awakened Power} is only applied when in your Battle Area. This is the same as how the {BT7-119 Champa and Vados, Gracious Aid} effect that reduces combo cost is not applied unless the card is played in your Battle Area.\nBecause {Cold Bloodlust} negates the skills of your opponent’s Battle Card in hand before it is played, the [Permanent] skill of {Whis, Judge of the Gods} and {Son Goku, The Awakened Power} are not activated when they are played in the Battle Area. Therefore, {Cold Bloodlust} negates the skills of {Whis, Judge of the Gods} and {Son Goku, The Awakened Power}."
           },
           {
             "q": "How come if {DB1-066 King Vegeta, the Majestic Ruler} is already in play, {BT1-043 Whis, Judge of the Gods} and {TB1-097 Son Goku, The Awakened Power} can activate their [Permanent] skill?",
-            "a": "Cards like {Whis, Judge of the Gods} and {Son Goku, The Awakened Power} have [Permanent] skills that apply as soon as they move from your hand to your Battle Area. {King Vegeta, the Majestic Ruler}\u2019s skill works in the same way.\nTherefore, {Whis, Judge of the Gods} and {Son Goku, The Awakened Power}\u2019s skills can\u2019t be negated at that point. If you wanted to negate skills like these, you have to negate them before the cards are played.\nReference:\nOfficial Rules: 0-2-5: If a card effect directs a player to carry out a certain action, yet there is an active effect prohibiting that action, that effect is prioritized and the action is not conducted."
+            "a": "Cards like {Whis, Judge of the Gods} and {Son Goku, The Awakened Power} have [Permanent] skills that apply as soon as they move from your hand to your Battle Area. {King Vegeta, the Majestic Ruler}’s skill works in the same way.\nTherefore, {Whis, Judge of the Gods} and {Son Goku, The Awakened Power}’s skills can’t be negated at that point. If you wanted to negate skills like these, you have to negate them before the cards are played.\nReference:\nOfficial Rules: 0-2-5: If a card effect directs a player to carry out a certain action, yet there is an active effect prohibiting that action, that effect is prioritized and the action is not conducted."
           },
           {
-            "q": "Why can\u2019t you use the effects of a second {DB1-066 King Vegeta, the Majestic Ruler} when another {King Vegeta, the Majestic Ruler} is in play?",
-            "a": "{King Vegeta, the Majestic Ruler} doesn\u2019t have an effect that prevents his skills from being negated, so {King Vegeta, the Majestic Ruler} is different from {BT1-043 Whis, Judge of the Gods} in that 1-3-3 from the General Rules doesn\u2019t apply to him. As such, the skills of the {King Vegeta, the Majestic Ruler} played first are given priority.\nReference:\nOfficial Rules: 0-2-5: If a card effect directs a player to carry out a certain action, yet there is an active effect prohibiting that action, that effect is prioritized and the action is not conducted."
+            "q": "Why can’t you use the effects of a second {DB1-066 King Vegeta, the Majestic Ruler} when another {King Vegeta, the Majestic Ruler} is in play?",
+            "a": "{King Vegeta, the Majestic Ruler} doesn’t have an effect that prevents his skills from being negated, so {King Vegeta, the Majestic Ruler} is different from {BT1-043 Whis, Judge of the Gods} in that 1-3-3 from the General Rules doesn’t apply to him. As such, the skills of the {King Vegeta, the Majestic Ruler} played first are given priority.\nReference:\nOfficial Rules: 0-2-5: If a card effect directs a player to carry out a certain action, yet there is an active effect prohibiting that action, that effect is prioritized and the action is not conducted."
           }
         ]
       }
@@ -236,12 +236,12 @@
             "a": "No, it won't. Once your opponent's {DB1-066 King Vegeta, the Majestic Ruler}'s skill is negated, this card's skill comes into effect. Even when {P-069 Miracle Strike Gogeta}'s skill wears off, {DB1-066 King Vegeta, the Majestic Ruler}'s skill will remain negated."
           },
           {
-            "q": "When this card is in play, will Battle Cards played using [Over Realm] still be sent to their owners\u2019 Warps at the end of the turn?",
-            "a": "Yes, they will. The Battle Card's skills will be negated, but [Over Realm] was activated and resolved, so the cards are still sent to their owners\u2019 Warps."
+            "q": "When this card is in play, will Battle Cards played using [Over Realm] still be sent to their owners’ Warps at the end of the turn?",
+            "a": "Yes, they will. The Battle Card's skills will be negated, but [Over Realm] was activated and resolved, so the cards are still sent to their owners’ Warps."
           },
           {
             "q": "When this card is in play and {BT1-043 Whis, Judge of the Gods} is played, are {BT1-043 Whis, Judge of the Gods}'s skills negated?",
-            "a": "No, they aren\u2019t."
+            "a": "No, they aren’t."
           },
           {
             "q": "When this card is in play and there are Shadow Tokens in play with [Blocker] that were created by the permanent skill of {BT7-046 Mass Replication}, are the skills of those Shadow Tokens negated?",
@@ -260,12 +260,12 @@
             "a": "Yes, you can. The [Permanent] skill on both players' copies of {BT6-047 Babidi, Overseer of Destruction} is negated, so you can have more than one copy in play."
           },
           {
-            "q": "If your opponent uses a skill to gain control of this card, can they activate and resolve this card\u2019s auto skill?",
+            "q": "If your opponent uses a skill to gain control of this card, can they activate and resolve this card’s auto skill?",
             "a": "Yes, it activates. The master of the Battle Area prior to the card changing control becomes the master of this skill, and activates and resolves it."
           },
           {
-            "q": "Can you add this card to your hand using {BT3-105 Planet Vegeta}\u2019s auto skill?",
-            "a": "No, you can\u2019t."
+            "q": "Can you add this card to your hand using {BT3-105 Planet Vegeta}’s auto skill?",
+            "a": "No, you can’t."
           }
         ]
       }
@@ -325,12 +325,108 @@
         "name": "Whis, Judge of the Gods",
         "qa": [
           {
-            "q": "What does {BT1-043 Whis, Judge of the Gods}\u2019s auto skill \u201cafter your current turn ends, take another turn\u201d mean?",
+            "q": "What does {BT1-043 Whis, Judge of the Gods}’s auto skill “after your current turn ends, take another turn” mean?",
             "a": "The opponent does not start their turn after you end your turn. You get to play a full extra turn - from Charge Phase to End Phase - instead."
           },
           {
             "q": "Can {BT1-043 Whis, Judge of the Gods} attack even when there are active effects that prevent Battle Cards from attacking?",
-            "a": "No, it cannot.\n\u201cBattle Cards cannot attack\u201d and similar effects don\u2019t negate attacks; they simply prevent Battle Cards from attacking at all."
+            "a": "No, it cannot.\n“Battle Cards cannot attack” and similar effects don’t negate attacks; they simply prevent Battle Cards from attacking at all."
+          }
+        ]
+      }
+    ]
+  },
+  "BT9-109": {
+    "card": {
+      "id": "BT9-109",
+      "type": "EXTRA",
+      "colors": [
+        "Red",
+        "Blue"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Emperor's Death Beam",
+      "characters": [],
+      "traits": [],
+      "skill": "[Energy-Exhaust]<br>[Activate: Main/Battle] Choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and it gets -30000 power for the duration of the turn.<br>[Activate: Main] Send this card from your Drop Area to your Warp: Look at the top card of your deck; if it's a multicolor Extra Card, you may add it to your hand; otherwise, place it on top of your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "BT9-109",
+    "faq": []
+  },
+  "BT1-055": {
+    "card": {
+      "id": "BT1-055",
+      "type": "EXTRA",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Whis's Coercion",
+      "characters": [],
+      "traits": [],
+      "skill": "[Counter: Attack] Negate the attack. Then, choose up to 1 of your energy and switch it to Active Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faqKey": "BT1-055",
+    "faq": [
+      {
+        "name": "Whis's Coercion",
+        "qa": [
+          {
+            "q": "When you negate an attack, do you also negate any auto skills on the attacking card that are activated by attacking?",
+            "a": "No, you do not.\nThe skill activates and resolves after the attack has been negated."
+          }
+        ]
+      }
+    ]
+  },
+  "BT1-001": {
+    "card": {
+      "id": "BT1-001",
+      "type": "LEADER",
+      "colors": [
+        "Red"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Champa",
+      "characters": [
+        "Champa"
+      ],
+      "traits": [
+        "God"
+      ],
+      "skill": "[Auto] [Once per turn] When your Battle Card attacks a Leader Card, if the attacking card has 15000 or more power, draw 1 card.<br>[Awaken] When your life is at 4 or less: You may draw 2 cards and flip this card over.",
+      "backName": "God of Destruction Champa",
+      "backSkill": "[Auto] When this card attacks, draw 1 card.<br>[Activate: Main] Place 1 card from your hand in the Drop Area: Choose this card or 1 of your Battle Cards. It gains [Double Strike] for the duration of the turn."
+    },
+    "faqKey": "BT1-001",
+    "faq": [
+      {
+        "name": "Champa",
+        "qa": [
+          {
+            "q": "Can you choose not to draw cards off {BT1-001 Champa}’s auto skill?",
+            "a": "No, you cannot.\nYou must draw a card."
+          },
+          {
+            "q": "When one of your Battle Cards with power less than 15000 attacks for the first time, does the auto skill of {BT1-001 Champa} activate?",
+            "a": "Yes, it does.However, you cannot draw a card off of it."
+          },
+          {
+            "q": "The auto skills of {BT1-001 Champa} and {BT1-014 Saiyan Cabba} activated simultaneously. In this case, can you draw a card off {BT1-001 Champa}’s auto skill?",
+            "a": "When two or more of your auto skills activate simultaneously, you can resolve them in any order you choose.\nIf you resolve {BT1-014 Saiyan Cabba}’s skill first, the card’s power will exceed 15000, so you can draw a card with {BT1-001 Champa}.\nIf you resolve {BT1-001 Champa}’s skill first, the power of {BT1-014 Saiyan Cabba} is still 5000, so you cannot draw a card."
           }
         ]
       }

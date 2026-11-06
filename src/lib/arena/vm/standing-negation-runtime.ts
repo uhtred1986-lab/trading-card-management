@@ -1,3 +1,11 @@
+import { rulesetFor, type GameDefinition } from "../rulesets";
+import { hasMixedStandingPolicy, mixedStandingOccurrences } from "./standing-negation-mixed-observation";
+import { initializeMixedStandingNegation, assertMixedStandingNegationSettled, captureMixedStandingNegationMutation,
+  settleMixedStandingNegationMutation, type MixedStandingNegationMutation, type MixedBattleChange } from "./standing-negation-mixed-transaction";
+import { mixedStandingNegationReadSealMatches } from "./standing-negation-mixed-read";
+import { mixedStandingObservationFromHistory } from "./standing-negation-mixed-history";
+import { canonicalTaxValue as canonical } from "./tax-receipt";
+
 import { standingWholePrinted, standingWholeScript } from "./standing-negation-policy";
 import { requireStandingNegationBounds, standingWholeIntent } from "./standing-negation-bounds";
 /** R477/R509 bounded native integration; exact source admission retains contextual refusals. */
@@ -8,11 +16,52 @@ import { programsOf } from "./common";
 import { NotYet } from "./errors";
 import { emptyStandingNegationHistory } from "./standing-negation-history";
 import { requireStandingWholeSourceAreas, standingNegationBattleOccurrences } from "./standing-negation-observation";
-import { assertStandingNegationSettled, captureStandingNegationMutation, settleStandingNegationMutation, type StandingNegationMutation } from "./standing-negation-transaction";
+import { assertStandingNegationSettled, captureStandingNegationMutation, settleStandingNegationMutation, type StandingNegationMutation as LegacyStandingMutation } from "./standing-negation-transaction";
 import { invalidateStandingNegationReadSeal, issueStandingNegationReadSeal, standingNegationReadSealMatches } from "./standing-negation-read";
 
+export type StandingNegationMutation = LegacyStandingMutation | MixedStandingNegationMutation;
+const mixedCaptures = new WeakMap<MixedStandingNegationMutation, {
+  game: GameDefinition; before: ReturnType<typeof mixedStandingOccurrences>;
+  battle: ReturnType<typeof mixedStandingObservationFromHistory>["battle"];
+}>();
+function actualGame(ctx: EngineContext, state: VmState): GameDefinition {
+  const pinned = (ctx as EngineContext & { rulesetDefinition?: GameDefinition }).rulesetDefinition;
+  if (pinned?.id === state.game) return pinned;
+  const loaded = rulesetFor(state.game);
+  if (!loaded.ok) throw new NotYet("load the actual standing-negation game definition", "R513");
+  return loaded.definition;
+}
+function mixedSource(ctx: EngineContext, state: VmState, id: string): boolean {
+  const def = ctx.defs[state.cards[id]?.cardId];
+  return !!def && hasMixedStandingPolicy({ ...ctx, defs: { [def.id]: def } });
+}
+function presentMixedSource(ctx: EngineContext, state: VmState): boolean {
+  return (["p1", "p2"] as const).some(p => state.sides[p].zones.leader.some(id => mixedSource(ctx, state, id)));
+}
+/** Native 15-1-5 restoration has an existing exact paid Z-Leader base receipt.
+ * This authorizes only that secondary arrival, never an arbitrary pile card.
+ */
+export function mixedStandingLeaderRestoration(state: VmState, id: string, from: string | null, to: string): string | undefined {
+  if (!state.mixedStandingNegationHistory || from !== "leader" || to === "leader") return undefined;
+  const card = state.cards[id];
+  if (!card?.zCard || !card.under.length) return undefined;
+  const base = card.leaderBase, original = base && state.cards[base.card];
+  if (card.leaderStackVersion !== 1 || !base || !original || !card.under.includes(base.card)
+    || !Number.isSafeInteger(base.epoch) || base.epoch !== (original.zoneEpoch ?? 0) || original.owner !== card.owner)
+    throw new NotYet("bind mixed Z-Leader restoration to its original base occurrence", "R513");
+  return base.card;
+}
+export function hasStandingNegationHistory(state: VmState): boolean {
+  return !!(state.standingNegationHistory || state.mixedStandingNegationHistory);
+}
 /** New games only: existing affected saves may never acquire inferred history. */
 export function initializeStandingNegation(ctx: EngineContext, state: VmState): void {
+  const participatingDefs: EngineContext["defs"] = {};
+  for (const card of Object.values(state.cards)) if (ctx.defs[card.cardId]) participatingDefs[card.cardId] = ctx.defs[card.cardId];
+  if (state.game === "dbs" && hasMixedStandingPolicy({ ...ctx, defs: participatingDefs })) {
+    initializeMixedStandingNegation(ctx, actualGame(ctx, state), state);
+    return;
+  }
   const complete = Object.values(ctx.defs).some(def => ["BATTLE", "Z-BATTLE", "TOKEN"].includes(def.type) && (["front", "back"] as const).some(side => parseSkills((side === "back" ? def.back?.skill : def.skill) ?? null).some(skill => {
     if (!standingWholePrinted(skill)) return false;
     const script = programsOf(ctx, def, side).bySkill[skill.index];
@@ -22,6 +71,12 @@ export function initializeStandingNegation(ctx: EngineContext, state: VmState): 
   validateStandingNegationRead(ctx, state);
 }
 export function validateStandingNegationRead(ctx: EngineContext, state: VmState): void {
+  if (state.mixedStandingNegationHistory) {
+    if (!mixedStandingNegationReadSealMatches(ctx, state, state.mixedStandingNegationHistory))
+      assertMixedStandingNegationSettled(ctx, actualGame(ctx, state), state);
+    return;
+  }
+  if (state.game === "dbs" && presentMixedSource(ctx, state)) throw new NotYet("rebuild affected mixed history without migrating legacy generations", "R513");
   requireStandingWholeSourceAreas(ctx, state);
   if (!state.standingNegationHistory) {
     const potential = (["p1", "p2"] as const).some(master => (state.sides[master].zones.battle ?? []).some(id => {
@@ -39,19 +94,53 @@ export function validateStandingNegationRead(ctx: EngineContext, state: VmState)
   issueStandingNegationReadSeal(ctx, state);
 }
 export function beginStandingNegationMutation(ctx: EngineContext, state: VmState, incoming?: string): StandingNegationMutation | undefined {
+  if (state.mixedStandingNegationHistory) {
+    const game = actualGame(ctx, state), before = mixedStandingOccurrences(ctx, game, state);
+    const battle = mixedStandingObservationFromHistory(state.mixedStandingNegationHistory).battle;
+    const token = captureMixedStandingNegationMutation(ctx, game, state);
+    mixedCaptures.set(token, { game, before, battle });
+    return token;
+  }
+  if (state.game === "dbs" && (presentMixedSource(ctx, state) || incoming && mixedSource(ctx, state, incoming)))
+    throw new NotYet("rebuild affected mixed history before source entry", "R513");
   requireStandingNegationBounds(ctx, state, incoming);
   if (!state.standingNegationHistory) return undefined;
   const token = captureStandingNegationMutation(ctx, state);
   invalidateStandingNegationReadSeal(state);
   return token;
 }
-export function finishStandingNegationMutation(ctx: EngineContext, state: VmState, token: StandingNegationMutation | undefined, arrival?: string): void {
+export function finishStandingNegationMutation(ctx: EngineContext, state: VmState, token: StandingNegationMutation | undefined,
+  arrival?: string | readonly string[], battle?: MixedBattleChange): void {
   if (!token) return;
-  const arrivals = arrival ? standingNegationBattleOccurrences(ctx, state).filter(card => card.card === arrival) : [];
-  settleStandingNegationMutation(ctx, state, token, { arrivals });
+  const mixed = mixedCaptures.get(token as MixedStandingNegationMutation);
+  const ids = arrival === undefined ? [] : typeof arrival === "string" ? [arrival] : arrival;
+  if (mixed) {
+    const board = mixedStandingOccurrences(ctx, mixed.game, state);
+    const arrivals = board.filter(card => ids.includes(card.card) && !mixed.before.some(prior => canonical(prior) === canonical(card)));
+    if (!battle && mixed.battle && state.battle) {
+      const roles = (["attacker", "guard"] as const).filter(role => {
+        const slot = mixed.battle![role];
+        return slot.present && ids.includes(slot.occurrence.card)
+          && (!board.some(card => canonical(card) === canonical(slot.occurrence)) || state.cards[slot.occurrence.card]?.hidden);
+      });
+      if (roles.length) battle = { kind: "retire", roles };
+    }
+    settleMixedStandingNegationMutation(ctx, mixed.game, state, token as MixedStandingNegationMutation, { arrivals, ...(battle ? { battle } : {}) });
+    mixedCaptures.delete(token as MixedStandingNegationMutation);
+    return;
+  }
+  const arrivals = standingNegationBattleOccurrences(ctx, state).filter(card => ids.includes(card.card));
+  settleStandingNegationMutation(ctx, state, token as LegacyStandingMutation, { arrivals });
   issueStandingNegationReadSeal(ctx, state);
 }
 export function refuseStandingNegationMutation(state: VmState, procedure: string, ctx?: EngineContext, incoming?: string): void {
+  if (state.mixedStandingNegationHistory) {
+    const observation = mixedStandingObservationFromHistory(state.mixedStandingNegationHistory);
+    if (state.mixedStandingNegationHistory.active.length || observation.candidates.some(candidate => candidate.source.policy === "otherBattleWholeV1")
+      || incoming && ctx && standingWholeIntent(ctx, state, incoming))
+      throw new NotYet(`mixed standing whole-negation during ${procedure}`, "R513");
+    return;
+  }
   const def = incoming && ctx?.defs[state.cards[incoming]?.cardId];
   const arriving = def && ([def.skill, def.back?.skill]).some(text => parseSkills(text ?? null).some(skill => skill.kind === "permanent" && skill.effect.trim().toLowerCase() === "negate the skills of all other battle cards."));
   const present = ctx && (["p1", "p2"] as const).some(p => state.sides[p].zones.battle.some(id => standingWholeIntent(ctx, state, id)));
@@ -60,7 +149,7 @@ export function refuseStandingNegationMutation(state: VmState, procedure: string
 
 /** All effects ending at one timing disappear before the standing graph is observed. */
 export function expireStandingNegationBatch(ctx: EngineContext, state: VmState, ev: GameEvent[], expire: (state: VmState, ev: GameEvent[]) => ContinuousEffect[]): ContinuousEffect[] {
-  if (!state.standingNegationHistory) return expire(state, ev);
+  if (!hasStandingNegationHistory(state)) return expire(state, ev);
   {
     // Preview only the expiry list: a loan return needs its own reviewed simultaneous movement protocol.
     const ended = expire(structuredClone(state), []);

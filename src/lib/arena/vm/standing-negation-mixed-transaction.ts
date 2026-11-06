@@ -1,4 +1,4 @@
-/** R513 standalone adapter; no native writer or product loader imports it. */
+/** R513 native mixed-policy mutation, participant and grant-deletion contract. */
 import type { EngineContext } from "../types";
 import type { GameDefinition } from "../rulesets";
 import type { VmState } from "./state";
@@ -22,7 +22,7 @@ export type MixedBattleChange = {
 } | {
     kind: "end";
 } | {
-    kind: "retire" | "assign";
+    kind: "retire" | "assign" | "face";
     roles: readonly ("attacker" | "guard")[];
 };
 interface Capture {
@@ -59,7 +59,7 @@ function current(ctx: EngineContext, game: GameDefinition, state: MixedStandingS
     return { observation, previous, history };
 }
 /** Explicit fresh-game factory boundary, not a legacy-save repair API.
- * Actual native createGame dispatch is deferred to stage 2b.
+ * Native createGame selects this family from the actual initial match cards.
  */
 export function initializeMixedStandingNegation(ctx: EngineContext, game: GameDefinition, state: MixedStandingState): void {
     if (!hasMixedStandingPolicy(ctx))
@@ -95,7 +95,7 @@ export function captureMixedStandingNegationMutation(ctx: EngineContext, game: G
 /** A change instruction is native transaction input, never a saved permission.
  * Reads do not derive a retirement or adopt a new occurrence from role IDs.
  */
-function changedParticipants(state: MixedStandingState, previous: Observation, cards: Card[], change?: MixedBattleChange): Observation["battle"] {
+function changedParticipants(ctx: EngineContext, state: MixedStandingState, previous: Observation, cards: Card[], change?: MixedBattleChange): Observation["battle"] {
     if (change === undefined)
         return previous.battle;
     if (!change || typeof change !== "object" || Array.isArray(change))
@@ -112,7 +112,7 @@ function changedParticipants(state: MixedStandingState, previous: Observation, c
             refuse("bind the actual end of mixed battle participation");
         return null;
     }
-    if (!["retire", "assign"].includes(change.kind) || Object.keys(change).sort().join(",") !== "kind,roles"
+    if (!["retire", "assign", "face"].includes(change.kind) || Object.keys(change).sort().join(",") !== "kind,roles"
         || !Array.isArray(change.roles) || !change.roles.length || change.roles.some(role => !["attacker", "guard"].includes(role))
         || new Set(change.roles).size !== change.roles.length || !previous.battle || !state.battle)
         refuse("bind explicit mixed battle participant transition");
@@ -123,6 +123,15 @@ function changedParticipants(state: MixedStandingState, previous: Observation, c
             if (!old.present || state.battle[role] !== old.occurrence.card)
                 refuse("retire only the captured current battle participant");
             old.present = false;
+        }
+        else if (change.kind === "face") {
+            const occurrence = cards.find(card => card.card === state.battle![role]);
+            if (!old.present || !occurrence || occurrence.area !== "leader" || old.occurrence.area !== "leader"
+                || ctx.defs[occurrence.cardId]?.type !== "LEADER" || state.cards[occurrence.card]?.zCard || state.cards[occurrence.card]?.hidden
+                || occurrence.side === old.occurrence.side
+                || canonical({ ...occurrence, side: old.occurrence.side }) !== canonical(old.occurrence))
+                refuse("retain only the captured normal Leader participant through its actual face switch");
+            next[role] = { occurrence, present: true };
         }
         else {
             const occurrence = cards.find(card => card.card === state.battle![role]);
@@ -158,7 +167,7 @@ export function settleMixedStandingNegationMutation(ctx: EngineContext, game: Ga
         || cards.some(card => !captured.previous.cards.some(prior => canonical(prior) === canonical(card))
             && !arrivals.some(arrival => canonical(arrival) === canonical(card))))
         refuse("bind mixed transaction arrivals to actual new physical occurrences");
-    const participants = changedParticipants(state, captured.previous, cards, options.battle);
+    const participants = changedParticipants(ctx, state, captured.previous, cards, options.battle);
     const observation = observeMixedStandingNegation(ctx, game, state, captured.history, arrivals, participants);
     const history = settleMixedStandingNegation(captured.history, observation, options.enablingOrder);
     const grants = suppressedGrants(state, history);

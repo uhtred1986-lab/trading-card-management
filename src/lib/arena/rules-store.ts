@@ -1,5 +1,5 @@
 import { activateUnderDescriptor, activateUnderPrinted, activateUnderScript } from "./vm/activate-under-contract";
-import { standingWholeDescriptor, standingWholePrinted, standingWholeScript } from "./vm/standing-negation-policy";
+import { standingComboWholeDescriptor, standingComboWholePrinted, standingComboWholeScript, standingWholeDescriptor, standingWholePrinted, standingWholeScript } from "./vm/standing-negation-policy";
 import { autoPlayEnvelopeProblem, underOpponentPlayPrice } from "./vm/auto-play-cost";
 import { compileEnergyEntryPolicy } from "./compile/energy-entry";
 import { containsEnergyEntryDescriptor, energyEntryDescriptor } from "./vm/energy-entry-policy";
@@ -364,6 +364,21 @@ function supportedStandingWhole(row: Parameters<typeof runtimeSupportOfRow>[0]):
       validity: row.validity as ValidityRecord, price: priceOfRow(row as RuleRow) });
 }
 
+
+/** R513: the loader's condition wrapper is part of the exact Combo policy. */
+function supportedStandingComboWhole(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  if (costRecordProblem(row.cost) || row.combo != null) return false;
+  const printed = parseSkills(row.printed);
+  return printed.length === 1 && standingComboWholePrinted(printed[0])
+    && deepEqual(row.cost, zeroCostRecord())
+    && standingComboWholeScript({ kind: row.kind as import("./types").Skill["kind"], ops: programOf(row),
+      unsupported: row.unread as string[], trigger: row.trigger as Trigger[], usage: row.usage as UsageRecord,
+      validity: row.validity as ValidityRecord, price: priceOfRow(row as RuleRow) });
+}
+function standingComboWholeIntent(row: Parameters<typeof runtimeSupportOfRow>[0]): boolean {
+  return standingComboWholeDescriptor(programOf(row)) || parseSkills(row.printed).some(standingComboWholePrinted);
+}
+
 function autoPlayRecordGap(row: Parameters<typeof runtimeSupportOfRow>[0]): string | null {
   const cost = row.cost as CostRecord | null;
   if (row.kind.toLowerCase() !== "auto" || costRecordProblem(cost) || !cost?.program || !hasOp(cost.program, "play")) return null;
@@ -387,6 +402,11 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   const standingIntent = standingWholeDescriptor(row.ops) || parseSkills(row.printed).some(standingWholePrinted);
   if (standingIntent && !supportedStandingWhole(row)) unsupported.push("standing whole-negation requires a whole unpriced, unqualified Permanent source descriptor");
   if (supportedStandingWhole(row)) unknown.push("standing whole-negation depends on native occurrence history, protection and mutation bounds");
+
+  if (standingComboWholeIntent(row) && !supportedStandingComboWhole(row))
+    unsupported.push("Combo whole-negation requires the complete unpriced, unqualified conditional Permanent descriptor");
+  if (supportedStandingComboWhole(row))
+    unknown.push("Combo whole-negation depends on mixed occurrence history, complete protection records and bounded simultaneous cleanup");
 
   // An Auto's action or X price is paid by the VM's own planner (#549,
   // `vm/auto-costs.ts`); refuse only what that planner refuses statically, in
@@ -412,7 +432,7 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
     if (parseSkills(row.printed).some(skill => bondSelector(skill)?.kind === "unknown")) unsupported.push("the specified Bond Permanent selector is not yet resolved");
     const energyEntry = supportedEnergyEntry(row);
     if (energyEntry) unknown.push("optional Energy entry depends on the native original movement, origin, payment and replacement bounds");
-    for (const op of energyEntry || supportedStandingWhole(row) || supportedActivateUnder(row) ? [] : row.ops as Op[]) {
+    for (const op of energyEntry || supportedStandingWhole(row) || supportedStandingComboWhole(row) || supportedActivateUnder(row) ? [] : row.ops as Op[]) {
       const gap = permanentOpGap(op);
       if (gap) unsupported.push(gap);
     }
@@ -569,7 +589,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || (activateUnderIntent(row) && !supportedActivateUnder(row)) || !!autoPlayRecordGap(row) || ((standingWholeDescriptor(row.ops) || parseSkills(row.printed).some(standingWholePrinted)) && !supportedStandingWhole(row)) || (containsEnergyEntryDescriptor(row.ops) && !supportedEnergyEntry(row)) || !!fusedSkillBoundaryGap(row) || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!counterArrivalRecordGap(row) || !!dropComboRecordGap(row) || !!extraActivationContractGap(row) || !!markerHistoryContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || !!awakenAlternativeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || (standingComboWholeIntent(row) && !supportedStandingComboWhole(row)) || (activateUnderIntent(row) && !supportedActivateUnder(row)) || !!autoPlayRecordGap(row) || ((standingWholeDescriptor(row.ops) || parseSkills(row.printed).some(standingWholePrinted)) && !supportedStandingWhole(row)) || (containsEnergyEntryDescriptor(row.ops) && !supportedEnergyEntry(row)) || !!fusedSkillBoundaryGap(row) || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!counterArrivalRecordGap(row) || !!dropComboRecordGap(row) || !!extraActivationContractGap(row) || !!markerHistoryContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || !!awakenAlternativeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
 
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }
