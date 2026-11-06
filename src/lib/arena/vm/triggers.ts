@@ -481,8 +481,8 @@ function aboutTheSubject(cond: Cond): boolean {
 }
 
 /** Every subject condition in the record's leading chain of lone IFs holds of this match's subject (none: true). */
-function subjectConditionsHold(ctx: EngineContext, game: GameDefinition, state: VmState, match: TriggerMatch, master: PlayerId, ops: readonly Op[] | undefined): boolean {
-  const frame = { ops: [], ip: 0, vars: {}, card: match.card, master, ...(match.subject ? { subject: match.subject } : {}) };
+function subjectConditionsHold(ctx: EngineContext, game: GameDefinition, state: VmState, match: TriggerMatch, master: PlayerId, ops: readonly Op[] | undefined, subjectInfo?: Attrs): boolean {
+  const frame = { ops: [], ip: 0, vars: {}, card: match.card, master, ...(match.subject ? { subject: match.subject } : {}), ...(subjectInfo ? { subjectInfo } : {}) };
   for (let at = ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) {
     const cond = at[0].cond;
     if (aboutTheSubject(cond) && !condHolds(ctx, game, state, frame, cond)) return false;
@@ -561,6 +561,8 @@ export function playGates(ops: readonly Op[] | undefined, who: "self" | "subject
  */
 export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmState, moment: Moment, only?: (match: TriggerMatch) => boolean, subjectInfo?: Attrs, cleanupOccurrence?: string, comboOrigin?: ComboOrigin): VmPending[] {
   const pended: VmPending[] = [];
+  // R489: an actual Battle-to-Energy movement retains original-area facts.
+  const battleEnergyDeparture = moment.event === "moved" && moment.args.from === "battle" && moment.args.to === "energy";
   // The entry moment carries the actual source area. Save it on the battle,
   // since several actions and even a JSON reload may separate entry from
   // 8-5's cleanup departure. A later entry of this same copy replaces it.
@@ -590,7 +592,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
     // to the source's former Battle controller, even after returning to its
     // physical owner's area. The move already captured that holder.
     const originalHolder = moment.event === "moved" && moment.card === match.card
-      && moment.args.from === "battle" && (LEFT_BATTLE_BY_SKILL.has(match.trigger) || SELF_MOVE_FROM_BATTLE.has(match.trigger))
+      && moment.args.from === "battle" && (LEFT_BATTLE_BY_SKILL.has(match.trigger) || SELF_MOVE_FROM_BATTLE.has(match.trigger) || battleEnergyDeparture && match.trigger === "placedInEnergy")
       ? moment.args.fromHolder : undefined;
     const master = originalHolder === "p1" || originalHolder === "p2" ? originalHolder : masterOf(game, state, match.card);
     // Read once per card: a text box is parsed by a regex, and a moment that
@@ -609,6 +611,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // 9-1-5: one skill of a card switched off — by index, or a whole kind at
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
+      if (battleEnergyDeparture && moment.card === match.card && match.trigger === "placedInEnergy" && moment.sourceNegated?.includes(sk.index)) continue;
       if (SELF_MOVE_FROM_BATTLE.has(match.trigger) && moment.sourceNegated?.includes(sk.index)) continue;
       // 9-6-9-2: an area-movement [Auto] negated in its original Battle Area
       // does not trigger although the card has moved on (and the move ended
@@ -682,7 +685,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // the card a watched power change is about ("…one of your opponent's Battle Cards") are trigger conditions: one
       // that does not hold is no trigger (9-6-2), so the Auto is not pended and a [Once per turn] is not spent on it.
       // Read off the record's leading chain of lone IFs, as each IF would read it.
-      if (sk.kind === "auto" && BATCH1_GATED.has(match.trigger) && !subjectConditionsHold(ctx, game, state, match, master, showing.scripts.bySkill[sk.index]?.ops)) continue;
+      if (sk.kind === "auto" && BATCH1_GATED.has(match.trigger) && !subjectConditionsHold(ctx, game, state, match, master, showing.scripts.bySkill[sk.index]?.ops, battleEnergyDeparture ? subjectInfo : undefined)) continue;
       // 9-1-3-2: an [Auto] whose effect takes this card out of an area outside
       // play ("play this card from your hand") works from that area only
       // (9-6-3-1-1 lets its master leave it undeclared there). A hand copy is
