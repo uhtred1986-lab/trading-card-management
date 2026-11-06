@@ -1,3 +1,4 @@
+import { paidDropTail, requirePaidDropShape } from '../vm/paid-drop-contract';
 import { paidRemovalTail, requirePaidRemovalShape } from '../vm/paid-removal-contract';
 import type { Skill } from '../types';
 import type { Script } from '../vm/script';
@@ -7564,6 +7565,17 @@ export function compilePaidRemovalFollowup(skill: Skill, envelope: Script, c: Ct
   const prefix = compileClauseList(['Choose up to 1 of your Battle Cards', 'it gets +10000 power for the battle'], local, issues);
   const ops = [...prefix, paidRemovalTail()];
   try { requirePaidRemovalShape(skill, { ...envelope, ops }); } catch { return null; }
+  if (issues.length) return null;
+  Object.assign(c, local); return ops;
+}
+
+/** R518: exact original Main price and self-play tail, with isolated speculative context. */
+export function compilePaidDropFollowup(skill: Skill, envelope: Script, c: Ctx): Op[] | null {
+  if (skill.effect.trim().replace(/\s+/g, ' ').replace(/\.$/, '').toLowerCase() !== 'play this card from your hand. additionally, if you used this skill to place a <general blue> card in your drop area, this card gets +5000 power for the turn') return null;
+  const local = structuredClone(c), issues: string[] = [];
+  const prefix = compileClauseList(['Play this card from your hand'], local, issues);
+  const ops = [...prefix, paidDropTail()];
+  try { requirePaidDropShape(skill, { ...envelope, ops }); } catch { return null; }
   if (issues.length) return null;
   Object.assign(c, local); return ops;
 }

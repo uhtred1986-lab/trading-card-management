@@ -1,0 +1,1584 @@
+{
+  "BT17-035": {
+    "card": {
+      "id": "BT17-035",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Mercenary Tao, Expert Assassin",
+      "characters": [
+        "Mercenary Tao"
+      ],
+      "traits": [
+        "Earthling"
+      ],
+      "skill": "[Activate: Main][Limit 1] Choose 1 of your \u226aRed Ribbon Army\u226b cards with an energy cost of 2 or less and place it in its owner's Drop Area: Play this card from your hand. Additionally, if you used this skill to place a &lt;General Blue&gt; card in your Drop Area, this card gets +5000 power for the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT17-035#0": {
+        "cardId": "BT17-035",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Activate: Main][Limit 1] Choose 1 of your \u226aRed Ribbon Army\u226b cards with an energy cost of 2 or less and place it in its owner's Drop Area: Play this card from your hand. Additionally, if you used this skill to place a <General Blue> card in your Drop Area, this card gets +5000 power for the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Choose 1 of your \u226aRed Ribbon Army\u226b cards with an energy cost of 2 or less and place it in its owner's Drop Area",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "Red Ribbon Army"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": 2,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Choose 1 of your \u226aRed Ribbon Army\u226b cards with an energy cost of 2 or less"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self",
+              "area": "hand"
+            },
+            "as": "p0",
+            "reason": "Play this card from your hand"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ],
+        "unread": [
+          "if you used this skill to place a <General Blue> card in your Drop Area",
+          "this card gets +5000 power for the turn"
+        ],
+        "pattern": "if you used this skill to place a \u2026 card in your drop area",
+        "reads": "choose this card, play the chosen cards"
+      }
+    }
+  },
+  "BT17-039": {
+    "card": {
+      "id": "BT17-039",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "General Blue, Red Ribbon Officer",
+      "characters": [
+        "General Blue"
+      ],
+      "traits": [
+        "Earthling",
+        "Red Ribbon Army"
+      ],
+      "skill": "[auto]{u}: When one of your Battle Cards is removed from your Battle Area by a skill, play this card from your hand.\r [auto][limit 1] If your Leader Card is a blue \u226aRed Ribbon Army\u226b card: When this card is played, draw 1 card, choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less and return it to its owner's hand, and this card gets +10000 power until the start of your next turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT17-039#0": {
+        "cardId": "BT17-039",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[auto]{u}: When one of your Battle Cards is removed from your Battle Area by a skill, play this card from your hand.",
+        "kind": "auto",
+        "trigger": [
+          "yourCardRemovedBySkill"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {
+            "Blue": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "special": "subject",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self",
+              "area": "hand"
+            },
+            "as": "p0",
+            "reason": "play this card from your hand"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[choose\u2192play]",
+        "reads": "if that card is a Battle Card: choose this card, play the chosen cards"
+      },
+      "BT17-039#10": {
+        "cardId": "BT17-039",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[auto][limit 1] If your Leader Card is a blue \u226aRed Ribbon Army\u226b card: When this card is played, draw 1 card, choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less and return it to its owner's hand, and this card gets +10000 power until the start of your next turn.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader Card is a blue \u226aRed Ribbon Army\u226b card",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "red ribbon army"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Blue"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "red ribbon army"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 4,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 10000,
+            "until": "nextTurn"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[draw\u2192choose\u2192moveTo\u2192power]",
+        "reads": "if your leader is Blue \u226ared ribbon army\u226b: draw 1, choose up to 1 Battle Card with an energy cost of 4 or less in your opponent's Battle Area, move the chosen cards to hand, this card +10000 power until the end of your opponent's turn"
+      }
+    }
+  },
+  "BT17-040": {
+    "card": {
+      "id": "BT17-040",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 4000,
+      "name": "General Blue, Ever Loyal",
+      "characters": [
+        "General Blue"
+      ],
+      "traits": [
+        "Earthling",
+        "Red Ribbon Army"
+      ],
+      "skill": "[Auto] If your Leader Card is a blue \u226aRed Ribbon Army\u226b card: When this card is played, choose one\u2014\r\n\u30fbDraw 1 card.\r\n\u30fbPlay up to 1 skill-less \u226aRed Ribbon Army\u226b card with an energy cost of 1 from your deck or Drop Area, then shuffle your deck if you looked through it.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT17-040#0": {
+        "cardId": "BT17-040",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] If your Leader Card is a blue \u226aRed Ribbon Army\u226b card: When this card is played, choose one\u2014 \u30fbDraw 1 card. \u30fbPlay up to 1 skill-less \u226aRed Ribbon Army\u226b card with an energy cost of 1 from your deck or Drop Area, then shuffle your deck if you looked through it.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader Card is a blue \u226aRed Ribbon Army\u226b card",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "red ribbon army"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Blue"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "red ribbon army"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "chooseMode",
+            "modes": [
+              {
+                "label": "Draw 1 card.",
+                "ops": [
+                  {
+                    "op": "draw",
+                    "n": 1
+                  }
+                ]
+              },
+              {
+                "label": "Play up to 1 skill-less \u226aRed Ribbon Army\u226b card with an energy cost of 1 from your deck or Drop Area, then shuffle your deck if you looked through it.",
+                "ops": [
+                  {
+                    "op": "choose",
+                    "sel": {
+                      "side": "you",
+                      "area": "deck",
+                      "areas": [
+                        "deck",
+                        "drop"
+                      ],
+                      "filter": {
+                        "colors": [],
+                        "notColors": [],
+                        "monoColor": false,
+                        "multiColor": false,
+                        "characters": [],
+                        "notCharacters": [],
+                        "charactersIncluding": [],
+                        "notCharactersIncluding": [],
+                        "charactersAll": [],
+                        "namesAll": [],
+                        "traits": [
+                          "red ribbon army"
+                        ],
+                        "notTraits": [],
+                        "characterOrTrait": false,
+                        "onlyCharacters": false,
+                        "names": [],
+                        "notNames": [],
+                        "namesIncluding": [],
+                        "notNamesIncluding": [],
+                        "notKeywords": [],
+                        "keywords": [],
+                        "skillKind": null,
+                        "unreadable": false,
+                        "noKeywords": false,
+                        "type": null,
+                        "notType": null,
+                        "faceUp": false,
+                        "token": false,
+                        "notToken": false,
+                        "costMin": 1,
+                        "costMax": 1,
+                        "powerMin": null,
+                        "powerMax": null,
+                        "originalPowerMin": null,
+                        "originalPowerMax": null,
+                        "comboPowerMin": null,
+                        "comboPowerMax": null,
+                        "markersMin": null,
+                        "markersMax": null,
+                        "specifiedCostMin": null,
+                        "specifiedCostMax": null,
+                        "specifiedCostNone": false,
+                        "costAtMostEnergy": false,
+                        "costBelowEnergy": false,
+                        "costAtLeastEnergy": false,
+                        "costAboveEnergy": false,
+                        "energyOfOpponent": false,
+                        "originallySkillLess": false,
+                        "skillLess": true,
+                        "powerRel": null,
+                        "nameInSkillTextOf": null,
+                        "z": null
+                      },
+                      "count": 1,
+                      "upTo": true
+                    },
+                    "as": "p0",
+                    "reason": "Play up to 1 skill-less \u226aRed Ribbon Army\u226b card with an energy cost of 1 from your deck or Drop Area"
+                  },
+                  {
+                    "op": "play",
+                    "target": {
+                      "var": "p0"
+                    }
+                  },
+                  {
+                    "op": "shuffle"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[choose one[draw/choose\u2192play\u2192shuffle]]",
+        "reads": "if your leader is Blue \u226ared ribbon army\u226b: choose one \u2014 draw 1 / choose up to 1 \u226ared ribbon army\u226b skill-less card with an energy cost of 1 in your deck or Drop Area, play the chosen cards, shuffle"
+      }
+    }
+  },
+  "BT17-042": {
+    "card": {
+      "id": "BT17-042",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Colonel Violet",
+      "characters": [
+        "Colonel Violet"
+      ],
+      "traits": [
+        "Earthling",
+        "Red Ribbon Army"
+      ],
+      "skill": null,
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {}
+  },
+  "BT22-004": {
+    "card": {
+      "id": "BT22-004",
+      "type": "Z-BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": "2",
+      "power": 15000,
+      "name": "Gamma 1 & Gamma 2, Arrival of Heroes",
+      "characters": [
+        "Gamma 1: SH",
+        "Gamma 2: SH"
+      ],
+      "traits": [
+        "Android",
+        "Red Ribbon Army"
+      ],
+      "skill": "[unique]<br>[permanent] If you have 1 or more each of red <Gamma 1: SH> and <Gamma 2: SH> cards in play, reduce this card's energy cost in your Z-Deck by {r}, and reduce its Z-Energy cost by 1.<br>[permanent] If you have 3 or more energy, your red <Gamma 1: SH> and <Gamma 2: SH> cards get +5000 power during your turn.<br>[auto][limit 1] When your red <Gamma 1: SH> card is switched to Active Mode by a <Dr. Hedo: SH> card skill, switch this card to Active Mode, and this card gains [double strike] for the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT22-004#10": {
+        "cardId": "BT22-004",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[permanent] If you have 1 or more each of red <Gamma 1: SH> and <Gamma 2: SH> cards in play, reduce this card's energy cost in your Z-Deck by {r}, and reduce its Z-Energy cost by 1.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [
+                    "Red"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "gamma 1: sh"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [
+                    "Red"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "gamma 2: sh"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            }
+          ]
+        },
+        "ops": [
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 1,
+            "colors": [
+              "Red"
+            ],
+            "until": "game"
+          },
+          {
+            "op": "costReduction",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 1,
+            "what": "zEnergy",
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:all[costReduction\u2192costReduction]",
+        "reads": "if there are 1 or more red <gamma 1: sh> cards you have in play and there are 1 or more red <gamma 2: sh> cards you have in play: this card costs 1 less ({Red}), this card costs 1 less (Z-Energy cost)"
+      },
+      "BT22-004#20": {
+        "cardId": "BT22-004",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[permanent] If you have 3 or more energy, your red <Gamma 1: SH> and <Gamma 2: SH> cards get +5000 power during your turn.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy"
+          },
+          "atLeast": 3
+        },
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "isTurnPlayer"
+            },
+            "then": [
+              {
+                "op": "power",
+                "target": {
+                  "sel": {
+                    "side": "you",
+                    "area": "play",
+                    "filter": {
+                      "colors": [
+                        "Red"
+                      ],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "gamma 1: sh",
+                        "gamma 2: sh"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 99,
+                    "upTo": false
+                  }
+                },
+                "amount": 5000,
+                "until": "game"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[if:isTurnPlayer[power]]",
+        "reads": "if there are 3 or more cards in your Energy Area: if it is your turn: all red <gamma 1: sh> or <gamma 2: sh> cards you have in play +5000 power"
+      },
+      "BT22-004#30": {
+        "cardId": "BT22-004",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[auto][limit 1] When your red <Gamma 1: SH> card is switched to Active Mode by a <Dr. Hedo: SH> card skill, switch this card to Active Mode, and this card gains [double strike] for the turn.",
+        "kind": "auto",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "switchMode",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "mode": "active"
+          },
+          {
+            "op": "grant",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "keyword": {
+              "name": "Strike",
+              "x": 2
+            },
+            "until": "turn"
+          }
+        ],
+        "unread": [
+          "When your red <Gamma 1: SH> card is switched to Active Mode by a <Dr. Hedo: SH> card skill"
+        ],
+        "pattern": "when your red \u2026 card is switched to active mode by a \u2026 card skill",
+        "reads": "switch this card to active mode, this card gains [Double Strike] for the turn"
+      }
+    }
+  },
+  "BT17-055": {
+    "card": {
+      "id": "BT17-055",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Android 15, Inorganic Horror",
+      "characters": [
+        "Android 15"
+      ],
+      "traits": [
+        "Android",
+        "Red Ribbon Army"
+      ],
+      "skill": "[Deflect]\r\n[Counter: Play] Play this card, and if the Battle Card being played has an energy cost of 3 or less, return it to its owner's hand instead.\r\n[Permanent] If your Leader Card is a blue \u226aRed Ribbon Army\u226b card, you can activate this card's [Counter] skill from your energy by paying its energy cost.\r\n[Permanent][Bond 3] Blue \u226aAndroid\u226b: This card gets +10000 power.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT17-055#10": {
+        "cardId": "BT17-055",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Counter: Play] Play this card, and if the Battle Card being played has an energy cost of 3 or less, return it to its owner's hand instead.",
+        "kind": "counter:play",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self"
+            },
+            "as": "p0",
+            "reason": "Play this card"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "count",
+              "sel": {
+                "special": "resolving",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": 3,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            },
+            "then": [
+              {
+                "op": "resolvingPlay",
+                "instead": "hand"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "choose\u2192play\u2192if:count[resolvingPlay]",
+        "reads": "choose this card, play the chosen cards, if the card being played is a Battle Card with an energy cost of 3 or less: the card being played is not played and goes to the hand instead"
+      },
+      "BT17-055#20": {
+        "cardId": "BT17-055",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Permanent] If your Leader Card is a blue \u226aRed Ribbon Army\u226b card, you can activate this card's [Counter] skill from your energy by paying its energy cost.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "permit",
+            "what": "counterFromEnergy",
+            "until": "game",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "price": {
+              "payment": {
+                "version": 1,
+                "readable": true,
+                "orbs": {},
+                "either": [],
+                "marker": null,
+                "burst": null,
+                "spiritBoost": null
+              },
+              "condition": {
+                "kind": "leaderMatches",
+                "filter": {
+                  "colors": [
+                    "Blue"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "red ribbon army"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "ops": []
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "permit",
+        "reads": "if your leader is Blue \u226ared ribbon army\u226b: this card\u2019s [Counter] may be activated from your energy by paying its energy cost"
+      },
+      "BT17-055#30": {
+        "cardId": "BT17-055",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[Permanent][Bond 3] Blue \u226aAndroid\u226b: This card gets +10000 power.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 10000,
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "power",
+        "reads": "this card +10000 power"
+      }
+    }
+  },
+  "BT4-111": {
+    "card": {
+      "id": "BT4-111",
+      "type": "BATTLE",
+      "colors": [
+        "Black"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Umbral Invitation Towa",
+      "characters": [
+        "Towa"
+      ],
+      "traits": [
+        "Demon Realm Race"
+      ],
+      "skill": "[dark over realm 4] {1}(If you have at least 4 black cards in your Drop Area, you can play this card by sending all cards in your Drop Area to your Warp. [over realm] and [dark over realm] can only be activated once per turn)<br>[auto] When you play this card, choose up to 1 of the Battle Cards in your opponent's Battle Area with an energy cost of 3 or less and gain control of it.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  }
+}

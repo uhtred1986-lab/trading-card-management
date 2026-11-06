@@ -1,3 +1,5 @@
+import { paidDropIntent } from './paid-drop-contract';
+import { requirePaidDropFrame, requirePaidDropResume } from './paid-drop-runtime';
 import { requirePaidRemovalFrame } from './paid-removal-runtime';
 import { capturePileRelease, requirePileReleaseCapture, cleanupReleasedPile } from "./pile-release-cleanup";
 import { renewOrdinaryUseGeneration } from "./limits";
@@ -1487,16 +1489,24 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     })) return "done";
     if (frame.arrivalBatchResume) {
       const resume = frame.arrivalBatchResume;
+      if (resume.frame.paidDrop || paidDropIntent(resume.frame.ordinaryActivation?.cost?.source?.script) || paidDropIntent(resume.frame)) requireOrdinaryActivation(ctx, state, resume.frame.ordinaryActivation, resume.frame.card, resume.frame.master, resume.frame.skillIndex);
+      requirePaidDropResume(ctx, game, state, resume.frame, resume.cards);
       requireCounterArrivalBatchResume(state, resume);
       return vmHost(ctx, game, state, ev).playThen(resume.cards, resume.options, resume.frame) === "wait" ? "wait" : "done";
     }
     if (frame.arrivalResume) {
       const resume = frame.arrivalResume;
+      if (resume.frame.paidDrop || paidDropIntent(resume.frame.ordinaryActivation?.cost?.source?.script) || paidDropIntent(resume.frame)) requireOrdinaryActivation(ctx, state, resume.frame.ordinaryActivation, resume.frame.card, resume.frame.master, resume.frame.skillIndex);
+      requirePaidDropResume(ctx, game, state, resume.frame, resume.cards);
       completeCounterArrivalDecision(state, resume);
       return vmHost(ctx, game, state, ev).playThen(resume.cards, resume.options, resume.frame) === "wait" ? "wait" : "done";
     }
     if (frame.retainedResume) {
       const resume = frame.retainedResume;
+      if (resume.kind !== "finish") {
+        if (resume.frame.paidDrop || paidDropIntent(resume.frame.ordinaryActivation?.cost?.source?.script) || paidDropIntent(resume.frame)) requireOrdinaryActivation(ctx, state, resume.frame.ordinaryActivation, resume.frame.card, resume.frame.master, resume.frame.skillIndex);
+        requirePaidDropResume(ctx, game, state, resume.frame, resume.cards);
+      }
       completeRetainedResume(state, resume);
       if (resume.kind === "finish") { state.resolving = resume.previous ?? null; state.programs.unshift(resume.frame); return "done"; }
       return vmHost(ctx, game, state, ev).playThen(resume.cards, resume.options, resume.frame) === "wait" ? "wait" : "done";
@@ -1513,6 +1523,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireReviveFrame(state, frame);
     const sourceScript = programSourceScript(ctx, state, frame);
     requirePaidRemovalFrame(ctx, game, state, frame, sourceScript);
+    requirePaidDropFrame(ctx, game, state, frame, sourceScript);
     requireKoFrame(state, sourceScript, frame);
     requirePairedSourceFrame(state, sourceScript, frame);
     requireCounterArrivalContract(frame, sourceScript);

@@ -1,3 +1,4 @@
+import { paidDropSelfAllowed } from './paid-drop-reference';
 import { completedKoCost, koResultRebuild } from "./ko-result";
 import { requiredStampedCards } from "./required-stamp";
 import { requirePairedSelf } from "./paired-self";
@@ -1692,6 +1693,7 @@ export function resolveSelector(ctx: EngineContext, game: GameDefinition, state:
     requirePairedSelf(state, frame.card, frame.pairedSelf);
     if (state.cards[frame.card].pairedSelfToken !== frame.pairedSelf.token) return [];
   }
+  if (sel.special === "self" && !paidDropSelfAllowed(state, frame)) return [];
   // R-362 / 3-1-4: the Auto's other effects still resolve, but this face-up Life card cannot be a later occurrence.
   // Restrict the guard to its original Life reference; a move performed by the skill may legitimately use it elsewhere.
   if (sel.special === "self" && sel.area === "life" && frame.faceUpLifeEpoch !== undefined) {

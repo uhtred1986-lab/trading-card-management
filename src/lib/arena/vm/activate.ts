@@ -1,3 +1,5 @@
+import { paidDropProblem } from './paid-drop-runtime';
+import { paidDropIntent } from './paid-drop-contract';
 import { IllegalAction } from './illegal-action';
 import { paidRemovalIntent } from './paid-removal-runtime';
 import { captureOrdinaryActivation, ordinaryActivationProblem } from "./ordinary-activate-runtime";
@@ -562,6 +564,8 @@ export function activationRefusals(
   keywordRefusals: () => Requirement[] = () => [],
 ): { before: Requirement[]; after: Requirement[] } {
   const before: Requirement[] = [];
+  const dropProblem = paidDropProblem(ctx, game, state, line);
+  if (dropProblem) before.push({ kind: "other", detail: dropProblem });
   const ordinaryProblem = ordinaryActivationProblem(ctx, state, line);
   if (ordinaryProblem) before.push({ kind: "other", detail: ordinaryProblem });
   const underProblem = activateUnderProblem(ctx, game, state, line);
@@ -863,7 +867,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
   return activationsOf(ctx, state, def, card, game, op.from).filter((line) => {
     const sk = line.skill;
     if ((op.skillKind === "activate:any" ? !["activate:main", "activate:battle", "activate:main/battle"].includes(line.kind) : line.kind !== op.skillKind) || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
-    if (!requireSkillPayment(line.script.price).readable || paidRemovalIntent(line.script)) return false;
+    if (!requireSkillPayment(line.script.price).readable || paidRemovalIntent(line.script) || paidDropIntent(line.script)) return false;
     if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: sk.kind })) return false;
     // #677: the printed price is waived (12-2-4); an external 20-14 tax is
     // not, so an Extra whose tax cannot be paid is not eligible at all.
@@ -1181,6 +1185,7 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
  */
 export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Partial<Pick<ScriptFrame, "ops" | "vars" | "paidCardInfo" | "paidMarkers" | "ordinaryActivation">>, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
   const { card, skill: sk } = line;
+  if (waived && paidDropIntent(line.script)) throw new IllegalAction("waived historical owner-Drop payments need a reviewed original source contract (R518)");
   if (waived && paidRemovalIntent(line.script)) throw new IllegalAction("waived historical removal payments need a reviewed original source contract (R516)");
   const payment = requireSkillPayment(line.script?.price);
   if (waived && (payment.spiritBoost != null || line.script?.price?.x?.spiritBoost) && !resolved?.paidMarkers?.spiritBoost) {

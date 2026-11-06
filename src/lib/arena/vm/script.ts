@@ -1,3 +1,4 @@
+import { paidDropPlayAllowed } from './paid-drop-reference';
 import { koResultRebuild, recordKoOutcome, requireKoResult, startKoResult, type KoOutcome } from "./ko-result";
 import { NotYet } from "./errors";
 import { mergeTaxPayers } from "./tax-receipt";
@@ -1952,6 +1953,7 @@ export interface ScriptFrame {
   saveVarsAs?: string;
   /** R516: selected original payer, then native movement result; private continuation only. */
   paidRemoval?: import("./paid-removal-runtime").PaidRemovalFrame;
+  paidDrop?: import("./paid-drop-runtime").PaidDropFrame;
   /** Original ordinary Activate price and successful effect continuation. */
   ordinaryActivation?: import("./ordinary-activate-runtime").OrdinaryActivation;
   /** R-387: an Awaken action payment keeps the Leader and its chosen material occurrences across reloads. */
@@ -4497,7 +4499,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // 5-5-3: played by a skill, so no energy cost is paid — but a card
         // that may not be played may not be played by a skill either (20-14).
         // 20-14: a skill doing the playing, which is the half fifteen cards ban.
-        const candidates = h.resolveRef(frame, op.target).filter(id => counterSelfPlayAllowed(frame, op.target, id, h.zoneEpoch(id), h.areaOf(id))).filter(id => frame.viaKeyword !== "Over Realm" || !!frame.overRealmSource && frame.overRealmSource.card === id && frame.overRealmSource.cardId === h.defOf(id).id && frame.overRealmSource.epoch === h.zoneEpoch(id) && frame.overRealmSource.area === h.areaOf(id));
+        const candidates = h.resolveRef(frame, op.target).filter(id => paidDropPlayAllowed(frame, id, h.zoneEpoch(id), h.areaOf(id), h.defOf(id).id)).filter(id => counterSelfPlayAllowed(frame, op.target, id, h.zoneEpoch(id), h.areaOf(id))).filter(id => frame.viaKeyword !== "Over Realm" || !!frame.overRealmSource && frame.overRealmSource.card === id && frame.overRealmSource.cardId === h.defOf(id).id && frame.overRealmSource.epoch === h.zoneEpoch(id) && frame.overRealmSource.area === h.areaOf(id));
         // #933: whether it is an evolution is the play's own `using`, never the
         // keyword tag on the skill making it — P-336's [Activate: Main] evolves.
         const evolution = op.using === "Evolve" || op.using === "EX-Evolve" || op.using === "Xeno-Evolve";
