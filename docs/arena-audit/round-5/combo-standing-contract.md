@@ -67,4 +67,35 @@ The ordinary gameplay fixtures stage the starting Z-Leader and resources, then u
 
 Paid full BT9-109 Death Beam removes the attacking Battle Card by native power-zero processing during Goku's defensive timing, proving survival through early Battle End and original special-Auto suppression. The full paid BT1-055 negated-attack control explicitly stages preexisting Combo membership because ordinary Counter timing precedes normal Combo entry; it is a native timing mechanism, not a claimed printed seven-card setup route. Full BT1-001 Champa proves normal Awaken during native defense timing and preserved role/epoch/effect identity. Full BT3-075 proves actual paid three-energy play and two Token arrivals with Goku still in Z-Deck. The Champa back-power placeholder is not used as an independent combat expectation. Both-seat public views and event payloads are checked for internal history/identity field leakage, and saved inputs remain immutable.
 
-Final targeted check counts and log paths are recorded below after the final source run. No database, dependency, full gate, build or compiler snapshot was run; the parent retains the unchanged frozen compiler artifact and owns combined inventory/runner/census/browser registration.
+Final targeted check counts and log paths follow. No database, dependency, full gate, build or compiler snapshot was run; the parent retains the unchanged frozen compiler artifact and owns combined inventory/runner/census/browser registration.
+
+
+### Frozen results and copied-Permanent follow-up
+
+Native integration was frozen in `5c6c4c7c`. The final default `combo-standing-5.ts` run passes **22** scenarios at `combo-standing/native-gameplay-final.log`: 12 threshold/Z-choice cases, two paid Death Beam departures, six saved-history refusals, and two explicitly staged native Counter-timing cases. Four of the 12 threshold/Z-choice cases deliberately reach P-035's existing open #544 body boundary after correct original movement; they are not completed Bardock gameplay. The private view/event assertions and input immutability checks run in this final suite.
+
+A narrow follow-up requires complete readable original records for copied Permanents whenever a mixed policy candidate exists. An unread empty body cannot prove absence of protection, a grant or another negator. No-candidate dormant behavior and complete copied Auto/keyword deletion remain unchanged. The native `copySkills` interpreter enumerates printed skills and writes typed copied effects without a completeness gate on the original record (`script.ts`'s existing copy operation), so the guard closes a reachable operation boundary. The new tests are staged native-writer mechanisms; they do not claim a full printed copier-card gameplay route.
+
+All logs are under `/workspace/shared/arena-support5/combo-standing/`:
+
+| Check | Result | Log |
+| --- | --- | --- |
+| Exact admission, native Combo/trigger/lifetime/privacy matrix | 22 cases | `native-gameplay-final.log` |
+| Native batch/writer mechanisms, including copied follow-up | 40 cases | `native-batch-copied.log` |
+| Normal native Awaken and malformed face transitions | 12 cases | `native-face.log` |
+| Actual paid Token-source compatibility | 2 cases | `native-token.log` |
+| Confirmed-loader R512 paid Z-Awaken/#30 compatibility | 28 cases | `native-majin-final.log` |
+| R514 under Activate compatibility | 156 cases | `native-under.log` |
+| Isolated mixed policy/history contracts | 206 cases | `native-contract.log` |
+| Mixed staged-board adapters | 54 cases | `native-adapter.log` |
+| Legacy standing native writer | 28 grouped cases | `native-legacy.log` |
+| R499 original movement history | 146 cases | `native-movement.log` |
+| Standing cost/projection compatibility | 24 grouped cases | `native-projection.log` |
+| Ordinary Charge compatibility | 126 cases | `native-charge.log` |
+| VM compatibility | passed | `native-vm.log` |
+| TypeScript / touched-source ESLint | passed | `native-type.log`, `native-lint.log` |
+| Rulings | 286 active, 165 cited | `native-rulings.log` |
+
+These categories deliberately separate native gameplay, constructed mechanisms and existing compatibility groups. No preliminary draft runs or duplicate focused lifetime runs are added to their counts. The old `native-majin.log` remains a pre-admission failure diagnostic, not passing evidence; `native-majin-draft.log` is superseded by the confirmed-loader final log.
+
+The eight preexisting full source/FAQ entries compare unchanged to `dd3d2666`; full Champa, Death Beam and Whis's Coercion sources were added, plus the separate full Token-source fixture. No compiler/text/DSL file changed. The parent owns the final combined registry/census/browser checks and resolves independent metadata additions on integration.

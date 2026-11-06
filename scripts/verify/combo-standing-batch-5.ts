@@ -120,6 +120,21 @@ for (const p of ["p1", "p2"] as const) {
         const before = JSON.stringify(b.state); assert.throws(() => prepareComboDropBatch(ctx, game, b.state), /R513/);
         assert.equal(JSON.stringify(b.state), before);
     });
+    check(`${p} unread copied Permanent refuses before suppression publication`, () => {
+        const b = setup(p, 6), before = JSON.stringify(b.state.mixedStandingNegationHistory);
+        assert.throws(() => vmHost(ctx, game, b.state, b.events).addEffect!({ target: b.target, master: b.q,
+            kind: "copiedSkills", value: 0, until: "game", copied: { cardId: "DB2-140", side: "front", skills: [0] } }),
+            /complete copied Permanent/);
+        assert.equal(JSON.stringify(b.state.mixedStandingNegationHistory), before);
+    });
+    check(`${p} no candidate preserves dormant copied-Permanent behavior`, () => {
+        const b = setup(p, 6), host = vmHost(ctx, game, b.state, b.events);
+        host.move(b.source, "removed", p);
+        const grant = host.addEffect!({ target: b.target, master: b.q, kind: "copiedSkills", value: 0, until: "game",
+            copied: { cardId: "DB2-140", side: "front", skills: [0] } });
+        assert.ok(grant); validateStandingNegationRead(ctx, b.state);
+        assert.equal(b.state.mixedStandingNegationHistory!.active.length, 0);
+    });
     check(`${p} actual Whis protection ends in Combo`, () => {
         const b = setup(p), whis = b.stage(b.q, "BT1-043", "battle");
         assert.equal(skillsNegated(b.state, whis), false);
@@ -130,9 +145,13 @@ for (const p of ["p1", "p2"] as const) {
         const b = setup(p, 6), prum = b.stage(b.q, "DB2-086", "battle");
         const host = vmHost(ctx, game, b.state, b.events);
         const grant = host.addEffect!({ target: prum, master: b.q, kind: "keyword", value: { name: "Blocker" }, until: "game" })!;
+        const copied = host.addEffect!({ target: prum, master: b.q, kind: "copiedSkills", value: 0, until: "game",
+            copied: { cardId: "DB2-086", side: "front", skills: [0] } })!;
         b.stage(p, "DB1-066", "battle"); assert.equal(skillsNegated(b.state, prum), true);
+        assert.equal(resolvedGrantDeleted(b.state, prum, copied.id), true);
         assert.equal(resolvedGrantDeleted(b.state, prum, grant.id), true);
         host.move(prum, "combo", b.q); assert.equal(skillsNegated(b.state, prum), false);
+        assert.equal(resolvedGrantDeleted(b.state, prum, copied.id), true, "complete copied Auto keeps its deletion history");
         assert.equal(resolvedGrantDeleted(b.state, prum, grant.id), true);
         b.stage(p, "F", "combo"); assert.equal(skillsNegated(b.state, prum), true);
         host.move(b.own[0], "zEnergy", p); assert.equal(skillsNegated(b.state, prum), false);

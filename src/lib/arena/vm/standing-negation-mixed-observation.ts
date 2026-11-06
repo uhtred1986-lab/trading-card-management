@@ -143,6 +143,10 @@ export function observeMixedStandingNegation(ctx: EngineContext, game: GameDefin
             if (!original || !!original.granted !== !!copy.quoted)
                 refuse("rebuild mixed copied source skill identity");
             const skill = copy.quoted ? original.granted!.skill : original;
+            const script = scripts.bySkill[index];
+            if (candidates.length && skill.kind === "permanent"
+                && (!script || !Array.isArray(script.unsupported) || script.unsupported.length || !Array.isArray(script.ops)))
+                refuse("observe complete copied Permanent records before mixed policy qualification");
             if (skill.kind === "permanent" && (printedIntent(skill.effect) || contains(scripts.bySkill[index]?.ops, "whole")
                 || contains(scripts.bySkill[index]?.ops, "protection") || contains(scripts.bySkill[index]?.ops, "grant")))
                 refuse("observe copied mixed negators or protectors only with reviewed source authority");
