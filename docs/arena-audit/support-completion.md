@@ -216,6 +216,10 @@ Runtime `3ee59da5` adds the exact P-656, BT16-131 and BT16-143 paired records wi
 
 Runtime `2ffb87c6` binds optional entry from Combo to the original native activation, battle and source occurrence. Combined validation passes 2,379 native/contract cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Compiler/collector admission is unchanged; the six Energy-entry records remain unsupported overall and checkpoint53 catalog totals remain applicable. See [checkpoint 54](round-5/support-fiftyfourth-batch.md). Kefla and the shared movement cleanup prerequisite for Battle entry continue.
 
+## Checkpoint 64: actual movement cleanup
+
+Source `d169add8` repairs Bardock's Energy-to-Battle skill restoration and shares exact cleanup with both Combo subject projections. Retained copied/granted skills preserve deletion history across valid carried occurrences. Final runtime passes 3,116 counted targeted cases; the combined branch adds 102 gameplay/baseline cases and passes type/lint/metadata, browser replay and 40 Fusion games. Compiler totals remain **13,018 readable / 947 unread**, runtime census **12/317/2559**. See [checkpoint 64](round-5/support-sixtyfourth-batch.md). Original-KO implementation and six-family optional Energy admission continue in the same PR.
+
 ## Checkpoint 63: private optional Life choices
 
 Source `438c57b0`, registered through `339a3055`, conceals face-down optional Life choices for Cabba, Pan, Broly, Nail and Yamcha while preserving face-up visibility. All 44 new scenarios, Champa50 and targeted compatibility/type/lint/metadata checks pass. Only five records change ops/reads; totals remain **13,018 readable / 947 unread**, runtime census **12/317/2559**. See [checkpoint 63](round-5/support-sixtythird-batch.md). Movement cleanup and optional Energy product admission continue; the separate Life-specific replacement-discovery gap remains open.
