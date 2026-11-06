@@ -211,4 +211,17 @@ for(const p of ["p1","p2"] as const)for(const writer of ["direct","host-substitu
  assert.equal(s.battle!.endCombo!.specialSubjects![0].movementHistory!.declarations.find(x=>x.index===10)?.negated,negated);
  cases++;
 }
+// Unresolved original bodies are rejected before the substitute mutates anything.
+// The keyword trigger below is an explicit synthetic granted-body mechanism.
+for(const p of ["p1","p2"] as const)for(const writer of ["host","flow"] as const)for(const grant of ["copied","keyword"] as const){
+ const {s:initial,source}=setup(p,"P-656#10",p,"hand");let s=beginBattle(initial,p);s=take(s,{type:"combo",player:p,card:source});
+ s.battle!.endCombo={chooserIndex:2,stage:"departures",retainedComboPower:{},substituteDeparture:{card:source,origin:s.battle!.comboOrigins![source],active:true},specialSubjects:[]};
+ const keywordKey=Object.keys(game.keywords).find(key=>game.keywords[key].name==="Revenge")!;assert.ok(keywordKey);
+ const custom=grant==="keyword"?{...game,keywords:{...game.keywords,[keywordKey]:{...game.keywords[keywordKey],at:["comboed"]}}}:game;
+ if(grant==="copied")addEffect(s,[],{target:source,kind:"copiedSkills",value:0,until:"game",copied:{cardId:"P-656",side:"front",skills:[10],from:source}});
+ else addEffect(s,[],{target:source,kind:"keyword",value:{name:"Revenge"},until:"game"});
+ const before=JSON.stringify(s),ev:GameEvent[]=[];
+ assert.throws(()=>writer==="host"?vmHost(ctx,custom,s,ev).move(source,"drop",p):moved(ctx,custom,s,ev,source,"drop",{owner:p,cleanupDeparture:true}),/original movement Auto body/);
+ assert.equal(JSON.stringify(s),before);assert.deepEqual(ev,[]);cases++;
+}
 console.log(`played / Combo battle end: ${cases} native saved cases`);

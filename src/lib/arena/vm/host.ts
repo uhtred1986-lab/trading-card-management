@@ -1240,6 +1240,9 @@ function moveTo(
       ...(state.battle?.endCombo?.substituteDeparture?.active
         && state.battle.endCombo.substituteDeparture.card === id && from === "combo" && destination === "drop"
         ? { cleanupDeparture: true } : {}) } });
+  const cleanupSpecial: Moment | undefined = state.battle?.endCombo?.substituteDeparture?.active
+    && state.battle.endCombo.substituteDeparture.card === id && from === "combo" && to === "drop"
+    ? { event: "moved", card: id, controller: owner, args: { from: "combo", to: "drop", cleanupSpecial: true } } : undefined;
   const needsHistoryProjection = movementHistory.unresolved.length && !opts.evolutionBase && opts.reason !== "areaExtension";
   if (state.cards[id]?.under.length || needsHistoryProjection) {
     const projected = structuredClone(state);
@@ -1257,7 +1260,7 @@ function moveTo(
       settleAppliedEffectMove(projected, projectedEffect);
       finishStandingNegationMutation(ctx, projected, projectedStanding, projected.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined);
       if (needsHistoryProjection) requireMovementAutoBodies(game, projected, movementHistory,
-        prospectiveMoment(projectedMove.move.to, projectedMove.move.owner), carry, opts.legacyMovement, undefined, opts.legacyCause);
+        prospectiveMoment(projectedMove.move.to, projectedMove.move.owner), carry, opts.legacyMovement, cleanupSpecial, opts.legacyCause);
     }
   }
   const effectMove = captureAppliedEffectMove(state, id, opts.appliedEffects);

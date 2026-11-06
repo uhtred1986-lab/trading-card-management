@@ -1965,7 +1965,10 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
       cleanupReleasedPile(projected, [], projectedPile, projectedMove.move);
       finishStandingNegationMutation(ctx, projected, projectedMutation, projected.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : projectedMove.move.to === "battle" && from !== "battle" ? id : undefined);
       const prospective = movement(id, from, projectedMove.move.to, projectedMove.move.owner, opts, wasHidden, fromHolder);
-      requireMovementAutoBodies(game, projected, movementHistory, prospective, areaCarries(from ?? "", projectedMove.move.to, fromHolder === projectedMove.move.owner), undefined, opts.movementAuto?.also);
+      const cleanupSpecial: Moment | undefined = state.battle?.endCombo?.substituteDeparture?.active
+        && state.battle.endCombo.substituteDeparture.card === id && from === "combo" && projectedMove.move.to === "drop"
+        ? { event: "moved", card: id, controller: projectedMove.move.owner, args: { from: "combo", to: "drop", cleanupSpecial: true } } : undefined;
+      requireMovementAutoBodies(game, projected, movementHistory, prospective, areaCarries(from ?? "", projectedMove.move.to, fromHolder === projectedMove.move.owner), undefined, opts.movementAuto?.also ?? cleanupSpecial);
     }
   }
   opts.movementAuto?.beforeMutation(movementHistory);

@@ -9,3 +9,5 @@ The original `played-combo-end-5.ts` expected-zero negation assertions remain un
 This repair is independent of R528 native standing integration. It depends only on existing R499 movement history, R485 special Combo timing, and R513 cleanup structures.
 
 Focused validation: 12 direct/substitute receipt cases and both unchanged original P-656 negation assertions pass; TypeScript and focused ESLint pass. The complete extended played/Combo suite remains running at commit time; no combined-gate success is claimed.
+
+Substitute preflight follow-up: both native writers explicitly include the later `cleanupSpecial` moment when validating unresolved original bodies. The existing broad `comboed` movement alias already matched ordinary copied lines; the explicit moment preserves the actual later-trigger contract rather than relying on that alias. Eight additional controls cover both seats, interpreter/flow writers, copied full P-656 #10 and an explicitly synthetic granted-keyword trigger. All refuse before state or event writes. These eight controls, TypeScript and focused lint pass.
