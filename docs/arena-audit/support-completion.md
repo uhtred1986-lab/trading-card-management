@@ -293,3 +293,7 @@ R514 source `9e1fa539`, preparatory participant extension `dd3d2666`, and regist
 ## Checkpoint 74: ordinary Activate payment completion
 
 R515 source `15a1ca25` and registry `aca97625` fix redirected-payment success and premature Limit consumption. The receipt separates 911 counted native, continuation, mechanism and compatibility cases/groups. Original declaration and usage survive valid resource continuations; stale saves refuse. Combined type/lint, 236-site inventory and 225-module/121-step browser checks pass. Catalog and complete runtime gap list remain unchanged at 13,025 readable / 940 unread and 2 / 307 / 2,574. Separate under-source preparation (53 cases) admits no Abducted record and explicitly rejects cross-area attachment carry. See [checkpoint 74](round-5/support-seventyfourth-batch.md). Native Token and pile-release work continue.
+
+## Checkpoint 75: Lightning Sentence and regular pile cleanup
+
+R516 `6c81c67f`, compiler-context fix `4e30a646`, R517 `81681343`, temporary Z bound `4bd7d971`, and registry `036fb721` are integrated. Only BT17-131#10 changes in the full catalog: **13,026 readable / 939 unread**; runtime remains **2 / 307 / 2,574**. The linked receipts separate 1,128 counted cases/groups, 237 registered sites and the 228-module/121-step browser proof. Z-material Battle–Combo destination awaits an owner ruling; non-Z regular release is repaired, while recursive under-placement and Abducted admission remain separate. See [checkpoint75](round-5/support-seventyfifth-batch.md). Tao and recursive-release work continue.
