@@ -6126,6 +6126,10 @@
     {
       "name": "yourCardComboToDrop",
       "words": "when one of your cards goes from your Combo Area to your Drop"
+    },
+    {
+      "name": "youGainControlBattle",
+      "words": "when you gain control of an opponent's Battle Card"
     }
   ],
   "literals": [

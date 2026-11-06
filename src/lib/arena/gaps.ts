@@ -80,6 +80,7 @@ const TRIGGER_IN_WORDS: Record<Trigger, string> = {
   played: "when this card is played",
   playedFromHand: "when this card is played from your hand",
   playedFromDrop: "when this card is played from your Drop",
+  youGainControlBattle: "when you gain control of an opponent's Battle Card",
   attacksOpponentBattle: "when this card attacks an opponent's Battle Card",
   attacks: "when this card attacks",
   attacked: "when this card is attacked",

@@ -1611,3 +1611,9 @@ DEFINE TRIGGER "counter:skill"
   ON counterTiming(watcher: opponent, window: skill)
   BIND "subject"
   text: "when your opponent activates a skill, before it resolves"
+
+-- R496 / 20-9: historical holder change captured by the successful native mover.
+DEFINE TRIGGER youGainControlBattle
+  ON moved(from: battle, to: battle, controlGained: true, watcher: controller)
+  BIND "subject"
+  text: "when you gain control of an opponent's Battle Card"

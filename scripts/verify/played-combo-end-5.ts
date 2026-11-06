@@ -39,6 +39,7 @@ for(const old of Object.values(fixtures.refused)){
  const r=skillRecords(card("refused",{skill:old.printed}))[0];
  if(old.cardId==="BT4-019"){assert.deepEqual(r.unread,[]);assert.deepEqual(r.trigger,["attacks","playedUsingUnionPotara"]);assert.equal(r.cond,null);}
  else if(old.cardId==="BT26-100"){assert.deepEqual(r.unread,[]);assert.deepEqual(r.trigger,["played","attacksOpponentBattle"]);assert.equal(r.cond,null);assert.deepEqual(copy(r.ops),gohan.expectedOps);}
+ else if(old.cardId==="P-419"){assert.deepEqual(r.unread,[]);assert.deepEqual(r.trigger,["played","youGainControlBattle"]);assert.equal(r.cond,null);assert.deepEqual(r.usage,{version:1,oncePerTurn:false,limit:1});assert.deepEqual(copy(r.ops),[{op:"discard",n:1,side:"opponent",to:"warp"}]);}
  else assert.ok(r.unread.length);
 }
 for(const tail of [" from your hand"," during your turn"," by your Leader's skill"]){const text=fixtures["P-656#10"].record.printed.replace("used in a combo,",`used in a combo${tail},`);assert.ok(skillRecords(card("unrepresented",{skill:text}))[0].unread.length);}

@@ -574,6 +574,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
   }
   for (const match of matchTriggers(game, state, moment, true)) {
     if (only && !only(match)) continue;
+    // R496 / 9-6-9-1-2: the transferred card's own Auto has its former master,
+    // who did not gain this card; only other recipient watchers can answer.
+    if (match.trigger === "youGainControlBattle" && match.card === moment.card) continue;
     if (match.trigger === "comboToDrop" && moment.args.cleanupDeparture === true) continue;
     // "…from **your** Combo Area" (R-280's `yourCardComboToDrop` too): a card that left another player's Combo Area is not.
     if ((match.trigger === "comboToDrop" || match.trigger === "yourCardComboToDrop") && moment.args.fromHolder !== moment.controller) continue;
@@ -777,7 +780,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // move it again at the checkpoint.
       const movementInfo = subjectInfo ?? (["comboToDrop", "youComboFromHand", "youComboFromBattle"].includes(match.trigger) && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
       const copiedSkillCapture = captureCopiedSkill(state, match.card, sk, script);
-      if (pairedSelfScript(script) && copiedSkillCapture) throw new NotYet("copied paired self-power occurrence is not yet supported", "R487");
+      if (pairedSelfScript(script) && copiedSkillCapture) throw new NotYet("copied bounded paired-source occurrence is not yet supported", "R487");
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
         ...(pairedSelfScript(script) ? { pairedSelf: capturePairedSelf(state, match.card, script!) } : {}),
         ...(copiedSkillCapture ? { copiedSkillCapture } : {}),

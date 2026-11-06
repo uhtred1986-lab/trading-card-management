@@ -1,4 +1,4 @@
-import { pairedSelfScript, requirePairedSelf, requirePairedSelfShape } from "./paired-self";
+import { pairedSelfScript, requirePairedSelf, requirePairedSelfShape, requirePairedSourceFrame } from "./paired-self";
 import { requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { guardUnownedEnergyEntry } from "./energy-entry-runtime";
@@ -936,11 +936,11 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   }
   if (pairedSelfScript(program) || next.pairedSelf) {
     try {
-      if (next.copiedSkillCapture) throw new NotYet("copied paired self-power occurrence is not yet supported", "R487");
+      if (next.copiedSkillCapture) throw new NotYet("copied bounded paired-source occurrence is not yet supported", "R487");
       requirePairedSelfShape(program); requirePairedSelf(state, next.card, next.pairedSelf); }
     catch (error) {
       interruptGame(ctx, game, state, ev, { sourceCard: next.card, skillIndex: next.skillIndex, trigger: next.trigger,
-        issue: "R487", detail: error instanceof Error ? error.message : "rebuild paired self-power" });
+        issue: "R487", detail: error instanceof Error ? error.message : "rebuild bounded paired source" });
       return true;
     }
   }
@@ -1481,6 +1481,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireZAwakenBindings(frame);
     requireReviveFrame(state, frame);
     const sourceScript = programSourceScript(ctx, state, frame);
+    requirePairedSourceFrame(state, sourceScript, frame);
     requireCounterArrivalContract(frame, sourceScript);
     requireCounterArrivalDecision(state, frame);
     if ((frame.counterChoice || state.skillPlayScopes?.some(scope => scope.id === frame.skillEffectOrigin?.scope && scope.purpose === "counterContinuation")) && (sourceScript?.kind !== "counter:play" || !counterChoiceTail(sourceScript.ops))) rebuildScope("rebuild this Counter continuation against its current stored rule");
@@ -1542,7 +1543,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
       if (gap) throw new NotYet(gap, "#907");
     }
     if (pairedSelfScript(sourceScript) || frame.pairedSelf) {
-      if (frame.copiedSkillCapture) throw new NotYet("copied paired self-power occurrence is not yet supported", "R487");
+      if (frame.copiedSkillCapture) throw new NotYet("copied bounded paired-source occurrence is not yet supported", "R487");
       requirePairedSelfShape(sourceScript); requirePairedSelf(state, frame.card, frame.pairedSelf);
     }
     if (frame.taxGate) return stepTaxGate(ctx, game, state, ev, frame);

@@ -266,6 +266,8 @@ export interface Replacement {
 }
 
 export interface MoveOptions {
+  /** R496: native host verified effective Z-BATTLE type for this exact inter-player Battle transfer. */
+  zBattleControl?: { from: PlayerId; to: PlayerId };
   /** Internal synchronous cleanup ownership: only host.moveTo/flow.moved set it. */
   energyEntryCleanup?: true;
   /** Whose copy of the zone: an opponent's Battle Area is a different area (3-1-1). Defaults to the card's owner. */
@@ -409,14 +411,15 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     (from.zone === "battle" || from.zone === "combo") &&
     to !== "battle" && to !== "combo";
   // 14-1-4 removes a Z-Card when it leaves a Leader, Battle or Unison Area,
-  // regardless of its destination. The same zone name on the other player's
-  // side is a different area (3-1-1), so transfer between Battle Areas also
-  // leaves the source area. Combo is deliberately not listed: a Z-Card already
+  // except a native-verified Z-Battle control transfer (Gaining Control FAQ Q5).
+  // Other Z types retain their departure rule across holders. Combo is deliberately not listed: a Z-Card already
   // in Combo can be moved to Z-Energy at 8-5-2. [Ultimate]'s separate 22-14-3
   // rule is still handled by its own hook, not by this area redirect.
   const destinationOwner = opts.owner ?? card.owner;
+  const zBattleControl = opts.zBattleControl && from?.zone === "battle" && to === "battle"
+    && from.owner !== destinationOwner && opts.zBattleControl.from === from.owner && opts.zBattleControl.to === destinationOwner;
   const zCardLeavesListedArea = card.zCard === true && from && Z_CARD_DEPARTURE_AREAS.has(from.zone) &&
-    (from.zone !== to || from.owner !== destinationOwner);
+    (from.zone !== to || from.owner !== destinationOwner) && !zBattleControl;
   if ((tokenLeavesItsAreas || zCardLeavesListedArea) && game.zones[TOKEN_EXIT]) to = TOKEN_EXIT;
   const zone = game.zones[to];
   if (!zone) return { ok: false, refused: `the ${game.id} ruleset declares no zone called ${JSON.stringify(to)}` };

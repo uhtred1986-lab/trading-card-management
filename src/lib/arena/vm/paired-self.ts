@@ -1,15 +1,21 @@
 import { completeFilter } from "./script-schema";
 import { canonicalTaxValue } from "./tax-receipt";
-import type { Script } from "./script";
+import type { Script, ScriptFrame } from "./script";
 import type { VmState } from "./state";
 import { NotYet } from "./errors";
 
-/** R487/R490: only the two bounded paired programs with an occurrence-bound self operation. */
+/** R487/R490/R496: bounded paired-source occurrence. The historical wire name also covers P419, whose body has no self instruction. */
 export interface PairedSelf { version: 1; card: string; token: number }
 export function pairedSelfScript(script: Script | undefined): boolean {
-  return Array.isArray(script?.trigger) && (script.trigger.includes("playedUsingUnionPotara") || script.trigger.includes("attacksOpponentBattle"));
+  return Array.isArray(script?.trigger) && (script.trigger.includes("playedUsingUnionPotara") || script.trigger.includes("attacksOpponentBattle") || script.trigger.includes("youGainControlBattle"));
 }
 export function requirePairedSelfShape(script: Script | undefined): void {
+  if (Array.isArray(script?.trigger) && script.trigger.includes("youGainControlBattle")) {
+    if (script.kind !== "auto" || script.trigger.length !== 2 || !script.trigger.includes("played")
+        || canonicalTaxValue(script.ops) !== canonicalTaxValue([{ op: "discard", n: 1, side: "opponent", to: "warp" }]))
+      throw new NotYet("rebuild the bounded paired control-gain opponent Hand-to-Warp program", "R496");
+    return;
+  }
   if (Array.isArray(script?.trigger) && script.trigger.includes("attacksOpponentBattle")) {
     // Complete stored selector and variable linkage; key order is not semantics.
     const expected = [
@@ -45,5 +51,42 @@ export function requirePairedSelf(state: VmState, card: string, captured: Paired
   if (!Number.isSafeInteger(epoch) || epoch < 0 || !captured || captured.version !== 1 || captured.card !== card
       || !Number.isSafeInteger(captured.token) || captured.token < 0 || captured.token > epoch
       || !Number.isSafeInteger(current) || current! < captured.token || current! > epoch)
-    throw new NotYet("saved paired self-power is missing its source occurrence; rebuild the match", "R487");
+    throw new NotYet("saved paired source is missing its original occurrence; rebuild the match", "R487");
+}
+
+/** R496: discard expands deterministically; a saved chooser cannot change its owner, area or linkage. */
+export function requirePairedSourceFrame(state: VmState, script: Script | undefined, frame: ScriptFrame): void {
+  if (!script?.trigger?.includes("youGainControlBattle")) return;
+  const opponent = frame.master === "p1" ? "p2" : "p1", variable = `discarded0${opponent}`;
+  const original = [{ op: "discard", n: 1, side: "opponent", to: "warp" }];
+  // Printed price is empty; external activation taxes have their own native
+  // gate/payment frames. Bind this Auto's saved effect without treating its
+  // empty printed-cost continuation as the effect body.
+  if (frame.autoCost) {
+    const cost = frame.autoCost;
+    if (canonicalTaxValue(cost.effect) !== canonicalTaxValue(original)
+        || canonicalTaxValue(frame.ops) !== "[]" || canonicalTaxValue(script.price?.ops ?? []) !== "[]"
+        || !cost.skill || cost.skill.kind !== "auto" || cost.skill.index !== frame.skillIndex
+        || canonicalTaxValue(cost.skill.usage) !== canonicalTaxValue(script.usage)
+        || !["offer", "pools", "action"].includes(cost.stage) || frame.ip !== 0
+        || !frame.vars || canonicalTaxValue(frame.vars) !== "{}"
+        || frame.awaiting !== undefined && frame.awaiting !== "autoCost")
+      throw new NotYet("saved paired Auto price lost its exact opponent Hand-to-Warp effect", "R496");
+    return;
+  }
+  const expanded = [
+    { op: "choose", sel: { side: "opponent", area: "hand", count: 1 }, as: variable, chooser: "opponent", reason: "discard 1 card" },
+    { op: "moveTo", target: { var: variable }, to: "warp", reveal: true },
+  ];
+  const initial = canonicalTaxValue(frame.ops) === canonicalTaxValue(original);
+  const vars = frame.vars, picked = vars?.[variable];
+  if (!script.trigger.includes(frame.trigger!) || !["p1", "p2"].includes(frame.master)
+      || !Number.isSafeInteger(frame.ip) || frame.ip < 0 || frame.ip > (initial ? 0 : 2)
+      || !initial && canonicalTaxValue(frame.ops) !== canonicalTaxValue(expanded)
+      || !vars || typeof vars !== "object" || Array.isArray(vars) || Object.keys(vars).some(key => key !== variable)
+      || initial && (Object.keys(vars).length !== 0 || frame.awaiting !== undefined)
+      || !initial && (!Array.isArray(picked) || picked.length > (frame.ip === 0 ? 0 : 1)
+        || picked.some(id => typeof id !== "string" || state.cards[id]?.owner !== opponent)
+        || frame.ip === 0 && frame.awaiting !== undefined && frame.awaiting !== variable))
+    throw new NotYet("saved paired opponent Hand-to-Warp chooser lost its exact body or linkage", "R496");
 }
