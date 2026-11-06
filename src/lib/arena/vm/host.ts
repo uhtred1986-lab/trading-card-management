@@ -1138,7 +1138,9 @@ function moveTo(
   const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode, opts.energyEntry?.negate).mode : route.mode;
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
   const transaction = beginStandingNegationMutation(ctx, state, to === "battle" ? id : undefined);
-  const placed = moveCard(state, game, id, to, { energyEntryCleanup: true, owner, position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}) });
+  const zBattleControl = returnInfo?.type === "Z-BATTLE" && from === "battle" && to === "battle" && fromOwner && fromOwner !== owner
+    ? { from: fromOwner, to: owner } : undefined;
+  const placed = moveCard(state, game, id, to, { energyEntryCleanup: true, owner, position: route.position ?? opts.position, carry, ...(zBattleControl ? { zBattleControl } : {}), ...(mode ? { mode } : {}) });
   if (!placed.ok) {
     log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} does not move: ${placed.refused}` });
     finishStandingNegationMutation(ctx, state, transaction);
@@ -1169,9 +1171,12 @@ function moveTo(
   const substitute = state.battle?.endCombo?.substituteDeparture;
   const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
   if (cleanupDeparture) substitute.actualDrop = { controller: owner };
+  // R496 / 20-9: an actual change of Battle Area holder, not a play or requested transfer.
+  const controlGained = placed.move.from === "battle" && placed.move.to === "battle" && placed.move.fromOwner !== null
+    && placed.move.fromOwner !== placed.move.owner && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(returnInfo?.type));
   if (!opts.evolutionBase && opts.reason !== "areaExtension") emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
     ...(returnInfo && (to === "hand" || from === "unison" || opts.historicalBattleEnergy && from === "battle" && to === "energy") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
-    args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
+    args: { from: from ?? "", to, asPlay: false, ...(controlGained ? { controlGained: true } : {}), cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   queueFieldCleanup(ctx, game, state, id, from, fromOwner);
   // Energy-Exhaust was captured before entry; a post-entry query could let the arrival count itself.
 

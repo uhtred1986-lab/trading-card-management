@@ -1035,6 +1035,7 @@ export type Trigger =
   | "koedByOpponentSkill"
   | "attacks"
   | "attacksOpponentBattle"
+  | "youGainControlBattle"
   | "attacked"
   | "koed"
   /** This card KO'd another — by battle or by its own skill ("When this card KOs an opponent's Battle Card"). */
