@@ -5,7 +5,7 @@ import type { VmState } from "./state";
 import { NotYet } from "./errors";
 import { canonicalTaxValue as canonical } from "./tax-receipt";
 import { requireResolvedGrantHistory, resolvedGrantDeleted } from "./resolved-grant-deletion";
-import { emptyMixedStandingNegationHistory, settleMixedStandingNegation, validateMixedStandingNegationObservation } from "./standing-negation-mixed-history";
+import { emptyMixedStandingNegationHistory, settleMixedStandingNegation, validateMixedStandingNegationObservation, mixedStandingObservationFromHistory } from "./standing-negation-mixed-history";
 import type { MixedStandingNegationCard as Card, MixedStandingNegationHistory as History, MixedStandingNegationObservation as Observation } from "./standing-negation-mixed-history";
 import { hasMixedStandingPolicy, mixedStandingOccurrences, observeMixedStandingNegation } from "./standing-negation-mixed-observation";
 import { invalidateMixedStandingNegationReadSeal, issueMixedStandingNegationReadSeal } from "./standing-negation-mixed-read";
@@ -17,6 +17,14 @@ declare const tokenBrand: unique symbol;
 export interface MixedStandingNegationMutation {
     readonly [tokenBrand]: true;
 }
+export type MixedBattleChange = {
+    kind: "begin";
+} | {
+    kind: "end";
+} | {
+    kind: "retire" | "assign";
+    roles: readonly ("attacker" | "guard")[];
+};
 interface Capture {
     ctx: EngineContext;
     game: GameDefinition;
@@ -28,36 +36,6 @@ interface Capture {
 }
 const captures = new WeakMap<MixedStandingNegationMutation, Capture>();
 function refuse(message: string): never { throw new NotYet(message, "R513"); }
-function savedObservation(history: History): Observation {
-    if (!history || typeof history.observation !== "string")
-        refuse("rebuild mixed transaction history");
-    let parsed: {
-        cards: Card[];
-        battle: Observation["battle"];
-        candidates: (Observation["candidates"][number] & {
-            enabled?: boolean;
-        })[];
-    };
-    try {
-        parsed = JSON.parse(history.observation);
-    }
-    catch {
-        return refuse("rebuild mixed stored observation");
-    }
-    if (!parsed || !Array.isArray(parsed.candidates)
-        || Object.keys(parsed).sort().join(",") !== "battle,candidates,cards")
-        refuse("rebuild mixed stored observation fields");
-    const candidates = parsed.candidates.map(candidate => {
-        if (!candidate || typeof candidate.enabled !== "boolean")
-            refuse("rebuild mixed stored candidate condition");
-        const facts = { ...candidate };
-        delete facts.enabled;
-        return facts;
-    });
-    const observation: Observation = { version: 2, policy: "mixedWholeV1", cards: parsed.cards, battle: parsed.battle, candidates };
-    validateMixedStandingNegationObservation(history, observation);
-    return observation;
-}
 function grantInvariant(state: MixedStandingState, history: History): void {
     for (const grant of suppressedGrants(state, history)) {
         if (!resolvedGrantDeleted(state, grant.target, grant.id))
@@ -74,7 +52,7 @@ function current(ctx: EngineContext, game: GameDefinition, state: MixedStandingS
     const history = state.mixedStandingNegationHistory;
     if (!history || state.standingNegationHistory !== undefined)
         refuse("rebuild affected mixed history without migrating legacy generations");
-    const previous = savedObservation(history);
+    const previous = mixedStandingObservationFromHistory(history);
     const observation = observeMixedStandingNegation(ctx, game, state, history);
     validateMixedStandingNegationObservation(history, observation);
     grantInvariant(state, history);
@@ -114,6 +92,47 @@ export function captureMixedStandingNegationMutation(ctx: EngineContext, game: G
     invalidateMixedStandingNegationReadSeal(state);
     return token;
 }
+/** A change instruction is native transaction input, never a saved permission.
+ * Reads do not derive a retirement or adopt a new occurrence from role IDs.
+ */
+function changedParticipants(state: MixedStandingState, previous: Observation, cards: Card[], change?: MixedBattleChange): Observation["battle"] {
+    if (change === undefined)
+        return previous.battle;
+    if (!change || typeof change !== "object" || Array.isArray(change))
+        refuse("rebuild explicit mixed battle change");
+    if (change.kind === "begin") {
+        if (Object.keys(change).length !== 1 || previous.battle || !state.battle)
+            refuse("bind a new mixed battle declaration");
+        const participant = (id: string) => ({ occurrence: cards.find(card => card.card === id)
+                ?? refuse("bind new battle participant to actual occurrence"), present: true });
+        return { attacker: participant(state.battle.attacker), guard: participant(state.battle.guard) };
+    }
+    if (change.kind === "end") {
+        if (Object.keys(change).length !== 1 || !previous.battle || state.battle)
+            refuse("bind the actual end of mixed battle participation");
+        return null;
+    }
+    if (!["retire", "assign"].includes(change.kind) || Object.keys(change).sort().join(",") !== "kind,roles"
+        || !Array.isArray(change.roles) || !change.roles.length || change.roles.some(role => !["attacker", "guard"].includes(role))
+        || new Set(change.roles).size !== change.roles.length || !previous.battle || !state.battle)
+        refuse("bind explicit mixed battle participant transition");
+    const next = structuredClone(previous.battle);
+    for (const role of change.roles as readonly ("attacker" | "guard")[]) {
+        const old = next[role];
+        if (change.kind === "retire") {
+            if (!old.present || state.battle[role] !== old.occurrence.card)
+                refuse("retire only the captured current battle participant");
+            old.present = false;
+        }
+        else {
+            const occurrence = cards.find(card => card.card === state.battle![role]);
+            if (!occurrence || occurrence.card === old.occurrence.card)
+                refuse("assign a genuinely new native battle participant occurrence");
+            next[role] = { occurrence, present: true };
+        }
+    }
+    return next;
+}
 /** A synchronous writer supplies actual fresh occurrences. Newly changed
  * area/holder/epoch/face facts cannot be inferred as authorized arrivals.
  * Publish only history and existing grant receipts after complete validation.
@@ -121,12 +140,13 @@ export function captureMixedStandingNegationMutation(ctx: EngineContext, game: G
 export function settleMixedStandingNegationMutation(ctx: EngineContext, game: GameDefinition, state: MixedStandingState, token: MixedStandingNegationMutation, options: {
     arrivals?: readonly Card[];
     enablingOrder?: readonly string[];
+    battle?: MixedBattleChange;
 } = {}): void {
     const captured = token && captures.get(token);
     if (!captured || captured.ctx !== ctx || captured.game !== game || captured.state !== state)
         refuse("rebuild original synchronous mixed transaction capture");
     if (!options || typeof options !== "object" || Array.isArray(options)
-        || Object.keys(options).some(key => !["arrivals", "enablingOrder"].includes(key)))
+        || Object.keys(options).some(key => !["arrivals", "enablingOrder", "battle"].includes(key)))
         refuse("rebuild mixed transaction options");
     if (canonical(state.mixedStandingNegationHistory) !== captured.historyIdentity
         || canonical(state.standingNegationHistory ?? null) !== captured.legacyIdentity)
@@ -138,7 +158,8 @@ export function settleMixedStandingNegationMutation(ctx: EngineContext, game: Ga
         || cards.some(card => !captured.previous.cards.some(prior => canonical(prior) === canonical(card))
             && !arrivals.some(arrival => canonical(arrival) === canonical(card))))
         refuse("bind mixed transaction arrivals to actual new physical occurrences");
-    const observation = observeMixedStandingNegation(ctx, game, state, captured.history, arrivals);
+    const participants = changedParticipants(state, captured.previous, cards, options.battle);
+    const observation = observeMixedStandingNegation(ctx, game, state, captured.history, arrivals, participants);
     const history = settleMixedStandingNegation(captured.history, observation, options.enablingOrder);
     const grants = suppressedGrants(state, history);
     const receipts = state.resolvedGrantDeletions === undefined ? undefined : structuredClone(state.resolvedGrantDeletions);

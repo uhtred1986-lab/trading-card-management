@@ -30,13 +30,21 @@ export interface MixedStandingNegationCandidate {
     /** Protection-filtered targets, supplied by the future native observer. */
     targets: MixedStandingNegationCard[];
 }
+/** Native participation outlives a vanished opposing combatant until 8-5-13.
+ * A departed slot retains its original occurrence and cannot authorize a
+ * newly returned occurrence of the same card as a current participant.
+ */
+export interface MixedBattleParticipant {
+    occurrence: MixedStandingNegationCard;
+    present: boolean;
+}
 export interface MixedStandingNegationObservation {
     version: 2;
     policy: "mixedWholeV1";
     cards: MixedStandingNegationCard[];
     battle: {
-        attacker: MixedStandingNegationCard;
-        guard: MixedStandingNegationCard;
+        attacker: MixedBattleParticipant;
+        guard: MixedBattleParticipant;
     } | null;
     candidates: MixedStandingNegationCandidate[];
 }
@@ -66,20 +74,23 @@ function enabled(observation: MixedStandingNegationObservation, candidate: Mixed
         return true;
     return observation.cards.filter(card => card.area === "combo" && card.holder === candidate.source.master).length >= 7
         && !!observation.battle && [observation.battle.attacker, observation.battle.guard]
-        .some(card => cardKey(card) === cardKey(candidate.source));
+        .some(slot => slot.present && cardKey(slot.occurrence) === cardKey(candidate.source));
 }
 function validateFacts(observation: MixedStandingNegationObservation): void {
     if (!Array.isArray(observation.cards) || observation.cards.some(card => !cardValid(card))
         || new Set(observation.cards.map(card => card.card)).size !== observation.cards.length)
         rebuild("rebuild mixed-policy area occurrences");
     if (observation.battle !== null) {
-        if (!shape(observation.battle, ["attacker", "guard"]) || !cardValid(observation.battle.attacker) || !cardValid(observation.battle.guard)
-            || observation.battle.attacker.card === observation.battle.guard.card
-            || observation.battle.attacker.holder === observation.battle.guard.holder
-            || !["leader", "battle", "unison"].includes(observation.battle.attacker.area)
-            || !["leader", "battle", "unison"].includes(observation.battle.guard.area)
-            || [observation.battle.attacker, observation.battle.guard].some(card => card.area === "combo"
-                || !observation.cards.some(item => cardKey(item) === cardKey(card))))
+        if (!shape(observation.battle, ["attacker", "guard"]))
+            rebuild("rebuild mixed-policy battle occurrence binding");
+        const { attacker, guard } = observation.battle;
+        const valid = (slot: MixedBattleParticipant) => shape(slot, ["occurrence", "present"])
+            && typeof slot.present === "boolean" && cardValid(slot.occurrence)
+            && ["leader", "battle", "unison"].includes(slot.occurrence.area)
+            && slot.present === observation.cards.some(card => cardKey(card) === cardKey(slot.occurrence));
+        if (!shape(observation.battle, ["attacker", "guard"]) || !valid(attacker) || !valid(guard)
+            || attacker.occurrence.card === guard.occurrence.card
+            || attacker.occurrence.holder === guard.occurrence.holder)
             rebuild("rebuild mixed-policy battle occurrence binding");
     }
 }
@@ -146,7 +157,7 @@ function observationKey(observation: MixedStandingNegationObservation): string {
     }
     // Sorting makes equal observations independent of traversal order. Only the
     // mutation owner's explicit enabling order can create priority below.
-    return canonical({ cards: observation.cards.map(cardOf).sort((a, b) => cardKey(a).localeCompare(cardKey(b))), battle: observation.battle ? { attacker: cardOf(observation.battle.attacker), guard: cardOf(observation.battle.guard) } : null, candidates: observation.candidates.map(candidate => ({ source: candidate.source, externalEnabled: candidate.externalEnabled, enabled: enabled(observation, candidate),
+    return canonical({ cards: observation.cards.map(cardOf).sort((a, b) => cardKey(a).localeCompare(cardKey(b))), battle: observation.battle ? { attacker: { occurrence: cardOf(observation.battle.attacker.occurrence), present: observation.battle.attacker.present }, guard: { occurrence: cardOf(observation.battle.guard.occurrence), present: observation.battle.guard.present } } : null, candidates: observation.candidates.map(candidate => ({ source: candidate.source, externalEnabled: candidate.externalEnabled, enabled: enabled(observation, candidate),
             targets: candidate.targets.map(cardOf).sort((a, b) => cardKey(a).localeCompare(cardKey(b))),
         })).sort((a, b) => mixedStandingNegationSourceKey(a.source).localeCompare(mixedStandingNegationSourceKey(b.source))) });
 }
@@ -258,4 +269,33 @@ export function validateMixedStandingNegationObservation(history: MixedStandingN
     const edgeKeys = (edges: MixedStandingNegationHistory["suppressed"]) => edges.map(edge => canonical(edge)).sort();
     if (canonical(edgeKeys(expected)) !== canonical(edgeKeys(history.suppressed)))
         rebuild("inconsistent standing-negation suppression history");
+}
+/** Decode only a validated saved observation. This never retires participants. */
+export function mixedStandingObservationFromHistory(history: MixedStandingNegationHistory): MixedStandingNegationObservation {
+    validateMixedStandingNegationHistory(history);
+    let parsed: {
+        cards: MixedStandingNegationCard[];
+        battle: MixedStandingNegationObservation["battle"];
+        candidates: (MixedStandingNegationCandidate & {
+            enabled?: boolean;
+        })[];
+    };
+    try {
+        parsed = JSON.parse(history.observation);
+    }
+    catch {
+        return rebuild("rebuild mixed stored observation");
+    }
+    if (!shape(parsed, ["cards", "battle", "candidates"]) || !Array.isArray(parsed.candidates))
+        rebuild("rebuild mixed stored observation fields");
+    const candidates = parsed.candidates.map(candidate => {
+        if (!candidate || typeof candidate.enabled !== "boolean")
+            rebuild("rebuild mixed stored candidate condition");
+        const facts = { ...candidate };
+        delete facts.enabled;
+        return facts;
+    });
+    const observation: MixedStandingNegationObservation = { version: 2, policy: "mixedWholeV1", cards: parsed.cards, battle: parsed.battle, candidates };
+    validateMixedStandingNegationObservation(history, observation);
+    return observation;
 }

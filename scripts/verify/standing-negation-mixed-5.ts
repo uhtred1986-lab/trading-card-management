@@ -34,7 +34,7 @@ function board(p: PlayerId, count = 7): Observation {
   const target = occurrence("target", other(p), "combo");
   return { version: 2, policy: "mixedWholeV1", cards: [goku, guard, target,
     ...Array.from({ length: count }, (_, i) => occurrence(`own${i}`, p, "combo"))],
-  battle: { attacker: goku, guard }, candidates: [{ source: goku, externalEnabled: true, targets: [target] }] };
+  battle: { attacker: { occurrence: goku, present: true }, guard: { occurrence: guard, present: true } }, candidates: [{ source: goku, externalEnabled: true, targets: [target] }] };
 }
 const actual = card("BT20-086", sources["BT20-086"].card as Parameters<typeof card>[1]);
 const rows = skillRecords(actual);
@@ -74,7 +74,7 @@ for (const p of ["p1", "p2"] as const) {
       const o = copy(seven); change(o); assert.equal(settle(active, o).active.length, 0);
     }
     const unrelated = copy(seven), attacker = occurrence("unrelated", p, "battle");
-    unrelated.cards.push(attacker); unrelated.battle!.attacker = attacker;
+    unrelated.cards.push(attacker); unrelated.battle!.attacker = { occurrence: attacker, present: true };
     assert.equal(settle(active, unrelated).active.length, 0);
     const defending = copy(seven); [defending.battle!.attacker, defending.battle!.guard] = [defending.battle!.guard, defending.battle!.attacker];
     assert.deepEqual(settle(active, defending).active, active.active);
@@ -82,11 +82,30 @@ for (const p of ["p1", "p2"] as const) {
   test(`${p} opposing Unison attacker keeps Goku guard policy active`, () => {
     const o = copy(seven), unison = occurrence("attackingUnison", other(p), "unison");
     o.cards.push(unison);
-    o.battle = { attacker: unison, guard: o.candidates[0].source };
+    o.battle = { attacker: { occurrence: unison, present: true }, guard: { occurrence: o.candidates[0].source, present: true } };
     const h = settle(active, o);
     assert.deepEqual(h.active, active.active);
     assert.equal(affects(h, o, target), true);
     validate(h, o);
+  });
+  test(`${p} historical opponent preserves source generation`, () => {
+    const o = copy(seven), opposite = o.battle!.guard;
+    o.cards = o.cards.filter(card => card.card !== opposite.occurrence.card);
+    opposite.present = false;
+    const h = settle(active, o); validate(h, o);
+    assert.deepEqual(h.active, active.active); assert.equal(affects(h, o, target), true);
+    const bad = copy(o); bad.battle!.guard.present = true;
+    assert.throws(() => settle(h, bad), /battle occurrence/);
+  });
+  test(`${p} historical source cannot enable a fresh same-ID occurrence`, () => {
+    const o = copy(seven), original = o.candidates[0];
+    o.battle!.attacker.present = false;
+    o.cards = o.cards.filter(card => card.card !== original.source.card); o.candidates = [];
+    const departed = settle(active, o); assert.equal(departed.active.length, 0);
+    const returned = { ...original.source, epoch: original.source.epoch + 2 };
+    o.cards.push(returned); o.candidates = [{ ...original, source: returned }];
+    const h = settle(departed, o); validate(h, o);
+    assert.equal(h.active.length, 0); assert.equal(h.nextSerial, active.nextSerial);
   });
   test(`${p} physical holder counts cards, printed owner does not`, () => {
     const o = copy(seven); o.cards.find(card => card.card === "own0")!.owner = other(p);
@@ -122,12 +141,12 @@ for (const p of ["p1", "p2"] as const) {
   });
   for (const [label, change] of Object.entries({
     selfBattle: (o: Observation) => { o.battle!.guard = o.battle!.attacker; },
-    sameHolderBattle: (o: Observation) => { o.battle!.guard.holder = p; },
-    attackingCombo: (o: Observation) => { o.battle!.attacker.area = "combo"; },
+    sameHolderBattle: (o: Observation) => { o.battle!.guard.occurrence.holder = p; },
+    attackingCombo: (o: Observation) => { o.battle!.attacker.occurrence.area = "combo"; },
     extraObservationField: (o: Observation) => { (o as any).serial = 99; },
     extraSourceField: (o: Observation) => { (o.candidates[0].source as any).invented = true; },
     duplicateCard: (o: Observation) => { o.cards.push(copy(o.cards[0])); },
-    missingBattleCard: (o: Observation) => { o.battle!.guard.card = "absent"; },
+    missingBattleCard: (o: Observation) => { o.battle!.guard.occurrence.card = "absent"; },
     inventedArea: (o: Observation) => { (o.cards[0] as any).area = "fake"; },
     misplacedSource: (o: Observation) => { o.candidates[0].source.area = "combo"; },
     invalidHolder: (o: Observation) => { (o.cards[0] as any).holder = "p3"; },
@@ -139,7 +158,8 @@ for (const p of ["p1", "p2"] as const) {
   });
 }
 for (const malformed of [null, {}, { version: 2, policy: "mixedWholeV1", cards: null, battle: null, candidates: [] },
-  { ...board("p1"), candidates: [null] }, { ...board("p1"), battle: {} }]) {
+  { ...board("p1"), candidates: [null] }, { ...board("p1"), battle: {} },
+  ...[undefined, "battle", 1, { attacker: null }, { attacker: { present: true }, guard: null }].map(battle => ({ ...board("p1"), battle }))]) {
   test("malformed observation refuses without TypeError", () => {
     assert.throws(() => settle(empty(), malformed as unknown as Observation), error => {
       assert.ok(error instanceof Error); assert.notEqual(error.name, "TypeError"); return /negation|mixed/.test(error.message);

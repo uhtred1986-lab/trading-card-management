@@ -53,7 +53,7 @@ function setup(p: PlayerId) {
   function fight(on = true) {
     const token = capture(ctx, game, state);
     state.battle = on ? { attacker: source, guard, target: guard, step: "offense", negated: false, blockerOffered: false, counters: [] } : null;
-    settle(ctx, game, state, token);
+    settle(ctx, game, state, token, { battle: { kind: on ? "begin" : "end" } });
   }
   function own(n: number) { for (let i = 0; i < n; i++) enter(`own${i}`, "F", p, "combo"); }
   return { state, source, guard, raw, enter, move, fight, own };
@@ -95,6 +95,84 @@ for (const p of ["p1", "p2"] as const) {
     settle(ctx, game, b.state, fresh);
     assert.equal(resolvedGrantDeleted(b.state, "prum", newGrant.id), false);
     assert.ok(b.state.effects.includes(keyword)); assert.ok(b.state.effects.includes(copied));
+  });
+  test(`${p} departed opponent and negated attack retain surviving Goku through battle end`, () => {
+    const b = setup(p); b.enter("prum", "DB2-086", other(p), "combo"); b.own(7);
+    b.enter("opponent", "F", other(p), "battle");
+    let token = capture(ctx, game, b.state);
+    b.state.battle = { attacker: "opponent", guard: b.source, target: b.source, step: "defense", negated: false, blockerOffered: false, counters: [] };
+    settle(ctx, game, b.state, token, { battle: { kind: "begin" } });
+    const serial = b.state.mixedStandingNegationHistory!.active[0].serial;
+    token = capture(ctx, game, b.state); b.state.battle.negated = true;
+    settle(ctx, game, b.state, token); assert.equal(negated(b.state, b.state.mixedStandingNegationHistory!, "prum"), true);
+    token = capture(ctx, game, b.state);
+    b.state.sides[other(p)].zones.battle = []; b.state.sides[other(p)].zones.warp.push("opponent"); b.state.cards.opponent.zoneEpoch = 1;
+    assert.throws(() => settle(ctx, game, b.state, token), /retire changed/);
+    settle(ctx, game, b.state, token, { battle: { kind: "retire", roles: ["attacker"] } });
+    assert.equal(negated(b.state, b.state.mixedStandingNegationHistory!, "prum"), true);
+    assert.equal(b.state.mixedStandingNegationHistory!.active[0].serial, serial);
+    const saved = clone(b.state); check(ctx, game, saved);
+    assert.equal(negated(saved, saved.mixedStandingNegationHistory!, "prum"), true);
+    token = capture(ctx, game, b.state); b.state.battle = null;
+    assert.throws(() => settle(ctx, game, b.state, token), /explicit native assignment/);
+    settle(ctx, game, b.state, token, { battle: { kind: "end" } });
+    assert.equal(negated(b.state, b.state.mixedStandingNegationHistory!, "prum"), false);
+  });
+  test(`${p} departed Goku does not inherit participation on same-ID reentry`, () => {
+    const b = setup(p); b.enter("prum", "DB2-086", other(p), "combo"); b.own(7); b.fight();
+    let token = capture(ctx, game, b.state);
+    b.state.sides[p].zones.leader = []; b.state.sides[p].zones.warp.push(b.source); b.state.cards[b.source].zoneEpoch = 1;
+    settle(ctx, game, b.state, token, { battle: { kind: "retire", roles: ["attacker"] } });
+    assert.equal(negated(b.state, b.state.mixedStandingNegationHistory!, "prum"), false);
+    token = capture(ctx, game, b.state);
+    b.state.sides[p].zones.warp = []; b.state.sides[p].zones.leader.push(b.source); b.state.cards[b.source].zoneEpoch = 2;
+    const arrivals = mixedStandingOccurrences(ctx, game, b.state).filter(card => card.card === b.source);
+    assert.throws(() => settle(ctx, game, b.state, token, { arrivals, battle: { kind: "assign", roles: ["attacker"] } }), /genuinely new/);
+    settle(ctx, game, b.state, token, { arrivals });
+    assert.equal(negated(b.state, b.state.mixedStandingNegationHistory!, "prum"), false);
+    check(ctx, game, clone(b.state));
+    b.fight(false); b.fight();
+    assert.equal(negated(b.state, b.state.mixedStandingNegationHistory!, "prum"), true);
+    assert.equal(b.state.mixedStandingNegationHistory!.active[0].serial, 2);
+  });
+  test(`${p} Hidden opposing participant retires without ending surviving Goku`, () => {
+    const b = setup(p); b.enter("prum", "DB2-086", other(p), "combo"); b.own(7); b.enter("opponent", "F", other(p), "battle");
+    let token = capture(ctx, game, b.state);
+    b.state.battle = { attacker: "opponent", guard: b.source, target: b.source, step: "defense", negated: false, blockerOffered: false, counters: [] };
+    settle(ctx, game, b.state, token, { battle: { kind: "begin" } });
+    token = capture(ctx, game, b.state); b.state.cards.opponent.hidden = true;
+    b.state.cards.opponent.hiddenCount = 1; b.state.battle.hiddenOut = true;
+    settle(ctx, game, b.state, token, { arrivals: mixedStandingOccurrences(ctx, game, b.state).filter(card => card.card === "opponent"),
+      battle: { kind: "retire", roles: ["attacker"] } });
+    assert.equal(negated(b.state, b.state.mixedStandingNegationHistory!, "prum"), true);
+    token = capture(ctx, game, b.state); b.state.cards.opponent.hidden = false;
+    settle(ctx, game, b.state, token);
+    check(ctx, game, clone(b.state));
+  });
+  test(`${p} explicit distinct participant assignment binds the actual changed native role`, () => {
+    const b = setup(p); b.own(7); b.fight(); b.enter("blocker", "F", other(p), "battle");
+    const token = capture(ctx, game, b.state); b.state.battle!.guard = "blocker";
+    assert.throws(() => settle(ctx, game, b.state, token), /native role record/);
+    settle(ctx, game, b.state, token, { battle: { kind: "assign", roles: ["guard"] } });
+    check(ctx, game, clone(b.state));
+  });
+  test(`${p} retirement requires a real occurrence change and cannot be replayed`, () => {
+    const b = setup(p); b.own(7); b.fight();
+    const token = capture(ctx, game, b.state), history = b.state.mixedStandingNegationHistory;
+    assert.throws(() => settle(ctx, game, b.state, token, { battle: { kind: "retire", roles: ["attacker"] } }), /retire changed/);
+    assert.equal(b.state.mixedStandingNegationHistory, history);
+    b.state.sides[p].zones.leader = []; b.state.sides[p].zones.warp.push(b.source); b.state.cards[b.source].zoneEpoch = 1;
+    assert.throws(() => check(ctx, game, b.state), /retire changed/);
+    settle(ctx, game, b.state, token, { battle: { kind: "retire", roles: ["attacker"] } });
+    const another = capture(ctx, game, b.state);
+    assert.throws(() => settle(ctx, game, b.state, another, { battle: { kind: "retire", roles: ["attacker"] } }), /captured current/);
+    for (const change of [(s: State) => { s.cards[b.source].zoneEpoch = -1; },
+      (s: State) => { s.cards[b.source].zoneEpoch = Number.NaN; },
+      (s: State) => { s.cards[b.source].owner = other(p); },
+      (s: State) => { s.cards[b.source].cardId = "F"; }]) {
+      const bad = clone(b.state); change(bad);
+      assert.throws(() => check(ctx, game, bad), /historical mixed participant/);
+    }
   });
   test(`${p} full Whis self-protection applies in Battle, not after Combo transfer`, () => {
     const b = setup(p); b.enter("whis", "BT1-043", other(p), "battle");
@@ -168,7 +246,7 @@ for (const p of ["p1", "p2"] as const) {
     assert.throws(() => settle(ctx, game, b.state, token), /original synchronous/);
     b.state.battle = { attacker: b.source, guard: b.guard } as NonNullable<State["battle"]>;
     assert.equal(seal(ctx, b.state, b.state.mixedStandingNegationHistory!), false);
-    assert.throws(() => check(ctx, game, b.state), /not been settled/);
+    assert.throws(() => check(ctx, game, b.state), /not been settled|explicit native assignment/);
   });
   test(`${p} missing original grant receipt cannot publish either ledger`, () => {
     const b = setup(p); b.enter("prum", "DB2-086", other(p), "combo"); b.own(7); b.fight();
@@ -215,10 +293,10 @@ for (const options of [null, [], { arrivals: null }, { arrivals: [null] }, { inv
     assert.equal(b.state.mixedStandingNegationHistory, history);
   });
 }
-test("missing departed battle role is an explicit current adapter bound", () => {
+test("unannounced departed battle role cannot invent retirement on a read", () => {
   const b = setup("p1"); b.fight(); const token = capture(ctx, game, b.state);
   b.state.sides.p1.zones.leader = []; b.state.sides.p1.zones.warp.push(b.source);
-  assert.throws(() => settle(ctx, game, b.state, token), /battle role occurrence/);
+  assert.throws(() => settle(ctx, game, b.state, token), /retire changed/);
 });
 test("legacy-only contexts do not acquire mixed history", () => {
   const oldCtx = context({ L: defs.L, F: defs.F, "DB1-066": defs["DB1-066"] });

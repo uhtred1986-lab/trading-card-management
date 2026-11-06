@@ -13,7 +13,7 @@ import type { VmState } from "./state";
 import { canonicalTaxValue as canonical } from "./tax-receipt";
 import { requireResolvedGrantHistory, resolvedGrantDeleted } from "./resolved-grant-deletion";
 import { standingWholePrinted, standingWholeScript, standingComboWholeDescriptor, standingComboWholePrinted, standingComboWholeScript } from "./standing-negation-policy";
-import { mixedStandingNegationSourceKey as sourceKey, validateMixedStandingNegationHistory } from "./standing-negation-mixed-history";
+import { mixedStandingNegationSourceKey as sourceKey, validateMixedStandingNegationHistory, mixedStandingObservationFromHistory } from "./standing-negation-mixed-history";
 import type { MixedStandingNegationCard as Card, MixedStandingNegationSource as Source, MixedStandingNegationObservation as Observation, MixedStandingNegationHistory as History } from "./standing-negation-mixed-history";
 function refuse(message: string): never { throw new NotYet(message, "R513"); }
 const areas = ["leader", "battle", "unison", "combo"] as const;
@@ -75,12 +75,28 @@ export function hasMixedStandingPolicy(ctx: EngineContext): boolean {
 /** Complete observation from the supplied native board. Protection handoffs
  * use the already validated preceding history and actual transaction arrivals.
  */
-export function observeMixedStandingNegation(ctx: EngineContext, game: GameDefinition, state: VmState, history: History, arrivals: readonly Card[] = []): Observation {
+export function observeMixedStandingNegation(ctx: EngineContext, game: GameDefinition, state: VmState, history: History, arrivals: readonly Card[] = [], participants?: Observation["battle"]): Observation {
     validateMixedStandingNegationHistory(history);
     const cards = mixedStandingOccurrences(ctx, game, state);
-    const role = (id: string): Card => cards.find(card => card.card === id)
-        ?? refuse("rebuild mixed standing-negation battle role occurrence");
-    const battle = state.battle ? { attacker: role(state.battle.attacker), guard: role(state.battle.guard) } : null;
+    const battle = participants === undefined ? mixedStandingObservationFromHistory(history).battle : participants;
+    if (!!battle !== !!state.battle)
+        refuse("bind mixed battle participation through an explicit native assignment");
+    if (battle && state.battle) {
+        for (const role of ["attacker", "guard"] as const) {
+            const slot = battle[role], original = slot?.occurrence;
+            if (!slot || !original || state.battle[role] !== original.card)
+                refuse("bind mixed battle participant to the native role record");
+            const current = cards.find(card => card.card === original.card);
+            const same = current && canonical(current) === canonical(original) && !state.cards[original.card]?.hidden;
+            if (slot.present !== !!same)
+                refuse("retire changed mixed battle participation only from its original capture");
+            const instance = state.cards[original.card];
+            if (!slot.present && instance && (instance.cardId !== original.cardId || instance.owner !== original.owner
+                || !Number.isSafeInteger(instance.zoneEpoch ?? 0) || (instance.zoneEpoch ?? 0) < original.epoch
+                || !Number.isSafeInteger(instance.hiddenCount ?? 0) || (instance.hiddenCount ?? 0) < original.hiddenCount))
+                refuse("bind historical mixed participant to its original physical card");
+        }
+    }
     const lines = cards.flatMap(occurrence => {
         const instance = state.cards[occurrence.card], def = ctx.defs[occurrence.cardId];
         if (instance.hidden)
