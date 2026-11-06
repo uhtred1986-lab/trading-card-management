@@ -140,7 +140,7 @@ export interface VmBattle {
     /** One 8-5-8 replacement offer, frozen through the affected player's answer/reload. */
     awaitingDeparture?: { card: string; choices: ReplacementChoice[]; allowNone: boolean };
     /** A substitute frame replacing this native departure; its own actual Combo-to-Drop move is captured for 8-5-9. */
-    substituteDeparture?: { card: string; origin?: ComboOrigin; hidden?: true; active?: true; actualDrop?: { controller: PlayerId } };
+    substituteDeparture?: { card: string; origin?: ComboOrigin; hidden?: true; active?: true; actualDrop?: { controller: PlayerId; movementHistory?: import("./movement-auto-history").MovementAutoHistory } };
     /** 8-5-10-1: actual Combo departures whose special battle-end Auto is announced at 8-5-9. */
     specialSubjects?: { card: string; to: string; controller: PlayerId; origin?: ComboOrigin; hidden?: true; movementHistory?: import("./movement-auto-history").MovementAutoHistory }[];
     specialCursor?: number;

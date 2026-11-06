@@ -1302,7 +1302,7 @@ function moveTo(
   // this earlier movement moment. Its other moves keep their ordinary timing.
   const substitute = state.battle?.endCombo?.substituteDeparture;
   const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
-  if (cleanupDeparture) substitute.actualDrop = { controller: owner };
+  if (cleanupDeparture) substitute.actualDrop = { controller: owner, movementHistory };
   // R496 / 20-9: an actual change of Battle Area holder, not a play or requested transfer.
   const controlGained = placed.move.from === "battle" && placed.move.to === "battle" && placed.move.fromOwner !== null
     && placed.move.fromOwner !== placed.move.owner && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(returnInfo?.type));

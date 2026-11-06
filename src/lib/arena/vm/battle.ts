@@ -469,6 +469,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
           if (end.substituteDeparture) {
             const done = end.substituteDeparture;
             if (done.actualDrop) end.specialSubjects!.push({ card: done.card, to: "drop", controller: done.actualDrop.controller,
+              ...(done.actualDrop.movementHistory ? { movementHistory: done.actualDrop.movementHistory } : {}),
               ...(done.origin ? { origin: done.origin } : {}), ...(done.hidden ? { hidden: true } : {}) });
             delete end.substituteDeparture;
           }
@@ -523,10 +524,14 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
               if (substituteFrame) prepareReplacementAuto(ctx, game, state, substituteFrame, id, "drop", { owner: state.cards[id].owner, cleanupDeparture: true });
               end.departureCursor = (end.departureCursor ?? 0) + 1;
               const chosen = replaced && deferred ? { ...replaced, deferred: true } : replaced;
+              let departureHistory: MovementAutoHistory | undefined;
               moved(ctx, game, state, ev, id, "drop", { owner: state.cards[id].owner, cleanupDeparture: true,
-                replaced: chosen, replacementEvent: eventKey });
+                replaced: chosen, replacementEvent: eventKey,
+                movementAuto: { also: { event: "moved", card: id, controller: holder, args: { from: "combo", to: "drop", cleanupSpecial: true } },
+                  beforeMutation: history => { departureHistory = history; } } });
               const after = findCard(state, id);
               if (after?.zone === "drop") end.specialSubjects!.push({ card: id, to: after.zone, controller: after.owner,
+                ...(departureHistory ? { movementHistory: departureHistory } : {}),
                 ...(origin ? { origin } : {}), ...(hidden ? { hidden: true } : {}) });
               if (deferred && replaced?.ops?.length) {
                 end.substituteDeparture = { card: id,
@@ -553,6 +558,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       if (game.id === "dbs" && end) {
         while ((end.specialCursor ?? 0) < (end.specialSubjects?.length ?? 0)) {
           const subject = end.specialSubjects![end.specialCursor ?? 0];
+          if (!subject.movementHistory) throw new NotYet("restore a Combo cleanup occurrence without its movement-time skill history", "R499");
           end.specialCursor = (end.specialCursor ?? 0) + 1;
           pendAutos(ctx, game, state, { event: "moved", card: subject.card, controller: subject.controller,
             ...(subject.movementHistory ? { movementHistory: subject.movementHistory } : {}),

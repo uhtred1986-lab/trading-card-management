@@ -1995,6 +1995,11 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (returnInfo && (to === "hand" || from === "unison")) moment.subjectInfo = returnInfo;
   if (sourceNegated) moment.sourceNegated = sourceNegated;
   moment.movementHistory = movementHistory;
+  const substitute = state.battle?.endCombo?.substituteDeparture;
+  if (substitute?.active && substitute.card === id && from === "combo" && to === "drop") {
+    substitute.actualDrop = { controller: result.move.owner, movementHistory };
+    moment.args.cleanupDeparture = true;
+  }
   emit(ctx, game, state, ev, moment, shown);
   queueFieldCleanup(ctx, game, state, id, from, fromHolder);
   // #155: a keyword's onLeave/onEnter hook, scoped to a place a card is *in

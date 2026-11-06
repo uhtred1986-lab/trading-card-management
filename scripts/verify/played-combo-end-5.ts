@@ -8,6 +8,10 @@ import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
+import { BATTLE_STEP_WORK } from "../../src/lib/arena/vm/battle";
+import { vmHost } from "../../src/lib/arena/vm/host";
+import { moved } from "../../src/lib/arena/vm/flow";
+import { NotYet } from "../../src/lib/arena/vm/errors";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { shuffle as expectedShuffle } from "../../src/lib/arena/vm/rng";
 import { vmRevealedTo } from "../../src/lib/arena/vm/view";
@@ -179,5 +183,32 @@ for(const p of ["p1","p2"] as const)for(const key of keys){
  const bad:EngineContext={...ctx,scripts:copy(ctx.scripts!)};delete bad.scripts![fixtures[key].card.id].bySkill[fixtures[key].record.skillIndex].combo;
  const saved=copy(s),before=JSON.stringify(saved);const stopped=RULES.apply(bad,saved,{type:"orderPending",player:p,index:s.pending.findIndex(x=>x.card===source)}).state as VmState;
  assert.equal(JSON.stringify(saved),before);assert.equal(stopped.outcome?.kind,"interrupted");assert.match(stopped.outcome?.privateContext?.detail??"",/typed combo/);cases++;
+}
+// Focused R499 regression: real Combo entry, staged 8-5-8 checkpoint, and
+// actual primitive departures. The substitute checkpoint is a mechanism fixture,
+// not evidence that a new printed replacement card has been admitted.
+for(const p of ["p1","p2"] as const)for(const writer of ["direct","host-substitute","flow-substitute"] as const)for(const negated of [false,true]){
+ const {s:initial,source}=setup(p,"P-656#10",p,"hand");let s=beginBattle(initial,p);s=take(s,{type:"combo",player:p,card:source});
+ if(negated)addEffect(s,[],{kind:"negateSkills",target:source,value:0,until:"turn"});
+ const origin=s.battle!.comboOrigins![source];
+ s.battle!.endCombo={chooserIndex:2,stage:"departures",retainedComboPower:{},departureSubjects:writer==="direct"?[source]:[],departureCursor:0,specialSubjects:[],specialCursor:0};
+ s.pending=[];s.programs=[];s.flow=[];
+ if(writer!=="direct"){
+  s.battle!.endCombo!.substituteDeparture={card:source,origin,active:true};
+  if(writer==="host-substitute")vmHost(ctx,game,s,[]).move(source,"drop",p);
+  else moved(ctx,game,s,[],source,"drop",{owner:p,cleanupDeparture:true});
+  const receipt=s.battle!.endCombo!.substituteDeparture!.actualDrop!;
+  assert.ok(receipt.movementHistory,"actual substitute writer retained movement history");
+  assert.equal(receipt.movementHistory.declarations.find(x=>x.index===10)?.negated,negated);
+  assert.ok(!s.pending.some(x=>x.card===source),"special occurrence waits until 8-5-9");
+  s=copy(s); // the receipt must survive an ordinary JSON save, not a live closure
+  const missing=copy(s);delete missing.battle!.endCombo!.substituteDeparture!.actualDrop!.movementHistory;
+  assert.throws(()=>BATTLE_STEP_WORK.battleEnd.run(ctx,game,missing,[]),NotYet,"missing saved substitute history is not inferred from Drop");
+ }
+ BATTLE_STEP_WORK.battleEnd.run(ctx,game,s,[]);
+ assert.ok(s.sides[p].zones.drop.includes(source));
+ assert.equal(s.pending.filter(x=>x.card===source).length,negated?0:1,`${writer}/${p}/${negated}`);
+ assert.equal(s.battle!.endCombo!.specialSubjects![0].movementHistory!.declarations.find(x=>x.index===10)?.negated,negated);
+ cases++;
 }
 console.log(`played / Combo battle end: ${cases} native saved cases`);
