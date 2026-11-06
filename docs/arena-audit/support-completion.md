@@ -216,6 +216,10 @@ Runtime `3ee59da5` adds the exact P-656, BT16-131 and BT16-143 paired records wi
 
 Runtime `2ffb87c6` binds optional entry from Combo to the original native activation, battle and source occurrence. Combined validation passes 2,379 native/contract cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Compiler/collector admission is unchanged; the six Energy-entry records remain unsupported overall and checkpoint53 catalog totals remain applicable. See [checkpoint 54](round-5/support-fiftyfourth-batch.md). Kefla and the shared movement cleanup prerequisite for Battle entry continue.
 
+## Checkpoint 60: delayed Warp returns and effect provenance
+
+Runtime `149cf807`, fixture compatibility `485d372d`, supports the exact BT13-135/BT14-141 delayed returns and adds private same-execution effect provenance without changing cleanup. Combined verification passes 5,159 counted cases, additional continuation compatibility, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Exactly two compiled records change: 13,016 readable /950 unread, runtime census12/318/2559. See [checkpoint 60](round-5/support-sixtieth-batch.md). The Bardock lifetime gap remains open while original movement-Auto history and further card support continue in the same PR.
+
 ## Checkpoint 59: P-419 control-gain Auto
 
 Runtime `fdf6a21a` adds P-419's played/control-gain pair, preserves original pending source/controller history and corrects native Z-Battle control transfer per FAQ. Combined verification passes 4,930 native/contract cases, 78 record cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Exactly one compiled record changes: 13,014 readable /952 unread, runtime census 12/318/2559. See [checkpoint 59](round-5/support-fiftyninth-batch.md). General movement lifetime and further activation/delayed-play prerequisites continue in the same PR.
