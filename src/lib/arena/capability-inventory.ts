@@ -475,6 +475,8 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-r521-under-source-bridge", file: "src/lib/arena/vm/applied-effect-receipt.ts", ordinal: 2, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-521; RM3-1-4 and RM23-2-2-2", detail: "The native under-source bridge binds original physical occurrences separately from effective host areas. Malformed relations and receipt history refuse; qualifying payment-produced carry and buried Z-source effective-area or holder transfers remain explicit runtime bounds." },
+  { id: "arena-vm-r521-under-source-placement", file: "src/lib/arena/vm/under-source-placement.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-521; original placed-under declaration history", detail: "Complete clone lifecycle preflight rejects matching placed-under bodies that appear, disappear or change, and external negation changes in either direction. Original trigger history for those valid gameplay transitions remains unsupported; unrelated declarations do not block placement." },
   { id: "arena-vm-r518-paid-drop-identity", file: "src/lib/arena/vm/paid-drop-preflight.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-518; BT17-035 complete original price and conditional bonus", detail: "Successful original owner-Drop payment whose General Blue membership changes during departure requires a reviewed identity policy. Native cloned projection refuses that case before payment rather than treating it as an unaffordable price or choosing old/new attributes." },
   { id: "arena-vm-r520-placed-under-master", file: "src/lib/arena/vm/placed-under-master.ts", ordinal: 1, kind: "not-yet", classification: "validated-guard", citation: "R-520; RM0-3-4-1 and RM23-2-2-4", detail: "A placed-under self Auto requires the native emitter's actual unique source/top relation and host area holder. Missing, stale, duplicated or malformed relations cannot supply a master; unrelated watchers and global master queries are unchanged." },
   { id: "arena-vm-r519-under-release", file: "src/lib/arena/vm/under-release-cleanup.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-519; RM23-2-4 through 23-2-6; pending Z-material Battle/Combo ruling", detail: "Under placement requires original flat materials and complete actual release results on the captured board. Unproved source areas, nested piles and Z-material Battle/Combo transitions refuse before live placement. Incoming source lifetime remains separate." },
@@ -722,6 +724,8 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-r521-under-source-bridge": "underFail|-|-",
+  "arena-vm-r521-under-source-placement": "<top-level>|-|-",
   "arena-vm-r518-paid-drop-identity": "paidDropPayerPayable|-|paid&&isGeneralBlue(info!)!==original.blue",
   "arena-vm-r520-placed-under-master": "<top-level>|-|-",
   "arena-vm-r519-under-release": "<top-level>|-|-",
