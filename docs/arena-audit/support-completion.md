@@ -327,3 +327,8 @@ R525 `75da70ad`, registered `eb11d509`, supports P-045’s complete back Main wi
 ## Joint standing facts preparation after checkpoint 80
 
 R526 `f80de9de` / `4557ebdd` combines isolated actual under/area observations and fixes under-source priority over an older active host while preserving unrelated original generations. This does not admit Abducted or connect the isolated observer to native writers. Joint58/priority14, frozen38/prior21, combined type/lint/rulings298/165 and browser245/121 pass; capability inventory remains255. See [source, proof and remaining native boundaries](round-5/standing-joint-facts.md). Compiler totals remain **13,032 readable /934 unread**. Incremental private inspection and native v3 integration continue.
+
+
+### Checkpoint 81: incremental private inspection and native standing preparation
+
+R527 `f5c732bc` / `3dcf0484` adds authenticated private inspection to BT1-061#0 and EX02-01#10 and restores Trunks's leftover ordering. Exactly two compiler records change; all other 13,964 remain field-identical. Totals stay **13,032 readable /934 unread**, runtime2/307/2,575. Native48/saved86/language22, staged-under85/joint58/priority14, type/lint/rulings300/166, real-browser 232 modules/121 steps and both skins at 390/1440 pass. Registry269. R528 preparation `49e5795e` does not yet admit Abducted; native integration continues. See [checkpoint81](round-5/support-eightyfirst-batch.md) for exact changes, screenshots and verification limits.
