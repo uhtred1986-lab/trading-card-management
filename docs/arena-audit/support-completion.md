@@ -216,6 +216,10 @@ Runtime `3ee59da5` adds the exact P-656, BT16-131 and BT16-143 paired records wi
 
 Runtime `2ffb87c6` binds optional entry from Combo to the original native activation, battle and source occurrence. Combined validation passes 2,379 native/contract cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Compiler/collector admission is unchanged; the six Energy-entry records remain unsupported overall and checkpoint53 catalog totals remain applicable. See [checkpoint 54](round-5/support-fiftyfourth-batch.md). Kefla and the shared movement cleanup prerequisite for Battle entry continue.
 
+## Checkpoint 59: P-419 control-gain Auto
+
+Runtime `fdf6a21a` adds P-419's played/control-gain pair, preserves original pending source/controller history and corrects native Z-Battle control transfer per FAQ. Combined verification passes 4,930 native/contract cases, 78 record cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Exactly one compiled record changes: 13,014 readable /952 unread, runtime census 12/318/2559. See [checkpoint 59](round-5/support-fiftyninth-batch.md). General movement lifetime and further activation/delayed-play prerequisites continue in the same PR.
+
 ## Checkpoint 58: Energy arrival history and control protections
 
 Runtime `c7ecd69c` preserves original Auto negation on non-Battle Energy arrival and makes explicit control transfers respect movement protection and actual completion. Combined verification passes 4,686 native/contract cases, 78 record cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Compiler records remain unchanged. See [checkpoint 58](round-5/support-fiftyeighth-batch.md). A separate Bardock FAQ probe confirms the tracked general movement-lifetime gap; its failing expected-result diagnostic remains explicit while that repair and P-419 continue.
