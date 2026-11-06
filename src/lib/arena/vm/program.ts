@@ -931,7 +931,7 @@ export function keywordInstancesInForce(ctx: EngineContext, game: GameDefinition
  * Generic named-keyword negation remains name-wide, including old resolved
  * saved effects. Chosen negation uses individual skill/grant identity instead.
  */
-function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"] | undefined, standing: readonly VmStatic[] = []): boolean {
+export function keywordNegatedFor(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, name: KeywordSkill["name"] | undefined, standing: readonly VmStatic[] = []): boolean {
   if (!name) return false;
   if (state.effects.some((e) => e.kind === "negateKeyword" && e.target === id && e.value === name)) return true;
   return standing.some((e) => e.kind === "negateKeyword" && e.target === id && (e.value === name || e.value === (KEYWORD_WILDCARD as unknown)) && !negationRefused(ctx, game, state, id, e));

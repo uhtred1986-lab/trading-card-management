@@ -1,4 +1,5 @@
-import { freshAppliedEffectRoot, executionReceipt, captureAppliedEffectMove, settleAppliedEffectMove, type Receipt } from "./applied-effect-receipt";
+import { captureMovementAutoHistory, requireMovementAutoBodies, type MovementAutoHistory } from "./movement-auto-history";
+import { areaCarries, freshAppliedEffectRoot, executionReceipt, captureAppliedEffectMove, settleAppliedEffectMove, type Receipt } from "./applied-effect-receipt";
 import { pairedSelfScript, requirePairedSelf, requirePairedSelfShape, requirePairedSourceFrame } from "./paired-self";
 import { requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
@@ -1770,6 +1771,8 @@ export function draw(ctx: EngineContext, game: GameDefinition, state: VmState, e
 
 /** How a card came to move, for the pattern arguments that ask (`moved(asPlay: true)`, `moved(by: skill)`). */
 export interface MoveCause {
+  /** Private synchronous KO-victim history handoff; never serialized. */
+  movementAuto?: { also: Moment; beforeMutation: (history: MovementAutoHistory) => void };
   /** Private current-execution provenance, never an event field. */
   appliedEffects?: Receipt;
   /** Internal synchronous result reporting, never serialized with a frame. */
@@ -1837,15 +1840,15 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // BT29-029 / 9-6-9-1-2: read the returned card before leaving ends
   // source effects or control loans. Keep this on the private moment only.
   const returnInfo = from === "battle" || from === "unison" ? attrsNow(ctx, game, state, id) : undefined;
-  const sourceNegated = from === "battle"
-    ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
   // Audit triggers 3 (3-9-2-1): a face-up Life card, read before the move turns it face down (3-1-4).
   const wasFaceUpLife = from === "life" && !!state.cards[id]?.faceUp;
   // 9-10: a replacement stands in front of a card leaving play, and a
   // substitute keeps it where it is (9-10-1-1) — nothing below happens then.
+  let redirectNote: Extract<GameEvent, { type: "note" }> | undefined;
   const route = leaveRoute(ctx, game, state, ev, id, from, asked, {
+    ...(opts.movementAuto ? { onRedirectNote: (note: Extract<GameEvent, { type: "note" }>) => { redirectNote = note; } } : {}),
     reason: opts.reason,
     ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}),
     ...(opts.actor ? { actor: opts.actor } : {}),
@@ -1857,6 +1860,21 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (route.stays) { report(false); return; }
   if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { report(false); return; }
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || from === null || (from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, route.to === "battle" ? id : undefined);
+  const movementHistory = captureMovementAutoHistory(ctx, game, state, id);
+  // Legacy consumers receive the same final snapshot; no pre-replacement list.
+  const sourceNegated = movementHistory.declarations.filter(line => line.negated).map(line => line.index);
+  if (movementHistory.unresolved.length) {
+    const projected = structuredClone(state);
+    const projectedMove = moveCard(projected, game, id, route.to, { ...opts, energyEntryCleanup: true,
+      ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
+    if (projectedMove.ok) {
+      if (from === "battle" && projectedMove.move.to !== "battle") endSourceEffects(projected, [], id);
+      const prospective = movement(id, from, projectedMove.move.to, projectedMove.move.owner, opts, wasHidden, fromHolder);
+      requireMovementAutoBodies(game, projected, movementHistory, prospective, areaCarries(from ?? "", projectedMove.move.to, fromHolder === projectedMove.move.owner), undefined, opts.movementAuto?.also);
+    }
+  }
+  opts.movementAuto?.beforeMutation(movementHistory);
+  if (redirectNote) log(ev, redirectNote);
   const effectMove = captureAppliedEffectMove(state, id, opts.appliedEffects);
   const transaction = beginStandingNegationMutation(ctx, state, route.to === "battle" ? id : undefined);
   const result = moveCard(state, game, id, route.to, { ...opts, energyEntryCleanup: true, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
@@ -1897,6 +1915,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (wasFaceUpLife) moment.args.faceUp = true;
   if (returnInfo && (to === "hand" || from === "unison")) moment.subjectInfo = returnInfo;
   if (sourceNegated) moment.sourceNegated = sourceNegated;
+  moment.movementHistory = movementHistory;
   emit(ctx, game, state, ev, moment, shown);
   queueFieldCleanup(ctx, game, state, id, from, fromHolder);
   // #155: a keyword's onLeave/onEnter hook, scoped to a place a card is *in

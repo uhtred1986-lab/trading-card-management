@@ -256,7 +256,9 @@ export function leaveRoute(
   id: string,
   from: string | null,
   to: string,
-  opts: { reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; usedReplacements?: ReadonlySet<string>; event?: string },
+  opts: { reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; usedReplacements?: ReadonlySet<string>; event?: string;
+    /** Synchronous KO preflight may defer this direct note; substitute events are unaffected. */
+    onRedirectNote?: (note: Extract<GameEvent, { type: "note" }>) => void },
 ): LeaveRoute {
   const inPlay = inPlayZones(game);
   const held = (zone: string | null) => !!zone && (inPlay.includes(zone) || game.zones[zone]?.host === true);
@@ -293,7 +295,8 @@ export function leaveRoute(
     }
     if (instead?.to) {
       applied = true;
-      log(ev, { type: "note", text: `${nameOf(ctx, state, id)} goes to the ${instead.to}${instead.mode === "rest" ? " in Rest Mode" : ""} instead` });
+      const note: Extract<GameEvent, { type: "note" }> = { type: "note", text: `${nameOf(ctx, state, id)} goes to the ${instead.to}${instead.mode === "rest" ? " in Rest Mode" : ""} instead` };
+      if (opts.onRedirectNote) opts.onRedirectNote(note); else log(ev, note);
       to = instead.to;
       mode = instead.mode;
       insteadPosition = instead.position;

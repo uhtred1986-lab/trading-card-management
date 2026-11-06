@@ -194,7 +194,10 @@ export interface ScriptHost {
    * prohibition/replacement checks on the original movement. */
   prepareEnergyEntry?(frame: ScriptFrame, id: string, destination: { player: PlayerId; area: "energy"; mode?: "active" | "rest" }): "ready" | "wait" | "recheck";
   reportsMovement?: true;
-  move(id: string, to: Area, owner: PlayerId, opts?: MoveOptions): Area;
+  move(id: string, to: Area, owner: PlayerId, opts?: MoveOptions & {
+    /** Synchronous qualification facts for the legacy aliases following this move. */
+    legacyMovement?: import("./movement-auto-history").LegacyMovementFacts;
+  }): Area;
   /** 5-9: KO a card, by this source. */
   ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced">): void;
   /** 23-2: put a card under another. */

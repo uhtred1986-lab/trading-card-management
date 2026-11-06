@@ -3512,7 +3512,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // deck or the life is revealed the same way.
           const picked = !!frame.specifiedPicks?.includes(id);
           const shown = op.reveal || (picked && inSecretPile(h, id) && (dest === "hand" || dest === "deck" || (dest === "life" && !op.faceUp))) || (picked && h.areaOf(id) === "hand" && (dest === "deck" || (dest === "life" && !op.faceUp)));
-          const movedTo = h.move(id, dest, owner, { ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(op.mode ? { requestedMode: op.mode } : {}), position: op.position, reveal: shown, reason: frame.declaredCharge ? "charge" : op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+          const legacyUnion = frame.declaredCharge ? null : lineUnionVariant(h, frame);
+          const legacyMovement = frame.declaredCharge ? undefined : { version: 1 as const,
+            ...(legacyUnion ? { union: legacyUnion } : {}), ...(op.reveal ? { revealedTop: true as const } : {}),
+            ...(pileHost ? { fromPile: h.areaOf(pileHost) === "leader" ? "leader" as const : "other" as const } : {}) };
+          const movedTo = h.move(id, dest, owner, { legacyMovement, ...(op.completedAs ? { onResult: (result) => { if (!deferred) recordMovementResult(frame, op.completedAs!, result); } } : {}), ...(op.mode ? { requestedMode: op.mode } : {}), position: op.position, reveal: shown, reason: frame.declaredCharge ? "charge" : op.cause ?? "effect", ...(frame.card && dest === "hand" && h.areaOf(id) === "life" ? { lifeSource: frame.card } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
           // The original movement owns this child only until its one native
           // movement attempt returns (including a refused movement).
           if (dest === "energy" && h.prepareEnergyEntry) frame.energyEntry = undefined;

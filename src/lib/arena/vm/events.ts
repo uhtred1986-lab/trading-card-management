@@ -66,6 +66,8 @@ import type { VmState } from "./state";
  * out and being read as either.
  */
 export interface Moment {
+  /** R499 original moved-source declaration history; never a public event. */
+  movementHistory?: import("./movement-auto-history").MovementAutoHistory;
   event: string;
   card?: string;
   controller?: PlayerId;

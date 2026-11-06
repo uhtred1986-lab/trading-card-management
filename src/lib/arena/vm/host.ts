@@ -1,3 +1,4 @@
+import { captureMovementAutoHistory, requireMovementAutoBodies, type LegacyMovementFacts, type MovementAutoHistory } from "./movement-auto-history";
 import { freshAppliedEffectRoot, executionReceipt, recordAppliedEffect, captureAppliedEffectMove, settleAppliedEffectMove, retireAppliedEffectRetarget, type Receipt } from "./applied-effect-receipt";
 import { captureEnergyBattleScope } from "./energy-entry-battle";
 import { cleanupScriptPlacement, clearScriptAutoReveal as clearAutoReveal } from "./script-placement-cleanup";
@@ -90,7 +91,7 @@ import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
 import { RulesetBroken, NotYet } from "./errors";
 import { savedXKey, type ScriptFrame } from "./script";
 import { answered, endGame, gameEndForbidden } from "./flow";
-import { emit, fire, log } from "./events";
+import { emit, fire, log, type Moment } from "./events";
 import { queryHookStatics } from "./hooks";
 import { carryFor, resolvePlay } from "./play";
 import { SETUP_ZONES, arrivalMode, findCard, hostOf, inPlayZones, moveCard, newCard, removedInsteadOfUnder } from "./zones";
@@ -101,7 +102,7 @@ import { lifeToHandForbidden } from "./life-movement";
 import { activationMoment, activationTaxGate, canPayTaxProgram, fieldLineOf, invokedMainLines, queueTaxGate, resolveActivation } from "./activate";
 import { consumeActivationEnergyUses, comboPriceOf } from "./costs";
 import { queueKeywordCost } from "./keyword-costs";
-import { masterOf, pendAutos, skillsShowing } from "./triggers";
+import { masterOf, pendAutos, skillsShowing, matchTriggers, type TriggerMatch } from "./triggers";
 import { leaveRoute, replacementChoices } from "./replace";
 import { addSkip } from "./skips";
 import { uniqueFrame } from "./unique";
@@ -116,6 +117,25 @@ import { shuffle as shuffleItems } from "./rng";
  * reading needs: the catalog, the definition, the state being changed and the
  * log being appended to.
  */
+interface SynchronousMovementReceipt {
+  history: MovementAutoHistory;
+  moment: Moment;
+  epoch: number;
+  remaining: Set<string>;
+}
+function movementMatchKey(match: TriggerMatch): string {
+  return JSON.stringify([match.trigger, match.card, match.subject, match.front, match.handWatcher]);
+}
+/** A receipt belongs only to the synchronous move/legacy-alias sequence. */
+function consumedMovementAlias(receipt: SynchronousMovementReceipt | undefined, moment: Moment, match: TriggerMatch): boolean {
+  if (!receipt || receipt.moment.event !== moment.event || receipt.moment.card !== moment.card
+    || receipt.moment.controller !== moment.controller) return false;
+  const originalSource = receipt.moment.source ?? receipt.moment.args.viaCard;
+  if (moment.source !== undefined && moment.source !== originalSource) return false;
+  if (moment.args.fromHolder !== undefined && moment.args.fromHolder !== receipt.moment.args.fromHolder) return false;
+  return receipt.remaining.delete(movementMatchKey(match));
+}
+
 export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], retainedFrame?: ScriptFrame): ScriptHost {
   validateStandingNegationRead(ctx, state);
   const card = (id: string) => state.cards[id];
@@ -125,9 +145,11 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
   // R489: script.ts calls these legacy aliases synchronously after h.move.
   // The host-local receipt covers that synchronous move/alias sequence; it
   // ends at the next movement or host disposal and is never saved.
+  let movementReceipt: SynchronousMovementReceipt | undefined;
   let energyDeparture: { card: string; epoch: number; remaining: Set<string> } | undefined;
   const nativeMove = (...args: Parameters<typeof moveTo>): void => {
     energyDeparture = undefined;
+    movementReceipt = undefined;
     moveTo(...args);
   };
 
@@ -280,6 +302,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     canReplaceCounterArrival: (frame) => !!frame.arrivalDecision && !counterProtected(frame, frame.arrivalDecision.arrival.card) && canReplaceCounterArrival(ctx, game, state, frame),
     move: (id, to, owner, opts) => {
       energyDeparture = undefined;
+      movementReceipt = undefined;
       let completedEnergyDeparture: { card: string; epoch: number } | undefined;
       const arrival = retainedFrame?.arrivalDecision;
       const energyEntry=to === "energy" ? optionalEnergyArrival(ctx,game,state,vmHost(ctx,game,state,ev,retainedFrame),retainedFrame,id,owner,opts?.requestedMode) : undefined;
@@ -297,7 +320,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
           state.resolving?.card === id && (result.completed || result.toEpoch !== result.fromEpoch)) state.resolving.replaced = true;
       };
-      nativeMove(ctx, game, state, ev, id, to, owner, { appliedEffects: executionReceipt(state, retainedFrame), onResult, energyEntry, actor, ...(nativeBattleEnergy ? { historicalBattleEnergy: true } : {}), requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(source ? { source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      nativeMove(ctx, game, state, ev, id, to, owner, { legacyMovement: opts?.legacyMovement,
+        ...(opts?.legacyMovement && retainedFrame ? { legacyCause: { actor: retainedFrame.master, source: retainedFrame.card } } : {}),
+        onMovement: (moment, history) => { movementReceipt = { moment, history, epoch: state.cards[id]?.zoneEpoch ?? 0,
+          remaining: new Set(matchTriggers(game, state, moment, true).map(movementMatchKey)) }; }, appliedEffects: executionReceipt(state, retainedFrame), onResult, energyEntry, actor, ...(nativeBattleEnergy ? { historicalBattleEnergy: true } : {}), requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(source ? { source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
       if (completedEnergyDeparture) energyDeparture = { ...completedEnergyDeparture,
         remaining: new Set(["removedFromBattle", "removedByOpponent", "yourCardRemovedByOpponent", "yourCardRemovedBySkill", "opponentCardRemovedBySkill"]) };
       return (zoneOf(state, id) as Area | null) ?? to;
@@ -610,10 +636,12 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // pends is naming a legacy trigger, and `pendByName` is the one translation
     // — see its note.
     pend: (trigger, cardId, subject, sourceNegated, sourceMaster) => {
+      const movedCard = WATCHED_MOVE.has(trigger) && subject ? subject : cardId;
+      const receipt = movementReceipt?.history.card === movedCard && movementReceipt.epoch === (state.cards[movedCard]?.zoneEpoch ?? 0) ? movementReceipt : undefined;
       if (energyDeparture?.card === cardId && energyDeparture.epoch === (state.cards[cardId]?.zoneEpoch ?? 0)
         && energyDeparture.remaining.delete(trigger)) return;
       const before = new Set(state.pending);
-      pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated, sourceMaster);
+      pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated, sourceMaster, receipt?.history, receipt);
       const scope = state.skillPlayScopes?.at(-1);
       if (trigger === "played" && scope?.played.some(item => item.card === cardId && item.epoch === (state.cards[cardId]?.zoneEpoch ?? 0))) witnessArrivalAutos(state, scope, cardId, before);
     },
@@ -1094,7 +1122,7 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { appliedEffects?: Receipt; historicalBattleEnergy?: true; energyEntry?: OptionalEnergyArrival; requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
+  opts: { legacyMovement?: LegacyMovementFacts; legacyCause?: { actor: PlayerId; source: string }; onMovement?: (moment: Moment, history: MovementAutoHistory) => void; appliedEffects?: Receipt; historicalBattleEnergy?: true; energyEntry?: OptionalEnergyArrival; requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
@@ -1104,8 +1132,6 @@ function moveTo(
   const fromEpoch = state.cards[id]?.zoneEpoch ?? 0, asked = to;
   const report = (completed: boolean, actual = zoneOf(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
   const returnInfo = from === "battle" || from === "unison" ? attrsNow(ctx, game, state, id) : undefined;
-  let sourceNegated = from === "battle"
-    ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
   // Audit triggers 3 (3-9-2-1): a face-up Life card, read before the move turns it face down (3-1-4).
@@ -1115,9 +1141,6 @@ function moveTo(
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
   if (route.stays) { report(false); return; }
   to = route.to;
-  // R493 / 9-6-9-2: Energy arrival remembers original Auto negation in any area.
-  if (from !== "battle" && to === "energy") sourceNegated = skillsShowing(ctx, state, id).skills
-    .filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index);
   if (to === "energy" && !opts.energyEntry) guardUnownedEnergyEntry(ctx,state,id);
   if (opts.energyEntry && (route.replacementApplied || to !== "energy" || opts.energyEntry.card !== id || opts.energyEntry.epoch !== fromEpoch || opts.energyEntry.player !== owner)) throw new NotYet("optional Energy entry changed its final native route", "R476");
   if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source, id)) { report(false); return; }
@@ -1139,6 +1162,31 @@ function moveTo(
   // R476: observe Exhaust before placement/cleanup and expose the final mode to arrivals.
   const mode = to === "energy" ? captureEnergyEntryMode(ctx, game, state, id, route.mode === "rest" || opts.requestedMode === "rest" ? "rest" : opts.requestedMode, opts.energyEntry?.negate).mode : route.mode;
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || host || (from === "battle" && to === "battle" && fromOwner !== owner)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, to === "battle" ? id : undefined);
+  const movementHistory = captureMovementAutoHistory(ctx, game, state, id);
+  // Legacy consumers receive the same final snapshot; no pre-replacement list.
+  const sourceNegated = movementHistory.declarations.filter(line => line.negated).map(line => line.index);
+  const prospectiveMoment = (destination: string, holder: PlayerId): Moment => ({ event: "moved", card: id, controller: holder,
+    args: { from: from ?? "", to: destination, asPlay: false, cause: opts.reason ?? "effect",
+      ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}),
+      ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}),
+      ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}),
+      ...(from === "battle" && destination === "battle" && fromOwner !== holder
+        && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(returnInfo?.type)) ? { controlGained: true } : {}),
+      ...(state.battle?.endCombo?.substituteDeparture?.active
+        && state.battle.endCombo.substituteDeparture.card === id && from === "combo" && destination === "drop"
+        ? { cleanupDeparture: true } : {}) } });
+  if (movementHistory.unresolved.length && !opts.evolutionBase && opts.reason !== "areaExtension") {
+    const projected = structuredClone(state);
+    const projectedMove = moveCard(projected, game, id, to, { energyEntryCleanup: true, owner,
+      position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}),
+      ...(returnInfo?.type === "Z-BATTLE" && from === "battle" && to === "battle" && fromOwner && fromOwner !== owner
+        ? { zBattleControl: { from: fromOwner, to: owner } } : {}) });
+    if (projectedMove.ok) {
+      cleanupScriptPlacement(projected, [], projectedMove.move, from, carry);
+      requireMovementAutoBodies(game, projected, movementHistory,
+        prospectiveMoment(projectedMove.move.to, projectedMove.move.owner), carry, opts.legacyMovement, undefined, opts.legacyCause);
+    }
+  }
   const effectMove = captureAppliedEffectMove(state, id, opts.appliedEffects);
   const transaction = beginStandingNegationMutation(ctx, state, to === "battle" ? id : undefined);
   const zBattleControl = returnInfo?.type === "Z-BATTLE" && from === "battle" && to === "battle" && fromOwner && fromOwner !== owner
@@ -1178,9 +1226,13 @@ function moveTo(
   // R496 / 20-9: an actual change of Battle Area holder, not a play or requested transfer.
   const controlGained = placed.move.from === "battle" && placed.move.to === "battle" && placed.move.fromOwner !== null
     && placed.move.fromOwner !== placed.move.owner && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(returnInfo?.type));
-  if (!opts.evolutionBase && opts.reason !== "areaExtension") emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
+  if (!opts.evolutionBase && opts.reason !== "areaExtension") {
+    const movementMoment: Moment = { event: "moved", card: id, controller: owner, movementHistory,
     ...(returnInfo && (to === "hand" || from === "unison" || opts.historicalBattleEnergy && from === "battle" && to === "energy") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
-    args: { from: from ?? "", to, asPlay: false, ...(controlGained ? { controlGained: true } : {}), cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
+    args: { from: from ?? "", to, asPlay: false, ...(controlGained ? { controlGained: true } : {}), cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } };
+    emit(ctx, game, state, ev, movementMoment, null);
+    opts.onMovement?.(movementMoment, movementHistory);
+  }
   queueFieldCleanup(ctx, game, state, id, from, fromOwner);
   // Energy-Exhaust was captured before entry; a post-entry query could let the arrival count itself.
 
@@ -1243,7 +1295,7 @@ function shuffle(state: VmState, p: PlayerId, area: string = SETUP_ZONES.deck): 
  * covers only the names a program says outright, and a name with no moment of
  * its own is a note rather than a silent miss.
  */
-function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string, sourceNegated?: number[], sourceMaster?: PlayerId): void {
+function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], trigger: string, id: string, subject?: string, sourceNegated?: number[], sourceMaster?: PlayerId, movementHistory?: MovementAutoHistory, receipt?: SynchronousMovementReceipt): void {
   // A switch to Rest Mode by a skill is `setMode`'s own moment, fired as the
   // card switched and saying what switched it (#157); the name the program
   // also says is that same happening, already answered.
@@ -1275,7 +1327,8 @@ function pendByName(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // A watched move (phrasing batch 5) is pended once, about the moved card: every watcher the declaration names
   // answers — in play, and in a hand when its skill plays itself from there (DB2-174, `matchTriggers`' hand watchers).
   const watched = WATCHED_MOVE.has(trigger) || trigger === "flippedFaceUp";
-  const pended = pendAutos(ctx, game, state, { event: moment.event, card: eventCard, controller, args: { ...moment.args, ...(sourceMaster && moment.args.from === "battle" ? { fromHolder: sourceMaster } : {}) }, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) }, (m) => (watched || m.card === id) && (m.trigger === trigger || trigger === "youCombo" && (m.trigger === "youComboFromHand" || m.trigger === "youComboFromBattle")));
+  const legacyMoment: Moment = { event: moment.event, card: eventCard, controller, ...(movementHistory ? { movementHistory } : {}), args: { ...moment.args, ...(sourceMaster && moment.args.from === "battle" ? { fromHolder: sourceMaster } : {}) }, ...(sourceNegated?.length ? { sourceNegated } : {}), ...(subject && !watched && BATCH1_SELF.has(trigger) ? { source: subject } : {}) };
+  const pended = pendAutos(ctx, game, state, legacyMoment, (m) => ((watched || m.card === id) && (m.trigger === trigger || trigger === "youCombo" && (m.trigger === "youComboFromHand" || m.trigger === "youComboFromBattle"))) && !consumedMovementAlias(receipt, legacyMoment, m));
   if (subject) for (const p of pended) p.subject ??= subject;
 }
 

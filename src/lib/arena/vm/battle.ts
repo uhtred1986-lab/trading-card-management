@@ -1,3 +1,4 @@
+import type { MovementAutoHistory } from "./movement-auto-history";
 import { freshAppliedEffectRoot } from "./applied-effect-receipt";
 import { projectStandingNegationMoves } from "./standing-negation-projection";
 import { validateStandingNegationRead } from "./standing-negation-runtime";
@@ -2322,18 +2323,25 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   // 9-6-9-3: a card KO'd face down answers to its own KO only where a
   // declaration asks for that (`matchTriggers`).
   const wasHidden = !!state.cards[card].hidden;
-  log(ev, { type: "ko", card, ...(cause === undefined ? {} : { by: cause }) });
+  let history: MovementAutoHistory | undefined;
+  let logged = false;
+  const logKo = () => { if (!logged) { log(ev, { type: "ko", card, ...(cause === undefined ? {} : { by: cause }) }); logged = true; } };
+  const byOther = cause !== undefined && state.cards[cause] ? masterOf(game, state, cause) !== master : undefined;
+  const koMoment = { event: "ko", card, controller: owner, ...(cause !== undefined && cause !== card ? { source: cause } : {}), args: { role: "koed", to: "drop", ...(how ? { by: how } : {}), ...(byOther !== undefined ? { byOpponent: byOther } : {}), ...(wasHidden ? { hidden: true } : {}) } };
   // 9-10: a KO is a departure a replacement may stand in front of — the one
   // a skill's `ko` loop settled on, or the first that answers (`vm/replace.ts`).
-  moved(ctx, game, state, ev, card, "drop", { owner, reason: "ko", ...(replaced !== undefined ? { replaced } : {}) });
+  moved(ctx, game, state, ev, card, "drop", { owner, reason: "ko", ...(replaced !== undefined ? { replaced } : {}),
+    movementAuto: { also: koMoment, beforeMutation: captured => { history = captured; logKo(); } } });
+  // Preserve existing KO admission for replacements/redirects. A history
+  // preflight that throws reaches neither the completed KO log nor its moment.
+  logKo();
   // `to: drop` matches `koed`'s own pattern (`triggers.rules`) — the card has
   // already landed there by the time this fires, and that field is what lets
   // it still answer about itself (9-1-3-1's derived "fires while elsewhere").
   // Audit triggers 1: how it was KO'd (8-4-6-2's battle or a skill's effect, 5-12) and whether by the other side, and the
   // card that did it as the moment's subject — "When this card is KO'd by an opponent's attack" (EX21-05), "…by a
   // <Vegeta> card's skill" (BT25-051) ask them.
-  const byOther = cause !== undefined && state.cards[cause] ? masterOf(game, state, cause) !== master : undefined;
-  fire(ctx, game, state, { event: "ko", card, controller: owner, ...(cause !== undefined && cause !== card ? { source: cause } : {}), args: { role: "koed", to: "drop", ...(how ? { by: how } : {}), ...(byOther !== undefined ? { byOpponent: byOther } : {}), ...(wasHidden ? { hidden: true } : {}) } });
+  fire(ctx, game, state, { ...koMoment, ...(history ? { movementHistory: history } : {}) });
   if (cause !== undefined && cause !== card && state.cards[cause] && masterOf(game, state, cause) !== master) {
     // Audit triggers 2: how it was KO'd, so "When one of your cards attacks and KOs an opponent's Battle Card" (BT16-050,
     // `yourCardKosByAttack`) answers the battle's KO only.

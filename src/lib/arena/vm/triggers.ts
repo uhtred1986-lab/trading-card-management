@@ -1,3 +1,4 @@
+import { originalMovementSkillNegated } from "./movement-auto-history";
 import { capturePairedSelf, pairedSelfScript, type PairedSelf } from "./paired-self";
 import { resolvedGrantDeleted, resolvedGrantReceipt } from "./resolved-grant-deletion";
 import { canonicalTaxValue } from "./tax-receipt";
@@ -81,7 +82,7 @@ import { findCard, inPlayZones } from "./zones";
 import { skillNegated, skillsNegated } from "./effects";
 import { usableFrom } from "./activate";
 import { keywordMomentOf } from "./keyword-do";
-import { attrsNow, condHolds } from "./program";
+import { attrsNow, condHolds, keywordNegatedFor, staticsNow } from "./program";
 import type { Attrs } from "./cards";
 import { predicateOf } from "./filters";
 
@@ -607,6 +608,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // which is the one place a keyword's moment is written down.
       const keyword = sk.kind === "keyword" ? keywordMomentOf(game, sk, match.trigger) : undefined;
       if (sk.kind !== "auto" && !keyword && !triggeredPermanent(sk)) continue;
+      if (keyword && keywordNegatedFor(ctx, game, state, match.card, sk.keyword?.name, staticsNow(ctx, game, state))) continue;
       // 22-21: a pending Auto is only created while its Bond condition is
       // valid. Unknown named selectors are left for the normal unread-rule
       // boundary; they must never be treated as an unrestricted count here.
@@ -615,13 +617,14 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
       if (moment.event === "moved" && moment.args.to === "energy" && moment.card === match.card
-        && (match.trigger === "placedInEnergy" || match.trigger === "placedInEnergyFromHand") && moment.sourceNegated?.includes(sk.index)) continue;
-      if (SELF_MOVE_FROM_BATTLE.has(match.trigger) && moment.sourceNegated?.includes(sk.index)) continue;
+        && (match.trigger === "placedInEnergy" || match.trigger === "placedInEnergyFromHand") && !moment.movementHistory && moment.sourceNegated?.includes(sk.index)) continue;
+      if (SELF_MOVE_FROM_BATTLE.has(match.trigger) && !moment.movementHistory && moment.sourceNegated?.includes(sk.index)) continue;
       // 9-6-9-2: an area-movement [Auto] negated in its original Battle Area
       // does not trigger although the card has moved on (and the move ended
       // the negation).
-      if (LEFT_BATTLE_BY_SKILL.has(match.trigger) && moment.sourceNegated?.includes(sk.index)) continue;
+      if (LEFT_BATTLE_BY_SKILL.has(match.trigger) && !moment.movementHistory && moment.sourceNegated?.includes(sk.index)) continue;
       const script = showing.scripts.bySkill[sk.index];
+      if (originalMovementSkillNegated(game, state, moment, match.card, match.trigger, sk, script)) continue;
       const combo = script?.combo;
       if (sk.kind === "auto" && (combo !== undefined || script?.trigger?.some((t) => t === "comboUsed" || t === "comboed"))) {
         const gap = comboScriptProblem(script);
