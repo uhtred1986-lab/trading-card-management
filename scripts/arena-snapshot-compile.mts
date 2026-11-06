@@ -27,10 +27,10 @@ const snap = JSON.parse(fs.readFileSync(snapshot, "utf8")) as { cards: SnapCard[
 const readings: Record<string, Reading> = {};
 let failed = 0;
 for (const c of snap.cards) {
-  const f = correctCardFields(c.id, { name: c.name, backName: c.backName, characters: c.characters });
+  const f = correctCardFields(c.id, { name: c.name, backName: c.backName, characters: c.characters, traits: c.traits });
   const row = {
     id: c.id, name: f.name, cardType: c.type, colors: c.colors, energyCost: c.cost, zEnergyCost: c.z, power: c.power, comboCost: null, comboPower: null,
-    skill: correctSkillText(c.id, c.skill), characters: f.characters, traits: c.traits, backName: f.backName, backPower: null,
+    skill: correctSkillText(c.id, c.skill), characters: f.characters, traits: f.traits, backName: f.backName, backPower: null,
     backSkill: correctSkillText(c.id, c.backSkill), specifiedCost: c.specified, game: "dbs",
   };
   try {

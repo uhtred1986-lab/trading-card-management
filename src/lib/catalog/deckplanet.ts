@@ -288,11 +288,12 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
       });
     }
 
-    // Official errata to a card's name or character names (errata.ts), as the skill text gets its own below.
-    const { name, backName, characters } = correctCardFields(base, {
+    // Source corrections to a card's name, character names or traits (errata.ts), as the skill text gets its own below.
+    const { name, backName, characters, traits } = correctCardFields(base, {
       name: cleanText(c.card_name) ?? base,
       backName: cleanText(c.card_back_name),
       characters: cleanList(c.card_character),
+      traits: cleanList(c.card_traits),
     });
     const rarity = normaliseRarity(cleanText(c.card_rarity), game);
     const searchText = [base, base.replace(/-/g, ""), name, backName ?? "", ...characters].join(" ").toLowerCase();
@@ -316,7 +317,7 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
       comboPower: cleanInt(c.card_combo_power),
       skill: correctSkillText(base, cleanText(c.card_skill_unstyled)),
       characters,
-      traits: cleanList(c.card_traits),
+      traits,
       eras: cleanList(c.card_era),
       keywords: cleanList(c.keywords),
       rarity,
@@ -617,12 +618,12 @@ export async function syncCatalogFor(db: Db, game: Game, opts: CatalogSyncOption
     if (texts.length) rawText.set(id, [...(rawText.get(id) ?? []), ...texts]);
   }
   for (const stale of unmatchedCorrections(rawText)) console.warn(`errata.ts is stale — ${stale}`);
-  // The same for the corrected names and character names, read off each card's own row (its base number).
-  const rawFields = new Map<string, { name: string; backName: string | null; characters: string[] }>();
+  // The same for corrected names, character names and traits, read off each card's own row (its base number).
+  const rawFields = new Map<string, { name: string; backName: string | null; characters: string[]; traits: string[] }>();
   for (const c of raw) {
     const id = baseNumber(c.card_number.trim());
     if (c.card_number.trim() !== id && rawFields.has(id)) continue;
-    rawFields.set(id, { name: cleanText(c.card_name) ?? id, backName: cleanText(c.card_back_name), characters: cleanList(c.card_character) });
+    rawFields.set(id, { name: cleanText(c.card_name) ?? id, backName: cleanText(c.card_back_name), characters: cleanList(c.card_character), traits: cleanList(c.card_traits) });
   }
   for (const stale of unmatchedFieldCorrections(rawFields)) console.warn(`errata.ts is stale — ${stale}`);
 
