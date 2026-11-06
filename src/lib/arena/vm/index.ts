@@ -1,3 +1,4 @@
+import { requireActivateUnderSource } from "./activate-under";
 import { prepareEnergyCharge, ownEnergyCharge, requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { requireStandingNegationBounds } from "./standing-negation-bounds";
@@ -68,7 +69,7 @@ import { fire } from "./events";
 import { SETUP_ZONES, WORKED_STEPS, answered, draw, endGame, enterPhase, flipForChooser, moved, other, requirePrompt, run, shuffleDeck, turnPhases } from "./flow";
 import { VM_STATE_VERSION, type VmSide, type VmState } from "./state";
 import { PLAY_ZONE_NAMES } from "./play";
-import { emptyZones, moveCard, newCard, placeZones } from "./zones";
+import { emptyZones, moveCard, newCard, placeZones, hostOf } from "./zones";
 import { vmBoardView } from "./view";
 import { vmRevealedTo } from "./view";
 import { canWithholdSecretAuto } from "./secret-auto";
@@ -495,6 +496,10 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
       const pr = prev.prompt;
       if (pr.kind !== "payCost") throw new IllegalAction("no payment is being asked for");
       if (action.player !== pr.player) throw new IllegalAction("that payment belongs to another player");
+      if (pr.activateUnderOrigin || pr.action.type === "activate" && hostOf(state, pr.action.card)) {
+        if (pr.action.type !== "activate") throw new IllegalAction("rebuild the saved under-card activation payment");
+        requireActivateUnderSource(ctx, game, state, pr.activateUnderOrigin, pr.action.card, pr.player, pr.action.skill);
+      }
       if (pr.action.type === "counter" && pr.action.card) { requireCounterDropOccurrence(state, pr.action.card, pr.dropOccurrences); requireCounterEnergyOccurrence(state, pr.action.card, pr.energyOccurrences); requireCounterUnderOccurrence(state, pr.action.card, pr.underOccurrences); }
       if (pr.action.type === "counter" && pr.action.card && (pr.extraCounter || state.sides[pr.player].zones.hand.includes(pr.action.card) && ctx.defs[state.cards[pr.action.card]?.cardId]?.type === "EXTRA")) requireExtraCounterBinding(state, pr.player, pr.action.card, pr.extraCounter);
       if (pr.extraCounter) {

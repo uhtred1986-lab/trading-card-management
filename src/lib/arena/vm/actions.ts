@@ -1,3 +1,5 @@
+import { activateUnderCards, requireActivateUnderSource } from "./activate-under";
+import { activateUnderPriceRefusals, queueActivateUnderCost, captureActivateUnderEnergy, type ActivateUnderEnergy } from "./activate-under-cost";
 import { ordinaryChargeDeclaration } from "./energy-entry-charge";
 import { canPayAwakenAlternative, hasAwakenAlternative, queueAwakenAlternative } from "./awaken-alternative-costs";
 import { fieldPaymentRefusals, isFieldPayment, queueFieldCost } from "./field-costs";
@@ -165,6 +167,7 @@ function candidatesOnBoard(ctx: EngineContext, game: GameDefinition, state: VmSt
   // a move declared `skills:` is about a **line** of each of those cards rather
   // than about the card, so a card with three of them is asked about three
   // times and answered three times (#147).
+  if (def.skills) cards.push(...activateUnderCards(ctx, game, state, player).filter(card => !cards.includes(card)));
   if (def.skills) return cards.flatMap((card) => (card === null ? [] : activationsOf(ctx, state, def, card, game).flatMap((line) => activation(ctx, game, state, def, player, line))));
   return (
     cards
@@ -291,6 +294,7 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
         failures = swapPriceRefusals(ctx, game, state, player, line, charge);
         if (!failures.length) failures = keywordPriceRefusals(ctx, game, state, player, line, charge);
         if (!failures.length) failures = dropPriceRefusals(ctx, game, state, player, line, charge);
+        if (!failures.length) failures = activateUnderPriceRefusals(ctx, game, state, player, line, charge, price, payment);
         if (!failures.length) break;
       }
       why.push(...failures);
@@ -304,7 +308,7 @@ function activation(ctx: EngineContext, game: GameDefinition, state: VmState, de
   // sits beside "Activate X (2)". Asked only of a line every other gate lets
   // through, and offered only when the line's own orbs can be paid out of
   // what the alternative leaves (#155).
-  const alt = open ? activationAlt(ctx, game, state, def, player, line) : null;
+  const alt = open && !line.activateUnderOrigin ? activationAlt(ctx, game, state, def, player, line) : null;
   if (alt) {
     const altPrice = def.cost?.length ? priceFor(ctx, game, state, def, line.card, alt.bound) : freePrice();
     if ((!isFieldPayment(line) || !fieldPaymentRefusals(ctx, game, state, player, line, false, alt.alt).length) && (!def.cost?.length || planCost(ctx, game, restedAlready(state, alt.resting), player, altPrice, line.card).ok)) out.push({ card: line.card, skill: line.skillIndex, alt: alt.alt, why: [], price: altPrice });
@@ -967,6 +971,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (def.again !== true) answered(state);
     return "done";
   }
+  let underEnergy: ActivateUnderEnergy | undefined;
   let paidResources: ReturnType<typeof chargeCost> | undefined;
   const early = line && announcesBeforePrice(line) ? line : null;
   if (chosen.alt) {
@@ -982,6 +987,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       const plan = planCost(ctx, game, state, player, chosen.price, card);
       if (!plan.ok) throw new IllegalAction(`${def.label ?? def.name} cannot be paid for: ${plan.why[0].kind}`);
       const spent = scopedPayersSpent(ctx, game, state, player, line);
+      if (line?.activateUnderOrigin) underEnergy = captureActivateUnderEnergy(ctx, game, state, line, chosen.price, plan.payment);
       paidResources = chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
       spent(plan.payment.rest);
     }
@@ -1003,7 +1009,7 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
       // "play Son Goku" — the legacy engine's own wording for this prompt, which
       // is the move's label with its first letter lowered.
       const label = labelFor(ctx, game, state, def, chosen, true);
-      state.prompt = { kind: "payCost", player, action: line && action.type === "activate" ? { ...action, skill: line.skillIndex } : action, options: plan.options, ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe: label.charAt(0).toLowerCase() + label.slice(1) };
+      state.prompt = { kind: "payCost", player, action: line && action.type === "activate" ? { ...action, skill: line.skillIndex } : action, options: plan.options, ...(line?.activateUnderOrigin ? { activateUnderOrigin: structuredClone(line.activateUnderOrigin) } : {}), ...(plan.payment.markersOff.length ? { markerPayers: structuredClone(plan.payment.markersOff) } : {}), describe: label.charAt(0).toLowerCase() + label.slice(1) };
       return "asked";
     }
     const poolOps = line?.script?.price?.ops ?? [];
@@ -1016,12 +1022,18 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
     if (card !== null && askActionPool(ctx, game, state, player, action, chosen.price, card, plan.payment, poolOps, completePool)) return "asked";
     // #729 (5-8-3): the energy chosen must leave a [Swap]'s whole action price
     // payable; refused here, on a copy, while nothing is paid.
+    if (line?.activateUnderOrigin) {
+      requireActivateUnderSource(ctx, game, state, line.activateUnderOrigin, line.card, player, line.skillIndex);
+      const problems = activateUnderPriceRefusals(ctx, game, state, player, line, s => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!), chosen.price, plan.payment);
+      if (problems.length) throw new IllegalAction("the complete under-card Extra payment cannot be paid");
+    }
     if (line) assertSwapPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
     if (line) assertKeywordPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!));
     if (line) assertDropPricePayable(ctx, game, state, player, line, (s) => chargeCost(ctx, game, s, [], player, plan.payment, card, def.cost!), chosen.x);
     if (early) announce(state, ev, player, early);
     // BT28-106: a once-per-turn grant whose card paid this line is spent.
     const spent = line ? scopedPayersSpent(ctx, game, state, player, line) : null;
+    if (line?.activateUnderOrigin) underEnergy = captureActivateUnderEnergy(ctx, game, state, line, chosen.price, plan.payment);
     paidResources = chargeCost(ctx, game, state, ev, player, plan.payment, card, def.cost);
     spent?.(plan.payment.rest);
   } else if (early) announce(state, ev, player, early);
@@ -1030,7 +1042,10 @@ export function applyDeclared(ctx: EngineContext, game: GameDefinition, state: V
   // program of nine different lines. `vm/activate.ts` counts the use, sends an
   // Extra to the Drop (12-2-2), announces the line and queues its frame — and
   // the moment is fired here, as a moment and never as a trigger name.
-  if (line && swapActionPrice(line)) {
+  if (line?.activateUnderOrigin) {
+    if (!underEnergy) throw new IllegalAction("rebuild the under-card Extra energy payment");
+    queueActivateUnderCost(ctx, game, state, ev, line, underEnergy);
+  } else if (line && swapActionPrice(line)) {
     // #729: the [Swap]'s action price is paid next, on the strict host, as a
     // stored continuation (`vm/swap-costs.ts`); the skill is used — announced,
     // counted, its moments fired and its `DO` queued — only once it is paid.

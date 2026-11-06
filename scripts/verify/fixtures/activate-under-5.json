@@ -1,0 +1,4502 @@
+{
+  "BT19-093": {
+    "card": {
+      "id": "BT19-093",
+      "type": "EXTRA",
+      "colors": [
+        "Green"
+      ],
+      "cost": "0",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Cheelai's Aid",
+      "characters": [],
+      "traits": [],
+      "skill": "[Permanent] If your Leader is a green &lt;Broly: Br&gt; card and this card is under a &lt;Broly: Br&gt; card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand.<br>[Activate: Battle][Limit 1] If your life is at 4 or less: Choose up to 1 of your green &lt;Broly: Br&gt; cards and it gets +5000 power for the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT19-093#0": {
+        "cardId": "BT19-093",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "you can activate this card's [Activate] skill under the same conditions as if it were in your hand"
+        ],
+        "pattern": "you can activate this card's [activate] skill under the same conditions as if it were in your hand",
+        "reads": ""
+      },
+      "BT19-093#10": {
+        "cardId": "BT19-093",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Battle][Limit 1] If your life is at 4 or less: Choose up to 1 of your green <Broly: Br> cards and it gets +5000 power for the turn.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your life is at 4 or less",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "life",
+            "side": "you",
+            "atMost": 4
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "life",
+          "side": "you",
+          "atMost": 4
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "play",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Broly: Br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 of your green <Broly: Br> cards"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:life[choose→power]",
+        "reads": "if your life is 4 or less: choose up to 1 green <Broly: Br> card you have in play, the chosen cards +5000 power for the turn"
+      }
+    }
+  },
+  "BT19-096": {
+    "card": {
+      "id": "BT19-096",
+      "type": "EXTRA",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Out of Control Power",
+      "characters": [],
+      "traits": [],
+      "skill": "[Permanent] If your Leader is a green &lt;Broly: Br&gt; card and this card is under a &lt;Broly: Br&gt; card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand.<br>[Activate: Main/Battle] If your Leader is a green &lt;Broly: Br&gt; card and your opponent has 3 or more Battle Cards in play: Choose 1 of your Leaders or Battle Cards, choose all Battle Cards with power less than or equal to the chosen card's power, and KO them.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Out of Control Power",
+        "qa": [
+          {
+            "q": "What happens if you activate this card's [Activate : Main/Battle] and choose a {BT19-088 SS Broly, Full Power Frenzy} with 5 Extras under it?",
+            "a": "You choose all of you and your opponent's Battle Cards with power less than or equal to the chosen {BT19-088 SS Broly, Full Power Frenzy} and KO them. You can also choose to KO the chosen {BT19-088 SS Broly, Full Power Frenzy}, or you can place 5 Extras under your Leader instead."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT19-096#0": {
+        "cardId": "BT19-096",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "you can activate this card's [Activate] skill under the same conditions as if it were in your hand"
+        ],
+        "pattern": "you can activate this card's [activate] skill under the same conditions as if it were in your hand",
+        "reads": ""
+      },
+      "BT19-096#10": {
+        "cardId": "BT19-096",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main/Battle] If your Leader is a green <Broly: Br> card and your opponent has 3 or more Battle Cards in play: Choose 1 of your Leaders or Battle Cards, choose all Battle Cards with power less than or equal to the chosen card's power, and KO them.",
+        "kind": "activate:main/battle",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader is a green <Broly: Br> card and your opponent has 3 or more Battle Cards in play",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "leaderMatches",
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "broly: br"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "opponent",
+                  "area": "battle",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                },
+                "atLeast": 3
+              }
+            ]
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "leaderMatches",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "broly: br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              }
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "opponent",
+                "area": "battle",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "BATTLE",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 3
+            }
+          ]
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "leader",
+              "areas": [
+                "leader",
+                "battle"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "anyOf": [
+                  {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "LEADER",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                ]
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "Choose 1 of your Leaders or Battle Cards"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "both",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": {
+                  "of": "chosen",
+                  "cmp": "<=",
+                  "var": "c0"
+                },
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 99,
+              "upTo": false
+            },
+            "as": "c1",
+            "reason": "choose all Battle Cards with power less than or equal to the chosen card's power"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c1"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "if:all[choose→choose→ko]",
+        "reads": "if your leader is Green <broly: br> and there are 3 or more Battle Cards in your opponent's Battle Area: choose 1 Leader Card or Battle Card in your Leader Area or Battle Area, choose all Battle Cards with power less than or equal to the chosen card's power in each player's Battle Area, KO the chosen cards"
+      }
+    }
+  },
+  "BT19-097": {
+    "card": {
+      "id": "BT19-097",
+      "type": "EXTRA",
+      "colors": [
+        "Green"
+      ],
+      "cost": "0",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Cunning Murder",
+      "characters": [],
+      "traits": [],
+      "skill": "[Permanent] If your Leader is a green &lt;Broly: Br&gt; card and this card is under a &lt;Broly: Br&gt; card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand.<br>[Activate: Main][Limit 1] If your Leader is a green &lt;Broly: Br&gt; card and you choose 1 of your green &lt;Paragus: Br&gt; cards, negate its skills for the turn, and place it in its owner's Drop: Look at up to 7 cards from the top of your deck, place up to 2 green Extras among them under your Leader, then shuffle your deck.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT19-097#0": {
+        "cardId": "BT19-097",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [Activate] skill under the same conditions as if it were in your hand.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "you can activate this card's [Activate] skill under the same conditions as if it were in your hand"
+        ],
+        "pattern": "you can activate this card's [activate] skill under the same conditions as if it were in your hand",
+        "reads": ""
+      },
+      "BT19-097#10": {
+        "cardId": "BT19-097",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main][Limit 1] If your Leader is a green <Broly: Br> card and you choose 1 of your green <Paragus: Br> cards, negate its skills for the turn, and place it in its owner's Drop: Look at up to 7 cards from the top of your deck, place up to 2 green Extras among them under your Leader, then shuffle your deck.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader is a green <Broly: Br> card and you choose 1 of your green <Paragus: Br> cards, negate its skills for the turn, and place it in its owner's Drop",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "broly: br"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "Paragus: Br"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "you choose 1 of your green <Paragus: Br> cards"
+            },
+            {
+              "op": "negateSkills",
+              "target": {
+                "var": "c0"
+              },
+              "until": "turn"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "broly: br"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "EXTRA",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 2,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "place up to 2 green Extras among them under your Leader"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "sel": {
+                "special": "leader"
+              }
+            }
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[look→choose→moveTo→shuffle]",
+        "reads": "if your leader is Green <broly: br>: look at the top 7, choose up to 2 green Extra Cards of the cards looked at, move the chosen cards under your leader, shuffle"
+      }
+    }
+  },
+  "BT19-098": {
+    "card": {
+      "id": "BT19-098",
+      "type": "EXTRA",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "True Power Awakened",
+      "characters": [],
+      "traits": [],
+      "skill": "[permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [activate] skills under the same conditions as if it were in your hand.<br>[activate: main][limit 1] If your Leader is a green <Broly: Br> Z-Leader: Your opponent may discard 2 cards from their hand. If they don't, during your opponent's next turn, the skill cost of [activate: main] skills on their cards in their hand and Battle Area is increased by {1}.<br>[activate: main][limit 1] Place 1 green Extra from your hand under 1 of your green <Broly: Br> cards and send this card from your Drop to your Warp: Draw 1 card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT19-098#0": {
+        "cardId": "BT19-098",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[permanent] If your Leader is a green <Broly: Br> card and this card is under a <Broly: Br> card, you can activate this card's [activate] skills under the same conditions as if it were in your hand.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "you can activate this card's [activate] skills under the same conditions as if it were in your hand"
+        ],
+        "pattern": "you can activate this card's [activate] skills under the same conditions as if it were in your hand",
+        "reads": ""
+      },
+      "BT19-098#10": {
+        "cardId": "BT19-098",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[activate: main][limit 1] If your Leader is a green <Broly: Br> Z-Leader: Your opponent may discard 2 cards from their hand. If they don't, during your opponent's next turn, the skill cost of [activate: main] skills on their cards in their hand and Battle Area is increased by {1}.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader is a green <Broly: Br> Z-Leader",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "broly: br"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "LEADER",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": true
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "broly: br"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": "LEADER",
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": true
+          }
+        },
+        "ops": [
+          {
+            "op": "may",
+            "ops": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "opponent",
+                  "area": "hand",
+                  "count": 2,
+                  "upTo": false
+                },
+                "as": "c0",
+                "reason": "discard 2 cards from their hand",
+                "chooser": "opponent"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "drop",
+                "reveal": true
+              }
+            ],
+            "chooser": "opponent",
+            "reason": "discard 2 cards from their hand"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "not",
+              "cond": {
+                "kind": "did",
+                "what": "may"
+              }
+            },
+            "then": [
+              {
+                "op": "delay",
+                "at": "turnStart",
+                "scope": "opponentNextTurn",
+                "ops": [
+                  {
+                    "op": "costReduction",
+                    "target": {
+                      "sel": {
+                        "side": "opponent",
+                        "area": "hand",
+                        "areas": [
+                          "hand",
+                          "battle"
+                        ],
+                        "count": 99
+                      }
+                    },
+                    "amount": -1,
+                    "what": "skill",
+                    "skillKind": "activate",
+                    "activateTiming": "main",
+                    "colors": [
+                      "any"
+                    ],
+                    "until": "turn"
+                  }
+                ],
+                "label": "during your opponent's next turn"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[may[choose→moveTo]→if:not[delay:turnStart[costReduction]]]",
+        "reads": "if your leader is Green <broly: br> Z-Leader: your opponent may: your opponent chooses 2 cards in your opponent's hand, move the chosen cards to drop, if not (the offer was taken): during your opponent's next turn: all cards in your opponent's hand or Battle Area's skill cost for [Activate: Main] skills is 1 more ({1}) for the turn"
+      },
+      "BT19-098#20": {
+        "cardId": "BT19-098",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[activate: main][limit 1] Place 1 green Extra from your hand under 1 of your green <Broly: Br> cards and send this card from your Drop to your Warp: Draw 1 card.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Place 1 green Extra from your hand under 1 of your green <Broly: Br> cards and send this card from your Drop to your Warp",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "EXTRA",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Place 1 green Extra from your hand under 1 of your green <Broly: Br> cards"
+            },
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "broly: br"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c1",
+              "reason": "Place 1 green Extra from your hand under 1 of your green <Broly: Br> cards"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "under",
+              "under": {
+                "var": "c1"
+              }
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self",
+                  "area": "drop"
+                }
+              },
+              "to": "warp"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 1"
+      }
+    }
+  },
+  "BT23-098": {
+    "card": {
+      "id": "BT23-098",
+      "type": "EXTRA",
+      "colors": [
+        "Green"
+      ],
+      "cost": "0",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Theft of a Control Device",
+      "characters": [],
+      "traits": [],
+      "skill": "[permanent] If this card is under a <Broly: Br> card, you can activate this card's [activate] skills under the same conditions as if it were in your hand.<br>[activate: main][limit 1] If your Leader is a green <Broly: Br> card: Look at up to 7 cards from the top of your deck, add up to 1 green <Broly: Br> card to your hand, then shuffle your deck.<br>[activate: main][limit 1]{g}, place 1 green Extra from your hand under one of your green <Broly: Br> cards, then send this card from your Drop to your Warp: Draw 1 card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT23-098#0": {
+        "cardId": "BT23-098",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[permanent] If this card is under a <Broly: Br> card, you can activate this card's [activate] skills under the same conditions as if it were in your hand.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "you can activate this card's [activate] skills under the same conditions as if it were in your hand"
+        ],
+        "pattern": "you can activate this card's [activate] skills under the same conditions as if it were in your hand",
+        "reads": ""
+      },
+      "BT23-098#10": {
+        "cardId": "BT23-098",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[activate: main][limit 1] If your Leader is a green <Broly: Br> card: Look at up to 7 cards from the top of your deck, add up to 1 green <Broly: Br> card to your hand, then shuffle your deck.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader is a green <Broly: Br> card",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "broly: br"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "broly: br"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "broly: br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "add up to 1 green <Broly: Br> card to your hand"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[look→choose→moveTo→shuffle]",
+        "reads": "if your leader is Green <broly: br>: look at the top 7, choose up to 1 green <broly: br> card of the cards looked at, move the chosen cards to hand, shuffle"
+      },
+      "BT23-098#20": {
+        "cardId": "BT23-098",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[activate: main][limit 1]{g}, place 1 green Extra from your hand under one of your green <Broly: Br> cards, then send this card from your Drop to your Warp: Draw 1 card.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "place 1 green Extra from your hand under one of your green <Broly: Br> cards, then send this card from your Drop to your Warp",
+          "orbs": {
+            "Green": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "EXTRA",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "place 1 green Extra from your hand under one of your green <Broly: Br> cards"
+            },
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "broly: br"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c1",
+              "reason": "place 1 green Extra from your hand under one of your green <Broly: Br> cards"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "under",
+              "under": {
+                "var": "c1"
+              }
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self",
+                  "area": "drop"
+                }
+              },
+              "to": "warp"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 1"
+      }
+    }
+  },
+  "BT19-088": {
+    "card": {
+      "id": "BT19-088",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "8",
+      "specified": null,
+      "z": null,
+      "power": 35000,
+      "name": "SS Broly, Full Power Frenzy",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "skill": "[triple strike]<br>[permanent] When this card would leave your Battle Area, you may place 5 Extras from under this card under your Leader instead.<br>[auto] When this card is played, place up to 7 Extras from under your Leader under this card, then choose up to 1 of your opponent's Battle Cards and KO it.<br>[activate: main][limit 1]{g}{g}, if there are 10 or more cards under your green <Broly: Br> cards: Play this card from your hand.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "SS Broly, Full Power Frenzy",
+        "qa": [
+          {
+            "q": "What happens if you have 5 Extras under this card and its power becomes 0?",
+            "a": "This card is placed in its owner's Drop when its power becomes 0, so you can use this card's [Permanent] skill to move the 5 Extras from under this card under your Leader instead. But even if you do, you then place it in your Drop because its power is 0."
+          },
+          {
+            "q": "This card leaves your Battle Area while it has 3 Extras under it, then you use this card's [Permanent] skill to place the 3 Extras from under this card under your Leader. Can you leave this card in your Battle Area?",
+            "a": "No, you can't. You must place 5 Extras from under this card under your Leader instead of allowing \"would leave your Battle Area.\""
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT19-088#10": {
+        "cardId": "BT19-088",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[permanent] When this card would leave your Battle Area, you may place 5 Extras from under this card under your Leader instead.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "replace",
+            "event": "leave",
+            "with": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "under",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "EXTRA",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 5,
+                  "upTo": false
+                },
+                "as": "c0",
+                "reason": "you may place 5 Extras from under this card under your Leader"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "under",
+                "under": {
+                  "sel": {
+                    "special": "leader"
+                  }
+                }
+              }
+            ],
+            "optional": true
+          }
+        ],
+        "unread": [],
+        "pattern": "replace",
+        "reads": "if this card would leave the Battle Area, you may have this happen instead: choose 5 Extra Cards under this card, move the chosen cards under your leader"
+      },
+      "BT19-088#20": {
+        "cardId": "BT19-088",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[auto] When this card is played, place up to 7 Extras from under your Leader under this card, then choose up to 1 of your opponent's Battle Cards and KO it.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "under",
+              "underHost": {
+                "special": "leader"
+              },
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "EXTRA",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 7,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "place up to 7 Extras from under your Leader under this card"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c1",
+            "reason": "choose up to 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c1"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→moveTo→choose→ko",
+        "reads": "choose up to 7 Extra Cards under your leader card, move the chosen cards under this card, choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards"
+      },
+      "BT19-088#30": {
+        "cardId": "BT19-088",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[activate: main][limit 1]{g}{g}, if there are 10 or more cards under your green <Broly: Br> cards: Play this card from your hand.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if there are 10 or more cards under your green <Broly: Br> cards",
+          "orbs": {
+            "Green": 2
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "under",
+              "underHost": {
+                "side": "you",
+                "area": "play",
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "broly: br"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 99,
+                "upTo": false
+              }
+            },
+            "atLeast": 10
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "under",
+            "underHost": {
+              "side": "you",
+              "area": "play",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "broly: br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 99,
+              "upTo": false
+            }
+          },
+          "atLeast": 10
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self",
+              "area": "hand"
+            },
+            "as": "p0",
+            "reason": "Play this card from your hand"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[choose→play]",
+        "reads": "if there are 10 or more cards under your green <broly: br> card: choose this card, play the chosen cards"
+      }
+    }
+  },
+  "BT19-074": {
+    "card": {
+      "id": "BT19-074",
+      "type": "Z-BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": "1",
+      "power": 4000,
+      "name": "Lemo, Dependable Friend",
+      "characters": [
+        "Lemo: Br"
+      ],
+      "traits": [
+        "Frieza's Army"
+      ],
+      "skill": "[auto] If your Leader is a green <Broly: Br> card and you place 1 green Extra from your hand under your Leader: When this card is removed from your Battle Area by an opponent's skill, draw 1 card.<br>[activate: main][limit 1] If your Leader is a green <Broly: Br> card: During your opponent's next turn, reduce the energy cost of the first Extra you activate from under one of your <Broly: Br> cards by {g}.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT19-074#0": {
+        "cardId": "BT19-074",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[auto] If your Leader is a green <Broly: Br> card and you place 1 green Extra from your hand under your Leader: When this card is removed from your Battle Area by an opponent's skill, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "removedByOpponent"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader is a green <Broly: Br> card and you place 1 green Extra from your hand under your Leader",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "broly: br"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "EXTRA",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "place 1 green Extra from your hand under your Leader"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "under",
+              "under": {
+                "sel": {
+                  "special": "leader"
+                }
+              }
+            }
+          ]
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "broly: br"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[draw]",
+        "reads": "if your leader is Green <broly: br>: draw 1"
+      },
+      "BT19-074#10": {
+        "cardId": "BT19-074",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[activate: main][limit 1] If your Leader is a green <Broly: Br> card: During your opponent's next turn, reduce the energy cost of the first Extra you activate from under one of your <Broly: Br> cards by {g}.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader is a green <Broly: Br> card",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "broly: br"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "reduce the energy cost of the first Extra you activate from under one of your <Broly: Br> cards by {g}"
+        ],
+        "pattern": "reduce the energy cost of the first extra you activate from under one of your … cards by …",
+        "reads": ""
+      }
+    }
+  },
+  "BT19-089": {
+    "card": {
+      "id": "BT19-089",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "5",
+      "specified": null,
+      "z": null,
+      "power": 25000,
+      "name": "SS Broly, Villainous Threat",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army",
+        "Villainous"
+      ],
+      "skill": "[deflect][unique][dual attack]<br>[villainous] (When you play another ≪Villainous≫ Battle Card or activate a ≪Villainous≫ Extra's skill, your opponent discards a card from their hand. Negate this skill for the turn.)<br>[auto] When this card is played, during your opponent's next turn, reduce the energy cost of the first Extra you activate from under one of your <Broly: Br> cards by {g}.<br>[auto] When this card attacks, choose up to 1 of your opponent's Battle Cards and KO it.<br>[activate: main][limit 1]{g}{g}, if your opponent has 2 or more energy and there are 6 or more cards under your green <Broly: Br> cards: Play this card from your hand.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "SS Broly, Villainous Threat",
+        "qa": [
+          {
+            "q": "You activate this card's first [Auto] skill during the same turn you activate {BT19-074 Lemo, Dependable Friend}'s [Activate : Main] skill, then you activate the first Extra under a ＜Broly : Br＞ card during your opponent's next turn. By how much is the specified cost reduced?",
+            "a": "It is reduced by ●●."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT19-089#10": {
+        "cardId": "BT19-089",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[villainous] (When you play another ≪Villainous≫ Battle Card or activate a ≪Villainous≫ Extra's skill, your opponent discards a card from their hand. Negate this skill for the turn.)",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Villainous",
+        "reads": ""
+      },
+      "BT19-089#20": {
+        "cardId": "BT19-089",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[auto] When this card is played, during your opponent's next turn, reduce the energy cost of the first Extra you activate from under one of your <Broly: Br> cards by {g}.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "reduce the energy cost of the first Extra you activate from under one of your <Broly: Br> cards by {g}"
+        ],
+        "pattern": "reduce the energy cost of the first extra you activate from under one of your … cards by …",
+        "reads": ""
+      },
+      "BT19-089#30": {
+        "cardId": "BT19-089",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[auto] When this card attacks, choose up to 1 of your opponent's Battle Cards and KO it.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "ko",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→ko",
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area, KO the chosen cards"
+      },
+      "BT19-089#40": {
+        "cardId": "BT19-089",
+        "side": "front",
+        "skillIndex": 40,
+        "printed": "[activate: main][limit 1]{g}{g}, if your opponent has 2 or more energy and there are 6 or more cards under your green <Broly: Br> cards: Play this card from your hand.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if your opponent has 2 or more energy and there are 6 or more cards under your green <Broly: Br> cards",
+          "orbs": {
+            "Green": 2
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "opponent",
+                  "area": "energy"
+                },
+                "atLeast": 2
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "under",
+                  "underHost": {
+                    "side": "you",
+                    "area": "play",
+                    "filter": {
+                      "colors": [
+                        "Green"
+                      ],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "broly: br"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": null,
+                      "costMax": null,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    },
+                    "count": 99,
+                    "upTo": false
+                  }
+                },
+                "atLeast": 6
+              }
+            ]
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "opponent",
+                "area": "energy"
+              },
+              "atLeast": 2
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "under",
+                "underHost": {
+                  "side": "you",
+                  "area": "play",
+                  "filter": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "broly: br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 99,
+                  "upTo": false
+                }
+              },
+              "atLeast": 6
+            }
+          ]
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self",
+              "area": "hand"
+            },
+            "as": "p0",
+            "reason": "Play this card from your hand"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "if:all[choose→play]",
+        "reads": "if there are 2 or more cards in your opponent's Energy Area and there are 6 or more cards under your green <broly: br> card: choose this card, play the chosen cards"
+      }
+    }
+  },
+  "BT19-091": {
+    "card": {
+      "id": "BT19-091",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 4000,
+      "name": "Paragus, Issuing Orders",
+      "characters": [
+        "Paragus: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "skill": "[Auto] If your Leader is a green &lt;Broly: Br&gt; card: When this card is played from your hand, look at up to 5 cards from the top of your deck, add up to 1 green &lt;Broly: Br&gt; card or green Extra among them to your hand, then shuffle your deck, if you add a green Extra to your hand, place up to 1 green Extra from your hand under 1 of your green &lt;Broly: Br&gt; cards.<br>[Activate: Main][Limit 1] Send this card to its owner's Warp: At the start of your next turn's Main Phase, play this card from your Warp.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT19-091#0": {
+        "cardId": "BT19-091",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] If your Leader is a green <Broly: Br> card: When this card is played from your hand, look at up to 5 cards from the top of your deck, add up to 1 green <Broly: Br> card or green Extra among them to your hand, then shuffle your deck, if you add a green Extra to your hand, place up to 1 green Extra from your hand under 1 of your green <Broly: Br> cards.",
+        "kind": "auto",
+        "trigger": [
+          "playedFromHand"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your Leader is a green <Broly: Br> card",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "broly: br"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "broly: br"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "look",
+            "n": 5,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "anyOf": [
+                  {
+                    "colors": [
+                      "Green"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "broly: br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  {
+                    "colors": [
+                      "Green"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "EXTRA",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                ]
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "add up to 1 green <Broly: Br> card or green Extra among them to your hand"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [
+          "if you add a green Extra to your hand",
+          "place up to 1 green Extra from your hand under 1 of your green <Broly: Br> cards"
+        ],
+        "pattern": "if you add a green extra to your hand",
+        "reads": "if your leader is Green <broly: br>: look at the top 5, choose up to 1 green <broly: br> card or green Extra Card of the cards looked at, move the chosen cards to hand, shuffle"
+      },
+      "BT19-091#10": {
+        "cardId": "BT19-091",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main][Limit 1] Send this card to its owner's Warp: At the start of your next turn's Main Phase, play this card from your Warp.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": 1
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Send this card to its owner's Warp",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "moveTo",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "to": "warp"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "delay",
+            "at": "mainStart",
+            "scope": "yourNextTurn",
+            "ops": [
+              {
+                "op": "choose",
+                "sel": {
+                  "special": "self",
+                  "area": "warp"
+                },
+                "as": "p0",
+                "reason": "play this card from your Warp"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "p0"
+                }
+              }
+            ],
+            "label": "at the start of your next main phase"
+          }
+        ],
+        "unread": [],
+        "pattern": "delay:mainStart[choose→play]",
+        "reads": "at the start of your next main phase: choose this card, play the chosen cards"
+      }
+    }
+  },
+  "BT19-070": {
+    "card": {
+      "id": "BT19-070",
+      "type": "Z-LEADER",
+      "colors": [
+        "Green"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": "2",
+      "power": 15000,
+      "name": "SS Broly, Awakened Might",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "skill": "[z-awaken]{g}, when your life is at 4 or less: Green <Broly: Br>.<br>[auto] When this card attacks, look at up to 7 cards from the top of your deck, place up to 2 green Extras among them under one of your <Broly: Br> cards, and this card gets +10000 power for the battle.<br>[activate: main][once per turn]{g}, if you have 4 or more energy: Play up to 1 green <Broly: Br> card with an energy cost of 8 from your hand.<br>[activate: battle] Place 1 green Extra from under one of your <Broly: Br> cards in its owner's Drop: Choose up to 1 of your cards and it gets +5000 power for the battle.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT19-070#0": {
+        "cardId": "BT19-070",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[z-awaken]{g}, when your life is at 4 or less: Green <Broly: Br>.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "when your life is at 4 or less",
+          "orbs": {
+            "Green": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "life",
+            "side": "you",
+            "atMost": 4
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Z-Awaken",
+        "reads": ""
+      },
+      "BT19-070#10": {
+        "cardId": "BT19-070",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[auto] When this card attacks, look at up to 7 cards from the top of your deck, place up to 2 green Extras among them under one of your <Broly: Br> cards, and this card gets +10000 power for the battle.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 7,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "EXTRA",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 2,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "place up to 2 green Extras among them under one of your <Broly: Br> cards"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "play",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "broly: br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c1",
+            "reason": "place up to 2 green Extras among them under one of your <Broly: Br> cards"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under",
+            "under": {
+              "var": "c1"
+            }
+          },
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 10000,
+            "until": "battle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look→choose→choose→moveTo→power",
+        "reads": "look at the top 7, choose up to 2 green Extra Cards of the cards looked at, choose 1 <broly: br> card you have in play, move the chosen cards under the chosen cards, this card +10000 power for the battle"
+      },
+      "BT19-070#20": {
+        "cardId": "BT19-070",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[activate: main][once per turn]{g}, if you have 4 or more energy: Play up to 1 green <Broly: Br> card with an energy cost of 8 from your hand.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if you have 4 or more energy",
+          "orbs": {
+            "Green": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy"
+            },
+            "atLeast": 4
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy"
+          },
+          "atLeast": 4
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "hand",
+              "filter": {
+                "colors": [
+                  "Green"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "broly: br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": 8,
+                "costMax": 8,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "p0",
+            "reason": "Play up to 1 green <Broly: Br> card with an energy cost of 8 from your hand"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[choose→play]",
+        "reads": "if there are 4 or more cards in your Energy Area: choose up to 1 green <broly: br> card with an energy cost of 8 in your hand, play the chosen cards"
+      },
+      "BT19-070#30": {
+        "cardId": "BT19-070",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[activate: battle] Place 1 green Extra from under one of your <Broly: Br> cards in its owner's Drop: Choose up to 1 of your cards and it gets +5000 power for the battle.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Place 1 green Extra from under one of your <Broly: Br> cards in its owner's Drop",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "under",
+                "underHost": {
+                  "side": "you",
+                  "area": "play",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "broly: br"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": false
+                },
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": "EXTRA",
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Place 1 green Extra from under one of your <Broly: Br> cards in its owner's Drop"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "drop",
+              "reveal": true
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "play",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "Choose up to 1 of your cards"
+          },
+          {
+            "op": "power",
+            "target": {
+              "var": "c0"
+            },
+            "amount": 5000,
+            "until": "battle"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→power",
+        "reads": "choose up to 1 card you have in play, the chosen cards +5000 power for the battle"
+      }
+    }
+  }
+}

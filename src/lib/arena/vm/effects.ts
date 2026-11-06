@@ -1,3 +1,4 @@
+import { activateUnderDescriptor } from "./activate-under-contract";
 import { standingWholeDescriptor } from "./standing-negation-policy";
 import { energyEntryDescriptor } from "./energy-entry-policy";
 import { freshAppliedEffectRoot } from "./applied-effect-receipt";
@@ -841,7 +842,7 @@ export function permanents(
           const program = showing.scripts.bySkill[sk.index];
           if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
           // R507/R509: exact descriptors belong to native arrival/history writers, not standing layers.
-          if (energyEntryDescriptor(program.ops) || standingWholeDescriptor(program.ops)) continue;
+          if (energyEntryDescriptor(program.ops) || standingWholeDescriptor(program.ops) || activateUnderDescriptor(program.ops)) continue;
           if (!sparkingIsValid(state, p, sk.validity)) continue;
           if (sk.bond != null && !bondValid(src, p, sk)) continue;
           const areaOps = extra ? [...program.ops.filter((op) => identityInAllAreas(op) || (zone === "zEnergy" && op.op === "permit" && op.what === "evolveFromZEnergy")), ...(zone === "drop" && areaFlags(printed).drop ? dropSelfOps(program.ops) : [])]
@@ -870,7 +871,7 @@ export function permanents(
             const program = showing.scripts.bySkill[sk.index];
             if (!program || program.unsupported.length || (only && !only(program.ops))) continue;
             // R507/R509: exact descriptors belong to native arrival/history writers, not standing layers.
-            if (energyEntryDescriptor(program.ops) || standingWholeDescriptor(program.ops)) continue;
+            if (energyEntryDescriptor(program.ops) || standingWholeDescriptor(program.ops) || activateUnderDescriptor(program.ops)) continue;
             if (!sparkingIsValid(state, p, sk.validity)) continue;
             if (sk.bond != null && !bondValid(src, p, sk)) continue;
             const ops = pileOps(program.ops);
@@ -1214,6 +1215,7 @@ function collect(
     // `permits` condition additionally enforces that source and exact copy;
     // unionFusionWarp is scoped by condHolds to this card's Fusion from hand.
     if (op.op === "permit") {
+      if (op.what === "activateFromUnder") continue; // R514: original descriptor discovery owns this permission.
       if (!inPlayNow && op.what !== "fieldBattle" && op.what !== "overRealmFromWarp" && op.what !== "evolveEnergyBases" && op.what !== "evolveFromZEnergy" && op.what !== "unionFusionWarp" && op.what !== "unionFusionDropBottom" && op.what !== "unionEnergy" && op.what !== "unionSourceOpponentBattle" && op.what !== "playInOpponentBattle") continue;
       const value: Permission = { what: op.what, ...(op.filter ? { filter: op.filter } : {}), ...(op.line ? { line: op.line } : {}), ...(op.unionVariant ? { unionVariant: op.unionVariant } : {}), ...(op.price ? { price: op.price } : {}), ...(op.source ? { source: op.source } : {}), ...(op.n !== undefined ? { n: op.n } : {}) };
       for (const id of targets(frame, op)) out.push({ source: frame.card, master: frame.master, kind: "permit", target: id, value });

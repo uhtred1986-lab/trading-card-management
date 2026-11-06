@@ -1,3 +1,4 @@
+import { stepActivateUnderCost } from "./activate-under-cost";
 import { koResultScript, requireKoBinding, requireKoFrame } from "./ko-source";
 import { requireKoRoute, type KoOutcome } from "./ko-result";
 import { captureFlowPlacement, cleanupFlowPlacement, needsFlowPaymentPreview } from "./flow-placement-cleanup";
@@ -1450,6 +1451,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   if (!frame) return "done";
   try {
     requireCounterArrivalTiming(ctx, state);
+    if (frame.activateUnderPayment || "activateUnderCost" in frame) return stepActivateUnderCost(ctx, game, state, ev, frame);
     if (frame.energyCharge || state.energyCharge) requireEnergyCharge(game,state,frame);
     if (frame.fieldCleanup) return stepFieldCleanup(ctx, game, state, ev, frame);
     if (frame.awakenAlternativeCost) return stepAwakenAlternative(ctx, game, state, ev, frame);

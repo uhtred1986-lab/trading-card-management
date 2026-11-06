@@ -1,3 +1,4 @@
+import { activateUnderOrigin, activateUnderProblem, type ActivateUnderOrigin } from "./activate-under";
 import { freshAppliedEffectRoot } from "./applied-effect-receipt";
 import { projectStandingNegationMoves } from "./standing-negation-projection";
 import { validateStandingNegationRead } from "./standing-negation-runtime";
@@ -119,7 +120,7 @@ import { keywordAfterProgram, keywordMomentNames, keywordMoveOf, keywordProgram 
 import { masterOf, skillsShowing } from "./triggers";
 import { replacementChoices } from "./replace";
 import { canCombo, coversColors } from "../text/cards";
-import { findCard, moveCard } from "./zones";
+import { findCard, moveCard, hostOf } from "./zones";
 import { lifeToHandForbidden } from "./life-movement";
 import { spendUse, usesLeft } from "./limits";
 import type { KeywordCost } from "./keyword-costs";
@@ -135,6 +136,7 @@ import { isOrderedZAwaken, zAwakenCost } from "./z-awaken-costs";
  * is refused, the second is a rule that says nothing happens.
  */
 export interface ActivationLine {
+  activateUnderOrigin?: ActivateUnderOrigin;
   card: string;
   skillIndex: number;
   skill: Skill;
@@ -272,7 +274,13 @@ export function activationsOf(ctx: EngineContext, state: VmState, def: ActionDef
     // your Combo Area: …" (EX19-12), "You may place this card in its owner's Drop Area from your energy" (EX17-05).
     // A Combo Area holds cards only during a battle (21-4-2), so its lines come at the combo prompt.
     if ((zone === ACTIVATION_ZONES.combo || zone === ACTIVATION_ZONES.energy) && (keyword || !usedHere(showing.scripts.bySkill[skill.index], zone))) continue;
-    out.push({ card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) });
+    const line: ActivationLine = { card, skillIndex: skill.index, skill, script: showing.scripts.bySkill[skill.index], kind, ...(keyword ? { keyword } : {}) };
+    if (hostOf(state, card)) {
+      const origin = game ? activateUnderOrigin(ctx, game, state, line) : null;
+      if (!origin) continue;
+      line.activateUnderOrigin = origin;
+    }
+    out.push(line);
   }
   // #930, P-360: a line this card in hand has been granted ("Red <Gogeta: Br>
   // cards in your hand gain the following skill: [Union-Fusion]…") is a move of
@@ -356,7 +364,7 @@ export function boundFor(ctx: EngineContext, game: GameDefinition, state: VmStat
   const own = skillOrbs(ctx, game, state, line.card, sk, onto, payment);
   const orbs: Partial<Record<Color, number>> = { ...own.orbs };
   let total = own.total;
-  if (withCardPrice && inHand(state, line.card) && isExtra(ctx, game, state, line.card)) {
+  if (withCardPrice && (inHand(state, line.card) || !!line.activateUnderOrigin) && isExtra(ctx, game, state, line.card)) {
     const play = cardPrice(ctx, game, state, line.card, sk);
     total += play.total;
     for (const [colour, n] of Object.entries(play.orbs)) orbs[colour as Color] = (orbs[colour as Color] ?? 0) + (n ?? 0);
@@ -551,6 +559,8 @@ export function activationRefusals(
   keywordRefusals: () => Requirement[] = () => [],
 ): { before: Requirement[]; after: Requirement[] } {
   const before: Requirement[] = [];
+  const underProblem = activateUnderProblem(ctx, game, state, line);
+  if (underProblem) before.push({ kind: "other", detail: underProblem });
   const after: Requirement[] = [];
   const staleExtra = staleExtraSelfActivation(skillsShowing(ctx, state, line.card).scripts);
   if (staleExtra && isExtraCardActivation(isExtra(ctx, game, state, line.card), findCard(state, line.card)?.zone ?? "", line.skill.kind, line.keyword?.name)) before.push({ kind: "other", detail: staleExtra });
@@ -663,7 +673,7 @@ export function activationRefusals(
   // and in its words (#458).
   if (hasAwakenAlternative(line) && !canPayAwakenAlternative(ctx, game, state, player, line)) before.push({ kind: "other", detail: `cannot pay either alternative: ${sk.cost}` });
   const priceOps = actionPriceOf(line);
-  if (priceOps && !canPayPriceProgram(ctx, game, state, player, card, priceOps, payment.orbs)) before.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
+  if (priceOps && !line.activateUnderOrigin && !canPayPriceProgram(ctx, game, state, player, card, priceOps, payment.orbs)) before.push({ kind: "other", detail: `cannot pay: ${sk.cost}` });
 
   // …the price goes here, and `vm/actions.ts` puts it there.
 

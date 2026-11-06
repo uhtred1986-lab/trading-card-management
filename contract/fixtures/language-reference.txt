@@ -2826,7 +2826,7 @@
     {
       "name": "permit",
       "class": "primitive",
-      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"comboFromDrop\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\",\"unionVariant\"?:\"Fusion\"|\"Potara\",\"price\"?:PRICE,\"counterUnderPolicy\"?:\"asHandV1\",\"source\"?:FILTER,\"n\"?:N}",
+      "signature": "{\"op\":\"permit\",\"what\":\"attackActive\"|\"comboRest\"|\"comboFromDrop\"|…,\"until\":DURATION,\"target\":TARGET,\"filter\"?:FILTER,\"line\"?:\"…\",\"unionVariant\"?:\"Fusion\"|\"Potara\",\"price\"?:PRICE,\"activateUnderPolicy\"?:\"asHandV1\"|\"asHandGreenBrolyLeaderV1\",\"counterUnderPolicy\"?:\"asHandV1\",\"source\"?:FILTER,\"n\"?:N}",
       "fields": [
         {
           "name": "what",
@@ -2850,6 +2850,7 @@
             "counterFromDrop",
             "counterFromEnergy",
             "counterFromUnder",
+            "activateFromUnder",
             "aegisAltDrop",
             "aegisAltOpponentHand",
             "attackUnnegatable",
@@ -2902,6 +2903,16 @@
           "required": false,
           "nullable": false,
           "type": "price"
+        },
+        {
+          "name": "activateUnderPolicy",
+          "required": false,
+          "nullable": false,
+          "type": "enum",
+          "enumValues": [
+            "asHandV1",
+            "asHandGreenBrolyLeaderV1"
+          ]
         },
         {
           "name": "counterUnderPolicy",

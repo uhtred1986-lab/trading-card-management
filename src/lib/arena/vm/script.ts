@@ -1425,7 +1425,7 @@ export type Op =
    * `filter` describes may come from under the target (the granting card)
    * instead — a Battle Card the cost's own description fits, one for one.
    */
-  | { op: "permit"; what: "attackActive" | "comboRest" | "comboFromDrop" | "fieldBattle" | "fieldKeepOthers" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "counterFromEnergy" | "counterFromUnder" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; counterUnderPolicy?: "asHandV1"; source?: CardFilter; n?: number }
+  | { op: "permit"; what: "attackActive" | "comboRest" | "comboFromDrop" | "fieldBattle" | "fieldKeepOthers" | "overRealmFromWarp" | "unionFusionAreas" | "unionFusionWarp" | "unionFusionDropBottom" | "unionEnergy" | "unionLine" | "evolveEnergyBases" | "evolveFromZEnergy" | "counterFromDrop" | "counterFromEnergy" | "counterFromUnder" | "activateFromUnder" | "aegisAltDrop" | "aegisAltOpponentHand" | "attackUnnegatable" | "unionSourceUnder" | "unionSourceOpponentBattle" | "playInOpponentBattle" | "startLife" | "absorbMaterialUnder" | "awakenLife" | "comboRestSelf" | "ownDiscardOptional"; until: Duration; target: Ref; filter?: CardFilter; line?: string; unionVariant?: "Fusion" | "Potara"; price?: SkillPrice; counterUnderPolicy?: "asHandV1"; activateUnderPolicy?: import("./activate-under-contract").ActivateUnderPolicy; source?: CardFilter; n?: number }
   | { op: "if"; cond: Cond; then: Op[]; else?: Op[] }
   /**
    * "Choose one— ・A ・B" (20-2): the master picks one printed option, or
@@ -1809,6 +1809,8 @@ export interface ScriptFrame {
   /** #929: the [Union] play's source, host and materials as they stood when the play was declared (card, area-change count) — what the counter window must leave where it was. */
   unionBound?: { card: string; zoneEpoch: number }[];
   /** #920: explicit Drop activation action price, additive for newly queued frames only. */
+  activateUnderPayment?: true;
+  activateUnderCost?: import("./activate-under-cost").ActivateUnderCost;
   dropCost?: import("./drop-costs").DropCost;
   /** #624: optional Revive hand payment before determining additional costs.
    * Additive at state version 10: older suspended frames execute their stored
@@ -3160,7 +3162,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // find"). Only the candidates in open areas still have to be taken. Never a price's (5-8-2-2 is paid in full).
         // Phrasing batch 9: the hand's cards only on an effect — a price run on a frame of its own ([Aegis]'s hand colours,
         // a [Revive], a keyword's action price, …) is paid in full (5-8-2-2), as a `saveVarsAs` price is.
-        const paying = !!(frame.saveVarsAs || frame.aegisCost || frame.fieldCost || frame.awakenAlternativeCost || frame.reviveCost || frame.dropCost || frame.autoCost || frame.counterCost || frame.swapCost || frame.keywordCost || frame.keywordPrice);
+        const paying = !!(frame.saveVarsAs || frame.aegisCost || frame.fieldCost || frame.awakenAlternativeCost || frame.reviveCost || frame.dropCost || frame.activateUnderCost || frame.autoCost || frame.counterCost || frame.swapCost || frame.keywordCost || frame.keywordPrice);
         const secretCands = described && !frame.saveVarsAs && !upTo && op.sel.minCount === undefined ? cands.filter((id) => (paying ? inSecretPile(h, id) : declinablePick(h, id))).length : 0;
         const floor = secretCands ? Math.min(minimum, sofar.length + cands.length - secretCands) : minimum;
 
@@ -4146,6 +4148,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // 8-1-1 lifted for one card — the opposite of `forbid`, and stored the
       // same way so that a duration expires it the same way.
       case "permit":
+        if (op.what === "activateFromUnder") throw new NotYet("under-card Activate permission must be an original whole Permanent", "R514");
         for (const id of h.resolveRef(frame, op.target)) {
           h.addEffect({ master: frame.master, source: frame.card, target: id, kind: "permit", value: 0, until: op.until, permit: { what: op.what, filter: op.filter, line: op.line, unionVariant: op.unionVariant, price: op.price, source: op.source, n: op.n } });
         }

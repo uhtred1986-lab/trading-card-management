@@ -1515,7 +1515,7 @@ export type Prompt =
    * Which energy to rest. Only asked when the choice can matter: when the
    * colours left active afterwards would differ (3-8-2).
    */
-  | { kind: "payCost"; player: PlayerId; action: Action; comboDeclaration?: import("./vm/drop-combo").ComboDeclaration; options: Payment[]; describe: string; underOccurrences?: import("./vm/counter-under").CounterUnderOccurrences; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; markerPayers?: import("./vm/costs").PooledMarkers[]; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
+  | { kind: "payCost"; player: PlayerId; action: Action; activateUnderOrigin?: import("./vm/activate-under").ActivateUnderOrigin; comboDeclaration?: import("./vm/drop-combo").ComboDeclaration; options: Payment[]; describe: string; underOccurrences?: import("./vm/counter-under").CounterUnderOccurrences; energyOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; dropOccurrences?: import("./vm/counter-drop").CounterDropOccurrences; markerPayers?: import("./vm/costs").PooledMarkers[]; extraCounter?: import("./vm/counter-extra-cost").ExtraCounterBinding }
   | { kind: "offering"; player: PlayerId; card: string }
   /**
    * 22-45-3: [Empower]'s "may carry up to Y markers" — a choice, not the

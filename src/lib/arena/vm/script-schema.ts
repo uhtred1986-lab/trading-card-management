@@ -1,3 +1,4 @@
+import { activateUnderPermitProblem } from "./activate-under-contract";
 import { energyEntryPolicyProblem } from "./energy-entry-policy";
 import { counterArrivalPolicyProblem } from "./counter-arrival-policy";
 import { counterUnderPermitProblem } from "./counter-under-contract";
@@ -359,7 +360,7 @@ const COPY_SKILLS_FIELDS: OpField[] = [
 type OpOf<K extends Op["op"]> = Extract<Op, { op: K }>;
 
 /** `permit`'s fields, named so its sentence can render the `attackActive` case with them. */
-const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "comboFromDrop", "fieldBattle", "fieldKeepOthers", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "counterFromDrop", "counterFromEnergy", "counterFromUnder", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "counterUnderPolicy", type: { enum: ["asHandV1"] } }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
+const PERMIT_FIELDS: OpField[] = [{ name: "what", type: { enum: ["attackActive", "comboRest", "comboFromDrop", "fieldBattle", "fieldKeepOthers", "overRealmFromWarp", "unionFusionAreas", "unionFusionWarp", "unionFusionDropBottom", "unionEnergy", "unionLine", "evolveEnergyBases", "evolveFromZEnergy", "counterFromDrop", "counterFromEnergy", "counterFromUnder", "activateFromUnder", "aegisAltDrop", "aegisAltOpponentHand", "attackUnnegatable", "unionSourceUnder", "unionSourceOpponentBattle", "playInOpponentBattle", "startLife", "absorbMaterialUnder", "awakenLife", "comboRestSelf", "ownDiscardOptional"] }, required: true }, UNTIL, TARGET, { name: "filter", type: "filter" }, { name: "line", type: "string" }, { name: "unionVariant", type: { enum: ["Fusion", "Potara"] } }, { name: "price", type: "price" }, { name: "activateUnderPolicy", type: { enum: ["asHandV1", "asHandGreenBrolyLeaderV1"] } }, { name: "counterUnderPolicy", type: { enum: ["asHandV1"] } }, { name: "source", type: "filter" }, { name: "n", type: "number" }];
 
 /** `choose`'s fields, named so its sentence can render the plain case with them. */
 const CHOOSE_FIELDS: OpField[] = [
@@ -1209,6 +1210,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       if (op.what === "unionEnergy") return `this card’s [Union] skill from hand may choose Battle Cards in your energy`;
       if (op.what === "unionFusionAreas") return `${op.filter ? describeFilter(op.filter, { plural: true }) : "Battle Cards"}' [Union-Fusion] can choose its specified cards in your Battle Area or Drop, those going to their owner's Warp${forThe(op.until, r)}`;
       if (op.what === "evolveEnergyBases") return `${describeRef(op.target)}'s [Evolve] skill used from hand may choose its specified Battle Card from your energy; that energy-base evolution plays this card in Active Mode`;
+      if (op.what === "activateFromUnder") return `${op.activateUnderPolicy === "asHandGreenBrolyLeaderV1" ? "if your Leader is green and has the character Broly: Br, " : ""}this Extra may activate its Activate skills from under a card with the character Broly: Br under the same conditions as from Hand`;
       if (op.what === "counterFromUnder") return "this card’s [Counter] may be activated from under your Battle Area’s Universal Tuffleization Plan under the same conditions as from your hand";
       if (op.what === "counterFromEnergy") return `${op.price?.condition ? `if ${describeCond(op.price.condition)}: ` : ""}this card’s [Counter] may be activated from your energy by paying its energy cost${op.price?.ops?.length ? " and discarding 1 card from your hand" : ""}`;
       if (op.what === "counterFromDrop") {
@@ -2275,6 +2277,8 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
     }
     if (o.op === "forbid" && o.copiesOf !== undefined && o.what !== "activateSkill") return `${step}: copiesOf currently qualifies skill activation only`;
+    if (o.op === "permit" && o.what === "activateFromUnder") { const bad = activateUnderPermitProblem(o); if (bad) return `${step}: ${bad}`; }
+    if (o.op === "permit" && o.what !== "activateFromUnder" && o.activateUnderPolicy !== undefined) return `${step}: activateUnderPolicy belongs only to activateFromUnder`;
     if (o.op === "permit" && o.what === "counterFromUnder") { const bad = counterUnderPermitProblem(o); if (bad) return `${step}: ${bad}`; }
     if (o.op === "permit" && o.what !== "counterFromUnder" && o.counterUnderPolicy !== undefined) return `${step}: counterUnderPolicy belongs only to counterFromUnder`;
     if (o.op === "permit" && o.what === "counterFromEnergy") { const bad = counterEnergyPermitProblem(o); if (bad) return `${step}: ${bad}`; }
