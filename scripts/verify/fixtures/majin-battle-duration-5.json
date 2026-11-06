@@ -1,0 +1,1182 @@
+{
+  "BT20-086": {
+    "card": {
+      "id": "BT20-086",
+      "type": "Z-LEADER",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": "4",
+      "power": 20000,
+      "name": "SS Son Goku, Majin Showdown",
+      "characters": [
+        "Son Goku"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[z-awaken]{y}{y}{y}{y}: Yellow <Son Goku> <Vegeta> card.<br>[permanent] While there are 7 or more cards in your Combo Area and this card is in a battle, negate the skills of all cards in your opponent's Combo Area.<br>[auto] When this card attacks, draw 1 card.<br>[activate: battle] If there are 7 or more cards in your Combo Area and this card is in a battle: For the battle, this card gains [double strike], and at the end of the battle, remove this card from the game.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "BT20-086#0": {
+        "cardId": "BT20-086",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[z-awaken]{y}{y}{y}{y}: Yellow <Son Goku> <Vegeta> card.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {
+            "Yellow": 4
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Z-Awaken",
+        "reads": ""
+      },
+      "BT20-086#10": {
+        "cardId": "BT20-086",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[permanent] While there are 7 or more cards in your Combo Area and this card is in a battle, negate the skills of all cards in your opponent's Combo Area.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "combo"
+          },
+          "atLeast": 7
+        },
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "inBattle",
+              "sel": {
+                "special": "self"
+              }
+            },
+            "then": [
+              {
+                "op": "negateSkills",
+                "target": {
+                  "sel": {
+                    "side": "opponent",
+                    "area": "combo",
+                    "count": 99,
+                    "upTo": false
+                  }
+                },
+                "until": "game"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[if:inBattle[negateSkills]]",
+        "reads": "if there are 7 or more cards in your Combo Area: if this card is in a battle: negate the skills of all cards in your opponent's Combo Area"
+      },
+      "BT20-086#20": {
+        "cardId": "BT20-086",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[auto] When this card attacks, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 1"
+      },
+      "BT20-086#30": {
+        "cardId": "BT20-086",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[activate: battle] If there is a {Son Goku & Vegeta, Path to Victory} under this card and there are 7 or more cards in your Combo Area and this card is in a battle: For the battle, this card gains [double strike], and at the end of the battle, remove this card from the game.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If there is a {Son Goku & Vegeta, Path to Victory} under this card and there are 7 or more cards in your Combo Area and this card is in a battle",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "all",
+            "conds": [
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "under",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [
+                      "son goku & vegeta, path to victory"
+                    ],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                },
+                "atLeast": 1
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "combo"
+                },
+                "atLeast": 7
+              },
+              {
+                "kind": "inBattle",
+                "sel": {
+                  "special": "self"
+                }
+              }
+            ]
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "all",
+          "conds": [
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "under",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [
+                    "son goku & vegeta, path to victory"
+                  ],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            },
+            {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "combo"
+              },
+              "atLeast": 7
+            },
+            {
+              "kind": "inBattle",
+              "sel": {
+                "special": "self"
+              }
+            }
+          ]
+        },
+        "ops": [
+          {
+            "op": "grant",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "keyword": {
+              "name": "Strike",
+              "x": 2
+            },
+            "until": "battle"
+          },
+          {
+            "op": "delay",
+            "at": "battleEnd",
+            "scope": "thisTurn",
+            "ops": [
+              {
+                "op": "moveTo",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "to": "removed"
+              }
+            ],
+            "label": "at the end of the battle"
+          }
+        ],
+        "unread": [
+          "for the battle"
+        ],
+        "pattern": "for the battle",
+        "reads": "if there are 1 or more {son goku & vegeta, path to victory} cards under this card and there are 7 or more cards in your Combo Area and this card is in a battle: this card gains [Double Strike] for the battle, at the end of the battle: move this card to removed"
+      }
+    }
+  },
+  "BT20-084": {
+    "card": {
+      "id": "BT20-084",
+      "type": "LEADER",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "SS Vegito",
+      "characters": [
+        "Vegito"
+      ],
+      "traits": [
+        "Saiyan"
+      ],
+      "skill": "[Auto] When this card attacks, draw 1 card.<br>[Auto] If you have 2 or more energy: At the start of any Main Phase, draw 2 cards, add cards from your life to your hand until you have 6 life left, and flip this card to its back.",
+      "backName": "Son Goku & Vegeta, Path to Victory",
+      "backSkill": "[Auto] When this card attacks, draw 1 card.<br>[Auto][Once per turn] When a card is placed under a {Spirit Bomb} in your Battle Area, choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.<br>[Activate: Main] Activate up to 1 {Spirit Bomb} from your deck, shuffle your deck, and negate this skill for the game."
+    },
+    "faq": [],
+    "records": {
+      "BT20-084#0": {
+        "cardId": "BT20-084",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When this card attacks, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 1"
+      },
+      "BT20-084#10": {
+        "cardId": "BT20-084",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] If you have 2 or more energy: At the start of any Main Phase, draw 2 cards, add cards from your life to your hand until you have 6 life left, and flip this card to its back.",
+        "kind": "auto",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If you have 2 or more energy",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy"
+            },
+            "atLeast": 2
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy"
+          },
+          "atLeast": 2
+        },
+        "ops": [
+          {
+            "op": "draw",
+            "n": 2
+          },
+          {
+            "op": "lifeDownTo",
+            "n": 6
+          },
+          {
+            "op": "flip",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "to": "back"
+          }
+        ],
+        "unread": [
+          "At the start of any Main Phase"
+        ],
+        "pattern": "at the start of any main phase",
+        "reads": "if there are 2 or more cards in your Energy Area: draw 2, life down to 6, the cards going to hand, flip this card to its back"
+      },
+      "BT20-084#0b": {
+        "cardId": "BT20-084",
+        "side": "back",
+        "skillIndex": 0,
+        "printed": "[Auto] When this card attacks, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 1"
+      },
+      "BT20-084#10b": {
+        "cardId": "BT20-084",
+        "side": "back",
+        "skillIndex": 10,
+        "printed": "[Auto][Once per turn] When a card is placed under a {Spirit Bomb} in your Battle Area, choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.",
+        "kind": "auto",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "switchMode",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "rest"
+          }
+        ],
+        "unread": [
+          "When a card is placed under a {Spirit Bomb} in your Battle Area"
+        ],
+        "pattern": "when a card is placed under a \u2026 in your battle area",
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area, switch the chosen cards to rest mode"
+      },
+      "BT20-084#20b": {
+        "cardId": "BT20-084",
+        "side": "back",
+        "skillIndex": 20,
+        "printed": "[Activate: Main] Activate up to 1 {Spirit Bomb} from your deck, shuffle your deck, and negate this skill for the game.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "deck",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [
+                  "spirit bomb"
+                ],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "p0",
+            "reason": "Activate up to 1 {Spirit Bomb} from your deck"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            },
+            "activating": true
+          },
+          {
+            "op": "shuffle"
+          },
+          {
+            "op": "negateOwnSkill"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose\u2192play\u2192shuffle\u2192negateOwnSkill",
+        "reads": "choose up to 1 {spirit bomb} card in your deck, activate (its [Field] skill, otherwise an eligible Extra [Activate] line) the chosen cards, shuffle, this skill does not happen again"
+      }
+    }
+  },
+  "BT31-056": {
+    "card": {
+      "id": "BT31-056",
+      "type": "LEADER",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Commeson",
+      "characters": [
+        "Commeson"
+      ],
+      "traits": [
+        "Copy"
+      ],
+      "skill": "[permanent] This card can't attack.\n[br]\n[activate: main] [once per turn] Add 1 card from your life to your hand: Look at up to 5 cards from the top of your deck, add up to 1 yellow card to your life, then shuffle your deck.\n[br]\n[awaken] When you have 2 or more energy: Draw 1 card, then add cards from your life to your hand until you have 5 life left.",
+      "backName": "(Duplicate) Vegeta, Weapon Tainted by Evil",
+      "backSkill": "[activate: main] [once per turn] Add 1 card from your hand to your life: Draw 1 card and add 1 card from your life to your hand.\n[br]\n[activate: battle] Flip 1 card from your life to its front side: If the flipped card was a mono-yellow <Vegeta> card with an energy cost of 4, for the battle, this card gets +10000 power, and negate this skill."
+    },
+    "faq": [],
+    "records": {
+      "BT31-056#0": {
+        "cardId": "BT31-056",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[permanent] This card can't attack.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "attack",
+            "until": "game",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "forbid:attack",
+        "reads": "this card can't attack"
+      },
+      "BT31-056#10": {
+        "cardId": "BT31-056",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[activate: main] [once per turn] Add 1 card from your life to your hand: Look at up to 5 cards from the top of your deck, add up to 1 yellow card to your life, then shuffle your deck.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Add 1 card from your life to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Add 1 card from your life to your hand"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "look",
+            "n": 5,
+            "as": "looked"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "filter": {
+                "colors": [
+                  "Yellow"
+                ],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "fromVar": "looked"
+            },
+            "as": "c0",
+            "reason": "add up to 1 yellow card to your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "life"
+          },
+          {
+            "op": "shuffle"
+          }
+        ],
+        "unread": [],
+        "pattern": "look\u2192choose\u2192moveTo\u2192shuffle",
+        "reads": "look at the top 5, choose up to 1 yellow card of the cards looked at, move the chosen cards to life, shuffle"
+      },
+      "BT31-056#20": {
+        "cardId": "BT31-056",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[awaken] When you have 2 or more energy: Draw 1 card, then add cards from your life to your hand until you have 5 life left.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "When you have 2 or more energy",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "count",
+            "sel": {
+              "side": "you",
+              "area": "energy"
+            },
+            "atLeast": 2
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          },
+          {
+            "op": "lifeDownTo",
+            "n": 5
+          }
+        ],
+        "unread": [],
+        "pattern": "draw\u2192lifeDownTo",
+        "reads": "draw 1, life down to 5, the cards going to hand"
+      },
+      "BT31-056#0b": {
+        "cardId": "BT31-056",
+        "side": "back",
+        "skillIndex": 0,
+        "printed": "[activate: main] [once per turn] Add 1 card from your hand to your life: Draw 1 card and add 1 card from your life to your hand.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Add 1 card from your hand to your life",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Add 1 card from your hand to your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "life"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "add 1 card from your life to your hand"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand"
+          }
+        ],
+        "unread": [],
+        "pattern": "draw\u2192choose\u2192moveTo",
+        "reads": "draw 1, choose 1 card in your Life Area, move the chosen cards to hand"
+      },
+      "BT31-056#10b": {
+        "cardId": "BT31-056",
+        "side": "back",
+        "skillIndex": 10,
+        "printed": "[activate: battle] Flip 1 card from your life to its front side: If the flipped card was a mono-yellow <Vegeta> card with an energy cost of 4, for the battle, this card gets +10000 power, and negate this skill.",
+        "kind": "activate:battle",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": false,
+          "text": "Flip 1 card from your life to its front side",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "If the flipped card was a mono-yellow <Vegeta> card with an energy cost of 4",
+          "for the battle",
+          "this card gets +10000 power",
+          "negate this skill"
+        ],
+        "pattern": "if the flipped card was a mono-yellow \u2026 card with an energy cost of N",
+        "reads": ""
+      }
+    }
+  }
+}

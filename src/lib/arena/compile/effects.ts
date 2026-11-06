@@ -7554,6 +7554,22 @@ export function compileOriginalKoFollowup(rawClauses: string[], c: Ctx, unsuppor
   return null;
 }
 
+export function compileBattleGrantRemoval(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[] = []): Op[] | null {
+  // R512: this complete leading duration governs one self grant, not the delayed removal.
+  // Keep other duration fragments (including conditional self-negation) unread.
+  const battleGrantRemoval = ["for the battle", "this card gains [double strike]", "at the end of the battle", "remove this card from the game"];
+  if (c.skillKind === "activate:battle" && !c.permanent
+      && JSON.stringify(rawClauses.map(x => x.trim().replace(/[.]$/, "").toLowerCase())) === JSON.stringify(battleGrantRemoval)) {
+    const issues: string[] = [];
+    const ops = compileClauseList(["this card gains [double strike] for the battle", ...rawClauses.slice(2)], c, issues, rawJoined.slice(1));
+    const expected: Op[] = [{ op: "grant", target: { sel: { special: "self" } }, keyword: { name: "Strike", x: 2 }, until: "battle" },
+      { op: "delay", at: "battleEnd", scope: "thisTurn", ops: [{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }], label: "at the end of the battle" }];
+    if (issues.length || JSON.stringify(ops) !== JSON.stringify(expected)) unsupported.push(rawClauses.join(", "));
+    return ops;
+  }
+  return null;
+}
+
 export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[] = []): Op[] {
   // R501: "was in Rest Mode" is a selected pre-KO fact, not a KO-success hinge.
   // Choose the branch before KO so replacement pauses preserve it without rereading the Drop card.
