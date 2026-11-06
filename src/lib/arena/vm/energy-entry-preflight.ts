@@ -3,6 +3,7 @@ import type { EngineContext } from "../types";
 import type { VmState } from "./state";
 import type { ScriptFrame, Op, Ref, Selector } from "./script";
 import type { ScriptHost } from "./script-host";
+import { findCard } from "./zones";
 import { NotYet } from "./errors";
 import { energyEntrySource, possibleEnergyEntrySource } from "./energy-entry-source";
 
@@ -79,8 +80,8 @@ export function guardEnergyEntryBatch(ctx: EngineContext, state: VmState, h: Scr
   if(!sources.length)return;
   if(ids.length!==1 || sources.length!==1)throw new NotYet("owner ordering for a multi-card Energy entry", "R476");
   const id=sources[0],area=h.areaOf(id),owner=op.owner===undefined||op.owner==="you"?frame.master:frame.master==="p1"?"p2":"p1";
-  const destination=op.owner===undefined?h.ownerOf(id):owner;
-  if((area!=="hand"&&area!=="deck") || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
+  const destination=op.owner===undefined?h.ownerOf(id):owner,location=findCard(state,id);
+  if((!["hand","deck","warp","zEnergy"].includes(area??"")) || !location || location.zone!==area || location.owner!==destination || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
   if(op.cause==="cost" || frame.saveVarsAs || frame.keywordPrice || frame.keywordCost || frame.counterCost || frame.autoCost)throw new NotYet("optional Energy entry inside a payment program", "R476");
   if(h.replacementsFor(id,frame.declaredCharge?"charge":op.cause??"effect",{actor:frame.declaredCharge?undefined:frame.master,requestedTo:"energy"}).length)throw new NotYet("optional Energy entry with an incoming movement replacement", "R476");
 }
