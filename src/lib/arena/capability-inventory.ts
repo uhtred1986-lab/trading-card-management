@@ -475,6 +475,8 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  {"id":"arena-vm-r513-mixed-observation","file":"src/lib/arena/vm/standing-negation-mixed-observation.ts","ordinal":1,"kind":"not-yet","classification":"declaration-extension","citation":"R513 preparatory contract; RM9-1; RM9-5; RM8-1-1; RM8-5","detail":"The standalone board observer remains unimported by native runtime paths. Complete source records, copied sources, protection handoffs, standing grants, unrelated unsupported Permanents and missing battle roles have explicit preparatory boundaries; no product admission is claimed."},
+  {"id":"arena-vm-r513-mixed-transaction","file":"src/lib/arena/vm/standing-negation-mixed-transaction.ts","ordinal":1,"kind":"not-yet","classification":"declaration-extension","citation":"R513 preparatory contract; RM9-1; RM9-5; RM8-1-1; RM8-5","detail":"The standalone adapter requires fresh initialization or original validated mixed history, synchronous capture and actual arrival witnesses. It stages original grant-deletion receipts atomically with history; native mutation owners and cleanup batches remain unconnected."},
   {"id":"arena-vm-r513-mixed-history","file":"src/lib/arena/vm/standing-negation-mixed-history.ts","ordinal":1,"kind":"not-yet","classification":"declaration-extension","citation":"R513 preparatory contract; RM9-1; RM9-5; RM8-1-1; RM8-5","detail":"Preparatory mixed-policy history remains unimported by native runtime paths. Its explicit version/area/holder/role contracts refuse missing or inconsistent histories and unproved simultaneous source priority; no card admission or legacy migration is claimed."},
   {"id":"arena-vm-r513-mixed-read","file":"src/lib/arena/vm/standing-negation-mixed-read.ts","ordinal":1,"kind":"not-yet","classification":"validated-guard","citation":"R513 preparatory contract; RM9-1; RM9-5; RM8-1-1; RM8-5","detail":"The preparatory mixed read seal requires a previously validated observation and unchanged board/history dependencies. It cannot reconstruct saved history or certify the future observer itself."},
   {"id":"arena-vm-notyet-r510-receipt","file":"src/lib/arena/vm/auto-play-cost.ts","ordinal":1,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"R-510; RM5-8; RM9-6; RM22-10-3-1","ownerIssue":1249,"detail":"Whole mandatory under-card Auto payment is bounded to reviewed original stored sources and native receipts; copied or unreviewed executions and malformed saved provenance require rebuilding."},
@@ -701,6 +703,8 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-r513-mixed-observation": "refuse|-|-",
+  "arena-vm-r513-mixed-transaction": "refuse|-|-",
   "arena-vm-r513-mixed-history": "<top-level>|-|-",
   "arena-vm-r513-mixed-read": "mixedStandingSkillsNegated|-|!seal || !mixedStandingNegationReadSealMatches(seal.ctx, state, history)",
   "arena-vm-notyet-r510-receipt": "autoPlayRebuild|-|-",
