@@ -1,0 +1,746 @@
+{
+  "BT18-052": {
+    "def": {
+      "id": "BT18-052",
+      "name": "Beerus, the Visitor",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "energyCost": 2,
+      "zEnergyCost": null,
+      "power": 15000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[permanent] You can't switch this card in your Energy Area to Active Mode.<br>[auto] When this card is placed in your energy, you can't place cards in your energy for the turn.<br>[activate: main]{u}, if the name of your Leader's back side includes {Super Saiyan Blue Son Goku}: Draw 1 card, then place this card from your hand in your energy in Rest Mode.",
+      "characters": [
+        "Beerus"
+      ],
+      "traits": [
+        "God"
+      ]
+    },
+    "records": [
+      {
+        "cardId": "BT18-052",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[permanent] You can't switch this card in your Energy Area to Active Mode.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "switchToActive",
+            "until": "game",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "fromArea": "energy"
+          }
+        ],
+        "unread": [],
+        "pattern": "forbid:switchToActive",
+        "reads": "this card can't switch to Active Mode while in the Energy Area"
+      },
+      {
+        "cardId": "BT18-052",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[auto] When this card is placed in your energy, you can't place cards in your energy for the turn.",
+        "kind": "auto",
+        "trigger": [
+          "placedInEnergy"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "placeEnergy",
+            "side": "you",
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "forbid:placeEnergy",
+        "reads": "you can't place cards in the Energy Area for the turn"
+      },
+      {
+        "cardId": "BT18-052",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[activate: main]{u}, if the name of your Leader's back side includes {Super Saiyan Blue Son Goku}: Draw 1 card, then place this card from your hand in your energy in Rest Mode.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if the name of your Leader's back side includes {Super Saiyan Blue Son Goku}",
+          "orbs": {
+            "Blue": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [
+                "super saiyan blue son goku"
+              ],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "back": true
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [
+              "super saiyan blue son goku"
+            ],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          },
+          "back": true
+        },
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "sel": {
+                "special": "self",
+                "area": "hand"
+              }
+            },
+            "to": "energy",
+            "mode": "rest",
+            "reveal": true,
+            "owner": "you"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[draw→moveTo]",
+        "reads": "if your leader's back side is a card with {super saiyan blue son goku} in its card name: draw 1, move this card to energy in Rest Mode"
+      }
+    ]
+  },
+  "EX17-02": {
+    "def": {
+      "id": "EX17-02",
+      "name": "Bardock, Spirit Boost Avenger",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "energyCost": 2,
+      "zEnergyCost": null,
+      "power": 15000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[Barrier]<br>[Auto] When this card is placed in your energy, negate its skills for the game.<br>[Activate: Main][Once per turn][Spirit Boost 1] (You must remove a marker from your Unison Card to activate this skill.) This card gains [Critical] for the turn.",
+      "characters": [
+        "Bardock"
+      ],
+      "traits": [
+        "Saiyan",
+        "Bardock's Crew"
+      ]
+    },
+    "records": [
+      {
+        "cardId": "EX17-02",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] When this card is placed in your energy, negate its skills for the game.",
+        "kind": "auto",
+        "trigger": [
+          "placedInEnergy"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "negateSkills",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "negateSkills",
+        "reads": "negate the skills of this card for the rest of the game"
+      },
+      {
+        "cardId": "EX17-02",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Activate: Main][Once per turn][Spirit Boost 1] (You must remove a marker from your Unison Card to activate this skill.) This card gains [Critical] for the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": 1,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "grant",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "keyword": {
+              "name": "Critical"
+            },
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "grant:Critical",
+        "reads": "this card gains [Critical] for the turn"
+      }
+    ]
+  },
+  "BT13-040": {
+    "def": {
+      "id": "BT13-040",
+      "name": "Vegeta, Energy Fortification",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "energyCost": 1,
+      "zEnergyCost": null,
+      "power": 4000,
+      "comboCost": 0,
+      "comboPower": 5000,
+      "skill": "[counter: attack] Negate the attack and play this card.<br>[auto]{u}, if your Leader Card is a blue <Son Gohan: Childhood> card: When this card is placed in your energy from your hand, you may play 1 blue skill-less Battle Card with an energy cost of 2 from your energy. If you do, place the top card of your deck in your energy in Rest Mode.",
+      "characters": [
+        "Vegeta"
+      ],
+      "traits": [
+        "Saiyan"
+      ]
+    },
+    "records": [
+      {
+        "cardId": "BT13-040",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[counter: attack] Negate the attack and play this card.",
+        "kind": "counter:attack",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "negateAttack"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self"
+            },
+            "as": "p0",
+            "reason": "play this card"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "negateAttack→choose→play",
+        "reads": "negate the attack, choose this card, play the chosen cards"
+      },
+      {
+        "cardId": "BT13-040",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[auto]{u}, if your Leader Card is a blue <Son Gohan: Childhood> card: When this card is placed in your energy from your hand, you may play 1 blue skill-less Battle Card with an energy cost of 2 from your energy. If you do, place the top card of your deck in your energy in Rest Mode.",
+        "kind": "auto",
+        "trigger": [
+          "placedInEnergyFromHand"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "if your Leader Card is a blue <Son Gohan: Childhood> card",
+          "orbs": {
+            "Blue": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "filter": {
+              "colors": [
+                "Blue"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "son gohan: childhood"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Blue"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "son gohan: childhood"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "may",
+            "ops": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "energy",
+                  "filter": {
+                    "colors": [
+                      "Blue"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": 2,
+                    "costMax": 2,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": true,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": false
+                },
+                "as": "p0",
+                "reason": "you may play 1 blue skill-less Battle Card with an energy cost of 2 from your energy"
+              },
+              {
+                "op": "play",
+                "target": {
+                  "var": "p0"
+                }
+              }
+            ],
+            "reason": "play 1 blue skill-less Battle Card with an energy cost of 2 from your energy"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "did",
+              "what": "may"
+            },
+            "then": [
+              {
+                "op": "moveTo",
+                "target": {
+                  "sel": {
+                    "side": "you",
+                    "area": "deck",
+                    "count": 1,
+                    "upTo": false,
+                    "take": 1
+                  }
+                },
+                "to": "energy",
+                "mode": "rest",
+                "reveal": true,
+                "owner": "you"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[may[choose→play]→if:did[moveTo]]",
+        "reads": "if your leader is Blue <son gohan: childhood>: you may: choose 1 blue skill-less Battle Card with an energy cost of 2 in your Energy Area, play the chosen cards, if the offer was taken: move the top 1 card in your deck to energy in Rest Mode"
+      }
+    ]
+  }
+}

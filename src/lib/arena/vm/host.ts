@@ -1102,7 +1102,7 @@ function moveTo(
   const fromEpoch = state.cards[id]?.zoneEpoch ?? 0, asked = to;
   const report = (completed: boolean, actual = zoneOf(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
   const returnInfo = from === "battle" || from === "unison" ? attrsNow(ctx, game, state, id) : undefined;
-  const sourceNegated = from === "battle"
+  let sourceNegated = from === "battle"
     ? skillsShowing(ctx, state, id).skills.filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index) : undefined;
   // 9-6-9-3: whether it left face down, read before the move resets it.
   const wasHidden = !!state.cards[id]?.hidden;
@@ -1113,6 +1113,9 @@ function moveTo(
   const route = leaveRoute(ctx, game, state, ev, id, from, to, { reason: opts.reason, ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}), ...(opts.actor ? { actor: opts.actor } : {}) });
   if (route.stays) { report(false); return; }
   to = route.to;
+  // R493 / 9-6-9-2: Energy arrival remembers original Auto negation in any area.
+  if (from !== "battle" && to === "energy") sourceNegated = skillsShowing(ctx, state, id).skills
+    .filter((sk) => sk.kind === "auto" && skillNegated(state, id, sk.index, sk.kind)).map((sk) => sk.index);
   if (to === "energy" && !opts.energyEntry) guardUnownedEnergyEntry(ctx,state,id);
   if (opts.energyEntry && (route.replacementApplied || to !== "energy" || opts.energyEntry.card !== id || opts.energyEntry.epoch !== fromEpoch || opts.energyEntry.player !== owner)) throw new NotYet("optional Energy entry changed its final native route", "R476");
   if (lifeToHandForbidden(ctx, game, state, ownerOfZone(state, id) ?? owner, from, to, opts.lifeSource ?? opts.source, id)) { report(false); return; }

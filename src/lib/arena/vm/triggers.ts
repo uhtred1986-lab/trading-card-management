@@ -172,7 +172,7 @@ export type VmPendingRecord = VmPending | VmPendingHook;
 const LEFT_BATTLE_BY_SKILL = new Set(["removedFromBattle", "removedByOpponent", "droppedFromBattle", "droppedByOpponent", "leftBattleToDrop"]);
 /**
  * 9-6-9-2 again, for the self-moments of a move that may start in a Battle Area whatever its cause: the moment carries
- * the [Auto]s negated there (`sourceNegated`, set only for a move out of a Battle Area), and none of them answers.
+ * the [Auto]s negated there (`sourceNegated`; Energy arrivals also capture this from other areas), and none of them answers.
  * Review of audit triggers 3: "When this card is sent from a Battle Area to a Warp" (BT5-048), "…sent to its owner's
  * Warp" (BT31-108), "…by a skill" (BT31-018), "…returned to its owner's hand from the Battle Area" (DB1-097) answered
  * a move out of the Battle Area where the card's skills had been negated.
@@ -611,7 +611,8 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // 9-1-5: one skill of a card switched off — by index, or a whole kind at
       // once — is off for the moment it would have answered to as well.
       if (skillNegated(state, match.card, sk.index, sk.kind)) continue;
-      if (battleEnergyDeparture && moment.card === match.card && match.trigger === "placedInEnergy" && moment.sourceNegated?.includes(sk.index)) continue;
+      if (moment.event === "moved" && moment.args.to === "energy" && moment.card === match.card
+        && (match.trigger === "placedInEnergy" || match.trigger === "placedInEnergyFromHand") && moment.sourceNegated?.includes(sk.index)) continue;
       if (SELF_MOVE_FROM_BATTLE.has(match.trigger) && moment.sourceNegated?.includes(sk.index)) continue;
       // 9-6-9-2: an area-movement [Auto] negated in its original Battle Area
       // does not trigger although the card has moved on (and the move ended
