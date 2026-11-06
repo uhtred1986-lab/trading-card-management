@@ -26,12 +26,21 @@ const PLAYED = new Set([
 ]);
 // R532: admitted separately after the exact Earthling source-trait correction.
 const CHICHI = "[Auto] When you play this card, look at up to 3 cards from the top of your deck, choose up to 1 ≪Goku's Lineage≫ from among them and add it to your hand, then shuffle your deck.";
+// R533: six complete reviewed original free attack Auto lines.
+const ATTACKS = new Set([
+    "[Auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 ≪Shadow Dragon≫ card among them to your hand, then shuffle your deck.",
+    "[Auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 ≪Goku's Lineage≫ card among them to your hand, then shuffle your deck.",
+    "[Auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 ≪Villainous≫ card among them to your hand, and shuffle your deck.",
+    "[Auto] When this card attacks, look at up to 3 cards from the top of your deck, choose up to 1 ≪Earthling≫ card among them, add it to your hand. Then shuffle your deck.",
+    "[Auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 <Zamasu> or <Goku Black> card to your hand, then shuffle your deck.",
+    "[Auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 ≪Phantom Demon≫ card to your hand, then shuffle your deck.",
+]);
 export function reviewedIncrementalLook(skill: Skill, script: Script): Script {
     const text = skill.raw.replace(/\s+/g, " ").trim();
-    if (skill.kind !== "auto" || script.unsupported.length || (text !== GOHAN && text !== TRUNKS && text !== BABIDI && text !== CHEELAI && text !== CHICHI && !PLAYED.has(text))) return script;
+    if (skill.kind !== "auto" || script.unsupported.length || (text !== GOHAN && text !== TRUNKS && text !== BABIDI && text !== CHEELAI && text !== CHICHI && !PLAYED.has(text) && !ATTACKS.has(text))) return script;
     const [look, choose, move, tail] = script.ops;
     if (script.ops.length !== 4 || look.op !== "look" || choose.op !== "choose" || move.op !== "moveTo") return script;
-    if (text === GOHAN || text === BABIDI || text === CHEELAI || text === CHICHI || PLAYED.has(text)) return tail.op === "shuffle" ? { ...script, ops: [{ ...look, upTo: true }, choose, move, tail] } : script;
+    if (text === GOHAN || text === BABIDI || text === CHEELAI || text === CHICHI || PLAYED.has(text) || ATTACKS.has(text)) return tail.op === "shuffle" ? { ...script, ops: [{ ...look, upTo: true }, choose, move, tail] } : script;
     if (tail.op !== "chooseMode" || tail.modes.length !== 2 || !tail.modes.every(m => m.ops.length === 1 && m.ops[0].op === "moveTo" && m.ops[0].to === "deck")) return script;
     return { ...script, ops: [{ ...look, upTo: true }, choose, move, { ...tail, modes: tail.modes.map(mode => {
         const op = mode.ops[0];
