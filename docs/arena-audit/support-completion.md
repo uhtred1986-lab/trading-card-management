@@ -271,3 +271,7 @@ Runtime `3b780b0e` adds Kefla's independent Potara-play/attack pair with a bound
 ## Checkpoint 68: Auto play-cost completion and landed Counter timing
 
 Source `ab55b029` and registry `1137dd00` admit BT21-071#30's exact payment route. 836 counted controls plus Auto/Revive/VM suites, final type/lint, integrated metadata283/218 and browser214/121 pass. Compiler remains13,019 readable/946 unread; runtime census improves to3/308/2568, with only the intended source removed from blocked entries. See [checkpoint68](round-5/support-sixtyeighth-batch.md). Duration, Combo-negation and under-card activation work continue; Life completion remains an owner question.
+
+## Checkpoint 69: exact Majin battle duration
+
+Source `4dbfc971` and registry `37b0529f` admit only BT20-086#30's leading duration. 584 counted controls plus battle-end-delay/compiler checks, final type/lint and284 rulings pass. The full frozen diff changes only that record's unread/pattern fields:13,020 readable/945 unread. Runtime census stays3/308/2568 with identical blocked entries. See [checkpoint69](round-5/support-sixtyninth-batch.md). Combo-negation and Broly under-activation designs continue.
