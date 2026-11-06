@@ -1,3 +1,4 @@
+import { freshAppliedEffectRoot } from "../../src/lib/arena/vm/applied-effect-receipt";
 /** #825: saved public card texts, exercised on the real rules engine.
  * Manual 9-6-9 original movement info; 8-5-10-1 cleanup; 22-5-2-3 evolution.
  * Named auxiliary operations stage movement/interruptions; primary skills are
@@ -244,10 +245,10 @@ for (const kind of ["absent", "forbidden"] as const) {
   const s = fresh(); const first = stage(s, "V1", "hand"); const second = stage(s, "V1", "hand");
   addEffect(s, [], { source: second, target: second, kind: "forbid", value: 0, forbid: { what: "play", bySkill: true }, until: "turn" });
   const before = zone(s, "p1", "hand").length;
-  s.programs.unshift({ card: first, master: "p1", skillEffectOrigin: { version: 2, kind: "activate" }, ip: 0, vars: { next: kind === "absent" ? [] : [second] }, ops: [
+  s.programs.unshift(freshAppliedEffectRoot(s, { card: first, master: "p1", skillEffectOrigin: { version: 2, kind: "activate" }, ip: 0, vars: { next: kind === "absent" ? [] : [second] }, ops: [
     { op: "play", target: { sel: { special: "self" } } }, { op: "play", target: { var: "next" } },
     { op: "if", cond: { kind: "did", what: "play" }, then: [{ op: "draw", n: 1 }] },
-  ] }); run(ctx, game, s, events);
+  ] }, "activate")); run(ctx, game, s, events);
   assert.equal(zone(s, "p1", "hand").length, before - 1, "a previous successful play cannot satisfy a later failed attempt");
 }
 

@@ -1,3 +1,5 @@
+import { freshAppliedEffectRoot } from "../../src/lib/arena/vm/applied-effect-receipt";
+import type { ScriptFrame } from "../../src/lib/arena/vm/script";
 import assert from "node:assert/strict";
 import { card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
@@ -108,8 +110,11 @@ for(const p of ["p1","p2"] as PlayerId[]){
 // Exact-body boundary: no implicit support for a self move, choices, a different procedure or extra timing.
 for(const changed of [fixture.record.printed.replace("draw 1 card", "return this card to its owner's hand"),fixture.record.printed.replace("draw 1 card", "choose up to 1 card from your hand and discard it"),fixture.record.printed.replace("[union-potara] or attacks", "[union-fusion] or attacks"),fixture.record.printed.replace("or attacks,", "or attacks during your turn,")])assert.ok(skillRecords(card("REFUSED",{skill:changed}))[0].unread.length);
 // Constructed saved-frame fixtures use the same stored bounded program, not a live text fallback.
-for(const p of ["p1","p2"] as PlayerId[])for(const bad of ["valid","missing","wrong-card","future","bad-epoch","bad-current"]){const s=fresh(p);const id=stage(s,p,c.id,"battle");s.cards[id].pairedSelfToken=s.cards[id].zoneEpoch??0;const token=s.cards[id].pairedSelfToken;
+for(const p of ["p1","p2"] as PlayerId[])for(const bad of ["valid","missing","wrong-card","future","bad-epoch","bad-current","missing-receipt"]){const s=fresh(p);const id=stage(s,p,c.id,"battle");s.cards[id].pairedSelfToken=s.cards[id].zoneEpoch??0;const token=s.cards[id].pairedSelfToken;
  const script=ctx.scripts![c.id].bySkill[30];const frame={ops:copy(script.ops),ip:0,vars:{},card:id,master:p,skillIndex:30,trigger:"attacks" as const,usage:script.usage,validity:script.validity,skillEffectOrigin:{version:2 as const,kind:"auto" as const},pairedSelf:{version:1 as const,card:id,token}};
+ // This fixture constructs a fresh native-protocol frame, then corrupts selected saved fields.
+ freshAppliedEffectRoot(s,frame,"auto");
+ if(bad==="missing-receipt"){delete (frame as ScriptFrame).appliedEffects;delete (frame as ScriptFrame).appliedPaymentEffects;}
  if(bad==="missing")delete (frame as {pairedSelf?:unknown}).pairedSelf;if(bad==="wrong-card")frame.pairedSelf.card="unknown";if(bad==="future")frame.pairedSelf.token=999;if(bad==="bad-epoch")s.cards[id].zoneEpoch=-1;if(bad==="bad-current")s.cards[id].pairedSelfToken=-1;s.programs.unshift(frame);const out=RULES.apply(ctx,copy(s),{type:"endMain",player:p});assert.equal(out.state.outcome?.kind,bad==="valid"?undefined:"interrupted",bad);cases.push(`${p}/frame-${bad}`);}
 
 // Focused native mover/play seam: an incomplete required stack must retract only its new alias.

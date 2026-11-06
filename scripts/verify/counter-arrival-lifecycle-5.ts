@@ -20,7 +20,9 @@ for (const master of ["p1", "p2"] as const) {
     skillEffectOrigin: { version: 2, kind: "counter", scope: 2 } };
   // Only fields consumed by this protocol are present; this is not a game fixture.
   const state = { skillPlayScopes: [owner, original], nextSkillPlayScope: 2,
-    cards: { first: { zoneEpoch: 2 }, second: { zoneEpoch: 8 } },
+    cards: { first: { zoneEpoch: 2 }, second: { zoneEpoch: 8 },
+      counter: { id: "counter", cardId: "COUNTER", owner: master, zoneEpoch: 5, hiddenCount: 0 } },
+    sides: { [master]: { zones: { hand: ["counter"] } }, [player]: { zones: { hand: ["first", "second"] } } },
     programs: [{ ops: [], ip: 0, vars: {}, card: "counter", master, skillPlayFinish: { version: 1, scope: 2 } }],
     resolving: null } as unknown as VmState;
   retainCounterArrivalTemplate(state, owner, frame);
@@ -36,6 +38,13 @@ for (const master of ["p1", "p2"] as const) {
     parent.arrivalBatch!.cursor = index;
     state.resolving = { card, player };
     parent.pendingArrival = { version: 1, owner: 1, card, epoch: state.cards[card].zoneEpoch!, cursor: 0, previous: null, decisions: [] };
+    // The protocol creates a fresh execution root and needs its real source occurrence.
+    // A save without that source remains an explicit refusal, not an invented identity.
+    const missingSource = structuredClone(state);
+    delete missingSource.cards.counter;
+    assert.throws(() => beginCounterArrivalDecision(missingSource, missingSource.skillPlayScopes![0], missingSource.skillPlayScopes![0].arrivalCounters![0],
+      { card, epoch: state.cards[card].zoneEpoch! }, { cards: ["first", "second"], options, frame: structuredClone(parent) }), /applied-effect receipt/);
+    cases++;
     beginCounterArrivalDecision(state, owner, template, { card, epoch: state.cards[card].zoneEpoch! },
       { cards: ["first", "second"], options, frame: parent });
     assert.equal(template.state, "running");
