@@ -1224,7 +1224,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Exact leading battle duration (R512)",
-    body: "BT20-086 #30 reads the exact main Activate:Battle body “For the battle, this card gains [Double Strike], and at the end of the battle, remove this card from the game.” The corrected under-card name, seven own Combo cards and self-in-battle conditions remain activation conditions. Double Strike lasts for the battle; delayed removal resolves after Combo cleanup and restores the original Leader under RM 15-1-5. Admission is limited to this represented four-clause shape, not arbitrary leading durations or nested modal bodies. BT20-086’s opposing-Combo Permanent and BT31-056’s other leading-duration body remain unread. The paid Z-Awaken proof stages the base’s authentic back face because its independent front Auto is still unread.",
+    body: "BT20-086 #30 reads the exact main Activate:Battle body “For the battle, this card gains [Double Strike], and at the end of the battle, remove this card from the game.” The corrected under-card name, seven own Combo cards and self-in-battle conditions remain activation conditions. Double Strike lasts for the battle; delayed removal resolves after Combo cleanup and restores the original Leader under RM 15-1-5. Admission is limited to this represented four-clause shape, not arbitrary leading durations or nested modal bodies. BT20-086’s opposing-Combo Permanent remains blocked at runtime; BT31-056’s other leading-duration body remains unread. The paid Z-Awaken proof stages the base’s authentic back face because its independent front Auto is still unread.",
   },
   {
     title: "Delayed and timed effects read in delayed/replacement batch 1 (1-7-2-1-1, 1-7-2-2)",
