@@ -696,6 +696,24 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
         // Phrasing batch 8: a pile card (in no zone) is asked only for a skill that takes it out of the pile (BT21-105).
         if (at ? !outside.includes(at as never) : !pileSkill) continue;
       } else if (at && game.zones[at]?.inPlay === true && outside.length > 0 && outside.every((a) => game.zones[a]?.inPlay !== true)) continue;
+      // R-483: a watched origin belongs to the card that actually entered Combo,
+      // not to the watcher. Native entry replaces provenance; departure clears it.
+      if (match.trigger === "youComboFromHand" || match.trigger === "youComboFromBattle") {
+        if (!moment.card || match.subject !== moment.card || findCard(state, moment.card)?.zone !== "combo") continue;
+        // The subject filter may share an all() with the printed turn check.
+        // Check only these trigger qualifiers, never an activation price.
+        const frame = { ops: [], ip: 0, vars: {}, card: match.card, master, subject: moment.card };
+        const holds = (cond: Cond): boolean => cond.kind === "all" ? cond.conds.every(holds)
+          : aboutTheSubject(cond) || cond.kind === "isTurnPlayer" ? condHolds(ctx, game, state, frame, cond) : true;
+        let qualified = true;
+        for (let at = script?.ops; at?.length === 1 && at[0].op === "if" && !at[0].else; at = at[0].then) {
+          if (!holds(at[0].cond)) { qualified = false; break; }
+        }
+        if (!qualified) continue;
+        const origin = state.battle?.comboOrigins?.[moment.card];
+        if (origin === undefined) throw new NotYet("infer the origin of a watched combo entry in an older saved battle", "#672");
+        if (origin !== (match.trigger === "youComboFromHand" ? "hand" : "battle")) continue;
+      }
       if (match.trigger === "comboed" && moment.args.cleanupDeparture === true && combo?.timing === "battleEnd") continue;
       // 8-5-10-1 names the actual 8-5-8 cleanup departure, not an
       // arbitrary mid-battle exit. This also covers no-hand-source wordings.
@@ -751,7 +769,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // notice passes its projected new-area information explicitly. Either
       // way the subject's event information is frozen before another Auto can
       // move it again at the checkpoint.
-      const movementInfo = subjectInfo ?? (match.trigger === "comboToDrop" && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
+      const movementInfo = subjectInfo ?? (["comboToDrop", "youComboFromHand", "youComboFromBattle"].includes(match.trigger) && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
       const copiedSkillCapture = captureCopiedSkill(state, match.card, sk, script);
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
         ...(copiedSkillCapture ? { copiedSkillCapture } : {}),

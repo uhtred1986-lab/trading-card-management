@@ -313,6 +313,19 @@ export function comboEntryFromHand(sk: Skill): boolean {
   const head = effectHead(maskNames(sk.effect).text).toLowerCase().replace(TURN_THEN_WHEN, "");
   return /when this card in your hand is (?:played or )?used in a combo\b|^when you combo with this card from your hand\b/.test(head);
 }
+/** R-483: one explicit origin on a watched combo; alternatives remain unread. */
+export function watchedComboOrigin(sk: Skill): "hand" | "battle" | null {
+  if (sk.kind !== "auto") return null;
+  const masked = maskNames(sk.effect);
+  const head = effectHead(masked.text);
+  const hand = /^when you use (?:a|an|1) (.+?) from your hand in a combo(?:,|$)/.exec(head);
+  const battle = /^when you combo with (?:a|an|1) (.+?) from your battle area during your turn(?:,|$)/.exec(head);
+  const match = hand ?? battle;
+  if (!match || /\bfrom\b|\busing\b|\bby\b/.test(match[1])) return null;
+  const said = masked.unmask(match[1]);
+  if (parseFilter(said).unreadable || (/ or /.test(said) && !readsOr(said))) return null;
+  return hand ? "hand" : "battle";
+}
 /**
  * A self-combo entry moment that says more than "this card was used in a combo"
  * and that `comboEntryFromHand` (the plain hand wording, left exactly as it was
@@ -554,6 +567,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   const head = trailing ? `${trailing}, ${printed}` : printed;
   if (sk.kind === "auto" && momentsBatch1(head).some((m) => m.trigger === trigger)) return true;
   if (trigger === "activeBySkillDuringYourTurn" && playedOrActiveDuringYourTurn(sk)) return true;
+  if (trigger === "youComboFromHand" || trigger === "youComboFromBattle") return watchedComboOrigin(sk) === (trigger === "youComboFromHand" ? "hand" : "battle");
   // Audit triggers 2: a watched card's moment, read by the grammar (`watchedMomentOf`) when its description reads whole.
   if (sk.kind === "auto") {
     const watched = watchedMomentOf(effect.unmask(printed));

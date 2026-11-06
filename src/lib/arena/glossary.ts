@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Watched combos retain their actual origin (R-483)",
+    body: "BT19-035 hears your blue card entering Combo from Hand; both TB1-025 faces hear your Universe 7 card entering Combo from Battle during your turn. The arriving subject supplies its native origin, not the watcher. Declared and skill-created combos share this qualification; real entry replaces provenance, and departure/reset prevents borrowing an old entry. A missing origin on an otherwise matching legacy entry refuses explicitly. Subject and turn failures do not spend the once-per-turn use. Pending watchers retain their qualifying subject attributes if another Auto moves that subject before resolution. A failed arrival or already-Combo target creates no qualified trigger. Exact one-origin wording is supported; BT20-041 remains unread because its two-origin trigger and under-Leader-or-Hand play body require separate support.",
+  },
+  {
     title: "Played or skill-caused Active Mode during your turn (R-481)",
     body: "EX08-06, EX19-30 and EX19-31 retain two Auto triggers. Playing the card qualifies on either turn; switching it from Rest to Active by a skill qualifies only during its controller's turn, regardless of which player used the skill. The turn check belongs to that event declaration, not the shared effect. Already Active cards and ordinary Charge Phase stands do not trigger the switch alternative. Other cause or turn qualifiers remain unread unless separately represented. This preserves existing skill-cause semantics without introducing a skill-cost exception; the three supported records do not establish complete-card support.",
   },
