@@ -398,8 +398,12 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     const follows = from === null || from.zone === at.zone;
     // 23-2-4: new cards go at the bottom; the existing stack does not reorder.
     onTop.under.push(id, ...(follows ? carried : []));
-    if (!follows) for (const u of carried) moveCard(board, game, u, "drop", {});
-    return { ok: true, move: record(id, from, "under", onTop.owner, opts, opts.under) };
+    const released: MoveRecord[] = [];
+    if (!follows) for (const u of carried) {
+      const out = moveCard(board, game, u, board.cards[u]?.zCard === true && game.zones[TOKEN_EXIT] ? TOKEN_EXIT : PILE_EXIT, {});
+      if (out.ok) released.push({ ...out.move, from: from.zone, fromOwner: from.owner });
+    }
+    return { ok: true, move: { ...record(id, from, "under", onTop.owner, opts, opts.under), ...(released.length ? { released } : {}) } };
   }
 
   // ── into a zone ─────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+import { captureUnderRelease, requireUnderReleaseCapture, cleanupUnderRelease } from "./under-release-cleanup";
 import { capturePileRelease, requirePileReleaseCapture, cleanupReleasedPile } from "./pile-release-cleanup";
 import { mixedStandingObservationFromHistory } from "./standing-negation-mixed-history";
 import { captureMovementAutoHistory, requireMovementAutoBodies, type LegacyMovementFacts, type MovementAutoHistory } from "./movement-auto-history";
@@ -368,10 +369,23 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         report(false);
         return false;
       }
+      const options = { under: host, ...(zAwaken ? { underProcedure: "Z-Awaken" as const } : {}) };
+      const release = captureUnderRelease(state, id, host);
+      if (release) {
+        const projected = structuredClone(state);
+        const projectedRelease = captureUnderRelease(projected, id, host);
+        const projectedTransaction = projected.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, projected) : undefined;
+        const projectedMove = moveCard(projected, game, id, "drop", options);
+        if (projectedMove.ok) cleanupUnderRelease(projected, [], projectedRelease, projectedMove.move);
+        finishStandingNegationMutation(ctx, projected, projectedTransaction, [id, host]);
+      }
       const transaction = state.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, state) : undefined;
-      const result = moveCard(state, game, id, "drop", { under: host, ...(zAwaken ? { underProcedure: "Z-Awaken" as const } : {}) });
+      requireUnderReleaseCapture(state, release);
+      const result = moveCard(state, game, id, "drop", options);
       if (!result.ok) { finishStandingNegationMutation(ctx, state, transaction); report(false); return false; }
+      const released = cleanupUnderRelease(state, ev, release, result.move);
       finishStandingNegationMutation(ctx, state, transaction, [id, host]);
+      for (const material of released) log(ev, { type: "move", card: material.card, from: material.from as Area, to: material.to as Area, owner: material.owner });
       report(result.move.to === "under" && result.move.under === host);
       clearAutoReveal(state, id);
       log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });

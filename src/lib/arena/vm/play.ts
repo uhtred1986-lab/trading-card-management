@@ -410,6 +410,13 @@ export function resolvePlay(
 function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; using?: string; beforeTriggers?: () => void; appliedEffects?: Receipt } = {}): void {
   refuseEnergyEntryProcedure(state, [card, host, ...extra]);
   refuseStandingNegationMutation(state, "stack play", ctx, to === "battle" ? card : undefined);
+  // Expanded Potara origins are normalized by the host before this writer.
+  // Never discover a cross-area extra only after the played card has moved.
+  for (const material of [host, ...extra]) {
+    const at = findCard(state, material);
+    if (!at || at.zone !== to || at.owner !== player)
+      throw new NotYet("stack materials must reach the actual play area before stack placement", "under-release-cleanup");
+  }
   const slot = state.sides[player].zones[to].indexOf(host);
   const mode = state.cards[host].mode;
   // 22-13-5-4 (#927): [Union-Potara] stacks two cards, "in any order" - the
