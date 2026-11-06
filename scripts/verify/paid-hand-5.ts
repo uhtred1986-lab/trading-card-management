@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {card} from './harness';
+import {skillRecords} from '../../src/lib/arena/draft';
+import {rulesFromRows,type RuleRow} from '../../src/lib/arena/rules-store';
+import {RULES} from '../../src/lib/arena/vm';
+import {rulesetFor} from '../../src/lib/arena/rulesets';
+import {moveCard} from '../../src/lib/arena/vm/zones';
+import {vmHost} from '../../src/lib/arena/vm/host';
+import {attrsNow,keywordsInForce} from '../../src/lib/arena/vm/program';
+import {skillsShowing} from '../../src/lib/arena/vm/triggers';
+import {resolveActivation} from '../../src/lib/arena/vm/activate';
+import {captureOrdinaryActivation,stepOrdinaryActivateCost} from '../../src/lib/arena/vm/ordinary-activate-runtime';
+import {paidHandProblem,requirePaidHandFrame} from '../../src/lib/arena/vm/paid-hand-runtime';
+import {stepScript,type ScriptFrame} from '../../src/lib/arena/vm/script';
+import type {CardDef,EngineContext,PlayerId,Action,GameEvent} from '../../src/lib/arena/types';
+import type {VmState} from '../../src/lib/arena/vm/state';
+const clone=<T,>(x:T):T=>JSON.parse(JSON.stringify(x));
+const source=JSON.parse(fs.readFileSync(new URL('./fixtures/paid-hand-5.json',import.meta.url),'utf8')),c=source.card;
+const defs:Record<string,CardDef>={L:card('L',{type:'LEADER',skill:null}),F:card('F',{skill:null}),[c.id]:card(c.id,{name:c.name,type:c.type,colors:c.colors,energyCost:null,power:c.power,characters:c.characters,traits:c.traits,skill:c.skill,back:{name:c.backName,power:5000,skill:c.backSkill}})};
+const rows=Object.values(defs).flatMap(skillRecords);assert.deepEqual(clone(rows.filter(r=>r.cardId===c.id&&!(r.side==='back'&&r.skillIndex===0))),(Object.values(source.records) as Array<{side:string;skillIndex:number}>).filter((r)=>!(r.side==='back'&&r.skillIndex===0)));const admitted=rows.find(r=>r.cardId===c.id&&r.side==='back'&&r.skillIndex===0)!;assert.deepEqual(admitted.unread,[]);
+const loaded=rulesetFor('dbs');assert.ok(loaded.ok);const game=loaded.definition;
+const make=():EngineContext=>{const rs=clone(rows);return{defs,scripts:rulesFromRows(rs.map((r,id)=>({...r,id,status:r.unread.length?'open':'confirmed',source:'compiler'})as RuleRow),defs)}};
+let savedCases=0,bodyCases=0;
+const other=(p:PlayerId):PlayerId=>p==='p1'?'p2':'p1';const results:unknown[]=[];
+for(const p of ['p1','p2'] as PlayerId[])for(const route of ['empty','one','four','five','six','sameAccept','sameDecline','away','child','childChoice','lateOnce','newHand','paidLeaves','lateBlock','hundred','attack'] as const){const ctx=make(),q=other(p);let s=RULES.createGame(ctx,{seed:525,p1:{name:'One',leader:p==='p1'?c.id:'L',main:Array(160).fill('F')},p2:{name:'Two',leader:p==='p2'?c.id:'L',main:Array(160).fill('F')}}).state as VmState;const ev:GameEvent[]=[];
+const take=(a:Action)=>{const saved=clone(s),before=JSON.stringify(saved);for(const viewer of [p,q]){const view=JSON.stringify(RULES.boardView(ctx,saved,viewer,{}));assert.ok(!view.includes('paidHand'));assert.ok(!view.includes('hand_payers'));}const r=RULES.apply(ctx,saved,a);assert.deepEqual(RULES.apply(ctx,clone(saved),a),r);assert.equal(JSON.stringify(saved),before);s=r.state as VmState;ev.push(...r.events);};
+for(const a of [{type:'chooseFirst',player:s.chooser,first:p},{type:'mulligan',player:p,redraw:false},{type:'mulligan',player:q,redraw:false},{type:'charge',player:p,card:null}]as Action[])take(a);
+const leader=s.sides[p].zones.leader[0];for(const id of s.sides[p].zones.life.slice(4))moveCard(s,game,id,'deck',{owner:p});const hand=s.sides[p].zones.hand.length;const awake=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==='activate'&&a.card===leader&&a.skill===10);assert.ok(awake);take(awake);assert.equal(s.cards[leader].flipped,true);assert.equal(s.sides[p].zones.hand.length,hand+2);
+if(route==='attack'){take({type:'endMain',player:p});take({type:'charge',player:q,card:null});take({type:'endMain',player:q});take({type:'charge',player:p,card:null});const handBefore=s.sides[p].zones.hand.length;const a=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==='attack'&&a.attacker===leader);assert.ok(a);take(a);for(let i=0;i<8&&s.prompt.kind==='counter';i++){const pass=RULES.legalActions(ctx,s).map(x=>x.action).find(a=>a.type==='counter'&&a.card===null);assert.ok(pass);take(pass);}assert.equal(s.sides[p].zones.hand.length,handBefore+1);results.push({p,route,fullOriginalSource:true,awakenDraw2:true,attackDraw1:true});continue;}
+const n=route==='empty'?0:route==='one'?1:route==='four'?4:route==='six'?6:route==='hundred'?100:5;while(s.sides[p].zones.hand.length>n)moveCard(s,game,s.sides[p].zones.hand.at(-1)!,'deck',{owner:p});while(s.sides[p].zones.hand.length<n)moveCard(s,game,s.sides[p].zones.deck.at(-1)!,'hand',{owner:p});const pool=[...s.sides[p].zones.hand],epochs=pool.map(id=>s.cards[id].zoneEpoch??0);
+if(route.startsWith('same')||route==='away'||route==='newHand'||route==='paidLeaves'||route==='lateBlock'||route==='lateOnce')stepScript(vmHost(ctx,game,s,[]),{card:leader,master:p,ops:[{op:'replaceLeave',target:{var:'payer'},to:route==='away'?'warp':'drop',optional:true,until:'turn'}],ip:0,vars:{payer:[pool[2]]}});
+if(route==='child'||route==='childChoice')vmHost(ctx,game,s,[]).addEffect({source:pool[2],master:p,target:pool[2],kind:'replaceLeave',until:'turn',value:{optional:true,ops:[{op:'draw',n:1},...(route==='childChoice'?[{op:'choose' as const,sel:{side:'you' as const,area:'hand' as const,count:1,upTo:true},as:'child'},{op:'moveTo' as const,target:{var:'child'},to:'warp' as const}]:[])],source:pool[2],master:p}});
+if(route==='one'){
+ const showing=skillsShowing(ctx,s,leader),skill=showing.skills.find(x=>x.index===0)!,line={card:leader,kind:skill.kind,skill,skillIndex:0,script:showing.scripts.bySkill[0]},before=JSON.stringify(s);
+ assert.throws(()=>stepScript(vmHost(ctx,game,s,[]),{card:leader,master:p,ops:clone(line.script.price!.ops!),ip:0,vars:{}}),/R525/);assert.equal(JSON.stringify(s),before);savedCases++;
+ assert.throws(()=>resolveActivation(ctx,game,s,[],p,line,undefined,undefined,undefined,true,undefined),/R525/);assert.equal(JSON.stringify(s),before);savedCases++;
+ const copied={...line,skill:{...skill,granted:{by:0,skill}}};assert.throws(()=>captureOrdinaryActivation(ctx,game,s,p,copied),/R525|R515/);assert.equal(JSON.stringify(s),before);savedCases++;
+ for(const bound of ['optional','tax','notLeader'] as const){const b=clone(s),bctx=bound==='notLeader'?{...ctx,defs:{...ctx.defs,[c.id]:{...ctx.defs[c.id],type:'BATTLE'}}}:ctx;
+ if(bound==='optional')stepScript(vmHost(ctx,game,b,[]),{card:leader,master:p,ops:[{op:'permit',what:'ownDiscardOptional',target:{sel:{special:'self'}},until:'turn'}],ip:0,vars:{}});
+ if(bound==='tax')stepScript(vmHost(ctx,game,b,[]),{card:leader,master:p,ops:[{op:'forbid',what:'activateSkill',side:'you',target:{sel:{special:'self'}},unlessPay:[{op:'discard',side:'you',n:1}],until:'turn'}],ip:0,vars:{}});
+ const unchanged=JSON.stringify(b);assert.match(paidHandProblem(bctx,game,b,line)??'',/R525/);assert.throws(()=>captureOrdinaryActivation(bctx,game,b,p,line),/R525/);assert.equal(JSON.stringify(b),unchanged);savedCases++;
+ }
+}
+const offered=RULES.legalActions(ctx,s).find(x=>x.action.type==='activate'&&x.action.card===leader&&x.action.skill===0);const beforePower=attrsNow(ctx,game,s,leader).power;let error:string|undefined;
+try{take({type:'activate',player:p,card:leader,skill:0});if(route==='sameDecline'){
+ const pi=s.programs.findIndex(f=>!!f.saveVarsAs&&!!f.paidHand);assert.ok(pi>=0);const original=clone(s);
+ const mutations:Array<(f:ScriptFrame)=>void>=[
+ f=>{delete f.paidHand;},f=>{f.paidHand=null as never;},f=>{f.paidHand=[] as never;},
+ f=>{f.paidHand!.capture=null as never;},f=>{f.paidHand!.capture.selected=null as never;},f=>{f.paidHand!.capture.selected=[];},
+ f=>{f.paidHand!.capture.selected[0].epoch++;},f=>{f.paidHand!.capture.selected[0].hiddenCount++;},f=>{f.paidHand!.capture.selected[0].owner=q;},
+ f=>{f.moveLoop!.ids.reverse();},f=>{f.moveLoop!.ids=[...f.moveLoop!.ids,'forged'];},f=>{f.moveLoop!.kind='ko';},f=>{f.moveLoop!.to='warp';},f=>{f.moveLoop!.reason='cost';},f=>{f.moveLoop!.index=0;},
+ f=>{f.vars.hand_payers=[];},f=>{delete f.movementResults;},f=>{f.movementResults!.hand_payers.outcomes.reverse();},f=>{f.movementResults!.hand_payers.outcomes[0].completed=false;},
+ f=>{delete f.ordinaryActivation;},f=>{delete f.paidHand;delete f.ordinaryActivation;},
+ f=>{delete f.paidHand;f.ip=0;delete f.awaiting;f.replacementMove={card:pool[2],epoch:s.cards[pool[2]].zoneEpoch??0,completedAs:'hand_payers'};},
+ f=>{f.vars=null as never;},f=>{f.ops=null as never;},f=>{f.paidHand!.published=true;},f=>{f.priceUnpaid='failed';f.movementResults!.hand_payers.outcomes=null as never;},f=>{f.priceUnpaid='failed';f.movementResults!.hand_payers.outcomes={} as never;},
+ ];
+ for(const [mi,mutate] of mutations.entries()){const bad=clone(original);mutate(bad.programs[pi]);const before=JSON.stringify(bad);assert.throws(()=>RULES.apply(ctx,bad,{type:'chooseMode',player:p,index:1}),/R525|R515/,`saved mutation ${mi}`);assert.equal(JSON.stringify(bad),before);savedCases++;}
+ for(const key of ['arrivalBatchResume','arrivalResume','retainedResume'] as const){const bad=clone(original),inner=clone(bad.programs[pi]);delete inner.paidHand;delete inner.ordinaryActivation;const wrapper={card:leader,master:p,ops:[],ip:0,vars:{},[key]:{frame:inner}} as ScriptFrame;bad.programs[pi]=wrapper;const before=JSON.stringify(bad);assert.throws(()=>RULES.apply(ctx,bad,{type:'chooseMode',player:p,index:1}),/R525/);assert.equal(JSON.stringify(bad),before);savedCases++;}
+ for(const fault of ['missingHistory','missingBoth','splicedBody'] as const){const bad=clone(original),body=bad.programs.find(f=>!!f.pricedBy)!;assert.ok(body);delete body.paidHand;if(fault==='missingBoth')delete body.ordinaryActivation;if(fault==='splicedBody')body.ops=[body.ops[0],{op:'grant',target:{sel:{special:'self'}},keyword:{name:'Strike',x:3},until:'turn'}];bad.programs=[body];const before=JSON.stringify(bad);assert.throws(()=>RULES.apply(ctx,bad,{type:'chooseMode',player:p,index:1}),/R525|R515/);assert.equal(JSON.stringify(bad),before);savedCases++;}
+ // Mechanism boundary: run the actual R515 writer, stopping before flow drains
+ // the produced body. This card has no genuine body suspension prompt.
+ {const boundary=clone(original),price=boundary.programs.splice(pi,1)[0];boundary.lastMode=1;assert.equal(stepOrdinaryActivateCost(ctx,game,boundary,[],price),'done');const body=boundary.programs.find(f=>!!f.pricedBy)!;assert.ok(body.paidHand?.published);assert.equal(attrsNow(ctx,game,boundary,leader).power,5000);requirePaidHandFrame(ctx,boundary,body);bodyCases++;
+  const mutations:Array<(f:ScriptFrame)=>void>=[f=>{delete f.paidHand;},f=>{f.paidHand=null as never;},f=>{f.paidHand!.capture=null as never;},f=>{delete f.movementResults!.paid_hand;},f=>{f.movementResults!.paid_hand=null as never;},f=>{delete f.ordinaryActivation;},f=>{f.vars.paid_hand=[];},f=>{f.vars.hand_payers=[];},f=>{f.paidHand!.capture.source+='x';},f=>{f.paidHand!.published=undefined;},f=>{f.movementResults!.paid_hand.outcomes=null as never;}];
+  for(const mutate of mutations){const bad=clone(body);mutate(bad);const before=JSON.stringify(boundary);assert.throws(()=>requirePaidHandFrame(ctx,boundary,bad),/R525|R515/);assert.equal(JSON.stringify(boundary),before);assert.equal(attrsNow(ctx,game,boundary,leader).power,5000);bodyCases++;}
+  moveCard(boundary,game,pool[0],'warp',{owner:p});requirePaidHandFrame(ctx,boundary,body);assert.equal(body.movementResults!.paid_hand.outcomes.length,5);bodyCases++;
+ }
+ const transitioned=clone(original);transitioned.cards[leader].flipped=false;const before=JSON.stringify(transitioned);const stopped=RULES.apply(ctx,transitioned,{type:'chooseMode',player:p,index:1});assert.match(JSON.stringify(stopped.state.outcome),/R525/);assert.equal(attrsNow(ctx,game,stopped.state as VmState,leader).power,attrsNow(ctx,game,transitioned,leader).power);assert.equal(JSON.stringify(transitioned),before);savedCases++;
+}
+if(route==='lateOnce')s.cards[leader].usedThisTurn.push(0);if(route==='lateBlock')stepScript(vmHost(ctx,game,s,[]),{card:leader,master:p,ops:[{op:'forbid',what:'beMovedBySkill',fromArea:'hand',target:{var:'payer'},until:'turn'}],ip:0,vars:{payer:[pool[2]]}});if(route==='newHand')moveCard(s,game,s.sides[p].zones.deck.at(-1)!,'hand',{owner:p});if(route==='paidLeaves')moveCard(s,game,pool[0],'warp',{owner:p});for(let i=0;i<12&&['chooseMode','replaceMove','chooseCards'].includes(s.prompt.kind);i++){const pr=s.prompt;if(pr.kind==='chooseMode'||pr.kind==='replaceMove')take({type:'chooseMode',player:p,index:['sameDecline','newHand','paidLeaves','lateBlock','lateOnce'].includes(route)?pr.options.length-1:0});else if(pr.kind==='chooseCards')take({type:'choose',player:p,cards:route==='childChoice'?pr.choice.candidates.slice(0,1):pr.choice.candidates.slice(0,pr.choice.min??0)});}}catch(e){error=String(e);if(route!=='empty')throw e;}
+const success=!['empty','sameAccept','away','child','childChoice','lateBlock','lateOnce'].includes(route);assert.equal(!!offered,route!=='empty');assert.equal(attrsNow(ctx,game,s,leader).power,success?55000:5000);assert.equal(keywordsInForce(ctx,game,s,leader).some(k=>k.name==='Strike'&&k.x===3),success&&n>=5);assert.equal(s.cards[leader].usedThisTurn.includes(0),success||route==='lateOnce');assert.equal(ev.filter(e=>e.type==='skill'&&e.card===leader&&e.skill===0).length,success?1:0);assert.equal(s.outcome,undefined);assert.equal(s.prompt.kind,'main');assert.equal(s.programs.length,0);if(route==='lateBlock')for(let i=2;i<pool.length;i++){assert.equal(s.cards[pool[i]].zoneEpoch??0,epochs[i]);assert.ok(s.sides[p].zones.hand.includes(pool[i]));}if(success){assert.equal(error,undefined);assert.equal(s.sides[p].zones.hand.length,route==='newHand'?1:0);assert.ok(pool.every(id=>s.sides[p].zones.drop.includes(id)||route==='paidLeaves'&&id===pool[0]));}else if(route==='empty')assert.ok(error);else {assert.equal(error,undefined);assert.equal(s.sides[p].zones.hand.length,route==='child'?4:route==='childChoice'?3:route==='lateBlock'?3:route==='lateOnce'?0:2);if(route==='childChoice')assert.equal(s.sides[p].zones.warp.length,1);assert.ok(pool.slice(0,2).every(id=>s.sides[p].zones.drop.includes(id)));}
+results.push({p,route,actualCompiled:true,offered:!!offered,error,prompt:s.prompt.kind,outcome:s.outcome,originalHand:pool.length,handAfter:s.sides[p].zones.hand.length,drop:s.sides[p].zones.drop.length,beforePower,afterPower:attrsNow(ctx,game,s,leader).power,used:s.cards[leader].usedThisTurn,activated:ev.filter(e=>e.type==='skill'&&e.card===leader&&e.skill===0).length});
+}
+console.log('paid-hand-5: '+results.length+' native cases and '+savedCases+' saved continuation controls and '+bodyCases+' produced-body boundary controls passed');

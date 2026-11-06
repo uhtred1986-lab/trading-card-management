@@ -1,3 +1,4 @@
+import {compilePaidHand} from './paid-hand';
 import {compilePaidWarp} from './paid-warp';
 import { compileAwakenAlternative } from "./awaken-alternative";
 import { spiritBoostDescriptor } from "../text/spirit-boost";
@@ -174,6 +175,8 @@ export function costText(cost: string): string {
  * price the player can pay.
  */
 export function compileCostProgram(skill: Skill): Script | null {
+  const hand = compilePaidHand(skill);
+  if(hand)return {ops:hand.price!.ops!,unsupported:[]};
   const warp = compilePaidWarp(skill);
   if (warp) return { ops: warp.price!.ops!, unsupported: [] };
   return compileAwakenAlternative(skill) ? null : splitPrice(skill).program;
@@ -624,7 +627,7 @@ export function compileCostRecord(skill: Skill): CostRecord {
   if (skill.kind === "permanent") return zeroCostRecord();
   const spirit = skill.spiritBoost != null || skill.tags.some(tag => /^spirit boost x$/i.test(tag)) ? spiritBoostDescriptor(costText(skill.cost)) : { kind: "none" as const };
   const awakenAlternative = compileAwakenAlternative(skill);
-  const condition = priceCondition(skill)?.cond ?? null;
+  const condition = compilePaidHand(skill)?.price?.condition ?? priceCondition(skill)?.cond ?? null;
   const program = compileCostProgram(skill)?.ops ?? null;
   const x = priceX(skill);
   const fusion = compileFusionMaterials(skill);

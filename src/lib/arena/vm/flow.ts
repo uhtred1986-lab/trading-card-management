@@ -1,3 +1,4 @@
+import {paidHandFrameIntent,requirePaidHandFrame} from './paid-hand-runtime';
 import { paidWarpSourceKey } from './paid-warp-contract';
 import { paidWarpIntent, paidWarpFrameIntent, requirePaidWarpPending, requirePaidWarpSource, requirePaidWarpFrame, refusePaidWarpTax } from './paid-warp-runtime';
 import { paidDropIntent } from './paid-drop-contract';
@@ -1469,6 +1470,9 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (paidHandFrameIntent(frame)) requirePaidHandFrame(ctx, state, frame);
+    const handResume=frame.arrivalBatchResume?.frame??frame.arrivalResume?.frame??frame.retainedResume?.frame;
+    if(handResume&&paidHandFrameIntent(handResume)){requirePaidHandFrame(ctx,state,handResume);throw new IllegalAction("the entire-Hand skill has no play continuation (R525)");}
     if (paidWarpFrameIntent(frame)) requirePaidWarpFrame(ctx, game, state, frame);
     const warpResume = frame.arrivalBatchResume?.frame ?? frame.arrivalResume?.frame ?? frame.retainedResume?.frame;
     if (warpResume && paidWarpFrameIntent(warpResume)) {
@@ -1537,6 +1541,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requirePaidRemovalFrame(ctx, game, state, frame, sourceScript);
     requirePaidDropFrame(ctx, game, state, frame, sourceScript);
     requirePaidWarpFrame(ctx, game, state, frame, sourceScript);
+    requirePaidHandFrame(ctx,state,frame,sourceScript);
     requireKoFrame(state, sourceScript, frame);
     requirePairedSourceFrame(state, sourceScript, frame);
     requireCounterArrivalContract(frame, sourceScript);

@@ -1,3 +1,6 @@
+import {recordMovementResult} from './movement-result';
+import {paidHandIntent,allHandPaymentMove,HAND_PAYERS} from './paid-hand-contract';
+import {paidHandProblem,captureAllHandPayment,requirePaidHandFrame,publishPaidHand} from './paid-hand-runtime';
 import { paidDropPayerPayable } from './paid-drop-preflight';
 import { paidDropIntent } from './paid-drop-contract';
 import { paidDropProblem, paidDropCandidates, captureSelectedDrop, recordSelectedDrop, requirePaidDropFrame } from './paid-drop-runtime';
@@ -44,6 +47,7 @@ export function captureOrdinaryActivation(ctx:EngineContext,game:GameDefinition,
  if(!ordinaryActionPrice(state,line))return;
  const inst=state.cards[line.card];if(!inst)fail();
  if(paidRemovalIntent(line.script))requirePaidRemovalShape(line.skill,line.script!);
+ const handProblem=paidHandProblem(ctx,game,state,line);if(handProblem)throw new IllegalAction(handProblem);
  const dropProblem=paidDropProblem(ctx,game,state,line);if(dropProblem)throw new IllegalAction(dropProblem);
  const source={occurrence:effectOccurrence(state,line.card),master:player,skill:line.skill,script:line.script!,flipped:inst.flipped,priceContext:{optionalOwnDiscard:!!vmHost(ctx,game,state,[]).permits?.('ownDiscardOptional',line.card)}};
  const useGeneration=inst.ordinaryUseGeneration??0;
@@ -76,6 +80,8 @@ export function stepOrdinaryActivateCost(ctx:EngineContext,game:GameDefinition,s
  if(canonical(pair.effect.ordinaryActivation)!==canonical(saved))fail();
  requirePaidRemovalFrame(ctx,game,state,frame,saved.cost.source.script);
  requirePaidDropFrame(ctx,game,state,frame,saved.cost.source.script);
+ requirePaidHandFrame(ctx,state,frame,saved.cost.source.script);
+ const paidHand=paidHandIntent(saved.cost.source.script);
  const paidDrop=paidDropIntent(saved.cost.source.script);
  const paidRemoval=paidRemovalIntent(saved.cost.source.script);
  const host=vmHost(ctx,game,state,ev,frame);
@@ -97,6 +103,7 @@ export function stepOrdinaryActivateCost(ctx:EngineContext,game:GameDefinition,s
     if(op.op==='switchMode'&&found.some(id=>host.modeOf(id)===op.mode))frame.priceUnpaid??='the payment must actually change mode';
     if(op.op==='hidden'&&found.some(id=>!['battle','energy','unison'].includes(host.areaOf(id)??'')||host.isHidden(id)===op.hidden))frame.priceUnpaid??='the payment must actually change Hidden Mode';
    }
+   if(paidHand&&op?.op==='moveTo'&&op.target===ref&&!frame.priceUnpaid&&allHandPaymentMove(op))captureAllHandPayment(ctx,state,frame,found);
    if(paidRemoval&&op?.op==='moveTo'&&op.target===ref&&!frame.priceUnpaid)captureSelectedRemoval(ctx,game,state,frame,found);
    if(paidDrop&&op?.op==='moveTo'&&op.target===ref&&!frame.priceUnpaid)captureSelectedDrop(ctx,game,state,frame,found);
    return frame.priceUnpaid?[]:found;
@@ -104,10 +111,11 @@ export function stepOrdinaryActivateCost(ctx:EngineContext,game:GameDefinition,s
   setMode:(...args:Parameters<typeof host.setMode>)=>{const done=host.setMode(...args);if(!done)frame.priceUnpaid??='the mode payment did not complete';return done;},
   placeUnder:(...args:Parameters<typeof host.placeUnder>)=>{let complete=false;const done=host.placeUnder(args[0],args[1],args[2],r=>{complete=r.completed;args[3]?.(r);});if(!done||!complete)frame.priceUnpaid??='the under placement price did not complete';return done;},
   replacementsFor:(...args:Parameters<typeof host.replacementsFor>)=>host.replacementsFor(args[0],args[1]==='ko'?'ko':'cost',{...args[2],actor:undefined}),
+  prepareReplacement:(...args:Parameters<NonNullable<typeof host.prepareReplacement>>)=>{host.prepareReplacement?.(...args);if(paidHand&&args[0].replacementAuto)throw new NotYet('pay an entire-Hand price through a replacement Auto fallback','R525');},
   move:(...args:Parameters<typeof host.move>)=>{
    const [id,to,owner,opts]=args;let completed=false;
    if(paidDrop&&!paidDropPayerPayable(ctx,game,state,{card:frame.card,master:frame.master},saved.cost.source.script,id)){frame.priceUnpaid='the original owner-Drop price cannot complete';return host.areaOf(id)??to;}
-   const actual=host.move(id,to,owner,{...opts,reason:opts?.reason==='combo'&&to==='combo'?'combo':'cost',onResult:r=>{completed=r.completed&&r.from!==r.to;if(paidRemoval)recordSelectedRemoval(frame,r);if(paidDrop)recordSelectedDrop(ctx,game,state,frame,r);opts?.onResult?.(r);}});
+   const actual=host.move(id,to,owner,{...opts,reason:opts?.reason==='combo'&&to==='combo'?'combo':'cost',onResult:r=>{completed=r.completed&&r.from!==r.to;if(paidRemoval)recordSelectedRemoval(frame,r);if(paidDrop)recordSelectedDrop(ctx,game,state,frame,r);if(paidHand&&opts?.replaced?.deferred&&!frame.replacementMove)recordMovementResult(frame,HAND_PAYERS,r);opts?.onResult?.(r);}});
    if(!completed)frame.priceUnpaid="the original movement price did not complete";return actual;
   },
   ko:(...args:Parameters<typeof host.ko>)=>{
@@ -125,6 +133,7 @@ export function stepOrdinaryActivateCost(ctx:EngineContext,game:GameDefinition,s
    const used=result.usage?.kind==='limit'?(state.sides[result.usage.master].limitUses?.[result.usage.key]??0):0;
    if(!Number.isSafeInteger(used)||used<0)fail();
    if(result.usage?.kind==='limit'&&used>=result.usage.maximum||result.usage?.kind==='once'&&same&&inst.usedThisTurn.includes(s.skill.index)||s.script.price?.payment?.marker!=null&&same&&inst.usedMarkerSkill) { failed('the original skill usage was consumed before payment completed'); return; }
+   if(paidHand)publishPaidHand(ctx,state,frame,pair.effect);
    saved.cost=result.continuation;pair.effect.ordinaryActivation=structuredClone(saved);
    if(result.usage?.kind==='limit'){
     const ledger=state.sides[result.usage.master].limitUses??={};ledger[result.usage.key]=(ledger[result.usage.key]??0)+1;

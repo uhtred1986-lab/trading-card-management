@@ -1,3 +1,4 @@
+import {allHandPaymentMove} from './paid-hand-contract';
 import { activateUnderPermitProblem } from "./activate-under-contract";
 import { energyEntryPolicyProblem } from "./energy-entry-policy";
 import { counterArrivalPolicyProblem } from "./counter-arrival-policy";
@@ -2280,7 +2281,7 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
     if (o.op === "ko" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.completedAs !== o.completedAs.trim()
       || !isRecord(o.target) || Object.keys(o.target).length !== 1 || o.target.var !== o.completedAs)) return `${step}: KO completion requires the same nonempty bound variable target and result name`;
     if (o.op === "switchMode" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.mode !== "rest" || !isRecord(o.target) || typeof o.target.var !== "string")) return `${step}: switch completion needs a bound variable switched to Rest Mode`;
-    if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || !(typeof o.target.var === "string" || isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self" && o.to !== "under") || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary move or under placement`;
+    if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || !(allHandPaymentMove(o) || typeof o.target.var === "string" || isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self" && o.to !== "under") || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary move or under placement`;
     if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
       if (!Array.isArray(o.negatedKinds) || !o.negatedKinds.length || o.negatedUntil === undefined || o.negated !== undefined) return `${step}: entry kind negation needs nonempty negatedKinds and negatedUntil, without full negated`;
     }

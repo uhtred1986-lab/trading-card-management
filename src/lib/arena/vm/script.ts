@@ -1,3 +1,4 @@
+import {allHandPaymentMove,handPaymentRebuild} from './paid-hand-contract';
 import { paidDropPlayAllowed } from './paid-drop-reference';
 import { koResultRebuild, recordKoOutcome, requireKoResult, startKoResult, type KoOutcome } from "./ko-result";
 import { NotYet } from "./errors";
@@ -1954,6 +1955,7 @@ export interface ScriptFrame {
   /** R516: selected original payer, then native movement result; private continuation only. */
   paidRemoval?: import("./paid-removal-runtime").PaidRemovalFrame;
   paidDrop?: import("./paid-drop-runtime").PaidDropFrame;
+  paidHand?: import("./paid-hand-contract").PaidHandFrame;
   paidWarp?: import("./paid-warp-runtime").PaidWarpFrame;
   /** Original ordinary Activate price and successful effect continuation. */
   ordinaryActivation?: import("./ordinary-activate-runtime").OrdinaryActivation;
@@ -3376,7 +3378,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // takes, named for a later clause (which also asks where they are by then).
         // Several moves under one name add up: "send up to 1 <Vegeta> card and 1 <Nappa> card … to your Warp … play all
         // the cards sent to the Warp by this skill" (BT7-051) is both cards.
-        if (op.completedAs && (!("var" in op.target) && !selfCompletionMove(op) || op.to === "play")) movementRebuild("rebuild the original-movement target contract");
+        if (op.completedAs && (!("var" in op.target) && !selfCompletionMove(op) && !allHandPaymentMove(op) || op.to === "play")) movementRebuild("rebuild the original-movement target contract");
         if (op.completedAs && !h.reportsMovement) movementRebuild("this host cannot report original movement completion");
         if (op.completedAs && frame.moveLoop) validateMovementResult(frame, op.completedAs);
         if (op.completedAs && !frame.moveLoop && selfCompletionMove(op)) startMovementResult(frame, op.completedAs, [{ card: frame.card, epoch: frame.completionSource!.epoch }]);
@@ -3391,6 +3393,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           startMovementResult(frame, op.completedAs, selected, destination);
         }
         if (op.as && !frame.moveLoop) frame.vars[op.as] = [...new Set([...(frame.vars[op.as] ?? []), ...h.resolveRef(frame, op.target)])];
+        if (allHandPaymentMove(op) && (!frame.ordinaryActivation || !frame.paidHand || !frame.movementResults?.[op.completedAs!])) handPaymentRebuild();
         frame.moveLoop ??= {
           kind: "moveTo",
           ids: op.random ? shuffledIds(h, h.resolveRef(frame, op.target)) : h.resolveRef(frame, op.target),
@@ -3450,6 +3453,9 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // a rule naming no area is still about the Battle Area alone.
           if (!frame.declaredCharge && leaving && h.forbids("beMovedBySkill", { card: id, player: master, from: leaving, to: op.to, toBottom: op.position === "bottom", ...(frame.card ? { source: frame.card } : {}) })) {
             if (frame.saveVarsAs) frame.priceUnpaid ??= leaving === "battle" ? `${h.nameOf(id)} can't be removed from the Battle Area` : `${h.nameOf(id)} can't be moved from the ${leaving}`;
+            // R525: stop this exact price at the refused instruction. Its
+            // untouched suffix is not a movement result and cannot be paid.
+            if (frame.ordinaryActivation && frame.saveVarsAs && allHandPaymentMove(op)) { h.resume(frame); return "done"; }
             frame.moveLoop.index++;
             continue;
           }
