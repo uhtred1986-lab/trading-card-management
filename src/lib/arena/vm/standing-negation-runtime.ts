@@ -1,3 +1,4 @@
+import { scopedStandingReadMatches, scopedStandingReadGame, standingReadIsUncached, standingReadWasRevoked, withUncachedStandingReads, withStandingReadLifetime, requireUnscopedStandingWrite } from "./standing-read-scope";
 import { hasNativeUnderPolicy, initializeNativeUnderStanding, assertNativeUnderStandingSettled, prepareNativeUnderMutation, requireNativeUnderMutation, settleNativeUnderMutation, type NativeUnderMutation } from "./under-native-transaction";
 import { nativeUnderReadMatches } from "./under-native-read";
 import type { NativeUnderWritePlan, NativeUnderEffectWrite } from "./under-native-plan";
@@ -61,6 +62,7 @@ export function hasStandingNegationHistory(state: VmState): boolean {
 }
 /** New games only: existing affected saves may never acquire inferred history. */
 export function initializeStandingNegation(ctx: EngineContext, state: VmState): void {
+  requireUnscopedStandingWrite(state);
   if (state.game === "dbs" && hasNativeUnderPolicy(ctx, state)) {
     initializeNativeUnderStanding(ctx, actualGame(ctx, state), state);
     return;
@@ -83,8 +85,53 @@ function exclusiveFamily(state: VmState): void {
   if ([state.standingNegationHistory, state.mixedStandingNegationHistory, state.underStandingNegationHistory].filter(value => value !== undefined).length > 1)
     throw new NotYet("retain exactly one original standing history family", "R528");
 }
+/** Full dependencies, not merely standing topology: a changed but still-valid
+ * board must not return a result calculated with earlier cached statics. Token
+ * definitions can be supplied through a Proxy, so resolve every physical/copy id.
+ */
+function standingReadDependencies(ctx: EngineContext, game: GameDefinition, state: VmState): string {
+  const ids = new Set(Object.values(state.cards).map(card => card.cardId));
+  for (const effect of state.effects) if (effect.copied) ids.add(effect.copied.cardId);
+  return canonical({ state, defs: ctx.defs, scripts: ctx.scripts, game, actual: actualGame(ctx, state),
+    pinned: (ctx as EngineContext & { rulesetDefinition?: GameDefinition }).rulesetDefinition,
+    resolved: [...ids].sort().map(id => [id, ctx.defs[id]]) });
+}
+function synchronousStandingRead<T>(read: () => T): T {
+  const result = read();
+  if (result && (typeof result === "object" || typeof result === "function") && "then" in result && typeof result.then === "function")
+    throw new Error("Standing reads must return synchronously");
+  return result;
+}
+/** Closed authority boundary for the existing synchronous read-only callbacks.
+ * No caller supplies a validator, history or projected board. Different game
+ * objects retain raw validation, even when their id happens to match.
+ */
+export function readingStandingBoard<T>(ctx: EngineContext, game: GameDefinition, state: VmState, read: () => T): T {
+  if (scopedStandingReadGame(ctx, state) === game) return synchronousStandingRead(read);
+  if (!hasStandingNegationHistory(state)) {
+    validateStandingNegationRead(ctx, state);
+    return synchronousStandingRead(read);
+  }
+  const witness = standingReadDependencies(ctx, game, state);
+  const actual = actualGame(ctx, state);
+  withUncachedStandingReads(() => validateStandingNegationRead(ctx, state));
+  const finish = () => {
+    const result = synchronousStandingRead(read); // A thrown callback retains its original exception.
+    if (standingReadWasRevoked(state) || actual !== actualGame(ctx, state)
+      || witness !== standingReadDependencies(ctx, game, state))
+      throw new Error("Board dependencies changed during a standing read");
+    withUncachedStandingReads(() => validateStandingNegationRead(ctx, state));
+    return result;
+  };
+  // No-history and mismatched-game boards get no reusable authority.
+  if (standingReadWasRevoked(state)) return withUncachedStandingReads(finish);
+  if (actual !== game || standingReadIsUncached())
+    return withStandingReadLifetime(ctx, game, state, () => withUncachedStandingReads(finish));
+  return withStandingReadLifetime(ctx, game, state, finish);
+}
 export function validateStandingNegationRead(ctx: EngineContext, state: VmState): void {
   exclusiveFamily(state);
+  if (scopedStandingReadMatches(ctx, state)) return;
   if (state.underStandingNegationHistory) {
     if (!nativeUnderReadMatches(ctx, state)) assertNativeUnderStandingSettled(ctx, actualGame(ctx, state), state);
     return;
@@ -113,6 +160,7 @@ export function validateStandingNegationRead(ctx: EngineContext, state: VmState)
   issueStandingNegationReadSeal(ctx, state);
 }
 export function beginStandingNegationMutation(ctx: EngineContext, state: VmState, incoming?: string, nativePlan?: NativeUnderWritePlan): StandingNegationMutation | undefined {
+  requireUnscopedStandingWrite(state);
   exclusiveFamily(state);
   if (state.underStandingNegationHistory) {
     if (!nativePlan) throw new NotYet("bind this native standing writer to its actual typed plan before mutation", "R528");
@@ -139,6 +187,7 @@ export function beginStandingNegationMutation(ctx: EngineContext, state: VmState
 }
 export function finishStandingNegationMutation(ctx: EngineContext, state: VmState, token: StandingNegationMutation | undefined,
   arrival?: string | readonly string[], battle?: MixedBattleChange, nativeResults: readonly MoveRecord[] = []): void {
+  requireUnscopedStandingWrite(state);
   exclusiveFamily(state);
   if (!token) {
     if (state.underStandingNegationHistory) throw new NotYet("retain the actual native standing writer capture", "R528");
@@ -172,6 +221,7 @@ export function finishStandingNegationMutation(ctx: EngineContext, state: VmStat
   issueStandingNegationReadSeal(ctx, state);
 }
 export function refuseStandingNegationMutation(state: VmState, procedure: string, ctx?: EngineContext, incoming?: string): void {
+  requireUnscopedStandingWrite(state);
   exclusiveFamily(state);
   if (state.underStandingNegationHistory) throw new NotYet(`native under-standing during ${procedure}`, "R528");
   if (state.mixedStandingNegationHistory) {

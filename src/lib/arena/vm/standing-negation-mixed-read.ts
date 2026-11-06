@@ -1,3 +1,4 @@
+import { scopedStandingReadMatches, scopedStandingReadContext, invalidateScopedStandingRead } from "./standing-read-scope";
 /** R513 private read seals issued by the validated native mixed-policy observer. */
 import type { EngineContext } from "../types";
 import type { VmState } from "./state";
@@ -44,15 +45,18 @@ export function issueMixedStandingNegationReadSeal(ctx: EngineContext, state: Vm
     seals.set(state, { ctx, facts: fingerprint(ctx, state), history: canonical(history) });
 }
 export function invalidateMixedStandingNegationReadSeal(state: VmState): void {
+    invalidateScopedStandingRead(state);
     seals.delete(state);
 }
 export function mixedStandingNegationReadSealMatches(ctx: EngineContext, state: VmState, history: MixedStandingNegationHistory): boolean {
+    if (history === state.mixedStandingNegationHistory && scopedStandingReadMatches(ctx, state)) return true;
     const seal = seals.get(state);
     return !!seal && seal.ctx === ctx && seal.facts === fingerprint(ctx, state) && seal.history === canonical(history);
 }
 export function mixedStandingSkillsNegated(state: VmState, history: MixedStandingNegationHistory, id: string): boolean {
     const seal = seals.get(state);
-    if (!seal || !mixedStandingNegationReadSealMatches(seal.ctx, state, history)) {
+    const scopeCtx = scopedStandingReadContext(state);
+    if (!(scopeCtx && history === state.mixedStandingNegationHistory) && (!seal || !mixedStandingNegationReadSealMatches(seal.ctx, state, history))) {
         throw new NotYet("validate mixed standing-negation history before reading the changed board", "R513");
     }
     return history.suppressed.some(edge => edge.target.card === id);

@@ -1,3 +1,4 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
 import { requireDormantNativePolicy } from "./under-native-observation";
 import { applyNativeUnderEffectWrites, type NativeUnderWritePlan, type NativeUnderEffectWrite } from "./under-native-plan";
 import {incrementalLookIntent,requireLookSource,requireLookPending,activateLook,requireIncrementalLook} from './incremental-look';
@@ -485,6 +486,7 @@ const GUARD = 10_000;
  * question nobody answers.
  */
 export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], previewStop?: "battleCounterAttack" | "battleOffense"): void {
+  requireUnscopedStandingWrite(state);
   let guard = 0;
   checkWins(ctx, game, state, ev);
   while (state.flow.length) {
@@ -1812,6 +1814,7 @@ export function requirePrompt(state: VmState, action: Action, kinds: Prompt["kin
 
 /** One player's deck, randomised with the game's seeded RNG (6-2-1-7). The only place the deck's order is decided, so a replay from the same seed shuffles the same way. */
 export function shuffleDeck(state: VmState, p: PlayerId): void {
+  requireUnscopedStandingWrite(state);
   // A shuffled secret zone destroys the usable identity of a card revealed
   // there, even when the seeded permutation happens to be unchanged.
   if (state.publicAutoReveals?.length) {
@@ -1825,6 +1828,7 @@ export function shuffleDeck(state: VmState, p: PlayerId): void {
 
 /** One card from the top of a player's deck into their hand, `n` times, with the two events the legacy engine emits for each. */
 export function draw(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], p: PlayerId, n: number): number {
+  requireUnscopedStandingWrite(state);
   let drawn = 0;
   for (let i = 0; i < n; i++) {
     const id = state.sides[p].zones[SETUP_ZONES.deck][0];
@@ -1903,6 +1907,7 @@ export interface MoveCause {
  * zone a board cannot animate, and still a place a card arrived in.
  */
 export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], id: string, asked: string, opts: MoveCause = {}): void {
+  requireUnscopedStandingWrite(state);
   guardEnergyEntryLifetimes(state);
   if (asked === "energy") guardUnownedEnergyEntry(ctx,state,id);
   validateStandingNegationRead(ctx, state);

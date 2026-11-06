@@ -1,3 +1,4 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
 import { standingUnderPrinted, standingUnderScript } from "./standing-negation-under-policy";
 import { activateUnderDescriptor } from "./activate-under-contract";
 import { standingWholeDescriptor, standingComboWholeDescriptor } from "./standing-negation-policy";
@@ -376,6 +377,7 @@ export function costLayerGaps(game: GameDefinition): string[] {
 
 /** Put a continuous effect in force, and say so. The `effect` beat is what a client draws the surge from. */
 export function addEffect(state: VmState, ev: GameEvent[], spec: EffectSpec): ContinuousEffect {
+  requireUnscopedStandingWrite(state);
   prepareResolvedGrantChange(state, spec);
   const full: ContinuousEffect = { ...spec, master: spec.master ?? state.turnPlayer, id: state.nextEffect++, createdTurn: state.turn, ownerTurn: state.turnPlayer };
   state.effects.push(full);
@@ -398,6 +400,7 @@ export function effectsOn(state: VmState, id: string, kind: ContinuousEffect["ki
  * stay, exactly as the legacy `dropEffects` does.
  */
 function dropEffects(state: VmState, ev: GameEvent[], keep: (e: ContinuousEffect) => boolean): ContinuousEffect[] {
+  requireUnscopedStandingWrite(state);
   const kept: ContinuousEffect[] = [];
   const ended: ContinuousEffect[] = [];
   for (const e of state.effects) {
@@ -498,6 +501,7 @@ export function dropEffectsOnExcept(state: VmState, ev: GameEvent[], id: string,
 
 /** Write a program down for a later moment. */
 export function schedule(state: VmState, ev: GameEvent[], spec: DelaySpec): DelayedEffect {
+  requireUnscopedStandingWrite(state);
   const full: DelayedEffect = { ...spec, id: state.nextEffect++, createdTurn: state.turn };
   state.delayed.push(full);
   log(ev, { type: "delayed", card: spec.card, label: spec.label });
@@ -529,6 +533,7 @@ function ripe(state: VmState, d: DelayedEffect): boolean {
  * the runner's business and one of these can stop to ask a question.
  */
 export function dueDelays(state: VmState, at: DelayTiming): ScriptFrame[] {
+  requireUnscopedStandingWrite(state);
   const ready = state.delayed.filter((d) => d.at === at && ripe(state, d));
   if (!ready.length) return [];
   const ids = new Set(ready.map((d) => d.id));
@@ -538,6 +543,7 @@ export function dueDelays(state: VmState, at: DelayTiming): ScriptFrame[] {
 
 /** An effect scheduled for "this turn" whose moment has gone never happens. Keeps the list from growing over a long game. */
 export function expireDelayed(state: VmState): void {
+  requireUnscopedStandingWrite(state);
   // Called from `endTurn` (`vm/flow.ts`), *before* the turn number moves on —
   // the legacy engine's call sits after it, which is why its filter keeps the
   // effects made on the turn now starting. Here the turn ending is the one

@@ -1,3 +1,4 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
 /** R513 native mixed-policy mutation, participant and grant-deletion contract. */
 import type { EngineContext } from "../types";
 import type { GameDefinition } from "../rulesets";
@@ -62,6 +63,7 @@ function current(ctx: EngineContext, game: GameDefinition, state: MixedStandingS
  * Native createGame selects this family from the actual initial match cards.
  */
 export function initializeMixedStandingNegation(ctx: EngineContext, game: GameDefinition, state: MixedStandingState): void {
+  requireUnscopedStandingWrite(state);
     if (!hasMixedStandingPolicy(ctx))
         return;
     if (state.turn !== 0 || state.battle || state.standingNegationHistory !== undefined
@@ -85,6 +87,7 @@ export function assertMixedStandingNegationSettled(ctx: EngineContext, game: Gam
     issueMixedStandingNegationReadSeal(ctx, state, history, observation);
 }
 export function captureMixedStandingNegationMutation(ctx: EngineContext, game: GameDefinition, state: MixedStandingState): MixedStandingNegationMutation {
+  requireUnscopedStandingWrite(state);
     const { observation, history } = current(ctx, game, state);
     const token = Object.freeze({}) as MixedStandingNegationMutation;
     captures.set(token, { ctx, game, state, previous: structuredClone(observation), history: structuredClone(history),
@@ -151,6 +154,7 @@ export function settleMixedStandingNegationMutation(ctx: EngineContext, game: Ga
     enablingOrder?: readonly string[];
     battle?: MixedBattleChange;
 } = {}): void {
+  requireUnscopedStandingWrite(state);
     const captured = token && captures.get(token);
     if (!captured || captured.ctx !== ctx || captured.game !== game || captured.state !== state)
         refuse("rebuild original synchronous mixed transaction capture");

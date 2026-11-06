@@ -1,10 +1,11 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
 import { nativeUnderAttackProhibited } from "./under-native-read";
 import { paidDropSelfAllowed } from './paid-drop-reference';
 import { completedKoCost, koResultRebuild } from "./ko-result";
 import { requiredStampedCards } from "./required-stamp";
 import { requirePairedSelf } from "./paired-self";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
-import { beginStandingNegationMutation, finishStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
+import { beginStandingNegationMutation, finishStandingNegationMutation, readingStandingBoard, validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureCopiedSkill } from "./triggers";
 import { counterActivationFrom } from "./counter-activation-origin";
 import { taxReceiptIdentity } from "./tax-receipt";
@@ -190,16 +191,17 @@ let staticsScope: StaticsScope | null = null;
 
 /** Run one read-only question about `state` with its statics read once. The state must not be changed in place while `read` runs. */
 export function readingBoard<T>(ctx: EngineContext, game: GameDefinition, state: VmState, read: () => T): T {
-  validateStandingNegationRead(ctx, state);
-  const outer = staticsScope;
-  // Already inside a reading of this very board: its statics are this one's.
-  if (outer && outer.state === state && outer.ctx === ctx && outer.game === game) return read();
-  staticsScope = { state, ctx, game, standing: null };
-  try {
-    return read();
-  } finally {
-    staticsScope = outer;
-  }
+  return readingStandingBoard(ctx, game, state, () => {
+    const outer = staticsScope;
+    // Already inside a reading of this very board: its statics are this one's.
+    if (outer && outer.state === state && outer.ctx === ctx && outer.game === game) return read();
+    staticsScope = { state, ctx, game, standing: null };
+    try {
+      return read();
+    } finally {
+      staticsScope = outer;
+    }
+  });
 }
 
 /** Every [Permanent] standing right now — and every keyword's `altPayment` body — or nothing while one is being read (see `readingStatics`). */
@@ -1612,6 +1614,7 @@ export function prohibitionUsesToSpend(ctx: EngineContext, game: GameDefinition,
     && ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid, key: `effect:${e.id}` }, opts));
 }
 export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; from?: string; skillKind?: string; keyword?: string } = {}): void {
+  requireUnscopedStandingWrite(state);
   // Read every applicable budget on one settled board before changing any use.
   const spent = prohibitionUsesToSpend(ctx, game, state, what, opts);
   if (!spent.length) return;

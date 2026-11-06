@@ -1,3 +1,4 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
 import {incrementalLookIntent} from './incremental-look';
 import {paidHandIntent} from './paid-hand-contract';
 import {paidHandProblem} from './paid-hand-runtime';
@@ -1190,6 +1191,7 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
  * candidates at all, so there is nothing to answer it with.
  */
 export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Partial<Pick<ScriptFrame, "ops" | "vars" | "paidCardInfo" | "paidMarkers" | "ordinaryActivation">>, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
+  requireUnscopedStandingWrite(state);
   const { card, skill: sk } = line;
   if(incrementalLookIntent(line.script?.ops))throw new IllegalAction("private inspection requires its reviewed Auto producer (R527)");
   if (waived && paidHandIntent(line.script)) throw new IllegalAction("waived entire-Hand payments require an original payment (R525)");

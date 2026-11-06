@@ -1,3 +1,4 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
 /** R528 preflighted native v3 writes. Tokens are synchronous and never saved. */
 import type { EngineContext } from "../types";
 import type { GameDefinition } from "../rulesets";
@@ -23,6 +24,7 @@ export function hasNativeUnderPolicy(ctx: EngineContext, state: NativeUnderState
     });
 }
 export function initializeNativeUnderStanding(ctx: EngineContext, game: GameDefinition, state: NativeUnderState): void {
+  requireUnscopedStandingWrite(state);
     if (!hasNativeUnderPolicy(ctx, state)) return;
     if (state.turn !== 0 || state.battle || state.standingNegationHistory !== undefined || state.mixedStandingNegationHistory !== undefined
         || state.underStandingNegationHistory !== undefined || state.effects.length || state.resolvedGrantDeletions?.length
@@ -150,6 +152,7 @@ function capture(ctx: EngineContext, game: GameDefinition, state: NativeUnderSta
 }
 /** Writer calls this immediately before its first live mutation. */
 export function requireNativeUnderMutation(ctx: EngineContext, game: GameDefinition, state: NativeUnderState, token: NativeUnderMutation): void {
+  requireUnscopedStandingWrite(state);
     const value = capture(ctx, game, state, token);
     if (canonical(value.plan) !== value.planIdentity || familyIdentity(state) !== value.family || dependencyIdentity(ctx, state) !== value.before) return fail("preserve the original preflighted writer inputs");
     invalidateNativeUnderRead(state);
@@ -157,6 +160,7 @@ export function requireNativeUnderMutation(ctx: EngineContext, game: GameDefinit
 /** Only policy history and original grant deletion flags are published here;
  * the actual native writer already owns physical movement/effects/events. */
 export function settleNativeUnderMutation(ctx: EngineContext, game: GameDefinition, state: NativeUnderState, token: NativeUnderMutation, results: readonly MoveRecord[] = []): void {
+  requireUnscopedStandingWrite(state);
     const value = capture(ctx, game, state, token);
     requireExclusiveNativeUnder(state);
     if (familyIdentity(state) !== value.family || dependencyIdentity(ctx, state) !== value.after || canonical(results) !== canonical(value.results))

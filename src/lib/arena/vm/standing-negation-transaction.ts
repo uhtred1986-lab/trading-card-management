@@ -1,3 +1,4 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
 /** R477 synchronous transaction adapter prototype. No production callers. */
 import type { EngineContext } from "../types";
 import type { VmState } from "./state";
@@ -55,6 +56,7 @@ function assertGrantInvariant(state: VmState, history: History): void {
  * intentionally not serializable; saved choices must begin a new native slice.
  * It is bound to the current working state, never a replacement state object. */
 export function captureStandingNegationMutation(ctx: EngineContext, state: VmState): StandingNegationMutation {
+  requireUnscopedStandingWrite(state);
   const { observation, history, before } = current(ctx, state);
   assertGrantInvariant(state, history);
   const token = Object.freeze({}) as StandingNegationMutation;
@@ -68,6 +70,7 @@ export function captureStandingNegationMutation(ctx: EngineContext, state: VmSta
  * by the caller's existing apply-action working-state boundary. */
 export function settleStandingNegationMutation(ctx: EngineContext, state: VmState, token: StandingNegationMutation,
   options: { arrivals?: Card[]; enablingOrder?: readonly string[] } = {}): void {
+  requireUnscopedStandingWrite(state);
   const captured = token && captures.get(token);
   if (!captured || captured.ctx !== ctx || captured.state !== state) return refuse("rebuild original synchronous standing-negation transaction capture");
   if (!options || typeof options !== "object" || Array.isArray(options)) return refuse("rebuild standing-negation mutation options");

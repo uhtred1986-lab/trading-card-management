@@ -1,3 +1,4 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
 import { hasStandingNegationHistory, expireStandingNegationBatch } from "./standing-negation-runtime";
 import { energyActivationReaches, type EnergyPaymentContext } from "./energy-coupons";
 import { emptyUnisons } from "./unison-zero";
@@ -1008,6 +1009,7 @@ export function chargeCost(
   move?: (id: string, to: string, opts: MoveCause) => void,
   onRest?: (id: string) => void,
 ): PaidResources {
+  requireUnscopedStandingWrite(state);
   requireMarkerPayers(ctx, game, state, player, payment.markersOff);
   const paid: PaidResources = { vars: {}, paidCardInfo: {}, paidMarkers: {} };
   const charges = chargesOf(game);
@@ -1312,6 +1314,7 @@ function spendUses(ctx: EngineContext, state: VmState, ev: GameEvent[], spent: C
     spendSelectedUses(board, events, positions.map(position => board.effects[position])), [{ kind: "couponUses", ids: spent.map(effect => effect.id) }]);
 }
 export function spendSelectedUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): ContinuousEffect[] {
+  requireUnscopedStandingWrite(state);
   if (!spent.length) return [];
   for (const e of spent) e.uses = e.uses! - 1;
   const groups = new Set(spent.filter((e) => e.uses === 0 && e.group !== undefined).map((e) => e.group));
@@ -1476,6 +1479,7 @@ function altEnergy(alt: AltCost): Price {
  * the hand (1-13-2: adding life to the hand is not damage).
  */
 export function payAltCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, alt: VmAltCost): void {
+  requireUnscopedStandingWrite(state);
   if (alt.pay === "none") return;
   // #155: [Invoker]'s price — the cards it names, rested where they stand in
   // the mode the declared energy price rests its cards in (22-37).

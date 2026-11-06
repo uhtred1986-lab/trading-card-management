@@ -1,3 +1,4 @@
+import { scopedStandingReadMatches, scopedStandingReadContext, invalidateScopedStandingRead } from "./standing-read-scope";
 import { nativeUnderSkillsNegated } from "./under-native-read";
 import { mixedStandingSkillsNegated } from "./standing-negation-mixed-read";
 /** R477 transient read witness. This stores no history and never repairs it. */
@@ -23,8 +24,9 @@ function fingerprint(ctx: EngineContext, state: VmState): string {
 export function issueStandingNegationReadSeal(ctx: EngineContext, state: VmState): void {
   if (state.standingNegationHistory) seals.set(state, { ctx, fingerprint: fingerprint(ctx, state) });
 }
-export function invalidateStandingNegationReadSeal(state: VmState): void { seals.delete(state); }
+export function invalidateStandingNegationReadSeal(state: VmState): void { invalidateScopedStandingRead(state); seals.delete(state); }
 export function standingNegationReadSealMatches(ctx: EngineContext, state: VmState): boolean {
+  if (state.standingNegationHistory && scopedStandingReadMatches(ctx, state)) return true;
   const seal = seals.get(state);
   return !!seal && seal.ctx === ctx && seal.fingerprint === fingerprint(ctx, state);
 }
@@ -36,6 +38,6 @@ export function standingSkillsNegated(state: VmState, id: string): boolean {
   if (state.mixedStandingNegationHistory) return mixedStandingSkillsNegated(state, state.mixedStandingNegationHistory, id);
   if (!state.standingNegationHistory) return false;
   const seal = seals.get(state);
-  if (!seal || seal.fingerprint !== fingerprint(seal.ctx, state)) throw new NotYet("validate standing-negation history before reading the changed board", "R477");
+  if (!scopedStandingReadContext(state) && (!seal || seal.fingerprint !== fingerprint(seal.ctx, state))) throw new NotYet("validate standing-negation history before reading the changed board", "R477");
   return state.standingNegationHistory.suppressed.some(edge => edge.target.card === id);
 }

@@ -1,3 +1,4 @@
+import { requireUnscopedStandingWrite } from "./standing-read-scope";
 import { renewOrdinaryUseGeneration } from "./limits";
 import { refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
 /**
@@ -353,6 +354,7 @@ export function removedInsteadOfUnder(board: Board, game: GameDefinition, id: st
  * a rule that can say why it did not happen.
  */
 export function moveCard(board: Board, game: GameDefinition, id: string, to: string, opts: MoveOptions = {}): MoveResult {
+  requireUnscopedStandingWrite(board);
   if (!opts.energyEntryCleanup || opts.under !== undefined || opts.onto !== undefined) refuseEnergyEntryProcedure(board,[id,opts.under,opts.onto]);
   const card = board.cards[id];
   if (!card) return { ok: false, refused: `there is no card ${id} in this game` };
