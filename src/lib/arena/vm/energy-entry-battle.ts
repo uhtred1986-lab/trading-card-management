@@ -1,4 +1,4 @@
-/** R489 ordinary owned Battle source, rechecked before every saved child step. */
+/** R489/R491 ordinary owned Battle source, rechecked before every saved child step. */
 import type { EngineContext } from "../types";
 import type { VmState } from "./state";
 import type { ScriptFrame } from "./script";
@@ -15,7 +15,7 @@ export interface EnergyBattleScope {
 export function captureEnergyBattleScope(ctx: EngineContext, state: VmState, frame: ScriptFrame, id: string): EnergyBattleScope {
   const source=state.cards[id],at=findCard(state,id),origin=frame.skillEffectOrigin;
   if (!source || ctx.defs[source.cardId]?.type!=="BATTLE" || source.zCard || isTokenCard(source.cardId) || source.hidden || source.under.length ||
-    at?.zone!=="battle" || at.owner!==source.owner || frame.master!==source.owner ||
+    at?.zone!=="battle" || at.owner!==source.owner ||
     state.effects.some(effect=>effect.target===id&&(effect.kind==="control"||effect.kind==="copiedSkills")) ||
     origin?.version!==2 || origin.kind!=="activate"&&origin.kind!=="auto" ||
     frame.skillIndex===undefined || frame.skillIndex>=COPIED_SKILL_BASE || frame.copiedSkillCapture ||

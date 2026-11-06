@@ -136,7 +136,7 @@ for(const p of ["p1","p2"] as const)for(const variant of ["battleOnly","energyOn
  const stopped=RULES.apply(b.c,b.s,{type:"choose",player:p,cards:[b.blue]});assert.equal(stopped.state.outcome?.kind,"interrupted",variant);assert.match(stopped.state.outcome?.privateContext?.detail??"",/protection changes/);assert.equal(stopped.events.some(e=>e.type==="move"&&e.card===b.incoming&&e.to==="energy"),false);assert.equal(JSON.stringify(b.s),before);cases++;
 }
 // Opponent's ordinary skill preserves the original controller and skill actor.
-// Optional descriptors themselves remain outside this acting-player boundary.
+// R491: the owner now decides the optional procedure under an opposing mover.
 for(const owner of ["p1","p2"] as const)for(const variant of ["ordinary","whole","arrivalNegated","optional"]){
  const actor=other(owner),b=setup(actor,"main",false,variant);
  b.s.cards[b.incoming].owner=owner;assert.ok(moveCard(b.s,game,b.incoming,"battle",{owner,carry:true}).ok);
@@ -145,7 +145,7 @@ for(const owner of ["p1","p2"] as const)for(const variant of ["ordinary","whole"
  if(variant==="arrivalNegated")vmHost(b.c,game,b.s,[]).addEffect({target:b.incoming,kind:"negateSkill",value:40,until:"game"});
  const start=b.events.length;
  if(variant==="optional"){
-  const before=JSON.stringify(b.s),r=RULES.apply(b.c,b.s,{type:"activate",player:actor,card:b.mover,skill:0});assert.equal(r.state.outcome?.kind,"interrupted");assert.equal(r.events.some(e=>e.type==="move"),false);assert.equal(JSON.stringify(b.s),before);
+  b.activate();if(b.s.prompt.kind==="chooseMode"){assert.equal(b.s.prompt.player,owner);b.take({type:"chooseMode",player:owner,index:1});}finish(b,owner);assert.ok(b.s.sides[owner].zones.energy.includes(b.incoming));assert.ok(b.s.sides[actor].zones.drop.includes(b.red));assert.ok(b.s.sides[actor].zones.drop.includes(b.blue));
  }else{
   b.activate();if(variant!=="whole"){assert.equal(b.s.prompt.kind,"orderPending");assert.ok(b.s.pending.every(x=>x.card!==b.incoming||x.master===owner));assert.equal(b.s.pending.filter(x=>x.card===b.incoming&&x.skillIndex===50).length,1);}
   finish(b,owner);const draws=b.events.slice(start).filter(e=>e.type==="draw");assert.equal(draws.filter(e=>e.player===actor).length,1);assert.equal(draws.filter(e=>e.player===owner).length,variant==="whole"?0:variant==="arrivalNegated"?2:3);assert.ok(b.s.sides[owner].zones.energy.includes(b.incoming));
