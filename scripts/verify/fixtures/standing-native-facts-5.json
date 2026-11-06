@@ -1,0 +1,3662 @@
+{
+  "p1/empty": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        }
+      ],
+      "battle": null,
+      "candidates": []
+    }
+  },
+  "p1/king-arrives": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": []
+        }
+      ]
+    }
+  },
+  "p1/second-gotenks": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/protected-arrival": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        },
+        {
+          "card": "whis",
+          "cardId": "BT1-043",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/whis-external-negation": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        },
+        {
+          "card": "whis",
+          "cardId": "BT1-043",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            },
+            {
+              "card": "whis",
+              "cardId": "BT1-043",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            },
+            {
+              "card": "whis",
+              "cardId": "BT1-043",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/whis-expiry-under-original-source": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        },
+        {
+          "card": "whis",
+          "cardId": "BT1-043",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            },
+            {
+              "card": "whis",
+              "cardId": "BT1-043",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            },
+            {
+              "card": "whis",
+              "cardId": "BT1-043",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/forged-arrival": {
+    "refusal": {
+      "step": "fresh mixed arrival reuses a suppressed occurrence",
+      "issue": "R513",
+      "message": "the rules engine cannot fresh mixed arrival reuses a suppressed occurrence yet — R513 builds it"
+    }
+  },
+  "p1/takeover": {
+    "refusal": {
+      "step": "review mixed self-protection reactivation when original suppression ends",
+      "issue": "R513",
+      "message": "the rules engine cannot review mixed self-protection reactivation when original suppression ends yet — R513 builds it"
+    }
+  },
+  "p1/reverse-first": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": []
+        }
+      ]
+    }
+  },
+  "p1/reverse-second": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/goku-no-battle": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": []
+        }
+      ]
+    }
+  },
+  "p1/combo-6": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "card": "p2#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader"
+          },
+          "present": true
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/combo-7": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo6",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "card": "p2#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader"
+          },
+          "present": true
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/combo-8": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo6",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo7",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "card": "p2#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader"
+          },
+          "present": true
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/negated-attack": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo6",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo7",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "area": "leader",
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "holder": "p1",
+            "master": "p1",
+            "owner": "p1",
+            "side": "front"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "area": "leader",
+            "card": "p2#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "holder": "p2",
+            "master": "p2",
+            "owner": "p2",
+            "side": "front"
+          },
+          "present": true
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/unannounced-retirement": {
+    "refusal": {
+      "step": "retire changed mixed battle participation only from its original capture",
+      "issue": "R513",
+      "message": "the rules engine cannot retire changed mixed battle participation only from its original capture yet — R513 builds it"
+    }
+  },
+  "p1/opponent-retired": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo6",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "combo7",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "area": "leader",
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "holder": "p1",
+            "master": "p1",
+            "owner": "p1",
+            "side": "front"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "area": "leader",
+            "card": "p2#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "holder": "p2",
+            "master": "p2",
+            "owner": "p2",
+            "side": "front"
+          },
+          "present": false
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p1/dormant-timed-protection": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        }
+      ],
+      "battle": null,
+      "candidates": []
+    }
+  },
+  "p1/active-timed-protection": {
+    "refusal": {
+      "step": "observe timed beNegated protection with reviewed mixed-policy qualification",
+      "issue": "R513",
+      "message": "the rules engine cannot observe timed beNegated protection with reviewed mixed-policy qualification yet — R513 builds it"
+    }
+  },
+  "p2/empty": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        }
+      ],
+      "battle": null,
+      "candidates": []
+    }
+  },
+  "p2/king-arrives": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": []
+        }
+      ]
+    }
+  },
+  "p2/second-gotenks": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/protected-arrival": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "whis",
+          "cardId": "BT1-043",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/whis-external-negation": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "whis",
+          "cardId": "BT1-043",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "whis",
+              "cardId": "BT1-043",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            },
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            },
+            {
+              "card": "whis",
+              "cardId": "BT1-043",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/whis-expiry-under-original-source": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "whis",
+          "cardId": "BT1-043",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "whis",
+              "cardId": "BT1-043",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            },
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            },
+            {
+              "card": "whis",
+              "cardId": "BT1-043",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/forged-arrival": {
+    "refusal": {
+      "step": "fresh mixed arrival reuses a suppressed occurrence",
+      "issue": "R513",
+      "message": "the rules engine cannot fresh mixed arrival reuses a suppressed occurrence yet — R513 builds it"
+    }
+  },
+  "p2/takeover": {
+    "refusal": {
+      "step": "review mixed self-protection reactivation when original suppression ends",
+      "issue": "R513",
+      "message": "the rules engine cannot review mixed self-protection reactivation when original suppression ends yet — R513 builds it"
+    }
+  },
+  "p2/reverse-first": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": []
+        }
+      ]
+    }
+  },
+  "p2/reverse-second": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "king",
+          "cardId": "DB1-066",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "battle"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "gotenks",
+          "cardId": "BT10-153",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "battle"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "king",
+            "cardId": "DB1-066",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 0,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "gotenks",
+              "cardId": "BT10-153",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p2",
+              "holder": "p2",
+              "master": "p2",
+              "area": "battle"
+            }
+          ]
+        },
+        {
+          "source": {
+            "card": "gotenks",
+            "cardId": "BT10-153",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "battle",
+            "policy": "otherBattleWholeV1",
+            "skillIndex": 20,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"battle\",\"count\":99,\"filter\":{\"characterOrTrait\":false,\"characters\":[],\"charactersAll\":[],\"charactersIncluding\":[],\"colors\":[],\"comboPowerMax\":null,\"comboPowerMin\":null,\"costAboveEnergy\":false,\"costAtLeastEnergy\":false,\"costAtMostEnergy\":false,\"costBelowEnergy\":false,\"costMax\":null,\"costMin\":null,\"energyOfOpponent\":false,\"faceUp\":false,\"keywords\":[],\"markersMax\":null,\"markersMin\":null,\"monoColor\":false,\"multiColor\":false,\"nameInSkillTextOf\":null,\"names\":[],\"namesAll\":[],\"namesIncluding\":[],\"noKeywords\":false,\"notCharacters\":[],\"notCharactersIncluding\":[],\"notColors\":[],\"notKeywords\":[],\"notNames\":[],\"notNamesIncluding\":[],\"notToken\":false,\"notTraits\":[],\"notType\":null,\"onlyCharacters\":false,\"originalPowerMax\":null,\"originalPowerMin\":null,\"originallySkillLess\":false,\"powerMax\":null,\"powerMin\":null,\"powerRel\":null,\"skillKind\":null,\"skillLess\":false,\"specifiedCostMax\":null,\"specifiedCostMin\":null,\"specifiedCostNone\":false,\"token\":false,\"traits\":[],\"type\":\"BATTLE\",\"unreadable\":false,\"z\":null},\"notSelf\":\"card\",\"side\":\"both\",\"upTo\":false}},\"until\":\"game\"}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "king",
+              "cardId": "DB1-066",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "battle"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/goku-no-battle": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        }
+      ],
+      "battle": null,
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": []
+        }
+      ]
+    }
+  },
+  "p2/combo-6": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "card": "p1#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader"
+          },
+          "present": true
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/combo-7": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo6",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "card": "p1#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader"
+          },
+          "present": true
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/combo-8": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo6",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo7",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "card": "p1#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p1",
+            "holder": "p1",
+            "master": "p1",
+            "area": "leader"
+          },
+          "present": true
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/negated-attack": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo6",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo7",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "area": "leader",
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "holder": "p2",
+            "master": "p2",
+            "owner": "p2",
+            "side": "front"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "area": "leader",
+            "card": "p1#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "holder": "p1",
+            "master": "p1",
+            "owner": "p1",
+            "side": "front"
+          },
+          "present": true
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/unannounced-retirement": {
+    "refusal": {
+      "step": "retire changed mixed battle participation only from its original capture",
+      "issue": "R513",
+      "message": "the rules engine cannot retire changed mixed battle participation only from its original capture yet — R513 builds it"
+    }
+  },
+  "p2/opponent-retired": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "prum",
+          "cardId": "DB2-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "combo"
+        },
+        {
+          "card": "goku",
+          "cardId": "BT20-086",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        },
+        {
+          "card": "combo0",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo1",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo2",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo3",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo4",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo5",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo6",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        },
+        {
+          "card": "combo7",
+          "cardId": "F",
+          "epoch": 0,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "combo"
+        }
+      ],
+      "battle": {
+        "attacker": {
+          "occurrence": {
+            "area": "leader",
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "holder": "p2",
+            "master": "p2",
+            "owner": "p2",
+            "side": "front"
+          },
+          "present": true
+        },
+        "guard": {
+          "occurrence": {
+            "area": "leader",
+            "card": "p1#0",
+            "cardId": "L",
+            "epoch": 1,
+            "hiddenCount": 0,
+            "holder": "p1",
+            "master": "p1",
+            "owner": "p1",
+            "side": "front"
+          },
+          "present": false
+        }
+      },
+      "candidates": [
+        {
+          "source": {
+            "card": "goku",
+            "cardId": "BT20-086",
+            "epoch": 0,
+            "hiddenCount": 0,
+            "side": "front",
+            "owner": "p2",
+            "holder": "p2",
+            "master": "p2",
+            "area": "leader",
+            "policy": "opponentComboSevenInBattleV1",
+            "skillIndex": 10,
+            "skillIdentity": "{\"kind\":\"permanent\",\"ops\":[{\"cond\":{\"atLeast\":7,\"kind\":\"count\",\"sel\":{\"area\":\"combo\",\"side\":\"you\"}},\"op\":\"if\",\"then\":[{\"cond\":{\"kind\":\"inBattle\",\"sel\":{\"special\":\"self\"}},\"op\":\"if\",\"then\":[{\"op\":\"negateSkills\",\"target\":{\"sel\":{\"area\":\"combo\",\"count\":99,\"side\":\"opponent\",\"upTo\":false}},\"until\":\"game\"}]}]}],\"price\":{\"condition\":null,\"ops\":null,\"payment\":{\"burst\":null,\"either\":[],\"marker\":null,\"orbs\":{},\"readable\":true,\"spiritBoost\":null,\"version\":1}},\"trigger\":[],\"unsupported\":[],\"usage\":{\"limit\":null,\"oncePerTurn\":false,\"version\":1},\"validity\":{\"sparking\":null,\"version\":1}}"
+          },
+          "externalEnabled": true,
+          "targets": [
+            {
+              "card": "prum",
+              "cardId": "DB2-086",
+              "epoch": 0,
+              "hiddenCount": 0,
+              "side": "front",
+              "owner": "p1",
+              "holder": "p1",
+              "master": "p1",
+              "area": "combo"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "p2/dormant-timed-protection": {
+    "observation": {
+      "version": 2,
+      "policy": "mixedWholeV1",
+      "cards": [
+        {
+          "card": "p1#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p1",
+          "holder": "p1",
+          "master": "p1",
+          "area": "leader"
+        },
+        {
+          "card": "p2#0",
+          "cardId": "L",
+          "epoch": 1,
+          "hiddenCount": 0,
+          "side": "front",
+          "owner": "p2",
+          "holder": "p2",
+          "master": "p2",
+          "area": "leader"
+        }
+      ],
+      "battle": null,
+      "candidates": []
+    }
+  },
+  "p2/active-timed-protection": {
+    "refusal": {
+      "step": "observe timed beNegated protection with reviewed mixed-policy qualification",
+      "issue": "R513",
+      "message": "the rules engine cannot observe timed beNegated protection with reviewed mixed-policy qualification yet — R513 builds it"
+    }
+  }
+}
