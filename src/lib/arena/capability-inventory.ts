@@ -816,7 +816,7 @@ export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
   "arena-vm-r513-mixed-observation": "refuse|-|-",
   "arena-vm-r513-mixed-transaction": "refuse|-|-",
   "arena-vm-r513-mixed-history": "<top-level>|-|-",
-  "arena-vm-r513-mixed-read": "mixedStandingSkillsNegated|-|!(scopeCtx && history === state.mixedStandingNegationHistory) && (!seal || !mixedStandingNegationReadSealMatches(seal.ctx, state, history))",
+  "arena-vm-r513-mixed-read": "mixedStandingSkillsNegated|-|!(scopeCtx && state.mixedStandingNegationHistory && history === state.mixedStandingNegationHistory) && (!seal || !mixedStandingNegationReadSealMatches(seal.ctx, state, history))",
   "arena-vm-notyet-r510-receipt": "autoPlayRebuild|-|-",
   "arena-vm-notyet-r510-envelope": "prepareAutoPlayCost|-|problem",
   "arena-vm-notyet-r510-continuation": "payUnderOpponentPlay|-|frame.replacing || frame.replacementMove || frame.replacementAuto || frame.moveLoop",
