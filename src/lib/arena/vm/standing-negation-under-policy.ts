@@ -1,9 +1,10 @@
 /** Preparatory under-source policy. No native reader or admission imports this module. */
 import type { Skill } from "../types";
 import type { Op, Script } from "./script";
+import { skillPriceProblem, zeroSkillPrice } from "./skill-payment";
 import { emptyFilter } from "../text/filters";
 import { canonicalTaxValue as canonical } from "./tax-receipt";
-import { standingWholePrinted, standingWholeScript } from "./standing-negation-policy";
+import { standingWholePrinted } from "./standing-negation-policy";
 
 const target = { sel: { special: "onTop" as const, filter: { ...emptyFilter(), type: "BATTLE" as const } } };
 const operations: Op[] = [
@@ -17,10 +18,17 @@ export function standingUnderPrinted(skill: Skill): boolean {
     return !!skill && skill.effect?.trim().toLowerCase() === "negate the skills of battle cards on top of this card, and those cards can't attack."
         && standingWholePrinted({ ...skill, effect: "Negate the skills of all other Battle Cards." });
 }
+/** Complete immutable envelope; reviewed refusal does not make a Script admitted. */
+export function standingUnderEnvelope(script: Script | undefined, expectedUnsupported: readonly [] | readonly ["Permanent negateSkills is not collected as a runtime static"]): boolean {
+    return (canonical(expectedUnsupported) === "[]" || canonical(expectedUnsupported) === canonical(["Permanent negateSkills is not collected as a runtime static"]))
+        && !!script && script.kind === "permanent" && standingUnderDescriptor(script.ops)
+        && Array.isArray(script.unsupported) && canonical(script.unsupported) === canonical(expectedUnsupported)
+        && canonical(script.trigger) === "[]" && script.combo == null
+        && canonical(script.usage) === canonical({ version: 1, oncePerTurn: false, limit: null })
+        && canonical(script.validity) === canonical({ version: 1, sparking: null })
+        && !script.paidAdmission && !script.keepResolutionCondition && !script.playReplacement
+        && !skillPriceProblem(script.price) && canonical(script.price) === canonical(zeroSkillPrice());
+}
 export function standingUnderScript(script: Script | undefined): boolean {
-    if (!script || !standingUnderDescriptor(script.ops)) return false;
-    // Reuse the existing complete unqualified source-envelope validator only.
-    const whole: Op = { op: "negateSkills", target: { sel: { side: "both", area: "battle",
-        filter: { ...emptyFilter(), type: "BATTLE" }, count: 99, upTo: false, notSelf: "card" } }, until: "game" };
-    return standingWholeScript({ ...script, ops: [whole] });
+    return standingUnderEnvelope(script, []);
 }
