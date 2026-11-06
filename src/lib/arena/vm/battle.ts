@@ -257,7 +257,7 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       // R490 / 16-1-3 / 19-1-1: Z-Battle Cards and tokens are Battle targets too.
       const target = findCard(state, b.guard);
       const targetOpponentBattle = target?.zone === "battle" && target.owner === defender && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(attrsNow(ctx, game, state, b.guard).type));
-      fire(ctx, game, state, { event: "attackDeclared", card: b.attacker, controller: state.turnPlayer, args: { role: "attacker", ...(targetOpponentBattle ? { targetOpponentBattle: true } : {}), ...(findCard(state, b.attacker)?.zone === "battle" && attrsNow(ctx, game, state, b.attacker).type === "BATTLE" ? { battleCard: true } : {}) } });
+      fire(ctx, game, state, { event: "attackDeclared", card: b.attacker, controller: state.turnPlayer, args: { role: "attacker", ...(targetOpponentBattle ? { targetOpponentBattle: true } : {}), ...(findCard(state, b.attacker)?.zone === "battle" && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(attrsNow(ctx, game, state, b.attacker).type)) ? { battleCard: true } : {}) } });
       fire(ctx, game, state, { event: "attackDeclared", card: b.guard, controller: defender, args: attackTargetMomentArgs(ctx, game, state, b.guard, guardArea, true) });
     },
   },
@@ -1663,12 +1663,13 @@ function counterPrice(ctx: EngineContext, game: GameDefinition, state: VmState, 
   return { ...supplementary, energy: { total: Math.max(play.total, Object.values(play.orbs).reduce((n, count) => n + (count ?? 0), 0)) + own.total, orbs: mergeOrbs(play.orbs, own.orbs), either: own.either }, markers: 0, unreadable: null };
 }
 
-/** The base printed type, Z- stripped — the same reading `vm/play.ts`'s `PLAY_ZONES` and `vm/filters.ts` make of the `type` attribute. */
+/** The base printed type, Z- stripped and TOKEN read as BATTLE — the same reading `vm/play.ts`'s `PLAY_ZONES` and `vm/filters.ts` make of the `type` attribute. */
 function baseTypeOf(ctx: EngineContext, state: VmState, id: string): string {
   const inst = state.cards[id];
   const def = inst && ctx.defs[inst.cardId];
   if (!def) return "";
-  return String(def.type ?? "").replace(/^Z-/, "");
+  const type = String(def.type ?? "").replace(/^Z-/, "");
+  return type === "TOKEN" ? "BATTLE" : type;
 }
 
 /**
