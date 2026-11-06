@@ -319,3 +319,7 @@ R522 `4e545059` supports the complete original attack Auto with source-bound Bur
 ## Shared standing facts preparation after checkpoint 79
 
 R524 `51e73c29`/`2a2c08ba` extracts native area/protection facts while preserving v2 behavior and original v2/v3 history identity. It adds no card admission. Frozen oracle38 and prior-view21, existing native compatibility, combined type/lint/rulings296/165 and browser242/121 pass. The relocated R513 source-site identity is retained; registry252 includes the two new bounds. See [proof and limits](round-5/standing-native-facts.md). No compiler/loader changes or repeated catalog scan; joint under/area facts and P-045 payment support continue.
+
+## Support checkpoint 80: P-045 historical entire-Hand payment
+
+R525 `75da70ad`, registered `eb11d509`, supports P-045’s complete back Main with original whole-Hand capture and successful paid count. The front remains unread. New262/compatibility306 counted checks, Auto-cost scenarios, root native138/type/lint/rulings297/165 and browser245/121 pass. Full comparison includes the separately verified Great Priest source correction `30ed2ab3`: exactly three existing records change and `BT20-120#30` is added. Totals: **13,032 readable /934 unread**, runtime2/307/2,575, registry255. See [checkpoint80](round-5/support-eightieth-batch.md). The broader rules verifier also passes after stale Dark Over Realm expectation repair `6e10dbab`. Joint standing and incremental private look work continue toward complete support.
