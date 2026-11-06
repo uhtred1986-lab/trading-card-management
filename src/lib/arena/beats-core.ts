@@ -8,7 +8,7 @@
  * Checked by `scripts/verify/arena-browser-boundary.mts`.
  */
 import type { EngineContext, GameEvent, PlayerId } from "./types";
-import type { Beats, NumberedBeat } from "./beats";
+import type { Beats, NumberedBeat, RevealedMoveReceipt } from "./beats";
 import type { EngineState } from "./engines";
 import type { GameDefinition } from "./rulesets/types";
 import { revealedTo } from "./view-core";
@@ -72,11 +72,31 @@ export function relateBeats(list: NumberedBeat[], promptKind: string): void {
   });
 }
 
+/** Receipt provenance is the trusted event converter, not the shared art map. */
+function moveReceipt(beats: Beats, beat: NumberedBeat): RevealedMoveReceipt | null {
+  const r = beats.revealedMoves?.[beat.n];
+  if (beat.t !== "move" || beat.reveal !== true || !r || r.version !== 1 || !Number.isSafeInteger(beat.n) || beat.n < 1
+    || r.n !== beat.n || r.card !== beat.card || r.from !== beat.from || r.to !== beat.to || r.owner !== beat.owner
+    || !["hand", "deck", "life"].includes(r.to) || !r.art || typeof r.art.cardId !== "string" || !r.art.cardId
+    || typeof r.art.name !== "string" || !(r.art.imageUrl === null || typeof r.art.imageUrl === "string")) return null;
+  return r;
+}
+
 /** Add a batch to a game's queue, keeping it bounded. */
 export function appendBeats(prev: Beats | null, next: Beats): Beats {
   const before = prev ?? EMPTY_BEATS;
   const list = [...before.list, ...next.list].slice(-BEAT_CAP);
-  return { seq: next.seq, list, art: { ...before.art, ...next.art } };
+  const revealedMoves: NonNullable<Beats["revealedMoves"]> = {};
+  const counts = new Map<number, number>();
+  for (const beat of list) counts.set(beat.n, (counts.get(beat.n) ?? 0) + 1);
+  for (const beat of list) {
+    // Duplicated sequence numbers cannot identify one historical event.
+    if (counts.get(beat.n) !== 1) continue;
+    const batch = next.list.includes(beat) ? next : before;
+    const receipt = moveReceipt(batch, beat);
+    if (receipt) revealedMoves[beat.n] = { ...receipt, art: { ...receipt.art } };
+  }
+  return { seq: next.seq, list, art: { ...before.art, ...next.art }, ...(Object.keys(revealedMoves).length ? { revealedMoves } : {}) };
 }
 
 /**
@@ -122,8 +142,19 @@ export function maskBeats(state: EngineState, beats: Beats | null, viewer: Playe
     && (b.text !== "" || b.label !== "Skill");
   const masksSkill = beats.list.some(hiddenSkill);
   const hasPrivateEpoch = beats.list.some((b) => (b.t === "skill" || b.t === "autoDeclared") && b.revealEpoch !== undefined);
-  if (!masksSkill && !hasPrivateEpoch && Object.keys(art).length === Object.keys(beats.art).length) return beats;
+  const hasMoveReceipts = beats.revealedMoves !== undefined;
+  if (!masksSkill && !hasPrivateEpoch && !hasMoveReceipts && Object.keys(art).length === Object.keys(beats.art).length) return beats;
+  const counts = new Map<number, number>();
+  for (const beat of beats.list) counts.set(beat.n, (counts.get(beat.n) ?? 0) + 1);
   const list = beats.list.map((b) => {
+    const receipt = moveReceipt(beats, b);
+    if (receipt && counts.get(b.n) === 1) {
+      // One public historical occurrence, never a physical-card alias. Older
+      // draws/skills and later hidden moves receive no authorization from it.
+      const alias = `?revealed:${b.n}`;
+      art[alias] = { cardId: receipt.art.cardId, name: receipt.art.name, imageUrl: receipt.art.imageUrl };
+      return { ...b, card: alias };
+    }
     if (b.t !== "skill" && b.t !== "autoDeclared") return b;
     // This authorization key belongs only to the server's saved match; never
     // put it in either viewer's returned beat history.
@@ -131,5 +162,7 @@ export function maskBeats(state: EngineState, beats: Beats | null, viewer: Playe
     delete publicBeat.revealEpoch;
     return hiddenSkill(b) ? { ...publicBeat, label: "Skill", text: "" } : publicBeat;
   });
-  return { ...beats, list, art };
+  const result = { ...beats, list, art };
+  delete result.revealedMoves;
+  return result;
 }

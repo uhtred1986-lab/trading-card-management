@@ -94,7 +94,20 @@ export interface BeatArt {
   imageUrl: string | null;
 }
 
+/** Private receipt from trusted event-to-beat conversion, never a client field. */
+export interface RevealedMoveReceipt {
+  version: 1;
+  n: number;
+  card: string;
+  from: Area;
+  to: Area;
+  owner: PlayerId;
+  art: BeatArt;
+}
+
 export interface Beats {
+  /** Frozen within the current engine batch; keyed by event beat, not card. */
+  revealedMoves?: Record<string, RevealedMoveReceipt>;
   /** The highest `n` in `list`. Monotonic for the life of the queue. */
   seq: number;
   list: NumberedBeat[];

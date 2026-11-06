@@ -153,6 +153,9 @@ export function conceal<T>(value: T, aliases: AliasTable, as?: string): T {
  */
 export function concealBeats(beats: Beats | null, aliases: AliasTable, secret: SecretAreas): Beats | null {
   if (!beats) return null;
+  // maskBeats has already converted authenticated public move occurrences to
+  // ?revealed:<beat number>, with only their frozen face. These are neither
+  // physical IDs nor actionable board aliases; other beats still mask below.
   const masked = beats.list.map((b) => historicalMask(b, secret));
   const shownIds = new Set(Object.keys(beats.art).filter((id) => has(aliases, id)));
   const shownAs = new Map<string, string>();
