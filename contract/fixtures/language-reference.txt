@@ -447,8 +447,14 @@
     {
       "name": "look",
       "class": "macro over `reveal`",
-      "signature": "{\"op\":\"look\",\"n\":AMOUNT,\"as\":\"…\",\"side\"?:\"you\"|\"opponent\",\"from\"?:\"top\"|\"bottom\",\"area\"?:AREA}",
+      "signature": "{\"op\":\"look\",\"upTo\"?:true|false,\"n\":AMOUNT,\"as\":\"…\",\"side\"?:\"you\"|\"opponent\",\"from\"?:\"top\"|\"bottom\",\"area\"?:AREA}",
       "fields": [
+        {
+          "name": "upTo",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
         {
           "name": "n",
           "required": true,
@@ -493,8 +499,14 @@
     {
       "name": "reveal",
       "class": "primitive",
-      "signature": "{\"op\":\"reveal\",\"sel\":SELECTOR,\"as\":\"…\",\"audience\"?:\"you\"|\"both\"}",
+      "signature": "{\"op\":\"reveal\",\"incremental\"?:true|false,\"sel\":SELECTOR,\"as\":\"…\",\"audience\"?:\"you\"|\"both\"}",
       "fields": [
+        {
+          "name": "incremental",
+          "required": false,
+          "nullable": false,
+          "type": "boolean"
+        },
         {
           "name": "sel",
           "required": true,
