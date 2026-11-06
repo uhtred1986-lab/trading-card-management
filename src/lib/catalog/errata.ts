@@ -47,6 +47,9 @@ function spaceBeforeKeyword(text: string): string {
  * be caught by `npm test`, which has no catalog to read.
  */
 export const CORRECTIONS: Record<string, [RegExp, string][]> = {
+  // The export joins the quoted granted skill to the separate four-colour Main skill (6 Nov 2026):
+  // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT20-120.png
+  "BT20-120": [[/(in\s+your\s+hand\.")(\[activate:\s*main\]\s*\[limit\s+1\]\s*\{r\}\{u\}\{g\}\{y\})/gi, "$1<br>$2"]],
   // Catalog export omits the Unison quantity; Bandai's card list and art both say 1 (6 Nov 2026):
   // https://www.dbs-cardgame.com/images/cardlist/cardimg/BT25-083.png
   "BT25-083": [[/choose\s+up\s+to\s+(?=of\s+your\s+opponent's\s+Unisons)/g, "choose up to 1 "]],
