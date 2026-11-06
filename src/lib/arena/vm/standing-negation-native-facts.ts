@@ -12,6 +12,7 @@ import type { Op, Script } from "./script";
 import type { VmState } from "./state";
 import { canonicalTaxValue as canonical } from "./tax-receipt";
 import { requireResolvedGrantHistory, resolvedGrantDeleted } from "./resolved-grant-deletion";
+import { standingUnderPrinted, standingUnderScript } from "./standing-negation-under-policy";
 import { standingWholePrinted, standingWholeScript, standingComboWholePrinted, standingComboWholeScript } from "./standing-negation-policy";
 import { mixedStandingNegationSourceKey as sourceKey } from "./standing-negation-mixed-history";
 import { standingPriorFacts, type StandingPriorView } from "./standing-negation-prior-view";
@@ -133,7 +134,7 @@ export function nativeAreaStandingFacts(token: NativeAreaStandingDiscovery): Nat
     return structuredClone(requireDiscovery(token).facts);
 }
 function discoverArea(ctx: EngineContext, game: GameDefinition, state: VmState,
-    battle: Observation["battle"], additionalPolicy = false): DiscoveredArea {
+    battle: Observation["battle"], additionalPolicy = false, nativeUnder = false): DiscoveredArea {
     const cards = mixedStandingOccurrences(ctx, game, state);
     if (!!battle !== !!state.battle)
         refuse("bind mixed battle participation through an explicit native assignment");
@@ -167,6 +168,7 @@ function discoverArea(ctx: EngineContext, game: GameDefinition, state: VmState,
         // Battle text does not become an active source simply by entering Combo.
         if (!activeArea)
             continue;
+        if (nativeUnder && standingUnderPrinted(skill) && standingUnderScript(script)) continue;
         if (!printedIntent(skill.effect) && !contains(script?.ops, "whole"))
             continue;
         let policy: Source["policy"];
@@ -286,4 +288,13 @@ function collectProtectors(ctx: EngineContext, state: VmState, value: Discovered
             protectors.add(occurrence.card);
     }
     return protectors;
+}
+
+/** Native v3 only: an exact admitted under descriptor is not an area source. */
+export function discoverNativeUnderAwareAreaFacts(ctx: EngineContext, game: GameDefinition, state: VmState,
+    battle: Observation["battle"], additionalPolicy: boolean): NativeAreaStandingDiscovery {
+    const value = discoverArea(ctx, game, state, battle, additionalPolicy, true);
+    const token = Object.freeze({}) as NativeAreaStandingDiscovery;
+    discoveries.set(token, { value, snapshot: discoverySnapshot(ctx, state) });
+    return token;
 }

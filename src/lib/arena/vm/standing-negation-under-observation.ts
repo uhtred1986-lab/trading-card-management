@@ -15,6 +15,7 @@ import { standingWholePrinted, standingWholeScript, standingComboWholePrinted } 
 import { reviewUnderStandingDefinitions, requireReviewedUnderDefinition, type ReviewedUnderDefinition } from "./standing-negation-under-definition";
 import { validateUnderStandingHistory, type UnderHistory, type UnderObservation } from "./standing-negation-under-history";
 import { requireUnderRelations, requireUnderOccurrence, underRebuild as fail, type UnderOccurrence } from "./standing-negation-under-relation";
+import { nativeUnderDefinitions } from "./under-native-policy";
 import { nativeAreaStandingFacts, requireNativeAreaStandingDiscovery, type NativeAreaStandingDiscovery } from "./standing-negation-native-facts";
 const protection: Op = { op: "forbid", what: "beNegated", until: "game", target: { sel: { special: "self" } } };
 const attack: Op = { op: "permit", what: "attackUnnegatable", until: "game", target: { sel: { special: "self" } } };
@@ -77,7 +78,7 @@ export function observeUnderStandingFacts(ctx: EngineContext, game: GameDefiniti
 
 /** Actual physical discovery only; qualification and history remain separate. */
 function discoverUnder(ctx: EngineContext, game: GameDefinition, state: VmState,
-    reviewed: readonly ReviewedUnderDefinition[]) {
+    reviewed: readonly ReviewedUnderDefinition[], native = false) {
     if (!Array.isArray(reviewed) || new Set(reviewed.map(x => `${x?.cardId}:${x?.side}:${x?.skill?.index}`)).size !== reviewed.length)
         return fail("rebuild distinct original under review descriptors");
     reviewed.forEach(value => requireReviewedUnderDefinition(ctx, value));
@@ -88,9 +89,10 @@ function discoverUnder(ctx: EngineContext, game: GameDefinition, state: VmState,
     for (const fact of physical) {
         const instance = state.cards[fact.occurrence.card], def = ctx.defs[instance.cardId];
         if (!def) return fail("observe complete physical card definitions");
-        const actual = reviewUnderStandingDefinitions(ctx, instance.cardId, fact.occurrence.side);
+        const actual = native ? nativeUnderDefinitions(ctx, instance.cardId, fact.occurrence.side)
+            : reviewUnderStandingDefinitions(ctx, instance.cardId, fact.occurrence.side);
         if (!actual.length) continue;
-        if (actual.some(value => !reviewed.some(item => canonical(item) === canonical(value))))
+        if (!native && actual.some(value => !reviewed.some(item => canonical(item) === canonical(value))))
             return fail("review every actual under policy before observing its source");
         if (!fact.hosts.length) {
             if (fact.locations.length !== 1) return fail("bind unattached reviewed source to its physical area");
@@ -122,7 +124,7 @@ function discoverUnder(ctx: EngineContext, game: GameDefinition, state: VmState,
     return { cards, physical, under, piles };
 }
 function collectUnderProtection(ctx: EngineContext, state: VmState,
-    discovery: ReturnType<typeof discoverUnder>, area?: NativeAreaStandingDiscovery): Set<string> {
+    discovery: ReturnType<typeof discoverUnder>, area?: NativeAreaStandingDiscovery, native = false): Set<string> {
     const { physical, under } = discovery;
     const areaCandidates = area ? nativeAreaStandingFacts(area).candidates : [];
     // Do not hide unsupported board policies simply because no current under output is enabled.
@@ -137,6 +139,11 @@ function collectUnderProtection(ctx: EngineContext, state: VmState,
             if (skill.kind !== "permanent") continue;
             if (under.some(candidate => candidate.source.occurrence.card === id && candidate.source.skillIndex === skill.index)) continue;
             const script = scripts.bySkill[skill.index];
+            // An exact admitted under-only line has no standing output while
+            // unattached, including an Extra charged into Energy. Other lines
+            // on that complete original card still pass the normal guards.
+            if (native && !fact.hosts.length && nativeUnderDefinitions(ctx, instance.cardId, fact.occurrence.side)
+                .some(definition => definition.skill.index === skill.index)) continue;
             if (!script || !Array.isArray(script.ops) || !Array.isArray(script.unsupported) || script.unsupported.length)
                 return fail("review complete relevant Permanent records before under protection qualification");
             if (standingWholePrinted(skill) || standingComboWholePrinted(skill)) {
@@ -177,7 +184,7 @@ declare const underDiscoveryBrand: unique symbol;
 export interface UnderStandingDiscovery { readonly [underDiscoveryBrand]: true }
 interface UnderDiscovery {
     ctx: EngineContext; game: GameDefinition; state: VmState;
-    snapshot: string; facts: ReturnType<typeof discoverUnder>;
+    snapshot: string; facts: ReturnType<typeof discoverUnder>; native: boolean;
 }
 const underDiscoveries = new WeakMap<UnderStandingDiscovery, UnderDiscovery>();
 function underDiscoverySnapshot(ctx: EngineContext, state: VmState): string {
@@ -192,7 +199,7 @@ export function discoverUnderStandingCandidates(ctx: EngineContext, game: GameDe
     reviewed: readonly ReviewedUnderDefinition[]): UnderStandingDiscovery {
     const facts = discoverUnder(ctx, game, state, reviewed);
     const token = Object.freeze({}) as UnderStandingDiscovery;
-    underDiscoveries.set(token, { ctx, game, state, snapshot: underDiscoverySnapshot(ctx, state), facts });
+    underDiscoveries.set(token, { ctx, game, state, snapshot: underDiscoverySnapshot(ctx, state), facts, native: false });
     return token;
 }
 function requireUnderDiscovery(ctx: EngineContext, game: GameDefinition, state: VmState, token: UnderStandingDiscovery) {
@@ -209,5 +216,18 @@ export function discoverUnderStandingProtection(ctx: EngineContext, game: GameDe
     token: UnderStandingDiscovery, area?: NativeAreaStandingDiscovery): Set<string> {
     const facts = requireUnderDiscovery(ctx, game, state, token);
     if (area) requireNativeAreaStandingDiscovery(ctx, game, state, area);
-    return collectUnderProtection(ctx, state, facts, area);
+    return collectUnderProtection(ctx, state, facts, area, underDiscoveries.get(token)!.native);
+}
+
+/** Strict admitted definitions only; isolated review descriptors cannot enter. */
+export function discoverNativeUnderCandidates(ctx: EngineContext, game: GameDefinition, state: VmState): UnderStandingDiscovery {
+    const facts = discoverUnder(ctx, game, state, [], true);
+    const token = Object.freeze({}) as UnderStandingDiscovery;
+    underDiscoveries.set(token, { ctx, game, state, snapshot: underDiscoverySnapshot(ctx, state), facts, native: true });
+    return token;
+}
+
+export function requireNativeUnderDiscovery(ctx: EngineContext, game: GameDefinition, state: VmState, token: UnderStandingDiscovery): void {
+    requireUnderDiscovery(ctx, game, state, token);
+    if (!underDiscoveries.get(token)!.native) return fail("use admitted native under discovery rather than a review descriptor");
 }

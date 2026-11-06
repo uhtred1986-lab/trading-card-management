@@ -9,8 +9,8 @@ import { underRebuild as fail, underStandingSourceKey, type UnderRelationChange 
 import { validateUnderStandingHistory, emptyUnderStandingHistory, settleUnderStanding, readUnderStandingPlan, type UnderHistory, type UnderObservation } from "./standing-negation-under-history";
 import { priorStandingView, standingPriorFacts } from "./standing-negation-prior-view";
 import { mixedStandingNegationSourceKey } from "./standing-negation-mixed-history";
-import { mixedStandingOccurrences as valueOccurrences, discoverNativeAreaStandingFacts, nativeAreaStandingFacts, discoverNativeStandingProtectors } from "./standing-negation-native-facts";
-import { discoverUnderStandingCandidates, discoverUnderStandingProtection, underStandingCandidateFacts, underPhysicalFacts } from "./standing-negation-under-observation";
+import { mixedStandingOccurrences as valueOccurrences, requireNativeAreaStandingDiscovery, discoverNativeAreaStandingFacts, nativeAreaStandingFacts, discoverNativeStandingProtectors } from "./standing-negation-native-facts";
+import { discoverUnderStandingCandidates, discoverUnderStandingProtection, underStandingCandidateFacts, requireNativeUnderDiscovery, underPhysicalFacts } from "./standing-negation-under-observation";
 import type { ReviewedUnderDefinition } from "./standing-negation-under-definition";
 
 declare const brand: unique symbol;
@@ -82,19 +82,32 @@ export function qualifyJointStandingFacts(ctx: EngineContext, game: GameDefiniti
     if (!value || value.ctx !== ctx || value.game !== game || value.state !== state
         || value.snapshot !== jointStandingSnapshot(ctx, state))
         return fail("qualify the unchanged original joint discovery on its captured board");
-    const facts = nativeAreaStandingFacts(value.area);
+    return qualifyDiscoveries(ctx, game, state, value.history, value.area, value.under, value.arrivals, false);
+
+}
+
+/** Shared qualification; discovery tokens still bind actual current facts. */
+function qualifyDiscoveries(ctx: EngineContext, game: GameDefinition, state: VmState, history: UnderHistory,
+    areaDiscovery: ReturnType<typeof discoverNativeAreaStandingFacts>,
+    underDiscovery: ReturnType<typeof discoverUnderStandingCandidates>,
+    arrivals: UnderObservation["area"]["cards"], native: boolean) {
+    requireNativeAreaStandingDiscovery(ctx, game, state, areaDiscovery);
+    const facts = nativeAreaStandingFacts(areaDiscovery);
     const area: UnderObservation["area"] = { version: 2, policy: "mixedWholeV1", ...facts };
-    const underFacts = underStandingCandidateFacts(ctx, game, state, value.under);
+    const underFacts = underStandingCandidateFacts(ctx, game, state, underDiscovery);
     const under = underFacts.under;
+    if (native && !area.candidates.length && !under.length && !history.negated.length) return {
+        observation: { version: 3 as const, policy: "underAwareWholeV1" as const, area, piles: underFacts.piles, under }, sources: [],
+    };
     // The stricter v3 scan proves inactive piles and broad/unknown protection;
     // legacy native v2 retains its original qualification path untouched.
-    const protectors = discoverUnderStandingProtection(ctx, game, state, value.under, value.area);
-    const nativeProtectors = discoverNativeStandingProtectors(ctx, game, state, value.area);
+    const protectors = discoverUnderStandingProtection(ctx, game, state, underDiscovery, areaDiscovery);
+    const nativeProtectors = discoverNativeStandingProtectors(ctx, game, state, areaDiscovery);
     for (const id of nativeProtectors) protectors.add(id);
-    const prior = standingPriorFacts(priorStandingView(value.history));
+    const prior = standingPriorFacts(priorStandingView(history));
     for (const target of area.cards.filter(card => protectors.has(card.card))) {
         const edges = prior.edges.filter(edge => canonical(edge.target) === canonical(target));
-        if (value.arrivals.some(arrival => canonical(arrival) === canonical(target))) {
+        if (arrivals.some(arrival => canonical(arrival) === canonical(target))) {
             if (edges.length) return fail("fresh joint arrival cannot reuse prior suppressed occurrence");
             continue;
         }
@@ -123,6 +136,13 @@ export function qualifyJointStandingFacts(ctx: EngineContext, game: GameDefiniti
     const sources = under.map(candidate => ({ sourceKey: underStandingSourceKey(candidate.source),
         master: candidate.relation.host.holder, owner: candidate.source.occurrence.owner }));
     return structuredClone({ observation, sources });
+}
+/** Native transaction module supplies already validated original arrivals/roles. */
+export function qualifyNativeStandingDiscoveries(ctx: EngineContext, game: GameDefinition, state: VmState, history: UnderHistory,
+    area: ReturnType<typeof discoverNativeAreaStandingFacts>, under: ReturnType<typeof discoverUnderStandingCandidates>,
+    arrivals: UnderObservation["area"]["cards"]) {
+    requireNativeUnderDiscovery(ctx, game, state, under);
+    return qualifyDiscoveries(ctx, game, state, history, area, under, arrivals, true);
 }
 
 
