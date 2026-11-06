@@ -34,7 +34,11 @@ defs.DROP=card("DROP",{skill:"[Activate: Battle] Choose up to 1 card in your Com
 const copy=<T,>(x:T):T=>JSON.parse(JSON.stringify(x));
 const records=Object.values(defs).flatMap(skillRecords);
 for(const key of keys){const old=fixtures[key].record;const row=records.find(r=>r.cardId===old.cardId&&r.skillIndex===old.skillIndex)!;assert.ok(row,key);assert.deepEqual(row.unread,[]);assert.deepEqual(copy(row.ops),fixtures[key].expectedOps);assert.deepEqual(copy(row.cond),fixtures[key].expectedCond);for(const field of ["printed","trigger","combo","cost","usage","validity"] as const)assert.deepEqual(copy(row[field]),old[field],`${key}/${field}`);}
-for(const old of Object.values(fixtures.refused))assert.ok(skillRecords(card("refused",{skill:old.printed}))[0].unread.length);
+for(const old of Object.values(fixtures.refused)){
+ const r=skillRecords(card("refused",{skill:old.printed}))[0];
+ if(old.cardId==="BT4-019"){assert.deepEqual(r.unread,[]);assert.deepEqual(r.trigger,["attacks","playedUsingUnionPotara"]);assert.equal(r.cond,null);}
+ else assert.ok(r.unread.length);
+}
 for(const tail of [" from your hand"," during your turn"," by your Leader's skill"]){const text=fixtures["P-656#10"].record.printed.replace("used in a combo,",`used in a combo${tail},`);assert.ok(skillRecords(card("unrepresented",{skill:text}))[0].unread.length);}
 const ctx:EngineContext={defs,scripts:rulesFromRows(copy(records.map((r,id)=>({...r,id,status:"confirmed",source:"compiler"}) as unknown as RuleRow)),defs)};
 const loaded=rulesetFor("dbs");assert.ok(loaded.ok);const game=loaded.definition;

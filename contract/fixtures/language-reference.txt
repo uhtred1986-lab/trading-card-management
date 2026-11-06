@@ -5324,6 +5324,10 @@
       "words": "when this card is played using [Dark Over Realm]"
     },
     {
+      "name": "playedUsingUnionPotara",
+      "words": "when this card is played using [Union-Potara]"
+    },
+    {
       "name": "yourOtherBattlePlayedUsingDarkOverRealm",
       "words": "when another of your Battle Cards is played using [Dark Over Realm]"
     },

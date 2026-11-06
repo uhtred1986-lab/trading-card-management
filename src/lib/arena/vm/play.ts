@@ -271,7 +271,7 @@ export function resolvePlay(
     const by = negating;
     for (const kind of opts.negatedKinds) addEffect(state, ev, { target: card, kind: "negateSkillKind", value: kind, until: opts.negatedUntil, master: by.player, source: by.source });
   };
-  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], { ...cause, beforeTriggers });
+  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], { ...cause, ...(opts.using ? { using: opts.using } : {}), beforeTriggers });
   else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause, beforeTriggers });
   // 22-15: the card remembers which keyword played it, for the rest of the
   // turn — P-048's "during the turn you played it with [Over Realm]"
@@ -328,6 +328,12 @@ export function resolvePlay(
   // [Swap]" (BT4-083), "…using [Arrival]" (BT25-129), "…with the skill of
   // {Majin Buu's Sealed Ball}" (BT2-028), "…without using skills" (BT15-042).
   const playedBy = opts.by === "skill" ? (opts.byCard ?? "") : undefined;
+  // R487: the paired body has no shared playedUsing IF: attacks are independent.
+  for (const pending of [...state.pending]) {
+    if (!pendedBefore.has(pending) && pending.kind !== "hook" && pending.card === card
+        && pending.trigger === "playedUsingUnionPotara" && !(success && opts.using === "Union-Potara"))
+      state.pending.splice(state.pending.indexOf(pending), 1);
+  }
   const gated = state.pending.filter((p): p is VmPending => !pendedBefore.has(p) && p.card === card && p.kind !== "hook" && (p.trigger === "played" || p.trigger === "playedFromHand" || p.trigger === "playedFromDrop"));
   if (gated.length) {
     const scripts = skillsShowing(ctx, state, card).scripts;
@@ -390,7 +396,7 @@ export function resolvePlay(
  * (8-1-7-1). The card underneath answers no moment: it has not left the area
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
-function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; beforeTriggers?: () => void } = {}): void {
+function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; using?: string; beforeTriggers?: () => void } = {}): void {
   refuseEnergyEntryProcedure(state, [card, host, ...extra]);
   refuseStandingNegationMutation(state, "stack play", ctx, to === "battle" ? card : undefined);
   const slot = state.sides[player].zones[to].indexOf(host);

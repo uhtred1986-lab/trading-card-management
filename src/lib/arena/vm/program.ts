@@ -1,3 +1,4 @@
+import { requirePairedSelf } from "./paired-self";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
 import { beginStandingNegationMutation, finishStandingNegationMutation, validateStandingNegationRead } from "./standing-negation-runtime";
 import { captureCopiedSkill } from "./triggers";
@@ -1684,6 +1685,10 @@ function narrowsBy(f: CardFilter): string[] {
  * `observing` skips only selection/immunity protections, preserving area, ownership and every description.
  */
 export function resolveSelector(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, sel: Selector, observing = false): string[] {
+  if (sel.special === "self" && frame.pairedSelf) {
+    requirePairedSelf(state, frame.card, frame.pairedSelf);
+    if (state.cards[frame.card].pairedSelfToken !== frame.pairedSelf.token) return [];
+  }
   // R-362 / 3-1-4: the Auto's other effects still resolve, but this face-up Life card cannot be a later occurrence.
   // Restrict the guard to its original Life reference; a move performed by the skill may legitimately use it elsewhere.
   if (sel.special === "self" && sel.area === "life" && frame.faceUpLifeEpoch !== undefined) {

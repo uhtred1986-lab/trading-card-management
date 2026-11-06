@@ -86,6 +86,8 @@ export interface VmCard {
   id: string;
   /** Increases on a new area entry, so a standing grant from this copy is not reused after it leaves and returns. */
   zoneEpoch?: number;
+  /** R487 scoped self reference; retained movement preserves it, a new occurrence advances it. */
+  pairedSelfToken?: number;
   /** The catalog id (`BT18-020`), which is what `ctx.defs` is keyed by. */
   cardId: string;
   /** Whose card it is. A card in an opponent's area still belongs to its owner (3-1-6). */
@@ -378,6 +380,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     const leaderUnderZLeader = from?.zone === "leader" && at.zone === "leader" && onTop.zCard === true;
     if (!leaderUnderZLeader) {
       card.zoneEpoch = (card.zoneEpoch ?? 0) + 1;
+      if (card.pairedSelfToken !== undefined) card.pairedSelfToken = card.zoneEpoch;
       card.usedThisTurn = []; // 3-1-4: a new card, so a fresh [Once per turn] (#746)
       reset(card, null);
     }
@@ -490,6 +493,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
     reset(card, zone);
   }
   else if (zone.modes && !zone.modes.includes(card.mode ?? "")) card.mode = arrivalMode(zone);
+  if (!keepsOverRealm && card.pairedSelfToken !== undefined) card.pairedSelfToken = card.zoneEpoch ?? 0;
   if (opts.mode !== undefined) card.mode = opts.mode;
   // 20-9-2: a carrying move (gaining control) keeps the card's markers as it
   // keeps everything else about it — the legacy `move`'s `carry`, which skips

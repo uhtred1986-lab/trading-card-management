@@ -18,7 +18,7 @@
  *
  * Proved here: the records of all eight cards from their printed texts (shape,
  * nothing newly unread, the rules language round trip), BT4-019 front#30
- * ("…played using [union-potara] or attacks") still refused, BT6-036's later
+ * ("…played using [union-potara] or attacks") independently represented (R487), BT6-036's later
  * condition still not a gate; and on the VM, both seats, the records through a
  * stored-row JSON round trip and every action through a state JSON round
  * trip: it fires on a successful [Union] entry ([Union-Fusion] BT5-039,
@@ -90,9 +90,12 @@ for (const [id, index, ops, unread] of CARDS) {
 }
 {
   // BT4-019 front#30: "…played using [union-potara] or attacks" — one half
-  // gated, the other not, has no reading here: still refused, not widened.
+  // qualified, the other unrestricted: independent typed moments (R487).
   const r = skillRecords(printed("BT4-019")).find((x) => x.skillIndex === 30)!;
-  assert.ok(r.unread.length > 0, "BT4-019 front#30 stays unread");
+  assert.deepEqual(r.unread, []);
+  assert.deepEqual(r.trigger, ["attacks", "playedUsingUnionPotara"]);
+  assert.deepEqual(r.ops, [{ op: "draw", n: 1 }, { op: "power", target: { sel: { special: "self" } }, amount: 5000, until: "turn" }]);
+  language(r, "BT4-019 paired Potara/attack");
   assert.equal(r.cond, null);
   // BT6-036's "…and if this card was played using [union], draw 1 more card": a later condition, not a gate.
   const v = skillRecords(card("V", { skill: "[auto] When you play this card, draw 1 card, and if this card was played using [union], draw 1 more card." }))[0];

@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Independent Potara play and attack; bounded self reference (R-487)",
+    body: "BT4-019's exact draw-one and self-plus-5000 Auto answers a successful Union-Potara stack or each attack independently. Ordinary play does not trigger it; attacks need no Potara history. Native stack movement carries the keyword provenance and retracts only a failed arrival's new pending occurrence. The exact paired program captures its own source occurrence when either moment enters pending. Draw still resolves after the source leaves, but self power cannot reach a new Hand, replayed or under-card occurrence. Battle/Unison-to-Battle/Unison/Combo and Combo-to-Battle retained routes, including a change of controller, preserve the scoped reference; other movement advances it. Missing or malformed saved captures require rebuilding. This contract admits only the exact draw and self-power body, not self movement or choice tails. Copied versions refuse explicitly. The card's FAQ preserves material power changes but not granted skills. This does not repair general Auto self references or R454 effect cleanup.",
+  },
+  {
     title: "Played or battle-end Combo alternatives (R-485)",
     body: "P-656 answers a play or its actual normal Combo-to-Drop cleanup at battle end. BT16-131 and BT16-143 independently require Hand origin for both alternatives. The existing played/playedFromHand and comboed declarations keep their stored timing and origin qualification; a comma before Sawar's second alternative is trigger text, not an effect. Combo entry, mid-battle departure and cleanup replaced away from Drop do not satisfy the battle-end alternative. Printed Auto prices and conditions remain intact, including P-656's Yellow payment and Sawar's multicolor Energy condition. Other paired heads and unrepresented origin/turn qualifications remain unread. This admits the three complete Auto bodies without changing the Combo runtime or broader movement lifetimes.",
   },

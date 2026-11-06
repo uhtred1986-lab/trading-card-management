@@ -1,3 +1,4 @@
+import { capturePairedSelf, pairedSelfScript, type PairedSelf } from "./paired-self";
 import { resolvedGrantDeleted, resolvedGrantReceipt } from "./resolved-grant-deletion";
 import { canonicalTaxValue } from "./tax-receipt";
 import { recordedSkillIdentity } from "./skill-identity";
@@ -137,6 +138,7 @@ export interface VmPending {
   selfEnteredUsing?: string;
   /** R-362: the own-Life Auto keeps the occurrence which was turned face up. */
   faceUpLifeEpoch?: number;
+  pairedSelf?: PairedSelf;
   /**
    * #930: the same memory of the moment's `subject` — "when your <X> card is
    * played by a [Union] skill" (BT22-033, BT25-036 back) asks how that card
@@ -771,7 +773,9 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // move it again at the checkpoint.
       const movementInfo = subjectInfo ?? (["comboToDrop", "youComboFromHand", "youComboFromBattle"].includes(match.trigger) && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
       const copiedSkillCapture = captureCopiedSkill(state, match.card, sk, script);
+      if (pairedSelfScript(script) && copiedSkillCapture) throw new NotYet("copied paired self-power occurrence is not yet supported", "R487");
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
+        ...(pairedSelfScript(script) ? { pairedSelf: capturePairedSelf(state, match.card, script!) } : {}),
         ...(copiedSkillCapture ? { copiedSkillCapture } : {}),
         ...(ownFaceUpLife ? { faceUpLifeEpoch: state.cards[match.card]?.zoneEpoch ?? 0 } : {}),
         ...(movementInfo && match.subject ? { subjectInfo: movementInfo } : {}),
