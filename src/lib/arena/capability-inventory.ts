@@ -475,6 +475,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-r517-pile-release", file: "src/lib/arena/vm/pile-release-cleanup.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-517; RM23-2-5/23-2-6; pending RM14-1-5 versus general Z-Battle FAQ", detail: "Regular pile release requires a synchronous capture on the same board, original flat material occurrences and complete actual release records. Stale, reused, duplicated, foreign-board or inconsistent captures cannot reconstruct release cleanup; recursive under-placement remains a separate producer. Z-material Battle/Combo transitions explicitly refuse pending an owner ruling on their destination." },
   { id: "arena-vm-r515-saved-ordinary-price", file: "src/lib/arena/vm/ordinary-activate-runtime.ts", ordinal: 1, kind: "not-yet", classification: "current-runtime-unsupported", ownerIssue: 1249, citation: "R-515; original ordinary Activate payment continuation", detail: "Old saved ordinary action-price frames without the original source and paired completion contract require rebuilding; usage and activation cannot be reconstructed from current card location." },
   { id: "arena-vm-under-standing-contract", file: "src/lib/arena/vm/standing-negation-under-relation.ts", ordinal: 1, kind: "not-yet", classification: "declaration-extension", citation: "RM23-2; isolated under-standing generation contract", detail: "Preparatory unimported v3 contract rejects malformed supplied relations, stale histories and unreviewed transitions; no native card admission or saved-state migration is implemented." },
   {"id":"arena-vm-r513-native-cleanup","file":"src/lib/arena/vm/combo-drop-batch.ts","ordinal":1,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"R-513; RM8-5; RM9-1; RM9-5; RM10-1-3-1","ownerIssue":1249,"detail":"Affected 8-5-8 cleanup is limited to complete plain owned Battle Combo departures with no replacement, native redirect, stack, Z-card or Token; the entire deterministic batch is preflighted before its first write."},
@@ -717,6 +718,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-r517-pile-release": "<top-level>|-|-",
   "arena-vm-r515-saved-ordinary-price": "requireOrdinaryPriceFrame|-|(frame.saveVarsAs||frame.pricedBy)&&!frame.awakenPayment&&!frame.viaKeyword&&!frame.ordinaryActivation",
   "arena-vm-under-standing-contract": "<top-level>|-|-",
   "arena-vm-r513-native-cleanup": "fail|-|-",

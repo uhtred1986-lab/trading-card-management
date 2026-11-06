@@ -70,7 +70,7 @@ for(const text of [full.card.skill.replace('[activate: battle]','[activate: main
  const rows=skillRecords({...def,skill:text});assert.ok(rows.find(r=>r.skillIndex===10)?.unread.length);cases++;
 }
 // A rejected exact-body candidate must leave no choices for generic fallback.
-const context:Ctx={permanent:false,last:null,choices:[],lastSeen:null,lastNamed:null,mills:0,costs:0,lastPlayed:null,lastTarget:null,stale:null,twoNamedCardsRefused:false,lastOp:null,replacing:null,n:0,raw:skill.effect};
+const context:Ctx={permanent:false,last:null,choices:[],lastSeen:null,lastNamed:null,mills:0,costs:0,lastPlayed:null,lastTarget:null,stale:null,twoNamedCardsRefused:false,lastOp:null,replacing:null,n:0,raw:skill.effect,xBound:false};
 const untouched=clone(context),priced=clone(script);priced.price!.payment.orbs={Black:1};
 assert.equal(compilePaidRemovalFollowup(skill,priced,context),null);
 assert.deepEqual(context,untouched);cases++;
