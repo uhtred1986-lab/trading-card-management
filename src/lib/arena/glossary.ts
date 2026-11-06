@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Played or battle-end Combo alternatives (R-485)",
+    body: "P-656 answers a play or its actual normal Combo-to-Drop cleanup at battle end. BT16-131 and BT16-143 independently require Hand origin for both alternatives. The existing played/playedFromHand and comboed declarations keep their stored timing and origin qualification; a comma before Sawar's second alternative is trigger text, not an effect. Combo entry, mid-battle departure and cleanup replaced away from Drop do not satisfy the battle-end alternative. Printed Auto prices and conditions remain intact, including P-656's Yellow payment and Sawar's multicolor Energy condition. Other paired heads and unrepresented origin/turn qualifications remain unread. This admits the three complete Auto bodies without changing the Combo runtime or broader movement lifetimes.",
+  },
+  {
     title: "Watched combos retain their actual origin (R-483)",
     body: "BT19-035 hears your blue card entering Combo from Hand; both TB1-025 faces hear your Universe 7 card entering Combo from Battle during your turn. The arriving subject supplies its native origin, not the watcher. Declared and skill-created combos share this qualification; real entry replaces provenance, and departure/reset prevents borrowing an old entry. A missing origin on an otherwise matching legacy entry refuses explicitly. Subject and turn failures do not spend the once-per-turn use. Pending watchers retain their qualifying subject attributes if another Auto moves that subject before resolution. A failed arrival or already-Combo target creates no qualified trigger. Exact one-origin wording is supported; BT20-041 remains unread because its two-origin trigger and under-Leader-or-Hand play body require separate support.",
   },
