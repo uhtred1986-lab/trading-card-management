@@ -6,7 +6,7 @@ import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { resolvePlay } from "../../src/lib/arena/vm/play";
-import { addEffect } from "../../src/lib/arena/vm/effects";
+import { immunityRefusing } from "../../src/lib/arena/vm/program";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { run } from "../../src/lib/arena/vm/flow";
 import type { Action, CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
@@ -22,6 +22,7 @@ const defs: Record<string,CardDef> = {
   TP5_END: card("TP5_END", {skill:END,energyCost:0}),
   TP5_WATCH: card("TP5_WATCH", {skill:ARRIVAL}),
   TP5_GOOD: card("TP5_GOOD", {colors:["Red","Blue"],energyCost:0}),
+  TP5_IMMUNE: card("TP5_IMMUNE", {colors:["Red","Blue"],energyCost:0,skill:"[Permanent] This card isn't affected by the skills of Battle Cards."}),
   TP5_ARRIVER: card("TP5_ARRIVER", {colors:["Red","Blue"],energyCost:4,skill:"[Arrival Red/Blue] {r}"}),
   TP5_COUNTER: card("TP5_COUNTER", {type:"EXTRA",energyCost:0,power:null,comboCost:null,comboPower:null,skill:"[Counter: Play] The Battle Card being played is placed in its owner's Drop Area instead of being played."}),
   TP5_BAD: card("TP5_BAD", {colors:["Red","Green"],energyCost:0}),
@@ -93,10 +94,9 @@ for(const seat of ["p1","p2"] as const){
  }
  // Played subjects are observations even when protected from this watcher's skills.
  {
-  let s=fresh(seat);const watcher=stage(s,seat,"TP5_WATCH","battle"),played=stage(s,seat,"TP5_GOOD","hand");
-  addEffect(s,[],{target:played,kind:"immune",value:0,until:"game",immune:{from:seat}});
+  let s=fresh(seat);const watcher=stage(s,seat,"TP5_WATCH","battle"),played=stage(s,seat,"TP5_IMMUNE","hand");
   assert.equal(resolvePlay(ctx,game,s,[],played,seat,{using:"Arrival",by:"skill"}),true);
-  assert.ok(s.effects.some(e=>e.target===played&&e.kind==="immune"),"immune subject remains protected at play event");
+  assert.ok(immunityRefusing(ctx,game,s,played,watcher,seat),"printed immunity protects the new Battle occurrence at the play event");
   assert.ok(s.pending.some(p=>p.card===watcher));const before=s.sides[seat].zones.hand.length;
   run(ctx,game,s,[]);s=settle(copy(s));assert.equal(s.sides[seat].zones.hand.length,before+1,"immune observed subject still resolves Arrival Auto");cases++;
  }

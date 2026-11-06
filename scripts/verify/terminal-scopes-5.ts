@@ -32,7 +32,7 @@ for(const owner of ["p1","p2"] as const)for(const mode of ["interrupt","win","co
  }
  const result=RULES.apply(ctx,copy(s),mode==="concede"?{type:"concede",player:owner}:{type:"counter",player:s.prompt.player,card:null});s=result.state as VmState;
  assert.equal(s.outcome?.kind,mode==="interrupt"?"interrupted":mode==="win"?"win":"concession");
- if(mode==="interrupt"){assert.equal(s.outcome?.privateContext?.sourceCard,counter);assert.match(s.outcome?.privateContext?.detail??"",/rebuild this activated Counter before retaining/);}else assert.equal(s.winner,other(owner));
+ if(mode==="interrupt"){assert.equal(s.outcome?.privateContext?.sourceCard,counter);assert.match(s.outcome?.privateContext?.detail??"",/rebuild this saved Counter self-play occurrence binding/);}else assert.equal(s.winner,other(owner));
  assert.equal(s.phase,"over");assert.equal(s.prompt.kind,"gameOver");assert.equal(s.programs.length,0);assert.equal(s.skillPlayScopes,undefined);assert.equal(s.resolving,null);assert.deepEqual(s.pending,[]);assert.ok(s.sides[owner].zones.hand.includes(target));assert.equal(result.events.filter(event=>event.type==="gameOver").length,1);assert.equal(copy(s).outcome?.kind,s.outcome?.kind);cases++;
 }
 console.log(`terminal-scopes-5: ${cases} native terminal cases passed`);

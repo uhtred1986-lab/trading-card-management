@@ -1,5 +1,6 @@
 /** R465 helper contract only; native wiring follows the shared payment handoff. */
 import assert from "node:assert/strict";
+import { card } from "./harness";
 import { stepScript } from "../../src/lib/arena/vm/script";
 import type { ScriptHost } from "../../src/lib/arena/vm/script-host";
 import {
@@ -86,6 +87,7 @@ for (const stage of ["offer", "paid"] as const) {
   let mode: number | undefined = stage === "offer" ? 0 : undefined;
   const hand: string[] = [];
   const host = {
+    defOf: () => card("SOURCE", { type: "BATTLE" }),
     zoneEpoch: () => 9,
     areaOf: () => "drop",
     resolveRef: () => ["source"],

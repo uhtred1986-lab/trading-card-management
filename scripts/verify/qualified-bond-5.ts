@@ -163,7 +163,10 @@ for (const p of ["p1", "p2"] as const) {
         s = take(s, { type: "playZ", player: p, card: z });
         if (s.prompt.kind === "chooseCards")
             s = take(s, { type: "choose", player: p, cards: [foe] });
-        const yes = ["five", "zBattle", "protected", "timed", "standing"].includes(variant);
+        // The timed effect belongs to the departing Z-Deck occurrence.
+        if (variant === "timed")
+            assert.equal(s.effects.some(e => e.target === z && e.kind === "negateSkillKind"), false, "Z-Deck negation expires on play");
+        const yes = ["five", "zBattle", "protected", "standing"].includes(variant);
         assert.equal(s.sides[other(p)].zones.drop.includes(foe), yes, variant + " native Auto");
         cases++;
     }

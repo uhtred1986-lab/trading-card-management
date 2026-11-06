@@ -46,7 +46,7 @@ for(const owner of ["p1","p2"] as const)for(const mode of ["success","actual","d
  if(mode==="missing"){delete s.programs.find(f=>f.counterCost)!.counterCost!.alternative;}
  if(mode==="malformed"){s.programs.find(f=>f.counterCost)!.counterCost!.alternative!.version=0 as 1;}
  s=take(s,{type:"choose",player:owner,cards:[payer]});
- if(mode==="legacy"||mode==="missing"||mode==="malformed"){assert.match(JSON.stringify(s.outcome),/rebuild.*alternative Counter/);assert.equal(usesLeft(s,owner,source,skill),1);cases++;continue;}
+ if(mode==="legacy"||mode==="missing"||mode==="malformed"){assert.equal(s.outcome?.kind,"interrupted");assert.match(s.outcome?.privateContext?.detail??"",mode==="legacy"?/rebuild the saved ordinary Activate payment source/:/rebuild.*alternative Counter/);assert.ok(s.sides[owner].zones.hand.includes(payer),"invalid saved payment cannot consume its payer");assert.ok(s.sides[owner].zones.hand.includes(source));assert.equal(usesLeft(s,owner,source,skill),1);cases++;continue;}
  if(mode==="source-reentry"){assert.ok(s.sides[owner].zones.hand.includes(source));assert.equal(usesLeft(s,owner,source,skill),1);assert.equal(s.pending.length,0);cases++;continue;}
  assert.equal(usesLeft(s,owner,source,skill),0,"successful payment spends one use");
  if(response){assert.equal(s.prompt.kind,"counter");assert.equal(s.prompt.player,first);s=take(s,{type:"counter",player:first,card:mode==="negate-response"?response:null});}
