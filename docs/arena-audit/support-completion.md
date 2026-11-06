@@ -315,3 +315,7 @@ R523 `08a9ecd1` adds an isolated actual-board observer for Abducted, preserving 
 ## Support checkpoint 79: P-764 original paid Warp count
 
 R522 `4e545059` supports the complete original attack Auto with source-bound Burst, three-or-more distinct-name Warp payment and exact per-card retrieval cost. The 280 new counted checks and 363 counted compatibility checks pass, alongside Auto-cost #549, combined type/lint/rulings and browser 238/121. Registry: 250 VM sites. The full comparison changes only `P-764#20`: **13,028 readable /937 unread**, with runtime summary and all gaps unchanged (2/307/2,574). See [checkpoint79](round-5/support-seventyninth-batch.md) for evidence and explicit limits. Work continues toward all-card support in the same PR.
+
+## Shared standing facts preparation after checkpoint 79
+
+R524 `51e73c29`/`2a2c08ba` extracts native area/protection facts while preserving v2 behavior and original v2/v3 history identity. It adds no card admission. Frozen oracle38 and prior-view21, existing native compatibility, combined type/lint/rulings296/165 and browser242/121 pass. The relocated R513 source-site identity is retained; registry252 includes the two new bounds. See [proof and limits](round-5/standing-native-facts.md). No compiler/loader changes or repeated catalog scan; joint under/area facts and P-045 payment support continue.
