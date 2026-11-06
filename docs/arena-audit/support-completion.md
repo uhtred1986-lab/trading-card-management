@@ -306,3 +306,8 @@ R516 `6c81c67f`, compiler-context fix `4e30a646`, R517 `81681343`, temporary Z b
 ## Seventy-eighth checkpoint: ordinary under-source lifetime
 
 R521 `a6900810` integrates effective-area source cleanup and physical effect-ownership rebinding for ordinary under placement, with complete isolated preflight and explicit matching-declaration/negation bounds. Full City action payment into Android17's optional-zero placed-under Auto passes after the narrow original Z-Extra classification repair. The 86 focused cases, compatibility, root type/lint and browser 235/121 pass; registry `37c9a253` tracks 243 VM sites. No compiler change or repeated catalog scan: latest complete totals remain 13,027 readable /938 unread. See [checkpoint78](round-5/support-seventyeighth-batch.md) and [scope/limits](round-5/under-source-lifetime.md). P-764 and Abducted observer work continue; this is not universal card support.
+
+
+## Under-standing observer preparation after checkpoint 78
+
+R523 `08a9ecd1` adds an isolated actual-board observer for Abducted, preserving its exact stored loader refusal and all unread siblings. Independent negation and attack-ban plans use actual pile membership and the host holder, including foreign-owned Combo hosts. The helper writes no native history, grants or attack rules. Its 94 new cases and prior 53 contract cases pass; worker type/lint/rulings and root focused verification pass. Native imports remain absent. See [source, staged evidence and explicit bounds](round-5/under-standing-observer.md). This adds no compiler-readable record or admitted card; shared native fact extraction is next.
