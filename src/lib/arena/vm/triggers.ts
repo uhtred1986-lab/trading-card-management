@@ -1,3 +1,4 @@
+import { paidWarpIntent, capturePaidWarpSource } from './paid-warp-runtime';
 import { placedUnderMaster } from "./placed-under-master";
 import { captureKoBinding, koResultScript } from "./ko-source";
 import { originalMovementSkillNegated } from "./movement-auto-history";
@@ -109,6 +110,7 @@ export interface CopiedSkillCapture {
 }
 
 export interface VmPending {
+  paidWarpSource?: import("./paid-warp-contract").PaidWarpSource;
   /** R510: this actual Auto pended during an already-completed play cost. */
   paidArrivalWitness?: import("./auto-play-cost").PaidArrivalWitness;
   koBinding?: import("./ko-result").KoBinding;
@@ -788,8 +790,10 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // move it again at the checkpoint.
       const movementInfo = subjectInfo ?? (["comboToDrop", "youComboFromHand", "youComboFromBattle"].includes(match.trigger) && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
       const copiedSkillCapture = captureCopiedSkill(state, match.card, sk, script);
+      if (paidWarpIntent(script) && copiedSkillCapture) throw new NotYet("capture a copied Warp-count Auto declaration", "R522");
       if (pairedSelfScript(script) && copiedSkillCapture) throw new NotYet("copied bounded paired-source occurrence is not yet supported", "R487");
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
+        ...(paidWarpIntent(script) ? { paidWarpSource: capturePaidWarpSource(ctx, state, match.card, master, sk, script!) } : {}),
         ...(koResultScript(script) ? { koBinding: captureKoBinding(state, match.card, master, sk.index, script!) } : {}),
         ...(pairedSelfScript(script) ? { pairedSelf: capturePairedSelf(state, match.card, script!) } : {}),
         ...(copiedSkillCapture ? { copiedSkillCapture } : {}),

@@ -1,3 +1,4 @@
+import {compilePaidWarp} from './paid-warp';
 import { activateUnderText, activateUnderPermit } from "../vm/activate-under-contract";
 import { compileEnergyEntryPolicy } from "./energy-entry";
 import { compileCounterArrival } from "./counter-arrival";
@@ -1568,7 +1569,8 @@ function compileSkillText(skill: Skill): Script {
   const battleGrantRemoval = skill.kind === "activate:battle" && !modal ? compileBattleGrantRemoval(clauses, c, unsupported, joins) : null;
   const paidRemoval = skill.kind === "activate:battle" && !modal ? compilePaidRemovalFollowup(skill, { kind: skill.kind, ops: [], price: compileSkillPrice(skill), usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [] }, c) : null;
   const paidDrop = skill.kind === "activate:main" && !modal ? compilePaidDropFollowup(skill, { kind: skill.kind, ops: [], price: compileSkillPrice(skill), usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [] }, c) : null;
-  let ops = originalKo ?? battleGrantRemoval ?? paidRemoval ?? paidDrop ?? compileClauseList(clauses, c, unsupported, joins);
+  const paidWarp = skill.kind === "auto" && !modal && !triggerCond && !unsupported.length ? compilePaidWarp(skill) : null;
+  let ops = paidWarp?.ops ?? originalKo ?? battleGrantRemoval ?? paidRemoval ?? paidDrop ?? compileClauseList(clauses, c, unsupported, joins);
   // R504: only the main unpriced Auto effect, never a price or recursive clause context.
   if (skill.kind === "auto" && !skill.cost.trim() && bindBlindLifeHandChoice(clauses, ops) === false) {
     unsupported.push(clauses.slice(0, 2).join(", "));

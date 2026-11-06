@@ -1,3 +1,5 @@
+import { captureSelectedWarp, publishPaidWarp } from './paid-warp-runtime';
+import { WARP_PAYERS } from './paid-warp-contract';
 import { paymentEffectFrame } from "./applied-effect-receipt";
 import { requireAutoPlayCost, underOpponentPlayPrice } from "./auto-play-cost";
 import { payUnderOpponentPlay, prepareAutoPlayCost, requireAutoPlayProgram } from "./auto-play-cost-runtime";
@@ -158,6 +160,7 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       reviveTaxPayers(state, f, true);
       const found = host.resolveRef(f, ref);
       const op = f.ops[f.ip];
+      if (f.paidWarp && op?.op === "moveTo" && op.completedAs === WARP_PAYERS && op.target === ref) captureSelectedWarp(ctx, state, f, found, host.nameOf);
       if (op?.op === "play") {
         requireAutoPlayProgram(ctx, f);
         if (found.length !== 1) unpaid();
@@ -874,6 +877,7 @@ export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, st
     queueTaxGate(state, gate, 1);
     return;
   }
+  publishPaidWarp(ctx, game, state, frame);
   // 22-11-2 / 22-44-3 (#741): the paid Auto is activated — one use spent, on
   // the copy for [Once per turn] and across copies for [Limit X].
   spendUse(state, frame.master, frame.card, cost.skill);

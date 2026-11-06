@@ -1,3 +1,4 @@
+import {compilePaidWarp} from './paid-warp';
 import { compileAwakenAlternative } from "./awaken-alternative";
 import { spiritBoostDescriptor } from "../text/spirit-boost";
 import { isCompetingZAwakenPrice, supportedZAwakenActionPrice } from "../vm/activation-price-support";
@@ -173,6 +174,8 @@ export function costText(cost: string): string {
  * price the player can pay.
  */
 export function compileCostProgram(skill: Skill): Script | null {
+  const warp = compilePaidWarp(skill);
+  if (warp) return { ops: warp.price!.ops!, unsupported: [] };
   return compileAwakenAlternative(skill) ? null : splitPrice(skill).program;
 }
 

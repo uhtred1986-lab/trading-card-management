@@ -801,7 +801,7 @@ export type Op =
    * card's specified cost": a Vegito the Active green energy cannot pay for
    * is not on offer.
    */
-  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; owed?: true; exactly?: Amount; specifiedCostAtMost?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
+  | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; owed?: true; exactly?: Amount; specifiedCostAtMost?: Amount; energyCostEquals?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
   | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
@@ -1954,6 +1954,7 @@ export interface ScriptFrame {
   /** R516: selected original payer, then native movement result; private continuation only. */
   paidRemoval?: import("./paid-removal-runtime").PaidRemovalFrame;
   paidDrop?: import("./paid-drop-runtime").PaidDropFrame;
+  paidWarp?: import("./paid-warp-runtime").PaidWarpFrame;
   /** Original ordinary Activate price and successful effect continuation. */
   ordinaryActivation?: import("./ordinary-activate-runtime").OrdinaryActivation;
   /** R-387: an Awaken action payment keeps the Leader and its chosen material occurrences across reloads. */
@@ -3155,8 +3156,11 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         let room = bound ? h.amount(frame, bound.total) - sofar.reduce((n, id) => n + measure(id), 0) : Infinity;
         // #930, BT26-088: only a card whose specified cost the counted cards can pay.
         const payable = op.specifiedCostAtMost !== undefined ? h.amount(frame, op.specifiedCostAtMost) : Infinity;
+        const exactEnergy = op.energyCostEquals === undefined ? undefined : h.amount(frame, op.energyCostEquals);
+        if (exactEnergy !== undefined && (!Number.isSafeInteger(exactEnergy) || exactEnergy < 0)) throw new IllegalAction("the per-card energy-cost bound must be a nonnegative integer");
+        const energy = (id: string) => h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: "energyCost" });
         const specified = (id: string) => h.amount({ ...frame, vars: { ...frame.vars, [SUM_ONE]: [id] } }, { attr: { var: SUM_ONE }, name: "specifiedCost" });
-        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && (payable === Infinity || specified(id) <= payable) && (!unionOf || fillsNames([...sofar, id])) && priceTargetFits(h, frame, op.as, id));
+        const open = h.resolveSelector(frame, op.sel).filter((id) => !sofar.includes(id) && !taken.has(nameKey(id)) && (!byCharacters || characterKey(h.defOf(id).characters) !== null) && (!bound || measure(id) <= room) && (exactEnergy === undefined || h.cardInfo(id).energyCost != null && energy(id) === exactEnergy) && (payable === Infinity || specified(id) <= payable) && (!unionOf || fillsNames([...sofar, id])) && priceTargetFits(h, frame, op.as, id));
         // #970: a slot of a disjoint set offers only the cards that leave the
         // slots after it a card each — never a way into a dead end, and a
         // duplicate is not a candidate for the answer to be checked against.

@@ -427,6 +427,13 @@
           "type": "amount"
         },
         {
+          "name": "energyCostEquals",
+          "required": false,
+          "nullable": false,
+          "offCard": "each candidate must have this effective energy cost; this is a per-card filter and does not change the selector's cardinality or optionality",
+          "type": "amount"
+        },
+        {
           "name": "specifiedCostAtMost",
           "required": false,
           "nullable": false,

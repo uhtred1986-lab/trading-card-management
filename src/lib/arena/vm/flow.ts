@@ -1,3 +1,5 @@
+import { paidWarpSourceKey } from './paid-warp-contract';
+import { paidWarpIntent, paidWarpFrameIntent, requirePaidWarpPending, requirePaidWarpSource, requirePaidWarpFrame, refusePaidWarpTax } from './paid-warp-runtime';
 import { paidDropIntent } from './paid-drop-contract';
 import { requirePaidDropFrame, requirePaidDropResume } from './paid-drop-runtime';
 import { requirePaidRemovalFrame } from './paid-removal-runtime';
@@ -943,6 +945,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     && !skill.effect.trim() && !skill.cost.trim() && !automaticHasPrice(skill, undefined);
   const program = captured.script
     ?? (nativeBattleKeyword ? { ops: [], unsupported: [] } : undefined);
+  if (paidWarpIntent(program) || next.paidWarpSource) requirePaidWarpPending(ctx, game, state, next.paidWarpSource, next.card, next.master, next.skillIndex);
   if (koResultScript(program) || next.koBinding) {
     try { requireKoBinding(state, program, next.koBinding, next.card, next.master, next.skillIndex); }
     catch (error) { interruptGame(ctx, game, state, ev, {sourceCard:next.card,skillIndex:next.skillIndex,trigger:next.trigger,issue:"R506",detail:error instanceof Error?error.message:"missing KO source"}); return true; }
@@ -1005,6 +1008,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     trigger: next.trigger as Trigger,
     subject: next.subject,
     ...(next.faceUpLifeEpoch === undefined ? {} : { faceUpLifeEpoch: next.faceUpLifeEpoch }),
+    ...(next.paidWarpSource ? { paidWarp: { source: structuredClone(next.paidWarpSource), binding: paidWarpSourceKey(next.paidWarpSource) } } : {}),
     ...(next.koBinding ? { koBinding: { ...next.koBinding } } : {}),
     ...(next.pairedSelf ? { pairedSelf: { ...next.pairedSelf } } : {}),
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
@@ -1188,6 +1192,7 @@ function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState
     return;
   }
   try {
+    refusePaidWarpTax(frame, !!taxGate);
     const autoCost = prepareAutomaticCost(ctx, game, state, frame, skill, program);
     if (frame.autoPlayCost && taxGate) throw new NotYet("pay an Auto play cost with an additional activation tax", "R510");
     if (taxGate) {
@@ -1436,6 +1441,7 @@ function stepReplacementFallback(ctx: EngineContext, game: GameDefinition, state
 }
 
 function programSourceScript(ctx: EngineContext, state: VmState, frame: ScriptFrame): Script | undefined {
+  if (frame.paidWarp) return requirePaidWarpSource(ctx, state, frame.paidWarp.source, frame.card, frame.master, frame.skillIndex);
   if (frame.ordinaryActivation) {
     if (!frame.saveVarsAs && frame.ordinaryActivation.cost?.phase !== "committed") throw new IllegalAction("the ordinary Activate effect has no completed payment");
     return requireOrdinaryActivation(ctx, state, frame.ordinaryActivation, frame.card, frame.master, frame.skillIndex);
@@ -1463,6 +1469,12 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if (paidWarpFrameIntent(frame)) requirePaidWarpFrame(ctx, game, state, frame);
+    const warpResume = frame.arrivalBatchResume?.frame ?? frame.arrivalResume?.frame ?? frame.retainedResume?.frame;
+    if (warpResume && paidWarpFrameIntent(warpResume)) {
+      requirePaidWarpFrame(ctx, game, state, warpResume);
+      throw new IllegalAction("the Warp-count Auto has no play continuation; rebuild this saved resume (R522)");
+    }
     requireCounterArrivalTiming(ctx, state);
     requireOrdinaryPriceFrame(frame);
     if (frame.ordinaryActivation && frame.saveVarsAs) return stepOrdinaryActivateCost(ctx, game, state, ev, frame);
@@ -1524,6 +1536,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     const sourceScript = programSourceScript(ctx, state, frame);
     requirePaidRemovalFrame(ctx, game, state, frame, sourceScript);
     requirePaidDropFrame(ctx, game, state, frame, sourceScript);
+    requirePaidWarpFrame(ctx, game, state, frame, sourceScript);
     requireKoFrame(state, sourceScript, frame);
     requirePairedSourceFrame(state, sourceScript, frame);
     requireCounterArrivalContract(frame, sourceScript);

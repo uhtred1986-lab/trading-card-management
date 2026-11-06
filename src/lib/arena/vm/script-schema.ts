@@ -407,6 +407,11 @@ const CHOOSE_FIELDS: OpField[] = [
         offCard: "exactly this many of the selected cards, read off the board as the choice is made — \"switch the same number of your green energy as that card's specified cost to Rest Mode\" (BT26-088); the selector's count is not read; with too few cards nothing is chosen and an accepted \"you may\" around it counts as not done (20-16-1)",
       },
       {
+        name: "energyCostEquals",
+        type: "amount",
+        offCard: "each candidate must have this effective energy cost; this is a per-card filter and does not change the selector's cardinality or optionality",
+      },
+      {
         name: "specifiedCostAtMost",
         type: "amount",
         offCard: "only the selected cards whose specified cost (1-2-3) is at most this much, read off the board as the choice is made — \"reveal 1 mono-green <Vegito> card from your hand and switch the same number of your green energy as that card's specified cost to Rest Mode\" (BT26-088): a card the counted energy cannot pay for is not on offer",
@@ -506,7 +511,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
       }
       // Audit selectors 2: a blind choice (the opponent's hand or face-down Life) is made without seeing the cards, and
       // the reading says so.
-      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {}) + (op.blind ? ", without seeing them" : "");
+      return renderTemplate(`${choose} {sel}{sumTo? whose {sumAttr} adds up to exactly {sumTo}}{specifiedCostAtMost? with a specified cost of no more than {specifiedCostAtMost}}{energyCostEquals? with an energy cost equal to {energyCostEquals}}`, raw as unknown as Record<string, unknown>, CHOOSE_FIELDS, r ?? {}) + (op.blind ? ", without seeing them" : "");
     },
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
@@ -2264,6 +2269,9 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       const bad = fieldProblem(f, o[f.name], depth, bound, `${step}.${f.name}`);
       if (bad) return bad;
     }
+    if (o.op === "choose" && isRecord(o.energyCostEquals) && "var" in o.energyCostEquals && (typeof o.energyCostEquals.var !== "string" || !/^\w+$/.test(o.energyCostEquals.var))) return `${step}: per-card energy equality needs a named variable`;
+    if (o.op === "choose" && typeof o.energyCostEquals === "number" && (!Number.isSafeInteger(o.energyCostEquals) || o.energyCostEquals < 0)) return `${step}: per-card energy equality needs a nonnegative integer`;
+    if (o.op === "choose" && o.energyCostEquals !== undefined && (o.sumTo !== undefined || o.namedSet !== undefined || o.permission !== undefined || isRecord(o.sel) && o.sel.eachUnionName !== undefined)) return `${step}: per-card energy equality requires an ordinary choice, not a summed or specialized set`;
     if ((o.op === "negateKeyword" || o.op === "negate") && o.allAreas !== undefined) {
       const self = o.target === undefined || (isRecord(o.target) && Object.keys(o.target).length === 1 && isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self");
       if (o.allAreas !== true || !self || o.until !== undefined || (o.op === "negate" && (o.what !== "keyword" || o.chosen !== undefined || typeof o.keyword !== "string"))) return `${step}: allAreas requires a standing self named-keyword negation`;
