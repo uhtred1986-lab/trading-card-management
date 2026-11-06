@@ -81,7 +81,11 @@ export function guardEnergyEntryBatch(ctx: EngineContext, state: VmState, h: Scr
   if(ids.length!==1 || sources.length!==1)throw new NotYet("owner ordering for a multi-card Energy entry", "R476");
   const id=sources[0],area=h.areaOf(id),owner=op.owner===undefined||op.owner==="you"?frame.master:frame.master==="p1"?"p2":"p1";
   const destination=op.owner===undefined?h.ownerOf(id):owner,location=findCard(state,id);
-  if((!["hand","deck","warp","zEnergy"].includes(area??"")) || !location || location.zone!==area || location.owner!==destination || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
+  if((!["hand","deck","warp","zEnergy","combo"].includes(area??"")) || !location || location.zone!==area || location.owner!==destination || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
+  if(area==="combo"){
+    if(!h.energyEntryComboScope)throw new NotYet("Combo Energy entry without native battle scope", "R486");
+    h.energyEntryComboScope(frame,id);
+  }
   if(op.cause==="cost" || frame.saveVarsAs || frame.keywordPrice || frame.keywordCost || frame.counterCost || frame.autoCost)throw new NotYet("optional Energy entry inside a payment program", "R476");
   if(h.replacementsFor(id,frame.declaredCharge?"charge":op.cause??"effect",{actor:frame.declaredCharge?undefined:frame.master,requestedTo:"energy"}).length)throw new NotYet("optional Energy entry with an incoming movement replacement", "R476");
 }
