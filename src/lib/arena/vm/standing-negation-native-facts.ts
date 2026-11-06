@@ -71,7 +71,7 @@ export function collectNativeStandingFacts(ctx: EngineContext, game: GameDefinit
     arrivals: readonly Card[], battle: Observation["battle"]): NativeStandingFacts {
     const priorFacts = standingPriorFacts(view);
     if (priorFacts.hasUnderInteraction || priorFacts.version === 3
-        && Object.values(state.cards).some(card => !Array.isArray(card.under) || card.under.length > 0)) throw new NotYet("combine actual under and area source facts before protection handoff", "R524");
+        && Object.values(state.cards).some(card => !card || !Array.isArray(card.under) || card.under.length > 0)) throw new NotYet("combine actual under and area source facts before protection handoff", "R524");
     const cards = mixedStandingOccurrences(ctx, game, state);
     if (!!battle !== !!state.battle)
         refuse("bind mixed battle participation through an explicit native assignment");

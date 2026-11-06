@@ -1002,7 +1002,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Shared standing fact collection (R524)",
-    body: "The native mixed observer shares area-source and protection fact collection without changing source ordering, historical immunity handoff, actual arrivals, battle participation or card admission. A private validated prior view preserves each original ledger's source keys, serials and edges; it does not manufacture a v2 history from v3. Under-free v3 facts can be compared in isolation, while unproved under/area interactions explicitly refuse. Legacy v1/v2 schemas, reducers, native grant deletion and factory selection remain unchanged, and the isolated Abducted observer is not connected to gameplay by this extraction.",
+    body: "The native mixed observer shares area-source and protection fact collection without changing source ordering, historical immunity handoff, actual arrivals, battle participation or card admission. A private validated prior view preserves each original ledger's source keys, serials and edges; it does not manufacture a v2 history from v3. Under-free v3 facts can be compared in isolation, while malformed current pile facts and unproved under/area interactions explicitly refuse. Legacy v1/v2 schemas, reducers, native grant deletion and factory selection remain unchanged, and the isolated Abducted observer is not connected to gameplay by this extraction.",
   },
   {
     title: "Under-standing actual-board observer preparation (R523)",

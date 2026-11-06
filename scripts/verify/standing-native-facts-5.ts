@@ -99,5 +99,9 @@ if (!process.argv.includes("--record")) {
   assert.doesNotThrow(()=>collectNativeStandingFacts(ctx,game,plain.state,priorStandingView(plainV2),[],null));
   assert.equal(JSON.stringify(plain.state),placed);checks++;
  }
+ const malformed=board("p1");malformed.state.cards.invalid=null as never;
+ const malformedBefore=JSON.stringify(malformed.state);
+ assert.throws(()=>collectNativeStandingFacts(ctx,game,malformed.state,priorStandingView(emptyUnderStandingHistory()),[],null),NotYet);
+ assert.equal(JSON.stringify(malformed.state),malformedBefore);checks++;
  console.log(`standing-native-facts-5: ${checks} validated-prior view cases PASS`);
 }
