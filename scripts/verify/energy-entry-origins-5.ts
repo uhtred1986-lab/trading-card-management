@@ -122,6 +122,9 @@ for(const player of ["p1","p2"] as const)for(const area of ["warp","zEnergy"] as
 }
 for(const player of ["p1","p2"] as const)for(const area of ["battle","combo","life","drop"] as const){
  const b=fresh(player,area),frame:ScriptFrame={card:b.state.sides[player].zones.leader[0],master:player,ops:[{op:"moveTo",target:{var:"incoming"},to:"energy"}],vars:{incoming:[b.incoming]},ip:0};
- const before=JSON.stringify({state:b.state,frame});assert.throws(()=>stepScript(vmHost(b.ctx,game,b.state,[],frame),frame),/Energy entry origin|plain Combo Energy entry|plain owned Battle Energy entry/);assert.equal(JSON.stringify({state:b.state,frame}),before);cases++;
+ const before=JSON.stringify({state:b.state,frame});
+ if(area==="drop"){assert.equal(stepScript(vmHost(b.ctx,game,b.state,[],frame),frame),"wait");assert.ok(b.state.sides[player].zones.drop.includes(b.incoming));assert.ok(frame.energyEntry);}
+ else {assert.throws(()=>stepScript(vmHost(b.ctx,game,b.state,[],frame),frame),/Energy entry origin|plain Combo Energy entry|plain owned Battle Energy entry/);assert.equal(JSON.stringify({state:b.state,frame}),before);}
+ cases++;
 }
 console.log(`energy-entry-origins-5: ${cases} native origins and physical-holder controls passed`);

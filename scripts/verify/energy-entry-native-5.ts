@@ -1,4 +1,4 @@
-/** R476 ordinary-effect mechanism controls; no native entry admission yet. */
+/** R476 synthetic mechanism controls; R507/R508 separately prove printed source admission. */
 import assert from "node:assert/strict";
 import standingFixtures from "./fixtures/standing-negation-observation-5.json";
 import { resolvePlay } from "../../src/lib/arena/vm/play";
@@ -114,7 +114,8 @@ for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck"] as 
   }
   moved(ctx,game,state,events,incoming,"drop",{owner:player});
   assert.equal(state.effects.some(effect=>effect.target===incoming&&effect.energyEntryEpoch!==undefined),false);
-  assert.ok(state.effects.some(effect=>effect.id===unrelated.id));assert.ok(state.effects.some(effect=>effect.id===oldKeyword.id),"unstamped keyword effect follows existing flow lifetime");
+  assert.equal(state.effects.some(effect=>effect.id===unrelated.id||effect.id===oldKeyword.id),false,"R505 Energy-to-Drop reset ends both old target effects");
+  for(const effect of [unrelated,oldKeyword])assert.ok(events.some(event=>event.type==="effectEnded"&&event.effect.id===effect.id));
   assert.equal(hasKeyword(ctx,game,state,incoming,"Energy-Exhaust"),true);
   moved(ctx,game,state,events,incoming,"hand",{owner:player});
   let again:ScriptFrame={card:state.sides[player].zones.leader[0],master:player,ops:[{op:"moveTo",target:{var:"incoming"},to:"energy"}],vars:{incoming:[incoming]},ip:0};
@@ -220,8 +221,9 @@ for(const player of ["p1","p2"] as const)for(const scenario of ["batch","drop","
  const frame:ScriptFrame={card:state.sides[player].zones.leader[0],master:player,ops:[...(scenario==="payment"?[{op:"moveTo" as const,target:{var:"ordinary"},to:"drop" as const}]:[]),{op:"moveTo",target:{var:"incoming"},to:"energy"}],vars:{incoming:scenario==="batch"?[ordinary,incoming]:[incoming],ordinary:[ordinary]},ip:0};
  const host=scenario==="payment"?automaticPriceHost(ctx,game,state,events):vmHost(ctx,game,state,events,frame);
  const before=JSON.stringify({state,events,frame});
- assert.throws(()=>stepScript(host,frame),error=>error instanceof NotYet);
- assert.equal(JSON.stringify({state,events,frame}),before,"unsupported route refuses before first ordinary payment or batch move");cases++;
+ if(scenario==="drop"){assert.equal(stepScript(host,frame),"done");assert.ok(state.sides[player].zones.energy.includes(incoming));assert.equal(state.cards[incoming].mode,"rest");assert.equal(state.effects.some(e=>e.energyEntryEpoch!==undefined),false,"one physical Drop card cannot satisfy both distinct payer slots");assert.equal(events.filter(e=>e.type==="move"&&e.card===incoming&&e.to==="energy").length,1);}
+ else {assert.throws(()=>stepScript(host,frame),error=>error instanceof NotYet);assert.equal(JSON.stringify({state,events,frame}),before,"unsupported route refuses before first ordinary payment or batch move");}
+ cases++;
 }
 for(const player of ["p1","p2"] as const){
  const localDefs={...defs,"DB1-066":card("DB1-066",{skill:standingFixtures["DB1-066"].skill})};
@@ -243,4 +245,4 @@ for(const player of ["p1","p2"] as const){
  validateStandingNegationRead(localCtx,state);assert.equal(state.cards[incoming].mode,"active");assert.equal(hasKeyword(localCtx,game,state,incoming,"Energy-Exhaust"),false);
  moved(localCtx,game,state,events,incoming,"drop",{owner:player});validateStandingNegationRead(localCtx,state);assert.equal(hasKeyword(localCtx,game,state,incoming,"Energy-Exhaust"),true);cases++;
 }
-console.log(`energy-entry-native-5: ${cases} synthetic native entry checks passed; compiler/source admission remains blocked`);
+console.log(`energy-entry-native-5: ${cases} synthetic native entry checks passed; synthetic mechanism fixtures`);

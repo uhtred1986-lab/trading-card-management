@@ -1,0 +1,48 @@
+{
+  "BT16-142": {
+    "id": "BT16-142",
+    "type": "BATTLE",
+    "colors": [
+      "Red",
+      "Blue"
+    ],
+    "cost": "5",
+    "specified": null,
+    "z": null,
+    "power": 20000,
+    "name": "SS Gogeta, Holding Nothing Back",
+    "characters": [
+      "Gogeta: Br"
+    ],
+    "traits": [
+      "Saiyan"
+    ],
+    "skill": "[energy-exhaust][blocker]\r [union-fusion]{r}{u}{1}: <Son Goku: Br> and <Vegeta: Br>.\r [permanent] This card can't be KO'd by skills.\r [auto] If your Leader Card is a blue <Vegeta: Br> or blue <Gogeta: Br> card: At the end of a turn where this card was played, draw 1 card, then add up to 1 Red/Blue multicolor card from your Drop Area to your energy.",
+    "backName": null,
+    "backSkill": null
+  },
+  "DB2-175": {
+    "id": "DB2-175",
+    "type": "BATTLE",
+    "colors": [
+      "Red",
+      "Blue"
+    ],
+    "cost": "2",
+    "specified": null,
+    "z": null,
+    "power": 16000,
+    "name": "Champa & Vados, Universe 6 Destroyer & Angel",
+    "characters": [
+      "Champa",
+      "Vados"
+    ],
+    "traits": [
+      "God",
+      "Universe 6"
+    ],
+    "skill": "[energy-exhaust]<br>[permanent] When placing this card in your energy from any area, you may choose 1 red card and 1 blue card in your Drop Area and send them to your Warp. If you do, negate this card's [energy-exhaust] skill.<br>[activate: main]{r}{u}, return this card to its owner's hand: Choose up to 1 Extra Card in your deck with an energy cost of 3 or more, add it to your hand, then shuffle your deck.",
+    "backName": null,
+    "backSkill": null
+  }
+}

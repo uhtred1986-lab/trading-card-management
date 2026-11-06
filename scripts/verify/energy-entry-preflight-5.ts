@@ -52,7 +52,7 @@ for(const player of ["p1","p2"] as const)for(const origin of ["hand","deck","dro
  const before=JSON.stringify(state);
  guardCostEnergyEntry(ctx,state,{...host,resolveSelector:()=>{throw new Error("unrelated selector evaluated");}}, {...parent,ops:[{op:"choose",sel:{area:"hand"},as:"other"}]});cases++;
 
- if(origin==="hand"||origin==="deck")guardEnergyEntryBatch(ctx,state,host,parent,[incoming]);else assert.throws(()=>guardEnergyEntryBatch(ctx,state,host,parent,[incoming]),/origin/);cases++;
+ if(origin==="hand"||origin==="deck"||origin==="drop")guardEnergyEntryBatch(ctx,state,host,parent,[incoming]);else assert.throws(()=>guardEnergyEntryBatch(ctx,state,host,parent,[incoming]),/origin/);cases++;
  assert.throws(()=>guardEnergyEntryBatch(ctx,state,host,parent,[ordinary,incoming]),/ordering/);cases++;
  assert.throws(()=>guardCostEnergyEntry(ctx,state,host,{...parent,ops:[{op:"moveTo",target:{var:"other"},to:"drop"},...parent.ops],vars:{...parent.vars,other:[ordinary]}}),/payment or proof/);cases++;
  guardCostEnergyEntry(ctx,state,host,{...parent,ops:[{op:"moveTo",target:{var:"other"},to:"drop"}]});cases++;
@@ -108,4 +108,4 @@ for(const copied of [false,true]){
  }
  cases++;
 }
-console.log(`energy-entry-preflight-5: ${cases} synthetic stored-descriptor guards passed; compiler remains unwired`);
+console.log(`energy-entry-preflight-5: ${cases} synthetic stored-descriptor guards passed; synthetic mechanism fixtures`);

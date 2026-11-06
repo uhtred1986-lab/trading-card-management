@@ -22,8 +22,6 @@ const fail = (): never => { throw new NotYet("rebuild this saved Energy entry co
 
 export function createEnergyEntryContinuation(h: ScriptHost, parent: ScriptFrame, incoming: string, skillIndex: number, policy: EnergyEntryExhaustPolicy, destination: EnergyEntryWitness["destination"]): EnergyEntryContinuation {
   if (energyEntryPolicyProblem(policy) || !Number.isSafeInteger(skillIndex) || skillIndex < 0 || parent.energyEntry) fail();
-  // Drop/self-payment remains an unresolved owner decision; no mutation may precede this guard.
-  if (h.areaOf(incoming) === "drop") throw new NotYet("incoming Drop card Energy-entry payment ruling", "R476");
   const owner = (parent.energyEntrySequence ?? 0) + 1;
   const witness = captureEnergyEntryWitness(h, owner, parent, incoming, destination);
   parent.energyEntrySequence = owner;
@@ -40,8 +38,25 @@ export function requireEnergyEntryContinuation(h: ScriptHost, parent: ScriptFram
     !Number.isSafeInteger(child.ip) || child.ip < 0 || !Array.isArray(child.ops) || child.ip > child.ops.length ||
     (canonical(child.ops) !== canonical(original) && (first.op !== "may" || canonical(child.ops) !== canonical(first.ops))) ||
     pending.completed && child.ip !== child.ops.length) fail();
+  requireDistinctDropPayers(h, pending);
   requireNoPayerReplacement(child);
   requireEnergyEntryPayers(h,child,pending.payers);
+}
+
+/** R508 preserves the full printed candidate pool. Selecting the incoming Drop
+ * occurrence remains an unresolved ruling, not a silently forbidden candidate.
+ * Check saved answers before consumption and forced selections before any move. */
+function requireDistinctDropPayers(h: ScriptHost, pending: EnergyEntryContinuation): void {
+  const child = pending.child;
+  if (!child || !child.vars || typeof child.vars !== "object" || Array.isArray(child.vars)) fail();
+  if (pending.witness.incoming.area !== "drop") return;
+  const incoming = pending.witness.incoming.card;
+  const selected = ENERGY_ENTRY_SLOTS.some(name =>
+    Array.isArray(child.vars[name]) && child.vars[name].includes(incoming) ||
+    pending.payers?.[name]?.selected?.card === incoming);
+  const answered = child.awaiting !== undefined &&
+    (ENERGY_ENTRY_SLOTS as readonly string[]).includes(child.awaiting) && h.lastChoice()?.includes(incoming);
+  if (selected || answered) throw new NotYet("incoming Drop card Energy-entry payment ruling", "R476");
 }
 
 /** A serialized replacement continuation cannot bypass the live-route preflight. */
@@ -53,12 +68,17 @@ function requireNoPayerReplacement(child: ScriptFrame): void {
 /** Child choices return to the original parent, including after reload.
  * Payer replacement/interrupt continuations remain unadmitted. */
 export function runEnergyEntryContinuation(parentHost: ScriptHost, childHost: ScriptHost, parent: ScriptFrame, pending: EnergyEntryContinuation): "suspended" | "completed" {
+  requireDistinctDropPayers(childHost, pending);
   requireNoPayerReplacement(pending.child);
   if (pending.completed) return "completed";
   let transferred = false;
   requireEnergyEntryPayers(childHost,pending.child,pending.payers);
-  const bind = () => bindEnergyEntryPayers(childHost,pending.child,pending.payers);
+  const bind = () => {
+    requireDistinctDropPayers(childHost, pending);
+    bindEnergyEntryPayers(childHost,pending.child,pending.payers);
+  };
   const guardPayerRoutes = () => {
+    requireDistinctDropPayers(childHost, pending);
     // Check both bound payers before the first one can move. In particular a
     // second-payer substitute must not strand a paid first card or a stale
     // chooser prompt. These are ordinary effects, never cost-host moves.

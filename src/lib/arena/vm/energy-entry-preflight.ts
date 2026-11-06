@@ -83,7 +83,7 @@ export function guardEnergyEntryBatch(ctx: EngineContext, state: VmState, h: Scr
   if(ids.length!==1 || sources.length!==1)throw new NotYet("owner ordering for a multi-card Energy entry", "R476");
   const id=sources[0],area=h.areaOf(id),owner=op.owner===undefined||op.owner==="you"?frame.master:frame.master==="p1"?"p2":"p1";
   const destination=op.owner===undefined?h.ownerOf(id):owner,location=findCard(state,id);
-  if((!["hand","deck","warp","zEnergy","combo","battle"].includes(area??"")) || !location || location.zone!==area || location.owner!==destination || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
+  if((!["hand","deck","drop","warp","zEnergy","combo","battle"].includes(area??"")) || !location || location.zone!==area || location.owner!==destination || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
   if(area==="battle"){
     if(!h.energyEntryBattleScope)throw new NotYet("Battle Energy entry without native source scope", "R489");
     h.energyEntryBattleScope(frame,id);
