@@ -230,18 +230,31 @@ const C: [string, string, string[], ((rec: Rec) => void)?][] = [
     const c = chain(rec).find((x) => x.kind === "count" && x.sel.special === "subject");
     assert.ok(c?.kind === "count" && c.sel.filter?.anyOf?.every((f) => f.skillLess), "C: BT15-122 — skill-less, either kind (its Q&A)");
   }],
+  // R483 now retains actual watched entry origins; native positive/negative
+  // origin and saved-subject proofs live in watched-combo-origin-5.
+  [`[Auto][Once per turn] When you use a blue card from your hand in a combo, ${DRAW}`, "BT19-035", ["youComboFromHand"], (rec) => {
+    assert.ok(chain(rec).some(c => c.kind === "count" && c.sel.special === "subject" && c.sel.filter?.colors.includes("Blue")));
+    assert.ok(!chain(rec).some(c => c.kind === "isTurnPlayer"));
+  }],
+  [`[auto] When you combo with a ≪Universe 7≫ from your Battle Area during your turn, ${DRAW}`, "TB1-025", ["youComboFromBattle"], (rec) => {
+    assert.ok(chain(rec).some(c => c.kind === "count" && c.sel.special === "subject" && c.sel.filter?.traits.includes("universe 7")));
+    assert.ok(chain(rec).some(c => c.kind === "isTurnPlayer" && (!c.who || c.who === "you")));
+  }],
 ];
 for (const [text, what, trigger, more] of C) {
   const rec = record(text, what);
   assert.deepEqual(rec.trigger, trigger, `C: ${what} answers ${trigger.join(", ")} (${JSON.stringify(rec.trigger)})`);
   more?.(rec);
+  if (what === "BT19-035" || what === "TB1-025") {
+    let body = rec.ops;
+    while (body.length === 1 && body[0].op === "if" && !body[0].else) body = body[0].then;
+    assert.deepEqual(body, [{ op: "draw", n: 1 }], `${what}: qualified trigger retains its complete body`);
+  }
   records++;
 }
 for (const [text, what] of [
   ["[Auto] When you activate this card's [Villainous], negate this card's skills for the game.", "BT19-007"],
-  // an area the combo card came from, which no watched combo asks
-  [`[Auto][Once per turn] When you use a blue card from your hand in a combo, ${DRAW}`, "BT19-035"],
-  [`[auto] When you combo with a ≪Universe 7≫ from your Battle Area during your turn, ${DRAW}`, "TB1-025"],
+  [`[Auto] When you use a blue card from your hand or Battle Area in a combo, ${DRAW}`, "MULTI_ORIGIN"],
   [`[auto] [limit 1] When this card is added to your Z-Energy by your <Gogeta: Br> card's skill, ${DRAW}`, "P-727"],
 ] as const) {
   assert.ok(unreadOf(text, what).length > 0, `C: ${what} — unread`);
