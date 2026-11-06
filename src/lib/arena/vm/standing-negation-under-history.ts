@@ -84,6 +84,11 @@ export function validateUnderStandingHistory(history: UnderHistory): void {
         || !Array.isArray(history.active) || !Array.isArray(history.negated) || !Array.isArray(history.attackBans) || !Array.isArray(history.seen))
         fail("rebuild v3 under-standing generation history");
     const current = candidates(history.observation), negated: Edge[] = [], bans: Edge[] = [];
+    // Every admitted under policy is independent of area suppression: none of
+    // these policies targets a buried source. Dependency visibility therefore
+    // precedes serial traversal, while generation chronology stays unchanged.
+    const underTargets = current.filter(candidate => isUnder(candidate.source) && candidate.enabled)
+        .flatMap(candidate => candidate.targets);
     const activeKeys = new Set<string>(), seenIds = new Set<string>();
     let previous = 0;
     for (const occurrence of history.seen) {
@@ -99,9 +104,11 @@ export function validateUnderStandingHistory(history: UnderHistory): void {
             fail("invalid under-standing source generation");
         const k = key(generation.source), c = current.find(c => key(c.source) === k);
         if (!c) return fail("missing under-standing active source");
-        if (!c.enabled || activeKeys.has(k) || !isUnder(c.source) && negated.some(e => cardKey(e.target) === cardKey(c.source as AreaSource)))
+        if (!c.enabled || activeKeys.has(k) || !isUnder(c.source)
+            && (underTargets.some(target => cardKey(target) === cardKey(c.source as AreaSource))
+                || negated.some(e => cardKey(e.target) === cardKey(c.source as AreaSource))))
             fail("inconsistent under-standing active source");
-        if (history.active.filter(g => g.serial < generation.serial).some(g => !isUnder(g.source)
+        if (!isUnder(c.source) && history.active.filter(g => g.serial < generation.serial).some(g => !isUnder(g.source)
             && c.targets.some(target => cardKey(target) === cardKey(g.source as AreaSource))))
             fail("asymmetric saved under-standing generations");
         activeKeys.add(k); previous = generation.serial;
@@ -137,7 +144,13 @@ export function settleUnderStanding(history: UnderHistory, observation: UnderObs
     if (consumed.size !== changes.length) fail("unused or duplicate under-standing transition receipt");
     const out: UnderHistory = { version: 3, policy: "underAwareWholeV1", nextSerial: history.nextSerial,
         observation: structuredClone(observation), active: [], negated: [], attackBans: [], seen: [...seen.values()] };
-    const suppressed = (s: Source) => !isUnder(s) && out.negated.some(e => cardKey(e.target) === cardKey(s));
+    // Compute under dependency visibility before considering retained area
+    // generations. A newly attached source can suppress an older host without
+    // rewriting either source's historical serial or choosing a new order.
+    const underTargets = all.filter(candidate => isUnder(candidate.source) && candidate.enabled)
+        .flatMap(candidate => candidate.targets);
+    const suppressed = (s: Source) => !isUnder(s) && (underTargets.some(target => cardKey(target) === cardKey(s))
+        || out.negated.some(e => cardKey(e.target) === cardKey(s)));
     const activate = (c: Candidate, serial: number) => {
         if (out.active.some(g => !isUnder(g.source) && c.targets.some(t => cardKey(t) === cardKey(g.source as AreaSource))))
             fail("asymmetric under-standing transition needs reviewed ordering");
@@ -161,6 +174,11 @@ export function settleUnderStanding(history: UnderHistory, observation: UnderObs
         if (!Number.isSafeInteger(out.nextSerial + 1)) fail("under-standing generation serial exhausted");
         activate(c, out.nextSerial++);
     }
+    // Retained and newly activated rows can be evaluated by dependency before
+    // chronology. Saved rows and both independent edge lists remain canonical.
+    out.active.sort((a, b) => a.serial - b.serial);
+    out.negated.sort((a, b) => a.serial - b.serial);
+    out.attackBans.sort((a, b) => a.serial - b.serial);
     validateUnderStandingHistory(out);
     return out;
 }

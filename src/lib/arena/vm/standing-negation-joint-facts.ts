@@ -176,12 +176,21 @@ export function initializeJointStandingProof(ctx: EngineContext, game: GameDefin
         return fail("initialize joint staged proof before applicable standing sources or attachments");
     return saveProof(ctx, game, state, settleUnderStanding(empty, observation), reviewed);
 }
+function jointPlan(state: VmState, history: UnderHistory, observation: UnderObservation) {
+    const plan = readUnderStandingPlan(history, observation);
+    const targets = new Set(plan.negate.map(edge => edge.target.card));
+    const deleteGrants = state.effects.filter(effect => targets.has(effect.target) && ["keyword", "copiedSkills"].includes(effect.kind)).flatMap(effect => {
+        requireResolvedGrantHistory(state, effect.target);
+        return resolvedGrantDeleted(state, effect.target, effect.id) ? [] : [{ effect: effect.id, target: effect.target }];
+    });
+    return { ...plan, deleteGrants };
+}
 export function assertJointStandingProof(ctx: EngineContext, game: GameDefinition, state: VmState, token: JointStandingProof) {
     const proof = requireProof(ctx, game, state, token, true);
     const discovery = discoverJointStandingFacts(ctx, game, state, proof.history, proof.reviewed, proof.history.observation.area.battle, []);
     const result = qualifyJointStandingFacts(ctx, game, state, discovery);
     readUnderStandingPlan(proof.history, result.observation);
-    return structuredClone({ history: proof.history, ...result, plan: readUnderStandingPlan(proof.history, result.observation) });
+    return structuredClone({ history: proof.history, ...result, plan: jointPlan(state, proof.history, result.observation) });
 }
 export function captureJointStandingBoundary(ctx: EngineContext, game: GameDefinition, state: VmState,
     token: JointStandingProof, intent: JointStandingIntent): JointStandingBoundary {
@@ -300,13 +309,7 @@ export function finishJointStandingBoundary(ctx: EngineContext, game: GameDefini
     // Explicit supplied ordering is validated against exact discovered source keys
     // by the pure reducer; it is not authentication of a native player action.
     const history = settleUnderStanding(boundary.history, result.observation, changes, enablingOrder);
-    const plan = readUnderStandingPlan(history, result.observation);
-    const targets = new Set(plan.negate.map(edge => edge.target.card));
-    const deleteGrants = state.effects.filter(effect => targets.has(effect.target) && ["keyword", "copiedSkills"].includes(effect.kind)).flatMap(effect => {
-        requireResolvedGrantHistory(state, effect.target);
-        return resolvedGrantDeleted(state, effect.target, effect.id) ? [] : [{ effect: effect.id, target: effect.target }];
-    });
     const proof = saveProof(ctx, game, state, history, boundary.reviewed);
     boundaries.delete(token); proofs.delete(boundary.proof);
-    return { proof, ...structuredClone({ history, ...result, plan: { ...plan, deleteGrants } }) };
+    return { proof, ...structuredClone({ history, ...result, plan: jointPlan(state, history, result.observation) }) };
 }

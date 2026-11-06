@@ -60,13 +60,22 @@ for (const p of ["p1", "p2"] as const) {
         readback.history.active.length = 0; assert.equal(read(ctx, game, t.state, t.proof).history.active.length, 1);
         assert.equal(JSON.stringify(t.state), before);
     });
-    for (const id of ["DB1-066", "BT10-153"]) test(`${p} existing ${id} then attach exposes isolated reducer boundary`, () => {
+    for (const id of ["DB1-066", "BT10-153"]) test(`${p} existing ${id} then attach retires the older host generation`, () => {
         const t = setup(p, id); const old = t.enter(); assert.equal(old.history.active[0].serial, 1);
         const boundary = capture(ctx, game, t.state, t.proof, { kind: "attach", source: t.source, host: t.host });
         assert.ok(moveCard(t.state, game, t.source, "battle", { owner: p, under: t.host }).ok);
         const before = JSON.stringify(t.state);
-        assert.throws(() => finish(ctx, game, t.state, boundary), /asymmetric under-standing transition/);
+        const result = finish(ctx, game, t.state, boundary);
         assert.equal(JSON.stringify(t.state), before); assert.equal(old.history.active[0].serial, 1);
+        assert.equal(result.history.active.length, 1);
+        assert.equal(result.history.active[0].serial, 2);
+        assert.equal(result.plan.negate[0].target.card, t.host);
+        assert.equal(result.plan.forbidAttack[0].target.card, t.host);
+        const disabled = capture(ctx, game, t.state, result.proof, { kind: "effects" });
+        addEffect(t.state, [], { target: t.source, kind: "negateSkills", value: 0, until: "turn" });
+        const restored = finish(ctx, game, t.state, disabled);
+        assert.equal(restored.history.active[0].serial, 3);
+        assert.equal("kind" in restored.history.active[0].source, false);
     });
     test(`${p} detach and fresh reattach allocates new under generation`, () => {
         const t = setup(p); t.enter(); const first = t.attach();
@@ -207,5 +216,63 @@ for (const p of ["p1", "p2"] as const) test(`${p} supplied order binds discovere
     const key = underStandingSourceKey(underStandingCandidateFacts(ctx, game, t.state, discovery).under[0].source);
     assert.equal(finish(ctx, game, t.state, boundary, [key]).history.active[0].serial, 1);
     assert.throws(() => finish(ctx, game, t.state, boundary, [key]), NotYet);
+});
+for (const p of ["p1", "p2"] as const) for (const id of ["DB1-066", "BT10-153"]) test(`${p} ${id} under-first, detach, reattach retains genuine generation history`, () => {
+    const t = setup(p, id);
+    let external = -1;
+    t.act({ kind: "effects" }, () => { external = addEffect(t.state, [], { target: t.host, kind: "negateSkills", value: 0, until: "turn" }).id; });
+    t.enter();
+    const first = t.act({ kind: "attach", source: t.source, host: t.host }, () => {
+        assert.ok(moveCard(t.state, game, t.source, "battle", { owner: p, under: t.host }).ok);
+    });
+    assert.equal(first.history.active[0].serial, 1);
+    const hostEnabled = t.act({ kind: "effects" }, () => { t.state.effects = t.state.effects.filter(effect => effect.id !== external); });
+    assert.equal(hostEnabled.history.active[0].serial, 1);
+    assert.equal("kind" in hostEnabled.history.active[0].source, true);
+    const detached = t.act({ kind: "detach", source: t.source, host: t.host }, () => {
+        assert.ok(moveCard(t.state, game, t.source, "drop", { owner: p }).ok);
+    });
+    assert.equal(detached.history.active[0].serial, 2);
+    assert.equal("kind" in detached.history.active[0].source, false);
+    const reattached = t.act({ kind: "attach", source: t.source, host: t.host }, () => {
+        assert.ok(moveCard(t.state, game, t.source, "battle", { owner: p, under: t.host }).ok);
+    });
+    assert.equal(reattached.history.active[0].serial, 3);
+    assert.equal("kind" in reattached.history.active[0].source, true);
+    assert.equal(reattached.history.seen[0].epoch, t.state.cards[t.source].zoneEpoch);
+});
+for (const p of ["p1", "p2"] as const) for (const id of ["BT1-043", "TB1-097"]) for (const kind of ["negateSkills", "negateSkill"] as const)
+    test(`${p} ${id} ${kind} preserves original under suppression and bounds reactivation`, () => {
+        const t = setup(p, id); t.enter(); let effectId = -1;
+        const line = Object.entries(ctx.scripts![id].bySkill).find(([, script]) => script.ops.some(op => op.op === "forbid" && op.what === "beNegated"));
+        assert.ok(line);
+        t.act({ kind: "effects" }, () => { effectId = addEffect(t.state, [], { target: t.host, kind, value: kind === "negateSkill" ? Number(line[0]) : 0, until: "turn" }).id; });
+        const attached = t.attach(); assert.equal(attached.plan.negate.length, 1);
+        const retained = t.act({ kind: "effects" }, () => { t.state.effects = t.state.effects.filter(effect => effect.id !== effectId); });
+        assert.equal(retained.plan.negate.length, 1); assert.equal(retained.plan.forbidAttack.length, 1);
+        assert.equal(retained.history.active[0].serial, attached.history.active[0].serial);
+        const ending = capture(ctx, game, t.state, t.proof, { kind: "detach", source: t.source, host: t.host });
+        assert.ok(moveCard(t.state, game, t.source, "drop", { owner: p }).ok);
+        const before = JSON.stringify(t.state);
+        assert.throws(() => finish(ctx, game, t.state, ending), /reactivation or changed suppressor feedback/);
+        assert.equal(JSON.stringify(t.state), before);
+    });
+for (const p of ["p1", "p2"] as const) test(`${p} original and newly resolved grants produce defensive all-current deletion plan only`, () => {
+    let original = -1;
+    const t = setup(p, "BT1-034", false, (state) => {
+        const host = state.sides[p].zones.hand.find(id => state.cards[id].cardId === "BT1-034")!;
+        assert.ok(moveCard(state, game, host, "battle", { owner: p }).ok);
+        original = addEffect(state, [], { target: host, kind: "copiedSkills", value: 0, until: "turn",
+            copied: { cardId: "BT7-008", side: "front", skills: [0], from: host } }).id;
+    });
+    const attached = t.attach(); assert.deepEqual(attached.plan.deleteGrants, [{ effect: original, target: t.host }]);
+    assert.ok(t.state.effects.some(effect => effect.id === original));
+    assert.deepEqual(read(ctx, game, t.state, t.proof).plan.deleteGrants, attached.plan.deleteGrants);
+    let added = -1;
+    const next = t.act({ kind: "effects" }, () => { added = addEffect(t.state, [], { target: t.host, kind: "keyword", value: { name: "Blocker" }, until: "turn" }).id; });
+    assert.deepEqual(next.plan.deleteGrants, [{ effect: original, target: t.host }, { effect: added, target: t.host }]);
+    next.plan.deleteGrants.length = 0;
+    assert.equal(read(ctx, game, t.state, t.proof).plan.deleteGrants.length, 2);
+    assert.ok(t.state.effects.some(effect => effect.id === added));
 });
 console.log(`standing-joint-facts-5: ${checks} isolated structural cases PASS`);
