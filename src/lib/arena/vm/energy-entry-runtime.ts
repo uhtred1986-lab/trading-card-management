@@ -1,3 +1,4 @@
+import { guardBattleEnergyScriptHistory } from "./energy-entry-battle";
 /** R476 bounded native bridge. Descriptor collection/compiler remain unadmitted. */
 import type { EngineContext, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
@@ -87,5 +88,6 @@ export function projectEnergyEntryCleanup(ctx: EngineContext, game: GameDefiniti
 
 /** Native/direct routes have no resumable original ScriptFrame yet. */
 export function guardUnownedEnergyEntry(ctx: EngineContext, state: VmState, id: string): void {
+  guardBattleEnergyScriptHistory(ctx,state,id);
   if (state.cards[id]?.hidden && possibleEnergyEntrySource(ctx,state,id) || energyEntrySource(ctx,state,id)) throw new NotYet("optional Energy entry without an original script movement", "R476");
 }

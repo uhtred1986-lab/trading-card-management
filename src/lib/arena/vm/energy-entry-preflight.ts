@@ -1,3 +1,4 @@
+import { guardBattleEnergyScriptHistory } from "./energy-entry-battle";
 /** R476 before-mutation exclusions for an optional entry owned by a script move. */
 import type { EngineContext } from "../types";
 import type { VmState } from "./state";
@@ -76,12 +77,17 @@ export function guardEnergyEntryBatch(ctx: EngineContext, state: VmState, h: Scr
   const op=frame.ops[frame.ip];
   if(op?.op!=="moveTo" || op.to!=="energy")return;
   if(ids.some(id=>h.isHidden(id)&&possibleEnergyEntrySource(ctx,state,id)))throw new NotYet("Hidden optional Energy entry", "R476");
+  for(const id of ids)guardBattleEnergyScriptHistory(ctx,state,id);
   const sources=ids.filter(id=>energyEntrySource(ctx,state,id));
   if(!sources.length)return;
   if(ids.length!==1 || sources.length!==1)throw new NotYet("owner ordering for a multi-card Energy entry", "R476");
   const id=sources[0],area=h.areaOf(id),owner=op.owner===undefined||op.owner==="you"?frame.master:frame.master==="p1"?"p2":"p1";
   const destination=op.owner===undefined?h.ownerOf(id):owner,location=findCard(state,id);
-  if((!["hand","deck","warp","zEnergy","combo"].includes(area??"")) || !location || location.zone!==area || location.owner!==destination || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
+  if((!["hand","deck","warp","zEnergy","combo","battle"].includes(area??"")) || !location || location.zone!==area || location.owner!==destination || state.cards[id]?.under.length || h.defOf(id).type!=="BATTLE" || h.isHidden(id) || h.ownerOf(id)!==destination || h.masterOf(id)!==destination || op.owner==="both")throw new NotYet("this optional Energy entry origin or controller", "R476");
+  if(area==="battle"){
+    if(!h.energyEntryBattleScope)throw new NotYet("Battle Energy entry without native source scope", "R489");
+    h.energyEntryBattleScope(frame,id);
+  }
   if(area==="combo"){
     if(!h.energyEntryComboScope)throw new NotYet("Combo Energy entry without native battle scope", "R486");
     h.energyEntryComboScope(frame,id);

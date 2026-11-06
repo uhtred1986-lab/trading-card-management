@@ -1,3 +1,4 @@
+import { captureEnergyBattleScope } from "./energy-entry-battle";
 import { cleanupScriptPlacement, clearScriptAutoReveal as clearAutoReveal } from "./script-placement-cleanup";
 import { captureEnergyComboScope } from "./energy-entry-combo";
 import { requireDeclaredCharge, requireEnergyCharge } from "./energy-entry-charge";
@@ -120,6 +121,15 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
   const zoneList = (p: PlayerId, area: Area): string[] => (state.sides[p].zones[area] ?? []).slice();
   const counterProtected = (frame: ScriptFrame, id: string): boolean => !!frame.counterPlay && frame.master !== masterOf(game, state, id) && queryHookStatics(ctx, game, state, id, "counterWindow").some(f => f.op === "forbid" && f.forbid.what === "activateCounter");
 
+  // R489: script.ts calls these legacy aliases synchronously after h.move.
+  // The host-local receipt covers that synchronous move/alias sequence; it
+  // ends at the next movement or host disposal and is never saved.
+  let energyDeparture: { card: string; epoch: number; remaining: Set<string> } | undefined;
+  const nativeMove = (...args: Parameters<typeof moveTo>): void => {
+    energyDeparture = undefined;
+    moveTo(...args);
+  };
+
   return {
     guardEnergyEntryFrame: frame => {
       requireDeclaredCharge(game,state,frame);
@@ -155,6 +165,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // equality is relied on, and `createGame` already refuses a definition
     // whose zone names the procedure cannot find.
     areaOf: (id) => (zoneOf(state, id) as Area | null) ?? null,
+    energyEntryBattleScope: (frame,id) => captureEnergyBattleScope(ctx,state,frame,id),
     energyEntryComboScope: (frame,id) => captureEnergyComboScope(ctx,game,state,frame,id),
     energyEntryLocation: id => { const at=findCard(state,id); return at ? {holder:at.owner,area:at.zone as Area} : null; },
     hostOf: (id) => hostOf(state, id),
@@ -258,7 +269,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       for (let i = 0; i < n; i++) {
         const id = state.sides[p].zones[SETUP_ZONES.deck][0];
         if (!id) break;
-        moveTo(ctx, game, state, ev, id, SETUP_ZONES.hand, p, { reason: "draw" });
+        nativeMove(ctx, game, state, ev, id, SETUP_ZONES.hand, p, { reason: "draw" });
         log(ev, { type: "draw", player: p, card: id });
         drawn++;
       }
@@ -267,16 +278,27 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     reportsMovement: true,
     canReplaceCounterArrival: (frame) => !!frame.arrivalDecision && !counterProtected(frame, frame.arrivalDecision.arrival.card) && canReplaceCounterArrival(ctx, game, state, frame),
     move: (id, to, owner, opts) => {
+      energyDeparture = undefined;
+      let completedEnergyDeparture: { card: string; epoch: number } | undefined;
       const arrival = retainedFrame?.arrivalDecision;
       const energyEntry=to === "energy" ? optionalEnergyArrival(ctx,game,state,vmHost(ctx,game,state,ev,retainedFrame),retainedFrame,id,owner,opts?.requestedMode) : undefined;
-      const actor=opts?.actor ?? (energyEntry && !retainedFrame?.declaredCharge ? retainedFrame?.master : undefined);
-      const source=opts?.source ?? (energyEntry && !retainedFrame?.declaredCharge ? retainedFrame?.card : undefined);
+      const nativeBattleEnergy = to === "energy" && zoneOf(state,id) === "battle" && retainedFrame?.skillEffectOrigin?.version === 2
+        && ["activate", "auto"].includes(retainedFrame.skillEffectOrigin.kind) && Number.isSafeInteger(retainedFrame.skillIndex) && retainedFrame.skillIndex! >= 0 && !retainedFrame.declaredCharge
+        && !retainedFrame.replacing && !retainedFrame.replacementAuto && !retainedFrame.replacementFallback && !opts?.replaced
+        && opts?.reason !== "cost" && !retainedFrame.saveVarsAs && !retainedFrame.keywordPrice && !retainedFrame.keywordCost && !retainedFrame.counterCost && !retainedFrame.autoCost;
+      const actor=opts?.actor ?? (nativeBattleEnergy || energyEntry && !retainedFrame?.declaredCharge ? retainedFrame?.master : undefined);
+      const source=opts?.source ?? (nativeBattleEnergy || energyEntry && !retainedFrame?.declaredCharge ? retainedFrame?.card : undefined);
       const onResult: NonNullable<typeof opts>["onResult"] = result => {
         opts?.onResult?.(result);
+        if (nativeBattleEnergy && result.completed && result.from === "battle" && result.to === "energy") {
+          completedEnergyDeparture = { card: id, epoch: result.toEpoch };
+        }
         if (arrival?.accepting && id === arrival.arrival.card && result.fromEpoch === arrival.arrival.epoch &&
           state.resolving?.card === id && (result.completed || result.toEpoch !== result.fromEpoch)) state.resolving.replaced = true;
       };
-      moveTo(ctx, game, state, ev, id, to, owner, { onResult, energyEntry, actor, requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(source ? { source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      nativeMove(ctx, game, state, ev, id, to, owner, { onResult, energyEntry, actor, ...(nativeBattleEnergy ? { historicalBattleEnergy: true } : {}), requestedMode: opts?.requestedMode, position: opts?.position, reveal: opts?.reveal, carry: opts?.carry, reason: opts?.reason, ...(source ? { source } : {}), ...(opts?.lifeSource ? { lifeSource: opts.lifeSource } : {}), ...(opts && "replaced" in opts ? { replaced: opts.replaced ?? null } : {}) });
+      if (completedEnergyDeparture) energyDeparture = { ...completedEnergyDeparture,
+        remaining: new Set(["removedFromBattle", "removedByOpponent", "yourCardRemovedByOpponent", "yourCardRemovedBySkill", "opponentCardRemovedBySkill"]) };
       return (zoneOf(state, id) as Area | null) ?? to;
     },
     // 5-12: a skill's KO is the battle's KO (#146) — one `koCard`, so the
@@ -313,7 +335,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         && frame.vars.zAwakenSource?.[0] === host && frame.vars["zAwakenSource@epoch"]?.[0] === `${host}@${state.cards[host].zoneEpoch ?? 0}`;
       if (removedInsteadOfUnder(state, game, id, host, zAwaken)) {
         const paying = frame && (frame.saveVarsAs || frame.autoCost || frame.keywordCost || frame.keywordPrice || frame.counterCost || frame.swapCost || frame.aegisCost || frame.reviveCost || frame.dropCost);
-        moveTo(ctx, game, state, ev, id, "removed", state.cards[id].owner, { reason: paying ? "cost" : "effect", ...(frame ? { actor: frame.master, source: frame.card } : {}) });
+        nativeMove(ctx, game, state, ev, id, "removed", state.cards[id].owner, { reason: paying ? "cost" : "effect", ...(frame ? { actor: frame.master, source: frame.card } : {}) });
         report(false);
         return false;
       }
@@ -587,6 +609,8 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
     // pends is naming a legacy trigger, and `pendByName` is the one translation
     // — see its note.
     pend: (trigger, cardId, subject, sourceNegated, sourceMaster) => {
+      if (energyDeparture?.card === cardId && energyDeparture.epoch === (state.cards[cardId]?.zoneEpoch ?? 0)
+        && energyDeparture.remaining.delete(trigger)) return;
       const before = new Set(state.pending);
       pendByName(ctx, game, state, ev, trigger, cardId, subject, sourceNegated, sourceMaster);
       const scope = state.skillPlayScopes?.at(-1);
@@ -651,7 +675,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // "Under" is not an area a card can simply be put in (23-2), and no card
       // says so here; the Drop is the printed default — the legacy mapping.
       const dest = only.to === "play" ? "battle" : only.to === "under" ? "drop" : only.to;
-      moveTo(ctx, game, state, ev, id, dest, card(id).owner, { reason: "effect", position: only.position, reveal: true });
+      nativeMove(ctx, game, state, ev, id, dest, card(id).owner, { reason: "effect", position: only.position, reveal: true });
       r.replaced = true;
     },
 
@@ -776,7 +800,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       // goes to the Drop Area before the next instruction.
       for (const [id, owner] of emptyUnisons(state)) {
         log(ev, { type: "note", text: `${state.cards[id].cardId} has no markers left (21-9): it is placed in its owner's Drop Area` });
-        moveTo(ctx, game, state, ev, id, "drop", owner, { reason: "rule" });
+        nativeMove(ctx, game, state, ev, id, "drop", owner, { reason: "rule" });
       }
       const fields = takeFieldCleanup(state);
       if (fields) return fields;
@@ -817,7 +841,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (!base || bound.card !== opts.onto || bound.zoneEpoch !== (base.zoneEpoch ?? 0)) {
           // A changed-area copy is not the chosen base, even if it returned
           // to an otherwise permitted area during the counter response.
-          for (const id of cards) if (findCard(state, id)?.zone === "hand") moveTo(ctx, game, state, ev, id, "drop", state.cards[id].owner, { reason: "rule" });
+          for (const id of cards) if (findCard(state, id)?.zone === "hand") nativeMove(ctx, game, state, ev, id, "drop", state.cards[id].owner, { reason: "rule" });
           frame.evolutionBase = undefined;
           if (state.resolving?.card && cards.includes(state.resolving.card)) state.resolving = null;
           state.programs.unshift(frame);
@@ -852,7 +876,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         if (declared && union === "Union-Potara" && materials.length && sourceAt?.zone === "hand" && sourceAt.owner === opts.player) {
           const extras = unionPotaraExtras(ctx, game, state, opts.player, source, frame.potaraIdentity?.price?.potara);
           if (materials.every((m) => inBattle(m) || extras.includes(m))) {
-            for (const m of materials) if (!inBattle(m, dest)) moveTo(ctx, game, state, ev, m, "battle", dest, { reason: "areaExtension" });
+            for (const m of materials) if (!inBattle(m, dest)) nativeMove(ctx, game, state, ev, m, "battle", dest, { reason: "areaExtension" });
           }
         }
         const bound = frame.unionBound ??= watch.map((id) => ({ card: id, zoneEpoch: epoch(id) }));
@@ -869,7 +893,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           // not the old activating card placed in Drop by 22-13-5-4-2.
           const fails = union === "Union-Absorb" ? stood || bound[0].zoneEpoch === epoch(source) : sourceAt?.zone === "hand" && (!frame.potaraIdentity || epoch(source) === frame.potaraSourceEpoch) && (!frame.fusionDropBottom || epoch(source) === frame.fusionSourceEpoch);
           const there = findCard(state, source);
-          if (fails && there && there.zone !== "drop") moveTo(ctx, game, state, ev, source, "drop", state.cards[source].owner, { reason: "rule" });
+          if (fails && there && there.zone !== "drop") nativeMove(ctx, game, state, ev, source, "drop", state.cards[source].owner, { reason: "rule" });
           frame.unionBound = undefined;
           if (state.resolving && state.resolving.card === source) state.resolving = null;
           state.programs.unshift(frame);
@@ -959,7 +983,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
         // card, first place its expanded-area base in Battle. This is not a
         // play or a Rest-to-Active switch of the underlying card, and opens
         // no second counter window. Normal stacking/play remains shared.
-        if (energyBase && opts.onto) moveTo(ctx, game, state, ev, opts.onto, "battle", opts.player, { evolutionBase: true });
+        if (energyBase && opts.onto) nativeMove(ctx, game, state, ev, opts.onto, "battle", opts.player, { evolutionBase: true });
         // BT20-125 (#927): its own [Permanent] has a [Union] card played from the hand
         // in the opponent's Battle Area.
         // Mechanism batch 3: "play them to their owners' Battle Areas" (BT13-096, EX21-15) - each into its owner's.
@@ -981,7 +1005,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
           ...(opts.using ? { using: opts.using } : {}),
           // #1015: a play a skill makes names its cause; a declared play (5-5-2) does not.
           ...(frame.declaredPlay ? {} : { by: "skill" as const, byOpponent: frame.master !== opts.player, byCard: frame.card }),
-        }, (base) => moveTo(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
+        }, (base) => nativeMove(ctx, game, state, ev, base, "warp", state.cards[base].owner, { reason: "effect", actor: opts.player }));
         if (played) { (frame.did ??= {}).play = true; frame.acted = (frame.acted ?? 0) + 1; }
         // 22-15-6 / 3-1-4: only the original successful OR arrival returns.
         // A failed play, or a later fresh occurrence, creates no such departure.
@@ -1068,7 +1092,7 @@ function moveTo(
   id: string,
   to: string,
   owner: PlayerId,
-  opts: { energyEntry?: OptionalEnergyArrival; requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
+  opts: { historicalBattleEnergy?: true; energyEntry?: OptionalEnergyArrival; requestedMode?: "active" | "rest"; onResult?: import("../types").MoveOptions["onResult"]; position?: "top" | "bottom"; reveal?: boolean; carry?: boolean; reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; source?: string; lifeSource?: string;
     /** 22-5-3-1-1: preliminary base placement causes no area-movement Auto. */
     evolutionBase?: true },
 ): void {
@@ -1143,7 +1167,7 @@ function moveTo(
   const cleanupDeparture = !!substitute?.active && substitute.card === id && from === "combo" && to === "drop";
   if (cleanupDeparture) substitute.actualDrop = { controller: owner };
   if (!opts.evolutionBase && opts.reason !== "areaExtension") emit(ctx, game, state, ev, { event: "moved", card: id, controller: owner,
-    ...(returnInfo && (to === "hand" || from === "unison") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
+    ...(returnInfo && (to === "hand" || from === "unison" || opts.historicalBattleEnergy && from === "battle" && to === "energy") ? { subjectInfo: returnInfo } : {}), ...(sourceNegated ? { sourceNegated } : {}),
     args: { from: from ?? "", to, asPlay: false, cause: opts.reason ?? "effect", ...(opts.actor ? { by: "skill", byOpponent: opts.actor !== fromOwner } : {}), ...(fromOwner ? { fromHolder: fromOwner } : {}), ...(opts.source ? { viaCard: opts.source } : {}), ...(wasHidden ? { hidden: true } : {}), ...(wasFaceUpLife ? { faceUp: true } : {}), ...(cleanupDeparture ? { cleanupDeparture: true } : {}) } }, null);
   queueFieldCleanup(ctx, game, state, id, from, fromOwner);
   // Energy-Exhaust was captured before entry; a post-entry query could let the arrival count itself.
