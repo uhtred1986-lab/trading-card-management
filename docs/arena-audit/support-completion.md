@@ -211,3 +211,7 @@ Runtime `8aa9c6ff` adds bounded optional Energy entry from own Warp/Z-Energy, wi
 ## Checkpoint 53: paired play and battle-end Combo Autos
 
 Runtime `3ee59da5` adds the exact P-656, BT16-131 and BT16-143 paired records without changing their prices or trigger qualifications. Combined validation passes 908 counted cases, 74 legacy record checks, compatibility/VM/rulesets/wordings, TypeScript, metadata, browser and 40 Fusion games. Exact three-record comparison: 13,011 readable / 955 unread, with 12 readable runtime gaps, 318 additional blocked records and 2,559 contextual unknowns. See [checkpoint 53](round-5/support-fiftythird-batch.md). Plain Combo Energy entry and Kefla's Potara/attack pair continue.
+
+## Checkpoint 54: bounded live-Combo Energy entry
+
+Runtime `2ffb87c6` binds optional entry from Combo to the original native activation, battle and source occurrence. Combined validation passes 2,379 native/contract cases, VM/rulesets, TypeScript, metadata, browser privacy/replay and 40 Fusion games. Compiler/collector admission is unchanged; the six Energy-entry records remain unsupported overall and checkpoint53 catalog totals remain applicable. See [checkpoint 54](round-5/support-fiftyfourth-batch.md). Kefla and the shared movement cleanup prerequisite for Battle entry continue.
