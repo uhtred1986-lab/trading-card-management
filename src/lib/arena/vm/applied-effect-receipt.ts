@@ -4,7 +4,9 @@
 import type { ContinuousEffect } from "../types";
 import type { ScriptFrame } from "./script";
 import type { VmState } from "./state";
-import { findCard } from "./zones";
+import { findCard, hostOf, type MoveRecord } from "./zones";
+import { preflightPlacedUnder } from "./placed-under-master";
+import { canonicalTaxValue as canonical } from "./tax-receipt";
 import { NotYet } from "./errors";
 export interface Occurrence {
   card: string;
@@ -148,11 +150,7 @@ export function settleMove(receipt: Receipt, board: Board, root: Root, plan: Mov
   const allowed = eligible(plan, result.to, result.retention);
   if (plan.effects.some(id => !receipt.entries.some(e => e.effect === id)))
     fail();
-  // Validate ALL tagged effects participating in the transition, including parked parents.
-  const crossing = board.effects.filter(e => e.target === plan.from.card && board.ownership[e.id]?.current !== null && board.ownership[e.id] !== undefined);
-  for (const e of crossing)
-    if (!validTag(e, board) || !same(board.ownership[e.id].current!, plan.from))
-      fail();
+  const crossing = validatedCrossing(board, plan.from);
   if (!result.moved) {
     if (!same(result.from, result.to))
       fail();
@@ -160,16 +158,24 @@ export function settleMove(receipt: Receipt, board: Board, root: Root, plan: Mov
   }
   if (same(result.from, result.to))
     return [];
+  return rebindCrossing(board, crossing, result.to, result.retention, receipt, allowed);
+}
+/** Shared validation includes every parked execution, not just the active receipt. */
+function validatedCrossing(board: Board, from: Occurrence): AppliedEffect[] {
+  const crossing = board.effects.filter(e => e.target === from.card && board.ownership[e.id]?.current !== null && board.ownership[e.id] !== undefined);
+  for (const effect of crossing)
+    if (!validTag(effect, board) || !same(board.ownership[effect.id].current!, from)) fail();
+  return crossing;
+}
+function rebindCrossing(board: Board, crossing: readonly AppliedEffect[], to: Occurrence, retention: Retention, receipt: Receipt | undefined, allowed: readonly number[]): number[] {
   const retained: number[] = [];
-  for (const e of crossing) {
-    const own = board.ownership[e.id].anchor === receipt.anchor && sameRoot(board.ownership[e.id].root, root) && allowed.includes(e.id);
-    const keep = result.retention === 'area' || result.retention === 'sameSkill' && own;
-    board.ownership[e.id].current = keep ? structuredClone(result.to) : null;
-    if (keep && own)
-      retained.push(e.id);
+  for (const effect of crossing) {
+    const tag = board.ownership[effect.id];
+    const own = !!receipt && tag.anchor === receipt.anchor && sameRoot(tag.root, receipt.root) && allowed.includes(effect.id);
+    const keep = retention === 'area' || retention === 'sameSkill' && own;
+    tag.current = keep ? structuredClone(to) : null;
+    if (keep && own) retained.push(effect.id);
   }
-  // Immutable applications stay in their owning receipt; deleted/retired effects
-  // are inert. Only the live tag's current occurrence advances across movement.
   return retained;
 }
 /** An unreviewed retarget keeps its value but cannot invent a new carry identity. */
@@ -280,4 +286,129 @@ export function paymentEffectFrame(frame: ScriptFrame | undefined): ScriptFrame 
     return frame;
   }
   return { ...frame, skillEffectOrigin: undefined, appliedEffects: frame.appliedPaymentEffects };
+}
+
+/** R521: native-only semantic-area bridge; physical occurrences remain unchanged. */
+declare const underPlacementBrand: unique symbol;
+export interface AppliedUnderPlacement { readonly [underPlacementBrand]: true }
+interface UnderPosition { area: string; holder: string; host?: string }
+interface UnderCapture {
+  state: VmState;
+  source: string;
+  destination: string;
+  from: Occurrence;
+  origin: UnderPosition;
+  destinationAt: UnderPosition;
+  before: string;
+  receipt?: Receipt;
+  plan?: MovePlan;
+  retention: Retention;
+  retained: readonly number[];
+  root?: Root;
+  sourceIdentity: { cardId: string; owner: string; epoch: number; hiddenCount: number };
+  hostIdentity: string;
+  leaderException: boolean;
+  destinationPile: string[];
+  sourcePile: string[];
+  oldHostPile?: string[];
+  applications: Receipt["entries"];
+}
+const underCaptures = new WeakMap<AppliedUnderPlacement, UnderCapture>();
+function underFail(message: string): never { throw new NotYet(message, "under-source-placement"); }
+function effectiveUnderPosition(state: VmState, source: string): UnderPosition {
+  const at = findCard(state, source);
+  if (at) return { area: at.zone, holder: at.owner };
+  const host = hostOf(state, source), hostAt = host && findCard(state, host);
+  if (!host || !hostAt || state.cards[source].under.length
+    || Object.values(state.cards).flatMap(card => card.under.filter(id => id === source).map(() => card.id)).join() !== host)
+    return underFail("capture the original unique under source's effective area");
+  return { area: hostAt.zone, holder: hostAt.owner, host };
+}
+function underHostIdentity(state: VmState, host: string): string {
+  const card = state.cards[host];
+  return canonical({ card: host, cardId: card?.cardId, owner: card?.owner, epoch: card?.zoneEpoch ?? 0,
+    hiddenCount: card?.hiddenCount ?? 0, hidden: card?.hidden, flipped: card?.flipped, area: findCard(state, host)?.zone, holder: findCard(state, host)?.owner });
+}
+function underSnapshot(c: UnderCapture): string {
+  const state = c.state, effects = state.effects.filter(effect => effect.target === c.source || effect.source === c.source);
+  return canonical({ source: state.cards[c.source], at: findCard(state, c.source), origin: effectiveUnderPosition(state, c.source),
+    oldHost: c.origin.host ? state.cards[c.origin.host] : undefined, destination: state.cards[c.destination], destinationAt: findCard(state, c.destination),
+    effects, ownership: Object.entries(state.appliedEffectOwnership ?? {}).filter(([id]) => effects.some(effect => effect.id === Number(id))), receipt: c.receipt });
+}
+function underCapture(state: VmState, token: AppliedUnderPlacement): UnderCapture {
+  const capture = token && underCaptures.get(token);
+  if (!capture || capture.state !== state) return underFail("rebuild the synchronous under-source capture on this exact board");
+  return capture;
+}
+/** After redirect eligibility, before the primitive; no arbitrary retention input. */
+export function captureAppliedUnderPlacement(state: VmState, source: string, destination: string, frame?: ScriptFrame): AppliedUnderPlacement {
+  preflightPlacedUnder(state, source, destination);
+  const at = findCard(state, destination), card = state.cards[source];
+  if (!at) return underFail("bind a physical destination host for under-source cleanup");
+  const origin = effectiveUnderPosition(state, source), destinationAt = { area: at.zone, holder: at.owner };
+  if (origin.host && card.zCard && (origin.area !== at.zone || origin.holder !== at.owner))
+    return underFail("prove a buried Z-source's cross-area or holder under transfer");
+  const receipt = executionReceipt(state, frame), from = effectOccurrence(state, source);
+  const plan = receipt ? captureForMove(receipt, boardOf(state), receipt.root, from) : undefined;
+  const retention: Retention = areaCarries(origin.area, at.zone, origin.holder === at.owner) ? 'area' : destinations.has(at.zone) ? 'sameSkill' : 'reset';
+  const retained = retention === 'area' ? state.effects.filter(effect => effect.target === source).map(effect => effect.id)
+    : retention === 'sameSkill' ? [...(plan?.effects ?? [])] : [];
+  if (retention === 'sameSkill' && receipt?.root.kind === 'tax' && retained.length)
+    return underFail("carry a payment-produced effect through a qualifying under placement");
+  validatedCrossing(boardOf(state), from);
+  const capture: UnderCapture = { state, source, destination, from, origin, destinationAt, receipt, plan, retention,
+    retained: Object.freeze([...retained]), applications: structuredClone(receipt?.entries.filter(entry => plan?.effects.includes(entry.effect)) ?? []), before: '', ...(receipt ? { root: structuredClone(receipt.root) } : {}),
+    sourceIdentity: { cardId: card.cardId, owner: card.owner, epoch: card.zoneEpoch ?? 0, hiddenCount: card.hiddenCount ?? 0 },
+    hostIdentity: underHostIdentity(state, destination), destinationPile: [...state.cards[destination].under], sourcePile: [...card.under], ...(origin.host ? { oldHostPile: [...state.cards[origin.host].under] } : {}), leaderException: findCard(state, source)?.zone === 'leader' && at.zone === 'leader' && state.cards[destination].zCard === true };
+  capture.before = underSnapshot(capture);
+  const token = Object.freeze({}) as AppliedUnderPlacement;
+  underCaptures.set(token, capture);
+  return token;
+}
+export function requireAppliedUnderPlacement(state: VmState, token: AppliedUnderPlacement): void {
+  const capture = underCapture(state, token);
+  if (underSnapshot(capture) !== capture.before) underFail("under-source relation or effect history changed before placement");
+}
+export function eligibleAppliedUnderPlacement(state: VmState, token: AppliedUnderPlacement): { retained: readonly number[]; endBattleSourceEffects: boolean } {
+  requireAppliedUnderPlacement(state, token);
+  const capture = underCapture(state, token);
+  return { retained: [...capture.retained], endBattleSourceEffects: capture.origin.area === 'battle' && capture.destinationAt.area !== 'battle' };
+}
+function completedUnderCapture(state: VmState, token: AppliedUnderPlacement, move: MoveRecord): UnderCapture {
+  const capture = underCapture(state, token), card = state.cards[capture.source], at = findCard(state, capture.destination);
+  if (Object.values(state.cards).some(value => !Array.isArray(value.under))) return underFail("rebuild the actual under-placement pile shape");
+  if (!card || !at || move.card !== capture.source || move.from !== (capture.from.area === 'underOrRemoved' ? null : capture.from.area)
+    || move.fromOwner !== (capture.from.area === 'underOrRemoved' ? null : capture.from.holder)
+    || move.to !== 'under' || move.under !== capture.destination || move.owner !== state.cards[capture.destination]?.owner
+    || findCard(state, capture.source) || hostOf(state, capture.source) !== capture.destination || card.under.length
+    || Object.values(state.cards).flatMap(value => value.under.filter(id => id === capture.source).map(() => value.id)).join() !== capture.destination
+    || underHostIdentity(state, capture.destination) !== capture.hostIdentity
+    || canonical(state.cards[capture.destination].under) !== canonical([...capture.destinationPile, capture.source,
+      ...(capture.from.area === 'underOrRemoved' || capture.from.area === capture.destinationAt.area ? capture.sourcePile : [])])
+    || capture.origin.host !== undefined && canonical(state.cards[capture.origin.host]?.under) !== canonical(capture.oldHostPile?.filter(id => id !== capture.source))
+    || card.cardId !== capture.sourceIdentity.cardId || card.owner !== capture.sourceIdentity.owner
+    || (card.zoneEpoch ?? 0) !== capture.sourceIdentity.epoch + (capture.leaderException ? 0 : 1)
+    || (card.hiddenCount ?? 0) !== capture.sourceIdentity.hiddenCount)
+    return underFail("bind completed under-source placement to its original physical occurrence");
+  return capture;
+}
+/** Read-only actual-result guard before either source or material cleanup. */
+export function validateAppliedUnderPlacement(state: VmState, token: AppliedUnderPlacement, move: MoveRecord): void {
+  completedUnderCapture(state, token, move);
+}
+/** After BOTH source and released-material cleanup; only surviving owned IDs rebind. */
+export function settleAppliedUnderPlacement(state: VmState, token: AppliedUnderPlacement, move: MoveRecord): void {
+  const capture = completedUnderCapture(state, token, move);
+  const board = boardOf(state), to = effectOccurrence(state, capture.source);
+  if (capture.receipt) {
+    const root = capture.root;
+    if (!root || !sameRoot(root, capture.receipt.root) || capture.plan?.anchor !== capture.receipt.anchor) return fail();
+    validate(capture.receipt, board, root);
+    if (capture.applications.some(original => !capture.receipt!.entries.some(entry => entry.effect === original.effect && same(entry.target, original.target))))
+      return underFail("preserve each original execution application through under placement");
+  }
+  const crossing = validatedCrossing(board, capture.from);
+  rebindCrossing(board, crossing, to, capture.retention, capture.receipt, capture.plan?.effects ?? []);
+  for (const id of Object.keys(board.ownership)) if (!state.effects.some(effect => effect.id === Number(id))) delete board.ownership[Number(id)];
+  underCaptures.delete(token);
 }

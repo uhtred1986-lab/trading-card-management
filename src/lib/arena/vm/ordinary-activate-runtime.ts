@@ -62,7 +62,8 @@ export function requireOrdinaryActivation(ctx:EngineContext,state:VmState,value:
  const skill=printed&&script?withValidity(withUsage(recordedSkillIdentity(printed,script),script.usage),script.validity):undefined;
  const inst=state.cards[card];
  if(card!==s.occurrence.card||master!==s.master||index!==s.skill.index||!script||canonical(script)!==canonical(s.script)||canonical(skill)!==canonical(s.skill)||!inst||inst.cardId!==s.occurrence.cardId||!Number.isSafeInteger(inst.zoneEpoch??0)||(inst.zoneEpoch??0)<s.occurrence.epoch)fail();
- const expected={event:'skillActivated',card,controller:master,args:{kind:'activate',from:s.occurrence.area,paid:true,extra:def.type==='EXTRA',cardActivation:def.type==='EXTRA'&&s.occurrence.area==='hand'}};
+ const originalExtra=def.type==='EXTRA'||def.type==='Z-EXTRA';
+ const expected={event:'skillActivated',card,controller:master,args:{kind:'activate',from:s.occurrence.area,paid:true,extra:originalExtra,cardActivation:originalExtra&&s.occurrence.area==='hand'}};
  if(canonical(value.moment)!==canonical(expected)||!Number.isSafeInteger(value.useGeneration)||value.useGeneration<0||!Number.isSafeInteger(inst.ordinaryUseGeneration)||inst.ordinaryUseGeneration!<value.useGeneration)fail();
  return script;
 }
