@@ -83,8 +83,12 @@ function requireShape(skill: Skill, script: Script): void {
     const op = revealAs(script.ops[0]);
     requireOp(op);
     const choose = script.ops[1], move = script.ops[2], tail = script.ops[3];
-    if (choose?.op === 'choose' && choose.sel.filter && Object.entries(choose.sel.filter).some(([k, v]) => k !== 'characters' && v !== null && v !== undefined && v !== false && !(Array.isArray(v) && v.length === 0)))
-        throw new NotYet('inspect using a non-character historical filter', 'R527');
+    if (choose?.op === 'choose' && choose.sel.filter) {
+        const f = choose.sel.filter;
+        if (Object.entries(f).some(([k, v]) => !['characters', 'traits'].includes(k) && v !== null && v !== undefined && v !== false && !(Array.isArray(v) && v.length === 0))
+            || (f.traits?.length ?? 0) > 1 || ((f.traits?.length ?? 0) > 0 && ((f.characters?.length ?? 0) > 0 || !f.traits[0].trim())))
+            throw new NotYet('inspect using an unreviewed historical identity filter', 'R527');
+    }
     if (choose?.op === 'choose' && Object.entries(choose.sel).some(([k, v]) => v !== undefined && !['side', 'filter', 'count', 'upTo', 'fromVar'].includes(k)))
         throw new NotYet('resolve an unreviewed private inspection selector', 'R527');
     if (script.ops.length !== 4 || choose?.op !== 'choose' || choose.sel.fromVar !== op.as || choose.sel.count !== 1 || choose.sel.upTo !== true || choose.chooser && choose.chooser !== 'you' || move?.op !== 'moveTo' || key(move.target) !== key({ var: choose.as }) || move.to !== 'hand' || !tail || !['shuffle', 'chooseMode'].includes(tail.op))
@@ -142,6 +146,21 @@ function expectedBody(ops: Op[], look: IncrementalLook | undefined): Op[] {
         fail();
     return [...ops.slice(0, -1), ...tail.modes[mode.index].ops];
 }
+type InspectionChoose = Extract<Op, { op: 'choose' }>;
+/** Caller authenticates original definitions/prefix; never reconstruct effective history. */
+function frozenEligible(ctx: EngineContext, game: GameDefinition, look: IncrementalLook, op: InspectionChoose): Occurrence[] {
+    return look.inspected.filter(c => {
+        const def = ctx.defs[c.cardId];
+        if (!def) fail();
+        return !op.sel.filter || predicateOf(op.sel.filter, game)(attrsOf(def, game).attrs);
+    });
+}
+function equivalentCandidates(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, op: InspectionChoose): Occurrence[] {
+    const eligible = frozenEligible(ctx, game, frame.incrementalLook!, op);
+    if (key(resolveSelector(ctx, game, state, frame, op.sel)) !== key(eligible.map(c => c.card)))
+        throw new NotYet('inspect through changed private-card characteristics', 'R527');
+    return eligible;
+}
 export function requireIncrementalLook(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame): void {
     if (game.id !== state.game)
         fail();
@@ -193,14 +212,16 @@ export function requireIncrementalLook(ctx: EngineContext, game: GameDefinition,
                 fail();
             if (op.op !== 'choose')
                 fail();
-            const eligible = look.inspected.filter(c => { const def = ctx.defs[c.cardId]; if (!def)
-                fail(); return !op.sel.filter || predicateOf(op.sel.filter, game)(attrsOf(def, game).attrs); });
+            const eligible = frozenEligible(ctx, game, look, op);
             if (key(decision.candidates) !== key(eligible))
                 fail();
             chosen.push(...ids);
         }
         if (key(frame.vars[look.op.as]) !== key(look.inspected.map(x => x.card).filter(id => !chosen.includes(id))))
             fail();
+        const originalChoose = sourceOps[1] as InspectionChoose;
+        if (frame.ip === 1 && look.choices[originalChoose.as] === undefined)
+            equivalentCandidates(ctx, game, state, frame, originalChoose);
         // Before the final placement, inspected cards still in the pool must be the
         // original deck occurrences, not cards returned to the deck after departure.
         if (frame.ip <= 3 && !frame.moveLoop)
@@ -242,13 +263,9 @@ export function recordInspectionChoice(ctx: EngineContext, game: GameDefinition,
         fail();
     // Called by the native chooser, before its variable/pool writes.
     requireIncrementalLook(ctx, game, state, frame);
-    const candidates = resolveSelector(ctx, game, state, frame, op.sel);
-    if (picked.length > 1 || new Set(picked).size !== picked.length || picked.some(id => !candidates.includes(id)))
+    const eligible = equivalentCandidates(ctx, game, state, frame, op);
+    if (picked.length > 1 || new Set(picked).size !== picked.length || picked.some(id => !eligible.some(c => c.card === id)))
         fail();
-    const eligible = look.inspected.filter(c => { const def = ctx.defs[c.cardId]; if (!def)
-        fail(); return !op.sel.filter || predicateOf(op.sel.filter, game)(attrsOf(def, game).attrs); });
-    if (key(candidates) !== key(eligible.map(c => c.card)))
-        throw new NotYet('inspect through changed private-card characteristics', 'R527');
     look.choices[op.as] = { ids: [...picked], candidates: structuredClone(eligible) };
 }
 export function recordInspectionMode(ctx: EngineContext, game: GameDefinition, state: VmState, frame: ScriptFrame, op: Extract<Op, {
@@ -278,7 +295,7 @@ export function requireInspectionPrompt(ctx: EngineContext, game: GameDefinition
     for (const frame of state.programs.filter(f => f.incrementalLook?.phase === 'complete')) {
         const op = frame.ops[frame.ip];
         if (op?.op === 'choose' && frame.awaiting === op.as) {
-            const candidates = resolveSelector(ctx, game, state, frame, op.sel);
+            const candidates = equivalentCandidates(ctx, game, state, frame, op).map(c => c.card);
             if (pr.kind !== 'chooseCards' || pr.player !== frame.master || pr.choice.continuation !== op.as || pr.choice.min !== 0 || pr.choice.max !== 1 || key(pr.choice.candidates) !== key(candidates) || pr.choice.blind || pr.choice.reason !== (op.reason ?? `${ctx.defs[frame.lookExecution!.source.cardId].name}: choose up to 1`))
                 fail();
         }
@@ -329,6 +346,9 @@ export function stepIncrementalLook(ctx: EngineContext, game: GameDefinition, st
         state.lastMode = null;
         if (look.inspected.length >= look.maximum || answer === 1) {
             frame.vars[op.as] = look.inspected.map(x => x.card);
+            // Validate before the next chooser or its empty-candidate fast path.
+            // Entry authenticated this looking frame; no fake decision is stored.
+            equivalentCandidates(ctx, game, state, frame, look.originalOps[1] as InspectionChoose);
             look.phase = 'complete';
             delete frame.awaiting;
             return 'done';
