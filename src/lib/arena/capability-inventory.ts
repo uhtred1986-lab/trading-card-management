@@ -475,6 +475,7 @@ export interface VmUnsupportedSourceSite {
 }
 
 export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
+  { id: "arena-vm-under-standing-contract", file: "src/lib/arena/vm/standing-negation-under-relation.ts", ordinal: 1, kind: "not-yet", classification: "declaration-extension", citation: "RM23-2; isolated under-standing generation contract", detail: "Preparatory unimported v3 contract rejects malformed supplied relations, stale histories and unreviewed transitions; no native card admission or saved-state migration is implemented." },
   {"id":"arena-vm-r513-native-cleanup","file":"src/lib/arena/vm/combo-drop-batch.ts","ordinal":1,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"R-513; RM8-5; RM9-1; RM9-5; RM10-1-3-1","ownerIssue":1249,"detail":"Affected 8-5-8 cleanup is limited to complete plain owned Battle Combo departures with no replacement, native redirect, stack, Z-card or Token; the entire deterministic batch is preflighted before its first write."},
   {"id":"arena-vm-r513-native-face","file":"src/lib/arena/vm/host.ts","ordinal":1,"kind":"not-yet","classification":"current-runtime-unsupported","citation":"R-513; RM8-5; RM9-1; RM9-5; RM10-1-3-1","ownerIssue":1249,"detail":"Only an actual normal Leader face switch preserves the captured same-card battle role; unreviewed participating source faces refuse before mutation."},
   {"id":"arena-vm-r513-native-ruleset","file":"src/lib/arena/vm/standing-negation-runtime.ts","ordinal":1,"kind":"not-yet","classification":"validated-guard","citation":"R-513; RM8-5; RM9-1; RM9-5; RM10-1-3-1","detail":"Mixed history uses the actual matching pinned or loaded game definition; an unknown ruleset cannot be inferred."},
@@ -715,6 +716,7 @@ export const VM_UNSUPPORTED_SOURCE_SITES: readonly VmUnsupportedSourceSite[] = [
 
 /** Semantic AST identities: function, switch case, and enclosing guard chain. */
 export const VM_NOT_YET_AST_SIGNATURES: Readonly<Record<string, string>> = {
+  "arena-vm-under-standing-contract": "<top-level>|-|-",
   "arena-vm-r513-native-cleanup": "fail|-|-",
   "arena-vm-r513-native-face": "vmHost|-|roles.length && state.mixedStandingNegationHistory && (ctx.defs[card(id).cardId]?.type !== \"LEADER\"\n          || card(id).zCard || card(id).hidden || !ctx.defs[card(id).cardId]?.back || zoneOf(state, id) !== \"leader\")",
   "arena-vm-r513-native-ruleset": "actualGame|-|!loaded.ok",
