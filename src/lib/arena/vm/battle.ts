@@ -2321,8 +2321,15 @@ export function resumeDamage(state: VmState): boolean {
  * the "removed from a Battle Area by a skill" moment (the legacy `ko` op pends
  * nothing of that family), only `leftBattleToDrop`'s causeless one.
  */
-export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, cause?: string, replaced?: ReplacementResult | null, how?: "battle" | "skill"): void {
-  if (forbids(ctx, game, state, "beKOd", { card })) return;
+export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, cause?: string, replaced?: ReplacementResult | null, how?: "battle" | "skill", onKoResult?: (result: import("./ko-result").KoOutcome) => void): void {
+  if (onKoResult && !state.cards[card]) throw new NotYet("rebuild missing original KO victim", "R506");
+  if (onKoResult && (findCard(state, card)?.zone !== "battle" || !isTokenCard(state.cards[card].cardId) && !["BATTLE", "Z-BATTLE"].includes(String(attrsNow(ctx, game, state, card).type)))
+      || forbids(ctx, game, state, "beKOd", { card })) {
+    if (onKoResult) onKoResult({ card, fromEpoch: state.cards[card]?.zoneEpoch ?? 0, toEpoch: state.cards[card]?.zoneEpoch ?? 0,
+      to: findCard(state, card)?.zone as import("../types").Area ?? null, owner: state.cards[card].owner,
+      moved: false, route: { skillReplacementApplied: false, nativeHook: "none", primitiveRemoval: "none" }, cost: null });
+    return;
+  }
   const owner = state.cards[card].owner;
   const master = masterOf(game, state, card);
   // 9-6-9-3: a card KO'd face down answers to its own KO only where a
@@ -2335,7 +2342,7 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   const koMoment = { event: "ko", card, controller: owner, ...(cause !== undefined && cause !== card ? { source: cause } : {}), args: { role: "koed", to: "drop", ...(how ? { by: how } : {}), ...(byOther !== undefined ? { byOpponent: byOther } : {}), ...(wasHidden ? { hidden: true } : {}) } };
   // 9-10: a KO is a departure a replacement may stand in front of — the one
   // a skill's `ko` loop settled on, or the first that answers (`vm/replace.ts`).
-  moved(ctx, game, state, ev, card, "drop", { owner, reason: "ko", ...(replaced !== undefined ? { replaced } : {}),
+  moved(ctx, game, state, ev, card, "drop", { owner, reason: "ko", ...(onKoResult ? { onKoResult } : {}), ...(replaced !== undefined ? { replaced } : {}),
     movementAuto: { also: koMoment, beforeSubstitute: logKo, beforeMutation: captured => { history = captured; logKo(); } } });
   // Preserve existing KO admission for replacements/redirects. Refusing this
   // original movement at preflight emits no completed KO; substitute programs

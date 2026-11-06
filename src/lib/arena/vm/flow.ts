@@ -1,3 +1,5 @@
+import { koResultScript, requireKoBinding, requireKoFrame } from "./ko-source";
+import { requireKoRoute, type KoOutcome } from "./ko-result";
 import { captureFlowPlacement, cleanupFlowPlacement, needsFlowPaymentPreview } from "./flow-placement-cleanup";
 import { captureMovementAutoHistory, requireMovementAutoBodies, type MovementAutoHistory } from "./movement-auto-history";
 import { areaCarries, freshAppliedEffectRoot, executionReceipt, type Receipt } from "./applied-effect-receipt";
@@ -95,7 +97,7 @@ import { beginReplacementAuto, prepareReplacementAuto, requireReplacementOrigin,
 import { rebuildScope, arrivalAutoWasActive, finishSkillPlayScope, releaseSkillPlayWindow, requireSkillEffectOrigin, scopeForFinish, startSkillPlayScope } from "./skill-play-scope";
 import { replacementPrompt, routeOf, stepScript, type ScriptFrame } from "./script";
 import type { Trigger } from "../types";
-import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, moveCard } from "./zones";
+import { SETUP_ZONES, arrivalMode, findCard, inPlayZones, isTokenCard, moveCard } from "./zones";
 import { fireAfterSkill, fireHook, hasActiveNegateOwnSkill, queryHookStatics } from "./hooks";
 import { attrsNow, chargeSwitchForbidden, forbiddenForCard, forbids, hasKeyword, keywordPlayTaxes, permissions, readingBoard, staticsNow, taxesOn } from "./program";
 import { attrsOf, playerAttributes } from "./cards";
@@ -929,6 +931,10 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     && !skill.effect.trim() && !skill.cost.trim() && !automaticHasPrice(skill, undefined);
   const program = captured.script
     ?? (nativeBattleKeyword ? { ops: [], unsupported: [] } : undefined);
+  if (koResultScript(program) || next.koBinding) {
+    try { requireKoBinding(state, program, next.koBinding, next.card, next.master, next.skillIndex); }
+    catch (error) { interruptGame(ctx, game, state, ev, {sourceCard:next.card,skillIndex:next.skillIndex,trigger:next.trigger,issue:"R506",detail:error instanceof Error?error.message:"missing KO source"}); return true; }
+  }
   // R483: these entry-qualified watchers always retain the actual subject's
   // event attributes. A later Auto may already have moved that subject.
   if (["youComboFromHand", "youComboFromBattle"].includes(next.trigger)
@@ -987,6 +993,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     trigger: next.trigger as Trigger,
     subject: next.subject,
     ...(next.faceUpLifeEpoch === undefined ? {} : { faceUpLifeEpoch: next.faceUpLifeEpoch }),
+    ...(next.koBinding ? { koBinding: { ...next.koBinding } } : {}),
     ...(next.pairedSelf ? { pairedSelf: { ...next.pairedSelf } } : {}),
     ...(next.subjectInfo ? { subjectInfo: next.subjectInfo } : {}),
     // #930: how the card was played, as it was when this Auto was triggered.
@@ -1486,6 +1493,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireZAwakenBindings(frame);
     requireReviveFrame(state, frame);
     const sourceScript = programSourceScript(ctx, state, frame);
+    requireKoFrame(state, sourceScript, frame);
     requirePairedSourceFrame(state, sourceScript, frame);
     requireCounterArrivalContract(frame, sourceScript);
     requireCounterArrivalDecision(state, frame);
@@ -1778,6 +1786,7 @@ export interface MoveCause {
   appliedEffects?: Receipt;
   /** Internal synchronous result reporting, never serialized with a frame. */
   onResult?: (result: MovementOutcome) => void;
+  onKoResult?: (result: KoOutcome) => void;
   owner?: PlayerId;
   position?: "top" | "bottom";
   /**
@@ -1837,6 +1846,20 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   const from = fromZone(state, id);
   const fromEpoch = state.cards[id]?.zoneEpoch ?? 0;
   const report = (completed: boolean, actual = fromZone(state, id)) => opts.onResult?.({ card: id, from, fromEpoch, to: actual, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch, completed });
+  const koOwner = state.cards[id]?.owner;
+  const primitiveRemoval = !opts.onKoResult ? "none" as const : isTokenCard(state.cards[id]?.cardId ?? "") ? "token" as const
+    : state.cards[id]?.zCard && String(attrsNow(ctx, game, state, id).type) === "Z-BATTLE" ? "zBattle" as const : "none" as const;
+  let koReported = false;
+  const reportKo = (route: { skillReplacementApplied: boolean; nativeHook: "none" | "ultimate" | "unreviewed" }, departed: boolean) => {
+    if (!opts.onKoResult || koReported) return;
+    const facts = { ...route, primitiveRemoval: departed ? primitiveRemoval : "none" as const };
+    requireKoRoute(facts);
+    const cost = departed && !facts.skillReplacementApplied ? attrsNow(ctx, game, state, id).costOf : null;
+    opts.onKoResult({ card: id, fromEpoch, toEpoch: state.cards[id]?.zoneEpoch ?? fromEpoch,
+      to: fromZone(state, id) as import("../types").Area | null, owner: koOwner!, moved: departed, route: facts,
+      cost: typeof cost === "number" ? cost : null });
+    koReported = true;
+  };
   const fromHolder = findCard(state, id)?.owner;
   // BT29-029 / 9-6-9-1-2: read the returned card before leaving ends
   // source effects or control loans. Keep this on the private moment only.
@@ -1849,7 +1872,10 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // substitute keeps it where it is (9-10-1-1) — nothing below happens then.
   let redirectNote: Extract<GameEvent, { type: "note" }> | undefined;
   const route = leaveRoute(ctx, game, state, ev, id, from, asked, {
-    ...(opts.movementAuto?.beforeSubstitute ? { beforeSubstitute: opts.movementAuto.beforeSubstitute } : {}),
+    ...((opts.movementAuto?.beforeSubstitute || opts.onKoResult) ? { beforeSubstitute: () => {
+      reportKo({ skillReplacementApplied: true, nativeHook: "none" }, false);
+      opts.movementAuto?.beforeSubstitute?.();
+    } } : {}),
     ...(opts.movementAuto ? { onRedirectNote: (note: Extract<GameEvent, { type: "note" }>) => { redirectNote = note; } } : {}),
     reason: opts.reason,
     ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}),
@@ -1859,8 +1885,9 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   });
   if (!route.stays && route.to === "energy") guardUnownedEnergyEntry(ctx,state,id);
   if (route.replacement) opts.usedReplacements?.add(route.replacement);
-  if (route.stays) { report(false); return; }
-  if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { report(false); return; }
+  if (opts.onKoResult) requireKoRoute({ ...route.koProvenance, primitiveRemoval });
+  if (route.stays) { reportKo(route.koProvenance, false); report(false); return; }
+  if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { reportKo(route.koProvenance, false); report(false); return; }
   if (state.cards[id]?.hidden || state.cards[id]?.under.length || from === null || (from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, route.to === "battle" ? id : undefined);
   const movementHistory = captureMovementAutoHistory(ctx, game, state, id);
   // Legacy consumers receive the same final snapshot; no pre-replacement list.
@@ -1896,6 +1923,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
       : null;
   if (to === asked) opts.beforeTriggers?.();
   finishStandingNegationMutation(ctx, state, transaction, to === "battle" && from !== "battle" ? id : undefined);
+  reportKo(route.koProvenance, from !== result.move.to);
   report(!route.replacementApplied && result.move.to === asked, result.move.to);
   const moment = movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder);
   if (wasFaceUpLife) moment.args.faceUp = true;

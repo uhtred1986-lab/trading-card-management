@@ -157,7 +157,7 @@ import type { CardFilter, SchemaOp } from "./harness";
   assert.equal(describeScript([{ op: "forbid", what: "attack", until: "turn", side: "opponent", uses: 1 }]), "your opponent can attack only one more time for the turn"); // audit effects 2: the budget said the way the card says it
   assert.equal(describeScript([{ op: "forbid", what: "play", until: "turn", side: "opponent", unless: { kind: "count", sel: { side: "opponent", area: "energy", count: 99 }, atLeast: 3 } }]), "your opponent can't play cards unless there are 3 or more cards in your opponent's Energy Area for the turn");
   assert.equal(describeScript([{ op: "note", text: "x" }, { op: "shuffle" }]), "shuffle", "a note says nothing");
-  assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET}');
+  assert.equal(opSignature("ko"), '{"op":"ko","target":TARGET,"completedAs"?:"…"}');
   assert.equal(opSignature("negateAttack"), '{"op":"negateAttack"}');
   assert.match(opSignature("draw"), /"side"\?:"you"\|"opponent"/, "an optional field is marked");
 }

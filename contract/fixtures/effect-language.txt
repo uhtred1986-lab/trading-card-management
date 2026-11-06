@@ -27,7 +27,7 @@ Operations (each is an object with "op"; a field marked ? may be left out):
     top of your deck, seen only by you; the cards are bound to the name in "as" (20-11)
   {"op":"reveal","sel":SELECTOR,"as":"…","audience"?:"you"|"both"}
     shown to both players; the cards stay where they are (20-11-2). "audience":"you" is a look — shown to you alone, nothing logged (20-11); prefer "look", the spelling it means
-  {"op":"ko","target":TARGET}
+  {"op":"ko","target":TARGET,"completedAs"?:"…"}
   {"op":"moveTo","target":TARGET,"to":AREA,"position"?:"top"|"bottom","mode"?:"active"|"rest","reveal"?:true|false,"under"?:TARGET,"owner"?:"you"|"opponent","faceUp"?:true|false,"random"?:true|false,"cause"?:"ko"|"effect"|"rule"|…,"completedAs"?:"…"}
     "to":"under" puts the card under "under" (or under this card, 23-2); "owner":"opponent" for "place it in your opponent's energy" — the area is theirs, not the card owner's (3-8); "cause" is "damage"/"ko"/"combo"/"effect"/a plain "draw" told apart (spec §2.5-2), read by a replacement's own scope and, on the rules engine, by `triggers.rules`'s `moved(cause: …)`
   {"op":"play","target":TARGET,"mode"?:"active"|"rest","onto"?:TARGET,"negated"?:"turn"|"game","negatedKinds"?:["auto"|"activate"|"counter"|"permanent"|"keyword"],"negatedUntil"?:DURATION,"using"?:"Over Realm"|"Dark Over Realm"|"Evolve"|…}
@@ -158,6 +158,7 @@ COND is one of these (a field marked ? may be left out):
   {"kind":"not","cond":COND}
   {"kind":"switched","var":"…"}
     R-429: original Active-to-Rest completion, excluding prevented switches and already-Rest no-ops
+  {"kind":"koedByThisSkill","var":"…","costMax":N}
   {"kind":"moved","var":"…","atLeast"?:N,"all"?:true|false}
     R-426: reads a moveTo completedAs result; replacements and prevented movement do not complete the original action
   {"kind":"chose","var":"…","atLeast"?:N}

@@ -7537,6 +7537,23 @@ function delayedWarpReturn(clauses: string[], c: Ctx, joined: boolean[]): Op[] |
   return ops;
 }
 
+export function compileOriginalKoFollowup(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[]): Op[] | null {
+  // R506: exact original-KO follow-up, with postdeparture energy cost (RM9-12-1).
+  const originalKo = ["your opponent chooses 1 of their battle cards", "kos it", "if this skill is used to ko a battle card with an energy cost of 3 or less", "draw 1 card"];
+  if (JSON.stringify(rawClauses.map(x => x.trim().replace(/[.]$/, "").toLowerCase())) === JSON.stringify(originalKo)) {
+    const issues: string[] = [];
+    const prefix = compileClauseList(rawClauses.slice(0, 2), c, issues, rawJoined.slice(0, 2));
+    const [choice, ko] = prefix;
+    if (!issues.length && prefix.length === 2 && choice?.op === "choose" && choice.chooser === "opponent"
+        && choice.sel.side === "opponent" && choice.sel.area === "battle" && choice.sel.count === 1 && !choice.sel.upTo
+        && choice.sel.filter?.type === "BATTLE" && ko?.op === "ko" && "var" in ko.target && ko.target.var === choice.as) {
+      return [choice, { ...ko, completedAs: choice.as }, { op: "if", cond: { kind: "koedByThisSkill", var: choice.as, costMax: 3 }, then: [{ op: "draw", n: 1 }] }];
+    }
+    unsupported.push(rawClauses.join(", ")); return prefix;
+  }
+  return null;
+}
+
 export function compileClauseList(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[] = []): Op[] {
   // R501: "was in Rest Mode" is a selected pre-KO fact, not a KO-success hinge.
   // Choose the branch before KO so replacement pauses preserve it without rereading the Drop card.

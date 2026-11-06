@@ -1,3 +1,4 @@
+import { canonicalTaxValue } from "./tax-receipt";
 /**
  * 9-10 on the rules engine: what stands in front of a card leaving play.
  *
@@ -228,7 +229,7 @@ function replacementFor(
 }
 
 /** What a departure becomes: the card stays where it is (a substitute ran, or will), or it goes here, in this mode. */
-export type LeaveRoute = { stays: true; replacement?: string; replacementApplied?: true } | { stays: false; to: string; mode?: string; position?: "top" | "bottom"; replacement?: string; replacementApplied?: true };
+export type LeaveRoute = ({ stays: true; replacement?: string; replacementApplied?: true } | { stays: false; to: string; mode?: string; position?: "top" | "bottom"; replacement?: string; replacementApplied?: true }) & { koProvenance: { skillReplacementApplied: boolean; nativeHook: "none" | "ultimate" | "unreviewed" } };
 
 /**
  * The 9-10 half of a move, read before the card goes anywhere — every mover
@@ -294,7 +295,7 @@ export function leaveRoute(
       opts.beforeSubstitute?.();
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });
       if (!("deferred" in instead && instead.deferred)) runReplacement(ctx, game, state, ev, id, instead);
-      return { stays: true, replacementApplied: true, ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
+      return { stays: true, koProvenance: { skillReplacementApplied: true, nativeHook: "none" }, replacementApplied: true, ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
     }
     if (instead?.to) {
       applied = true;
@@ -311,16 +312,23 @@ export function leaveRoute(
       insteadPosition = instead.position;
     }
   }
+  const skillReplacementApplied = applied;
+  let nativeHook: "none" | "ultimate" | "unreviewed" = "none";
   // The card's own rule (22-14-3): a `wouldLeave` body's `replace` record,
   // one move of the card itself, read as the redirect a [Permanent]'s is.
   if (held(from) && !held(to)) {
     for (const fact of queryHookStatics(ctx, game, state, id, "wouldLeave")) {
       if (fact.op !== "replace") continue;
       const redirect = redirectOf(fact.with);
-      if (redirect) { to = redirect.to; applied = true; }
+      if (redirect) {
+        const reviewed = fact.keyword.name === "Ultimate" && fact.event === "leave"
+          && canonicalTaxValue(fact.with) === canonicalTaxValue([{ op: "moveTo", target: { sel: { special: "self" } }, to: "removed" }]);
+        nativeHook = nativeHook === "unreviewed" || !reviewed ? "unreviewed" : "ultimate";
+        to = redirect.to; applied = true;
+      }
     }
   }
-  return { stays: false, to, ...(applied ? { replacementApplied: true as const } : {}), ...(mode ? { mode } : {}), ...(insteadPosition ? { position: insteadPosition } : {}), ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
+  return { stays: false, to, koProvenance: { skillReplacementApplied, nativeHook }, ...(applied ? { replacementApplied: true as const } : {}), ...(mode ? { mode } : {}), ...(insteadPosition ? { position: insteadPosition } : {}), ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };
 }
 
 /**

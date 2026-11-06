@@ -539,7 +539,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     },
     doc: 'shown to both players; the cards stay where they are (20-11-2). "audience":"you" is a look — shown to you alone, nothing logged (20-11); prefer "look", the spelling it means',
   },
-  ko: { fields: [TARGET], sentence: "KO {target}" },
+  ko: { fields: [TARGET, { name: "completedAs", type: "string" }], sentence: "KO {target}" },
   moveTo: {
     fields: [
       TARGET,
@@ -1705,6 +1705,7 @@ export const COND_SCHEMA: Record<Cond["kind"], CondSpec> = {
     sentence: () => "the chosen energy was switched to Rest Mode",
     doc: "R-429: original Active-to-Rest completion, excluding prevented switches and already-Rest no-ops",
   },
+  koedByThisSkill: { fields: [{ name: "var", type: "string", required: true }, { name: "costMax", type: "number", required: true }], sentence: raw => `this skill KO'd a card with final energy cost ${(raw as CondOf<"koedByThisSkill">).costMax} or less` },
   moved: {
     fields: [{ name: "var", type: "string", required: true }, AT_LEAST, { name: "all", type: "boolean" }],
     sentence: (raw) => (raw as CondOf<"moved">).all ? "the chosen movement was completed in full" : `at least ${(raw as CondOf<"moved">).atLeast ?? 1} chosen original moves completed`,
@@ -1916,6 +1917,7 @@ export const COND_CLASS: Record<Cond["kind"], OpClass> = {
   power:          "macro over `count`",
   did:            "primitive",
   not:            "primitive",
+  koedByThisSkill: "primitive",
   moved:          "primitive",
   switched:       "primitive",
   chose:          "macro over `count`",
@@ -2265,6 +2267,8 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       if (o.allAreas !== true || !self || o.until !== undefined || (o.op === "negate" && (o.what !== "keyword" || o.chosen !== undefined || typeof o.keyword !== "string"))) return `${step}: allAreas requires a standing self named-keyword negation`;
     }
     if (o.op === "energyEntryExhaust" && energyEntryPolicyProblem({ version: 1, colors: o.colors })) return `${step}: requires exactly two distinct supported color slots`;
+    if (o.op === "ko" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.completedAs !== o.completedAs.trim()
+      || !isRecord(o.target) || Object.keys(o.target).length !== 1 || o.target.var !== o.completedAs)) return `${step}: KO completion requires the same nonempty bound variable target and result name`;
     if (o.op === "switchMode" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.mode !== "rest" || !isRecord(o.target) || typeof o.target.var !== "string")) return `${step}: switch completion needs a bound variable switched to Rest Mode`;
     if (o.op === "moveTo" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || !isRecord(o.target) || !(typeof o.target.var === "string" || isRecord(o.target.sel) && Object.keys(o.target.sel).length === 1 && o.target.sel.special === "self" && o.to !== "under") || o.to === "play")) return `${step}: completedAs needs a bound variable and an ordinary move or under placement`;
     if (o.op === "play" && (o.negatedKinds !== undefined || o.negatedUntil !== undefined)) {
@@ -2722,6 +2726,7 @@ export function condProblem(v: unknown, depth = 0, xBound = false, at = "cond"):
     const bad = fieldProblem(f, v[f.name], depth, xBound, `${here}.${f.name}`);
     if (bad) return bad;
   }
+  if (v.kind === "koedByThisSkill" && (typeof v.var !== "string" || !v.var.trim() || v.var !== v.var.trim() || typeof v.costMax !== "number" || !Number.isFinite(v.costMax) || v.costMax < 0)) return `${here}: requires a nonempty result name and finite nonnegative final cost bound`;
   if (v.kind === "moved" && v.atLeast !== undefined && (!Number.isSafeInteger(v.atLeast) || Number(v.atLeast) < 1)) return `${here}.atLeast must be a positive integer`;
   // A condition never chooses, so a summed bound in one is read as nothing.
   return strayBound(v, here);

@@ -199,7 +199,7 @@ export interface ScriptHost {
     legacyMovement?: import("./movement-auto-history").LegacyMovementFacts;
   }): Area;
   /** 5-9: KO a card, by this source. */
-  ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced">): void;
+  ko(id: string, by: string | undefined, opts?: Pick<MoveOptions, "replaced"> & { onKoResult?: (outcome: import("./ko-result").KoOutcome) => void }): void;
   /** 23-2: put a card under another. */
   placeUnder(id: string, host: string, frame?: ScriptFrame, onResult?: (result: import("./movement-result").MovementOutcome) => void): boolean;
   /** 23-2, 21-5-2: a card from `host`'s pile becomes the top card in its place, and `host` goes directly under it. Returns whether it happened. */

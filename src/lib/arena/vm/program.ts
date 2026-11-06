@@ -1,3 +1,4 @@
+import { completedKoCost, koResultRebuild } from "./ko-result";
 import { requiredStampedCards } from "./required-stamp";
 import { requirePairedSelf } from "./paired-self";
 import { guardEnergyEntryLifetimes } from "./energy-entry-lifetime";
@@ -2100,6 +2101,9 @@ export function condHolds(ctx: EngineContext, game: GameDefinition, state: VmSta
       const l = leaderOf(c.side);
       return !!l && state.cards[l].flipped === (c.flipped ?? true);
     }
+    case "koedByThisSkill":
+      if (!frame.koBinding || frame.koBinding.name !== c.var) koResultRebuild("missing condition binding");
+      return completedKoCost(frame.koResults?.[c.var], frame.koBinding, frame.vars[c.var]?.length ?? 0, c.costMax);
     case "switched":
       return completedSwitch(frame, c.var);
     case "moved":

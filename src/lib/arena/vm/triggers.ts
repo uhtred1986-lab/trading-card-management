@@ -1,3 +1,4 @@
+import { captureKoBinding, koResultScript } from "./ko-source";
 import { originalMovementSkillNegated } from "./movement-auto-history";
 import { capturePairedSelf, pairedSelfScript, type PairedSelf } from "./paired-self";
 import { resolvedGrantDeleted, resolvedGrantReceipt } from "./resolved-grant-deletion";
@@ -107,6 +108,7 @@ export interface CopiedSkillCapture {
 }
 
 export interface VmPending {
+  koBinding?: import("./ko-result").KoBinding;
   /** Exact copied declaration captured before deletion/expiry of its grant. */
   copiedSkillCapture?: CopiedSkillCapture;
   /** R-422: this exact Auto was active during a successful scoped arrival,
@@ -785,6 +787,7 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       const copiedSkillCapture = captureCopiedSkill(state, match.card, sk, script);
       if (pairedSelfScript(script) && copiedSkillCapture) throw new NotYet("copied bounded paired-source occurrence is not yet supported", "R487");
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
+        ...(koResultScript(script) ? { koBinding: captureKoBinding(state, match.card, master, sk.index, script!) } : {}),
         ...(pairedSelfScript(script) ? { pairedSelf: capturePairedSelf(state, match.card, script!) } : {}),
         ...(copiedSkillCapture ? { copiedSkillCapture } : {}),
         ...(ownFaceUpLife ? { faceUpLifeEpoch: state.cards[match.card]?.zoneEpoch ?? 0 } : {}),

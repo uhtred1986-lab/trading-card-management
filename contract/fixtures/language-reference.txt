@@ -518,13 +518,19 @@
     {
       "name": "ko",
       "class": "macro over `move`",
-      "signature": "{\"op\":\"ko\",\"target\":TARGET}",
+      "signature": "{\"op\":\"ko\",\"target\":TARGET,\"completedAs\"?:\"…\"}",
       "fields": [
         {
           "name": "target",
           "required": true,
           "nullable": false,
           "type": "ref"
+        },
+        {
+          "name": "completedAs",
+          "required": false,
+          "nullable": false,
+          "type": "string"
         }
       ],
       "sentence": "KO this card"
@@ -3698,6 +3704,26 @@
       ],
       "sentence": "the chosen energy was switched to Rest Mode",
       "doc": "R-429: original Active-to-Rest completion, excluding prevented switches and already-Rest no-ops"
+    },
+    {
+      "kind": "koedByThisSkill",
+      "class": "primitive",
+      "signature": "{\"kind\":\"koedByThisSkill\",\"var\":\"…\",\"costMax\":N}",
+      "fields": [
+        {
+          "name": "var",
+          "required": true,
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "costMax",
+          "required": true,
+          "nullable": false,
+          "type": "number"
+        }
+      ],
+      "sentence": "this skill KO'd a card with final energy cost 1 or less"
     },
     {
       "kind": "moved",

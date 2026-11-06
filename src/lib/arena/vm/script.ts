@@ -1,3 +1,4 @@
+import { koResultRebuild, recordKoOutcome, requireKoResult, startKoResult, type KoOutcome } from "./ko-result";
 import { NotYet } from "./errors";
 import { mergeTaxPayers } from "./tax-receipt";
 import type { OverRealmSource } from "./over-realm-cost";
@@ -595,6 +596,7 @@ export type Cond =
    */
   | { kind: "switched"; var: string }
   | { kind: "moved"; var: string; atLeast?: number; all?: boolean }
+  | { kind: "koedByThisSkill"; var: string; costMax: number }
   | { kind: "chose"; var: string; atLeast?: number }
   /**
    * Phrasing batch 6 (owner's ruling, 26 Oct 2026): "…in your hand or Drop Area and place it at the bottom of your deck.
@@ -812,7 +814,7 @@ export type Op =
    * act `look` is the macro over (`revealAs`, `script-schema.ts`).
    */
   | { op: "reveal"; sel: Selector; as: string; audience?: "you" | "both" }
-  | { op: "ko"; target: Ref }
+  | { op: "ko"; target: Ref; completedAs?: string }
   /** `to: "under"` puts the card under `under`, or under the source card (23-2). */
   /**
    * `owner` overrides whose area the card lands in — "place it in your
@@ -1791,6 +1793,8 @@ export interface ScriptFrame {
   switchCandidates?: Record<string, { card: string; epoch: number }[]>;
   switchResults?: Record<string, { version: 1; completed: boolean }>;
   completionSource?: { version: 1; card: string; epoch: number };
+  koBinding?: import("./ko-result").KoBinding;
+  koResults?: Record<string, import("./ko-result").KoResult>;
   movementResults?: Record<string, import("./movement-result").MovementResult>;
   underSource?: { version: 1; card: string; epoch: number };
   /** Exact Counter kind and the unknown-target window it answered. */
@@ -3247,13 +3251,29 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         return "wait";
       }
 
-      case "ko":
-        frame.moveLoop ??= { kind: "ko", ids: h.resolveRef(frame, op.target), index: 0, reason: "ko" };
+      case "ko": {
+        if (op.completedAs && (!frame.koBinding || frame.koBinding.name !== op.completedAs)) koResultRebuild("missing active original KO binding");
+        if (!frame.moveLoop) {
+          const ids = h.resolveRef(frame, op.target);
+          if (op.completedAs) {
+            if (frame.koResults?.[op.completedAs]) koResultRebuild("original KO cannot restart from saved outcomes");
+            (frame.koResults ??= {})[op.completedAs] = startKoResult(frame.koBinding!, ids.map(card => ({ card, epoch: h.zoneEpoch(card), owner: h.ownerOf(card) })));
+          }
+          frame.moveLoop = { kind: "ko", ids, index: 0, reason: "ko" };
+        }
+        const recordKo = op.completedAs ? (outcome: KoOutcome) => recordKoOutcome(frame.koResults![op.completedAs!], frame.koBinding!, frame.moveLoop!.index, outcome) : undefined;
+        const refusedKo = (id: string) => recordKo?.({ card:id, fromEpoch:h.zoneEpoch(id), toEpoch:h.zoneEpoch(id), to:h.areaOf(id) as import("../types").Area | null,
+          owner:h.ownerOf(id), moved:false, route:{skillReplacementApplied:false,nativeHook:"none",primitiveRemoval:"none"}, cost:null });
         while (frame.moveLoop && frame.moveLoop.kind === "ko" && frame.moveLoop.index < frame.moveLoop.ids.length) {
           const id = frame.moveLoop.ids[frame.moveLoop.index];
+          if (op.completedAs) {
+            const receipt = frame.koResults?.[op.completedAs]; requireKoResult(receipt, frame.koBinding!, frame.moveLoop.index);
+            if (receipt.selected[frame.moveLoop.index]?.epoch !== h.zoneEpoch(id)) koResultRebuild("selected KO occurrence changed before attempt");
+          }
           // 22-12: [Indestructible] cannot be KO'd by an opponent's skill.
           if (h.hasKeyword(id, "Indestructible") && h.masterOf(id) !== master) {
             if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} cannot be KO'd`;
+            refusedKo(id);
             frame.moveLoop.index++;
             continue;
           }
@@ -3262,6 +3282,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           // Battle Cards" (BT10-058, `byTypes`), as the move below does.
           if (h.forbids("beKOdBySkill", { player: master, card: id, ...(frame.card ? { source: frame.card } : {}) })) {
             if (frame.saveVarsAs) frame.priceUnpaid ??= `${h.nameOf(id)} cannot be KO'd`;
+            refusedKo(id);
             frame.moveLoop.index++;
             continue;
           }
@@ -3296,7 +3317,8 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             const deferred = defers(replaced);
             const substitute = deferred ? substituteFrame(h, id, replaced!) : undefined;
             if (substitute) h.prepareReplacement?.(substitute, id, "drop", { owner: h.ownerOf(id), reason: "ko", actor: master, by: "skill", byCard: frame.card, byOpponent: h.masterOf(id) !== master });
-            h.ko(id, frame.card, replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced });
+            h.ko(id, frame.card, { ...(recordKo ? { onKoResult: recordKo } : {}), ...(replaced === undefined ? {} : { replaced: deferred ? { ...replaced!, deferred: true } : replaced }) });
+            if (op.completedAs) requireKoResult(frame.koResults?.[op.completedAs], frame.koBinding!, frame.moveLoop.index + 1);
             // "If you KO'd a card" (20-16): only a KO that happened counts.
             if (h.zone(h.ownerOf(id), "drop").length > before) { (frame.did ??= {}).ko = true; frame.acted = (frame.acted ?? 0) + 1; }
             // #1117: the price is paid by this card standing in the Drop, not by the attempt: anything that kept it
@@ -3308,11 +3330,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
               h.interrupt(substitute!, frame);
               return "done";
             }
-          }
+          } else refusedKo(id);
           frame.moveLoop.index++;
         }
         frame.moveLoop = undefined;
         break;
+      }
 
       case "moveTo": {
         // Refuse unsupported optional entries before receipts, RNG, or any card
