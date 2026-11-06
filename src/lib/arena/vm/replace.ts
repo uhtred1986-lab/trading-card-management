@@ -258,7 +258,9 @@ export function leaveRoute(
   to: string,
   opts: { reason?: MoveReason; replaced?: ReplacementResult | null; actor?: PlayerId; usedReplacements?: ReadonlySet<string>; event?: string;
     /** Synchronous KO preflight may defer this direct note; substitute events are unaffected. */
-    onRedirectNote?: (note: Extract<GameEvent, { type: "note" }>) => void },
+    onRedirectNote?: (note: Extract<GameEvent, { type: "note" }>) => void;
+    /** Preserve the existing KO announcement before a substitute, without claiming a movement. */
+    beforeSubstitute?: () => void },
 ): LeaveRoute {
   const inPlay = inPlayZones(game);
   const held = (zone: string | null) => !!zone && (inPlay.includes(zone) || game.zones[zone]?.host === true);
@@ -289,6 +291,7 @@ export function leaveRoute(
   if (((((from && inPlay.includes(from)) || fromLife) || answeredHandDeparture || answeredCostDeparture || answeredComboCleanup) && !held(to)) || (scopedDeparture && (selected || opts.replaced != null))) {
     const instead: Replacement | ReplacementResult | null = opts.replaced !== undefined ? opts.replaced : selected?.route ?? null;
     if (instead?.ops?.length) {
+      opts.beforeSubstitute?.();
       log(ev, { type: "note", text: `${nameOf(ctx, state, id)} stays where it is; ${describeScript(instead.ops)} instead` });
       if (!("deferred" in instead && instead.deferred)) runReplacement(ctx, game, state, ev, id, instead);
       return { stays: true, replacementApplied: true, ...(selectedIdentity ? { replacement: selectedIdentity } : {}) };

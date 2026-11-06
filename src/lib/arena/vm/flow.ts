@@ -1772,7 +1772,7 @@ export function draw(ctx: EngineContext, game: GameDefinition, state: VmState, e
 /** How a card came to move, for the pattern arguments that ask (`moved(asPlay: true)`, `moved(by: skill)`). */
 export interface MoveCause {
   /** Private synchronous KO-victim history handoff; never serialized. */
-  movementAuto?: { also: Moment; beforeMutation: (history: MovementAutoHistory) => void };
+  movementAuto?: { also: Moment; beforeMutation: (history: MovementAutoHistory) => void; beforeSubstitute?: () => void };
   /** Private current-execution provenance, never an event field. */
   appliedEffects?: Receipt;
   /** Internal synchronous result reporting, never serialized with a frame. */
@@ -1848,6 +1848,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // substitute keeps it where it is (9-10-1-1) — nothing below happens then.
   let redirectNote: Extract<GameEvent, { type: "note" }> | undefined;
   const route = leaveRoute(ctx, game, state, ev, id, from, asked, {
+    ...(opts.movementAuto?.beforeSubstitute ? { beforeSubstitute: opts.movementAuto.beforeSubstitute } : {}),
     ...(opts.movementAuto ? { onRedirectNote: (note: Extract<GameEvent, { type: "note" }>) => { redirectNote = note; } } : {}),
     reason: opts.reason,
     ...(opts.replaced !== undefined ? { replaced: opts.replaced } : {}),

@@ -2331,9 +2331,10 @@ export function koCard(ctx: EngineContext, game: GameDefinition, state: VmState,
   // 9-10: a KO is a departure a replacement may stand in front of — the one
   // a skill's `ko` loop settled on, or the first that answers (`vm/replace.ts`).
   moved(ctx, game, state, ev, card, "drop", { owner, reason: "ko", ...(replaced !== undefined ? { replaced } : {}),
-    movementAuto: { also: koMoment, beforeMutation: captured => { history = captured; logKo(); } } });
-  // Preserve existing KO admission for replacements/redirects. A history
-  // preflight that throws reaches neither the completed KO log nor its moment.
+    movementAuto: { also: koMoment, beforeSubstitute: logKo, beforeMutation: captured => { history = captured; logKo(); } } });
+  // Preserve existing KO admission for replacements/redirects. Refusing this
+  // original movement at preflight emits no completed KO; substitute programs
+  // retain their separate, pre-existing announcement and error behavior.
   logKo();
   // `to: drop` matches `koed`'s own pattern (`triggers.rules`) — the card has
   // already landed there by the time this fires, and that field is what lets

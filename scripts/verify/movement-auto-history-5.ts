@@ -229,6 +229,21 @@ for (const p of ['p1', 'p2'] as const) {
   assert.equal(JSON.stringify(s),before);
   rows.push({kind:'retained-area-ending-grant',p,pass:true});
 }
+// A substitute announces the existing KO attempt before its own event stream;
+// no original movement-history guarantee is added to this stays route.
+for (const p of ['p1','p2'] as const) {
+    const s=fresh(p),id=stage(s,p,'F','battle'),ev:GameEvent[]=[];
+    const top=s.sides[p].zones.deck[0],cause=s.sides[other(p)].zones.leader[0];
+    koCard(ctx,game,s,ev,id,cause,{ops:[{op:'draw',n:1}],source:id,master:p},'skill');
+    assert.deepEqual(ev,[
+      {type:'ko',card:id,by:cause},
+      {type:'note',text:'F stays where it is; draw 1 instead'},
+      {type:'move',card:top,from:'deck',to:'hand',owner:p},
+      {type:'draw',player:p,card:top},
+    ]);
+    assert.ok(s.sides[p].zones.battle.includes(id));
+    rows.push({kind:'existing-KO-substitute-order',p,pass:true});
+}
 for (const row of rows)
     assert.equal((row as {
         pass: boolean;
