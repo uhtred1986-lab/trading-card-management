@@ -1095,6 +1095,19 @@ function bindSevenDragonBallRemoval(clauses: string[], ops: Op[]): boolean | nul
   return true;
 }
 
+/** R504: an unfiltered optional own Life-to-Hand effect grants no look at hidden Life. */
+export function bindBlindLifeHandChoice(clauses: string[], ops: Op[]): boolean | null {
+  const prefix = clauses.slice(0, 2).map(text => text.trim().replace(/[.]$/, "").toLowerCase());
+  if (prefix[0] !== "you may choose 1 card from your life" || prefix[1] !== "add it to your hand") return null;
+  const [choice, move] = ops;
+  if (choice?.op !== "choose" || choice.chooser || choice.sel.side !== "you" || choice.sel.area !== "life"
+      || choice.sel.count !== 1 || choice.sel.upTo !== true || choice.sel.filter || choice.sel.areas
+      || choice.sel.fromVar || choice.sel.special || move?.op !== "moveTo" || move.to !== "hand"
+      || !("var" in move.target) || move.target.var !== choice.as || move.completedAs !== choice.as || move.owner) return false;
+  choice.blind = true;
+  return true;
+}
+
 /** R-426: only an adjacent optional one-card choice followed by one ordinary move. */
 export function bindCompletedChoice(ops: Op[], name: string): Cond | null {
   const move = ops[ops.length - 1], choice = ops[ops.length - 2];

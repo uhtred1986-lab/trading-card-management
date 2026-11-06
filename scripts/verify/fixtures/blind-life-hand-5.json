@@ -1,0 +1,1858 @@
+{
+  "TB2-024": {
+    "card": {
+      "id": "TB2-024",
+      "type": "BATTLE",
+      "colors": [
+        "Blue"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Awakening Talent Pan",
+      "characters": [
+        "Pan"
+      ],
+      "traits": [
+        "Saiyan",
+        "Earthling",
+        "World Tournament"
+      ],
+      "skill": "[Auto] When this card attacks, you may choose 1 card from your life and add it to your hand. If you do so, this card gains +10000 power for the duration of the turn.<br>[Auto] At the end of your turn, return this card to its owner's hand.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Awakening Talent Pan",
+        "qa": [
+          {
+            "q": "An effect returns a card your opponent gained control of to its owner’s hand. Whose hand does it return to?",
+            "a": "It returns to its original owner’s hand."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "TB2-024#0": {
+        "cardId": "TB2-024",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When this card attacks, you may choose 1 card from your life and add it to your hand. If you do so, this card gains +10000 power for the duration of the turn.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 card from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand",
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "power",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "amount": 10000,
+                "until": "turn"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→moveTo→if:moved[power]",
+        "reads": "choose up to 1 card in your Life Area, move the chosen cards to hand, if the chosen movement was completed in full: this card +10000 power for the turn"
+      },
+      "TB2-024#10": {
+        "cardId": "TB2-024",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] At the end of your turn, return this card to its owner's hand.",
+        "kind": "auto",
+        "trigger": [
+          "turnEnd"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "moveTo",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "to": "hand"
+          }
+        ],
+        "unread": [],
+        "pattern": "moveTo",
+        "reads": "move this card to hand"
+      }
+    }
+  },
+  "P-092": {
+    "card": {
+      "id": "P-092",
+      "type": "LEADER",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Broly",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "skill": "[Auto] When this card attacks, you may choose 1 card from your life and add it to your hand. If you do, draw 1 card.<br>[Awaken] When your life is at 4 or less: You may choose up to 2 of your energy, switch them to Active Mode, and flip this card over.",
+      "backName": "Broly, the Awakened Threat",
+      "backSkill": "[Auto] When this card attacks, draw 1 card.<br>[Activate: Main][Once per turn] Choose 1 of your opponent's Battle Cards and switch it to Rest Mode.<br>[Activate: Main][Once per turn] Choose 1 card from your life and add it to your hand: Choose up to 1 of your cards in Rest Mode and switch it to Active Mode."
+    },
+    "faq": [],
+    "records": {
+      "P-092#0": {
+        "cardId": "P-092",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When this card attacks, you may choose 1 card from your life and add it to your hand. If you do, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 card from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand",
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "draw",
+                "n": 1
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→moveTo→if:moved[draw]",
+        "reads": "choose up to 1 card in your Life Area, move the chosen cards to hand, if the chosen movement was completed in full: draw 1"
+      },
+      "P-092#10": {
+        "cardId": "P-092",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Awaken] When your life is at 4 or less: You may choose up to 2 of your energy, switch them to Active Mode, and flip this card over.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "When your life is at 4 or less",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "life",
+            "side": "you",
+            "atMost": 4
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "count": 2,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "You may choose up to 2 of your energy"
+          },
+          {
+            "op": "switchMode",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "active",
+            "by": "Awaken"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→switchMode",
+        "reads": "choose up to 2 cards in your Energy Area, switch the chosen cards to active mode by a [Awaken] skill"
+      },
+      "P-092#0b": {
+        "cardId": "P-092",
+        "side": "back",
+        "skillIndex": 0,
+        "printed": "[Auto] When this card attacks, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 1"
+      },
+      "P-092#10b": {
+        "cardId": "P-092",
+        "side": "back",
+        "skillIndex": 10,
+        "printed": "[Activate: Main][Once per turn] Choose 1 of your opponent's Battle Cards and switch it to Rest Mode.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "Choose 1 of your opponent's Battle Cards"
+          },
+          {
+            "op": "switchMode",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "rest"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→switchMode",
+        "reads": "choose 1 Battle Card in your opponent's Battle Area, switch the chosen cards to rest mode"
+      },
+      "P-092#20b": {
+        "cardId": "P-092",
+        "side": "back",
+        "skillIndex": 20,
+        "printed": "[Activate: Main][Once per turn] Choose 1 card from your life and add it to your hand: Choose this card or up to 1 <Broly: Br> card in your Battle Area and switch it to Active Mode.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Choose 1 card from your life and add it to your hand",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "Choose 1 card from your life"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "hand"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [
+                  "Broly: Br"
+                ],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true,
+              "orSelf": true
+            },
+            "as": "c0",
+            "reason": "Choose this card or up to 1 <Broly: Br> card in your Battle Area"
+          },
+          {
+            "op": "switchMode",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "active"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→switchMode",
+        "reads": "choose up to 1 <Broly: Br> card in your Battle Area, or this card, switch the chosen cards to active mode"
+      }
+    }
+  },
+  "TB3-018": {
+    "card": {
+      "id": "TB3-018",
+      "type": "LEADER",
+      "colors": [
+        "Blue"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Bardock",
+      "characters": [
+        "Bardock"
+      ],
+      "traits": [
+        "Saiyan",
+        "Bardock's Crew"
+      ],
+      "skill": "[Auto][Burst 2] (You must place the top 2 cards of your deck in your Drop Area to activate this skill.) When this card attacks a Leader Card, draw 1 card, and this card gets +5000 power for the duration of the turn.<br>[Awaken] When your life is at 4 or less: You may choose up to 2 of your energy, switch them to Active Mode, and flip this card over.",
+      "backName": "Bardock, Hope of the Saiyans",
+      "backSkill": "[Auto][Sparking 5] (This skill takes effect when you have 5 or more cards in your Drop Area.) When this card attacks, draw 1 card, and this card gets +5000 power for the duration of the turn.<br>[Auto] When this card is attacked, if a ≪Bardock's Crew≫ card is in your Drop Area, you may choose 1 card from your life and place it in your Drop Area. If you do, negate the attack."
+    },
+    "faq": [],
+    "records": {
+      "TB3-018#0": {
+        "cardId": "TB3-018",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto][Burst 2] (You must place the top 2 cards of your deck in your Drop Area to activate this skill.) When this card attacks a Leader Card, draw 1 card, and this card gets +5000 power for the duration of the turn.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": 2,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "inBattle",
+          "sel": {
+            "area": "leader",
+            "side": "opponent"
+          },
+          "role": "guard"
+        },
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          },
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 5000,
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:inBattle[draw→power]",
+        "reads": "if any of the cards in your opponent's Leader Area is being attacked: draw 1, this card +5000 power for the turn"
+      },
+      "TB3-018#10": {
+        "cardId": "TB3-018",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Awaken] When your life is at 4 or less: You may choose up to 2 of your energy, switch them to Active Mode, and flip this card over.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "When your life is at 4 or less",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "life",
+            "side": "you",
+            "atMost": 4
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "energy",
+              "count": 2,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "You may choose up to 2 of your energy"
+          },
+          {
+            "op": "switchMode",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "active",
+            "by": "Awaken"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→switchMode",
+        "reads": "choose up to 2 cards in your Energy Area, switch the chosen cards to active mode by a [Awaken] skill"
+      },
+      "TB3-018#0b": {
+        "cardId": "TB3-018",
+        "side": "back",
+        "skillIndex": 0,
+        "printed": "[Auto][Sparking 5] (This skill takes effect when you have 5 or more cards in your Drop Area.) When this card attacks, draw 1 card, and this card gets +5000 power for the duration of the turn.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": 5
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          },
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 5000,
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "draw→power",
+        "reads": "draw 1, this card +5000 power for the turn"
+      },
+      "TB3-018#10b": {
+        "cardId": "TB3-018",
+        "side": "back",
+        "skillIndex": 10,
+        "printed": "[Auto] When this card is attacked, if a ≪Bardock's Crew≫ card is in your Drop Area, you may choose 1 card from your life and place it in your Drop Area. If you do, negate the attack.",
+        "kind": "auto",
+        "trigger": [
+          "attacked"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "count",
+              "sel": {
+                "side": "you",
+                "area": "drop",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "bardock's crew"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                }
+              },
+              "atLeast": 1
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "you",
+                  "area": "life",
+                  "count": 1,
+                  "upTo": true
+                },
+                "as": "c0",
+                "reason": "you may choose 1 card from your life"
+              },
+              {
+                "op": "moveTo",
+                "target": {
+                  "var": "c0"
+                },
+                "to": "drop",
+                "reveal": true,
+                "completedAs": "c0"
+              },
+              {
+                "op": "if",
+                "cond": {
+                  "kind": "moved",
+                  "var": "c0",
+                  "all": true
+                },
+                "then": [
+                  {
+                    "op": "negateAttack"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[choose→moveTo→if:moved[negateAttack]]",
+        "reads": "if there are 1 or more ≪bardock's crew≫ cards in your Drop Area: choose up to 1 card in your Life Area, move the chosen cards to drop, if the chosen movement was completed in full: negate the attack"
+      }
+    }
+  },
+  "TB3-002": {
+    "card": {
+      "id": "TB3-002",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "5",
+      "specified": null,
+      "z": null,
+      "power": 25000,
+      "name": "Final Showdown Frieza",
+      "characters": [
+        "Frieza"
+      ],
+      "traits": [
+        "Frieza Clan",
+        "Frieza's Army"
+      ],
+      "skill": "[Critical]<br>[Double Strike]<br>[Auto][Once per turn] When your opponent declares to play a Battle Card or activates a skill that puts Battle Cards into play, if your Leader Card is a red ≪Frieza's Army≫ card, you may choose 1 card from your life and place it in your Drop Area. If you do, the Battle Card is played with its skills negated for the duration of the turn. This skill can be activated at Counter Timing.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Final Showdown Frieza",
+        "qa": [
+          {
+            "q": "Can this card’s Auto skill negate the skills of a Battle Card with [Deflect]?",
+            "a": "Yes, it can. If it does, the Battle Card is played with its skills negated for the duration of the turn."
+          },
+          {
+            "q": "Your opponent announces that they’re playing the first Battle Card of the turn, and you don’t use this card’s Auto skill to place a card from your life into your Drop Area to negate the skills of your opponent’s Battle Card. If your opponent declares they will play another Battle Card later in the same turn, will this card’s Auto skill resolve?",
+            "a": "No. It will neither activate nor resolve."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "TB3-002#20": {
+        "cardId": "TB3-002",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Auto][Once per turn] When your opponent declares to play a Battle Card or activates a skill that puts Battle Cards into play, if your Leader Card is a red ≪Frieza's Army≫ card, you may choose 1 card from your life and place it in your Drop Area. If you do, the Battle Card is played with its skills negated for the duration of the turn. This skill can be activated at Counter Timing.",
+        "kind": "auto",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [
+              "Red"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "frieza's army"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 card from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop",
+            "reveal": true
+          }
+        ],
+        "unread": [
+          "the Battle Card is played with its skills negated for the duration of the turn",
+          "This skill can be activated at Counter Timing"
+        ],
+        "pattern": "the battle card is played with its skills negated for the duration of the turn",
+        "reads": "if your leader is Red ≪frieza's army≫: choose up to 1 card in your Life Area, move the chosen cards to drop"
+      }
+    }
+  },
+  "BT1-014": {
+    "card": {
+      "id": "BT1-014",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Saiyan Cabba",
+      "characters": [
+        "Cabba"
+      ],
+      "traits": [
+        "Alien",
+        "Saiyan"
+      ],
+      "skill": "[Auto]  When this card attacks, you may choose 1 card from your life and add it to your hand.  If you do so, this card gains +10000 power and [Double Strike]  (This card inflicts 2 damage instead of 1 when attacking) for the duration of the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Saiyan Cabba",
+        "qa": [
+          {
+            "q": "When adding cards from your Life Area to your hand with {BT1-014 Saiyan Cabba}’s auto skill, can you choose which card to add to your hand?",
+            "a": "You can, but you cannot look at the card beforehand."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT1-014#0": {
+        "cardId": "BT1-014",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto]  When this card attacks, you may choose 1 card from your life and add it to your hand.  If you do so, this card gains +10000 power and [Double Strike]  (This card inflicts 2 damage instead of 1 when attacking) for the duration of the turn.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 card from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand",
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "power",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "amount": 10000,
+                "until": "turn"
+              },
+              {
+                "op": "grant",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "keyword": {
+                  "name": "Strike",
+                  "x": 2
+                },
+                "until": "turn"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→moveTo→if:moved[power→grant:Strike]",
+        "reads": "choose up to 1 card in your Life Area, move the chosen cards to hand, if the chosen movement was completed in full: this card +10000 power for the turn, this card gains [Double Strike] for the turn"
+      }
+    }
+  },
+  "TB3-057": {
+    "card": {
+      "id": "TB3-057",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 20000,
+      "name": "Life or Death Nail",
+      "characters": [
+        "Nail"
+      ],
+      "traits": [
+        "Namekian"
+      ],
+      "skill": "[evolve]{2}: <Nail><br>[permanent] If there are 2 or more ≪Namekian≫ cards under this card, this card gains [barrier] and [double strike].<br>[auto][sparking 5] When you play this card, you may choose 1 card from your life and add it to your hand. If you do, choose up to 1 of your opponent's Battle Cards ignoring [barrier] and switch it to Rest Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Life or Death Nail",
+        "qa": [
+          {
+            "q": "What does “ignoring [Barrier]” mean?",
+            "a": "It means you can choose Battle Cards even if they have [Barrier]."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "TB3-057#0": {
+        "cardId": "TB3-057",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[evolve]{2}: <Nail>",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {
+            "any": 2
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Evolve",
+        "reads": ""
+      },
+      "TB3-057#10": {
+        "cardId": "TB3-057",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[permanent] If there are 2 or more ≪Namekian≫ cards under this card, this card gains [barrier] and [double strike].",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "under",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [
+                "namekian"
+              ],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 2
+        },
+        "ops": [
+          {
+            "op": "grant",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "keyword": {
+              "name": "Barrier"
+            },
+            "until": "game"
+          },
+          {
+            "op": "grant",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "keyword": {
+              "name": "Strike",
+              "x": 2
+            },
+            "until": "game"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[grant:Barrier→grant:Strike]",
+        "reads": "if there are 2 or more ≪namekian≫ cards under this card: this card gains [Barrier], this card gains [Double Strike]"
+      },
+      "TB3-057#20": {
+        "cardId": "TB3-057",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[auto][sparking 5] When you play this card, you may choose 1 card from your life and add it to your hand. If you do, choose up to 1 of your opponent's Battle Cards ignoring [barrier] and switch it to Rest Mode.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": 5
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 card from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand",
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "choose",
+                "sel": {
+                  "side": "opponent",
+                  "area": "battle",
+                  "filter": {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  "count": 1,
+                  "upTo": true,
+                  "ignoreBarrier": true
+                },
+                "as": "c1",
+                "reason": "choose up to 1 of your opponent's Battle Cards"
+              },
+              {
+                "op": "switchMode",
+                "target": {
+                  "var": "c1"
+                },
+                "mode": "rest"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→moveTo→if:moved[choose→switchMode]",
+        "reads": "choose up to 1 card in your Life Area, move the chosen cards to hand, if the chosen movement was completed in full: choose up to 1 Battle Card in your opponent's Battle Area ignoring [Barrier], switch the chosen cards to rest mode"
+      }
+    }
+  },
+  "TB2-042": {
+    "card": {
+      "id": "TB2-042",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Honed Moves Yamcha",
+      "characters": [
+        "Yamcha"
+      ],
+      "traits": [
+        "Earthling",
+        "World Tournament"
+      ],
+      "skill": "[Critical] (When this card inflicts damage to your opponent's life, they place that many cards in their Drop Area instead of their hand)<br>[Auto] When you play this card, you may choose 1 card from your life and add it to your hand. If you do so, your opponent chooses 1 card from their hand and places it in their Drop Area.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": {
+      "TB2-042#0": {
+        "cardId": "TB2-042",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Critical] (When this card inflicts damage to your opponent's life, they place that many cards in their Drop Area instead of their hand)",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Critical",
+        "reads": ""
+      },
+      "TB2-042#10": {
+        "cardId": "TB2-042",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] When you play this card, you may choose 1 card from your life and add it to your hand. If you do so, your opponent chooses 1 card from their hand and places it in their Drop Area.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 card from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand",
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "discard",
+                "n": 1,
+                "side": "opponent"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→moveTo→if:moved[discard]",
+        "reads": "choose up to 1 card in your Life Area, move the chosen cards to hand, if the chosen movement was completed in full: opponent discards 1"
+      }
+    }
+  },
+  "BT4-070": {
+    "card": {
+      "id": "BT4-070",
+      "type": "EXTRA",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": null,
+      "name": "Sacrifice",
+      "characters": [],
+      "traits": [],
+      "skill": "[Counter: Attack] Negate the attack.<br>[Permanent] If your Leader Card is a ≪Namekian≫, when you activate this card's [Counter], you may choose 1 card from your life and add it to your hand. If you do so, you may activate this card's [Counter] without paying its energy cost.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Sacrifice",
+        "qa": [
+          {
+            "q": "You attempt to attack with a card, but the attack is negated. Can you still activate any auto skills that activate “when this card attacks”?",
+            "a": "Yes, you can.\nAfter the attack is negated, they activate and resolve."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT4-070#0": {
+        "cardId": "BT4-070",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Counter: Attack] Negate the attack.",
+        "kind": "counter:attack",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "negateAttack"
+          }
+        ],
+        "unread": [],
+        "pattern": "negateAttack",
+        "reads": "negate the attack"
+      },
+      "BT4-070#10": {
+        "cardId": "BT4-070",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Permanent] If your Leader Card is a ≪Namekian≫, when you activate this card's [Counter], you may choose 1 card from your life and add it to your hand. If you do so, you may activate this card's [Counter] without paying its energy cost.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "filter": {
+            "colors": [],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [
+              "namekian"
+            ],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "altCost",
+            "pay": "life",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[altCost]",
+        "reads": "if your leader is ≪namekian≫: this card's [Counter] may be activated by adding 1 from your life to your hand"
+      }
+    }
+  }
+}

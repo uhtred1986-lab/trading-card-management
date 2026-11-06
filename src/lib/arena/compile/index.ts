@@ -19,7 +19,7 @@ import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause, playedHowGate } from "./conditions";
-import { bindCompletedChoice, compileClauseList, holdForGame, isComboDropReplacement, oneAreaOfTwo, splitModal, taxWordings } from "./effects";
+import { bindBlindLifeHandChoice, bindCompletedChoice, compileClauseList, holdForGame, isComboDropReplacement, oneAreaOfTwo, splitModal, taxWordings } from "./effects";
 import { bondDescriptorOnly } from "../text/bond";
 import { readsAsNothingSilently } from "./silent";
 import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
@@ -1557,6 +1557,11 @@ function compileSkillText(skill: Skill): Script {
     joins.push(at < split.clauses.length ? split.joined[at++] : false);
   }
   let ops = compileClauseList(clauses, c, unsupported, joins);
+  // R504: only the main unpriced Auto effect, never a price or recursive clause context.
+  if (skill.kind === "auto" && !skill.cost.trim() && bindBlindLifeHandChoice(clauses, ops) === false) {
+    unsupported.push(clauses.slice(0, 2).join(", "));
+  }
+
   // BT29-029 / 20-16: "If you do" requires the optional play itself,
   // not merely accepting its offer when a prohibition/replacement stops it.
   if (returnedFromBattle && ops[0]?.op === "may" && ops[0].ops.some((op) => op.op === "play")) {
