@@ -1,3 +1,4 @@
+import { cleanupScriptPlacement, clearScriptAutoReveal as clearAutoReveal } from "./script-placement-cleanup";
 import { captureEnergyComboScope } from "./energy-entry-combo";
 import { requireDeclaredCharge, requireEnergyCharge } from "./energy-entry-charge";
 import { guardEnergyEntryLifetimes, refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
@@ -80,7 +81,7 @@ import { other as otherPlayer } from "../types";
 import type { ScriptHost } from "./script-host";
 import type { Area, CardDef, ContinuousEffect, KeywordSkill, Mode, MoveReason, PlayerId, Prompt, ReplacementResult } from "../types";
 import type { GameDefinition } from "../rulesets";
-import { addEffect, dropEffectsOn, endSourceEffects, negatedSkillsOf, schedule, skillNegated } from "./effects";
+import { addEffect, dropEffectsOn, negatedSkillsOf, schedule, skillNegated } from "./effects";
 import { IllegalAction, tokenCardId } from "./common";
 import { backCharactersOf } from "../text/cards";
 import { koCard, openKeywordPlayWindow, openLandedPlayWindow } from "./battle";
@@ -1117,21 +1118,9 @@ function moveTo(
     report(false);
     return;
   }
-  clearAutoReveal(state, id);
-  for (const released of placed.move.released ?? []) clearAutoReveal(state, released.card);
-  // Where it really went, which a rule about what the card *is* may change
-  // (19-1-7: a token leaving play is removed, `moveCard`'s own redirect) — and
-  // the owner whose copy of the zone it landed in (3-1-6-1's clamp).
+  cleanupScriptPlacement(state, ev, placed.move, from, carry);
+  // Use the actual destination (including native token/Z-card redirects).
   to = placed.move.to;
-  // 3-1-4: a card that changed area is a new card, so nothing that was in force
-  // on it still is. A card moving *within* play carries them (3-1-4-1).
-  if (!carry && from !== to) dropEffectsOn(state, ev, id);
-  // "…while this card is in a Battle Area": what the card made for that long
-  // ends as it leaves — a move from one Battle Area to another (20-9) is not
-  // leaving.
-  if (from === "battle" && to !== "battle") endSourceEffects(state, ev, id);
-  // 5-5-4: arriving in a Battle Area is remembered for the turn (`placedThisTurn`).
-  if (to === "battle" && from !== "battle") state.cards[id].placedThisTurn = true;
   if (opts.energyEntry?.negate) {
     if (to !== "energy" || state.cards[id].zoneEpoch !== opts.energyEntry.epoch + 1) throw new NotYet("optional Energy negation lost its new occurrence", "R476");
     addEffect(state,ev,{target:id,source:id,master:opts.energyEntry.player,kind:"negateKeyword",value:"Energy-Exhaust",until:"game",energyEntryEpoch:state.cards[id].zoneEpoch});
@@ -1200,10 +1189,6 @@ function shuffle(state: VmState, p: PlayerId, area: string = SETUP_ZONES.deck): 
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   state.rngState = rng;
-}
-
-function clearAutoReveal(state: VmState, card: string): void {
-  if (state.publicAutoReveals?.length) state.publicAutoReveals = state.publicAutoReveals.filter((item) => item.card !== card);
 }
 
 /**

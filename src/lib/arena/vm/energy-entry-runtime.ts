@@ -1,9 +1,9 @@
 /** R476 bounded native bridge. Descriptor collection/compiler remain unadmitted. */
 import type { EngineContext, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
+import { cleanupScriptPlacement } from "./script-placement-cleanup";
 import { moveCard } from "./zones";
-import { dropEffectsOn } from "./effects";
-import { forbids } from "./program";
+import { forbids, zoneOf } from "./program";
 import { captureEnergyEntryMode } from "./energy-entry-mode";
 import { beginStandingNegationMutation, finishStandingNegationMutation } from "./standing-negation-runtime";
 import type { VmState } from "./state";
@@ -62,19 +62,27 @@ export function optionalEnergyArrival(ctx: EngineContext, game: GameDefinition, 
     const modes=new Set([captureEnergyEntryMode(ctx,game,state,id,mode).mode,captureEnergyEntryMode(ctx,game,state,id,mode,true).mode]);
     // RM22-31 settles Exhaust before placement; it does not resolve a
     // protection that changes with area or mode. Compare only this bounded
-    // original own Hand/Deck/Warp/Z-Energy route, and refuse disagreement instead of ruling it.
+    // admitted original own route, and refuse disagreement instead of ruling it.
     for(const candidateMode of modes){
-      const projected=structuredClone(state);
-      const token=beginStandingNegationMutation(ctx,projected);
-      const placed=moveCard(projected,game,id,"energy",{owner:player,mode:candidateMode});
-      if(!placed.ok || placed.move.to!=="energy")throw new NotYet("project this optional Energy protection boundary", "R476");
-      dropEffectsOn(projected,[],id);
-      finishStandingNegationMutation(ctx,projected,token);
+      const projected=projectEnergyEntryCleanup(ctx,game,state,id,player,candidateMode);
       if(forbids(ctx,game,projected,"beNegated",actor)!==protectedBefore)throw new NotYet("optional Energy negation protection changes with its entry", "R476");
     }
     negate=!protectedBefore;
   }
   return {card:id,epoch:h.zoneEpoch(id),player,negate};
+}
+
+/** Isolated pre-stamp board projection; no movement events or pending Autos.
+ * Admission and source/arrival protection agreement remain the caller's job.
+ */
+export function projectEnergyEntryCleanup(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, player: PlayerId, mode: "active" | "rest"): VmState {
+  const projected=structuredClone(state), from=zoneOf(projected,id);
+  const token=beginStandingNegationMutation(ctx,projected);
+  const placed=moveCard(projected,game,id,"energy",{owner:player,mode});
+  if(!placed.ok || placed.move.to!=="energy")throw new NotYet("project this optional Energy protection boundary", "R476");
+  cleanupScriptPlacement(projected,[],placed.move,from,false);
+  finishStandingNegationMutation(ctx,projected,token);
+  return projected;
 }
 
 /** Native/direct routes have no resumable original ScriptFrame yet. */
