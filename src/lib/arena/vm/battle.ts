@@ -254,7 +254,10 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       // `opponentAttacks`/`koed` carry the same field for the same reason,
       // added in this stage since neither had been fired before it).
       // "When a Battle Card attacks" (BT8-089): whether the attacker is a Battle Card (8-1-1), for the moment every player's cards answer.
-      fire(ctx, game, state, { event: "attackDeclared", card: b.attacker, controller: state.turnPlayer, args: { role: "attacker", ...(findCard(state, b.attacker)?.zone === "battle" && attrsNow(ctx, game, state, b.attacker).type === "BATTLE" ? { battleCard: true } : {}) } });
+      // R490 / 16-1-3 / 19-1-1: Z-Battle Cards and tokens are Battle targets too.
+      const target = findCard(state, b.guard);
+      const targetOpponentBattle = target?.zone === "battle" && target.owner === defender && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(attrsNow(ctx, game, state, b.guard).type));
+      fire(ctx, game, state, { event: "attackDeclared", card: b.attacker, controller: state.turnPlayer, args: { role: "attacker", ...(targetOpponentBattle ? { targetOpponentBattle: true } : {}), ...(findCard(state, b.attacker)?.zone === "battle" && attrsNow(ctx, game, state, b.attacker).type === "BATTLE" ? { battleCard: true } : {}) } });
       fire(ctx, game, state, { event: "attackDeclared", card: b.guard, controller: defender, args: attackTargetMomentArgs(ctx, game, state, b.guard, guardArea, true) });
     },
   },

@@ -22,6 +22,7 @@
  * and KOs" — the battle's KO only, R-208 (pending, best-guess) for "an opponent's card is switched to Rest Mode by one of
  * your skills" — any card of theirs on the table.
  */
+import gohan from "./fixtures/gohan-target-paired-5.json";
 import assert from "node:assert/strict";
 import { CTX, DEFS, card, fifty } from "./harness";
 import { skillRecords } from "../../src/lib/arena/draft";
@@ -164,12 +165,16 @@ for (const [text, id] of [
   records++;
 }
 // BT26-100: the catalog's "attacks and opponent's Battle Card" is the official "attacks an opponent's Battle Card"
-// (errata.ts); what this card attacks is a condition on the attack alone, which one record cannot say — unread.
+// (errata.ts). R490 admits only the complete bounded body; this shortened synthetic body stays unread.
 {
   const fixed = correctSkillText("BT26-100", "[Auto] When this card is played or attacks and opponent's Battle Card, switch this card to Active Mode.");
   assert.match(fixed ?? "", /is played or attacks an opponent's Battle Card/, "B: BT26-100 — the official wording");
   assert.ok(only(fixed!, "BT26-100").unread.length, "B: BT26-100 — the attack's target is the attack's alone: unread");
-  records++;
+  const complete = record(gohan.records.find(r=>r.skillIndex===20)!.printed, "BT26-100 full paired body");
+  assert.deepEqual(complete.trigger, ["played", "attacksOpponentBattle"]);
+  assert.equal(complete.cond, null);
+  assert.deepEqual(roundtrip(complete.ops), gohan.expectedOps);
+  records += 2;
 }
 // …and as it was: a Leader attacked keeps its own moment (SD15-02), "KO'd by an opponent's attack" is no attack (BT13-103).
 assert.deepEqual(record("[-6][Auto] If your opponent's life is at 3 or more: When your mono-red ≪Saiyan≫ Leader Card is attacked, deal 1 damage to your opponent.", "SD15-02").trigger, ["yourLeaderAttacked"], "B: SD15-02 — yourLeaderAttacked alone");

@@ -564,6 +564,7 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
   // says how the skill is paid, not when it happens (1-5-8); the head is the moment after it.
   const printed = effectHead(effect.text).replace(/^\([^()]*\)\s*/, "").replace(TURN_THEN_WHEN, "");
   if (playedUsingPotaraOrAttacks(sk)) return trigger === "playedUsingUnionPotara" || trigger === "attacks";
+  if (playedOrAttacksOpponentBattle(sk)) return trigger === "played" || trigger === "attacksOpponentBattle";
   const trailing = trailingTrigger(sk);
   const head = trailing ? `${trailing}, ${printed}` : printed;
   if (sk.kind === "auto" && momentsBatch1(head).some((m) => m.trigger === trigger)) return true;
@@ -1439,6 +1440,10 @@ export function playedOrActiveDuringYourTurn(sk: Skill): boolean {
 export function playedUsingPotaraOrAttacks(sk: Skill): boolean {
   return sk.kind === "auto" && /^when this card is played using \[union-potara\] or attacks, draw 1 card, and this card gains \+5000 power for the duration of the turn\.?$/.test(effectHead(maskNames(sk.effect).text));
 }
+/** R490: declaration target qualifies only the attack; the exact body has a bounded self reference. */
+export function playedOrAttacksOpponentBattle(sk: Skill): boolean {
+  return sk.kind === "auto" && /^when this card is played or attacks an opponent's battle card, switch this card to active mode, then choose up to 1 of your opponent's battle cards, ignoring \[barrier\], and switch it to rest mode\.?$/.test(effectHead(maskNames(sk.effect).text));
+}
 /** R-485: only the represented unqualified pair or Hand-qualified pair. */
 export function playedOrComboBattleEnd(sk: Skill): boolean {
   if (sk.kind !== "auto") return false;
@@ -1460,7 +1465,7 @@ export function playedOrUnplacedAlternative(sk: Skill): boolean {
   if (!m) return false;
   const [, qualifier, rest] = m;
   if (playedOrActiveDuringYourTurn(sk)) return !autoTriggerMatches(sk, "activeBySkillDuringYourTurn");
-  if (playedOrComboBattleEnd(sk) || playedUsingPotaraOrAttacks(sk)) return false;
+  if (playedOrComboBattleEnd(sk) || playedUsingPotaraOrAttacks(sk) || playedOrAttacksOpponentBattle(sk)) return false;
   // A qualifier on the play that `played` would ignore: only "from your hand"
   // and "using [Over Realm]" have readers of their own.
   if (/^ using \[/.test(qualifier) && !/^ using \[(?:dark )?over realm/.test(qualifier)) return true;

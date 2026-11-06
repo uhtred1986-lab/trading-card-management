@@ -1,0 +1,330 @@
+{
+  "catalogCard": {
+    "id": "BT26-100",
+    "type": "BATTLE",
+    "colors": [
+      "Yellow"
+    ],
+    "cost": "8",
+    "specified": null,
+    "z": null,
+    "power": 30000,
+    "name": "SS2 Son Gohan, Rage Triggered",
+    "characters": [
+      "Son Gohan: Childhood"
+    ],
+    "traits": [
+      "Saiyan",
+      "Earthling"
+    ],
+    "skill": "[Double Strike]\n[br]\n[EX-Evolve]{y}, if you have 3 or more energy: Yellow <Son Gohan: Childhood> card with an energy cost of 5.\n[br]\n[Auto] When this card is played or attacks and opponent's Battle Card, switch this card to Active Mode, then choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and switch it to Rest Mode.\n[br]\n[Auto] At the end of your turn, play up to 1 yellow Battle Card with an energy cost of 1 from your Drop.",
+    "backName": null,
+    "backSkill": null
+  },
+  "correctedDefinition": {
+    "id": "BT26-100",
+    "name": "SS2 Son Gohan, Rage Triggered",
+    "type": "BATTLE",
+    "colors": [
+      "Yellow"
+    ],
+    "energyCost": 8,
+    "zEnergyCost": null,
+    "power": 30000,
+    "comboCost": null,
+    "comboPower": null,
+    "skill": "[Double Strike]\n[br]\n[EX-Evolve]{y}, if you have 3 or more energy: Yellow <Son Gohan: Childhood> card with an energy cost of 5.\n[br]\n[Auto] When this card is played or attacks an opponent's Battle Card, switch this card to Active Mode, then choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and switch it to Rest Mode.\n[br]\n[Auto] At the end of your turn, play up to 1 yellow Battle Card with an energy cost of 1 from your Drop.",
+    "characters": [
+      "Son Gohan: Childhood"
+    ],
+    "traits": [
+      "Saiyan",
+      "Earthling"
+    ],
+    "back": null
+  },
+  "records": [
+    {
+      "cardId": "BT26-100",
+      "side": "front",
+      "skillIndex": 10,
+      "printed": "[EX-Evolve]{y}, if you have 3 or more energy: Yellow <Son Gohan: Childhood> card with an energy cost of 5.",
+      "kind": "keyword",
+      "trigger": [],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "if you have 3 or more energy",
+        "orbs": {
+          "Yellow": 1
+        },
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "energy"
+          },
+          "atLeast": 3
+        },
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [],
+      "pattern": "keyword:Evolve",
+      "reads": ""
+    },
+    {
+      "cardId": "BT26-100",
+      "side": "front",
+      "skillIndex": 20,
+      "printed": "[Auto] When this card is played or attacks an opponent's Battle Card, switch this card to Active Mode, then choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and switch it to Rest Mode.",
+      "kind": "auto",
+      "trigger": [
+        "played",
+        "attacks"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [],
+      "unread": [
+        "When this card is played or attacks an opponent's Battle Card",
+        "switch this card to Active Mode",
+        "choose up to 1 of your opponent's Battle Cards",
+        "ignoring [Barrier]",
+        "switch it to Rest Mode"
+      ],
+      "pattern": "when this card is played or attacks an opponent's battle card",
+      "reads": ""
+    },
+    {
+      "cardId": "BT26-100",
+      "side": "front",
+      "skillIndex": 30,
+      "printed": "[Auto] At the end of your turn, play up to 1 yellow Battle Card with an energy cost of 1 from your Drop.",
+      "kind": "auto",
+      "trigger": [
+        "turnEnd"
+      ],
+      "combo": null,
+      "usage": {
+        "version": 1,
+        "oncePerTurn": false,
+        "limit": null
+      },
+      "validity": {
+        "version": 1,
+        "sparking": null
+      },
+      "cost": {
+        "version": 1,
+        "readable": true,
+        "text": "",
+        "orbs": {},
+        "either": [],
+        "marker": null,
+        "burst": null,
+        "spiritBoost": null,
+        "condition": null,
+        "program": null
+      },
+      "cond": null,
+      "ops": [
+        {
+          "op": "choose",
+          "sel": {
+            "side": "you",
+            "area": "drop",
+            "filter": {
+              "colors": [
+                "Yellow"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": 1,
+              "costMax": 1,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            },
+            "count": 1,
+            "upTo": true
+          },
+          "as": "p0",
+          "reason": "play up to 1 yellow Battle Card with an energy cost of 1 from your Drop"
+        },
+        {
+          "op": "play",
+          "target": {
+            "var": "p0"
+          }
+        }
+      ],
+      "unread": [],
+      "pattern": "choose\u2192play",
+      "reads": "choose up to 1 yellow Battle Card with an energy cost of 1 in your Drop Area, play the chosen cards"
+    }
+  ],
+  "ownFaq": [],
+  "expectedOps": [
+    {
+      "op": "switchMode",
+      "target": {
+        "sel": {
+          "special": "self"
+        }
+      },
+      "mode": "active"
+    },
+    {
+      "op": "choose",
+      "sel": {
+        "side": "opponent",
+        "area": "battle",
+        "filter": {
+          "colors": [],
+          "notColors": [],
+          "monoColor": false,
+          "multiColor": false,
+          "characters": [],
+          "notCharacters": [],
+          "charactersIncluding": [],
+          "notCharactersIncluding": [],
+          "charactersAll": [],
+          "namesAll": [],
+          "traits": [],
+          "notTraits": [],
+          "characterOrTrait": false,
+          "onlyCharacters": false,
+          "names": [],
+          "notNames": [],
+          "namesIncluding": [],
+          "notNamesIncluding": [],
+          "notKeywords": [],
+          "keywords": [],
+          "skillKind": null,
+          "unreadable": false,
+          "noKeywords": false,
+          "type": "BATTLE",
+          "notType": null,
+          "faceUp": false,
+          "token": false,
+          "notToken": false,
+          "costMin": null,
+          "costMax": null,
+          "powerMin": null,
+          "powerMax": null,
+          "originalPowerMin": null,
+          "originalPowerMax": null,
+          "comboPowerMin": null,
+          "comboPowerMax": null,
+          "markersMin": null,
+          "markersMax": null,
+          "specifiedCostMin": null,
+          "specifiedCostMax": null,
+          "specifiedCostNone": false,
+          "costAtMostEnergy": false,
+          "costBelowEnergy": false,
+          "costAtLeastEnergy": false,
+          "costAboveEnergy": false,
+          "energyOfOpponent": false,
+          "originallySkillLess": false,
+          "skillLess": false,
+          "powerRel": null,
+          "nameInSkillTextOf": null,
+          "z": null
+        },
+        "count": 1,
+        "upTo": true,
+        "ignoreBarrier": true
+      },
+      "as": "c0",
+      "reason": "choose up to 1 of your opponent's Battle Cards"
+    },
+    {
+      "op": "switchMode",
+      "target": {
+        "var": "c0"
+      },
+      "mode": "rest"
+    }
+  ]
+}
