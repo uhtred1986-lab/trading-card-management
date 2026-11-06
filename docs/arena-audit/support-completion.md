@@ -332,3 +332,8 @@ R526 `f80de9de` / `4557ebdd` combines isolated actual under/area observations an
 ### Checkpoint 81: incremental private inspection and native standing preparation
 
 R527 `f5c732bc` / `3dcf0484` adds authenticated private inspection to BT1-061#0 and EX02-01#10 and restores Trunks's leftover ordering. Exactly two compiler records change; all other 13,964 remain field-identical. Totals stay **13,032 readable /934 unread**, runtime2/307/2,575. Native48/saved86/language22, staged-under85/joint58/priority14, type/lint/rulings300/166, real-browser 232 modules/121 steps and both skins at 390/1440 pass. Registry269. R528 preparation `49e5795e` does not yet admit Abducted; native integration continues. See [checkpoint81](round-5/support-eightyfirst-batch.md) for exact changes, screenshots and verification limits.
+
+
+### Checkpoint 82: Babidi and public selection reveal
+
+R529 `530bbb4c` supports the exact BT3-045#0 inspection and repairs public selected-card beat projection without exposing hidden card identities or unrelated history. Only that record's ops/reads change; all other 13,965 remain field-identical. Totals **13,032 readable /934 unread**, runtime2/307/2,575 unchanged. Root Babidi29/projection28 and inspection48/86/22, type/lint/rulings301/167, capability269 and browser 232 modules/121 steps pass. See [checkpoint82](round-5/support-eightysecond-batch.md). R528 actual native admission and R530 exact trait inspection remain in progress.
