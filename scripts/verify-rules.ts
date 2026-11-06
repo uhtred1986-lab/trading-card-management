@@ -1034,13 +1034,13 @@ assert.equal(specifiedCostWords({}), "no colour");
 // ── "when this card is played using [Over Realm]" is its own moment (2 Oct 2026) ──
 // Read as `played` — its opening words — these skills fired on an ordinary
 // play as well (P-067, EX02-05, BT3-110 …). Both printed wordings, and the dark
-// variant, are `playedUsingOverRealm` and nothing else; the plain wording and
+// variant retain distinct procedure moments (R456); the plain wording and
 // the watcher on other cards are untouched.
 {
   const whenOf = (text: string) => triggersOf(parseSkills(text).find((sk) => sk.kind === "auto")!);
   assert.deepEqual(whenOf("[Auto] When you play this card using [Over Realm], draw 1 card."), ["playedUsingOverRealm"]);
   assert.deepEqual(whenOf("[Auto] When this card is played using [Over Realm], activate this skill. Draw 2 cards."), ["playedUsingOverRealm"]);
-  assert.deepEqual(whenOf("[Auto] When this card is played using [Dark Over Realm], draw 1 card."), ["playedUsingOverRealm"]);
+  assert.deepEqual(whenOf("[Auto] When this card is played using [Dark Over Realm], draw 1 card."), ["playedUsingDarkOverRealm"]);
   assert.deepEqual(whenOf("[Over Realm 4]{2}\n[Auto] When you play this card using [Over Realm], KO up to 1 of your opponent's Battle Cards."), ["playedUsingOverRealm"]);
   assert.deepEqual(whenOf("[Auto] When you play this card, draw 1 card."), ["played"], "the plain wording is still `played`");
   assert.deepEqual(whenOf("[Auto] When this card is played, draw 1 card."), ["played"]);
