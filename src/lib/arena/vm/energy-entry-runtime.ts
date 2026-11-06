@@ -1,5 +1,5 @@
 import { guardBattleEnergyScriptHistory } from "./energy-entry-battle";
-/** R476 bounded native bridge. Descriptor collection/compiler remain unadmitted. */
+/** R476 bounded native bridge; R507 admits exact source descriptors on proved routes. */
 import type { EngineContext, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { cleanupScriptPlacement } from "./script-placement-cleanup";
