@@ -1,3 +1,4 @@
+import {requireInspectionPrompt} from './incremental-look';
 import { requireOrdinaryResourceDeclaration } from "./ordinary-activate-runtime";
 import { requireActivateUnderSource } from "./activate-under";
 import { prepareEnergyCharge, ownEnergyCharge, requireEnergyCharge } from "./energy-entry-charge";
@@ -546,6 +547,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
     // `stepScript` to read through the host, which is the shape both engines
     // share (`s.lastChoice` / `s.lastMode`).
     case "choose": {
+      requireInspectionPrompt(ctx,game,state);
       requirePrompt(state, action, ["chooseCards"]);
       const pr = state.prompt;
       if (pr.kind !== "chooseCards") throw new IllegalAction("no choice pending");
@@ -587,6 +589,7 @@ function applyInner(ctx: EngineContext, prev: VmState, action: Action, offeredAt
     // 9-10-2/9-10-3: which replacement a departure takes, or none, is
     // answered the way a printed choice is — the legacy engine's own pairing.
     case "chooseMode": {
+      requireInspectionPrompt(ctx,game,state);
       requirePrompt(state, action, ["chooseMode", "replaceMove"]);
       const pr = state.prompt;
       if (pr.kind !== "chooseMode" && pr.kind !== "replaceMove") throw new IllegalAction("no option is being offered");

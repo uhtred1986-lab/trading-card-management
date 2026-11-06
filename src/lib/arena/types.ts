@@ -1501,7 +1501,7 @@ export type Prompt =
   | { kind: "orderPending"; player: PlayerId; candidates: number[] }
   | { kind: "chooseCards"; player: PlayerId; choice: CardChoice; pooledPayment?: { action: Action; ordinaryActivation?: import("./vm/ordinary-activate-runtime").OrdinaryActivation; cost: string; n: number; source: CardOccurrence | null; candidates: CardOccurrence[] } }
   /** "Choose one— ・A ・B" (20-2): which printed option is taken. */
-  | { kind: "chooseMode"; player: PlayerId; reason: string; options: string[] }
+  | { kind: "chooseMode"; player: PlayerId; reason: string; options: string[]; inspection?: string }
   /** 9-10: the affected player chooses which replacement, if any, applies. */
   | { kind: "replaceMove"; player: PlayerId; card: string; reason: string; options: string[] }
   | { kind: "zEnergyFromCombo"; player: PlayerId; candidates: string[] }

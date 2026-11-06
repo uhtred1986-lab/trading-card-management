@@ -1,3 +1,4 @@
+import {stepIncrementalLook,recordInspectionChoice,recordInspectionMode,recordInspectionOrder} from './incremental-look';
 import { prepareUnderSourcePlacement, requireUnderSourcePlacement, cleanupUnderSourcePlacement, settleUnderSourcePlacement, requireUnderSourceTriggerHistory } from "./under-source-placement";
 import { preflightPlacedUnder, capturePlacedUnderRelation } from "./placed-under-master";
 import { captureUnderRelease, requireUnderReleaseCapture, cleanupUnderRelease } from "./under-release-cleanup";
@@ -159,6 +160,10 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
   };
 
   return {
+    recordInspectionChoice: (frame,op,picked) => recordInspectionChoice(ctx,game,state,frame,op,picked),
+    recordInspectionMode: (frame,op,index) => recordInspectionMode(ctx,game,state,frame,op,index),
+    recordInspectionOrder: (frame,picked) => recordInspectionOrder(ctx,game,state,frame,picked),
+    incrementalLook: (frame, op) => stepIncrementalLook(ctx, game, state, frame, op),
     guardEnergyEntryFrame: frame => {
       requireDeclaredCharge(game,state,frame);
       if (frame.energyCharge) requireEnergyCharge(game,state,frame);

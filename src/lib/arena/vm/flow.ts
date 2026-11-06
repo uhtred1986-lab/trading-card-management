@@ -1,3 +1,4 @@
+import {incrementalLookIntent,requireLookSource,requireLookPending,activateLook,requireIncrementalLook} from './incremental-look';
 import {paidHandFrameIntent,requirePaidHandFrame} from './paid-hand-runtime';
 import { paidWarpSourceKey } from './paid-warp-contract';
 import { paidWarpIntent, paidWarpFrameIntent, requirePaidWarpPending, requirePaidWarpSource, requirePaidWarpFrame, refusePaidWarpTax } from './paid-warp-runtime';
@@ -946,6 +947,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     && !skill.effect.trim() && !skill.cost.trim() && !automaticHasPrice(skill, undefined);
   const program = captured.script
     ?? (nativeBattleKeyword ? { ops: [], unsupported: [] } : undefined);
+  if(incrementalLookIntent(program?.ops)||next.lookSource)requireLookPending(ctx,state,next.lookSource,next.card,next.master,next.skillIndex);
   if (paidWarpIntent(program) || next.paidWarpSource) requirePaidWarpPending(ctx, game, state, next.paidWarpSource, next.card, next.master, next.skillIndex);
   if (koResultScript(program) || next.koBinding) {
     try { requireKoBinding(state, program, next.koBinding, next.card, next.master, next.skillIndex); }
@@ -1009,6 +1011,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
     trigger: next.trigger as Trigger,
     subject: next.subject,
     ...(next.faceUpLifeEpoch === undefined ? {} : { faceUpLifeEpoch: next.faceUpLifeEpoch }),
+    ...(next.lookSource ? {lookExecution:{source:structuredClone(next.lookSource)}} : {}),
     ...(next.paidWarpSource ? { paidWarp: { source: structuredClone(next.paidWarpSource), binding: paidWarpSourceKey(next.paidWarpSource) } } : {}),
     ...(next.koBinding ? { koBinding: { ...next.koBinding } } : {}),
     ...(next.pairedSelf ? { pairedSelf: { ...next.pairedSelf } } : {}),
@@ -1172,6 +1175,7 @@ function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState
       frame.afterSkillKeywords = keywords;
     }
   }
+  activateLook(frame,!!taxGate);
   const printed = automaticHasPrice(skill, program);
   const priced = printed || !!taxGate;
   if (!priced || !skill) {
@@ -1442,6 +1446,7 @@ function stepReplacementFallback(ctx: EngineContext, game: GameDefinition, state
 }
 
 function programSourceScript(ctx: EngineContext, state: VmState, frame: ScriptFrame): Script | undefined {
+  if(frame.lookExecution)return requireLookSource(ctx,state,frame.lookExecution.source,frame.card,frame.master,frame.skillIndex);
   if (frame.paidWarp) return requirePaidWarpSource(ctx, state, frame.paidWarp.source, frame.card, frame.master, frame.skillIndex);
   if (frame.ordinaryActivation) {
     if (!frame.saveVarsAs && frame.ordinaryActivation.cost?.phase !== "committed") throw new IllegalAction("the ordinary Activate effect has no completed payment");
@@ -1470,6 +1475,9 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    if(frame.lookExecution||frame.incrementalLook||incrementalLookIntent(frame.ops))requireIncrementalLook(ctx,game,state,frame);
+    const lookResume=frame.arrivalBatchResume?.frame??frame.arrivalResume?.frame??frame.retainedResume?.frame;
+    if(lookResume&&(lookResume.lookExecution||lookResume.incrementalLook||incrementalLookIntent(lookResume.ops)))throw new IllegalAction("private inspection cannot resume through a play wrapper (R527)");
     if (paidHandFrameIntent(frame)) requirePaidHandFrame(ctx, state, frame);
     const handResume=frame.arrivalBatchResume?.frame??frame.arrivalResume?.frame??frame.retainedResume?.frame;
     if(handResume&&paidHandFrameIntent(handResume)){requirePaidHandFrame(ctx,state,handResume);throw new IllegalAction("the entire-Hand skill has no play continuation (R525)");}

@@ -186,6 +186,10 @@ export interface ScriptHost {
   /** 3-1-4: move a card to an area, with everything that entails. Returns where it really ended. */
   /** Optional Energy-entry preparation: validate saved ownership/payment routes
    * before this frame executes, and a whole batch before its first mutation. */
+  recordInspectionMode?: (frame: ScriptFrame, op: Extract<Op, {op:'chooseMode'}>, index: number) => void;
+  recordInspectionChoice?(frame:ScriptFrame,op:Extract<Op,{op:"choose"}>,picked:string[]):void;
+  recordInspectionOrder?(frame: ScriptFrame, picked: string): void;
+  incrementalLook?(frame: ScriptFrame, op: Extract<Op, {op:"look"}>): "wait" | "done";
   guardEnergyEntryFrame?(frame: ScriptFrame): void;
   guardEnergyEntryBatch?(frame: ScriptFrame, ids: string[]): void;
   /** Run the original movement's optional child before the native mover captures

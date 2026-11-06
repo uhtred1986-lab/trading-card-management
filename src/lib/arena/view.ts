@@ -240,6 +240,8 @@ export interface BattleView {
 
 /** The one-line question the prompt bar asks, and what the engine knows about it beyond the words. */
 export interface PromptView {
+  /** Only the acting viewer receives already inspected cards. */
+  inspection?: {cards:CardView[];inspected:number;maximum:number;atLimit:boolean};
   kind: string;
   player: PlayerId | null;
   question: string;

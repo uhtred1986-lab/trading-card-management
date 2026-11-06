@@ -1,3 +1,4 @@
+import {requireInspectionPrompt} from './incremental-look';
 /**
  * The board, drawn from the declarations.
  *
@@ -74,6 +75,10 @@ const VIEW_ZONES = {
 
 
 export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmState, viewer: PlayerId, images: Record<string, CardArt>, availability: AbilityAvailability[] = []): BoardView {
+  const inspected=requireInspectionPrompt(ctx,game,state);
+  const privateLook=inspected?.master===viewer?inspected.incrementalLook:undefined;
+  const prompt=promptView(state,game,viewer);
+  if(privateLook)prompt.inspection={cards:privateLook.inspected.map(x=>cardView(ctx,game,state,x.card,images,availability,viewer)),inspected:privateLook.inspected.length,maximum:privateLook.maximum,atLimit:privateLook.inspected.length===privateLook.maximum};
   const them: PlayerId = viewer === "p1" ? "p2" : "p1";
   return {
     you: sideView(ctx, game, state, viewer, viewer, true, images, availability),
@@ -82,7 +87,7 @@ export function vmBoardView(ctx: EngineContext, game: GameDefinition, state: VmS
     phase: state.phase,
     turnPlayer: state.turnPlayer,
     battle: battleView(ctx, game, state, images, availability, viewer),
-    prompt: promptView(state, game, viewer),
+    prompt,
     over: state.overReason !== null ? { winner: state.winner, reason: state.overReason } : null,
   };
 }
@@ -194,6 +199,7 @@ export function promptView(state: VmState, game?: GameDefinition, viewer?: Playe
     const { min, max, reason } = pr.choice;
     return withStep(state, reason, { kind: pr.kind, player: pr.player, question: reason, hint: `Choose ${min === max ? min : `${min} to ${max}`}.`, min, max });
   }
+  if(pr.kind==="chooseMode"&&pr.inspection!==undefined&&viewer!==pr.player)return {kind:"waiting",player:pr.player,question:"Waiting for the other player.",hint:null};
   if (pr.kind === "chooseMode") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("chooseMode", game) });
   if (pr.kind === "replaceMove") return withStep(state, pr.reason, { kind: pr.kind, player: pr.player, question: pr.reason, hint: promptHint("replaceMove", game) });
   const words = fixedPrompt(pr.kind, game) ?? { question: "…", hint: null };

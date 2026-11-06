@@ -1,3 +1,4 @@
+import {incrementalLookIntent} from './incremental-look';
 import {paidHandIntent} from './paid-hand-contract';
 import {paidHandProblem} from './paid-hand-runtime';
 import { paidDropProblem } from './paid-drop-runtime';
@@ -566,6 +567,7 @@ export function activationRefusals(
   keywordRefusals: () => Requirement[] = () => [],
 ): { before: Requirement[]; after: Requirement[] } {
   const before: Requirement[] = [];
+  if(incrementalLookIntent(line.script?.ops))before.push({kind:"other",detail:"private inspection is not supported by this Activate producer (R527)"});
   const handProblem = paidHandProblem(ctx, game, state, line);
   if (handProblem) before.push({kind:"other",detail:handProblem});
   const dropProblem = paidDropProblem(ctx, game, state, line);
@@ -1189,6 +1191,7 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
  */
 export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Partial<Pick<ScriptFrame, "ops" | "vars" | "paidCardInfo" | "paidMarkers" | "ordinaryActivation">>, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
   const { card, skill: sk } = line;
+  if(incrementalLookIntent(line.script?.ops))throw new IllegalAction("private inspection requires its reviewed Auto producer (R527)");
   if (waived && paidHandIntent(line.script)) throw new IllegalAction("waived entire-Hand payments require an original payment (R525)");
   if (waived && paidDropIntent(line.script)) throw new IllegalAction("waived historical owner-Drop payments need a reviewed original source contract (R518)");
   if (waived && paidRemovalIntent(line.script)) throw new IllegalAction("waived historical removal payments need a reviewed original source contract (R516)");

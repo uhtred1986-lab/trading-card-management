@@ -536,18 +536,24 @@ DEFINE OP resolvingPlay
 -- §20-11 — "look at the top 3 cards of your deck", "…the bottom card…",
 -- "look at your opponent's hand"
 DEFINE OP look
-  TAKES (n: amount, as: string, side: side, from: word, area: area)
+  TAKES (n: amount, as: string, side: side, from: word, area: area, upTo: boolean)
   DO {
-    GIVEN $area = deck {
-      GIVEN $from = top {
-        reveal(sel: TOP $n IN $side.deck, as: $as, audience: you)
-      }
-      GIVEN $from = bottom {
-        reveal(sel: BOTTOM $n IN $side.deck, as: $as, audience: you)
-      }
+    GIVEN $upTo {
+      GIVEN $from = top { reveal(sel: TOP $n IN $side.deck, as: $as, audience: you, incremental: true) }
+      GIVEN $from = bottom { reveal(sel: BOTTOM $n IN $side.deck, as: $as, audience: you, incremental: true) }
     }
-    UNLESS $area = deck {
-      reveal(sel: IN $side.$area, as: $as, audience: you)
+    UNLESS $upTo {
+      GIVEN $area = deck {
+        GIVEN $from = top {
+          reveal(sel: TOP $n IN $side.deck, as: $as, audience: you)
+        }
+        GIVEN $from = bottom {
+          reveal(sel: BOTTOM $n IN $side.deck, as: $as, audience: you)
+        }
+      }
+      UNLESS $area = deck {
+        reveal(sel: IN $side.$area, as: $as, audience: you)
+      }
     }
   }
   text: "the cards are shown to the player alone, and stay where they are"

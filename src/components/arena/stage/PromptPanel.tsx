@@ -10,6 +10,7 @@ import { energySummary, stakesSummary } from "./stakes-model";
 import { untilWords } from "@/lib/arena/effects";
 import { Sheet, isGhostAction, shortLabel } from "../shared";
 import phoneStyles from "./phone-board.module.css";
+import { InspectionPreview } from "./InspectionPreview";
 import { CenterPrompt } from "./CenterPrompt";
 
 /** One answer made of cards, drawn as a thumbnail button in a centred prompt (a combo card, a card to charge, a card to choose). */
@@ -188,6 +189,7 @@ export function PromptPanel({
   </div>;
   const panel = (
     <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite" data-prompt-kind={view.prompt.kind}>
+      {view.prompt.inspection && !playing ? <InspectionPreview inspection={view.prompt.inspection} /> : null}
       {!playing && !view.over && !overOutcome && (
         <div className={`w-full space-y-1 text-xs leading-snug text-space-100 ${detailOpen ? "" : centre ? "hidden" : "max-lg:hidden"}`} data-decision-summary id="arena-decision-detail">
           <p className="font-semibold">{(decision?.actor ?? view.prompt.player) === view.you.player ? "You" : (decision?.actor ?? view.prompt.player) === view.them.player ? view.them.name : "Referee"} · {(decision?.window ?? view.prompt.kind).replace(/([a-z])([A-Z])/g, "$1 $2")}{view.battle ? ` · ${view.battle.step} step` : ` · ${view.phase}`}</p>

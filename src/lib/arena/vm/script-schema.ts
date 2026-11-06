@@ -517,7 +517,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
     doc: 'binds the chosen cards to the name in "as"; "chooser":"opponent" when the card says *they* choose ("your opponent sends 1 Battle Card…"); "bindX":true also binds X to how many were chosen (20-5)',
   },
   look: {
-    fields: [n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
+    fields: [{ name: "upTo", type: "boolean" }, n(), { name: "as", type: "string", required: true }, SIDE, { name: "from", type: POSITION, default: "top" }, { name: "area", type: "area", default: "deck" }],
     // #907 round 4: the reading said "the top" for a look the op takes from the bottom ("look at
     // the bottom card of your deck", BT11-062b, BT11-104, EB1-54) - the op was right, the words wrong.
     // Audit-selectors-1: and whose cards, and where — "look at your opponent's hand" (BT10-004, EX11-02) read "look at
@@ -529,6 +529,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
         const where = ZONE_NOUNS[look.area as keyof typeof ZONE_NOUNS] ?? look.area;
         return look.n === 99 ? `look at ${whose} ${where}` : renderTemplate(`look at {n} cards in ${whose} ${where}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
       }
+      if (look.upTo) return renderTemplate(`look at up to {n} cards from the ${look.from === "bottom" ? "bottom" : "top"} of ${whose} deck`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
       return renderTemplate(`look at the ${look.from === "bottom" ? "bottom" : "top"} {n}${look.side === "opponent" ? " of your opponent's deck" : ""}`, raw as unknown as Record<string, unknown>, OP_SCHEMA.look.fields, r);
     },
     doc: "top of your deck, seen only by you; the cards are bound to the name in \"as\" (20-11)",
@@ -537,7 +538,7 @@ export const OP_SCHEMA: Record<Op["op"], OpSpec> = {
   // act with the narrower audience — and reads as the `look` it stands for
   // when it is exactly the shape `ops.rules`'s `look` lowers to (`revealAs`).
   reveal: {
-    fields: [{ name: "sel", type: "selector", required: true }, { name: "as", type: "string", required: true }, { name: "audience", type: { enum: ["you", "both"] }, default: "both" }],
+    fields: [{ name: "incremental", type: "boolean" }, { name: "sel", type: "selector", required: true }, { name: "as", type: "string", required: true }, { name: "audience", type: { enum: ["you", "both"] }, default: "both" }],
     sentence: (raw, r) => {
       const op = raw as OpOf<"reveal">;
       const as = revealAs(op);
@@ -2169,11 +2170,11 @@ function lifeDownCount(n: Amount, side: Side): number | null {
  * comes back as it was.
  */
 export function revealAs(op: Op): Op {
-  if (op.op !== "reveal" || op.audience !== "you" || !only(op, ["op", "sel", "as", "audience"])) return op;
+  if (op.op !== "reveal" || op.audience !== "you" || !only(op, ["op", "sel", "as", "audience", "incremental"])) return op;
   const sel = op.sel as Selector & Record<string, unknown>;
   if (!sel.side || !sel.area) return op;
   if (sel.area === "deck" && sel.take !== undefined && only(sel, ["take", "side", "area", "fromEnd"]))
-    return { op: "look", n: sel.take as unknown as Amount, as: op.as, side: sel.side, ...(sel.fromEnd ? { from: "bottom" as const } : {}) };
+    return { op: "look", n: sel.take as unknown as Amount, as: op.as, side: sel.side, ...(op.incremental ? {upTo:true as const} : {}), ...(sel.fromEnd ? { from: "bottom" as const } : {}) };
   if (sel.area !== "deck" && only(sel, ["side", "area"])) return { op: "look", n: { count: { side: sel.side, area: sel.area } }, as: op.as, side: sel.side, area: sel.area };
   return op;
 }
@@ -2278,6 +2279,8 @@ export function programProblem(ops: unknown, depth = 0, xBound = false, at = "op
       if (o.allAreas !== true || !self || o.until !== undefined || (o.op === "negate" && (o.what !== "keyword" || o.chosen !== undefined || typeof o.keyword !== "string"))) return `${step}: allAreas requires a standing self named-keyword negation`;
     }
     if (o.op === "energyEntryExhaust" && energyEntryPolicyProblem({ version: 1, colors: o.colors })) return `${step}: requires exactly two distinct supported color slots`;
+    if (o.op === "look" && o.upTo !== undefined && (o.upTo !== true || o.area !== undefined && o.area !== "deck" || o.side === "both")) return `${step}: optional inspection requires one deck`;
+    if (o.op === "reveal" && o.incremental !== undefined && (o.incremental !== true || o.audience !== "you" || !isRecord(o.sel) || o.sel.area !== "deck" || !["you", "opponent"].includes(String(o.sel.side)) || o.sel.take === undefined || Object.keys(o.sel).some(k => !["side","area","take","fromEnd"].includes(k)))) return `${step}: incremental reveal requires a private unfiltered deck prefix`;
     if (o.op === "ko" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.completedAs !== o.completedAs.trim()
       || !isRecord(o.target) || Object.keys(o.target).length !== 1 || o.target.var !== o.completedAs)) return `${step}: KO completion requires the same nonempty bound variable target and result name`;
     if (o.op === "switchMode" && o.completedAs !== undefined && (typeof o.completedAs !== "string" || !o.completedAs.trim() || o.mode !== "rest" || !isRecord(o.target) || typeof o.target.var !== "string")) return `${step}: switch completion needs a bound variable switched to Rest Mode`;

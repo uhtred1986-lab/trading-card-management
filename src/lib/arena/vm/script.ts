@@ -805,7 +805,7 @@ export type Op =
   | { op: "choose"; sel: Selector; as: string; reason?: string; chooser?: Side; bindX?: true; sumTo?: Amount; sumAttr?: AmountAttr; atMost?: Amount; owed?: true; exactly?: Amount; specifiedCostAtMost?: Amount; energyCostEquals?: Amount; namedSet?: true; anyPower?: true; blind?: true; permission?: "unionFusionDropBottom" }
   /** `from` is the top of the deck unless the card says the bottom. */
   /** `area` is the deck unless it says otherwise — "look at your opponent's hand" (20-11). */
-  | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea }
+  | { op: "look"; n: Amount; as: string; side?: Side; from?: "top" | "bottom"; area?: ScriptArea; upTo?: true }
   /**
    * "Reveal the top card of your opponent's deck" (20-11-2): both players see
    * it, so the name is logged, and the cards stay where they are — bound to
@@ -815,7 +815,7 @@ export type Op =
    * reveal; `"you"` is the master looking alone — no log, nothing public — the
    * act `look` is the macro over (`revealAs`, `script-schema.ts`).
    */
-  | { op: "reveal"; sel: Selector; as: string; audience?: "you" | "both" }
+  | { op: "reveal"; sel: Selector; as: string; audience?: "you" | "both"; incremental?: true }
   | { op: "ko"; target: Ref; completedAs?: string }
   /** `to: "under"` puts the card under `under`, or under the source card (23-2). */
   /**
@@ -1740,6 +1740,8 @@ export const savedXKey = (saveVarsAs: string) => `${saveVarsAs}:x`;
 
 /** One running program. Stored in the flow, so a game can be saved mid-effect. */
 export interface ScriptFrame {
+  lookExecution?: import("./incremental-look").LookExecution;
+  incrementalLook?: import("./incremental-look").IncrementalLook;
   /** R495 effect execution and dormant body/payment provenance. */
   appliedEffects?: import("./applied-effect-receipt").Receipt;
   appliedPaymentEffects?: import("./applied-effect-receipt").Receipt;
@@ -2743,6 +2745,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const owner = owners.find((p) => !all.filter((id) => h.ownerOf(id) === p).every((id) => order.includes(id)));
           const open = all.filter((id) => h.ownerOf(id) === owner && !order.includes(id));
           if (!pick || !open.includes(pick)) throw new IllegalAction("that card is not one of the cards to put back");
+          h.recordInspectionOrder?.(frame,pick);
           order.push(pick);
         }
         let asked = false;
@@ -2886,6 +2889,12 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       }
 
       case "look": {
+        if (op.upTo) {
+          if (!h.incrementalLook) throw new NotYet("inspect privately without the native continuation host", "R527");
+          const result = h.incrementalLook(frame, op);
+          if (result === "wait") return result;
+          break;
+        }
         // 20-11: looking is not revealing — only the player looking sees them,
         // which is why the cards are bound to a name rather than moved.
         const p = sideOf(master, op.side)[0];
@@ -2989,6 +2998,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         const described = describesCard(op.sel);
         /** Cards taken out of a pool ("choose 1 among them") leave the pool. */
         const take = (picked: string[]) => {
+          h.recordInspectionChoice?.(frame,op,picked);
           // Phrasing batch 4 (owner's approval of 26 Oct 2026; 5-8-2-2): an action price's exact "choose N" — not "up
           // to", not "all", not a bound read off the board — is paid in full or not at all. Fewer cards than that at
           // payment time (5-2-5's "as many as possible" is an effect's, never a price's) leaves the price unpaid: the
@@ -4776,6 +4786,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
             ] };
           }
           if (!picked) throw new IllegalAction("that mode is no longer available");
+          h.recordInspectionMode?.(frame,op,original!);
           h.clearLastMode();
           frame.awaiting = undefined;
           frame.offeredModes = undefined;

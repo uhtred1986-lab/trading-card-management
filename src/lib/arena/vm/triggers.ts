@@ -1,3 +1,4 @@
+import {incrementalLookIntent,captureLookSource} from './incremental-look';
 import { paidWarpIntent, capturePaidWarpSource } from './paid-warp-runtime';
 import { placedUnderMaster } from "./placed-under-master";
 import { captureKoBinding, koResultScript } from "./ko-source";
@@ -110,6 +111,7 @@ export interface CopiedSkillCapture {
 }
 
 export interface VmPending {
+  lookSource?: import("./incremental-look").LookSource;
   paidWarpSource?: import("./paid-warp-contract").PaidWarpSource;
   /** R510: this actual Auto pended during an already-completed play cost. */
   paidArrivalWitness?: import("./auto-play-cost").PaidArrivalWitness;
@@ -790,9 +792,11 @@ export function pendAutos(ctx: EngineContext, game: GameDefinition, state: VmSta
       // move it again at the checkpoint.
       const movementInfo = subjectInfo ?? (["comboToDrop", "youComboFromHand", "youComboFromBattle"].includes(match.trigger) && match.subject ? attrsNow(ctx, game, state, match.subject) : undefined);
       const copiedSkillCapture = captureCopiedSkill(state, match.card, sk, script);
+      if (incrementalLookIntent(script?.ops) && copiedSkillCapture) throw new NotYet("capture a copied private inspection", "R527");
       if (paidWarpIntent(script) && copiedSkillCapture) throw new NotYet("capture a copied Warp-count Auto declaration", "R522");
       if (pairedSelfScript(script) && copiedSkillCapture) throw new NotYet("copied bounded paired-source occurrence is not yet supported", "R487");
       const pending: VmPending = { card: match.card, skillIndex: sk.index, master, trigger: match.trigger, ...subject,
+        ...(incrementalLookIntent(script?.ops) ? {lookSource:captureLookSource(ctx,state,match.card,master,sk,script!)} : {}),
         ...(paidWarpIntent(script) ? { paidWarpSource: capturePaidWarpSource(ctx, state, match.card, master, sk, script!) } : {}),
         ...(koResultScript(script) ? { koBinding: captureKoBinding(state, match.card, master, sk.index, script!) } : {}),
         ...(pairedSelfScript(script) ? { pairedSelf: capturePairedSelf(state, match.card, script!) } : {}),
