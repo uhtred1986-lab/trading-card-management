@@ -1,0 +1,741 @@
+{
+  "BT1-014": {
+    "card": {
+      "id": "BT1-014",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Saiyan Cabba",
+      "characters": [
+        "Cabba"
+      ],
+      "traits": [
+        "Alien",
+        "Saiyan"
+      ],
+      "skill": "[Auto]  When this card attacks, you may choose 1 card from your life and add it to your hand.  If you do so, this card gains +10000 power and [Double Strike]  (This card inflicts 2 damage instead of 1 when attacking) for the duration of the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "records": {
+      "BT1-014#0": {
+        "cardId": "BT1-014",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto]  When this card attacks, you may choose 1 card from your life and add it to your hand.  If you do so, this card gains +10000 power and [Double Strike]  (This card inflicts 2 damage instead of 1 when attacking) for the duration of the turn.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "life",
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "you may choose 1 card from your life"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "hand",
+            "completedAs": "c0"
+          },
+          {
+            "op": "if",
+            "cond": {
+              "kind": "moved",
+              "var": "c0",
+              "all": true
+            },
+            "then": [
+              {
+                "op": "power",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "amount": 10000,
+                "until": "turn"
+              },
+              {
+                "op": "grant",
+                "target": {
+                  "sel": {
+                    "special": "self"
+                  }
+                },
+                "keyword": {
+                  "name": "Strike",
+                  "x": 2
+                },
+                "until": "turn"
+              }
+            ]
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→moveTo→if:moved[power→grant:Strike]",
+        "reads": "choose up to 1 card in your Life Area, move the chosen cards to hand, if the chosen movement was completed in full: this card +10000 power for the turn, this card gains [Double Strike] for the turn"
+      }
+    },
+    "faq": [
+      {
+        "name": "Saiyan Cabba",
+        "qa": [
+          {
+            "q": "When adding cards from your Life Area to your hand with {BT1-014 Saiyan Cabba}’s auto skill, can you choose which card to add to your hand?",
+            "a": "You can, but you cannot look at the card beforehand."
+          }
+        ]
+      }
+    ]
+  },
+  "BT1-001": {
+    "card": {
+      "id": "BT1-001",
+      "type": "LEADER",
+      "colors": [
+        "Red"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Champa",
+      "characters": [
+        "Champa"
+      ],
+      "traits": [
+        "God"
+      ],
+      "skill": "[Auto] [Once per turn] When your Battle Card attacks a Leader Card, if the attacking card has 15000 or more power, draw 1 card.<br>[Awaken] When your life is at 4 or less: You may draw 2 cards and flip this card over.",
+      "backName": "God of Destruction Champa",
+      "backSkill": "[Auto] When this card attacks, draw 1 card.<br>[Activate: Main] Place 1 card from your hand in the Drop Area: Choose this card or 1 of your Battle Cards. It gains [Double Strike] for the duration of the turn."
+    },
+    "records": {
+      "BT1-001#0": {
+        "cardId": "BT1-001",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] [Once per turn] When your Battle Card attacks a Leader Card, if the attacking card has 15000 or more power, draw 1 card.",
+        "kind": "auto",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "special": "subject",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "ops": [
+          {
+            "op": "if",
+            "cond": {
+              "kind": "power",
+              "sel": {
+                "special": "attacker"
+              },
+              "atLeast": 15000
+            },
+            "then": [
+              {
+                "op": "draw",
+                "n": 1
+              }
+            ]
+          }
+        ],
+        "unread": [
+          "When your Battle Card attacks a Leader Card"
+        ],
+        "pattern": "when your battle card attacks a leader card",
+        "reads": "if that card is a Battle Card: if the attacking card has 15000 or more power: draw 1"
+      },
+      "BT1-001#10": {
+        "cardId": "BT1-001",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Awaken] When your life is at 4 or less: You may draw 2 cards and flip this card over.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "When your life is at 4 or less",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "life",
+            "side": "you",
+            "atMost": 4
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 2
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 2"
+      },
+      "BT1-001#0b": {
+        "cardId": "BT1-001",
+        "side": "back",
+        "skillIndex": 0,
+        "printed": "[Auto] When this card attacks, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 1"
+      },
+      "BT1-001#10b": {
+        "cardId": "BT1-001",
+        "side": "back",
+        "skillIndex": 10,
+        "printed": "[Activate: Main] Place 1 card from your hand in the Drop Area: Choose this card or 1 of your Battle Cards. It gains [Double Strike] for the duration of the turn.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Place 1 card from your hand in the Drop Area",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "discard",
+              "n": 1
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false,
+              "orSelf": true
+            },
+            "as": "c0",
+            "reason": "Choose this card or 1 of your Battle Cards"
+          },
+          {
+            "op": "grant",
+            "target": {
+              "var": "c0"
+            },
+            "keyword": {
+              "name": "Strike",
+              "x": 2
+            },
+            "until": "turn"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→grant:Strike",
+        "reads": "choose 1 Battle Card in your Battle Area, or this card, the chosen cards gains [Double Strike] for the turn"
+      }
+    },
+    "faq": [
+      {
+        "name": "Champa",
+        "qa": [
+          {
+            "q": "Can you choose not to draw cards off {BT1-001 Champa}’s auto skill?",
+            "a": "No, you cannot.\nYou must draw a card."
+          },
+          {
+            "q": "When one of your Battle Cards with power less than 15000 attacks for the first time, does the auto skill of {BT1-001 Champa} activate?",
+            "a": "Yes, it does.However, you cannot draw a card off of it."
+          },
+          {
+            "q": "The auto skills of {BT1-001 Champa} and {BT1-014 Saiyan Cabba} activated simultaneously. In this case, can you draw a card off {BT1-001 Champa}’s auto skill?",
+            "a": "When two or more of your auto skills activate simultaneously, you can resolve them in any order you choose.\nIf you resolve {BT1-014 Saiyan Cabba}’s skill first, the card’s power will exceed 15000, so you can draw a card with {BT1-001 Champa}.\nIf you resolve {BT1-001 Champa}’s skill first, the power of {BT1-014 Saiyan Cabba} is still 5000, so you cannot draw a card."
+          }
+        ]
+      }
+    ]
+  },
+  "BT1-091": {
+    "card": {
+      "id": "BT1-091",
+      "type": "BATTLE",
+      "colors": [
+        "Yellow"
+      ],
+      "cost": "4",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "King Cold, Father of the Emperor",
+      "characters": [
+        "King Cold"
+      ],
+      "traits": [
+        "Frieza Clan"
+      ],
+      "skill": "[Double Strike] <br>[Revenge] (When this card is attacked, KO the attacking card after the battle)<br>[Counter: Battle Card Attack] Play this card from your hand and change the target of the attack to this card.<br>[Auto] When you play this card, choose up to 1 opponent Battle Card and switch it to Rest Mode.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "King Cold, Father of the Emperor",
+        "qa": [
+          {
+            "q": "When activating the [Counter] skill of a Battle Card, can you activate it without paying the card’s energy cost?",
+            "a": "No, you must pay the energy cost.\n[Counter] skills can be activated from your hand by paying the card’s energy cost."
+          },
+          {
+            "q": "When playing cards with card skills, do you need to pay the energy cost of that card?",
+            "a": "No, you do not need to pay unless specified otherwise."
+          },
+          {
+            "q": "You used this card’s [Counter: Battle Card Attack] to make this card the target of an attack. Can you KO the attacking card using [Revenge] at the end of the battle?",
+            "a": "Yes, it does.\nRevenge activates when the card is attacked, or at the end of that battle, and KOs the opponent’s card."
+          },
+          {
+            "q": "You activated {BT1-107Cold Bloodlust} against {BT1-091King Cold, Father of the Emperor}’s [Counter]. In this case, does the target of the attack still change?",
+            "a": "Yes, it does."
+          }
+        ]
+      }
+    ],
+    "records": {
+      "BT1-091#10": {
+        "cardId": "BT1-091",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Revenge] (When this card is attacked, KO the attacking card after the battle)",
+        "kind": "keyword",
+        "trigger": [
+          "attacked"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Revenge",
+        "reads": ""
+      },
+      "BT1-091#20": {
+        "cardId": "BT1-091",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Counter: Battle Card Attack] Play this card from your hand and change the target of the attack to this card.",
+        "kind": "counter:battle card attack",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "special": "self"
+            },
+            "as": "p0",
+            "reason": "Play this card from your hand"
+          },
+          {
+            "op": "play",
+            "target": {
+              "var": "p0"
+            }
+          },
+          {
+            "op": "redirectAttack",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→play→redirectAttack",
+        "reads": "choose this card, play the chosen cards, switch the target of the attack to this card"
+      },
+      "BT1-091#30": {
+        "cardId": "BT1-091",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[Auto] When you play this card, choose up to 1 opponent Battle Card and switch it to Rest Mode.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 opponent Battle Card"
+          },
+          {
+            "op": "switchMode",
+            "target": {
+              "var": "c0"
+            },
+            "mode": "rest"
+          }
+        ],
+        "unread": [],
+        "pattern": "choose→switchMode",
+        "reads": "choose up to 1 Battle Card in your opponent's Battle Area, switch the chosen cards to rest mode"
+      }
+    }
+  }
+}

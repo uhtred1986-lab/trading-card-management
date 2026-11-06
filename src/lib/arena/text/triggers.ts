@@ -1053,6 +1053,8 @@ export function autoTriggerMatches(sk: Skill, trigger: Trigger): boolean {
       return !parseFilter(said).unreadable;
     }
     // BT8-089: "When a Battle Card attacks" — any player's, said with nothing else.
+    case "yourBattleAttacksLeader":
+      return /^when your battle card attacks a leader card\s*(?:,|$)/.test(head.toLowerCase());
     case "battleCardAttacks":
       return /^when a battle card attacks\s*(?:,|:|\.|$)/.test(head.toLowerCase());
     // BT15-091: "When a player places a [Field] Extra Card in a Battle Area" and

@@ -5400,6 +5400,10 @@
       "words": "when a Battle Card attacks"
     },
     {
+      "name": "yourBattleAttacksLeader",
+      "words": "when your Battle Card attacks a Leader Card"
+    },
+    {
       "name": "aPlayerPlacesInBattle",
       "words": "when a player places a card in a Battle Area"
     },

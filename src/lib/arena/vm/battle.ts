@@ -258,8 +258,10 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
       // "When a Battle Card attacks" (BT8-089): whether the attacker is a Battle Card (8-1-1), for the moment every player's cards answer.
       // R490 / 16-1-3 / 19-1-1: Z-Battle Cards and tokens are Battle targets too.
       const target = findCard(state, b.guard);
+      // R503: the original Leader target qualifies Champa before Counter/Blocker changes.
+      const targetOpponentLeader = target?.zone === "leader" && target.owner === defender && ["LEADER", "Z-LEADER"].includes(String(attrsNow(ctx, game, state, b.guard).type));
       const targetOpponentBattle = target?.zone === "battle" && target.owner === defender && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(attrsNow(ctx, game, state, b.guard).type));
-      fire(ctx, game, state, { event: "attackDeclared", card: b.attacker, controller: state.turnPlayer, args: { role: "attacker", ...(targetOpponentBattle ? { targetOpponentBattle: true } : {}), ...(findCard(state, b.attacker)?.zone === "battle" && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(attrsNow(ctx, game, state, b.attacker).type)) ? { battleCard: true } : {}) } });
+      fire(ctx, game, state, { event: "attackDeclared", card: b.attacker, controller: state.turnPlayer, args: { role: "attacker", ...(targetOpponentLeader ? { targetOpponentLeader: true } : {}), ...(targetOpponentBattle ? { targetOpponentBattle: true } : {}), ...(findCard(state, b.attacker)?.zone === "battle" && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(String(attrsNow(ctx, game, state, b.attacker).type)) ? { battleCard: true } : {}) } });
       fire(ctx, game, state, { event: "attackDeclared", card: b.guard, controller: defender, args: attackTargetMomentArgs(ctx, game, state, b.guard, guardArea, true) });
     },
   },

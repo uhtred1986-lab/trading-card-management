@@ -223,6 +223,12 @@ DEFINE TRIGGER battleCardAttacks
   BIND "subject"
   text: "when a Battle Card attacks"
 
+-- R503: Champa watches the original declaration, with power checked later in its body.
+DEFINE TRIGGER yourBattleAttacksLeader
+  ON attackDeclared(role: attacker, battleCard: true, targetOpponentLeader: true, watcher: controller)
+  BIND "subject"
+  text: "when your Battle Card attacks a Leader Card"
+
 -- §5-5-4 — when a player places a card in a Battle Area (BT15-091,
 -- prohibition batch 6): either player's card arriving in any Battle Area,
 -- played or placed by a skill alike (5-5-1), watched by every player's cards

@@ -1080,6 +1080,8 @@ export type Trigger =
   | "opponentAttacks"
   /** BT8-089: any player's Battle Card attacks (8-1-1), watched by every player's cards in play. The attacker is the `subject`. */
   | "battleCardAttacks"
+  /** R503: your Battle Card attacks an original opposing Leader target; power is checked at resolution. */
+  | "yourBattleAttacksLeader"
   /** BT15-091: any player places a [Field] Extra Card (or another card the subject condition names) in a Battle Area. The card placed is the `subject`. */
   | "aPlayerPlacesInBattle"
   /** BT15-091's back: any player's card leaves a Battle Area, for anywhere. The card that left is the `subject`. */
