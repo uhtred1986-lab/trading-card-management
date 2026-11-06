@@ -72,6 +72,68 @@ export function collectNativeStandingFacts(ctx: EngineContext, game: GameDefinit
     const priorFacts = standingPriorFacts(view);
     if (priorFacts.hasUnderInteraction || priorFacts.version === 3
         && Object.values(state.cards).some(card => !card || !Array.isArray(card.under) || card.under.length > 0)) throw new NotYet("combine actual under and area source facts before protection handoff", "R524");
+    const discovery = discoverArea(ctx, game, state, battle);
+    const { cards, candidates } = discovery.facts;
+    if (!candidates.length)
+        return { cards, battle, candidates };
+    const protectors = collectProtectors(ctx, state, discovery);
+    for (const target of cards.filter(card => protectors.has(card.card))) {
+        const prior = priorFacts.edges.filter(edge => canonical(edge.target) === canonical(target));
+        if (arrivals.some(arrival => canonical(arrival) === canonical(target))) {
+            if (prior.length)
+                refuse("fresh mixed arrival reuses a suppressed occurrence");
+            continue;
+        }
+        if (!prior.length)
+            continue;
+        if (prior.some(edge => candidates.some(candidate => sourceKey(candidate.source) === edge.source && candidate.externalEnabled)))
+            protectors.delete(target.card);
+        else
+            refuse("review mixed self-protection reactivation when original suppression ends");
+    }
+    for (const candidate of candidates)
+        candidate.targets = cards.filter(target => target.card !== candidate.source.card && !protectors.has(target.card)
+            && (candidate.source.policy === "otherBattleWholeV1"
+                ? target.area === "battle" && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(ctx.defs[target.cardId].type)
+                : target.area === "combo" && target.holder !== candidate.source.master));
+    return { cards, battle, candidates };
+}
+
+/** Private staged discovery, shared without qualifying protection or changing history. */
+declare const discoveryBrand: unique symbol;
+export interface NativeAreaStandingDiscovery { readonly [discoveryBrand]: true }
+interface DiscoveredArea {
+    ctx: EngineContext;
+    game: GameDefinition;
+    state: VmState;
+    facts: NativeStandingFacts;
+    lines: Array<{ occurrence: Card; skill: ReturnType<typeof parseSkills>[number]; script: Script; activeArea: boolean }>;
+}
+const discoveries = new WeakMap<NativeAreaStandingDiscovery, { value: DiscoveredArea; snapshot: string }>();
+function discoverySnapshot(ctx: EngineContext, state: VmState): string {
+    const ids = new Set(Object.values(state.cards).filter(Boolean).map(card => card.cardId));
+    for (const effect of state.effects) if (effect.copied) ids.add(effect.copied.cardId);
+    return canonical({ cards: state.cards, zones: Object.values(state.sides).map(side => side.zones),
+        battle: state.battle, effects: state.effects, grants: state.resolvedGrantDeletions,
+        definitions: [...ids].sort().map(id => ({ id, def: ctx.defs[id], front: ctx.defs[id] && programsOf(ctx, ctx.defs[id], "front"), back: ctx.defs[id]?.back && programsOf(ctx, ctx.defs[id], "back") })) });
+}
+function requireDiscovery(token: NativeAreaStandingDiscovery): DiscoveredArea {
+    const value = token && discoveries.get(token);
+    if (!value || value.snapshot !== discoverySnapshot(value.value.ctx, value.value.state))
+        refuse("retain actual area standing discovery before qualification");
+    return value.value;
+}
+export function requireNativeAreaStandingDiscovery(ctx: EngineContext, game: GameDefinition, state: VmState,
+    token: NativeAreaStandingDiscovery): void {
+    const value = requireDiscovery(token);
+    if (value.ctx !== ctx || value.game !== game || value.state !== state)
+        refuse("bind shared area discovery to its actual board, context and game");
+}
+export function nativeAreaStandingFacts(token: NativeAreaStandingDiscovery): NativeStandingFacts {
+    return structuredClone(requireDiscovery(token).facts);
+}
+function discoverArea(ctx: EngineContext, game: GameDefinition, state: VmState,
+    battle: Observation["battle"], additionalPolicy = false): DiscoveredArea {
     const cards = mixedStandingOccurrences(ctx, game, state);
     if (!!battle !== !!state.battle)
         refuse("bind mixed battle participation through an explicit native assignment");
@@ -138,7 +200,7 @@ export function collectNativeStandingFacts(ctx: EngineContext, game: GameDefinit
                 refuse("rebuild mixed copied source skill identity");
             const skill = copy.quoted ? original.granted!.skill : original;
             const script = scripts.bySkill[index];
-            if (candidates.length && skill.kind === "permanent"
+            if ((candidates.length || additionalPolicy) && skill.kind === "permanent"
                 && (!script || !Array.isArray(script.unsupported) || script.unsupported.length || !Array.isArray(script.ops)))
                 refuse("observe complete copied Permanent records before mixed policy qualification");
             if (skill.kind === "permanent" && (printedIntent(skill.effect) || contains(scripts.bySkill[index]?.ops, "whole")
@@ -146,8 +208,26 @@ export function collectNativeStandingFacts(ctx: EngineContext, game: GameDefinit
                 refuse("observe copied mixed negators or protectors only with reviewed source authority");
         }
     }
-    if (!candidates.length)
-        return { cards, battle, candidates };
+
+    return { ctx, game, state, facts: { cards, battle, candidates }, lines };
+}
+export function discoverNativeAreaStandingFacts(ctx: EngineContext, game: GameDefinition, state: VmState,
+    battle: Observation["battle"], additionalPolicy = false): NativeAreaStandingDiscovery {
+    const value = discoverArea(ctx, game, state, battle, additionalPolicy);
+    const token = Object.freeze({}) as NativeAreaStandingDiscovery;
+    discoveries.set(token, { value, snapshot: discoverySnapshot(ctx, state) });
+    return token;
+}
+export function discoverNativeStandingProtectors(ctx: EngineContext, game: GameDefinition, state: VmState,
+    token: NativeAreaStandingDiscovery): Set<string> {
+    const value = requireDiscovery(token);
+    if (value.ctx !== ctx || value.game !== game || value.state !== state)
+        refuse("qualify area standing discovery on its original board and context");
+    return collectProtectors(ctx, state, value);
+}
+function collectProtectors(ctx: EngineContext, state: VmState, value: DiscoveredArea): Set<string> {
+    const { cards, candidates } = value.facts;
+    const { lines } = value;
     // A prospective opposing Combo target may print protection valid outside
     // its ordinary Battle Area. An unread Permanent cannot prove its absence.
     for (const candidate of candidates) {
@@ -205,24 +285,5 @@ export function collectNativeStandingFacts(ctx: EngineContext, game: GameDefinit
         if (!externallyNegatedSkill(state, occurrence.card, skill.index, skill.kind))
             protectors.add(occurrence.card);
     }
-    for (const target of cards.filter(card => protectors.has(card.card))) {
-        const prior = priorFacts.edges.filter(edge => canonical(edge.target) === canonical(target));
-        if (arrivals.some(arrival => canonical(arrival) === canonical(target))) {
-            if (prior.length)
-                refuse("fresh mixed arrival reuses a suppressed occurrence");
-            continue;
-        }
-        if (!prior.length)
-            continue;
-        if (prior.some(edge => candidates.some(candidate => sourceKey(candidate.source) === edge.source && candidate.externalEnabled)))
-            protectors.delete(target.card);
-        else
-            refuse("review mixed self-protection reactivation when original suppression ends");
-    }
-    for (const candidate of candidates)
-        candidate.targets = cards.filter(target => target.card !== candidate.source.card && !protectors.has(target.card)
-            && (candidate.source.policy === "otherBattleWholeV1"
-                ? target.area === "battle" && ["BATTLE", "Z-BATTLE", "TOKEN"].includes(ctx.defs[target.cardId].type)
-                : target.area === "combo" && target.holder !== candidate.source.master));
-    return { cards, battle, candidates };
+    return protectors;
 }

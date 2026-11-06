@@ -11,10 +11,11 @@ import { zeroSkillPrice } from "./skill-payment";
 import { mixedStandingOccurrences } from "./standing-negation-mixed-observation";
 import { requireResolvedGrantHistory, resolvedGrantDeleted } from "./resolved-grant-deletion";
 import { canonicalTaxValue as canonical } from "./tax-receipt";
-import { standingWholePrinted, standingComboWholePrinted } from "./standing-negation-policy";
+import { standingWholePrinted, standingWholeScript, standingComboWholePrinted } from "./standing-negation-policy";
 import { reviewUnderStandingDefinitions, requireReviewedUnderDefinition, type ReviewedUnderDefinition } from "./standing-negation-under-definition";
 import { validateUnderStandingHistory, type UnderHistory, type UnderObservation } from "./standing-negation-under-history";
 import { requireUnderRelations, requireUnderOccurrence, underRebuild as fail, type UnderOccurrence } from "./standing-negation-under-relation";
+import { nativeAreaStandingFacts, requireNativeAreaStandingDiscovery, type NativeAreaStandingDiscovery } from "./standing-negation-native-facts";
 const protection: Op = { op: "forbid", what: "beNegated", until: "game", target: { sel: { special: "self" } } };
 const attack: Op = { op: "permit", what: "attackUnnegatable", until: "game", target: { sel: { special: "self" } } };
 function exactProtection(script: Script): boolean {
@@ -60,6 +61,23 @@ export function observeUnderStandingFacts(ctx: EngineContext, game: GameDefiniti
     if (state.battle || prior.observation.area.battle || prior.observation.area.candidates.length
         || prior.active.some(source => !("kind" in source.source)))
         return fail("isolated under observation does not yet combine battle participation or area policies");
+    const discovery = discoverUnder(ctx, game, state, reviewed);
+    const { cards, under, piles } = discovery;
+    const protectedCards = collectUnderProtection(ctx, state, discovery);
+    for (const candidate of under) {
+        const host = candidate.relation.host;
+        if (!protectedCards.has(host.card)) continue;
+        if (prior.negated.some(edge => canonical(edge.target) === canonical(host)))
+            return fail("review under self-protection reactivation from prior suppression");
+        candidate.negateTargets = [];
+    }
+    requireUnderRelations(cards, piles, under.map(candidate => candidate.relation));
+    return { version: 3, policy: "underAwareWholeV1", area: { version: 2, policy: "mixedWholeV1", cards, battle: null, candidates: [] }, piles, under };
+}
+
+/** Actual physical discovery only; qualification and history remain separate. */
+function discoverUnder(ctx: EngineContext, game: GameDefinition, state: VmState,
+    reviewed: readonly ReviewedUnderDefinition[]) {
     if (!Array.isArray(reviewed) || new Set(reviewed.map(x => `${x?.cardId}:${x?.side}:${x?.skill?.index}`)).size !== reviewed.length)
         return fail("rebuild distinct original under review descriptors");
     reviewed.forEach(value => requireReviewedUnderDefinition(ctx, value));
@@ -100,6 +118,13 @@ export function observeUnderStandingFacts(ctx: EngineContext, game: GameDefiniti
             externalEnabled: !externallyNegatedSkill(state, instance.id, source.skill.index, source.skill.kind),
             negateTargets: [host], attackBanTargets: [host] });
     }
+    requireUnderRelations(cards, piles, under.map(candidate => candidate.relation));
+    return { cards, physical, under, piles };
+}
+function collectUnderProtection(ctx: EngineContext, state: VmState,
+    discovery: ReturnType<typeof discoverUnder>, area?: NativeAreaStandingDiscovery): Set<string> {
+    const { physical, under } = discovery;
+    const areaCandidates = area ? nativeAreaStandingFacts(area).candidates : [];
     // Do not hide unsupported board policies simply because no current under output is enabled.
     const protectedCards = new Set<string>();
     for (const fact of physical) {
@@ -114,8 +139,14 @@ export function observeUnderStandingFacts(ctx: EngineContext, game: GameDefiniti
             const script = scripts.bySkill[skill.index];
             if (!script || !Array.isArray(script.ops) || !Array.isArray(script.unsupported) || script.unsupported.length)
                 return fail("review complete relevant Permanent records before under protection qualification");
-            if (standingWholePrinted(skill) || standingComboWholePrinted(skill))
+            if (standingWholePrinted(skill) || standingComboWholePrinted(skill)) {
+                const actual = areaCandidates.find(candidate => candidate.source.card === id && candidate.source.skillIndex === skill.index);
+                if (actual && actual.source.skillIdentity === canonical(script)) continue;
+                // A reviewed Battle-only policy in Combo is inactive, not an omitted source.
+                if (area && fact.locations.length === 1 && fact.locations[0].area === "combo"
+                    && standingWholePrinted(skill) && standingWholeScript(script)) continue;
                 return fail("combine actual area standing policies only through shared reviewed native facts");
+            }
             if (!script.ops.length && skill.effect.trim()) return fail("do not infer absent protection from an empty Permanent body");
             if (!sensitive(script.ops)) continue;
             if (!exactProtection(script) || skill.tags.length !== 1 || skill.tags[0].toLowerCase() !== "permanent" || skill.cost.trim() || skill.oncePerTurn || skill.limit !== null
@@ -139,13 +170,44 @@ export function observeUnderStandingFacts(ctx: EngineContext, game: GameDefiniti
         if (copied.skills.some(index => !skills.some(skill => skill.index === index) || skills.some(skill => skill.index === index && (skill.kind === "permanent" || skill.granted))))
             return fail("review copied Permanent or quoted under policy before observation");
     }
-    for (const candidate of under) {
-        const host = candidate.relation.host;
-        if (!protectedCards.has(host.card)) continue;
-        if (prior.negated.some(edge => canonical(edge.target) === canonical(host)))
-            return fail("review under self-protection reactivation from prior suppression");
-        candidate.negateTargets = [];
-    }
-    requireUnderRelations(cards, piles, under.map(candidate => candidate.relation));
-    return { version: 3, policy: "underAwareWholeV1", area: { version: 2, policy: "mixedWholeV1", cards, battle: null, candidates: [] }, piles, under };
+    return protectedCards;
+}
+
+declare const underDiscoveryBrand: unique symbol;
+export interface UnderStandingDiscovery { readonly [underDiscoveryBrand]: true }
+interface UnderDiscovery {
+    ctx: EngineContext; game: GameDefinition; state: VmState;
+    snapshot: string; facts: ReturnType<typeof discoverUnder>;
+}
+const underDiscoveries = new WeakMap<UnderStandingDiscovery, UnderDiscovery>();
+function underDiscoverySnapshot(ctx: EngineContext, state: VmState): string {
+    const ids = new Set(Object.values(state.cards).filter(Boolean).map(card => card.cardId));
+    for (const effect of state.effects) if (effect.copied) ids.add(effect.copied.cardId);
+    return canonical({ physical: underPhysicalFacts(state), effects: state.effects, grants: state.resolvedGrantDeletions,
+        definitions: [...ids].sort().map(id => ({ id, def: ctx.defs[id],
+            front: ctx.defs[id] && programsOf(ctx, ctx.defs[id], "front"),
+            back: ctx.defs[id]?.back && programsOf(ctx, ctx.defs[id], "back") })) });
+}
+export function discoverUnderStandingCandidates(ctx: EngineContext, game: GameDefinition, state: VmState,
+    reviewed: readonly ReviewedUnderDefinition[]): UnderStandingDiscovery {
+    const facts = discoverUnder(ctx, game, state, reviewed);
+    const token = Object.freeze({}) as UnderStandingDiscovery;
+    underDiscoveries.set(token, { ctx, game, state, snapshot: underDiscoverySnapshot(ctx, state), facts });
+    return token;
+}
+function requireUnderDiscovery(ctx: EngineContext, game: GameDefinition, state: VmState, token: UnderStandingDiscovery) {
+    const value = token && underDiscoveries.get(token);
+    if (!value || value.ctx !== ctx || value.game !== game || value.state !== state
+        || value.snapshot !== underDiscoverySnapshot(ctx, state))
+        return fail("retain under discovery on its original board, context and game");
+    return value.facts;
+}
+export function underStandingCandidateFacts(ctx: EngineContext, game: GameDefinition, state: VmState, token: UnderStandingDiscovery) {
+    return structuredClone(requireUnderDiscovery(ctx, game, state, token));
+}
+export function discoverUnderStandingProtection(ctx: EngineContext, game: GameDefinition, state: VmState,
+    token: UnderStandingDiscovery, area?: NativeAreaStandingDiscovery): Set<string> {
+    const facts = requireUnderDiscovery(ctx, game, state, token);
+    if (area) requireNativeAreaStandingDiscovery(ctx, game, state, area);
+    return collectUnderProtection(ctx, state, facts, area);
 }
