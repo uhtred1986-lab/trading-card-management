@@ -1,3 +1,5 @@
+import { IllegalAction } from './illegal-action';
+import { paidRemovalIntent } from './paid-removal-runtime';
 import { captureOrdinaryActivation, ordinaryActivationProblem } from "./ordinary-activate-runtime";
 import { activateUnderOrigin, activateUnderProblem, type ActivateUnderOrigin } from "./activate-under";
 import { freshAppliedEffectRoot } from "./applied-effect-receipt";
@@ -861,7 +863,7 @@ export function invokedMainLines(ctx: EngineContext, game: GameDefinition, state
   return activationsOf(ctx, state, def, card, game, op.from).filter((line) => {
     const sk = line.skill;
     if ((op.skillKind === "activate:any" ? !["activate:main", "activate:battle", "activate:main/battle"].includes(line.kind) : line.kind !== op.skillKind) || line.keyword || sk.keyword || !line.script || line.script.unsupported.length || line.script.price?.x || !canResolve(line)) return false;
-    if (!requireSkillPayment(line.script.price).readable) return false;
+    if (!requireSkillPayment(line.script.price).readable || paidRemovalIntent(line.script)) return false;
     if (skillsNegated(state, card) || skillNegated(state, card, sk.index, sk.kind) || forbiddenBy(ctx, game, state, "activateSkill", { player, card, skillKind: sk.kind })) return false;
     // #677: the printed price is waived (12-2-4); an external 20-14 tax is
     // not, so an Extra whose tax cannot be paid is not eligible at all.
@@ -1179,6 +1181,7 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
  */
 export function resolveActivation(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], player: PlayerId, line: ActivationLine, x?: number, onto?: string, resolved?: Partial<Pick<ScriptFrame, "ops" | "vars" | "paidCardInfo" | "paidMarkers" | "ordinaryActivation">>, waived = false, invokedFrom?: "hand" | "deck" | "drop"): void {
   const { card, skill: sk } = line;
+  if (waived && paidRemovalIntent(line.script)) throw new IllegalAction("waived historical removal payments need a reviewed original source contract (R516)");
   const payment = requireSkillPayment(line.script?.price);
   if (waived && (payment.spiritBoost != null || line.script?.price?.x?.spiritBoost) && !resolved?.paidMarkers?.spiritBoost) {
     resolved = { ...resolved, paidMarkers: { ...resolved?.paidMarkers, spiritBoost: { version: 1, cost: "spiritBoost", source: card, sourceEpoch: state.cards[card]?.zoneEpoch ?? 0, requested: line.script?.price?.x?.spiritBoost ? x ?? 0 : payment.spiritBoost ?? 0, amount: 0, status: "waived", payers: [] } } };

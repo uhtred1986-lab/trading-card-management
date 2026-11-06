@@ -1950,6 +1950,8 @@ export interface ScriptFrame {
    * what the price chose (4-3-3).
    */
   saveVarsAs?: string;
+  /** R516: selected original payer, then native movement result; private continuation only. */
+  paidRemoval?: import("./paid-removal-runtime").PaidRemovalFrame;
   /** Original ordinary Activate price and successful effect continuation. */
   ordinaryActivation?: import("./ordinary-activate-runtime").OrdinaryActivation;
   /** R-387: an Awaken action payment keeps the Leader and its chosen material occurrences across reloads. */

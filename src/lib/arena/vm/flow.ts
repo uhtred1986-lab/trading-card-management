@@ -1,3 +1,4 @@
+import { requirePaidRemovalFrame } from './paid-removal-runtime';
 import { renewOrdinaryUseGeneration } from "./limits";
 import { stepOrdinaryActivateCost, requireOrdinaryActivation, requireOrdinaryPriceFrame } from "./ordinary-activate-runtime";
 import { stepActivateUnderCost } from "./activate-under-cost";
@@ -1510,6 +1511,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     requireZAwakenBindings(frame);
     requireReviveFrame(state, frame);
     const sourceScript = programSourceScript(ctx, state, frame);
+    requirePaidRemovalFrame(ctx, game, state, frame, sourceScript);
     requireKoFrame(state, sourceScript, frame);
     requirePairedSourceFrame(state, sourceScript, frame);
     requireCounterArrivalContract(frame, sourceScript);

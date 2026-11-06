@@ -21,7 +21,7 @@ import { emptyFilter } from "../text/filters";
 import { unreadFilterWords } from "../lang/filter-words";
 import { splitClausesJoined, stripNotes } from "./clauses";
 import { allConditions, parseConditionClause, playedHowGate } from "./conditions";
-import { bindBlindLifeHandChoice, bindCompletedChoice, compileClauseList, compileOriginalKoFollowup, compileBattleGrantRemoval, holdForGame, isComboDropReplacement, oneAreaOfTwo, splitModal, taxWordings } from "./effects";
+import { bindBlindLifeHandChoice, bindCompletedChoice, compileClauseList, compileOriginalKoFollowup, compileBattleGrantRemoval, compilePaidRemovalFollowup, holdForGame, isComboDropReplacement, oneAreaOfTwo, splitModal, taxWordings } from "./effects";
 import { bondDescriptorOnly } from "../text/bond";
 import { readsAsNothingSilently } from "./silent";
 import { compileSkillPrice, IF_YOU_ACTION_PRICE, aegisPriceLine, compileCostProgram, costText, counterAltCost, declaredNumber, priceCondition, priceIsUnread, priceX } from "./prices";
@@ -1566,7 +1566,8 @@ function compileSkillText(skill: Skill): Script {
     && JSON.stringify(triggersOf(skill)) === JSON.stringify(["played"])
     ? compileOriginalKoFollowup(clauses, c, unsupported, joins) : null;
   const battleGrantRemoval = skill.kind === "activate:battle" && !modal ? compileBattleGrantRemoval(clauses, c, unsupported, joins) : null;
-  let ops = originalKo ?? battleGrantRemoval ?? compileClauseList(clauses, c, unsupported, joins);
+  const paidRemoval = skill.kind === "activate:battle" && !modal ? compilePaidRemovalFollowup(skill, { kind: skill.kind, ops: [], price: compileSkillPrice(skill), usage: compileUsage(skill), validity: compileValidity(skill), unsupported: [] }, c) : null;
+  let ops = originalKo ?? battleGrantRemoval ?? paidRemoval ?? compileClauseList(clauses, c, unsupported, joins);
   // R504: only the main unpriced Auto effect, never a price or recursive clause context.
   if (skill.kind === "auto" && !skill.cost.trim() && bindBlindLifeHandChoice(clauses, ops) === false) {
     unsupported.push(clauses.slice(0, 2).join(", "));

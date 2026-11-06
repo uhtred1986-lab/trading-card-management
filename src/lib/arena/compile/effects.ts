@@ -1,3 +1,6 @@
+import { paidRemovalTail, requirePaidRemovalShape } from '../vm/paid-removal-contract';
+import type { Skill } from '../types';
+import type { Script } from '../vm/script';
 import { keywordOf, orbsIn } from "../text/cards";
 import { playTaxWording } from "../text/play-tax";
 import { emptyFilter, expandSharedCardDescription, parseFilter, type CardFilter } from "../text/filters";
@@ -7552,6 +7555,17 @@ export function compileOriginalKoFollowup(rawClauses: string[], c: Ctx, unsuppor
     unsupported.push(rawClauses.join(", ")); return prefix;
   }
   return null;
+}
+
+/** R516: only the complete original ordinary Battle price/body may read this history. */
+export function compilePaidRemovalFollowup(skill: Skill, envelope: Script, c: Ctx): Op[] | null {
+  if (skill.effect.trim().replace(/\s+/g, ' ').replace(/\.$/, '').toLowerCase() !== 'choose up to 1 of your battle cards and it gets +10000 power for the battle. additionally, if you used this skill to remove a token from the game, draw 1 card') return null;
+  const local = { ...c }, issues: string[] = [];
+  const prefix = compileClauseList(['Choose up to 1 of your Battle Cards', 'it gets +10000 power for the battle'], local, issues);
+  const ops = [...prefix, paidRemovalTail()];
+  try { requirePaidRemovalShape(skill, { ...envelope, ops }); } catch { return null; }
+  if (issues.length) return null;
+  Object.assign(c, local); return ops;
 }
 
 export function compileBattleGrantRemoval(rawClauses: string[], c: Ctx, unsupported: string[], rawJoined: boolean[] = []): Op[] | null {

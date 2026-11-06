@@ -1,6 +1,6 @@
-/** Preparatory only: no native caller or compiler admission yet.
+/** R516 exact printed payment/body contract.
  * Pure validation of caller-supplied facts, not native ctx/state authentication.
- * Native integration must obtain original source/payer facts and reject copied
+ * Native integration obtains original source/payer facts and rejects copied
  * or unauthorized waived routes before calling these helpers. MovementOutcome
  * is trusted output from the existing native writer, not independently proved here.
  */
@@ -18,11 +18,11 @@ function fail():never {throw new IllegalAction('rebuild the exact original paid 
 const object=(x:unknown):x is Record<string,unknown>=>!!x&&typeof x==='object'&&!Array.isArray(x);
 const integer=(x:unknown):x is number=>Number.isSafeInteger(x)&&Number(x)>=0;
 const name=(x:unknown):x is string=>typeof x==='string'&&/^\w+$/.test(x)&&x!==PAID_REMOVAL_ALIAS;
-const normalized=(x:unknown)=>JSON.parse(JSON.stringify(x, (key,value)=>key==='reason'?undefined:value));
+const normalized=(x:unknown)=>JSON.parse(JSON.stringify(x, (key,value)=>key==='reason'||key==='upTo'&&value===false?undefined:value));
 const same=(a:unknown,b:unknown)=>canonical(normalized(a))===canonical(normalized(b));
 const phrase=(x:string)=>x.trim().replace(/\s+/g,' ').replace(/\.$/,'').toLowerCase();
 
-/** Exact proposed body uses the existing historical predicate, never current Removed membership. */
+/** Exact body uses the existing historical predicate, never current Removed membership. */
 export function paidRemovalTail():Op {
  return {op:'if',cond:{kind:'varMatches',var:PAID_REMOVAL_ALIAS,paid:true,filter:{...emptyFilter(),token:true}},then:[{op:'draw',n:1}]};
 }
@@ -34,7 +34,7 @@ export function requirePaidRemovalShape(skill:Skill,script:Script):void {
  if(choice?.op!=='choose'||!name(choice.as)||target?.op!=='choose'||!name(target.as))fail();
  const price={...zeroSkillPrice(),ops:[{op:'choose',sel:{side:'you',area:'battle',filter:{...emptyFilter(),type:'BATTLE',skillLess:true},count:1,upTo:false},as:choice.as},{op:'moveTo',target:{var:choice.as},to:'removed'}]};
  const ops=[{op:'choose',sel:{side:'you',area:'battle',filter:{...emptyFilter(),type:'BATTLE'},count:1,upTo:true},as:target.as},{op:'power',target:{var:target.as},amount:10000,until:'battle'},paidRemovalTail()];
- if(script.kind!=='activate:battle'||canonical(script.trigger)!=='[]'||canonical(script.unsupported)!=='[]'||canonical(script.usage)!==canonical({version:1,oncePerTurn:false,limit:null})||canonical(script.validity)!==canonical({version:1,sparking:null})||script.combo!=null||script.paidAdmission||script.keepResolutionCondition||script.playReplacement||!same(script.price,price)||!same(script.ops,ops))fail();
+ if(script.kind!=='activate:battle'||script.trigger!==undefined&&canonical(script.trigger)!=='[]'||canonical(script.unsupported)!=='[]'||canonical(script.usage)!==canonical({version:1,oncePerTurn:false,limit:null})||canonical(script.validity)!==canonical({version:1,sparking:null})||script.combo!=null||script.paidAdmission||script.keepResolutionCondition||script.playReplacement||!same(script.price,price)||!same(script.ops,ops))fail();
 }
 export interface PaidRemovalSource {
  version:1;card:string;cardId:string;master:PlayerId;skillIndex:number;epoch:number;canonicalSource:string;

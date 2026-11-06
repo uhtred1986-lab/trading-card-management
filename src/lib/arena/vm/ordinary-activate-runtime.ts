@@ -1,3 +1,5 @@
+import { paidRemovalIntent, captureSelectedRemoval, recordSelectedRemoval, requirePaidRemovalFrame } from './paid-removal-runtime';
+import { requirePaidRemovalShape } from './paid-removal-contract';
 /** Original ordinary Activate price completion. Dedicated keyword/Extra runners stay separate. */
 import type {EngineContext,GameEvent,PlayerId,Action} from '../types';
 import type {GameDefinition} from '../rulesets';
@@ -29,6 +31,7 @@ export function ordinaryActionPrice(state:VmState,line:ActivationLine):boolean {
 /** A menu refusal, with no state or generation initialization. */
 export function ordinaryActivationProblem(ctx:EngineContext,state:VmState,line:ActivationLine):string|null {
  if(!ordinaryActionPrice(state,line))return null;
+ if(paidRemovalIntent(line.script)){try{requirePaidRemovalShape(line.skill,line.script!);}catch{return 'historical removal needs its exact original price and body (R516)';}}
  const inst=state.cards[line.card],def=inst&&ctx.defs[inst.cardId];
  const own=def&&programsOf(ctx,def,inst.flipped?'back':'front').bySkill[line.skillIndex];
  return !own||canonical(own)!==canonical(line.script)||line.skill.granted||line.skill.grants?'copied ordinary Activate action prices require a reviewed original usage contract (R515)':null;
@@ -37,6 +40,7 @@ export function ordinaryActivationProblem(ctx:EngineContext,state:VmState,line:A
 export function captureOrdinaryActivation(ctx:EngineContext,game:GameDefinition,state:VmState,player:PlayerId,line:ActivationLine):OrdinaryActivation|undefined {
  if(!ordinaryActionPrice(state,line))return;
  const inst=state.cards[line.card];if(!inst)fail();
+ if(paidRemovalIntent(line.script))requirePaidRemovalShape(line.skill,line.script!);
  const source={occurrence:effectOccurrence(state,line.card),master:player,skill:line.skill,script:line.script!,flipped:inst.flipped,priceContext:{optionalOwnDiscard:!!vmHost(ctx,game,state,[]).permits?.('ownDiscardOptional',line.card)}};
  const useGeneration=inst.ordinaryUseGeneration??0;
  const value={useGeneration,cost:beginOrdinaryActivateCost(source),moment:activationMoment(ctx,game,state,player,line)};
@@ -65,6 +69,8 @@ export function stepOrdinaryActivateCost(ctx:EngineContext,game:GameDefinition,s
  const frames=()=>[frame,...state.programs];
  const pair=requireOrdinaryActivatePair(saved.cost,frames());
  if(canonical(pair.effect.ordinaryActivation)!==canonical(saved))fail();
+ requirePaidRemovalFrame(ctx,game,state,frame,saved.cost.source.script);
+ const paidRemoval=paidRemovalIntent(saved.cost.source.script);
  const host=vmHost(ctx,game,state,ev,frame);
  const failed=(why:string)=>{
   const result=finishOrdinaryActivateCost(saved.cost,saved.cost.source,frames(),'failed');
@@ -79,6 +85,7 @@ export function stepOrdinaryActivateCost(ctx:EngineContext,game:GameDefinition,s
     if(op.op==='switchMode'&&found.some(id=>host.modeOf(id)===op.mode))frame.priceUnpaid??='the payment must actually change mode';
     if(op.op==='hidden'&&found.some(id=>!['battle','energy','unison'].includes(host.areaOf(id)??'')||host.isHidden(id)===op.hidden))frame.priceUnpaid??='the payment must actually change Hidden Mode';
    }
+   if(paidRemoval&&op?.op==='moveTo'&&op.target===ref&&!frame.priceUnpaid)captureSelectedRemoval(ctx,game,state,frame,found);
    return frame.priceUnpaid?[]:found;
   },
   setMode:(...args:Parameters<typeof host.setMode>)=>{const done=host.setMode(...args);if(!done)frame.priceUnpaid??='the mode payment did not complete';return done;},
@@ -86,7 +93,7 @@ export function stepOrdinaryActivateCost(ctx:EngineContext,game:GameDefinition,s
   replacementsFor:(...args:Parameters<typeof host.replacementsFor>)=>host.replacementsFor(args[0],args[1]==='ko'?'ko':'cost',{...args[2],actor:undefined}),
   move:(...args:Parameters<typeof host.move>)=>{
    const [id,to,owner,opts]=args;let completed=false;
-   const actual=host.move(id,to,owner,{...opts,reason:opts?.reason==='combo'&&to==='combo'?'combo':'cost',onResult:r=>{completed=r.completed&&r.from!==r.to;opts?.onResult?.(r);}});
+   const actual=host.move(id,to,owner,{...opts,reason:opts?.reason==='combo'&&to==='combo'?'combo':'cost',onResult:r=>{completed=r.completed&&r.from!==r.to;if(paidRemoval)recordSelectedRemoval(frame,r);opts?.onResult?.(r);}});
    if(!completed)frame.priceUnpaid="the original movement price did not complete";return actual;
   },
   ko:(...args:Parameters<typeof host.ko>)=>{
@@ -96,6 +103,7 @@ export function stepOrdinaryActivateCost(ctx:EngineContext,game:GameDefinition,s
   },
   saveVars:(...args:Parameters<typeof host.saveVars>)=>{
    if(args[0]!==saved.cost.key)fail();
+   if(paidRemoval){requirePaidRemovalFrame(ctx,game,state,frame,saved.cost.source.script);if(!frame.paidRemoval?.outcome?.completed)fail();pair.effect.paidRemoval=structuredClone(frame.paidRemoval);}
    const result=finishOrdinaryActivateCost(saved.cost,saved.cost.source,frames(),'paid');
    const s=saved.cost.source,inst=state.cards[frame.card];
    const same=inst&&inst.cardId===s.occurrence.cardId&&inst.ordinaryUseGeneration===saved.useGeneration;
