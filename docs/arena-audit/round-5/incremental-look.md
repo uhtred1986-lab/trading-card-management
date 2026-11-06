@@ -1,6 +1,6 @@
 # R527: incremental private deck inspection
 
-This first slice supplies the runtime and read-only preview. It does not yet change compiler records or claim additional card coverage. The next reviewed slice is limited to BT1-061 skill 0 and EX02-01 skill 10; P-045 front and the wider look family remain outside this admission.
+The kernel slice supplies the runtime and read-only preview. The second slice admits only the exact complete BT1-061 skill 0 and EX02-01 skill 10 compiler lines; P-045 front and the wider look family remain outside this admission.
 
 ## Source and behavior
 
@@ -10,9 +10,9 @@ The initial prompt exposes zero cards. Next exposes one additional card, Stop us
 
 Source capture comes from the original ordinary free Auto pending record. Saved state binds the original script and source, exact deck occurrences and definitions, inspected prefix, historical character eligibility, native choice and mode history, and arrange order. Source departure after activation remains valid. Copied, taxed, paid and specialized producers remain explicitly bounded. Invalid or absent receipts, forged candidates, modes, orders and Hand move continuations refuse before projection or execution. Legacy nonoptional look expansion remains unchanged; raw incremental reveal is restricted to private, unfiltered single-deck inspection.
 
-## Verification and staged admission
+## Verification and exact admission
 
-The native harness first compares every compiler row to the frozen baseline, then stages `upTo` and the reviewed Trunks arrange tail. Setup supplies the source in hand and the resources; subsequent play, payment, Auto declaration, counter windows and choices use native actions. This is a kernel proof, not compiler adoption.
+The native harness compares every compiler row to the frozen baseline with an explicit allowlist: `upTo` and narration on both Auto rows, plus the Trunks arrange tail, pattern and narration. The Over Realm sibling stays identical. Setup supplies the source in hand and the resources; subsequent play, payment, Auto declaration, counter windows and choices use native actions. The first kernel commit staged these differences; the second uses actual compiler output, without staging. Primitive tests alone override the admitted look operation to exercise other sides, ends and limits.
 
 The focused suites cover both seats, actual Gohan energy payment and Trunks Over Realm 3, stop at zero/one/maximum, empty and short decks, top/bottom and own/opponent inspection, limits above 100, source departure, JSON save/resume, deterministic replay, input purity, malformed receipts, exact filtered choices, common-end ordering permutations and Trunks end-turn Warp. They also check full snapshot equality under unseen suffix substitutions for both viewers. Read-only previews use authenticated CardViews; generic concealed IDs stay masked. No unvalidated receipt is exposed through the context-free reveal helper.
 
@@ -20,4 +20,8 @@ The focused suites cover both seats, actual Gohan energy payment and Trunks Over
 
 ## Discovered tail defect
 
-The existing exact EX02-01 compiler output moves leftovers to a common end without an order prompt. The approved second slice replaces each terminal move with `arrange` on the same original leftover target: those cards already remain in the deck, so no preceding move is needed. This changes tail operations, pattern and read summary; it is not a byte-identical tail preservation. The generic top-or-bottom and bottom-any-order parsers remain follow-up work requiring separate source review.
+The existing exact EX02-01 compiler output moves leftovers to a common end without an order prompt. The second slice replaces each terminal move with `arrange` on the same original leftover target: those cards already remain in the deck, so no preceding move is needed. This changes tail operations, pattern and read summary; it is not a byte-identical tail preservation. The generic top-or-bottom and bottom-any-order parsers remain follow-up work requiring separate source review.
+
+Final native acceptance also covers Trunks stop0/stop1 and choose1 after inspecting two cards, both seats and either end. The private Hand card is visible only to its owner in full snapshots including beat projection. Each Next asserts no inspected IDs in events or opposing snapshot/beat projection.
+
+Checked for the exact admission slice: 48 native/visibility cases, 86 saved/empty contracts, 22 language/expanded-native and near-match cases, TypeScript, targeted ESLint, and rulings. The existing `audit-effects-1` suite reaches an unrelated stale BT19-093 under-activation assertion on the inherited head; the coordinator owns updating that expectation with the corresponding under-activation work. No database, full coverage scan, build or push was run in this worker.

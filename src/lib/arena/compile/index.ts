@@ -1,3 +1,4 @@
+import { reviewedIncrementalLook } from "./incremental-look";
 import {compilePaidHand} from './paid-hand';
 import {compilePaidWarp} from './paid-warp';
 import { activateUnderText, activateUnderPermit } from "../vm/activate-under-contract";
@@ -63,7 +64,7 @@ export function compileSkill(skill: Skill): Script {
   // compiled as the skill it quotes; its record is the grant's program (which
   // says for itself when the granted [Auto]'s moment is not read).
   if (skill.granted) return compileQuotedSkill(skill.granted.skill);
-  const script = momentChoicesAreChoices(skill, opponentHandUnseen(attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill))))));
+  const script = reviewedIncrementalLook(skill, momentChoicesAreChoices(skill, opponentHandUnseen(attackerChoicesAreChoices(leaderNeverPlayed(momentIsRead(skill, compileSkillUnguarded(skill)))))));
   // Audit effects 2: a line that reads as nothing and says nothing about it (`readsAsNothingSilently`, the
   // `KNOWN_SILENT` list) is unread — an honest gap — never a blank the engine plays as done: BT14-074's +5000 combo
   // power, BT18-003's battle ban, BT20-017/BT20-019's +5000 to the card above, BT25-133's combo cost, BT4-003's

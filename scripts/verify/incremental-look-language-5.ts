@@ -4,7 +4,8 @@ import { expandMacros } from "../../src/lib/arena/rulesets";
 import { parseRule, printRule, deepEqual, type Rule } from "../../src/lib/arena/lang";
 import { revealAs, validateProgram, describeScript } from "../../src/lib/arena/vm/script-schema";
 import { type Op } from "../../src/lib/arena/vm/script";
-import { game, fresh, begin, tap } from "./incremental-look-harness-5";
+import { skillRecords } from "../../src/lib/arena/draft";
+import { game, fresh, begin, tap, context } from "./incremental-look-harness-5";
 import { RULES } from "../../src/lib/arena/vm";
 let cases = 0;
 for (const side of ["you", "opponent"] as const)
@@ -45,5 +46,14 @@ for (const p of ["p1", "p2"] as const) {
     assert.equal(f.state.prompt.kind, "main");
     assert.equal(RULES.boardView(f.ctx, f.state, p, {}).prompt.inspection, undefined);
     cases++;
+}
+// A near match or altered tail does not silently enroll another look family.
+for (const id of ["BT1-061", "EX02-01"] as const) {
+    const original = context(id).defs[id];
+    for (const [before, after] of [["up to", "exactly"], ["top of your deck", "bottom of your deck"], ["Choose up to 1", "Choose up to 2"]]) {
+        const changed = { ...original, skill: original.skill!.replace(before, after) };
+        for (const record of skillRecords(changed)) for (const op of record.ops) if (op.op === "look") assert.equal(op.upTo, undefined);
+        cases++;
+    }
 }
 console.log(`${cases} incremental look language/expanded-native cases`);

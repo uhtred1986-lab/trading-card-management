@@ -1,13 +1,13 @@
-/** R527 staged admission: native declaration, private prefix, and original tail. */
+/** R527 exact admission: native declaration, private prefix, and reviewed tails. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { RULES } from "../../src/lib/arena/vm";
 import { fresh, begin, tap, game } from "./incremental-look-harness-5";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { buildSnapshot } from "../../src/lib/arena/snapshot-core";
-import type { PlayerId } from "../../src/lib/arena/types";
+import type { PlayerId, GameEvent } from "../../src/lib/arena/types";
 import type { Fixture } from "./incremental-look-harness-5";
-function snapshot(f: Fixture, viewer: PlayerId) { return buildSnapshot({ id: 527, revision: 1, mode: "hotseat", status: "playing", p1Name: "One", p2Name: "Two", ctx: f.ctx, state: f.state, legal: RULES.legalActions(f.ctx, f.state), log: [], beats: null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} }); }
+function snapshot(f: Fixture, viewer: PlayerId, events: GameEvent[] = []) { return buildSnapshot({ id: 527, revision: 1, mode: "hotseat", status: "playing", p1Name: "One", p2Name: "Two", ctx: f.ctx, state: f.state, legal: RULES.legalActions(f.ctx, f.state), log: [], beats: events.length ? RULES.toBeats(f.ctx, f.state, events) : null, spotlight: null, spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 }, ai: null, viewer, images: {} }); }
 let cases = 0;
 for (const p of ["p1", "p2"] as const)
     for (const n of [0, 1, 7])
@@ -30,8 +30,15 @@ for (const p of ["p1", "p2"] as const)
                 assert.ok(!mine.includes("Inspected match 8"));
                 if (i === 7)
                     assert.ok(mine.includes("Inspected nonmatching"));
-                if (i < n)
+                if (i < n) {
+                    const eventStart = f.events.length;
                     tap(f, 0);
+                    const inspectionEvents = f.events.slice(eventStart);
+                    for (const id of f.top) assert.ok(!JSON.stringify(inspectionEvents).includes(JSON.stringify(id)), "Next emits no inspected card ID");
+                    const projected = JSON.stringify(snapshot(f, f.q, inspectionEvents));
+                    assert.ok(!projected.includes("Inspected match") && !projected.includes("Inspected nonmatching"));
+                    for (const id of f.top) assert.ok(!projected.includes(JSON.stringify(id)), "opponent event/beat projection conceals deck IDs");
+                }
             }
             const beforeEvents = f.events.length;
             tap(f, n === 7 ? 0 : 1);
@@ -115,6 +122,30 @@ for (const p of ["p1", "p2"] as const)
             assert.ok(f.state.sides[p].zones.warp.includes(f.source), "native Over Realm turn-end cleanup");
             cases++;
         }
+for (const p of ["p1", "p2"] as const)
+    for (const n of [0, 1, 2])
+        for (const end of [0, 1]) {
+            const f = fresh(p, "EX02-01");
+            begin(f);
+            const deck = [...f.state.sides[p].zones.deck];
+            for (let i = 0; i < n; i++) tap(f, 0);
+            tap(f, n === 2 ? 0 : 1);
+            const start = f.events.length;
+            if (n) f.take({ type: "choose", player: p, cards: [f.top[0]] });
+            tap(f, end);
+            assert.equal(f.state.prompt.kind, "main");
+            const handEvents = f.events.slice(start);
+            if (n) {
+                assert.ok(f.state.sides[p].zones.hand.includes(f.top[0]));
+                assert.ok(JSON.stringify(snapshot(f, p, handEvents)).includes("Inspected match 1"));
+                const opposing = JSON.stringify(snapshot(f, f.q, handEvents));
+                assert.ok(!opposing.includes("Inspected match 1"));
+                assert.ok(!opposing.includes(JSON.stringify(f.top[0])), "private unfiltered Hand addition stays concealed in Snapshot and beats");
+            }
+            const rest = deck.slice(n), remaining = n === 2 ? [f.top[1]] : [];
+            assert.deepEqual(f.state.sides[p].zones.deck, end === 0 ? [...remaining, ...rest] : [...rest, ...remaining]);
+            cases++;
+        }
 if (process.argv.includes("--emit-inspection") || process.argv.includes("--emit")) {
     const f = fresh("p1");
     begin(f);
@@ -123,4 +154,4 @@ if (process.argv.includes("--emit-inspection") || process.argv.includes("--emit"
         tap(f, 0);
     fs.writeFileSync("contract/fixtures/inspection-prefix.json", JSON.stringify(snapshot(f, f.p), null, 2) + "\n");
 }
-console.log(`${cases} incremental look native/visibility cases (upTo staged before compiler adoption)`);
+console.log(`${cases} incremental look native/visibility cases (exact compiler admission)`);

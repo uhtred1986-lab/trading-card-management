@@ -1,9 +1,10 @@
-/** Full source cards; upTo and the reviewed Trunks arrange tail are staged until the separate compiler commit. */
+/** Full source cards and exact compiler admission against frozen prior records. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { card } from "./harness";
 import { correctSkillText } from "../../src/lib/catalog/errata";
-import { skillRecords } from "../../src/lib/arena/draft";
+import { describeScript } from "../../src/lib/arena/vm/script";
+import { skillRecords, patternKey } from "../../src/lib/arena/draft";
 import { rulesFromRows, type RuleRow } from "../../src/lib/arena/rules-store";
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
@@ -28,22 +29,24 @@ export function context(id: "BT1-061" | "EX02-01", patch: Partial<LookOp> = {}):
     for (let i = 0; i < 150; i++)
         defs[`P${i}`] = card(`P${i}`, { name: `Inspected match ${i + 1}`, characters: ["Krillin"], skill: null });
     const rows = Object.values(defs).flatMap(skillRecords);
-    assert.deepEqual(clone(rows.filter(r => r.cardId === id)), Object.values(sources[id].records));
-    const row = rows.find(r => r.cardId === id && r.kind === "auto")!;
-    // Kernel proof stages upTo and the reviewed Trunks arrange tail. It is
-    // not a compiler/card admission claim; every sibling stays unchanged.
-    row.ops[0] = { ...row.ops[0], upTo: true, ...patch } as LookOp;
+    const expected = clone(Object.values(sources[id].records)) as ReturnType<typeof skillRecords>;
+    const admitted = expected.find(r => r.kind === "auto")!;
+    admitted.ops[0] = { ...admitted.ops[0], upTo: true } as LookOp;
     if (id === "EX02-01") {
-        const tail = row.ops[3];
+        const tail = admitted.ops[3];
         assert.equal(tail.op, "chooseMode");
-        if (tail.op === "chooseMode")
-            for (const mode of tail.modes) {
-                const move = mode.ops[0];
-                assert.equal(move.op, "moveTo");
-                if (move.op === "moveTo")
-                    mode.ops[0] = { op: "arrange", target: move.target, position: move.position };
-            }
+        if (tail.op === "chooseMode") for (const mode of tail.modes) {
+            const move = mode.ops[0];
+            assert.equal(move.op, "moveTo");
+            if (move.op === "moveTo") mode.ops[0] = { op: "arrange", target: move.target, position: move.position };
+        }
+        admitted.pattern = patternKey({ keyword: null }, [], admitted.ops);
     }
+    admitted.reads = describeScript(admitted.ops);
+    assert.deepEqual(clone(rows.filter(r => r.cardId === id)), expected, "only reviewed complete-record differences");
+    const row = rows.find(r => r.cardId === id && r.kind === "auto")!;
+    // Primitive variants override only the already-admitted look operation.
+    row.ops[0] = { ...row.ops[0], ...patch } as LookOp;
     return { defs, scripts: rulesFromRows(rows.map((r, rowId) => ({ ...r, id: rowId, status: r.unread.length ? "open" : "confirmed", source: "compiler" }) as RuleRow), defs) };
 }
 export interface Fixture {
