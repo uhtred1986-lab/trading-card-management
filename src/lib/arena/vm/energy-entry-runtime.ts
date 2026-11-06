@@ -79,13 +79,13 @@ export function optionalEnergyArrival(ctx: EngineContext, game: GameDefinition, 
  */
 export function projectEnergyEntryCleanup(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, player: PlayerId, mode: "active" | "rest"): VmState {
   const projected=structuredClone(state), from=zoneOf(projected,id);
-  const token=beginStandingNegationMutation(ctx,projected);
+  const token=beginStandingNegationMutation(ctx,projected,undefined,{moves:[{route:"host",card:id,to:"energy",options:{owner:player,mode}}]});
   const pile=capturePileRelease(projected,id);
   const placed=moveCard(projected,game,id,"energy",{owner:player,mode});
   if(!placed.ok || placed.move.to!=="energy")throw new NotYet("project this optional Energy protection boundary", "R476");
   cleanupScriptPlacement(projected,[],placed.move,from,false);
   cleanupReleasedPile(projected,[],pile,placed.move);
-  finishStandingNegationMutation(ctx,projected,token);
+  finishStandingNegationMutation(ctx,projected,token,undefined,undefined,[placed.move]);
   return projected;
 }
 

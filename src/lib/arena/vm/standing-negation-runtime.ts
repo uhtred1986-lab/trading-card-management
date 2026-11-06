@@ -1,3 +1,7 @@
+import { hasNativeUnderPolicy, initializeNativeUnderStanding, assertNativeUnderStandingSettled, prepareNativeUnderMutation, requireNativeUnderMutation, settleNativeUnderMutation, type NativeUnderMutation } from "./under-native-transaction";
+import { nativeUnderReadMatches } from "./under-native-read";
+import type { NativeUnderWritePlan, NativeUnderEffectWrite } from "./under-native-plan";
+import type { MoveRecord } from "./zones";
 import { rulesetFor, type GameDefinition } from "../rulesets";
 import { hasMixedStandingPolicy, mixedStandingOccurrences } from "./standing-negation-mixed-observation";
 import { initializeMixedStandingNegation, assertMixedStandingNegationSettled, captureMixedStandingNegationMutation,
@@ -19,7 +23,8 @@ import { requireStandingWholeSourceAreas, standingNegationBattleOccurrences } fr
 import { assertStandingNegationSettled, captureStandingNegationMutation, settleStandingNegationMutation, type StandingNegationMutation as LegacyStandingMutation } from "./standing-negation-transaction";
 import { invalidateStandingNegationReadSeal, issueStandingNegationReadSeal, standingNegationReadSealMatches } from "./standing-negation-read";
 
-export type StandingNegationMutation = LegacyStandingMutation | MixedStandingNegationMutation;
+export type StandingNegationMutation = LegacyStandingMutation | MixedStandingNegationMutation | NativeUnderMutation;
+const nativeCaptures = new WeakMap<NativeUnderMutation, GameDefinition>();
 const mixedCaptures = new WeakMap<MixedStandingNegationMutation, {
   game: GameDefinition; before: ReturnType<typeof mixedStandingOccurrences>;
   battle: ReturnType<typeof mixedStandingObservationFromHistory>["battle"];
@@ -42,7 +47,7 @@ function presentMixedSource(ctx: EngineContext, state: VmState): boolean {
  * This authorizes only that secondary arrival, never an arbitrary pile card.
  */
 export function mixedStandingLeaderRestoration(state: VmState, id: string, from: string | null, to: string): string | undefined {
-  if (!state.mixedStandingNegationHistory || from !== "leader" || to === "leader") return undefined;
+  if (!state.mixedStandingNegationHistory && !state.underStandingNegationHistory || from !== "leader" || to === "leader") return undefined;
   const card = state.cards[id];
   if (!card?.zCard || !card.under.length) return undefined;
   const base = card.leaderBase, original = base && state.cards[base.card];
@@ -52,10 +57,14 @@ export function mixedStandingLeaderRestoration(state: VmState, id: string, from:
   return base.card;
 }
 export function hasStandingNegationHistory(state: VmState): boolean {
-  return !!(state.standingNegationHistory || state.mixedStandingNegationHistory);
+  return !!(state.standingNegationHistory || state.mixedStandingNegationHistory || state.underStandingNegationHistory);
 }
 /** New games only: existing affected saves may never acquire inferred history. */
 export function initializeStandingNegation(ctx: EngineContext, state: VmState): void {
+  if (state.game === "dbs" && hasNativeUnderPolicy(ctx, state)) {
+    initializeNativeUnderStanding(ctx, actualGame(ctx, state), state);
+    return;
+  }
   const participatingDefs: EngineContext["defs"] = {};
   for (const card of Object.values(state.cards)) if (ctx.defs[card.cardId]) participatingDefs[card.cardId] = ctx.defs[card.cardId];
   if (state.game === "dbs" && hasMixedStandingPolicy({ ...ctx, defs: participatingDefs })) {
@@ -70,7 +79,17 @@ export function initializeStandingNegation(ctx: EngineContext, state: VmState): 
   if (complete) state.standingNegationHistory = emptyStandingNegationHistory();
   validateStandingNegationRead(ctx, state);
 }
+function exclusiveFamily(state: VmState): void {
+  if ([state.standingNegationHistory, state.mixedStandingNegationHistory, state.underStandingNegationHistory].filter(value => value !== undefined).length > 1)
+    throw new NotYet("retain exactly one original standing history family", "R528");
+}
 export function validateStandingNegationRead(ctx: EngineContext, state: VmState): void {
+  exclusiveFamily(state);
+  if (state.underStandingNegationHistory) {
+    if (!nativeUnderReadMatches(ctx, state)) assertNativeUnderStandingSettled(ctx, actualGame(ctx, state), state);
+    return;
+  }
+  if (state.game === "dbs" && hasNativeUnderPolicy(ctx, state)) throw new NotYet("retain original native under-standing history without migration", "R528");
   if (state.mixedStandingNegationHistory) {
     if (!mixedStandingNegationReadSealMatches(ctx, state, state.mixedStandingNegationHistory))
       assertMixedStandingNegationSettled(ctx, actualGame(ctx, state), state);
@@ -93,7 +112,16 @@ export function validateStandingNegationRead(ctx: EngineContext, state: VmState)
   assertStandingNegationSettled(ctx, state);
   issueStandingNegationReadSeal(ctx, state);
 }
-export function beginStandingNegationMutation(ctx: EngineContext, state: VmState, incoming?: string): StandingNegationMutation | undefined {
+export function beginStandingNegationMutation(ctx: EngineContext, state: VmState, incoming?: string, nativePlan?: NativeUnderWritePlan): StandingNegationMutation | undefined {
+  exclusiveFamily(state);
+  if (state.underStandingNegationHistory) {
+    if (!nativePlan) throw new NotYet("bind this native standing writer to its actual typed plan before mutation", "R528");
+    const game = actualGame(ctx, state), token = prepareNativeUnderMutation(ctx, game, state, nativePlan);
+    nativeCaptures.set(token, game);
+    requireNativeUnderMutation(ctx, game, state, token);
+    return token;
+  }
+  if (state.game === "dbs" && hasNativeUnderPolicy(ctx, state)) throw new NotYet("retain original native under-standing history before mutation", "R528");
   if (state.mixedStandingNegationHistory) {
     const game = actualGame(ctx, state), before = mixedStandingOccurrences(ctx, game, state);
     const battle = mixedStandingObservationFromHistory(state.mixedStandingNegationHistory).battle;
@@ -110,8 +138,18 @@ export function beginStandingNegationMutation(ctx: EngineContext, state: VmState
   return token;
 }
 export function finishStandingNegationMutation(ctx: EngineContext, state: VmState, token: StandingNegationMutation | undefined,
-  arrival?: string | readonly string[], battle?: MixedBattleChange): void {
-  if (!token) return;
+  arrival?: string | readonly string[], battle?: MixedBattleChange, nativeResults: readonly MoveRecord[] = []): void {
+  exclusiveFamily(state);
+  if (!token) {
+    if (state.underStandingNegationHistory) throw new NotYet("retain the actual native standing writer capture", "R528");
+    return;
+  }
+  const nativeGame = nativeCaptures.get(token as NativeUnderMutation);
+  if (nativeGame) {
+    settleNativeUnderMutation(ctx, nativeGame, state, token as NativeUnderMutation, nativeResults);
+    nativeCaptures.delete(token as NativeUnderMutation);
+    return;
+  }
   const mixed = mixedCaptures.get(token as MixedStandingNegationMutation);
   const ids = arrival === undefined ? [] : typeof arrival === "string" ? [arrival] : arrival;
   if (mixed) {
@@ -134,6 +172,8 @@ export function finishStandingNegationMutation(ctx: EngineContext, state: VmStat
   issueStandingNegationReadSeal(ctx, state);
 }
 export function refuseStandingNegationMutation(state: VmState, procedure: string, ctx?: EngineContext, incoming?: string): void {
+  exclusiveFamily(state);
+  if (state.underStandingNegationHistory) throw new NotYet(`native under-standing during ${procedure}`, "R528");
   if (state.mixedStandingNegationHistory) {
     const observation = mixedStandingObservationFromHistory(state.mixedStandingNegationHistory);
     if (state.mixedStandingNegationHistory.active.length || observation.candidates.some(candidate => candidate.source.policy === "otherBattleWholeV1")
@@ -148,14 +188,14 @@ export function refuseStandingNegationMutation(state: VmState, procedure: string
 }
 
 /** All effects ending at one timing disappear before the standing graph is observed. */
-export function expireStandingNegationBatch(ctx: EngineContext, state: VmState, ev: GameEvent[], expire: (state: VmState, ev: GameEvent[]) => ContinuousEffect[]): ContinuousEffect[] {
+export function expireStandingNegationBatch(ctx: EngineContext, state: VmState, ev: GameEvent[], expire: (state: VmState, ev: GameEvent[]) => ContinuousEffect[], nativeEffects?: NativeUnderEffectWrite[]): ContinuousEffect[] {
   if (!hasStandingNegationHistory(state)) return expire(state, ev);
   {
     // Preview only the expiry list: a loan return needs its own reviewed simultaneous movement protocol.
     const ended = expire(structuredClone(state), []);
-    if (ended.some(effect => effect.kind === "control")) refuseStandingNegationMutation(state, "control expiry", ctx);
+    if (!state.underStandingNegationHistory && ended.some(effect => effect.kind === "control")) refuseStandingNegationMutation(state, "control expiry", ctx);
   }
-  const token = beginStandingNegationMutation(ctx, state);
+  const token = beginStandingNegationMutation(ctx, state, undefined, nativeEffects && { effects: nativeEffects });
   const ended = expire(state, ev);
   finishStandingNegationMutation(ctx, state, token);
   return ended;

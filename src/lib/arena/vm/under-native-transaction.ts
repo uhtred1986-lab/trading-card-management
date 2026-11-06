@@ -66,7 +66,11 @@ function participants(ctx: EngineContext, game: GameDefinition, state: NativeUnd
     const out = structuredClone(previous.area.battle);
     for (const role of ["attacker", "guard"] as const) {
         const old = out[role];
-        if (change?.kind === "assign" && change.role === role) {
+        if (plan.hidden?.card === old.occurrence.card && plan.hidden.hidden) {
+            old.present = false;
+        } else if (plan.stack && old.occurrence.card === plan.stack.host) {
+            out[role] = { occurrence: current(plan.stack.card), present: true };
+        } else if (change?.kind === "assign" && change.role === role) {
             if (change.card === old.occurrence.card) return fail("assign a genuinely different participant");
             out[role] = { occurrence: current(change.card), present: true };
         } else if (change?.kind === "face" && change.card === old.occurrence.card && old.present) {
@@ -121,6 +125,7 @@ export interface NativeUnderMutation { readonly [tokenBrand]: true }
 interface Capture {
     ctx: EngineContext; game: GameDefinition; gameIdentity: string; state: NativeUnderState;
     before: string; family: string; after: string; results: MoveRecord[];
+    plan: NativeUnderWritePlan; planIdentity: string;
     history: UnderHistory; receipts: NativeUnderState["resolvedGrantDeletions"];
 }
 const captures = new WeakMap<NativeUnderMutation, Capture>();
@@ -134,7 +139,7 @@ export function prepareNativeUnderMutation(ctx: EngineContext, game: GameDefinit
     const after = dependencyIdentity(ctx, projected);
     settleProjected(ctx, game, projected, history, plan);
     const token = Object.freeze({}) as NativeUnderMutation;
-    captures.set(token, { ctx, game, gameIdentity: canonical(game), state, before, family, after, results: structuredClone(results),
+    captures.set(token, { ctx, game, gameIdentity: canonical(game), state, before, family, after, plan, planIdentity: canonical(plan), results: structuredClone(results),
         history: structuredClone(projected.underStandingNegationHistory!), receipts: structuredClone(projected.resolvedGrantDeletions) });
     return token;
 }
@@ -146,7 +151,7 @@ function capture(ctx: EngineContext, game: GameDefinition, state: NativeUnderSta
 /** Writer calls this immediately before its first live mutation. */
 export function requireNativeUnderMutation(ctx: EngineContext, game: GameDefinition, state: NativeUnderState, token: NativeUnderMutation): void {
     const value = capture(ctx, game, state, token);
-    if (familyIdentity(state) !== value.family || dependencyIdentity(ctx, state) !== value.before) return fail("preserve the original preflighted writer inputs");
+    if (canonical(value.plan) !== value.planIdentity || familyIdentity(state) !== value.family || dependencyIdentity(ctx, state) !== value.before) return fail("preserve the original preflighted writer inputs");
     invalidateNativeUnderRead(state);
 }
 /** Only policy history and original grant deletion flags are published here;

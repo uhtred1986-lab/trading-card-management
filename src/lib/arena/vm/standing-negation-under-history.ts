@@ -1,4 +1,4 @@
-/** Preparatory v3 reducer. No native state, grants or game writers use it yet. */
+/** Shared v3 reducer. Native writers authenticate operations separately from isolated supplied-fact proofs. */
 import type { MixedStandingNegationCard as Card, MixedStandingNegationSource as AreaSource,
     MixedStandingNegationObservation as AreaObservation } from "./standing-negation-mixed-history";
 import { emptyMixedStandingNegationHistory, settleMixedStandingNegation,

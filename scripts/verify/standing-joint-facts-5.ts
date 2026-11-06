@@ -1,3 +1,4 @@
+import { frozenUnderReviewContext, stageIsolatedUnder } from "./under-standing-review-fixture";
 /** R526 staged structural proofs using full source definitions, not gameplay admission. */
 import assert from "node:assert/strict";
 import areaSources from "./fixtures/combo-standing-source.json";
@@ -10,7 +11,6 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import { moveCard } from "../../src/lib/arena/vm/zones";
-import { vmHost } from "../../src/lib/arena/vm/host";
 import { addEffect } from "../../src/lib/arena/vm/effects";
 import { discoverNativeAreaStandingFacts } from "../../src/lib/arena/vm/standing-negation-native-facts";
 import { discoverUnderStandingCandidates, discoverUnderStandingProtection, underStandingCandidateFacts } from "../../src/lib/arena/vm/standing-negation-under-observation";
@@ -25,8 +25,8 @@ for (const [id, { card: c }] of Object.entries({ ...areaSources, ...underSources
     defs[id] = card(id, { name: c.name, type: c.type as CardDef["type"], colors: c.colors as CardDef["colors"],
         energyCost: c.cost === null ? null : Number(c.cost), power: c.power, characters: c.characters, traits: c.traits, skill: c.skill });
 }
-const ctx: EngineContext = { defs, scripts: rulesFromRows(Object.values(defs).flatMap(skillRecords).map((r, id) =>
-    ({ ...r, id, status: r.unread.length ? "open" : "confirmed", source: "compiler" }) as RuleRow), defs) };
+const ctx: EngineContext = frozenUnderReviewContext({ defs, scripts: rulesFromRows(Object.values(defs).flatMap(skillRecords).map((r, id) =>
+    ({ ...r, id, status: r.unread.length ? "open" : "confirmed", source: "compiler" }) as RuleRow), defs) });
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok); const game = loaded.definition;
 const reviewed = reviewUnderStandingDefinitions(ctx, "BT23-070", "front");
 const other = (p: PlayerId): PlayerId => p === "p1" ? "p2" : "p1";
@@ -47,7 +47,7 @@ function setup(p: PlayerId, hostCard = "BT1-034", foreign = false, prepare?: (st
         const result = finish(ctx, game, state, boundary); proof = result.proof; return result;
     };
     const enter = () => act({ kind: "areaMove", card: host, to: "battle" }, () => { assert.ok(moveCard(state, game, host, "battle", { owner: p }).ok); });
-    const attach = () => act({ kind: "attach", source, host }, () => { assert.ok(vmHost(ctx, game, state, []).placeUnder(source, host)); });
+    const attach = () => act({ kind: "attach", source, host }, () => { assert.ok(stageIsolatedUnder(state, game, source, host)); });
     return { state, host, source, enter, attach, act, get proof() { return proof; } };
 }
 for (const p of ["p1", "p2"] as const) {
@@ -146,10 +146,9 @@ for (const p of ["p1", "p2"] as const) {
         assert.equal(result.plan.negate.length, 1, "Battle self immunity is inactive in Combo");
         assert.equal(result.plan.forbidAttack.length, 1);
     });
-    test(`${p} both views and board remain free of isolated private facts`, () => {
+    test(`${p} isolated proof stays off the board and historic contexts refuse native views`, () => {
         const t = setup(p); t.enter(); t.attach();
-        for (const viewer of [p, other(p)]) assert.doesNotMatch(JSON.stringify(RULES.boardView(ctx, t.state, viewer, {})),
-            /isolated-review-only|underAwareWholeV1|definitionIdentity|deleteGrants|JointStanding/);
+        for (const viewer of [p, other(p)]) assert.throws(() => RULES.boardView(ctx, t.state, viewer, {}), NotYet);
         assert.equal(t.state.mixedStandingNegationHistory, undefined);
         assert.equal(t.state.standingNegationHistory, undefined);
     });
@@ -208,7 +207,7 @@ for (const p of ["p1", "p2"] as const) {
 for (const p of ["p1", "p2"] as const) test(`${p} supplied order binds discovered keys and failed validation does not advance`, () => {
     const t = setup(p); t.enter();
     const boundary = capture(ctx, game, t.state, t.proof, { kind: "attach", source: t.source, host: t.host });
-    assert.ok(vmHost(ctx, game, t.state, []).placeUnder(t.source, t.host));
+    assert.ok(stageIsolatedUnder(t.state, game, t.source, t.host));
     const snapshot = JSON.stringify(t.state);
     assert.throws(() => finish(ctx, game, t.state, boundary, ["invented-source"]), NotYet);
     assert.equal(JSON.stringify(t.state), snapshot);

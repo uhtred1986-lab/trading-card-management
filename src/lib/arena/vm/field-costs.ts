@@ -118,7 +118,7 @@ function stageField(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   let completed = false;
   if (replacementChoices(ctx, game, state, cost.source.card, "rule", { requestedTo: "drop" }).some(choice => !choice.optional)) return false;
   moved(ctx, game, state, ev, cost.source.card, "drop", { replaced: null, owner: cost.source.owner, reason: "rule", reveal: true,
-    beforeTriggers: () => dropEffectsOn(state, ev, cost.source.card), onResult: result => { completed = result.completed; } });
+    standingArrival: [{ kind: "dropOn", card: cost.source.card }], beforeTriggers: () => dropEffectsOn(state, ev, cost.source.card), onResult: result => { completed = result.completed; } });
   if (!completed) return false;
   cost.source = captureFieldSource(ctx, state, cost.source.master, cost.source.card);
   return cost.source.area === "drop";

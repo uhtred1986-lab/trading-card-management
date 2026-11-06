@@ -1,4 +1,5 @@
-/** R528 native adapter contracts. Loader admission and native dispatch are NOT enabled here. */
+import { frozenUnderReviewContext } from "./under-standing-review-fixture";
+/** R528 actual loader and native adapters; explicitly staged boards and synthetic roots remain mechanism evidence. */
 import assert from "node:assert/strict";
 import areaSources from "./fixtures/combo-standing-source.json";
 import underSources from "./fixtures/under-standing-observer-5.json";
@@ -10,8 +11,13 @@ import { rulesetFor } from "../../src/lib/arena/rulesets";
 import type { CardDef, EngineContext, PlayerId } from "../../src/lib/arena/types";
 import { moveCard } from "../../src/lib/arena/vm/zones";
 import { freshAppliedEffectRoot, recordAppliedEffect } from "../../src/lib/arena/vm/applied-effect-receipt";
+import { resolvePlay } from "../../src/lib/arena/vm/play";
+import { withTokens } from "../../src/lib/arena/vm/cards";
+import { moved } from "../../src/lib/arena/vm/flow";
+import { forbiddenBy, spendProhibitionUse } from "../../src/lib/arena/vm/program";
+import { expireStandingNegationBatch } from "../../src/lib/arena/vm/standing-negation-runtime";
 import { vmHost } from "../../src/lib/arena/vm/host";
-import { addEffect } from "../../src/lib/arena/vm/effects";
+import { addEffect, endEffects } from "../../src/lib/arena/vm/effects";
 import { nativeUnderDefinitions } from "../../src/lib/arena/vm/under-native-policy";
 import { nativeUnderPhysicalFacts, type NativeUnderState } from "../../src/lib/arena/vm/under-native-observation";
 import { issueNativeUnderRead, nativeUnderReadMatches, nativeUnderSkillsNegated, nativeUnderAttackProhibited } from "../../src/lib/arena/vm/under-native-read";
@@ -23,14 +29,10 @@ for (const [id, { card: c }] of Object.entries({ ...areaSources, ...underSources
     name: c.name, type: c.type as CardDef["type"], colors: c.colors as CardDef["colors"], energyCost: c.cost === null ? null : Number(c.cost),
     power: c.power, characters: c.characters, traits: c.traits, skill: c.skill,
 });
-const original: EngineContext = { defs, scripts: rulesFromRows(Object.values(defs).flatMap(skillRecords).map((row, id) =>
+const ctx: EngineContext = { defs, scripts: rulesFromRows(Object.values(defs).flatMap(skillRecords).map((row, id) =>
     ({ ...row, id, status: row.unread.length ? "open" : "confirmed", source: "compiler" }) as RuleRow), defs) };
-const ctx = structuredClone(original);
-assert.deepEqual(ctx.scripts!["BT23-070"].bySkill[0].unsupported, ["Permanent negateSkills is not collected as a runtime static"]);
-// Staged expected loader result ONLY: all full source scripts, prices, siblings and fields remain original.
-ctx.scripts!["BT23-070"].bySkill[0].unsupported = [];
-const restored = structuredClone(ctx); restored.scripts!["BT23-070"].bySkill[0].unsupported = [...original.scripts!["BT23-070"].bySkill[0].unsupported];
-assert.deepEqual(restored, original);
+const original = frozenUnderReviewContext(ctx);
+assert.deepEqual(ctx.scripts!["BT23-070"].bySkill[0].unsupported, []);
 const loaded = rulesetFor("dbs"); assert.ok(loaded.ok); const game = loaded.definition;
 const other = (p: PlayerId): PlayerId => p === "p1" ? "p2" : "p1";
 let cases = 0;
@@ -112,15 +114,86 @@ for (const p of ["p1", "p2"] as const) {
         assert.equal(t.state.resolvedGrantDeletions!.at(-1)!.deleted, true);
     });
 
-    test(`${p} existing native under writer final state equals projected result (supplied record)`, () => {
+    test(`${p} native under writer captures and settles its own actual movement record`, () => {
         const t = setup(p); t.enter();
-        const plan: NativeUnderWritePlan = { moves: [{ route: "under", card: t.source, host: t.host }] };
-        const token = prepareNativeUnderMutation(ctx, game, t.state, plan);
-        const expected = projectNativeUnderWrite(ctx, game, t.state, plan).results;
-        requireNativeUnderMutation(ctx, game, t.state, token);
         assert.equal(vmHost(ctx, game, t.state, []).placeUnder(t.source, t.host), true);
-        settleNativeUnderMutation(ctx, game, t.state, token, expected);
         assert.equal(nativeUnderSkillsNegated(t.state, t.host), true);
+        assert.equal(nativeUnderAttackProhibited(t.state, t.host)!.source, t.source);
+    });
+    test(`${p} real flow arrival and host detach settle independent attack legality`, () => {
+        const t = setup(p, "BT1-043"), events: import("../../src/lib/arena/types").GameEvent[] = [];
+        moved(ctx, game, t.state, events, t.host, "battle", { owner: p });
+        const host = vmHost(ctx, game, t.state, events);
+        assert.equal(host.placeUnder(t.source, t.host), true);
+        assert.equal(nativeUnderSkillsNegated(t.state, t.host), false);
+        assert.ok(forbiddenBy(ctx, game, t.state, "attack", { player: p, card: t.host }));
+        host.move(t.source, "drop", t.state.cards[t.source].owner);
+        assert.equal(forbiddenBy(ctx, game, t.state, "attack", { player: p, card: t.host }), null);
+        assert.ok(events.some(event => event.type === "move" && event.card === t.source));
+    });
+    test(`${p} native retained-frame grant is deleted and real counted prohibition matcher spends`, () => {
+        const t = setup(p); t.enter(); t.attach();
+        // Mechanism root only: native activation provenance is covered separately.
+        const frame = freshAppliedEffectRoot(t.state, { card:t.source,master:p,skillIndex:20,ops:[],ip:0,vars:{} }, "activate");
+        const host = vmHost(ctx, game, t.state, [], frame);
+        host.addEffect({ target:t.host,kind:"keyword",value:{name:"Blocker"},until:"game" });
+        assert.equal(t.state.resolvedGrantDeletions!.at(-1)!.deleted, true);
+        host.addEffect({ target:t.host,kind:"forbid",value:0,until:"game",forbid:{what:"attack",uses:2} });
+        spendProhibitionUse(ctx, game, t.state, "attack", { player:p,card:t.host });
+        assert.equal(t.state.effects.find(effect => effect.kind === "forbid")!.forbid!.uses, 1);
+        assert.ok(nativeUnderReadMatches(ctx,t.state));
+    });
+    test(`${p} unattached policy does not block dormant native stack material placement`, () => {
+        const t = setup(p), incoming = t.stage(p, "F", "hand");
+        issueNativeUnderRead(ctx, game, t.state);
+        moved(ctx, game, t.state, [], t.host, "battle", { owner:p });
+        assert.equal(resolvePlay(ctx, game, t.state, [], incoming, p, { onto:t.host }), true);
+        assert.ok(t.state.cards[incoming].under.includes(t.host));
+        assert.ok(nativeUnderReadMatches(ctx,t.state));
+    });
+    test(`${p} active standing stack top refuses before incoming play or material mutation`, () => {
+        const t = setup(p), incoming = t.stage(p, "DB1-066", "hand");
+        issueNativeUnderRead(ctx, game, t.state); moved(ctx, game, t.state, [], t.host, "battle", {owner:p});
+        const before = JSON.stringify(t.state), events: import("../../src/lib/arena/types").GameEvent[] = [];
+        assert.throws(() => resolvePlay(ctx,game,t.state,events,incoming,p,{onto:t.host}),NotYet);
+        assert.equal(JSON.stringify(t.state),before);assert.equal(events.length,0);
+    });
+    test(`${p} unattached policy permits native Token insertion through actual token context`, () => {
+        const t = setup(p), tokens = withTokens(ctx), host = vmHost(tokens,game,t.state,[]);
+        const id = host.createToken(p,"Standing proof Token",10000,0,0,["Red"]);
+        assert.ok(id); assert.ok(t.state.sides[p].zones.battle.includes(id));
+        assert.ok(nativeUnderReadMatches(tokens,t.state));
+    });
+    test(`${p} unattached policy permits ordinary native Hidden changes`, () => {
+        const t = setup(p); moved(ctx,game,t.state,[],t.host,"battle",{owner:p});
+        const host = vmHost(ctx,game,t.state,[]); host.setHidden(t.host,true); host.setHidden(t.host,false);
+        assert.equal(t.state.cards[t.host].hidden,false); assert.ok(nativeUnderReadMatches(ctx,t.state));
+    });
+    test(`${p} native Token creation preflights unknown context and active source qualification`, () => {
+        const t = setup(p), before=JSON.stringify(t.state), events: import("../../src/lib/arena/types").GameEvent[]=[];
+        assert.throws(() => vmHost(ctx,game,t.state,events).createToken(p,"Missing definition Token",10000,0,0,["Red"]),NotYet);
+        assert.equal(JSON.stringify(t.state),before);assert.deepEqual(events,[]);
+        const u=setup(p,"DB1-066");u.enter();const tokens=withTokens(ctx);
+        const id=vmHost(tokens,game,u.state,[]).createToken(p,"Suppressed Token",10000,0,0,["Red"]);
+        assert.ok(id);assert.equal(nativeUnderSkillsNegated(u.state,id),true);assert.ok(nativeUnderReadMatches(tokens,u.state));
+    });
+    test(`${p} dormant native top promotion uses actual up and down records`, () => {
+        const t=setup(p), incoming=t.stage(p,"F","hand");issueNativeUnderRead(ctx,game,t.state);t.enter();
+        const host=vmHost(ctx,game,t.state,[]);assert.equal(host.placeUnder(incoming,t.host),true);
+        assert.equal(host.placeOnTop(incoming,t.host),true);assert.ok(t.state.cards[incoming].under.includes(t.host));
+        assert.ok(nativeUnderReadMatches(ctx,t.state));
+    });
+    test(`${p} dormant control transfer uses actual movement and loan expiry is bounded before mutation`, () => {
+        const t=setup(p);t.enter();const events: import("../../src/lib/arena/types").GameEvent[]=[];
+        const host=vmHost(ctx,game,t.state,events);host.move(t.host,"battle",other(p));
+        host.addEffect({target:t.host,kind:"control",value:0,until:"turn",control:{from:p}});
+        const loan=JSON.stringify(t.state), loanEvents=events.length;
+        assert.throws(()=>expireStandingNegationBatch(ctx,t.state,events,(state,ev)=>endEffects(state,ev,"turn"),[{kind:"end",until:"turn"}]),NotYet);
+        assert.equal(JSON.stringify(t.state),loan);assert.equal(events.length,loanEvents);
+        host.move(t.host,"battle",p);assert.ok(t.state.sides[p].zones.battle.includes(t.host));
+        t.attach();const before=JSON.stringify(t.state), count=events.length;
+        assert.throws(()=>host.move(t.host,"battle",other(p)),NotYet);
+        assert.equal(JSON.stringify(t.state),before);assert.equal(events.length,count);
     });
     test(`${p} scripted grant preserves staged R495 root independently of bare producers`, () => {
         const t = setup(p); t.enter(); t.attach();
@@ -134,6 +207,15 @@ for (const p of ["p1", "p2"] as const) {
         settleNativeUnderMutation(ctx, game, t.state, token);
         assert.ok(Object.keys(t.state.appliedEffectOwnership!).length);
         assert.equal(t.state.resolvedGrantDeletions!.at(-1)!.deleted, true);
+    });
+    test(`${p} retained producer frame cannot change between projection and live writer`, () => {
+        const t=setup(p);t.enter();t.attach();
+        const frame=freshAppliedEffectRoot(t.state,{card:t.source,master:p,skillIndex:20,ops:[],ip:0,vars:{}},"activate");
+        const token=prepareNativeUnderMutation(ctx,game,t.state,{effects:[{kind:"scriptAdd",frame,spec:{target:t.host,kind:"power",value:1000,until:"turn"}}]});
+        frame.vars={changed:[t.host]};
+        const before=JSON.stringify(t.state);
+        assert.throws(()=>requireNativeUnderMutation(ctx,game,t.state,token),NotYet);
+        assert.equal(JSON.stringify(t.state),before);
     });
     test(`${p} captured scripted producer cannot be replaced by bare add`, () => {
         const t = setup(p); t.enter(); t.attach();
@@ -230,4 +312,4 @@ for (const p of ["p1", "p2"] as const) {
         const before = JSON.stringify(t.state); assert.throws(() => settleNativeUnderMutation(ctx, game, t.state, token, projected.results), NotYet); assert.equal(JSON.stringify(t.state), before);
     });
 }
-console.log(`under-native-contract-5: ${cases} contract cases PASS (staged loader result; no native dispatch admission)`);
+console.log(`under-native-contract-5: ${cases} contract cases PASS (actual exact loader output; staged boards and synthetic roots labeled)`);

@@ -1309,9 +1309,9 @@ function spendUses(ctx: EngineContext, state: VmState, ev: GameEvent[], spent: C
   // group batch; no selector is re-read after one coupon has disappeared.
   const positions = spent.map(effect => state.effects.indexOf(effect));
   expireStandingNegationBatch(ctx, state, ev, (board, events) =>
-    spendSelectedUses(board, events, positions.map(position => board.effects[position])));
+    spendSelectedUses(board, events, positions.map(position => board.effects[position])), [{ kind: "couponUses", ids: spent.map(effect => effect.id) }]);
 }
-function spendSelectedUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): ContinuousEffect[] {
+export function spendSelectedUses(state: VmState, ev: GameEvent[], spent: ContinuousEffect[]): ContinuousEffect[] {
   if (!spent.length) return [];
   for (const e of spent) e.uses = e.uses! - 1;
   const groups = new Set(spent.filter((e) => e.uses === 0 && e.group !== undefined).map((e) => e.group));

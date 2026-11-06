@@ -1,3 +1,4 @@
+import { nativeUnderAttackProhibited } from "./under-native-read";
 import { paidDropSelfAllowed } from './paid-drop-reference';
 import { completedKoCost, koResultRebuild } from "./ko-result";
 import { requiredStampedCards } from "./required-stamp";
@@ -1415,6 +1416,11 @@ export function forbiddenBy(
   what: ForbiddenAction,
   opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; hooks?: boolean; attackTarget?: string; attacker?: string; skillKind?: string; evolution?: boolean; union?: "Fusion" | "Potara" | "Absorb"; from?: string; to?: string; toBottom?: boolean; keyword?: string; moving?: string; ignoreOwnPermanent?: boolean } = {},
 ): { by: string | null; until?: EffectUntil; unless?: string } | null {
+  if (state.underStandingNegationHistory && what === "attack" && opts.card) {
+    validateStandingNegationRead(ctx, state);
+    const ban = nativeUnderAttackProhibited(state, opts.card);
+    if (ban) return { by: nameShowing(ctx, state, ban.source) ?? null };
+  }
   for (const rule of prohibitions(ctx, game, state, opts.card, { hooks: opts.hooks })) {
     if (!ruleApplies(ctx, game, state, what, rule, opts)) continue;
     // Mechanism batch 4 (EX21-31): "…ignoring its [permanent] skill" — the played card's own rule does not refuse it.
@@ -1599,12 +1605,17 @@ export function chargeSwitchForbidden(ctx: EngineContext, game: GameDefinition, 
  * whose budget is still unspent, so the action that spends the last use is the
  * one that turns the rule on.
  */
+/** Pure matching seam: native preview and live counted-use writer read the same original rules. */
+export function prohibitionUsesToSpend(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction,
+  opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; from?: string; skillKind?: string; keyword?: string }) {
+  return state.effects.filter(e => e.kind === "forbid" && e.forbid && (e.forbid.uses ?? 0) > 0
+    && ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid, key: `effect:${e.id}` }, opts));
+}
 export function spendProhibitionUse(ctx: EngineContext, game: GameDefinition, state: VmState, what: ForbiddenAction, opts: { player?: PlayerId; card?: string; bySkill?: boolean; source?: string; from?: string; skillKind?: string; keyword?: string } = {}): void {
   // Read every applicable budget on one settled board before changing any use.
-  const spent = state.effects.filter(e => e.kind === "forbid" && e.forbid && (e.forbid.uses ?? 0) > 0
-    && ruleApplies(ctx, game, state, what, { target: e.target, source: e.source ?? null, until: e.until, forbid: e.forbid, key: `effect:${e.id}` }, opts));
+  const spent = prohibitionUsesToSpend(ctx, game, state, what, opts);
   if (!spent.length) return;
-  const token = beginStandingNegationMutation(ctx, state);
+  const token = beginStandingNegationMutation(ctx, state, undefined, { effects: [{ kind: "prohibitionUse", what, opts }] });
   for (const e of spent) e.forbid!.uses = Math.max(0, (e.forbid!.uses ?? 0) - 1);
   finishStandingNegationMutation(ctx, state, token);
 }

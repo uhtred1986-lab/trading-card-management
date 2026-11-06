@@ -1,3 +1,4 @@
+import { frozenUnderReviewContext } from "./under-standing-review-fixture";
 /** Isolated supplied-fact contracts; no native observer/writer or product admission claim. */
 import assert from "node:assert/strict";
 import source from "./fixtures/under-standing-5.json";
@@ -19,11 +20,11 @@ const refused = (f: () => unknown) => assert.throws(f, NotYet);
 const actual = source["BT23-070"].card;
 const def = card(actual.id, { ...actual, type: "EXTRA", colors: ["Blue"], energyCost: Number(actual.cost) });
 const records = skillRecords(def);
-const scripts = rulesFromRows(records.map((r, id) => ({ ...r, id, status: r.unread.length ? "open" : "confirmed", source: "compiler" }) as RuleRow), { [def.id]: def })[def.id];
-// The production loader still rejects #0. Only a local helper candidate removes
-// that known admission label; complete original source and siblings stay frozen.
+const scripts = frozenUnderReviewContext({ defs: { [def.id]: def }, scripts: rulesFromRows(records.map((r, id) => ({ ...r, id, status: r.unread.length ? "open" : "confirmed", source: "compiler" }) as RuleRow), { [def.id]: def }) }).scripts![def.id];
+// The isolated oracle retains the exact former loader output. A local helper
+// candidate is mechanism evidence only; current admission is tested in R528.
 const candidate = { ...scripts.bySkill[0], unsupported: [] };
-test("full frozen source records unchanged and not admitted", () => {
+test("full frozen source records unchanged; isolated prior loader remains refused", () => {
     assert.deepEqual(copy(records), Object.values(source["BT23-070"].records));
     assert.ok(scripts.bySkill[0].unsupported.length);
     assert.ok(scripts.bySkill[10].unsupported.length); assert.ok(scripts.bySkill[20].unsupported.length);

@@ -1145,8 +1145,8 @@ export function stepTaxGate(ctx: EngineContext, game: GameDefinition, state: VmS
   if (!owed.length) return "done";
   if (unpaidActivationTax(ctx, game, state, gate.player, gate.card, owed)) {
     state.programs.splice(0, gate.guards);
-    if (gate.counter && gate.from === "under") moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, {owner:state.cards[gate.card].owner,reveal:true,beforeTriggers:resetUnderCounterOccurrence(state,ev,gate.card)});
-    if (gate.counter && gate.from === "energy" && state.sides[gate.player].zones.energy.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true, beforeTriggers: resetEnergyCounterOccurrence(state, ev, gate.card) });
+    if (gate.counter && gate.from === "under") moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, {owner:state.cards[gate.card].owner,reveal:true,standingArrival: [{ kind: "dropOn", card: gate.card }], beforeTriggers: resetUnderCounterOccurrence(state,ev,gate.card)});
+    if (gate.counter && gate.from === "energy" && state.sides[gate.player].zones.energy.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true, standingArrival: [{ kind: "dropOn", card: gate.card }], beforeTriggers: resetEnergyCounterOccurrence(state, ev, gate.card) });
     if (gate.counter && gate.from !== "energy" && state.sides[gate.player].zones[ACTIVATION_ZONES.hand]?.includes(gate.card)) moved(ctx, game, state, ev, gate.card, ACTIVATION_ZONES.drop, { owner: gate.player, reveal: true });
     log(ev, { type: "note", text: "The skill's activation failed: a price a rule puts on it (20-14-1) can no longer be paid" });
     return "done";

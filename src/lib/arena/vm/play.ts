@@ -1,3 +1,7 @@
+import { prepareNativeUnderMutation } from "./under-native-transaction";
+import { requireDormantNativeStack } from "./under-native-stack";
+import type { MoveRecord } from "./zones";
+import type { NativeUnderEffectWrite } from "./under-native-plan";
 import { preflightPlacedUnder, capturePlacedUnderRelation } from "./placed-under-master";
 import { retireAppliedEffectRetarget, type Receipt } from "./applied-effect-receipt";
 import { refuseEnergyEntryProcedure } from "./energy-entry-lifetime";
@@ -273,6 +277,10 @@ export function resolvePlay(
   const negating = opts.negatedBy ?? { player, source: opts.byCard };
   const fullNegation = opts.negatedForTurn ? "turn" : opts.negated && !forbids(ctx, game, state, "beNegated", { card, ...negating }) ? opts.negated : undefined;
   const partialAllowed = !!opts.negatedKinds?.length && !!opts.negatedUntil && !forbids(ctx, game, state, "beNegated", { card, ...negating });
+  const standingArrival: NativeUnderEffectWrite[] = [];
+  if (fullNegation) standingArrival.push({ kind: "add", spec: { target: card, kind: "negateSkills", value: 0, until: fullNegation, master: negating.player, source: negating.source } });
+  if (partialAllowed && opts.negatedKinds && opts.negatedUntil) for (const kind of opts.negatedKinds)
+    standingArrival.push({ kind: "add", spec: { target: card, kind: "negateSkillKind", value: kind, until: opts.negatedUntil, master: negating.player, source: negating.source } });
   const beforeTriggers = (): void => {
     if (findCard(state, card)?.zone !== to || findCard(state, card)?.owner !== player) return;
     // Full preentry negation has already passed its protection check in the
@@ -282,8 +290,8 @@ export function resolvePlay(
     const by = negating;
     for (const kind of opts.negatedKinds) addEffect(state, ev, { target: card, kind: "negateSkillKind", value: kind, until: opts.negatedUntil, master: by.player, source: by.source });
   };
-  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], { ...cause, ...(opts.using ? { using: opts.using } : {}), appliedEffects: opts.appliedEffects, beforeTriggers });
-  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause, appliedEffects: opts.appliedEffects, beforeTriggers,
+  if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], { ...cause, ...(opts.using ? { using: opts.using } : {}), appliedEffects: opts.appliedEffects, beforeTriggers, standingArrival });
+  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause, appliedEffects: opts.appliedEffects, beforeTriggers, standingArrival,
     ...(opts.costResult ? { reason: "cost" as const, onResult: opts.costResult } : {}) });
   // 22-15: the card remembers which keyword played it, for the rest of the
   // turn — P-048's "during the turn you played it with [Over Realm]"
@@ -408,9 +416,15 @@ export function resolvePlay(
  * (8-1-7-1). The card underneath answers no moment: it has not left the area
  * (23-2-2-2), which is why it moves by `moveCard` and not by `moved`.
  */
-function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; using?: string; beforeTriggers?: () => void; appliedEffects?: Receipt } = {}): void {
+function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], card: string, host: string, player: PlayerId, to: string, extra: string[] = [], cause: { by?: string; byOpponent?: boolean; byCard?: string; using?: string; beforeTriggers?: () => void; standingArrival?: NativeUnderEffectWrite[]; appliedEffects?: Receipt } = {}): void {
   refuseEnergyEntryProcedure(state, [card, host, ...extra]);
-  refuseStandingNegationMutation(state, "stack play", ctx, to === "battle" ? card : undefined);
+  if (state.underStandingNegationHistory) {
+    requireDormantNativeStack(state);
+    // The complete deterministic route is checked before the incoming play emits or moves anything.
+    prepareNativeUnderMutation(ctx, game, state, { moves: [{ route: "flow", card, to,
+      options: { owner: player, energyEntryCleanup: true, onto: host }, ...(cause.appliedEffects ? { receipt: cause.appliedEffects } : {}) }],
+      effects: cause.standingArrival ?? [], stack: { route: "play", card, host, extra } });
+  } else refuseStandingNegationMutation(state, "stack play", ctx, to === "battle" ? card : undefined);
   // Expanded Potara origins are normalized by the host before this writer.
   // Never discover a cross-area extra only after the played card has moved.
   for (const material of [host, ...extra]) {
@@ -438,7 +452,7 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   if (!arrived || arrived.zone !== to || arrived.owner !== player) {
     throw new RulesetBroken(state.game, `${card} was played onto ${host} but is in ${arrived ? `${arrived.owner}'s ${arrived.zone}` : "no area"}, not ${player}'s ${to} (23-2-1)`);
   }
-  const transaction = state.mixedStandingNegationHistory ? beginStandingNegationMutation(ctx, state) : undefined;
+  const transaction = state.mixedStandingNegationHistory || state.underStandingNegationHistory ? beginStandingNegationMutation(ctx, state, undefined, { stack: { route: "play", card, host, extra } }) : undefined;
   const roles = (["attacker", "guard"] as const).filter(role => state.battle?.[role] === host);
   const under = moveCard(state, game, host, to, { under: card });
   if (!under.ok) throw new RulesetBroken(state.game, `${host} cannot go under ${card}: ${under.refused}`);
@@ -449,8 +463,11 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
   // The other materials go under the same card, each as its own move (the
   // card underneath answers no moment of leaving, 23-2-2-2), then the pile is
   // put in the order chosen.
-  const placed = [host];
-  for (const id of extra) if (moveCard(state, game, id, to, { under: card }).ok) placed.push(id);
+  const placed = [host], stackResults: MoveRecord[] = [under.move];
+  for (const id of extra) {
+    const result = moveCard(state, game, id, to, { under: card });
+    if (result.ok) { placed.push(id); stackResults.push(result.move); }
+  }
   if (extra.length) {
     const order = groups.flat().filter((id) => state.cards[card].under.includes(id));
     state.cards[card].under = [...order, ...state.cards[card].under.filter((id) => !order.includes(id))];
@@ -467,7 +484,7 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
     if (b.attacker === host) b.attacker = card;
     if (b.guard === host) b.guard = card;
   }
-  finishStandingNegationMutation(ctx, state, transaction, [card, ...placed], roles.length ? { kind: "assign", roles } : undefined);
+  finishStandingNegationMutation(ctx, state, transaction, [card, ...placed], roles.length ? { kind: "assign", roles } : undefined, stackResults);
   log(ev, { type: "stack", top: card, under: state.cards[card].under.slice() });
   // It has not left the area (23-2-2-2), but going under is still a moment
   // the card may name: "when this card is placed under a … card" (BT29-140).

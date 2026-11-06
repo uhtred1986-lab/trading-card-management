@@ -1,4 +1,4 @@
-/** Preparatory under-source policy. No native reader or admission imports this module. */
+/** Exact under-source policy. Native admission requires the complete zero-refusal envelope. */
 import type { Skill } from "../types";
 import type { Op, Script } from "./script";
 import { skillPriceProblem, zeroSkillPrice } from "./skill-payment";

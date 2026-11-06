@@ -319,6 +319,7 @@ export interface VmState {
   /** R482 active ordinary Charge scope, consumed when its original frame finishes. */
   energyCharge?: import("./energy-entry-charge").EnergyChargeScope;
   /** Native standing-negation families; affected histories are never migrated implicitly. */
+  underStandingNegationHistory?: import("./standing-negation-under-history").UnderHistory;
   mixedStandingNegationHistory?: import("./standing-negation-mixed-history").MixedStandingNegationHistory;
   standingNegationHistory?: import("./standing-negation-history").StandingNegationHistory;
   /** Resolved skill grants deleted by negation; standing grants are separate. */

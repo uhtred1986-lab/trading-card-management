@@ -1,9 +1,10 @@
+import type { NativeUnderWritePlan } from "./under-native-plan";
 /** R513: the single 8-5-8 rule action, with all original reads before writes. */
 import type { EngineContext, GameEvent, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
 import type { VmState, ComboOrigin } from "./state";
 import { emit, log, type Moment } from "./events";
-import { findCard, isTokenCard, moveCard } from "./zones";
+import { findCard, isTokenCard, moveCard, type MoveRecord } from "./zones";
 import { leaveRoute, replacementChoices } from "./replace";
 import { captureMovementAutoHistory, requireMovementAutoBodies, type MovementAutoHistory } from "./movement-auto-history";
 import { captureFlowPlacement, cleanupFlowPlacement, type FlowPlacementCapture } from "./flow-placement-cleanup";
@@ -30,7 +31,7 @@ interface Prepared {
     game: GameDefinition;
     state: VmState;
     end: NonNullable<NonNullable<VmState["battle"]>["endCombo"]>;
-    history: VmState["mixedStandingNegationHistory"];
+    history: VmState["mixedStandingNegationHistory"] | VmState["underStandingNegationHistory"];
     entries: Entry[];
     binding: string;
 }
@@ -38,7 +39,7 @@ const prepared = new WeakMap<ComboDropBatch, Prepared>();
 
 /** Other matches and an inactive Combo policy retain their existing protocol. */
 export function needsComboDropBatch(state: VmState): boolean {
-    return !!state.mixedStandingNegationHistory?.active.some(entry => entry.source.policy === "opponentComboSevenInBattleV1");
+    return !!(state.underStandingNegationHistory ?? state.mixedStandingNegationHistory)?.active.some(entry => entry.source.policy === "opponentComboSevenInBattleV1");
 }
 function moment(subject: ComboDropSubject, special = false): Moment {
     return { event: "moved", card: subject.card, controller: subject.controller,
@@ -90,9 +91,9 @@ export function prepareComboDropBatch(ctx: EngineContext, game: GameDefinition, 
     // Autos from this isolated copy reach the live state.
     {
         const projected = structuredClone(state);
-        const transaction = beginStandingNegationMutation(ctx, projected);
-        for (const entry of entries) place(projected, game, entry, []);
-        finishStandingNegationMutation(ctx, projected, transaction, ids);
+        const transaction = beginStandingNegationMutation(ctx, projected, undefined, writePlan(entries));
+        const results = entries.map(entry => place(projected, game, entry, []).move);
+        finishStandingNegationMutation(ctx, projected, transaction, ids, undefined, results);
         for (const { subject } of entries) {
             if (!subject.movementHistory.unresolved.length) continue;
             requireMovementAutoBodies(game, projected, subject.movementHistory, moment(subject), false,
@@ -100,7 +101,7 @@ export function prepareComboDropBatch(ctx: EngineContext, game: GameDefinition, 
         }
     }
     const token: ComboDropBatch = { kind: "comboDropBatch" };
-    prepared.set(token, { ctx, game, state, end, history: state.mixedStandingNegationHistory, entries, binding: binding(state, entries) });
+    prepared.set(token, { ctx, game, state, end, history: state.underStandingNegationHistory ?? state.mixedStandingNegationHistory, entries, binding: binding(state, entries) });
     return token;
 }
 function binding(state: VmState, entries: Entry[]): string {
@@ -120,7 +121,11 @@ function binding(state: VmState, entries: Entry[]): string {
 /** This loop has no standing/attribute/skill reads. Combo and Drop have no
  * in-play enter/leave hooks; plain cards cannot release stacks or redirect at
  * the primitive layer. Every cleanup picture stays private until settlement. */
-function place(state: VmState, game: GameDefinition, entry: Entry, events: GameEvent[]): ComboDropSubject {
+function writePlan(entries: Entry[]): NativeUnderWritePlan {
+    return { moves: entries.map(({ subject }) => ({ route: "flow", card: subject.card, to: "drop",
+        options: { owner: subject.controller, energyEntryCleanup: true } })) };
+}
+function place(state: VmState, game: GameDefinition, entry: Entry, events: GameEvent[]): { subject: ComboDropSubject; move: MoveRecord } {
     const { card, controller } = entry.subject;
     const result = moveCard(state, game, card, "drop", { owner: controller, energyEntryCleanup: true });
     if (!result.ok || result.move.from !== "combo" || result.move.to !== "drop"
@@ -129,23 +134,23 @@ function place(state: VmState, game: GameDefinition, entry: Entry, events: GameE
         throw new RulesetBroken(game.id, "prepared Combo cleanup lost its ordinary Drop route");
     cleanupFlowPlacement(state, events, result.move, structuredClone(entry.placement));
     log(events, { type: "move", card, from: "combo", to: "drop", owner: controller });
-    return { ...entry.subject, card: result.move.card, controller: result.move.owner, to: "drop" };
+    return { subject: { ...entry.subject, card: result.move.card, controller: result.move.owner, to: "drop" }, move: result.move };
 }
 export function commitComboDropBatch(ctx: EngineContext, game: GameDefinition, state: VmState,
     events: GameEvent[], token: ComboDropBatch): ComboDropSubject[] {
     const batch = prepared.get(token);
     if (!batch || batch.ctx !== ctx || batch.game !== game || batch.state !== state
-        || batch.end !== state.battle?.endCombo || batch.history !== state.mixedStandingNegationHistory
+        || batch.end !== state.battle?.endCombo || batch.history !== (state.underStandingNegationHistory ?? state.mixedStandingNegationHistory)
         || batch.binding !== binding(state, batch.entries)) fail();
     validateStandingNegationRead(ctx, state);
-    const transaction = beginStandingNegationMutation(ctx, state);
+    const transaction = beginStandingNegationMutation(ctx, state, undefined, writePlan(batch.entries));
     prepared.delete(token);
     const completed = batch.entries.map(entry => {
         const own: GameEvent[] = [];
-        const subject = place(state, game, entry, own);
-        return { subject, events: own };
+        const { subject, move } = place(state, game, entry, own);
+        return { subject, move, events: own };
     });
-    finishStandingNegationMutation(ctx, state, transaction, batch.entries.map(entry => entry.subject.card));
+    finishStandingNegationMutation(ctx, state, transaction, batch.entries.map(entry => entry.subject.card), undefined, completed.map(entry => entry.move));
     for (let index = 0; index < batch.entries.length; index++) {
         for (const event of completed[index].events) log(events, event);
         emit(ctx, game, state, events, moment(completed[index].subject));

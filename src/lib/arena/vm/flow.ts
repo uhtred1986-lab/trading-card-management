@@ -1,3 +1,5 @@
+import { requireDormantNativePolicy } from "./under-native-observation";
+import { applyNativeUnderEffectWrites, type NativeUnderWritePlan, type NativeUnderEffectWrite } from "./under-native-plan";
 import {incrementalLookIntent,requireLookSource,requireLookPending,activateLook,requireIncrementalLook} from './incremental-look';
 import {paidHandFrameIntent,requirePaidHandFrame} from './paid-hand-runtime';
 import { paidWarpSourceKey } from './paid-warp-contract';
@@ -276,7 +278,7 @@ const STEP_WORK: Record<string, Work> = {
     section: "7-2-4",
     waits: "an `until:` a duration expiry can be declared against, rather than the closed `DURATIONS` list the language carries",
     run: (ctx, game, state, ev) => {
-      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endTurnRelativeEffects(s, events)));
+      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endTurnRelativeEffects(s, events), [{ kind: "endRelative" }]));
     },
   },
   mainPending: {
@@ -285,7 +287,7 @@ const STEP_WORK: Record<string, Work> = {
     run: (ctx, game, state, ev) => {
       // #1163: "until the start of your next Main Phase" ends here, before
       // anything waiting for this Main Phase resolves.
-      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endNextMainEffects(s, events)));
+      returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endNextMainEffects(s, events), [{ kind: "endNextMain" }]));
       state.programs.push(...dueDelays(state, "mainStart"));
       // 7-2-11's one charge has gone by the moment the Main Phase begins,
       // whether or not a card was actually charged at the Charge Phase's own
@@ -313,7 +315,7 @@ const STEP_WORK: Record<string, Work> = {
           ...endEffectsOfDuration(s, events, "turn"),
           ...endEffectsOfDuration(s, events, "battleOrTurn"),
           ...endOwnTurnEffects(s, events),
-        ]));
+        ], [{ kind: "end", until: "turn" }, { kind: "end", until: "battleOrTurn" }, { kind: "endOwnTurn" }]));
       } else {
         // Preserve the legacy callback order outside the opted-in writer proof.
         returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "turn"));
@@ -383,7 +385,7 @@ const STEP_WORK: Record<string, Work> = {
       if (hasStandingNegationHistory(state)) {
         returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
           ...endAfterChargeEffects(s, events, covered), ...endAfterOpponentChargeEffects(s, events),
-        ]));
+        ], [{ kind: "endCharge", cards: covered }, { kind: "endOpponentCharge" }]));
       } else {
         endAfterChargeEffects(state, ev, covered);
         endAfterOpponentChargeEffects(state, ev);
@@ -511,12 +513,12 @@ export function run(ctx: EngineContext, game: GameDefinition, state: VmState, ev
         if (hasStandingNegationHistory(state)) {
           returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => [
             ...endEffectsOfDuration(s, events, "battle"), ...endEffectsOfDuration(s, events, "battleOrTurn"),
-          ]));
+          ], [{ kind: "end", until: "battle" }, { kind: "end", until: "battleOrTurn" }]));
         } else {
           returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battle"));
           returnLoans(ctx, game, state, ev, endEffectsOfDuration(state, ev, "battleOrTurn"));
         }
-        const battleMutation = beginStandingNegationMutation(ctx, state);
+        const battleMutation = beginStandingNegationMutation(ctx, state, undefined, { battle: { kind: "end" } });
         state.battle = null;
         finishStandingNegationMutation(ctx, state, battleMutation, undefined, { kind: "end" });
       }
@@ -759,12 +761,12 @@ export function enterPhase(ctx: EngineContext, game: GameDefinition, state: VmSt
     // 20-13-5: a duration ending in this Charge Phase ends immediately when
     // that phase is skipped, even though its Active Step will never run.
     if (name === game.game?.phases?.[0]) {
-      if (hasStandingNegationHistory(state)) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endAfterOpponentChargeEffects(s, events)));
+      if (hasStandingNegationHistory(state)) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endAfterOpponentChargeEffects(s, events), [{ kind: "endOpponentCharge" }]));
       else endAfterOpponentChargeEffects(state, ev);
     }
     // …and so does "until the start of your next Main Phase" (#1163) when the
     // phase whose first step would have ended it is skipped.
-    if (declared.steps.includes("mainPending")) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endNextMainEffects(s, events)));
+    if (declared.steps.includes("mainPending")) returnLoans(ctx, game, state, ev, expireStandingNegationBatch(ctx, state, ev, (s, events) => endNextMainEffects(s, events), [{ kind: "endNextMain" }]));
     return;
   }
   emit(ctx, game, state, ev, { event: "phaseStart", controller: state.turnPlayer, args: { phase: name } }, shownPhase(game, state, name));
@@ -1888,6 +1890,8 @@ export interface MoveCause {
   cleanupDeparture?: true;
   /** Synchronous arrival setup after zone reset, before any movement/entry watchers. Never persisted. */
   beforeTriggers?: () => void;
+  /** Closed native arrival effects; v3 never executes a captured live-board callback. */
+  standingArrival?: NativeUnderEffectWrite[];
 }
 
 /**
@@ -1948,22 +1952,32 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   if (route.stays) { reportKo(route.koProvenance, false); report(false); return; }
   if (lifeToHandForbidden(ctx, game, state, fromHolder ?? state.cards[id].owner, from, route.to, undefined, id)) { reportKo(route.koProvenance, false); report(false); return; }
   const restoredLeader = mixedStandingLeaderRestoration(state, id, from, route.to);
-  if (state.cards[id]?.hidden || state.cards[id]?.under.length && !restoredLeader || from === null || (from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder)) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, ["battle", "leader"].includes(route.to) ? id : undefined);
+  const controlTransfer = from === "battle" && route.to === "battle" && opts.owner && opts.owner !== fromHolder;
+  if (state.underStandingNegationHistory && controlTransfer) requireDormantNativePolicy(state, "actual control transfer");
+  if (state.cards[id]?.hidden || ((state.cards[id]?.under.length && !restoredLeader || from === null) || controlTransfer) && !state.underStandingNegationHistory) refuseStandingNegationMutation(state, "unreviewed Hidden, stack or control movement", ctx, ["battle", "leader"].includes(route.to) ? id : undefined);
   const movementHistory = captureMovementAutoHistory(ctx, game, state, id);
   // Legacy consumers receive the same final snapshot; no pre-replacement list.
   const sourceNegated = movementHistory.declarations.filter(line => line.negated).map(line => line.index);
+  if (state.underStandingNegationHistory && (opts.beforeTriggers && opts.standingArrival === undefined))
+    refuseStandingNegationMutation(state, "untyped arrival setup or stack movement", ctx);
+  const nativePlan: NativeUnderWritePlan = { moves: [{ route: "flow", card: id, to: route.to,
+    options: { energyEntryCleanup: true, ...(opts.owner ? { owner: opts.owner } : {}), ...(opts.onto ? { onto: opts.onto } : {}),
+      ...((route.position ?? opts.position) ? { position: route.position ?? opts.position } : {}), ...(route.mode ? { mode: route.mode } : {}) },
+    ...(opts.appliedEffects ? { receipt: opts.appliedEffects } : {}) }],
+    ...(route.to === asked ? { effects: opts.standingArrival ?? [] } : {}) };
   const placement = captureFlowPlacement(state, id, opts.appliedEffects);
   const pileRelease = capturePileRelease(state, id);
   if (pileRelease || movementHistory.unresolved.length || needsFlowPaymentPreview(placement)) {
     const projected = structuredClone(state);
-    const projectedMutation = beginStandingNegationMutation(ctx, projected, ["battle", "leader"].includes(route.to) ? id : undefined);
+    const projectedMutation = beginStandingNegationMutation(ctx, projected, ["battle", "leader"].includes(route.to) ? id : undefined, nativePlan);
     const projectedPile = capturePileRelease(projected, id);
     const projectedMove = moveCard(projected, game, id, route.to, { ...opts, energyEntryCleanup: true,
       ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
     if (projectedMove.ok) {
       cleanupFlowPlacement(projected, [], projectedMove.move, structuredClone(placement));
       cleanupReleasedPile(projected, [], projectedPile, projectedMove.move);
-      finishStandingNegationMutation(ctx, projected, projectedMutation, projected.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : projectedMove.move.to === "battle" && from !== "battle" ? id : undefined);
+      if (projected.underStandingNegationHistory && projectedMove.move.to === asked) applyNativeUnderEffectWrites(ctx, game, projected, [], opts.standingArrival ?? []);
+      finishStandingNegationMutation(ctx, projected, projectedMutation, projected.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : projectedMove.move.to === "battle" && from !== "battle" ? id : undefined, undefined, [projectedMove.move]);
       const prospective = movement(id, from, projectedMove.move.to, projectedMove.move.owner, opts, wasHidden, fromHolder);
       const cleanupSpecial: Moment | undefined = state.battle?.endCombo?.substituteDeparture?.active
         && state.battle.endCombo.substituteDeparture.card === id && from === "combo" && projectedMove.move.to === "drop"
@@ -1974,7 +1988,7 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   opts.movementAuto?.beforeMutation(movementHistory);
   requirePileReleaseCapture(state, pileRelease);
   if (redirectNote) log(ev, redirectNote);
-  const transaction = beginStandingNegationMutation(ctx, state, ["battle", "leader"].includes(route.to) ? id : undefined);
+  const transaction = beginStandingNegationMutation(ctx, state, ["battle", "leader"].includes(route.to) ? id : undefined, nativePlan);
   const result = moveCard(state, game, id, route.to, { ...opts, energyEntryCleanup: true, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
   const to = result.move.to;
@@ -1989,8 +2003,11 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
     isAreaWord(to) && (from === null || isAreaWord(from))
       ? { type: "move", card: id, from: from ?? "removed", to, owner: result.move.owner, ...(opts.reveal === undefined ? {} : { reveal: opts.reveal }) }
       : null;
-  if (to === asked) opts.beforeTriggers?.();
-  finishStandingNegationMutation(ctx, state, transaction, state.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined);
+  if (to === asked) {
+    if (state.underStandingNegationHistory) applyNativeUnderEffectWrites(ctx, game, state, ev, opts.standingArrival ?? []);
+    else opts.beforeTriggers?.();
+  }
+  finishStandingNegationMutation(ctx, state, transaction, state.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined, undefined, [result.move]);
   reportKo(route.koProvenance, from !== result.move.to);
   report(!route.replacementApplied && result.move.to === asked, result.move.to);
   const moment = movement(result.move.card, from, to, result.move.owner, opts, wasHidden, fromHolder);

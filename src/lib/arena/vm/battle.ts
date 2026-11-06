@@ -167,12 +167,13 @@ export function declareAttack(ctx: EngineContext, game: GameDefinition, state: V
   // it. The programs go in front of the battle the attack opens, so they run
   // before the Attack Step's first checkpoint resolves anything.
   // A price on attacking particular defenders (BT13-082) is asked of this one.
+  const nativeBattleMutation = state.underStandingNegationHistory ? beginStandingNegationMutation(ctx, state, undefined, { battle: { kind: "begin", attacker, guard: action.target } }) : undefined;
   const taxes = taxesOn(ctx, game, state, "attack", { player: action.player, card: attacker, attackTarget: action.target });
   for (const tax of taxes.reverse()) state.programs.unshift({ ops: tax.ops, ip: 0, vars: {}, card: attacker, master: action.player });
   setMode(ctx, game, state, ev, attacker, "rest");
   // 8-1, #156: the count [Dual Attack]'s `attacked` condition reads.
   state.cards[attacker].attacksThisTurn = (state.cards[attacker].attacksThisTurn ?? 0) + 1;
-  const battleMutation = beginStandingNegationMutation(ctx, state);
+  const battleMutation = nativeBattleMutation ?? beginStandingNegationMutation(ctx, state);
   state.battle = { attacker, guard: action.target, target: action.target, step: "declared", negated: false, blockerOffered: false, counters: [] };
   joinsBattle(state, attacker, action.target);
   finishStandingNegationMutation(ctx, state, battleMutation, undefined, { kind: "begin" });
@@ -981,7 +982,7 @@ function extraFrame(ctx: EngineContext, state: VmState, player: PlayerId, card: 
 function placeExtraInDrop(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): boolean {
   const extra = frame.counterCost!.extra!;
   if (extra.source.area !== "hand" || !sameExtraSource(state, frame.master, frame.card, extra.source)) return false;
-  moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true, beforeTriggers: () => dropEffectsOn(state, ev, frame.card) });
+  moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true, standingArrival: [{ kind: "dropOn", card: frame.card }], beforeTriggers: () => dropEffectsOn(state, ev, frame.card) });
   if (!state.sides[frame.master].zones.drop.includes(frame.card)) return false;
   extra.source = extraSource(state, frame.card);
   extra.phase = "skillResources";
@@ -1357,8 +1358,8 @@ export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state:
 }
 
 function failCounter(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" {
-  if (frame.counterCost?.underOrigin && sameCounterUnderSource(state, frame.card, frame.counterCost.underOrigin.source)) moved(ctx, game, state, ev, frame.card, "drop", {owner:state.cards[frame.card].owner,reveal:true,beforeTriggers:resetUnderCounterOccurrence(state,ev,frame.card)});
-  if (frame.counterCost?.energyOrigin && state.sides[frame.master].zones.energy.includes(frame.card) && (state.cards[frame.card]?.zoneEpoch ?? 0) === frame.counterCost.energyOrigin.sourceEpoch) moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true, beforeTriggers: resetEnergyCounterOccurrence(state, ev, frame.card) });
+  if (frame.counterCost?.underOrigin && sameCounterUnderSource(state, frame.card, frame.counterCost.underOrigin.source)) moved(ctx, game, state, ev, frame.card, "drop", {owner:state.cards[frame.card].owner,reveal:true,standingArrival: [{ kind: "dropOn", card: frame.card }], beforeTriggers: resetUnderCounterOccurrence(state,ev,frame.card)});
+  if (frame.counterCost?.energyOrigin && state.sides[frame.master].zones.energy.includes(frame.card) && (state.cards[frame.card]?.zoneEpoch ?? 0) === frame.counterCost.energyOrigin.sourceEpoch) moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true, standingArrival: [{ kind: "dropOn", card: frame.card }], beforeTriggers: resetEnergyCounterOccurrence(state, ev, frame.card) });
   if (!frame.counterCost?.dropOrigin && !frame.counterCost?.energyOrigin && (!frame.counterCost?.extra || sameExtraSource(state, frame.master, frame.card, frame.counterCost.extra.source)) && state.sides[frame.master].zones.hand?.includes(frame.card)) moved(ctx, game, state, ev, frame.card, "drop", { owner: frame.master, reveal: true });
   log(ev, { type: "note", text: "[Counter] activation failed: its skill cost could not be paid in full" });
   return "done";
@@ -1406,7 +1407,7 @@ function activateCounterSkill(
   spendUse(state, player, card, sk);
   if (!dropOrigin && !extraPaidSource) moved(ctx, game, state, ev, card, "drop", {
     owner: counterActivation?.from === "under" ? state.cards[card].owner : player, reveal: true,
-    ...(counterActivation?.from === "energy" || counterActivation?.from === "under" ? { beforeTriggers: resetEnergyCounterOccurrence(state, ev, card) } : {}),
+    ...(counterActivation?.from === "energy" || counterActivation?.from === "under" ? { standingArrival: [{ kind: "dropOn", card: card }], beforeTriggers: resetEnergyCounterOccurrence(state, ev, card) } : {}),
   });
   // "Without paying its energy cost" is the waiver alone, as on the legacy
   // engine (`counterFreeFromHand` pends for `pay: "none"` only).
@@ -1866,8 +1867,9 @@ export function applyBlock(ctx: EngineContext, game: GameDefinition, state: VmSt
   if (!action.card) return;
   if (!pr.candidates.includes(action.card)) throw new IllegalAction("that card can't block now");
   const b = state.battle!;
+  const nativeBattleMutation = state.underStandingNegationHistory ? beginStandingNegationMutation(ctx, state, undefined, { battle: { kind: "assign", role: "guard", card: action.card } }) : undefined;
   setMode(ctx, game, state, ev, action.card, "rest");
-  const battleMutation = beginStandingNegationMutation(ctx, state);
+  const battleMutation = nativeBattleMutation ?? beginStandingNegationMutation(ctx, state);
   b.guard = action.card;
   joinsBattle(state, action.card);
   finishStandingNegationMutation(ctx, state, battleMutation, undefined, { kind: "assign", roles: ["guard"] });

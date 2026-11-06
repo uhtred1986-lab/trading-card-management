@@ -50,7 +50,7 @@ export function nativeUnderDefinitionsIdentity(ctx: EngineContext, state: VmStat
  * requiring a new generation: the actual observer can prove the ledger equal. */
 export function nativeUnderFingerprint(ctx: EngineContext, state: VmState): string {
     return canonical({ game: state.game, pinned: (ctx as EngineContext & { rulesetDefinition?: GameDefinition }).rulesetDefinition, physical: nativeUnderPhysicalFacts(state), zones: Object.values(state.sides).map(side => Object.keys(side.zones).sort()), definitions: nativeUnderDefinitionsIdentity(ctx, state),
-        effects: state.effects, grants: state.resolvedGrantDeletions,
+        effects: state.effects, grants: state.resolvedGrantDeletions, leaderBases: Object.values(state.cards).map(card => [card.id, card.leaderStackVersion, card.leaderBase]),
         battle: state.battle ? { attacker: state.battle.attacker, guard: state.battle.guard } : null });
 }
 export function requireExclusiveNativeUnder(state: NativeUnderState): UnderHistory {
@@ -102,4 +102,12 @@ export function validateNativeUnderCurrent(ctx: EngineContext, game: GameDefinit
         && !resolvedGrantDeleted(state, effect.target, effect.id))
         return refuseNativeUnder("delete all current grants under native suppression before sealing reads");
     return { history, observation };
+}
+
+/** Existing dormant native procedures may run only without active standing interactions. */
+export function requireDormantNativePolicy(state: NativeUnderState, procedure: string): void {
+    const history = requireExclusiveNativeUnder(state);
+    if (history.active.length || history.observation.under.length
+        || history.observation.area.candidates.some(candidate => candidate.source.policy === "otherBattleWholeV1"))
+        return refuseNativeUnder(`review active standing interactions during ${procedure}`);
 }

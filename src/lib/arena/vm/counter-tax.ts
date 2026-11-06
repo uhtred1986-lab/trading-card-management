@@ -51,11 +51,11 @@ function failTax(ctx: EngineContext, game: GameDefinition, state: VmState, event
   state.programs.splice(at, 1 + gate.guards);
   if (cost.underOrigin && sameCounterUnderSource(state, frame.card, cost.underOrigin.source)) {
     moved(ctx, game, state, events, frame.card, "drop", { owner: state.cards[frame.card].owner,
-      reveal: true, beforeTriggers: resetUnderCounterOccurrence(state, events, frame.card) });
+      reveal: true, standingArrival: [{ kind: "dropOn", card: frame.card }], beforeTriggers: resetUnderCounterOccurrence(state, events, frame.card) });
   } else if (cost.energyOrigin && state.sides[frame.master].zones.energy.includes(frame.card) &&
     (state.cards[frame.card]?.zoneEpoch ?? 0) === cost.energyOrigin.sourceEpoch) {
     moved(ctx, game, state, events, frame.card, "drop", { owner: frame.master,
-      reveal: true, beforeTriggers: resetEnergyCounterOccurrence(state, events, frame.card) });
+      reveal: true, standingArrival: [{ kind: "dropOn", card: frame.card }], beforeTriggers: resetEnergyCounterOccurrence(state, events, frame.card) });
   }
 
   state.lastChoice = null;
