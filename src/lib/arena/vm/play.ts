@@ -43,6 +43,7 @@ import { addEffect } from "./effects";
 import { NotYet, RulesetBroken } from "./errors";
 import { fire, log } from "./events";
 import type { Duration } from "./script";
+import type { MovementOutcome } from "./movement-result";
 import { moved } from "./flow";
 import type { VmState } from "./state";
 import { attrsNow, condHolds, forbids, entryAnswers, queryHookStatics } from "./program";
@@ -103,6 +104,9 @@ export const PLAY_ZONE_NAMES = [...new Set([...Object.values(PLAY_ZONES), ...Obj
  * carries across land after them (22-45-3), the legacy `play.resolve`'s order.
  */
 export interface PlayOptions {
+  /** R510: synchronous action-price completion; never saved or emitted.
+   * The caller admits only a plain Battle play, without stack/arrival options. */
+  costResult?: (result: MovementOutcome) => void;
   /** Private same-execution provenance, not a play/event attribute. */
   appliedEffects?: Receipt;
   /** 5-5: "play it in Rest Mode". */
@@ -223,6 +227,9 @@ export function resolvePlay(
   const host = opts.using === "Xeno-Evolve" ? undefined : base;
   const hostZone = host !== undefined && host !== card ? (findCard(state, host)?.zone ?? null) : null;
   const to = hostZone && hostZone === SETUP_ZONES.leader ? hostZone : PLAY_ZONES[baseTypeOf(printed)];
+  if (opts.costResult && (printed !== "BATTLE" || to !== "battle" || host !== undefined || opts.under !== undefined || opts.using !== undefined || opts.markers !== undefined || opts.carry !== undefined || opts.mode !== undefined || opts.negated !== undefined || opts.negatedKinds !== undefined || opts.negatedForTurn !== undefined || opts.by !== undefined)) {
+    throw new NotYet("pay this specialized play as an Auto action cost", "R510");
+  }
   // A `NotYet` and not a `RulesetBroken`: the only way here is a skill whose
   // program plays a card of a type no area receives (a Leader, 3-5-3), and the
   // runner catches a `NotYet` and stops that one skill rather than the game.
@@ -275,7 +282,8 @@ export function resolvePlay(
     for (const kind of opts.negatedKinds) addEffect(state, ev, { target: card, kind: "negateSkillKind", value: kind, until: opts.negatedUntil, master: by.player, source: by.source });
   };
   if (host !== undefined && host !== card && (state.sides[player].zones[to] ?? []).includes(host)) stackOnto(ctx, game, state, ev, card, host, player, to, opts.under ?? [], { ...cause, ...(opts.using ? { using: opts.using } : {}), appliedEffects: opts.appliedEffects, beforeTriggers });
-  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause, appliedEffects: opts.appliedEffects, beforeTriggers });
+  else moved(ctx, game, state, ev, card, to, { owner: player, asPlay: true, reveal: true, ...(opts.using ? { using: opts.using } : {}), ...cause, appliedEffects: opts.appliedEffects, beforeTriggers,
+    ...(opts.costResult ? { reason: "cost" as const, onResult: opts.costResult } : {}) });
   // 22-15: the card remembers which keyword played it, for the rest of the
   // turn — P-048's "during the turn you played it with [Over Realm]"
   // (`playedUsing`). Set after the arrival, which resets the copy (3-1-4).

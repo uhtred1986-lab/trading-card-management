@@ -1818,6 +1818,8 @@ export interface ScriptFrame {
   aegisCost?: import("./aegis-costs").AegisCost;
   /** #549: captured, reloadable Auto cost/effect continuation. */
   autoCost?: import("./auto-costs").AutomaticCost;
+  /** R510: private original play payment, retained into the activated body. */
+  autoPlayCost?: import("./auto-play-cost").AutoPlayCostReceipt;
   /** R457: original Field declaration and ordered Extra payment continuation. */
   fieldCost?: import("./field-costs").FieldCost;
   awakenAlternativePaid?: import("./awaken-alternative-costs").AwakenAlternativePaid;
@@ -4516,7 +4518,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         // #930: which [Union] variant the play is, again the play's own `using`
         // ("you can only play Battle Cards by using [Union-Fusion]", P-069).
         const union = unionVariantOf(op.using);
-        const playPermission = { player: master, bySkill: !frame.declaredPlay, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(op.ignoreOwnPermanent ? { ignoreOwnPermanent: true } : {}) };
+        const playPermission = { player: master, bySkill: !frame.declaredPlay && !h.playAsCost, evolution, ...(union ? { union } : {}), ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(op.ignoreOwnPermanent ? { ignoreOwnPermanent: true } : {}) };
         let targets = candidates.filter((id) => !h.forbids("play", { ...playPermission, card: id }));        // 22-5-7: a paid keyword evolution that fails to play and has not
         // left hand (or, #917, the Z-Energy it was activated from) is put in Drop. A printed Drop evolution already is there.
         // #929, 22-13-4-5-1 / 22-13-5-4-2 / 22-13-6-3-2: so is a [Union] card
@@ -4548,7 +4550,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           delete frame.vars[PLAY_TAX_SKIPPED];
         }
         if (!frame.declaredPlay && targets.length) {
-          const ask = (id: string) => ({ player: master, card: id, bySkill: true, ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(frame.viaKeyword === "Over Realm" && id === frame.overRealmSource?.card && frame.overRealmSource.epoch === h.zoneEpoch(id) && frame.overRealmPaidTaxes ? { excludePaidTaxes: frame.overRealmPaidTaxes } : {}) });
+          const ask = (id: string) => ({ player: master, card: id, bySkill: !h.playAsCost, ...(frame.card ? { source: frame.card } : {}), ...(frame.viaKeyword ? { keyword: frame.viaKeyword } : {}), ...(frame.viaKeyword === "Over Realm" && id === frame.overRealmSource?.card && frame.overRealmSource.epoch === h.zoneEpoch(id) && frame.overRealmPaidTaxes ? { excludePaidTaxes: frame.overRealmPaidTaxes } : {}) });
           if (frame.awaiting === "playTax" && h.lastMode() != null) {
             const yes = h.lastMode() === 0;
             h.clearLastMode();

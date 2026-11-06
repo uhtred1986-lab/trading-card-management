@@ -1,4 +1,5 @@
 import { counterArrivalDescriptor } from "./counter-arrival-policy";
+import { equal, paidArrivalWasActive, requireAutoPlayCost, requireAutoPlayReceipt, type AutoPlayCostReceipt } from "./auto-play-cost";
 import { counterChoiceTail } from "./counter-continuation";
 /** Serialized lifetime of one immediate skill effect (RM 4-3-2-3/4).
  * Future/delayed/granted skills have their own lifetime, never this one's.
@@ -17,6 +18,9 @@ export interface SkillEffectOrigin {
   scope?: number;
 }
 export interface SkillPlayScope {
+  /** Lifecycle still has two boundaries; both answer an already-paid arrival. */
+  arrivalTiming?: "paidCost";
+  paidCost?: AutoPlayCostReceipt;
   purpose?: "counterContinuation" | "counterArrivalDecision";
   arrivalCounters?: import("./counter-arrival-template").CounterArrivalTemplate[];
   version: 2;
@@ -87,17 +91,29 @@ export function startSkillPlayScope(state: VmState, frame: ScriptFrame): SkillPl
   if (!origin) return null;
   if (![1, 2].includes(origin.version) || !["activate", "auto", "counter", "delayed", "hook", "replacement"].includes(origin.kind)) rebuildScope("rebuild this saved skill-effect provenance");
   const profile = immediatePlayProfile(frame.ops);
+  const paid = frame.autoPlayCost ? requireAutoPlayCost(frame) : undefined;
+  if (paid && (paid.phase !== "paid" || origin.kind !== "auto" || profile.arrivals || profile.tokens || profile.explicitWindow)) {
+    throw new NotYet("open Counter timing for this Auto play-cost continuation", "R510");
+  }
+  const currentArrival = paid && state.cards[paid.arrival!.card];
+  if (paid && currentArrival && (!Number.isSafeInteger(currentArrival.zoneEpoch ?? 0) || (currentArrival.zoneEpoch ?? 0) < paid.arrival!.epoch)) {
+    rebuildScope("rebuild this saved paid-arrival chronology");
+  }
   const arrivalDecision = origin.kind === "counter" && !!frame.counterPlay && !!counterArrivalDescriptor(frame.ops);
   const continuation = origin.kind === "counter" && !!frame.counterPlay && (counterChoiceTail(frame.ops) || arrivalDecision);
   // Version 1 certified lifetime ancestry only, before shared timing existed.
   // A non-play effect needs no new timing; an affected active root must rebuild.
-  if (origin.scope === undefined && (!profile.arrivals && !continuation || frame.viaKeyword || frame.declaredPlay || profile.explicitWindow && origin.kind === "hook")) return null;
+  if (origin.scope === undefined && (!profile.arrivals && !continuation && !paid || frame.viaKeyword || frame.declaredPlay || profile.explicitWindow && origin.kind === "hook")) return null;
   if (origin.version !== 2) rebuildScope("rebuild this saved skill effect for shared Counter timing version 2");
   if (origin.scope !== undefined) {
     validateScopeStack(state);
     const scope = state.skillPlayScopes?.at(-1);
     if (scope?.purpose && origin.kind !== "counter") rebuildScope("rebuild this Counter continuation provenance");
     if (!scope || scope.id !== origin.scope) rebuildScope("rebuild this saved skill-play continuation");
+    if ((scope.arrivalTiming === "paidCost") !== !!paid || paid && (scope.master !== paid.master || scope.source !== paid.source.card
+      || scope.skillIndex !== paid.skillIndex || !equal(scope.paidCost, paid) || scope.played[0]?.card !== paid.arrival?.card || scope.played[0]?.epoch !== paid.arrival?.epoch)) {
+      rebuildScope("rebuild this saved paid-arrival Counter continuation");
+    }
     return scope;
   }
   validateScopeStack(state);
@@ -106,6 +122,11 @@ export function startSkillPlayScope(state: VmState, frame: ScriptFrame): SkillPl
   const id = (state.nextSkillPlayScope ?? 0) + 1;
   state.nextSkillPlayScope = id;
   const scope: SkillPlayScope = { version: 2, id, ...(continuation ? { purpose: arrivalDecision ? "counterArrivalDecision" as const : "counterContinuation" as const } : {}), ...(parent === undefined ? {} : { parent }), master: frame.master, source: frame.card, ...(frame.skillIndex === undefined ? {} : { skillIndex: frame.skillIndex }), profile, phase: continuation ? "effect" : "before", played: [] };
+  if (paid) {
+    scope.arrivalTiming = "paidCost";
+    scope.paidCost = structuredClone(paid);
+    scope.played = [{ card: paid.arrival!.card, epoch: paid.arrival!.epoch }];
+  }
   scopes.push(scope);
   if (continuation && !arrivalDecision) frame.counterChoice = { version: 1 };
   frame.skillEffectOrigin = { ...origin, scope: id };
@@ -142,14 +163,13 @@ export function requireSkillEffectOrigin(frame: ScriptFrame, source: Script | un
 /** Branch expansion rewrites a saved frame's ops in place. Match the whole
  * resulting body, rather than assuming every frame from this card is its
  * delayed play. The finite position sets avoid enumerating branch products. */
-function expandedBodyMatches(body: readonly Op[], actual: readonly Op[]): boolean {
-  const words = actual.map(op => JSON.stringify(op));
+export function expandedBodyMatches(body: readonly Op[], actual: readonly Op[], equivalent: (a: unknown, b: unknown) => boolean = (a, b) => JSON.stringify(a) === JSON.stringify(b)): boolean {
   const walk = (ops: readonly Op[], start: number): Set<number> => {
     let positions = new Set([start]);
     for (const op of ops) {
       const next = new Set<number>();
       for (const at of positions) {
-        if (words[at] === JSON.stringify(op)) next.add(at + 1);
+        if (equivalent(actual[at], op)) next.add(at + 1);
         const branches = op.op === "if" ? [op.then, op.else ?? []] : op.op === "may" ? [op.ops, []] : op.op === "chooseMode" ? op.modes.map(mode => mode.ops) : [];
         for (const branch of branches) for (const end of walk(branch, at)) next.add(end);
       }
@@ -183,9 +203,11 @@ export function witnessArrivalAutos(state: VmState, scope: SkillPlayScope, card:
     pending.arrivalWitness = { version: 1, scope: scope.id, skillIndex: pending.skillIndex, arrival, source: { card: pending.card, epoch: state.cards[pending.card].zoneEpoch ?? 0 } };
   }
 }
-export function arrivalAutoWasActive(pending: VmPending): boolean {
+export function arrivalAutoWasActive(pending: VmPending, state?: VmState): boolean {
+  const paid = paidArrivalWasActive(pending, state);
   const witness = pending.arrivalWitness;
-  if (!witness) return false;
+  if (paid && witness) rebuildScope("rebuild conflicting saved arrival Auto evidence");
+  if (!witness) return paid;
   if (witness.version !== 1 || witness.source.card !== pending.card || witness.skillIndex !== pending.skillIndex || !Number.isSafeInteger(witness.scope) || witness.scope < 1 || !Number.isSafeInteger(witness.source.epoch) || witness.source.epoch < 0 || !Number.isSafeInteger(witness.arrival.epoch) || witness.arrival.epoch < 0) rebuildScope("rebuild this saved arrival Auto witness");
   // This is historical evidence, not a requirement that the source remains
   // in that area. RM 9-6-11 preserves the already-pending skill after movement.
@@ -198,6 +220,16 @@ export function validateScopeStack(state: VmState): void {
   for (let i = 0; i < scopes.length; i++) {
     const scope = scopes[i];
     if (!["before", "effect", "after"].includes(scope.phase) || !scope.profile || ![0, 1, "many"].includes(scope.profile.arrivals) || typeof scope.profile.tokens !== "boolean" || typeof scope.profile.explicitWindow !== "boolean" || !Array.isArray(scope.played) || scope.played.some(p => typeof p.card !== "string" || !Number.isSafeInteger(p.epoch) || p.epoch < 0)) rebuildScope("rebuild this saved skill-play state");
+    if (scope.arrivalTiming !== undefined && (scope.arrivalTiming !== "paidCost" || scope.purpose !== undefined || scope.profile.arrivals !== 0
+      || scope.profile.tokens || scope.profile.explicitWindow || scope.played.length !== 1 || !scope.played[0].card)) rebuildScope("rebuild this saved paid-arrival Counter state");
+    if ((scope.arrivalTiming === "paidCost") !== !!scope.paidCost || !scope.purpose && scope.profile.arrivals === 0 && !scope.paidCost) {
+      rebuildScope("rebuild this saved paid-arrival scope receipt");
+    }
+    if (scope.paidCost) {
+      const paid = requireAutoPlayReceipt(scope.paidCost);
+      if (paid.phase !== "paid" || paid.master !== scope.master || paid.source.card !== scope.source || paid.skillIndex !== scope.skillIndex
+        || paid.arrival!.card !== scope.played[0].card || paid.arrival!.epoch !== scope.played[0].epoch) rebuildScope("rebuild this saved paid-arrival scope binding");
+    }
     if (scope.purpose !== undefined && (!["counterContinuation", "counterArrivalDecision"].includes(scope.purpose) || scope.profile.arrivals !== 0 || scope.profile.tokens || scope.profile.explicitWindow || scope.window || scope.played.length || scope.phase !== "effect")) rebuildScope("rebuild this saved Counter continuation lifetime");
     if (scope.window && (!Array.isArray(scope.window.programs) || scope.phase === "effect")) rebuildScope("rebuild this saved skill-play window state");
     if (scope.version !== 2 || !Number.isSafeInteger(scope.id) || scope.id < 1 || scope.id > (state.nextSkillPlayScope ?? 0) || scope.parent !== scopes[i - 1]?.id || i > 0 && scope.id <= scopes[i - 1].id) rebuildScope("rebuild this saved skill-play ancestry");

@@ -179,6 +179,13 @@ for (const seat of ["p1", "p2"] as const) {
   const targets = [stage(s, seat, "SPS5_FILLER", "hand"), ...(many ? [stage(s, seat, "SPS5_FILLER", "hand")] : [])];
   const crusher = stage(s, opponent, "BT1-110", "hand"); energy(s, opponent, 1);
   s = activate(s, source); assert.equal(s.prompt.kind, "counter", "window1 precedes card choice"); assert.ok(targets.every(id => s.sides[seat].zones.hand.includes(id)));
+  // R510: lifecycle-before is not permission to forge an already-landed
+  // context. Refuse before either a real Counter or pass changes the save.
+  for (const answer of [null, crusher]) {
+   const forged = copy(s); forged.resolving!.landed = true; const before = JSON.stringify(forged);
+   assert.throws(() => RULES.apply(ctx, forged, { type: "counter", player: opponent, card: answer }), /R510/);
+   assert.equal(JSON.stringify(forged), before); cases++;
+  }
   s = counter(copy(s), crusher); assert.equal(s.prompt.kind, "chooseCards");
   for (const target of targets) s = choose(copy(s), [target]); assert.ok(targets.every(id => s.cards[id].mode === "rest" && s.sides[seat].zones.battle.includes(id))); assert.equal(s.skillPlayScopes, undefined); cases++;
  }

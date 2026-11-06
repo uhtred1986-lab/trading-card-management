@@ -1,4 +1,6 @@
 import { paymentEffectFrame } from "./applied-effect-receipt";
+import { requireAutoPlayCost, underOpponentPlayPrice } from "./auto-play-cost";
+import { payUnderOpponentPlay, prepareAutoPlayCost, requireAutoPlayProgram } from "./auto-play-cost-runtime";
 import { guardCostEnergyEntry } from "./energy-entry-preflight";
 import { captureTaxPayers, taxPayerProblem, taxPayerProgramProblem, markTaxPayerPaid, type TaxPayers } from "./tax-payers";
 import { bindPaidMarkers } from "./paid-markers";
@@ -99,7 +101,21 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
   const poweredPrice = (id: string): boolean => !!state.cards[id] && ["battle", "leader"].includes(host.areaOf(id) ?? "");
   return {
     ...host,
-    guardEnergyEntryFrame: frame => { guardCostEnergyEntry(ctx,state,host,frame); host.guardEnergyEntryFrame?.(frame); },
+    playAsCost: true,
+    playThen: (cards, opts, frame) => payUnderOpponentPlay(ctx, game, state, ev, host, cards, opts, frame,
+      () => { throw new AutoPaymentFailed("the original Auto play payment did not complete"); }),
+    taxesOn: (what, opts) => {
+      const taxes = host.taxesOn(what, opts);
+      if (what === "play" && taxes.length) throw new NotYet("pay an Auto play cost with an additional play tax", "R510");
+      return taxes;
+    },
+    guardEnergyEntryFrame: frame => {
+      if (frame.autoPlayCost || underOpponentPlayPrice(frame.ops)) {
+        requireAutoPlayProgram(ctx, frame);
+        if (!frame.vars || typeof frame.vars !== "object" || Array.isArray(frame.vars)) throw new NotYet("rebuild this Auto play-cost variable bindings", "R510");
+      }
+      guardCostEnergyEntry(ctx,state,host,frame); host.guardEnergyEntryFrame?.(frame);
+    },
     forbids: (what, opts) => {
       if (host.forbids(what, opts)) unpaid();
       return false;
@@ -117,6 +133,10 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       if (f.counterCost && f.counterCost.extra?.phase !== "skillAction" && !sel.special) found = found.filter((id) => id !== f.card);
       const op = f.ops[f.ip];
       if (op?.op === "choose" && op.sel === sel) {
+        if (underOpponentPlayPrice(f.ops)?.as === op.as) {
+          requireAutoPlayProgram(ctx, f);
+          found = found.filter(id => !host.forbids("play", { player: f.master, card: id, source: f.card, bySkill: false }));
+        }
         const following = f.ops.slice(f.ip + 1).find((o) => (o.op === "switchMode" || o.op === "hidden" || o.op === "ko" || o.op === "comboFrom") && "var" in o.target && o.target.var === op.as);
         if (following?.op === "switchMode") found = found.filter((id) => host.modeOf(id) !== following.mode);
         if (following?.op === "hidden") found = found.filter((id) => host.isHidden(id) !== following.hidden);
@@ -138,6 +158,10 @@ export function automaticPriceHost(ctx: EngineContext, game: GameDefinition, sta
       reviveTaxPayers(state, f, true);
       const found = host.resolveRef(f, ref);
       const op = f.ops[f.ip];
+      if (op?.op === "play") {
+        requireAutoPlayProgram(ctx, f);
+        if (found.length !== 1) unpaid();
+      }
       // The ordinary effect interpreter skips Leader departures. A skipped
       // instruction cannot count as a completed cost.
       if (op?.op === "moveTo" && ref === op.target
@@ -574,7 +598,10 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
     s.programs = [];
     try {
       const result = stepScript(hostForProof ? hostForProof(s, f) : automaticPriceHost(ctx, game, s, [], f), f);
-      if (result === "done") return complete ? complete(s, f) : true;
+      if (result === "done") {
+        if (f.autoPlayCost && requireAutoPlayCost(f).phase !== "paid") return false;
+        return complete ? complete(s, f) : true;
+      }
       if (s.programs[0] !== f) return false;
       const prompt = s.prompt;
       const same = prompt.kind === "chooseCards" && fixedPositional ? interchangeableCandidates(ctx, game, s, f, prompt.choice.candidates, fixedPositional) : new Map<string, string>();
@@ -605,6 +632,7 @@ export function canFinishAutomaticPrice(ctx: EngineContext, game: GameDefinition
 /** Refuse unimplemented instructions explicitly, rather than calling an
  * unsupported price unaffordable or letting its effect run for free. */
 export function readableAutomaticPrice(ops: Op[], label = "Auto", owner = "#549", { draw = false }: { draw?: boolean } = {}): void {
+  if (label === "Auto" && underOpponentPlayPrice(ops)) return;
   const pays = (branch: Op[]): boolean => branch.some((op) => op.op === "moveTo" || op.op === "discard" || op.op === "mill"
     || op.op === "switchMode" || op.op === "hidden" || op.op === "removeMarker" || op.op === "reveal" || op.op === "faceUp"
     || op.op === "ko" || op.op === "addMarker" || op.op === "forbid" || op.op === "comboFrom" || op.op === "power"
@@ -756,6 +784,7 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
   if (paymentGap) throw new NotYet(`read this Auto's typed skill cost (${paymentGap})`, "#549");
   const ops = script.price?.ops ?? [];
   readableAutomaticPrice(ops);
+  if (underOpponentPlayPrice(ops)) prepareAutoPlayCost(ctx, state, frame, ops, vmHost(ctx, game, state, []));
   const costs = game.actions.activate?.cost;
   if (!costs) throw new RulesetBroken(game.id, "automatic skill costs need the declared activation prices");
   const line = { card: frame.card, skillIndex: skill.index, skill, kind: skill.kind, script: { ...script, price: script.price ? { ...script.price, payWith: [] } : undefined } };
@@ -804,6 +833,11 @@ export function prepareAutomaticCost(ctx: EngineContext, game: GameDefinition, s
 /** Finish the activation only after the entire action price completed. */
 export function finishAutomaticCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame & { autoRevealEpoch?: number }): void {
   const cost = frame.autoCost!;
+  if (underOpponentPlayPrice(frame.ops) && !frame.autoPlayCost) requireAutoPlayCost(frame);
+  if (frame.autoPlayCost && (requireAutoPlayCost(frame).phase !== "paid" || cost.taxGate)) {
+    throw new NotYet("finish this Auto play cost before its full payment and supported activation", "R510");
+  }
+  if (frame.autoPlayCost) requireAutoPlayProgram(ctx, frame);
   // R467: a Revive tax is still a cost. Reuse the strict action-price
   // runner, rather than generic TaxGate's ordinary effect interpreter.
   if (cost.reviveTax && cost.taxGate) {

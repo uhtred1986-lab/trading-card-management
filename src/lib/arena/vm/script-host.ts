@@ -372,5 +372,7 @@ export interface ScriptHost {
    * keyword whose own move this play is ([Over Realm], 22-15), carried onto
    * the arrival so `playedUsingOverRealm` can tell it from an ordinary play.
    */
+  /** R510: an action-price play is not a play made by the skill's effect. */
+  playAsCost?: true;
   playThen(cards: string[], opts: { playPermission?: NonNullable<Parameters<ScriptHost["forbids"]>[1]>; player: PlayerId; mode?: Mode; onto?: string; under?: string[]; negated?: "turn" | "game"; negatedKinds?: NegatedSkillKind[]; negatedUntil?: Duration; counterWindow?: true; markers?: number; using?: string; toOwners?: true; toOpponent?: true }, frame: ScriptFrame): "wait" | void;
 }

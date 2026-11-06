@@ -108,6 +108,8 @@ export interface CopiedSkillCapture {
 }
 
 export interface VmPending {
+  /** R510: this actual Auto pended during an already-completed play cost. */
+  paidArrivalWitness?: import("./auto-play-cost").PaidArrivalWitness;
   koBinding?: import("./ko-result").KoBinding;
   /** Exact copied declaration captured before deletion/expiry of its grant. */
   copiedSkillCapture?: CopiedSkillCapture;

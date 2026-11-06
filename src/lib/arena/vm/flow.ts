@@ -115,6 +115,8 @@ import { queueUniqueChoice, stepUniqueKeep } from "./unique";
 import { emptyUnisons } from "./unison-zero";
 import { requireReviveFrame, reviveCostPayable, queueReviveCost, stepReviveCost } from "./revive-costs";
 import { AutoPaymentFailed, automaticResourcesFinish, automaticPriceHost, reviveTaxPayers, beginAutomaticCost, canFinishAutomaticPrice, finishAutomaticCost, prepareAutomaticCost } from "./auto-costs";
+import { requireAutoPlayProgram, requireCounterArrivalTiming } from "./auto-play-cost-runtime";
+import { underOpponentPlayPrice } from "./auto-play-cost";
 import { requireZAwakenBindings, activationTaxGate, activationTaxes, stepTaxGate, guardExtraCounterTaxPayment, unpaidActivationTax, unpaidKeywordPlayTax, type TaxGate } from "./activate";
 import { describeScript } from "./script-schema";
 import { IllegalAction } from "./common";
@@ -1034,7 +1036,7 @@ function checkpoint(ctx: EngineContext, game: GameDefinition, state: VmState, ev
   // R487: after source departure, a fresh occurrence's negation cannot cancel
   // this validated old occurrence. Same-occurrence timing remains unchanged.
   const departedPairedSource = !!next.pairedSelf && state.cards[next.card].pairedSelfToken !== next.pairedSelf.token;
-  if (!departedPairedSource && !arrivalAutoWasActive(next) && (captured.deleted || skillNegated(state, next.card, next.skillIndex, skill?.kind))) {
+  if (!departedPairedSource && !arrivalAutoWasActive(next, state) && (captured.deleted || skillNegated(state, next.card, next.skillIndex, skill?.kind))) {
     log(ev, { type: "note", text: `${noteName} is negated, so it does not resolve` });
     return true;
   }
@@ -1177,6 +1179,7 @@ function queueAutomatic(ctx: EngineContext, game: GameDefinition, state: VmState
   }
   try {
     const autoCost = prepareAutomaticCost(ctx, game, state, frame, skill, program);
+    if (frame.autoPlayCost && taxGate) throw new NotYet("pay an Auto play cost with an additional activation tax", "R510");
     if (taxGate) {
       // 9-6-4: one decision for the whole cost — the printed price and the
       // rule's prices with it — so the option names both.
@@ -1446,6 +1449,7 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
   const frame = state.programs.shift();
   if (!frame) return "done";
   try {
+    requireCounterArrivalTiming(ctx, state);
     if (frame.energyCharge || state.energyCharge) requireEnergyCharge(game,state,frame);
     if (frame.fieldCleanup) return stepFieldCleanup(ctx, game, state, ev, frame);
     if (frame.awakenAlternativeCost) return stepAwakenAlternative(ctx, game, state, ev, frame);
@@ -1643,6 +1647,8 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     // answered here waits at the front under the answer's own motion.
     const nativeDeclared = !!state.resolving && !state.resolving.scopeWindow && !state.resolving.landed && state.resolving.card === frame.card && state.resolving.player === frame.master && frame.skillIndex === undefined && frame.vars.card?.includes(frame.card) && frame.ops.length === 1 && frame.ops[0].op === "play" && "var" in frame.ops[0].target && frame.ops[0].target.var === "card";
     if (!nativeDeclared) requireSkillEffectOrigin(frame, sourceScript, frame.skillIndex === undefined && state.cards[frame.card] ? Object.values(skillsShowing(ctx, state, frame.card).scripts.bySkill) : []);
+    if (frame.autoPlayCost || (frame.skillEffectOrigin?.kind === "auto" || !frame.skillEffectOrigin && frame.trigger)
+      && sourceScript?.kind === "auto" && underOpponentPlayPrice(sourceScript.price?.ops ?? [])) requireAutoPlayProgram(ctx, frame, true);
     const skillScope = startSkillPlayScope(state, frame);
     if (skillScope?.phase === "before" && openSkillPlayWindow(ctx, game, state, frame, skillScope, "before")) return "wait";
     if (frame.counterMotion && !frame.counterMotion.opened && openCounterCounterWindow(ctx, game, state, frame)) {

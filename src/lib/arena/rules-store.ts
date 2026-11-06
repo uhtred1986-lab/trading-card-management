@@ -1,4 +1,5 @@
 import { standingWholeDescriptor, standingWholePrinted, standingWholeScript } from "./vm/standing-negation-policy";
+import { autoPlayEnvelopeProblem, underOpponentPlayPrice } from "./vm/auto-play-cost";
 import { compileEnergyEntryPolicy } from "./compile/energy-entry";
 import { containsEnergyEntryDescriptor, energyEntryDescriptor } from "./vm/energy-entry-policy";
 import { dropComboRecordGap } from "./vm/drop-combo-contract";
@@ -352,6 +353,12 @@ function supportedStandingWhole(row: Parameters<typeof runtimeSupportOfRow>[0]):
       validity: row.validity as ValidityRecord, price: priceOfRow(row as RuleRow) });
 }
 
+function autoPlayRecordGap(row: Parameters<typeof runtimeSupportOfRow>[0]): string | null {
+  const cost = row.cost as CostRecord | null;
+  if (row.kind.toLowerCase() !== "auto" || costRecordProblem(cost) || !cost?.program || !hasOp(cost.program, "play")) return null;
+  return autoPriceGap(cost) ?? autoPlayEnvelopeProblem({ kind: "auto", price: priceOfRow(row as RuleRow), ops: row.ops as Op[], trigger: row.trigger as Trigger[] });
+}
+
 /**
  * The rule record's review status does not answer what the rules engine can
  * execute. Keep this check bounded to gaps the runtime already names. The
@@ -375,6 +382,11 @@ export function runtimeSupportOfRow(row: Pick<RuleRow, "kind" | "unread" | "ops"
   if (kind === "auto") {
     const gap = autoPriceGap(cost);
     if (gap) unsupported.push(gap);
+    if (!costRecordProblem(row.cost) && underOpponentPlayPrice(cost?.program ?? [])) {
+      const playGap = autoPlayRecordGap(row);
+      if (playGap) unsupported.push(playGap);
+      else unknown.push("Auto play-cost support depends on a plain under-card occurrence, synchronous original payment and landed Counter timing bounds");
+    }
   }
   if (kind === "auto" && (!Array.isArray(row.trigger) || row.trigger.length === 0) && !supportedComboReplacement(row)) {
     unsupported.push("the Auto rule has no readable WHEN trigger");
@@ -544,7 +556,7 @@ export function rulesFromRows(rows: RuleRow[], defs: Record<string, CardDef>): R
     // that edit a label and nothing more (`skillAnswersTo` in `triggers.ts`).
     const trigger = (row.trigger ?? []) as Trigger[];
     const support = runtimeSupportOfRow(row);
-    const blocksExecution = row.status === "open" || ((standingWholeDescriptor(row.ops) || parseSkills(row.printed).some(standingWholePrinted)) && !supportedStandingWhole(row)) || (containsEnergyEntryDescriptor(row.ops) && !supportedEnergyEntry(row)) || !!fusedSkillBoundaryGap(row) || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!counterArrivalRecordGap(row) || !!dropComboRecordGap(row) || !!extraActivationContractGap(row) || !!markerHistoryContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || !!awakenAlternativeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
+    const blocksExecution = row.status === "open" || !!autoPlayRecordGap(row) || ((standingWholeDescriptor(row.ops) || parseSkills(row.printed).some(standingWholePrinted)) && !supportedStandingWhole(row)) || (containsEnergyEntryDescriptor(row.ops) && !supportedEnergyEntry(row)) || !!fusedSkillBoundaryGap(row) || !!validityProblem(row.validity) || !!usageProblem(row.usage) || !!costRecordProblem(row.cost) || (row.cost as CostRecord)?.readable === false || materialContractGaps(row).length > 0 || !!resolvingPlayContractGap(row) || !!shortPlayReplacementGap(row) || !!counterArrivalRecordGap(row) || !!dropComboRecordGap(row) || !!extraActivationContractGap(row) || !!markerHistoryContractGap(row) || !!negationAreaContractGap(row) || !!comboContractGap(row) || !!comboDepartureContractGap(row) || !!movementResultContractGap(row) || !!couponScopeContractGap(row) || !!spiritBoostContractGap(row) || !!awakenAlternativeContractGap(row) || ((row.status === "confirmed" || row.status === "corrected") && support.unsupported.length > 0);
 
     base.bySkill[row.skillIndex] = row.status === "open"
       ? { kind: row.kind as import("./types").Skill["kind"], ops: [], unsupported: support.unsupported, price, trigger, usage: row.usage as UsageRecord, validity: row.validity as ValidityRecord, ...(row.combo != null ? { combo: row.combo as ComboQualification } : {}) }

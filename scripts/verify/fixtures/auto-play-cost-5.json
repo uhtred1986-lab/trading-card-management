@@ -1,0 +1,1795 @@
+[
+  {
+    "card": {
+      "id": "BT21-068",
+      "type": "LEADER",
+      "colors": [
+        "Green"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Cell",
+      "characters": [
+        "Cell"
+      ],
+      "traits": [
+        "Android"
+      ],
+      "skill": "[Auto] When this card is placed in your Leader Area, place up to 1 {Gingertown} from your deck in your opponent's Battle Area.<br>[Activate: Main] Switch this card to Rest Mode and place 1 green \u226aAndroid\u226b from your hand at the bottom of your deck: Draw 2 cards.<br>[Awaken] When your life is at 5 or less or there is a green &lt;Cell&gt; with an energy cost of 3 in play: Play up to 1 &lt;Android 17&gt; and 1 &lt;Android 18&gt;\u2015both green and with an energy cost of 2\u2015from your deck to your opponent's Battle Area, shuffle your deck, then add cards from your life to your hand until you have 5 life left.",
+      "backName": "Cell, The Greatest Threat to Mankind",
+      "backSkill": "[Permanent] Unless there are 1 or more cards of both &lt;Android 17&gt; and &lt;Android 18&gt;\u2015both green and with an energy cost of 2\u2015under this card, you can't activate [Z-Awaken].<br>[Auto][Once per turn] When you use one of your opponent's Battle Cards in a combo, this card gets +5000 power until the end of your opponent's turn.<br>[Auto] When this card attacks, draw 1 card, choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less from your Drop or your opponent's Battle Area and place it under this card."
+    },
+    "faq": [
+      {
+        "name": "Cell, The Greatest Threat to Mankind",
+        "qa": [
+          {
+            "q": "If there is 1 Blue/Green {BT17-136 Android 17 & Android 18, Team-Up Attack} with an energy cost of 2 under this card, can you activate [Z-Awaken] even when this card\u2019s [Permanent] skill is active?",
+            "a": "Yes, you can."
+          }
+        ]
+      }
+    ],
+    "records": [
+      {
+        "cardId": "BT21-068",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Auto] When this card is placed in your Leader Area, place up to 1 {Gingertown} from your deck in your opponent's Battle Area.",
+        "kind": "auto",
+        "trigger": [
+          "leaderPlaced"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [
+          "place up to 1 {Gingertown} from your deck in your opponent's Battle Area"
+        ],
+        "pattern": "place up to N \u2026 from your deck in your opponent's battle area",
+        "reads": ""
+      },
+      {
+        "cardId": "BT21-068",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Activate: Main] Switch this card to Rest Mode and place 1 green \u226aAndroid\u226b from your hand at the bottom of your deck: Draw 2 cards.",
+        "kind": "activate:main",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Switch this card to Rest Mode and place 1 green \u226aAndroid\u226b from your hand at the bottom of your deck",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": [
+            {
+              "op": "switchMode",
+              "target": {
+                "sel": {
+                  "special": "self"
+                }
+              },
+              "mode": "rest"
+            },
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "hand",
+                "filter": {
+                  "colors": [
+                    "Green"
+                  ],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [
+                    "android"
+                  ],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": null,
+                  "costMax": null,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "c0",
+              "reason": "place 1 green \u226aAndroid\u226b from your hand at the bottom of your deck"
+            },
+            {
+              "op": "moveTo",
+              "target": {
+                "var": "c0"
+              },
+              "to": "deck",
+              "position": "bottom"
+            }
+          ]
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 2
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 2"
+      },
+      {
+        "cardId": "BT21-068",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Awaken] When your life is at 5 or less or there is a green <Cell> with an energy cost of 3 in play: Play up to 1 <Android 17> and 1 <Android 18>\u2015both green and with an energy cost of 2\u2015from your deck to your opponent's Battle Area, shuffle your deck, then add cards from your life to your hand until you have 5 life left.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "When your life is at 5 or less or there is a green <Cell> with an energy cost of 3 in play",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "any",
+            "conds": [
+              {
+                "kind": "life",
+                "side": "you",
+                "atMost": 5
+              },
+              {
+                "kind": "count",
+                "sel": {
+                  "side": "you",
+                  "area": "play",
+                  "filter": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [
+                      "cell"
+                    ],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": null,
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": 3,
+                    "costMax": 3,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                },
+                "atLeast": 1
+              }
+            ]
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "shuffle"
+          },
+          {
+            "op": "lifeDownTo",
+            "n": 5
+          }
+        ],
+        "unread": [
+          "Play up to 1 <Android 17> and 1 <Android 18>\u2015both green and with an energy cost of 2\u2015from your deck to your opponent's Battle Area"
+        ],
+        "pattern": "play up to N \u2026 and N \u2026\u2015both green and with an energy cost of N\u2015from your deck to your opponent's battle area",
+        "reads": "shuffle, life down to 5, the cards going to hand"
+      },
+      {
+        "cardId": "BT21-068",
+        "side": "back",
+        "skillIndex": 0,
+        "printed": "[Permanent] Unless there are 1 or more cards of both <Android 17> and <Android 18>\u2015both green and with an energy cost of 2\u2015under this card, you can't activate [Z-Awaken].",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "activateSkill",
+            "side": "you",
+            "until": "game",
+            "keywordSkill": "Z-Awaken",
+            "unless": {
+              "kind": "all",
+              "conds": [
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "under",
+                    "filter": {
+                      "colors": [
+                        "Green"
+                      ],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "android 17"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": 2,
+                      "costMax": 2,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  },
+                  "atLeast": 1
+                },
+                {
+                  "kind": "count",
+                  "sel": {
+                    "side": "you",
+                    "area": "under",
+                    "filter": {
+                      "colors": [
+                        "Green"
+                      ],
+                      "notColors": [],
+                      "monoColor": false,
+                      "multiColor": false,
+                      "characters": [
+                        "android 18"
+                      ],
+                      "notCharacters": [],
+                      "charactersIncluding": [],
+                      "notCharactersIncluding": [],
+                      "charactersAll": [],
+                      "namesAll": [],
+                      "traits": [],
+                      "notTraits": [],
+                      "characterOrTrait": false,
+                      "onlyCharacters": false,
+                      "names": [],
+                      "notNames": [],
+                      "namesIncluding": [],
+                      "notNamesIncluding": [],
+                      "notKeywords": [],
+                      "keywords": [],
+                      "skillKind": null,
+                      "unreadable": false,
+                      "noKeywords": false,
+                      "type": null,
+                      "notType": null,
+                      "faceUp": false,
+                      "token": false,
+                      "notToken": false,
+                      "costMin": 2,
+                      "costMax": 2,
+                      "powerMin": null,
+                      "powerMax": null,
+                      "originalPowerMin": null,
+                      "originalPowerMax": null,
+                      "comboPowerMin": null,
+                      "comboPowerMax": null,
+                      "markersMin": null,
+                      "markersMax": null,
+                      "specifiedCostMin": null,
+                      "specifiedCostMax": null,
+                      "specifiedCostNone": false,
+                      "costAtMostEnergy": false,
+                      "costBelowEnergy": false,
+                      "costAtLeastEnergy": false,
+                      "costAboveEnergy": false,
+                      "energyOfOpponent": false,
+                      "originallySkillLess": false,
+                      "skillLess": false,
+                      "powerRel": null,
+                      "nameInSkillTextOf": null,
+                      "z": null
+                    }
+                  },
+                  "atLeast": 1
+                }
+              ]
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "forbid:activateSkill",
+        "reads": "you can't activate [Z-Awaken] unless there are 1 or more green <android 17> cards with an energy cost of 2 under this card and there are 1 or more green <android 18> cards with an energy cost of 2 under this card"
+      },
+      {
+        "cardId": "BT21-068",
+        "side": "back",
+        "skillIndex": 10,
+        "printed": "[Auto][Once per turn] When you use one of your opponent's Battle Cards in a combo, this card gets +5000 power until the end of your opponent's turn.",
+        "kind": "auto",
+        "trigger": [
+          "youCombo"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": true,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "special": "subject",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": "BATTLE",
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "ops": [
+          {
+            "op": "power",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            },
+            "amount": 5000,
+            "until": "nextTurn"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:count[power]",
+        "reads": "if that card is a Battle Card: this card +5000 power until the end of your opponent's turn"
+      },
+      {
+        "cardId": "BT21-068",
+        "side": "back",
+        "skillIndex": 20,
+        "printed": "[Auto] When this card attacks, draw 1 card, choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less from your Drop or your opponent's Battle Area and place it under this card.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "area": "drop",
+              "areas": [
+                "drop",
+                "battle"
+              ],
+              "areaSides": [
+                "you",
+                "opponent"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": "BATTLE",
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": 3,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "choose up to 1 of your opponent's Battle Cards with an energy cost of 3 or less from your Drop or your opponent's Battle Area"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "under"
+          }
+        ],
+        "unread": [],
+        "pattern": "draw\u2192choose\u2192moveTo",
+        "reads": "draw 1, choose up to 1 Battle Card with an energy cost of 3 or less in your Drop Area or in your opponent's Battle Area, move the chosen cards under this card"
+      }
+    ]
+  },
+  {
+    "card": {
+      "id": "BT21-071",
+      "type": "Z-LEADER",
+      "colors": [
+        "Green"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": "1",
+      "power": 15000,
+      "name": "Cell, Waiting Impatiently",
+      "characters": [
+        "Cell"
+      ],
+      "traits": [
+        "Android"
+      ],
+      "skill": "[z-awaken]{g}: Green <Cell> with an original power of 10000.<br>[z-stack 2] Green <Cell> Leader.<br>[auto] When this card attacks, draw 1 card.<br>[auto] If your life is at 3 or less and you play 1 <Android 18> with an energy cost of 2 from under this card into your opponent's Battle Area: When you take damage from an opponent's attack, place up to 1 {Cell, About to Explode} from under this card on top of this card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": [
+      {
+        "cardId": "BT21-071",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[z-awaken]{g}: Green <Cell> with an original power of 10000.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {
+            "Green": 1
+          },
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Z-Awaken",
+        "reads": ""
+      },
+      {
+        "cardId": "BT21-071",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[z-stack 2] Green <Cell> Leader.",
+        "kind": "keyword",
+        "trigger": [
+          "leaderPlaced",
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Z-Stack",
+        "reads": ""
+      },
+      {
+        "cardId": "BT21-071",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[auto] When this card attacks, draw 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "attacks"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1
+          }
+        ],
+        "unread": [],
+        "pattern": "draw",
+        "reads": "draw 1"
+      },
+      {
+        "cardId": "BT21-071",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[auto] If your life is at 3 or less and you play 1 <Android 18> with an energy cost of 2 from under this card into your opponent's Battle Area: When you take damage from an opponent's attack, place up to 1 {Cell, About to Explode} from under this card on top of this card.",
+        "kind": "auto",
+        "trigger": [
+          "youTookBattleDamage"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your life is at 3 or less and you play 1 <Android 18> with an energy cost of 2 from under this card into your opponent's Battle Area",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "life",
+            "side": "you",
+            "atMost": 3
+          },
+          "program": [
+            {
+              "op": "choose",
+              "sel": {
+                "side": "you",
+                "area": "under",
+                "filter": {
+                  "colors": [],
+                  "notColors": [],
+                  "monoColor": false,
+                  "multiColor": false,
+                  "characters": [
+                    "android 18"
+                  ],
+                  "notCharacters": [],
+                  "charactersIncluding": [],
+                  "notCharactersIncluding": [],
+                  "charactersAll": [],
+                  "namesAll": [],
+                  "traits": [],
+                  "notTraits": [],
+                  "characterOrTrait": false,
+                  "onlyCharacters": false,
+                  "names": [],
+                  "notNames": [],
+                  "namesIncluding": [],
+                  "notNamesIncluding": [],
+                  "notKeywords": [],
+                  "keywords": [],
+                  "skillKind": null,
+                  "unreadable": false,
+                  "noKeywords": false,
+                  "type": null,
+                  "notType": null,
+                  "faceUp": false,
+                  "token": false,
+                  "notToken": false,
+                  "costMin": 2,
+                  "costMax": 2,
+                  "powerMin": null,
+                  "powerMax": null,
+                  "originalPowerMin": null,
+                  "originalPowerMax": null,
+                  "comboPowerMin": null,
+                  "comboPowerMax": null,
+                  "markersMin": null,
+                  "markersMax": null,
+                  "specifiedCostMin": null,
+                  "specifiedCostMax": null,
+                  "specifiedCostNone": false,
+                  "costAtMostEnergy": false,
+                  "costBelowEnergy": false,
+                  "costAtLeastEnergy": false,
+                  "costAboveEnergy": false,
+                  "energyOfOpponent": false,
+                  "originallySkillLess": false,
+                  "skillLess": false,
+                  "powerRel": null,
+                  "nameInSkillTextOf": null,
+                  "z": null
+                },
+                "count": 1,
+                "upTo": false
+              },
+              "as": "p0",
+              "reason": "play 1 <Android 18> with an energy cost of 2 from under this card into your opponent's Battle Area"
+            },
+            {
+              "op": "play",
+              "target": {
+                "var": "p0"
+              },
+              "toOpponent": true
+            }
+          ]
+        },
+        "cond": {
+          "kind": "life",
+          "side": "you",
+          "atMost": 3
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "under",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [
+                  "cell, about to explode"
+                ],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": true
+            },
+            "as": "c0",
+            "reason": "place up to 1 {Cell, About to Explode} from under this card on top of this card"
+          },
+          {
+            "op": "placeOnTop",
+            "target": {
+              "var": "c0"
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "if:life[choose\u2192placeOnTop]",
+        "reads": "if your life is 3 or less: choose up to 1 {cell, about to explode} card under this card, place the chosen cards on top of this card"
+      }
+    ]
+  },
+  {
+    "card": {
+      "id": "BT21-072",
+      "type": "Z-LEADER",
+      "colors": [
+        "Green"
+      ],
+      "cost": null,
+      "specified": null,
+      "z": "3",
+      "power": 10000,
+      "name": "Cell, About to Explode",
+      "characters": [
+        "Cell"
+      ],
+      "traits": [
+        "Android"
+      ],
+      "skill": "[Z-Awaken] Your life is at 1: Green &lt;Cell&gt;.<br>[Permanent] This card can't attack.<br>[Permanent] If there is a {Cell, Perfect Resurrection} under this card and your life becomes 0, instead of losing the game, choose all of your opponent's Battle Cards and Unisons other than Earthling Tokens, place them in their Drop, add the top 2 cards of your deck to your life, then place 1 {Cell, Perfect Resurrection} from under this card on top of this card.<br>[Auto] At the beginning of your turn, add all of your life to your hand.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [],
+    "records": [
+      {
+        "cardId": "BT21-072",
+        "side": "front",
+        "skillIndex": 0,
+        "printed": "[Z-Awaken] Your life is at 1: Green <Cell>.",
+        "kind": "keyword",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "Your life is at 1",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "life",
+            "side": "you",
+            "atLeast": 1,
+            "atMost": 1
+          },
+          "program": null
+        },
+        "cond": null,
+        "ops": [],
+        "unread": [],
+        "pattern": "keyword:Z-Awaken",
+        "reads": ""
+      },
+      {
+        "cardId": "BT21-072",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Permanent] This card can't attack.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "forbid",
+            "what": "attack",
+            "until": "game",
+            "target": {
+              "sel": {
+                "special": "self"
+              }
+            }
+          }
+        ],
+        "unread": [],
+        "pattern": "forbid:attack",
+        "reads": "this card can't attack"
+      },
+      {
+        "cardId": "BT21-072",
+        "side": "front",
+        "skillIndex": 20,
+        "printed": "[Permanent] If there is a {Cell, Perfect Resurrection} under this card and your life becomes 0, instead of losing the game, choose all of your opponent's Battle Cards and Unisons other than Earthling Tokens, place them in their Drop, add the top 2 cards of your deck to your life, then place 1 {Cell, Perfect Resurrection} from under this card on top of this card.",
+        "kind": "permanent",
+        "trigger": [],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "text": "",
+          "condition": null,
+          "program": null
+        },
+        "cond": {
+          "kind": "count",
+          "sel": {
+            "side": "you",
+            "area": "under",
+            "filter": {
+              "colors": [],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [
+                "cell, perfect resurrection"
+              ],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "atLeast": 1
+        },
+        "ops": [
+          {
+            "op": "choose",
+            "sel": {
+              "side": "opponent",
+              "area": "battle",
+              "areas": [
+                "battle",
+                "unison"
+              ],
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [
+                  "than earthling"
+                ],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": true,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null,
+                "anyOf": [
+                  {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "BATTLE",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  },
+                  {
+                    "colors": [],
+                    "notColors": [],
+                    "monoColor": false,
+                    "multiColor": false,
+                    "characters": [],
+                    "notCharacters": [],
+                    "charactersIncluding": [],
+                    "notCharactersIncluding": [],
+                    "charactersAll": [],
+                    "namesAll": [],
+                    "traits": [],
+                    "notTraits": [],
+                    "characterOrTrait": false,
+                    "onlyCharacters": false,
+                    "names": [],
+                    "notNames": [],
+                    "namesIncluding": [],
+                    "notNamesIncluding": [],
+                    "notKeywords": [],
+                    "keywords": [],
+                    "skillKind": null,
+                    "unreadable": false,
+                    "noKeywords": false,
+                    "type": "UNISON",
+                    "notType": null,
+                    "faceUp": false,
+                    "token": false,
+                    "notToken": false,
+                    "costMin": null,
+                    "costMax": null,
+                    "powerMin": null,
+                    "powerMax": null,
+                    "originalPowerMin": null,
+                    "originalPowerMax": null,
+                    "comboPowerMin": null,
+                    "comboPowerMax": null,
+                    "markersMin": null,
+                    "markersMax": null,
+                    "specifiedCostMin": null,
+                    "specifiedCostMax": null,
+                    "specifiedCostNone": false,
+                    "costAtMostEnergy": false,
+                    "costBelowEnergy": false,
+                    "costAtLeastEnergy": false,
+                    "costAboveEnergy": false,
+                    "energyOfOpponent": false,
+                    "originallySkillLess": false,
+                    "skillLess": false,
+                    "powerRel": null,
+                    "nameInSkillTextOf": null,
+                    "z": null
+                  }
+                ]
+              },
+              "count": 99,
+              "upTo": false
+            },
+            "as": "c0",
+            "reason": "choose all of your opponent's Battle Cards and Unisons other than Earthling Tokens"
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "var": "c0"
+            },
+            "to": "drop",
+            "reveal": true
+          },
+          {
+            "op": "moveTo",
+            "target": {
+              "sel": {
+                "side": "you",
+                "area": "deck",
+                "count": 2,
+                "upTo": false,
+                "take": 2
+              }
+            },
+            "to": "life"
+          },
+          {
+            "op": "choose",
+            "sel": {
+              "side": "you",
+              "area": "under",
+              "filter": {
+                "colors": [],
+                "notColors": [],
+                "monoColor": false,
+                "multiColor": false,
+                "characters": [],
+                "notCharacters": [],
+                "charactersIncluding": [],
+                "notCharactersIncluding": [],
+                "charactersAll": [],
+                "namesAll": [],
+                "traits": [],
+                "notTraits": [],
+                "characterOrTrait": false,
+                "onlyCharacters": false,
+                "names": [
+                  "cell, perfect resurrection"
+                ],
+                "notNames": [],
+                "namesIncluding": [],
+                "notNamesIncluding": [],
+                "notKeywords": [],
+                "keywords": [],
+                "skillKind": null,
+                "unreadable": false,
+                "noKeywords": false,
+                "type": null,
+                "notType": null,
+                "faceUp": false,
+                "token": false,
+                "notToken": false,
+                "costMin": null,
+                "costMax": null,
+                "powerMin": null,
+                "powerMax": null,
+                "originalPowerMin": null,
+                "originalPowerMax": null,
+                "comboPowerMin": null,
+                "comboPowerMax": null,
+                "markersMin": null,
+                "markersMax": null,
+                "specifiedCostMin": null,
+                "specifiedCostMax": null,
+                "specifiedCostNone": false,
+                "costAtMostEnergy": false,
+                "costBelowEnergy": false,
+                "costAtLeastEnergy": false,
+                "costAboveEnergy": false,
+                "energyOfOpponent": false,
+                "originallySkillLess": false,
+                "skillLess": false,
+                "powerRel": null,
+                "nameInSkillTextOf": null,
+                "z": null
+              },
+              "count": 1,
+              "upTo": false
+            },
+            "as": "c1",
+            "reason": "place 1 {Cell, Perfect Resurrection} from under this card on top of this card"
+          },
+          {
+            "op": "placeOnTop",
+            "target": {
+              "var": "c1"
+            }
+          }
+        ],
+        "unread": [
+          "your life becomes 0",
+          "instead of losing the game"
+        ],
+        "pattern": "your life becomes N",
+        "reads": "if there are 1 or more {cell, perfect resurrection} cards under this card: choose all Battle Cards or Unison Cards (and {than earthling} tokens) in your opponent's Battle Area or Unison Area, move the chosen cards to drop, move the top 2 cards in your deck to life, choose 1 {cell, perfect resurrection} card under this card, place the chosen cards on top of this card"
+      },
+      {
+        "cardId": "BT21-072",
+        "side": "front",
+        "skillIndex": 30,
+        "printed": "[Auto] At the beginning of your turn, add all of your life to your hand.",
+        "kind": "auto",
+        "trigger": [
+          "chargeStart"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": null,
+          "program": null
+        },
+        "cond": null,
+        "ops": [
+          {
+            "op": "moveTo",
+            "target": {
+              "sel": {
+                "side": "you",
+                "area": "life",
+                "count": 99,
+                "upTo": false
+              }
+            },
+            "to": "hand"
+          }
+        ],
+        "unread": [],
+        "pattern": "moveTo",
+        "reads": "move all cards in your Life Area to hand"
+      }
+    ]
+  },
+  {
+    "card": {
+      "id": "BT21-087",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "2",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Android 18, Encroaching Hand of Evil",
+      "characters": [
+        "Android 18"
+      ],
+      "traits": [
+        "Android"
+      ],
+      "skill": "[Deflect]<br>[Auto] If your opponent's Leader is a green &lt;Cell&gt;: When this card is played, your opponent draws 1 card.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Android 18, Encroaching Hand of Evil",
+        "qa": [
+          {
+            "q": "Your {BT21-068 Cell}\u2019s [Awaken] played this card in your opponent\u2019s Battle Area. Is the player that draws 1 card using this card\u2019s [Auto] skill you, or your opponent?",
+            "a": "You draw 1 card."
+          }
+        ]
+      }
+    ],
+    "records": [
+      {
+        "cardId": "BT21-087",
+        "side": "front",
+        "skillIndex": 10,
+        "printed": "[Auto] If your opponent's Leader is a green <Cell>: When this card is played, your opponent draws 1 card.",
+        "kind": "auto",
+        "trigger": [
+          "played"
+        ],
+        "combo": null,
+        "usage": {
+          "version": 1,
+          "oncePerTurn": false,
+          "limit": null
+        },
+        "validity": {
+          "version": 1,
+          "sparking": null
+        },
+        "cost": {
+          "version": 1,
+          "readable": true,
+          "text": "If your opponent's Leader is a green <Cell>",
+          "orbs": {},
+          "either": [],
+          "marker": null,
+          "burst": null,
+          "spiritBoost": null,
+          "condition": {
+            "kind": "leaderMatches",
+            "side": "opponent",
+            "filter": {
+              "colors": [
+                "Green"
+              ],
+              "notColors": [],
+              "monoColor": false,
+              "multiColor": false,
+              "characters": [
+                "cell"
+              ],
+              "notCharacters": [],
+              "charactersIncluding": [],
+              "notCharactersIncluding": [],
+              "charactersAll": [],
+              "namesAll": [],
+              "traits": [],
+              "notTraits": [],
+              "characterOrTrait": false,
+              "onlyCharacters": false,
+              "names": [],
+              "notNames": [],
+              "namesIncluding": [],
+              "notNamesIncluding": [],
+              "notKeywords": [],
+              "keywords": [],
+              "skillKind": null,
+              "unreadable": false,
+              "noKeywords": false,
+              "type": null,
+              "notType": null,
+              "faceUp": false,
+              "token": false,
+              "notToken": false,
+              "costMin": null,
+              "costMax": null,
+              "powerMin": null,
+              "powerMax": null,
+              "originalPowerMin": null,
+              "originalPowerMax": null,
+              "comboPowerMin": null,
+              "comboPowerMax": null,
+              "markersMin": null,
+              "markersMax": null,
+              "specifiedCostMin": null,
+              "specifiedCostMax": null,
+              "specifiedCostNone": false,
+              "costAtMostEnergy": false,
+              "costBelowEnergy": false,
+              "costAtLeastEnergy": false,
+              "costAboveEnergy": false,
+              "energyOfOpponent": false,
+              "originallySkillLess": false,
+              "skillLess": false,
+              "powerRel": null,
+              "nameInSkillTextOf": null,
+              "z": null
+            }
+          },
+          "program": null
+        },
+        "cond": {
+          "kind": "leaderMatches",
+          "side": "opponent",
+          "filter": {
+            "colors": [
+              "Green"
+            ],
+            "notColors": [],
+            "monoColor": false,
+            "multiColor": false,
+            "characters": [
+              "cell"
+            ],
+            "notCharacters": [],
+            "charactersIncluding": [],
+            "notCharactersIncluding": [],
+            "charactersAll": [],
+            "namesAll": [],
+            "traits": [],
+            "notTraits": [],
+            "characterOrTrait": false,
+            "onlyCharacters": false,
+            "names": [],
+            "notNames": [],
+            "namesIncluding": [],
+            "notNamesIncluding": [],
+            "notKeywords": [],
+            "keywords": [],
+            "skillKind": null,
+            "unreadable": false,
+            "noKeywords": false,
+            "type": null,
+            "notType": null,
+            "faceUp": false,
+            "token": false,
+            "notToken": false,
+            "costMin": null,
+            "costMax": null,
+            "powerMin": null,
+            "powerMax": null,
+            "originalPowerMin": null,
+            "originalPowerMax": null,
+            "comboPowerMin": null,
+            "comboPowerMax": null,
+            "markersMin": null,
+            "markersMax": null,
+            "specifiedCostMin": null,
+            "specifiedCostMax": null,
+            "specifiedCostNone": false,
+            "costAtMostEnergy": false,
+            "costBelowEnergy": false,
+            "costAtLeastEnergy": false,
+            "costAboveEnergy": false,
+            "energyOfOpponent": false,
+            "originallySkillLess": false,
+            "skillLess": false,
+            "powerRel": null,
+            "nameInSkillTextOf": null,
+            "z": null
+          }
+        },
+        "ops": [
+          {
+            "op": "draw",
+            "n": 1,
+            "side": "opponent"
+          }
+        ],
+        "unread": [],
+        "pattern": "if:leaderMatches[draw]",
+        "reads": "if their leader is Green <cell>: opponent draws 1"
+      }
+    ]
+  }
+]

@@ -1,4 +1,5 @@
 import { captureFlowPlacement, cleanupFlowPlacement } from "./flow-placement-cleanup";
+import { requireCounterArrivalTiming } from "./auto-play-cost-runtime";
 import type { MovementAutoHistory } from "./movement-auto-history";
 import { freshAppliedEffectRoot } from "./applied-effect-receipt";
 import { projectStandingNegationMoves } from "./standing-negation-projection";
@@ -744,6 +745,7 @@ export function counterAbilityAvailability(
   legal: LegalAction[],
   rejected: RejectedAction[],
 ): AbilityAvailability[] {
+  requireCounterArrivalTiming(ctx, state);
   const prompt = state.prompt;
   if (prompt.kind !== "counter") return [];
   if (prompt.player !== player) {
@@ -1251,6 +1253,7 @@ function stepExtraCounterCost(ctx: EngineContext, game: GameDefinition, state: V
 }
 
 export function stepCounterCost(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], frame: ScriptFrame): "done" | "wait" {
+  requireCounterArrivalTiming(ctx, state);
   const cost = frame.counterCost!;
   if (cost.extra) return stepExtraCounterCost(ctx, game, state, ev, frame);
   if (!cost.dropOrigin && baseTypeOf(ctx, state, frame.card) === "EXTRA") rebuildScope("rebuild the saved hand-Extra Counter payment phases");
@@ -1344,9 +1347,10 @@ function failCounter(ctx: EngineContext, game: GameDefinition, state: VmState, e
 
 function counterBindingIdentity(state: VmState, sk: Skill): Pick<ScriptFrame, "counterPlay" | "counterAnswerScope" | "resolvedPlayCards"> {
   const window = state.resolving?.scopeWindow;
-  return sk.kind === "counter:play" ? { counterPlay: true, ...(window?.boundary === "before" ? { counterAnswerScope: window.scope } : {}), ...(window?.boundary === "after" ? { resolvedPlayCards: structuredClone(state.skillPlayScopes?.find(s => s.id === window.scope)?.played ?? []) } : {}) } : {};
+  return sk.kind === "counter:play" ? { counterPlay: true, ...(window?.boundary === "before" && !state.resolving?.landed ? { counterAnswerScope: window.scope } : {}), ...(window && state.resolving?.landed ? { resolvedPlayCards: structuredClone(state.skillPlayScopes?.find(s => s.id === window.scope)?.played ?? []) } : {}) } : {};
 }
 function futureCounterProblem(state: VmState, sk: Skill, ops: Op[], parentOps?: Op[]): string | null {
+  if (state.resolving?.landed) return null;
   const scope = state.skillPlayScopes?.find(s => s.id === state.resolving?.scopeWindow?.scope);
   const profile = scope?.profile;
   if (sk.kind === "counter:play" && counterArrivalDescriptor(ops)) {
@@ -1468,6 +1472,7 @@ export function counterAlt(ctx: EngineContext, game: GameDefinition, state: VmSt
  * energy)" row (#439). The paid row keeps the shape it always had.
  */
 export function counterLegalActions(ctx: EngineContext, game: GameDefinition, state: VmState): LegalAction[] {
+  requireCounterArrivalTiming(ctx, state);
   const pr = state.prompt;
   if (pr.kind !== "counter") return [];
   const window = openWindowOf(pr.window);
@@ -1622,7 +1627,7 @@ export function openSkillPlayWindow(ctx: EngineContext, game: GameDefinition, st
   const previous = state.resolving ?? null;
   if (previous?.card && previous.frame && !previous.scopeWindow) previous.heldEpoch ??= state.cards[previous.card]?.zoneEpoch ?? 0;
   const counterMotion = boundary === "before" && !!frame.counterMotion;
-  state.resolving = { card: null, player: scope.master, scopeWindow: { scope: scope.id, boundary, ...(counterMotion ? { counterMotion: true } : {}) }, ...(boundary === "after" ? { landed: true } : {}) };
+  state.resolving = { card: null, player: scope.master, scopeWindow: { scope: scope.id, boundary, ...(counterMotion ? { counterMotion: true } : {}) }, ...(boundary === "after" || scope.arrivalTiming === "paidCost" ? { landed: true } : {}) };
   if (counterMotion) frame.counterMotion!.opened = true;
   const available = counterCandidates(ctx, game, state, other(scope.master), counterMotion ? "counter" : "play", true);
   const candidates = available.filter(c => !futureCounterProblem(state, c.skill, counterEffectOps(skillsShowing(ctx, state, c.card).scripts.bySkill[c.skill.index]), frame.ops));
@@ -1687,6 +1692,7 @@ function baseTypeOf(ctx: EngineContext, state: VmState, id: string): string {
  * continuation, the same promise every other costed move keeps.
  */
 export function applyCounter(ctx: EngineContext, game: GameDefinition, state: VmState, ev: GameEvent[], action: Action): "done" | "asked" {
+  requireCounterArrivalTiming(ctx, state);
   if (action.type !== "counter") throw new RulesetBroken(state.game, "applyCounter called on a non-counter action");
   requirePrompt(state, action, ["counter"]);
   const pr = state.prompt as Extract<Prompt, { kind: "counter" }>;
@@ -2039,6 +2045,7 @@ export function applyCombo(ctx: EngineContext, game: GameDefinition, state: VmSt
  */
 export function restoreNativePrompt(ctx: EngineContext, game: GameDefinition, state: VmState, action: Action): Prompt | null {
   if (action.type === "counter") {
+    requireCounterArrivalTiming(ctx, state);
     const responder = action.player;
     const window = windowNow(state);
     const candidates = counterCandidates(ctx, game, state, responder, window).map((c) => c.card);

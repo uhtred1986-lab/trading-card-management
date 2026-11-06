@@ -198,6 +198,7 @@ function paymentFrame(frame: ScriptFrame): boolean {
   return !!(frame.saveVarsAs || frame.autoCost || frame.counterCost || frame.keywordCost || frame.aegisCost || frame.reviveCost || frame.dropCost || frame.swapCost || frame.fieldCost || frame.counterSelfTax || frame.overRealmLateTax);
 }
 export function freshAppliedEffectRoot<T extends ScriptFrame>(state: VmState, frame: T, kind: Root['kind']): T {
+  delete frame.autoPlayCost;
   const root: Root = { kind, master: frame.master, source: effectOccurrence(state, frame.card), skillIndex: frame.skillIndex ?? null };
   frame.appliedEffects = beginRoot(root);
   frame.appliedPaymentEffects = beginRoot({ ...root, kind: 'tax' });
