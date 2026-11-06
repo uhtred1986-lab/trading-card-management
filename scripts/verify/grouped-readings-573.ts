@@ -247,8 +247,8 @@ for (const existing of [0, 2, 5, 6]) {
   const needed = Math.max(0, 5 - existing);
   assert.equal(result.state.cards[balls[0]!].under.length, existing + needed);
   assert.deepEqual(result.state.cards[balls[0]!].under,
-    [...top].reverse().concat(prior),
-    "fills with only the deck's top cards in the established stack order");
+    prior.concat(top),
+    "RM23-2-4: incoming top-deck cards append below the existing pile in order");
   assert.equal(zoneOf(result.state, "p1", "deck").length, before - needed);
   assert.equal(result.events.filter((e) => e.type === "stack" && e.top === balls[0]).length, needed);
   assert.equal(result.events.filter((e) => e.type === "skill" && e.card === koer).length, 1, "one Auto from this KO");
@@ -275,7 +275,7 @@ for (const existing of [0, 2, 5, 6]) {
   const top = zoneOf(state, "p1", "deck").slice();
   const result = battle(state, koer, victim);
   assert.equal(result.state.cards[balls[0]!].under.length, 3, "short deck contributes only available cards");
-  assert.deepEqual(result.state.cards[balls[0]!].under, [...top].reverse().concat(prior));
+  assert.deepEqual(result.state.cards[balls[0]!].under, prior.concat(top));
   assert.equal(result.events.filter((e) => e.type === "stack" && e.top === balls[0]).length, 2);
   assert.equal(result.state.cards[energy].mode, "active");
   assertConsistentG(result.state);

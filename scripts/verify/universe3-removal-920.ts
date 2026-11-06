@@ -234,7 +234,7 @@ for (const row of corpus) {
   const s = main(); const id = stage(s, "DB2-151", "battle"); const event = "920-one-event";
   const used = new Set([replacementIdentity(id, 0, event, id)]);
   const route = leaveRoute(ctx, game, s, [], id, "battle", "drop", { event, usedReplacements: used });
-  assert.deepEqual(route, { stays: false, to: "drop" });
+  assert.deepEqual(route, { stays: false, to: "drop", koProvenance: { skillReplacementApplied: false, nativeHook: "none" } });
 }
 // Native 8-5 cleanup: both seats, saved choice, and a generic Drop watcher.
 for (const owner of ["p1", "p2"] as const) {

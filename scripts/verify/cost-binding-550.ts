@@ -1,5 +1,4 @@
 import { zeroSkillPrice } from "../../src/lib/arena/vm/skill-payment";
-import { typedRecords } from "./records";
 /**
  * #550 (20-5-3, 4-3-3, 5-8-1, 9-7-3-2, 22-10-7): what a skill's price chose —
  * the cards it picked, and the X it fixed — is what the effect reads.
@@ -69,11 +68,14 @@ const defs: Record<string, CardDef> = { ...DEFS,
 };
 
 const compiled = rulesFromCompiler(defs);
-const xPrice = (effect: Script["ops"]): CardScripts => ({
+const xPrice = (id: "XACT550" | "XCNT550", effect: Script["ops"]): CardScripts => ({
   bySkill: {
     0: {
+      // Keep the real printed kind, trigger, usage and validity even though
+      // this explicit mechanism fixture supplies the X-binding operations.
+      ...compiled[id].bySkill[0],
       ops: effect,
-      unsupported: [], ...typedRecords(),
+      unsupported: [],
       price: { ...zeroSkillPrice(),
         condition: null,
         ops: [
@@ -87,8 +89,8 @@ const xPrice = (effect: Script["ops"]): CardScripts => ({
   unsupported: [],
 });
 const supplied: Record<string, CardScripts> = {
-  XACT550: xPrice([{ op: "draw", n: { x: true } }]),
-  XCNT550: xPrice([{ op: "negateAttack" } as Script["ops"][number], { op: "draw", n: { x: true } }]),
+  XACT550: xPrice("XACT550", [{ op: "draw", n: { x: true } }]),
+  XCNT550: xPrice("XCNT550", [{ op: "negateAttack" } as Script["ops"][number], { op: "draw", n: { x: true } }]),
 };
 const scripts = new Proxy({} as Record<string, CardScripts>, { get: (_, key) => supplied[key as string] ?? compiled[key as string] });
 const ctx: EngineContext = { ...CTX, defs, scripts };

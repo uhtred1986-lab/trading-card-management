@@ -80,7 +80,7 @@ for (const id of ["BT9-031", "DB2-004"]) {
   assert.deepEqual(auto({ x: { min: 0 } }), [], "a readable X price is supported");
   assert.deepEqual(auto(null), [], "a free Auto is unaffected");
   // Activate lines never were in this check.
-  assert.deepEqual(runtimeSupportOfRow({ kind: "activate:main", unread: [], ops: [], cost: { ...zeroCostRecord(), program: [{ op: "draw", n: 1 }] }, ...typedRecords(), trigger: [] } as never).unsupported, []);
+  assert.deepEqual(runtimeSupportOfRow({ kind: "activate:main", printed: "", unread: [], ops: [], cost: { ...zeroCostRecord(), program: [{ op: "draw", n: 1 }] }, ...typedRecords(), trigger: [] } as never).unsupported, []);
 }
 
 // ── 3. in a game: offered, paid or declined, effect only once paid ──────────

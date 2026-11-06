@@ -128,14 +128,18 @@ for (const take of [1, 2] as const) for (const removal of ["LEADER820-KO", "LEAD
   const s = choose(choose(b.s, [b.lifeIds[0]]), []);
   assert.equal(s.sides.p1.zones.life.length, 1);
 }
-// With one candidate 5-2-5 forces that one, then proceeds to the Broly choice.
+// With one candidate 5-2-5 forces that one. RM21-1-2-1 and21-2 make
+// zero-Life loss interruptive, even inside this Auto. Characterize the saved
+// continuation boundary here: the next answer may not play Broly. Immediate
+// loss before publishing that chooser is a separate instruction-boundary gap.
 {
   const b = board(1); assert.deepEqual(candidates(b.s), [b.broly]);
   assert.ok(b.s.sides.p1.zones.hand.includes(b.lifeIds[0]));
   assert.equal(b.s.sides.p1.zones.life.length, 0);
   const done = choose(b.s, [b.broly]);
-  assert.ok(done.sides.p1.zones.battle.includes(b.broly), "the skill finishes its play before the following checkpoint");
-  assert.equal(done.winner, "p2", "zero Life loses at the subsequent checkpoint (4-2, 21-2)");
+  assert.ok(!done.sides.p1.zones.battle.includes(b.broly), "interruptive zero-Life loss prevents the pending Broly play");
+  assert.ok(done.sides.p1.zones.hand.includes(b.broly));
+  assert.equal(done.winner, "p2", "zero Life loses even during the unfinished skill (21-1-2-1, 21-2)");
 }
 // With no Life, the interpreter binds no targets (5-2-6). Such a live game
 // cannot reach this Auto because its preceding checkpoint has already lost;

@@ -28,7 +28,11 @@ function requireSource(value:unknown):asserts value is OrdinaryActivateSource {
  if(!object(value)||!object(value.occurrence)||!object(value.skill)||!object(value.script)||!['p1','p2'].includes(String(value.master))||typeof value.flipped!=='boolean'||!object(value.priceContext)||typeof value.priceContext.optionalOwnDiscard!=='boolean')fail();
  const s=value as unknown as OrdinaryActivateSource,o=s.occurrence,sk=s.skill,script=s.script;
  if(typeof o.card!=='string'||!o.card||typeof o.cardId!=='string'||!o.cardId||!integer(o.epoch)||!integer(o.hiddenCount)||!['p1','p2'].includes(o.holder)||typeof o.area!=='string'||!o.area||!integer(sk.index)||!['activate:main','activate:battle','activate:main/battle'].includes(sk.kind)||sk.keyword||sk.granted||sk.grants)fail();
- if(script.kind!==sk.kind||!(script.trigger===undefined||same(script.trigger,[]))||!same(script.unsupported,[])||!Array.isArray(script.ops)||programProblem(script.ops)||!script.price||skillPriceProblem(script.price)||!Array.isArray(script.price.ops)||!script.price.ops.length||script.price.ops.some(op=>!object(op))||activationPriceProblem(script.price.ops)||!object(script.validity)||script.combo!=null||script.playReplacement)fail();
+ if(script.kind!==sk.kind||!(script.trigger===undefined||same(script.trigger,[]))||!same(script.unsupported,[])||!Array.isArray(script.ops)||!script.price||skillPriceProblem(script.price)||!Array.isArray(script.price.ops)||!script.price.ops.length||script.price.ops.some(op=>!object(op))||activationPriceProblem(script.price.ops)||!object(script.validity)||script.combo!=null||script.playReplacement)fail();
+ // The original price runs before the body: its validated X payment or
+ // top-level binding choice remains available to that body. Validate the
+ // ordered program together so a later/body-only binder cannot authorize X.
+ if(programProblem([...script.price.ops,...script.ops],0,!!script.price.x))fail();
  const u=requireUsage(script.usage);
  if(sk.oncePerTurn!==u.oncePerTurn||sk.limit!==u.limit||!same(script.validity,{version:1,sparking:sk.sparking})||typeof sk.raw!=='string'||!sk.raw)fail();
 }

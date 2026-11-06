@@ -307,7 +307,9 @@ for (const accept of [true, false]) {
   const guard = stage(s, "SUBJECT609", "p2", "battle");
   const first = stage(s, "SUBJECT609", "p1", "combo");
   const second = stage(s, "SUBJECT609", "p1", "combo");
-  addEffect(s, [], { source, master: "p1", target: first, kind: "replaceLeave",
+  // The selector covers both subjects; its duration is anchored to the
+  // surviving Battle source, not the first subject's departing occurrence.
+  addEffect(s, [], { source, master: "p1", target: source, kind: "replaceLeave",
     value: { to: "warp", optional: true, target: { area: "combo", side: "you" } }, until: "battle" });
   atEnd(s, source, guard);
   const firstOffer = take(s, { type: "zEnergyFromCombo", player: "p1", card: null });

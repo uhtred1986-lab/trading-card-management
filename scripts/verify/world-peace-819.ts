@@ -16,8 +16,7 @@ import { canonical, parseRule, printRule, validateRule } from "../../src/lib/are
 import { RULES } from "../../src/lib/arena/vm";
 import { rulesetFor } from "../../src/lib/arena/rulesets";
 import { moveCard } from "../../src/lib/arena/vm/zones";
-import { vmHost } from "../../src/lib/arena/vm/host";
-import { describeScript, stepScript, type ScriptFrame } from "../../src/lib/arena/vm/script";
+import { describeScript } from "../../src/lib/arena/vm/script";
 import type { VmState } from "../../src/lib/arena/vm/state";
 import type { Action, EngineContext, PlayerId } from "../../src/lib/arena/types";
 
@@ -56,13 +55,20 @@ function board(n: number, eligible = true, leader = "LEADER819") {
   const source = stage(s, "BT5-119", "drop");
   const targets = eligible ? [stage(s, "COST2-819", "drop"), stage(s, "COST3-819", "drop")] : [];
   const excluded = [stage(s, "COST4-819", "drop"), stage(s, "EXTRA819", "drop"), stage(s, "COST3-819", "hand"), stage(s, "COST3-819", "drop", "p2")];
-  const energy = Array.from({ length: n }, () => stage(s, "V1", "energy"));
+  // Pay the genuine cost-4 activation before testing its saved resolution.
+  // The later Energy edits are explicit staging of changed current energy,
+  // not a claim that World Peace can be activated for free.
+  const payers = Array.from({ length: Math.max(4, n) }, () => stage(s, "V1", "energy"));
   const mainFlow = structuredClone(s.flow);
-  // The resolution frame is staged after activation/price. This covers zero
-  // energy without claiming the cost-4 Extra can be normally activated free.
-  const frame: ScriptFrame = { ops: skill.ops, ip: 0, master: "p1", card: source, vars: {}, skillIndex: 10, usage: skill.usage, validity: skill.validity };
-  const result = stepScript(vmHost(ctx, game, s, []), frame);
-  return { s, source, targets, excluded, energy, result, mainFlow };
+  assert.ok(moveCard(s, game, source, "hand").ok);
+  if (leader !== "LEADER819") return { s, source, targets, excluded, energy: payers, result: "done", mainFlow };
+  assert.ok(RULES.legalActions(ctx, s).some(l => l.action.type === "activate" && l.action.card === source && l.action.skill === 10), "the Shenron Leader permits the native World Peace activation");
+  s = apply(s, { type: "activate", player: "p1", card: source, skill: 10 });
+  if (s.prompt.kind === "payCost") s = apply(s, { type: "payCost", player: "p1", option: 0 });
+  assert.equal(payers.filter(id => s.cards[id].mode === "rest").length, 4, "native original activation pays four Energy");
+  assert.ok(s.sides.p1.zones.drop.includes(source));
+  for (const id of payers.slice(n)) assert.ok(moveCard(s, game, id, "deck", { position: "bottom" }).ok);
+  return { s, source, targets, excluded, energy: payers.slice(0, n), result: s.prompt.kind === "chooseCards" ? "wait" : "done", mainFlow };
 }
 
 const skill = compileCard(defs["BT5-119"]).bySkill[10];
@@ -102,24 +108,15 @@ const empty = board(6, false);
 assert.equal(empty.result, "done", "no eligible Drop card means no choice and no play (5-2-6)");
 assert.deepEqual(empty.s.sides.p1.zones.battle, []);
 
-// A normal cost-4 activation preserves the condition, moves the Extra to
-// Drop, pays energy, and offers precisely the same fixed-bound selector.
+// The native original frame keeps the printed Leader condition and cost.
 {
   const b = board(4);
-  b.s.flow = b.mainFlow; b.s.prompt = { kind: "main", player: "p1" };
-  assert.ok(moveCard(b.s, game, b.source, "hand").ok);
-  const active = RULES.legalActions(ctx, b.s).find((l) => l.action.type === "activate" && l.action.card === b.source);
-  assert.ok(active, "the Shenron Leader permits World Peace");
-  let s = apply(b.s, active.action);
-  if (s.prompt.kind === "payCost") s = apply(s, { type: "payCost", player: "p1", option: 0 });
-  assert.deepEqual(candidates(s), b.targets);
-  assert.ok(s.sides.p1.zones.drop.includes(b.source));
-  assert.ok(b.energy.every((id) => s.cards[id].mode === "rest"));
-  s = apply(s, { type: "choose", player: "p1", cards: [b.targets[1]] });
+  assert.deepEqual(candidates(b.s), b.targets);
+  assert.ok(b.s.sides.p1.zones.drop.includes(b.source));
+  assert.ok(b.energy.every((id) => b.s.cards[id].mode === "rest"));
+  const s = apply(b.s, { type: "choose", player: "p1", cards: [b.targets[1]] });
   assert.ok(s.sides.p1.zones.battle.includes(b.targets[1]));
   const wrong = board(4, true, "L-RED");
-  wrong.s.flow = wrong.mainFlow; wrong.s.prompt = { kind: "main", player: "p1" };
-  assert.ok(moveCard(wrong.s, game, wrong.source, "hand").ok);
   assert.ok(!RULES.legalActions(ctx, wrong.s).some((l) => l.action.type === "activate" && l.action.card === wrong.source), "non-Shenron Leader refuses the activation");
 }
 console.log("  ok  #819 World Peace: official errata <=3, complete rule, current energy independent, Drop/type/condition, no eligible card");

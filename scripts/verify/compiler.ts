@@ -1736,7 +1736,10 @@ import { damageTaken, isVmState } from "../../src/lib/arena/engines";
   DEFS.XCHOOSE550 = { ...DEFS.ONCE, id: "XCHOOSE550", name: "XCHOOSE550", characters: ["XCHOOSE550"], skill: "[Activate: Main][Once per turn] Choose any number of cards in your hand: Draw X cards." };
   const xFromChoice: Script = {
     ops: [{ op: "draw", n: { x: true } }],
-    unsupported: [], ...typedRecords(),
+    // This hand-authored mechanism program must retain its printed activation
+    // kind and once-per-turn identity, just like a stored compiler record.
+    kind: "activate:main", trigger: [],
+    unsupported: [], ...typedRecords(), usage: { version: 1, oncePerTurn: true, limit: null },
     price: { ...zeroSkillPrice(), condition: null, ops: [{ op: "choose", sel: { side: "you", area: "hand", count: 99, upTo: true }, as: "discarded", bindX: true }] },
   };
   const ctx = {

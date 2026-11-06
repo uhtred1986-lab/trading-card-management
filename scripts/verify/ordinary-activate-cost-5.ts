@@ -71,4 +71,22 @@ for(const master of ['p1','p2'] as const)for(const variant of ['twoDiscards','tw
  const bad=clone(f);if(variant==='twoDiscards'){const pick=bad[0].ops[2];if(pick.op==='choose')pick.as=`discarded1${master}`;}else {const last=bad[0].ops.at(-1)!;if(last.op==='reveal')last.sel.fromVar='wrong';else if(last.op==='moveTo')last.target={var:'wrong'};}
  refused(()=>requireOrdinaryActivatePair(c,bad));
 }
+// Original price-bound X reaches the body; saved numeric values alone do not
+// authorize an unbound read. These are explicit synthetic mechanism programs.
+for(const master of ['p1','p2'] as const){
+ const s=source('DB3-090',10,master);
+ s.script.price!.ops=[{op:'choose',sel:{side:'you',area:'hand',count:99,upTo:true},as:'picked',bindX:true}];
+ s.script.ops=[{op:'draw',n:{x:true}}];
+ const c=beginOrdinaryActivateCost(s),f=frames(s);requireOrdinaryActivatePair(c,clone(f));cases++;
+ f[0].ip=f[0].ops.length;f[0].x=2;
+ const paid=finishOrdinaryActivateCost(c,s,f,'paid');
+ assert.equal(ordinaryActivateCompletionX(paid.continuation,s,f,2),2);cases++;
+ const unbound=clone(s);const choice=unbound.script.price!.ops![0];
+ assert.equal(choice.op,'choose');if(choice.op==='choose')delete choice.bindX;
+ refused(()=>beginOrdinaryActivateCost(unbound));
+ unbound.script.ops.push({op:'choose',sel:{side:'you',area:'hand',count:1},as:'late',bindX:true});
+ refused(()=>beginOrdinaryActivateCost(unbound));
+ const wrong=clone(f);const original=wrong[0].ops[0];if(original.op==='choose')delete original.bindX;
+ refused(()=>requireOrdinaryActivatePair(c,wrong));
+}
 console.log(`ordinary-activate-cost-5: ${cases} isolated continuation cases PASS`);
