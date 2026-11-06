@@ -1,3 +1,4 @@
+import { capturePileRelease, cleanupReleasedPile } from "./pile-release-cleanup";
 import { guardBattleEnergyScriptHistory } from "./energy-entry-battle";
 /** R476 bounded native bridge; R507 admits exact source descriptors on proved routes. */
 import type { EngineContext, PlayerId } from "../types";
@@ -79,9 +80,11 @@ export function optionalEnergyArrival(ctx: EngineContext, game: GameDefinition, 
 export function projectEnergyEntryCleanup(ctx: EngineContext, game: GameDefinition, state: VmState, id: string, player: PlayerId, mode: "active" | "rest"): VmState {
   const projected=structuredClone(state), from=zoneOf(projected,id);
   const token=beginStandingNegationMutation(ctx,projected);
+  const pile=capturePileRelease(projected,id);
   const placed=moveCard(projected,game,id,"energy",{owner:player,mode});
   if(!placed.ok || placed.move.to!=="energy")throw new NotYet("project this optional Energy protection boundary", "R476");
   cleanupScriptPlacement(projected,[],placed.move,from,false);
+  cleanupReleasedPile(projected,[],pile,placed.move);
   finishStandingNegationMutation(ctx,projected,token);
   return projected;
 }

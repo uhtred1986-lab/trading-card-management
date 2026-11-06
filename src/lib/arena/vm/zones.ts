@@ -75,12 +75,6 @@ const Z_CARD_DEPARTURE_AREAS = new Set(["leader", "battle", "unison"]);
 /** 23-2-5: where the cards under a card go when it leaves play — the Drop Area, as `moveCard`'s own 23-2-5 half above already names it. */
 const PILE_EXIT = "drop";
 
-/** In play, or a pile a card may sit on (a combo): the places 3-1-6-1 and 19-1-7 both treat as "on the table". */
-function heldInPlay(game: GameDefinition, zone: string): boolean {
-  const z = game.zones[zone];
-  return z?.inPlay === true || z?.host === true;
-}
-
 /** A card in a game, as the rules engine keeps it. Everything else about a card is an *attribute* (`vm/cards.ts`). */
 export interface VmCard {
   /** Unique in this game (`p1#17`), the same convention the legacy engine uses. */
@@ -477,7 +471,7 @@ export function moveCard(board: Board, game: GameDefinition, id: string, to: str
   // among them removed from the game (14-1-4) — the legacy `move`'s own line,
   // in its order: the pile goes before the card on top is logged as gone.
   const released: MoveRecord[] = [];
-  if (from && heldInPlay(game, from.zone) && !heldInPlay(game, to) && card.under.length) {
+  if (from && ["battle", "combo", "unison"].includes(from.zone) && from.zone !== to && card.under.length) {
     for (const u of card.under.splice(0)) {
       const out = moveCard(board, game, u, board.cards[u]?.zCard === true && game.zones[TOKEN_EXIT] ? TOKEN_EXIT : PILE_EXIT, { position: "top" });
       if (out.ok) released.push({ ...out.move, from: from.zone, fromOwner: from.owner });

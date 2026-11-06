@@ -1,4 +1,5 @@
 import { requirePaidRemovalFrame } from './paid-removal-runtime';
+import { capturePileRelease, requirePileReleaseCapture, cleanupReleasedPile } from "./pile-release-cleanup";
 import { renewOrdinaryUseGeneration } from "./limits";
 import { stepOrdinaryActivateCost, requireOrdinaryActivation, requireOrdinaryPriceFrame } from "./ordinary-activate-runtime";
 import { stepActivateUnderCost } from "./activate-under-cost";
@@ -1915,28 +1916,33 @@ export function moved(ctx: EngineContext, game: GameDefinition, state: VmState, 
   // Legacy consumers receive the same final snapshot; no pre-replacement list.
   const sourceNegated = movementHistory.declarations.filter(line => line.negated).map(line => line.index);
   const placement = captureFlowPlacement(state, id, opts.appliedEffects);
-  if (movementHistory.unresolved.length || needsFlowPaymentPreview(placement)) {
+  const pileRelease = capturePileRelease(state, id);
+  if (pileRelease || movementHistory.unresolved.length || needsFlowPaymentPreview(placement)) {
     const projected = structuredClone(state);
     const projectedMutation = beginStandingNegationMutation(ctx, projected, ["battle", "leader"].includes(route.to) ? id : undefined);
+    const projectedPile = capturePileRelease(projected, id);
     const projectedMove = moveCard(projected, game, id, route.to, { ...opts, energyEntryCleanup: true,
       ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
     if (projectedMove.ok) {
       cleanupFlowPlacement(projected, [], projectedMove.move, structuredClone(placement));
+      cleanupReleasedPile(projected, [], projectedPile, projectedMove.move);
       finishStandingNegationMutation(ctx, projected, projectedMutation, projected.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : projectedMove.move.to === "battle" && from !== "battle" ? id : undefined);
       const prospective = movement(id, from, projectedMove.move.to, projectedMove.move.owner, opts, wasHidden, fromHolder);
       requireMovementAutoBodies(game, projected, movementHistory, prospective, areaCarries(from ?? "", projectedMove.move.to, fromHolder === projectedMove.move.owner), undefined, opts.movementAuto?.also);
     }
   }
   opts.movementAuto?.beforeMutation(movementHistory);
+  requirePileReleaseCapture(state, pileRelease);
   if (redirectNote) log(ev, redirectNote);
   const transaction = beginStandingNegationMutation(ctx, state, ["battle", "leader"].includes(route.to) ? id : undefined);
   const result = moveCard(state, game, id, route.to, { ...opts, energyEntryCleanup: true, ...(route.position ? { position: route.position } : {}), ...(route.mode ? { mode: route.mode } : {}) });
   if (!result.ok) throw new RulesetBroken(state.game, `a step of the game cannot move a card to the ${asked}: ${result.refused}`);
   const to = result.move.to;
   cleanupFlowPlacement(state, ev, result.move, placement);
+  const released = cleanupReleasedPile(state, ev, pileRelease, result.move);
   // 23-2-5: the pile it left behind is shown going first, with no moment of
   // its own — the legacy engine logs these moves and pends nothing for them.
-  for (const r of result.move.released ?? []) {
+  for (const r of released) {
     if (r.from && isAreaWord(r.from) && isAreaWord(r.to)) log(ev, { type: "move", card: r.card, from: r.from, to: r.to, owner: r.owner });
   }
   const shown: GameEvent | null =

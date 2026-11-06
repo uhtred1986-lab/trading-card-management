@@ -1,3 +1,4 @@
+import { capturePileRelease, cleanupReleasedPile } from "./pile-release-cleanup";
 import { needsComboDropBatch, prepareComboDropBatch, commitComboDropBatch } from "./combo-drop-batch";
 import { captureFlowPlacement, cleanupFlowPlacement } from "./flow-placement-cleanup";
 import { requireCounterArrivalTiming } from "./auto-play-cost-runtime";
@@ -431,10 +432,12 @@ export const BATTLE_STEP_WORK: Record<string, Work> = {
                 ...(route.mode ? { mode: route.mode } : {}), ...(route.position ? { position: route.position } : {}) }], "comboSubject");
             } else {
               const placement = captureFlowPlacement(projected, id);
+              const pile = capturePileRelease(projected, id);
               const placed = moveCard(projected, game, id, "drop", { owner: holder,
                 ...(route.mode ? { mode: route.mode } : {}), ...(route.position ? { position: route.position } : {}) });
               if (!placed.ok || placed.move.to !== "drop") throw new NotYet("project a pre-announced Combo-to-Drop movement subject", "#609");
               cleanupFlowPlacement(projected, [], placed.move, placement);
+              cleanupReleasedPile(projected, [], pile, placed.move);
             }
             const subjectInfo = attrsNow(ctx, game, projected, id);
             for (const pending of pended) pending.subjectInfo = subjectInfo;

@@ -1,3 +1,4 @@
+import { capturePileRelease, requirePileReleaseCapture, cleanupReleasedPile } from "./pile-release-cleanup";
 import { mixedStandingObservationFromHistory } from "./standing-negation-mixed-history";
 import { captureMovementAutoHistory, requireMovementAutoBodies, type LegacyMovementFacts, type MovementAutoHistory } from "./movement-auto-history";
 import { freshAppliedEffectRoot, executionReceipt, recordAppliedEffect, captureAppliedEffectMove, settleAppliedEffectMove, retireAppliedEffectRetarget, type Receipt } from "./applied-effect-receipt";
@@ -1199,19 +1200,29 @@ function moveTo(
       ...(state.battle?.endCombo?.substituteDeparture?.active
         && state.battle.endCombo.substituteDeparture.card === id && from === "combo" && destination === "drop"
         ? { cleanupDeparture: true } : {}) } });
-  if (movementHistory.unresolved.length && !opts.evolutionBase && opts.reason !== "areaExtension") {
+  const needsHistoryProjection = movementHistory.unresolved.length && !opts.evolutionBase && opts.reason !== "areaExtension";
+  if (state.cards[id]?.under.length || needsHistoryProjection) {
     const projected = structuredClone(state);
+    const projectedPile = capturePileRelease(projected, id, { carry });
+    const projectedEffect = captureAppliedEffectMove(projected, id, opts.appliedEffects ? structuredClone(opts.appliedEffects) : undefined);
+    const projectedStanding = beginStandingNegationMutation(ctx, projected, ["battle", "leader"].includes(to) ? id : undefined);
+    requirePileReleaseCapture(projected, projectedPile);
     const projectedMove = moveCard(projected, game, id, to, { energyEntryCleanup: true, owner,
       position: route.position ?? opts.position, carry, ...(mode ? { mode } : {}),
       ...(returnInfo?.type === "Z-BATTLE" && from === "battle" && to === "battle" && fromOwner && fromOwner !== owner
         ? { zBattleControl: { from: fromOwner, to: owner } } : {}) });
     if (projectedMove.ok) {
       cleanupScriptPlacement(projected, [], projectedMove.move, from, carry);
-      requireMovementAutoBodies(game, projected, movementHistory,
+      cleanupReleasedPile(projected, [], projectedPile, projectedMove.move);
+      settleAppliedEffectMove(projected, projectedEffect);
+      finishStandingNegationMutation(ctx, projected, projectedStanding, projected.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined);
+      if (needsHistoryProjection) requireMovementAutoBodies(game, projected, movementHistory,
         prospectiveMoment(projectedMove.move.to, projectedMove.move.owner), carry, opts.legacyMovement, undefined, opts.legacyCause);
     }
   }
   const effectMove = captureAppliedEffectMove(state, id, opts.appliedEffects);
+  const pileRelease = capturePileRelease(state, id, { carry });
+  requirePileReleaseCapture(state, pileRelease);
   const transaction = beginStandingNegationMutation(ctx, state, ["battle", "leader"].includes(to) ? id : undefined);
   const zBattleControl = returnInfo?.type === "Z-BATTLE" && from === "battle" && to === "battle" && fromOwner && fromOwner !== owner
     ? { from: fromOwner, to: owner } : undefined;
@@ -1223,6 +1234,7 @@ function moveTo(
     return;
   }
   cleanupScriptPlacement(state, ev, placed.move, from, carry);
+  const released = cleanupReleasedPile(state, ev, pileRelease, placed.move);
   settleAppliedEffectMove(state, effectMove);
   // Use the actual destination (including native token/Z-card redirects).
   to = placed.move.to;
@@ -1232,6 +1244,10 @@ function moveTo(
   }
   finishStandingNegationMutation(ctx, state, transaction, state.mixedStandingNegationHistory ? [id, ...(restoredLeader ? [restoredLeader] : [])] : to === "battle" && from !== "battle" ? id : undefined);
   report(!route.replacementApplied && placed.move.to === asked, placed.move.to);
+  // RM23-2-5-1: show the actual material releases first, without movement Autos.
+  for (const material of released) {
+    log(ev, { type: "move", card: material.card, from: material.from as Area, to: material.to as Area, owner: material.owner });
+  }
   if (from && fromOwner) {
     log(ev, { type: "move", card: id, from: from as Area, to: to as Area, owner: placed.move.owner, ...(opts.reveal ? { reveal: true } : {}), ...(from === "drop" && to === "deck" && (route.position ?? opts.position) === "bottom" && opts.reason === "cost" ? { privateOrder: true as const } : {}) });
   } else if (host && hostZone) {

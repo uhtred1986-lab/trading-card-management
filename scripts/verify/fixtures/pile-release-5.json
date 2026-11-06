@@ -1,0 +1,125 @@
+{
+  "BT1-014": {
+    "card": {
+      "id": "BT1-014",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 5000,
+      "name": "Saiyan Cabba",
+      "characters": [
+        "Cabba"
+      ],
+      "traits": [
+        "Alien",
+        "Saiyan"
+      ],
+      "skill": "[Auto]  When this card attacks, you may choose 1 card from your life and add it to your hand.  If you do so, this card gains +10000 power and [Double Strike]  (This card inflicts 2 damage instead of 1 when attacking) for the duration of the turn.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Saiyan Cabba",
+        "qa": [
+          {
+            "q": "When adding cards from your Life Area to your hand with {BT1-014 Saiyan Cabba}\u2019s auto skill, can you choose which card to add to your hand?",
+            "a": "You can, but you cannot look at the card beforehand."
+          }
+        ]
+      }
+    ]
+  },
+  "BT1-016": {
+    "card": {
+      "id": "BT1-016",
+      "type": "BATTLE",
+      "colors": [
+        "Red"
+      ],
+      "cost": "3",
+      "specified": null,
+      "z": null,
+      "power": 15000,
+      "name": "Unceasing Evolution Frost",
+      "characters": [
+        "Frost"
+      ],
+      "traits": [
+        "Alien",
+        "Frieza Clan"
+      ],
+      "skill": "[evolve] {r}{r}: <Frost> (Play this card on top of the specified card)[double strike] (This card inflicts 2 damage instead of 1 when attacking)",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": []
+  },
+  "BT6-063": {
+    "card": {
+      "id": "BT6-063",
+      "type": "BATTLE",
+      "colors": [
+        "Green"
+      ],
+      "cost": "1",
+      "specified": null,
+      "z": null,
+      "power": 10000,
+      "name": "Broly, Unrealized Ambition",
+      "characters": [
+        "Broly: Br"
+      ],
+      "traits": [
+        "Saiyan",
+        "Frieza's Army"
+      ],
+      "skill": "[Auto] When you play this card from your hand and if your Leader Card is a green \u226aFrieza's Army\u226b card, choose 2 cards from your life and add them to your hand.<br>[Auto] When this card is removed from a Battle Area by a skill or KO'd, and if your Leader Card is a green \u226aFrieza's Army\u226b card, choose 1 or 2 cards from your life and add them to your hand, then choose up to 1 green &lt;Broly: Br&gt; card with an energy cost of 4 from your hand and play it.",
+      "backName": null,
+      "backSkill": null
+    },
+    "faq": [
+      {
+        "name": "Broly, Unrealized Ambition",
+        "qa": [
+          {
+            "q": "When this card is moved to a non-open area by an opponent\u2019s skill, can you activate and resolve this card\u2019s auto skill?",
+            "a": "Yes, you can."
+          },
+          {
+            "q": "This card\u2019s effect was negated by {BT1-107 Cold Bloodlust}. If it then leaves the Battle Area by your opponent\u2019s skill, does this card\u2019s auto skill activate and resolve?",
+            "a": "No, it doesn\u2019t."
+          },
+          {
+            "q": "If this card is placed under one of your opponent\u2019s cards by your opponent\u2019s skill, does this card\u2019s auto skill activate and resolve?",
+            "a": "Yes, it activates. The master of the Battle Area prior to the card changing control becomes the master of this skill, and activates and resolves it."
+          },
+          {
+            "q": "If this card is placed under one of your cards by your skill, does this card\u2019s auto skill activate and resolve?",
+            "a": "No, it doesn\u2019t."
+          },
+          {
+            "q": "If your opponent gains control of this card with one of their skills, does this card\u2019s auto skill activate and resolve?",
+            "a": "Yes, it activates. The master of the Battle Area prior to the card changing control becomes the master of this skill, and activates and resolves it."
+          },
+          {
+            "q": "If this card is KO\u2019d or leaves the Battle Area after your opponent gains control of it, does its auto skill activate and resolve?",
+            "a": "Yes, the auto skill activates. However, since your opponent is the master of the skill, your opponent activates and resolves it."
+          },
+          {
+            "q": "When you are prevented from adding cards in your life to your hand by this card\u2019s auto skill, does the \u201cchoose up to 1 green \u3008Broly : Br\u3009 card with an energy cost of 4 from your hand and play it\u201d skill resolve?",
+            "a": "Yes, it does."
+          },
+          {
+            "q": "When this card has its power lowered by a skill, resulting in its power being lowered to 0 or lower and sent to its owner\u2019s Drop Area, can you activate and resolve this card\u2019s auto skill?",
+            "a": "Yes, you can"
+          }
+        ]
+      }
+    ]
+  }
+}
