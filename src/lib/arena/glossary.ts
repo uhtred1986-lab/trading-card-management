@@ -1006,7 +1006,7 @@ export const READING_RULES: ReadingRule[] = [
   },
   {
     title: "Standing reads share validation only within one immutable question",
-    body: "Boards with original standing-negation history reuse their fully validated v1, v2 or v3 facts only inside one synchronous read. The exact state, rules context and actual game definition remain bound. Returning a result requires the complete state, definitions, scripts and game dependencies to match their entry values, followed by full validation. Engine writer attempts refuse before mutation and revoke the whole read even if a caller catches the error. Nested projections use their own copied board, and later calls or saved games validate afresh. This changes neither card admission nor the saved standing-history format.",
+    body: "Boards reuse fully validated standing facts, including the absence of a standing-history requirement, only inside one synchronous read. A new affected source or changed definition is checked afresh between calls and can never acquire inferred history. Original v1, v2 or v3 history retains its own required family. The exact state, rules context and actual game definition remain bound. Returning a result requires the complete state, definitions, scripts and game dependencies to match their entry values, followed by full validation. Engine writer attempts refuse before mutation and revoke the whole read even if a caller catches the error. Nested projections use their own copied board, and later calls or saved games validate afresh. This changes neither card admission nor the saved standing-history format.",
   },
   {
     title: "Joint under and area standing facts (R526)",

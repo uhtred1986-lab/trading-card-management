@@ -108,10 +108,6 @@ function synchronousStandingRead<T>(read: () => T): T {
  */
 export function readingStandingBoard<T>(ctx: EngineContext, game: GameDefinition, state: VmState, read: () => T): T {
   if (scopedStandingReadGame(ctx, state) === game) return synchronousStandingRead(read);
-  if (!hasStandingNegationHistory(state)) {
-    validateStandingNegationRead(ctx, state);
-    return synchronousStandingRead(read);
-  }
   const witness = standingReadDependencies(ctx, game, state);
   const actual = actualGame(ctx, state);
   withUncachedStandingReads(() => validateStandingNegationRead(ctx, state));
@@ -123,7 +119,8 @@ export function readingStandingBoard<T>(ctx: EngineContext, game: GameDefinition
     withUncachedStandingReads(() => validateStandingNegationRead(ctx, state));
     return result;
   };
-  // No-history and mismatched-game boards get no reusable authority.
+  // Absence of every family is validated by the same raw boundary. A
+  // mismatched passed game still receives no reusable authority.
   if (standingReadWasRevoked(state)) return withUncachedStandingReads(finish);
   if (actual !== game || standingReadIsUncached())
     return withStandingReadLifetime(ctx, game, state, () => withUncachedStandingReads(finish));

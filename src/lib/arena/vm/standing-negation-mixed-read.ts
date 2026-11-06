@@ -49,14 +49,14 @@ export function invalidateMixedStandingNegationReadSeal(state: VmState): void {
     seals.delete(state);
 }
 export function mixedStandingNegationReadSealMatches(ctx: EngineContext, state: VmState, history: MixedStandingNegationHistory): boolean {
-    if (history === state.mixedStandingNegationHistory && scopedStandingReadMatches(ctx, state)) return true;
+    if (state.mixedStandingNegationHistory && history === state.mixedStandingNegationHistory && scopedStandingReadMatches(ctx, state)) return true;
     const seal = seals.get(state);
     return !!seal && seal.ctx === ctx && seal.facts === fingerprint(ctx, state) && seal.history === canonical(history);
 }
 export function mixedStandingSkillsNegated(state: VmState, history: MixedStandingNegationHistory, id: string): boolean {
     const seal = seals.get(state);
     const scopeCtx = scopedStandingReadContext(state);
-    if (!(scopeCtx && history === state.mixedStandingNegationHistory) && (!seal || !mixedStandingNegationReadSealMatches(seal.ctx, state, history))) {
+    if (!(scopeCtx && state.mixedStandingNegationHistory && history === state.mixedStandingNegationHistory) && (!seal || !mixedStandingNegationReadSealMatches(seal.ctx, state, history))) {
         throw new NotYet("validate mixed standing-negation history before reading the changed board", "R513");
     }
     return history.suppressed.some(edge => edge.target.card === id);
