@@ -279,3 +279,7 @@ Source `4dbfc971` and registry `37b0529f` admit only BT20-086#30's leading durat
 ## Checkpoint 70: isolated mixed negation foundation
 
 Source `2aa3f4ea` and registry `055a3014` add preparatory mixed-policy history/read contracts, with229 distinct controls and220 registered sites. No native writer or product admission is enabled; readable/runtime counts remain checkpoint69's. See [checkpoint70](round-5/support-seventieth-batch.md). Native Combo-negation adapters and Broly under-activation implementation continue.
+
+## Checkpoint 71: standalone mixed-negation board adapters
+
+Source `00f9e096` and registry `37d601c9` add actual-state observation and staged history/grant-deletion publication. The worker passed 265 distinct adapter/contract/legacy cases; root reran 44 on the combined head. Capability inventory validates 222 sites. Gameplay hookup and card admission remain pending; catalog/runtime counts are unchanged. See [checkpoint 71](round-5/support-seventyfirst-batch.md).
