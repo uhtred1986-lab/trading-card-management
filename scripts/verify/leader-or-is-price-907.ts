@@ -12,6 +12,10 @@ import assert from "node:assert/strict";
 import { compileSkill } from "../../src/lib/arena/compile";
 import { parseSkills } from "../../src/lib/arena/text/cards";
 import { priceIsUnread } from "../../src/lib/arena/compile/prices";
+import { emptyFilter } from "../../src/lib/arena/text/filters";
+import { skillRecords } from "../../src/lib/arena/draft";
+import { zeroCostRecord } from "../../src/lib/arena/vm/skill-payment";
+import { card } from "./harness";
 import { describeScript } from "../../src/lib/arena/vm/script-schema";
 
 const BT31_049 = "[activate: main/battle] [limit 1] {1}, if your Leader is green or has <GT> in its character name, and you have 3 or more energy: Play this card from your hand.";
@@ -57,6 +61,25 @@ assert.deepEqual(condOf(BT31_049).conds![0].conds![1].filter!.charactersIncludin
   assert.ok(JSON.stringify(places.ops).includes('"areas":["battle","combo"]'), "as one count over the Battle Area and the Combo Area");
   // A verb after a comma or "and" is another clause, not a restated alternative.
   assert.ok(unread("[Activate: Main]{1}, if your Leader is green or is blue and you send 1 card from your Drop Area to your Warp, you have 3 or more energy: Play this card from your hand."), "a second clause after the alternatives stays unread");
-  assert.ok(unread("[Activate: Main]{1}, if your Leader is green and has <GT> in its character name and 3 or more blue and/or yellow cards are in your Combo Area and/or Drop: Play this card from your hand."), "an unread count behind a Leader list stays unread");
+  // The existing complete synthetic line is now readable. Preserve every
+  // conjunction, the combined-area count, the energy price and Hand-only body.
+  const counted = "[Activate: Main]{1}, if your Leader is green and has <GT> in its character name and 3 or more blue and/or yellow cards are in your Combo Area and/or Drop: Play this card from your hand.";
+  const expectedCondition = { kind: "all", conds: [
+    { kind: "leaderMatches", filter: { ...emptyFilter(), colors: ["Green"] } },
+    { kind: "leaderMatches", filter: { ...emptyFilter(), charactersIncluding: ["gt"] } },
+    { kind: "count", sel: { side: "you", area: "combo", areas: ["combo", "drop"], filter: { ...emptyFilter(), colors: ["Blue", "Yellow"] } }, atLeast: 3 },
+  ] };
+  const skill = one(counted), read = compileSkill(skill);
+  assert.deepEqual(read.unsupported, []);
+  assert.equal(priceIsUnread(skill), false);
+  assert.deepEqual(skill.energyCost, { any: 1 });
+  assert.deepEqual(JSON.parse(JSON.stringify(read.ops)), [{ op: "if", cond: expectedCondition, then: [
+    { op: "choose", sel: { special: "self", area: "hand" }, as: "p0", reason: "Play this card from your hand" },
+    { op: "play", target: { var: "p0" } },
+  ] }]);
+  const [row] = skillRecords(card("SYNTHETIC-LEADER-COUNT-907", { skill: counted }));
+  assert.deepEqual(row.unread, []);
+  assert.deepEqual(row.cond, expectedCondition, "all three gates survive stored compilation");
+  assert.deepEqual(row.cost, { ...zeroCostRecord(), readable: true, text: skill.cost.replace(/^\{1\},\s*/, ""), orbs: { any: 1 }, condition: expectedCondition }, "generic energy and complete condition remain in the stored price");
 }
 console.log("leader-or-is-price-907 ok");
