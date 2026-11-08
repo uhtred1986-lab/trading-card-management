@@ -21,7 +21,8 @@ const {records}=await runStrategyCases();
 assert.equal(records.length,15);
 assert.ok(records.every((row)=>row.outcome!=="error" && row.outcome!=="interrupted"));
 for(const row of records) {
-  const expected=row.policyKey==="heuristic-v1" && ["ai-01-own-combo-lethal","ai-02-defer-first-defense","ai-05-critical-first"].includes(row.key)?"fail":"pass";
+  // Combat v4's combo-waste rule makes the heuristic defer AI-02's first defense too; its pass meets the same resource detail as search's.
+  const expected=row.policyKey==="heuristic-v1" && ["ai-01-own-combo-lethal","ai-05-critical-first"].includes(row.key)?"fail":"pass";
   assert.equal(row.outcome,expected,`${row.key}/${row.policyKey}`);
   if(row.key==="ai-01-own-combo-lethal" && row.outcome==="pass") {assert.equal(row.detail.energySpent,1);assert.equal(row.detail.comboCards,1);}
   if(row.key==="ai-02-defer-first-defense" && row.outcome==="pass") {assert.equal(row.detail.energySpent,1);assert.equal(row.detail.comboCards,3);assert.equal(row.detail.life,1);}
