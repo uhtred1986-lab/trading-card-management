@@ -116,13 +116,34 @@ Before the gate, v2 went 68–40 (+92) on the development block.
 Every matchup is positive. The SD5 decks gain most, which is where v1 lost; the SD15 cells are each
 underpowered on their own.
 
-Normal (no decklist) has its own gate on `sprt-gate-3`, recorded below when it has run.
+**Gate 3** (`sprt-gate-3`, fresh seeds, the same commit `d9d8b55`) measured `lookahead-normal` v2,
+which has no decklist knowledge, against the heuristic:
+
+- Verdict: **PASS: H1 accepted**, decided at 90 games.
+- Record 61–29, pentanomial 4 / 0 / 21 / 0 / 20.
+- Elo **+129.2** (95 %: +59.3 to +210.8).
+- Integrity: 0 integrity failures, 531 hidden-twin checks.
+- Report: [gate3-lookahead-normal.json](arena-backlog/evidence/sprt/gate3-lookahead-normal.json).
+- By matchup: SD15 v SD15 +0, SD15 v SD5 +32, SD5 v SD15 +170, SD5 v SD5 +528.
+
+Knowing the decklist is not what makes the lookahead strong: Normal's interval overlaps Hard's.
+
+During the run, this checkout was briefly fast-forwarded to `ecb74fa`. That commit changes only docs,
+gate 2's report and the seed registry's record of gate 2, none of it code the run had loaded. The
+checkout was put back on `d9d8b55` before the run ended, and the report shows a clean, unchanged
+source (`changedDuringRun: false`).
+
+**v3** (8 Nov 2026) also shortlists attacks the heuristic scores as losing. That lets the search find
+a combo-made lethal (AI-01), and it changes what is played, so v3 gets its own gates (`sprt-gate-4` for
+Hard, `sprt-gate-5` for Normal). The results above are v2's.
 
 **The other half of "smart enough"** (owner, 8 Nov 2026) is the 12 strategy benchmarks of
 `arena-strategy-validation.md`, and they are **not yet all built**. Five tactical subcases run in
-`arena-policy-strategy.mts`; the heuristic, and with it the lookahead's battle windows, now passes AI-02
-too. AI-01 own-combo lethal and AI-05 Critical-first remain heuristic failures. The remaining
-benchmark families are still to be written.
+`arena-policy-strategy.mts`; the heuristic now passes AI-02 too, and fails AI-01 own-combo lethal and
+AI-05 Critical-first. With the lookahead (v3), all five pass on both difficulties
+(`arena-lookahead-strategy.mts`), and the search changes the heuristic's first move in exactly those
+two cases. The remaining nine benchmark families (AI-03, AI-04, AI-06 to AI-12) are still to be
+written. Most need printed cards and a reviewed set of acceptable answers.
 
 ## Earlier: first gate result (8 Nov 2026): no gain
 

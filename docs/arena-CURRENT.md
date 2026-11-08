@@ -9,9 +9,11 @@ Last updated: 19 October 2026
 - **Strength gate.** It is now the SPRT (`docs/arena-policy-sprt.md`).
 - **Normal and Hard.** The offline match setup has a "Computer's skill" choice: Normal and Hard, a
   real-engine lookahead (`docs/arena-lookahead.md`).
-- **Hard v2 passes the gate.** It scores lines by a win probability fitted from self-play. Gate 2 on
-  fresh seeds: PASS, +101 Elo (+43 to +166) over the heuristic, 0 integrity failures. Normal's gate
-  (`sprt-gate-3`) follows.
+- **Hard and Normal v2 pass the gate.** They score lines by a win probability fitted from self-play.
+  Fresh seeds, PASS for both, 0 integrity failures:
+  - Hard (gate 2): +101 Elo (+43 to +166) over the heuristic.
+  - Normal (gate 3): +129 Elo (+59 to +211).
+- **v3** (combo-lethal attacks shortlisted; all five strategy subcases pass) is on gates 4 and 5.
 - **Combat v4** stops unaffordable-defense combo waste; the heuristic now passes AI-02.
 - **Not done.** The 12 strategy benchmarks are not all built yet. The paid Claude pilot was skipped
   by the owner; its script stays available.
