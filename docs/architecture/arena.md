@@ -133,6 +133,20 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   matrix, named scenarios on synthetic cards, every position of the fixture games and the two #649
   audit decks); strength: `npm run arena:policy-eval` (`combat647` is the #647 baseline, `--audit`
   adds the #649 decks).
+- **The lookahead opponent** (`src/lib/arena/lookahead/`, owner's request of 8 Nov 2026): the
+  offline "Computer's skill" Normal and Hard. For a Main-Phase choice it shortlists the heuristic's
+  pick, the next best by `mainRanking` and ending the turn, builds plausible worlds for what the seat
+  cannot see (`determinize.ts`: every hidden card resampled slot by slot, hidden ids renamed
+  canonically, the game RNG replaced; Hard knows the other decklist's counts, Normal does not),
+  plays each option and the rest of the turn through the real engine with the heuristic for both
+  seats, and scores the end (`evaluate.ts`). **It sits beside the boundary, not in the policy
+  layer**: it reads the pinned match, but only through `determinize`, whose worlds are proved equal
+  for hidden-state twins. Deterministic step budget; a stop or an unplayable world plays the exact
+  heuristic answer. Every other window is the heuristic's. The worker records the difficulty in
+  the journal's policy version and replays lookahead decisions without searching (`replayPolicy`).
+  The policy board is built with `previews: false` (the observation never reads them; about two
+  thirds of a step's cost). Proofs: `scripts/verify/arena-lookahead.mts`,
+  `scripts/verify/arena-local-lookahead.mts` (`npm test`). Detail: `docs/arena-lookahead.md`.
   **Evaluation (#651)**: `docs/arena-policy-evaluation.md` — seeded games across both seats and every
   baseline with intervals, seat bias against a control, hidden-state variants, determinism, latency in
   Node and Chrome; `npm run arena:policy-eval -- --check` is the gate in `npm test`;
