@@ -98,7 +98,8 @@ export interface SearchReport {
   heuristic: string;
 }
 
-export type LookaheadStep = LocalStep & { search: SearchReport | null };
+/** `localStep`'s result, the search report, and — when the policy (not the cycle guard) answered — the answer played. */
+export type LookaheadStep = LocalStep & { search: SearchReport | null; answer?: PolicyAnswer };
 
 function observe(match: PinnedMatch, seat: PlayerId, revision: number): PolicyObservation {
   return policyTurn(match, seat, revision).input.observation;
@@ -267,5 +268,5 @@ export function lookaheadStep(match: PinnedMatch, seat: PlayerId, revision: numb
   if (!decided.ok) return { ok: false, reason: "interrupted", detail: decided.interrupted, memory: decided.memory, search: report };
   const played = applyDecision(match, turn.key, decided.answer);
   if (!played.ok) return { ...played, memory: decided.memory, search: report };
-  return { ...played, memory: decided.memory, guard: decided.guard, search: report };
+  return { ...played, memory: decided.memory, guard: decided.guard, search: report, ...(decided.guard ? {} : { answer: decided.answer }) };
 }

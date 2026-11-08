@@ -21,6 +21,7 @@ import { localPolicy, COMBAT_POLICY_VERSION } from "../../src/lib/arena/policy/c
 import { MAIN_POLICY_VERSION } from "../../src/lib/arena/policy/main";
 import { CHOICE_POLICY_VERSION } from "../../src/lib/arena/policy/choices";
 import { answeringStep, type SeatPlayer } from "./arena-seat-duel";
+import { DIFFICULTIES, LOOKAHEAD_VERSION, lookaheadStep } from "../../src/lib/arena/lookahead/step";
 
 export type PlayerFactory = () => SeatPlayer;
 
@@ -49,3 +50,7 @@ export const LADDER = ["uniform", "shortcuts", "heuristic"] as const;
 registerPlayer("uniform", () => answeringStep(uniformPolicy), "a random legal answer in every window, no shortcuts (arena-policy-eval's `uniform` baseline)");
 registerPlayer("shortcuts", () => answeringStep(shortcutThen(uniformPolicy)), "the #645 shortcuts, a random legal answer everywhere else (arena-policy-eval's `shortcuts` baseline)");
 registerPlayer("heuristic", () => answeringStep(localPolicy()), `today's local opponent, localPolicy() through localStep (main v${MAIN_POLICY_VERSION}, combat v${COMBAT_POLICY_VERSION}, choices v${CHOICE_POLICY_VERSION})`);
+
+// The offline "Computer's skill" (owner, 8 Nov 2026; `src/lib/arena/lookahead/`, `docs/arena-lookahead.md`).
+registerPlayer("lookahead-normal", () => (match, seat, revision, memory) => lookaheadStep(match, seat, revision, memory, DIFFICULTIES.normal, localPolicy()), `the Normal lookahead (v${LOOKAHEAD_VERSION}): Main-Phase options played forward in the real engine, without the other decklist`);
+registerPlayer("lookahead-hard", () => (match, seat, revision, memory) => lookaheadStep(match, seat, revision, memory, DIFFICULTIES.hard, localPolicy()), `the Hard lookahead (v${LOOKAHEAD_VERSION}): as Normal, knowing the other decklist's counts`);
