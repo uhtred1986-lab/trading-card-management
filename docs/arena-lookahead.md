@@ -146,8 +146,21 @@ Hard, `sprt-gate-5` for Normal). The results above are v2's.
 - Report: [gate4-lookahead-hard-v3.json](arena-backlog/evidence/sprt/gate4-lookahead-hard-v3.json).
 - By matchup: SD15 v SD15 −58 (−138 to +15), SD15 v SD5 +279, SD5 v SD15 +64, SD5 v SD5 +320.
 
+**Gate 5** (`sprt-gate-5`, the same commit, clean and unchanged) measured `lookahead-normal` v3:
+
+- Verdict: **PASS: H1 accepted**, decided at 80 games.
+- Record 56–24, Elo **+147.2** (95 %: +72.8 to +237.3).
+- Integrity: 0 integrity failures, 457 hidden-twin checks.
+- Report: [gate5-lookahead-normal-v3.json](arena-backlog/evidence/sprt/gate5-lookahead-normal-v3.json).
+- By matchup: SD15 v SD15 +70, SD15 v SD5 +70, SD5 v SD15 +191, SD5 v SD5 +301.
+
+**Both shipped difficulties (v3) pass the gate.**
+
 **Known weak spot: the SD15 mirror.** It has not been clearly positive in any run: +23 in gate 2,
-0 in gate 3, −58 here, −76 on the development block. It is the next thing to look at.
+0 in gate 3, −58 here, −76 on the development block. (+70 in gate 5.) On 6 development mirror games the lookahead's changes leaned to ending the turn
+early: 14 of its switches were to `endMain`, 8 of them replacing an attack, on gaps of a few points.
+The fitted value has no feature for an awakened Leader or for rested attackers. The next things to try
+are a larger `margin` and those features, measured on `sprt-dev` and gated on `sprt-gate-6`.
 
 **The other half of "smart enough"** (owner, 8 Nov 2026) is the 12 strategy benchmarks of
 `arena-strategy-validation.md`, and they are **not yet all built**. Five tactical subcases run in
