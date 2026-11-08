@@ -44,8 +44,11 @@ import type { PolicyObservation } from "../policy/observation";
 import { determinize, type Knowledge } from "./determinize";
 import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights, type FittedValue } from "./evaluate";
 
-/** 2 (8 Nov 2026): lines are scored by the fitted win probability (`FITTED_VALUE`); 1 used the hand-set value. */
-export const LOOKAHEAD_VERSION = 2;
+/**
+ * 3 (8 Nov 2026): attacks the heuristic scores as losing are shortlisted too. 2: lines are scored by
+ * the fitted win probability (`FITTED_VALUE`). 1: the hand-set value.
+ */
+export const LOOKAHEAD_VERSION = 3;
 
 export type Horizon = "turn" | "decision" | "reply";
 
@@ -164,7 +167,9 @@ function shortlist(input: PolicyInput, heuristic: string, opts: LookaheadOptions
   const ids = [heuristic];
   for (const r of ranking) {
     if (ids.length >= opts.candidates) break;
-    if (r.id !== heuristic && r.score > UNSUPPORTED && r.type !== "endMain") ids.push(r.id);
+    // An attack is shortlisted even when the heuristic scores it as losing: a combo, a skill or the
+    // other side's empty hand can make it win, and only playing it forward can tell (AI-01).
+    if (r.id !== heuristic && (r.score > UNSUPPORTED || r.type === "attack") && r.type !== "endMain") ids.push(r.id);
   }
   const end = ranking.find((r) => r.type === "endMain");
   if (end && !ids.includes(end.id)) ids.push(end.id);
