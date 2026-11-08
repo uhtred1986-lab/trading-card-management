@@ -74,8 +74,8 @@ export interface LookaheadOptions {
 
 /** The two difficulties the owner asked for (8 Nov 2026): the same search, with and without your decklist. */
 export const DIFFICULTIES = {
-  normal: { knowledge: "none", candidates: 3, worlds: 3, maxSteps: 260, lineSteps: 60, margin: 1, horizon: "decision" },
-  hard: { knowledge: "deck", candidates: 3, worlds: 3, maxSteps: 260, lineSteps: 60, margin: 1, horizon: "decision" },
+  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 1, horizon: "turn" },
+  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 1, horizon: "turn" },
 } as const satisfies Record<string, LookaheadOptions>;
 
 export type Difficulty = keyof typeof DIFFICULTIES;
