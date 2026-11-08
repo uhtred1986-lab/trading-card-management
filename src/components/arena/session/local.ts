@@ -26,6 +26,7 @@ import type { Action, PlayerId } from "@/lib/arena/types";
 import {
   ERROR_SENTENCE, envelope, parseResponse,
   type AdvanceStop, type ErrorMessage, type WriterClaim, type LocalErrorCode, type LocalRequest, type LocalResponse, type ResultMessage, type SessionStatus,
+  type LocalDifficulty,
 } from "../../../lib/arena/local/protocol";
 
 /** What a `Worker` offers, and what an in-process channel imitates. */
@@ -57,6 +58,8 @@ export interface LocalNewMatch extends LocalStartInput {
   human: PlayerId;
   seed: number;
   policySeed: number;
+  /** The computer's skill (`protocol.ts`); omitted: the plain heuristic. */
+  difficulty?: LocalDifficulty;
 }
 
 export interface LocalSessionOptions {
@@ -130,7 +133,8 @@ export class LocalWorkerSession implements ArenaSession {
     if ("refused" in ready) throw new LocalSessionError("version", `${ERROR_SENTENCE.version}: ${ready.refused}`);
     const version = ready.version;
     this.policyVersion = version || null;
-    if (body.policyVersion !== undefined && version && body.policyVersion !== version) {
+    // The worker announces its heuristic's version; a lookahead difficulty adds "+look…" to it.
+    if (body.policyVersion !== undefined && version && body.policyVersion !== version && !body.policyVersion.startsWith(`${version}+`)) {
       throw new LocalSessionError("policy", `${ERROR_SENTENCE.policy}: the worker plays ${version}, the page asked for ${body.policyVersion}`);
     }
     const answer = await this.request(body);

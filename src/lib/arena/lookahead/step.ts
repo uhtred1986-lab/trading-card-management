@@ -158,21 +158,33 @@ function shortlist(input: PolicyInput, heuristic: string, opts: LookaheadOptions
 }
 
 /**
- * The search for one decision. Returns the answer to play and the policy RNG
- * after it, or null for "play the heuristic's answer" (with the reason).
+ * The world seeds of one decision. Drawn for every decision the lookahead is
+ * asked, searched or not, so the policy RNG after a decision depends only on
+ * how many decisions there were — which is what lets a saved match be replayed
+ * without searching again (`replayPolicy`).
  */
-export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: number, input: PolicyInput, heuristic: PolicyAnswer, rng: PolicyRng, opts: LookaheadOptions, base: Policy = localPolicy()): { answer: PolicyAnswer | null; rng: PolicyRng; report: SearchReport } {
-  const report: SearchReport = { status: "skipped", reason: "", candidates: [], means: {}, worlds: 0, failedWorlds: 0, steps: 0, chosen: heuristic.id, heuristic: heuristic.id };
-  const { ids, skip } = shortlist(input, heuristic.id, opts);
-  if (skip) return { answer: null, rng, report: { ...report, reason: skip } };
-  report.candidates = ids;
+function worldSeeds(rng: PolicyRng, worlds: number): { seeds: number[]; rng: PolicyRng } {
   let r = rng;
   const seeds: number[] = [];
-  for (let w = 0; w < opts.worlds; w++) {
+  for (let w = 0; w < worlds; w++) {
     const n = nextInt(r, 0x7fffffff);
     r = n.rng;
     seeds.push(n.value);
   }
+  return { seeds, rng: r };
+}
+
+/**
+ * The search for one decision. Returns the answer to play (null: play the
+ * heuristic's) and the policy RNG after it, which is advanced by `worlds`
+ * draws whether or not the search ran.
+ */
+export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: number, input: PolicyInput, heuristic: PolicyAnswer, rng: PolicyRng, opts: LookaheadOptions, base: Policy = localPolicy()): { answer: PolicyAnswer | null; rng: PolicyRng; report: SearchReport } {
+  const report: SearchReport = { status: "skipped", reason: "", candidates: [], means: {}, worlds: 0, failedWorlds: 0, steps: 0, chosen: heuristic.id, heuristic: heuristic.id };
+  const { seeds, rng: r } = worldSeeds(rng, opts.worlds);
+  const { ids, skip } = shortlist(input, heuristic.id, opts);
+  if (skip) return { answer: null, rng: r, report: { ...report, reason: skip } };
+  report.candidates = ids;
   const weights = opts.weights ?? EVAL_WEIGHTS;
   const totals = new Map<string, number>(ids.map((id) => [id, 0]));
   let steps = 0;
@@ -205,7 +217,7 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   }
   report.steps = steps;
   report.worlds = complete;
-  if (!complete) return { answer: null, rng, report: { ...report, status: "fallback", reason: stopped ?? "no world could be played" } };
+  if (!complete) return { answer: null, rng: r, report: { ...report, status: "fallback", reason: stopped ?? "no world could be played" } };
   const means: Record<string, number> = {};
   for (const id of ids) means[id] = totals.get(id)! / complete;
   report.means = means;
@@ -217,6 +229,23 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   report.reason = stopped ? `${complete} world(s) before ${stopped}` : `${complete} world(s)`;
   report.chosen = best;
   return { answer: best === heuristic.id ? heuristic : answerFor(input.decisions, best), rng: r, report };
+}
+
+/**
+ * A saved lookahead decision played again without searching: the recorded
+ * answer, and the memory exactly as the lookahead left it (the heuristic is
+ * asked for its own RNG, then `worlds` seeds are drawn, as `searchDecision`
+ * always does). Pass it to `localStep`: the cycle guard, the refusals and the
+ * move are the same code; a recorded id that is not open is refused there.
+ */
+export function replayPolicy(recordedId: string, opts: Pick<LookaheadOptions, "worlds">, base: Policy = localPolicy()): Policy {
+  return (input, rng) => {
+    const heuristic = base(input, rng);
+    const after = worldSeeds(heuristic.rng, opts.worlds).rng;
+    // Only a Main-Phase choice is ever the search's; every other window is the heuristic's own answer
+    // (a card pick's cards included, which a journal entry does not keep), asked again as before.
+    return { answer: input.decisions.window === "main" ? answerFor(input.decisions, recordedId) : heuristic.answer, rng: after };
+  };
 }
 
 /**
@@ -232,7 +261,7 @@ export function lookaheadStep(match: PinnedMatch, seat: PlayerId, revision: numb
     const heuristic = base(input, rng);
     const found = searchDecision(match, seat, revision, input, heuristic.answer, heuristic.rng, opts, base);
     report = found.report;
-    return found.answer ? { answer: found.answer, rng: found.rng } : heuristic;
+    return { answer: found.answer ?? heuristic.answer, rng: found.rng };
   };
   const decided = guardedDecide(searching, turn.input, memory);
   if (!decided.ok) return { ok: false, reason: "interrupted", detail: decided.interrupted, memory: decided.memory, search: report };

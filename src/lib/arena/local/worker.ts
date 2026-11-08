@@ -42,6 +42,7 @@ import { matchFromPack, packContent, qualificationReasons, validateOfflinePack, 
 import { resolveAliased } from "../conceal";
 import { IllegalAction } from "../vm/common";
 import { localStep } from "../policy/boundary";
+import { DIFFICULTIES, LOOKAHEAD_VERSION, lookaheadStep, replayPolicy, type Difficulty } from "../lookahead/step";
 import { localPolicy, COMBAT_POLICY_VERSION } from "../policy/combat";
 import { localMemory, MAIN_POLICY_VERSION, type LocalMemory } from "../policy/main";
 import { CHOICE_POLICY_VERSION } from "../policy/choices";
@@ -52,10 +53,26 @@ import {
   ADVANCE_DEFAULT, BATCH_DEFAULT, ERROR_SENTENCE, envelope, parseRequest,
   type AdvanceRequest, type AdvanceStop, type ApplyRequest, type CancelRequest, type DisposeRequest, type ErrorMessage,
   type LocalErrorCode, type LocalResponse, type ReadRequest, type ResultMessage, type ResumeRequest, type SessionStatus, type StartRequest,
+  LOCAL_DIFFICULTIES,
 } from "./protocol";
 
 /** The local policy this worker plays, by its layers' versions. A journal recorded under another is not continued. */
 export const LOCAL_POLICY_VERSION = `main${MAIN_POLICY_VERSION}+combat${COMBAT_POLICY_VERSION}+choices${CHOICE_POLICY_VERSION}`;
+
+/**
+ * The policy version a match records: the heuristic's, and for a lookahead difficulty its version
+ * and name after a `+` (`main2+combat3+choices2+look1-hard`). A journal is continued only by the
+ * very policy that recorded it.
+ */
+export function policyVersionFor(difficulty: Difficulty | null): string {
+  return difficulty ? `${LOCAL_POLICY_VERSION}+look${LOOKAHEAD_VERSION}-${difficulty}` : LOCAL_POLICY_VERSION;
+}
+
+/** The difficulty a recorded policy version names: null for the plain heuristic, undefined for a policy this worker does not play. */
+export function difficultyOfVersion(version: string): Difficulty | null | undefined {
+  if (version === LOCAL_POLICY_VERSION) return null;
+  return (LOCAL_DIFFICULTIES as readonly Difficulty[]).find((d) => version === policyVersionFor(d));
+}
 export const JOURNAL_FORMAT = 1;
 
 /** One committed decision. A human move is kept as the engine move it resolved to; an AI move by its decision id, and replayed by asking the policy again. */
@@ -159,6 +176,8 @@ interface Session {
   policySeed: number;
   interpreterRevision: string;
   batch: number;
+  /** The computer's skill: null is the plain heuristic. */
+  difficulty: Difficulty | null;
   match: PinnedMatch;
   memory: LocalMemory;
   entries: JournalEntry[];
@@ -236,7 +255,7 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
       seed: v.seed,
       policySeed: v.policySeed,
       interpreterRevision: v.interpreterRevision,
-      policyVersion: LOCAL_POLICY_VERSION,
+      policyVersion: policyVersionFor(v.difficulty),
       entries: v.entries,
       aiMemory: v.memory,
       receipts: [...v.receipts.values()],
@@ -283,8 +302,8 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
   async function open(req: StartRequest | ResumeRequest): Promise<void> {
     if (session || opening) throw new Refusal("busy", "this worker already owns a match; dispose it first");
     if (disposed.has(req.sessionId)) throw new Refusal("disposed", `session ${req.sessionId}`);
-    if (req.policyVersion !== undefined && req.policyVersion !== LOCAL_POLICY_VERSION) {
-      throw new Refusal("policy", `the page asked for policy ${req.policyVersion}, this worker plays ${LOCAL_POLICY_VERSION}`);
+    if (req.policyVersion !== undefined && (req.type === "start" ? req.policyVersion !== policyVersionFor(req.difficulty ?? null) : difficultyOfVersion(req.policyVersion) === undefined)) {
+      throw new Refusal("policy", `the page asked for policy ${req.policyVersion}, this worker plays ${req.type === "start" ? policyVersionFor(req.difficulty ?? null) : LOCAL_POLICY_VERSION}`);
     }
     const token = { sessionId: req.sessionId, disposed: false };
     opening = token;
@@ -301,6 +320,7 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
         s = {
           id: req.sessionId, matchId: req.matchId, gameId: req.gameId, packHash: pack.hash, decks: { ...req.decks }, human: req.human, ai: other(req.human),
           seed: req.seed, policySeed: req.policySeed, interpreterRevision: req.interpreterRevision, batch: req.batch ?? BATCH_DEFAULT,
+          difficulty: req.difficulty ?? null,
           match, memory: localMemory(policyRng(req.policySeed)), entries: [], receipts: new Map(), trace: FNV_OFFSET,
           status: statusOf(match), interruption: null, busy: null, advancing: null, disposed: false,
           writer: req.writer ?? null, readOnly: null,
@@ -323,7 +343,9 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
     const journal = await store.get(req.matchId);
     if (!journal) throw new Refusal("journal", `no saved match ${req.matchId}`);
     if (journal.format !== JOURNAL_FORMAT) throw new Refusal("journal", `journal format ${String(journal.format)} is not ${JOURNAL_FORMAT}`);
-    if (journal.policyVersion !== LOCAL_POLICY_VERSION) throw new Refusal("policy", `the match was played by policy ${journal.policyVersion}, this worker plays ${LOCAL_POLICY_VERSION}`);
+    const difficulty = difficultyOfVersion(journal.policyVersion);
+    if (difficulty === undefined) throw new Refusal("policy", `the match was played by policy ${journal.policyVersion}, this worker plays ${LOCAL_POLICY_VERSION}`);
+    if (req.policyVersion !== undefined && req.policyVersion !== journal.policyVersion) throw new Refusal("policy", `the page asked for policy ${req.policyVersion}, the match was played by ${journal.policyVersion}`);
     if ((req.pack as { hash?: unknown }).hash !== journal.packHash) throw new Refusal("journal", "the pack is not the one this match was started from");
     if (journal.interpreterRevision !== req.interpreterRevision) {
       throw new Refusal("runtime", `the match was played on interpreter ${journal.interpreterRevision}, this page runs ${req.interpreterRevision}`);
@@ -343,7 +365,9 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
         trace = mix(trace, traceOf(entry, next.events));
       } else {
         if (entry.seat !== ai || askedSeat(match) !== ai) throw new Refusal("journal", `${where}: the AI seat was not asked`);
-        const step = localStep(match, ai, i, memory, policy);
+        // A lookahead decision is replayed from its record, not searched again: the memory it left
+        // depends only on the decision count (`replayPolicy`), and the trace below proves the game.
+        const step = localStep(match, ai, i, memory, difficulty ? replayPolicy(entry.id, DIFFICULTIES[difficulty], policy) : policy);
         if (!step.ok || step.id !== entry.id) throw new Refusal("journal", `${where}: the policy answered ${step.ok ? step.id : step.reason} where the journal has ${entry.id}`);
         memory = step.memory;
         match = step.match;
@@ -355,7 +379,7 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
     return {
       id: req.sessionId, matchId: journal.matchId, gameId: req.gameId, packHash: journal.packHash, decks: journal.decks, human: journal.human, ai,
       seed: journal.seed, policySeed: journal.policySeed, interpreterRevision: journal.interpreterRevision, batch: req.batch ?? BATCH_DEFAULT,
-      match, memory, entries: journal.entries, receipts: new Map(journal.receipts.map((r) => [r.requestId, r])), trace,
+      difficulty, match, memory, entries: journal.entries, receipts: new Map(journal.receipts.map((r) => [r.requestId, r])), trace,
       status: journal.status === "interrupted" ? "interrupted" : statusOf(match), interruption: journal.interruption, busy: null, advancing: null, disposed: false,
       writer: req.writer ?? null, readOnly: req.readOnly ? "this tab was opened to watch the match, not to play it" : null,
     };
@@ -429,10 +453,13 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
         let trace = s.trace;
         const added: JournalEntry[] = [];
         let failed: string | null = null;
-        while (added.length < s.batch && done + added.length < max && askedSeat(m) === s.ai) {
+        // A lookahead decision takes a moment: commit and show each one, so the player watches it think move by move.
+        const batch = s.difficulty ? 1 : s.batch;
+        while (added.length < batch && done + added.length < max && askedSeat(m) === s.ai) {
           const window = m.state.prompt.kind;
           const t0 = performance.now();
-          const step = localStep(m, s.ai, s.entries.length + added.length, memory, policy);
+          const at = s.entries.length + added.length;
+          const step = s.difficulty ? lookaheadStep(m, s.ai, at, memory, DIFFICULTIES[s.difficulty], policy) : localStep(m, s.ai, at, memory, policy);
           options.observe?.({ seat: s.ai, window, ms: performance.now() - t0 });
           if (!step.ok) { failed = `${step.reason}: ${step.detail}`; break; }
           const entry: JournalEntry = { seat: s.ai, kind: "ai", id: step.id };

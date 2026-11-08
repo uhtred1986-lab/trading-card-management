@@ -15,6 +15,7 @@ import { OfflinePreparation } from "../OfflinePreparation";
 import { useMatchScreen } from "../../../lib/match-screen";
 import { selectableDecks, selectedDeckKeys } from "../../../lib/arena/local/deck-selection";
 import { LocalBoard, LocalBoardError, POINTER_KEY, browserPointerStore, readPack, readPointer, type BoardAction, type BoardNotice, type LocalPointer, type PackFacts, type PointerStore } from "./local-board";
+import type { LocalDifficulty } from "../../../lib/arena/local/protocol";
 
 /**
  * Play on this device (#656, plan O3-05): the existing board over a local match. Everything here
@@ -181,6 +182,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
   const [theirs, setTheirs] = useState("");
   const [showTesting, setShowTesting] = useState(false);
   const [seat, setSeat] = useState<"p1" | "p2">("p1");
+  const [difficulty, setDifficulty] = useState<LocalDifficulty>("normal");
   const boardRef = useRef<LocalBoard | null>(null);
 
   // Rendered as supported on the server, so the first client render matches it.
@@ -258,7 +260,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
     if (why) throw new LocalBoardError("unplayable", why);
     return f;
   };
-  const start = () => facts && selected.mine && selected.theirs && begin("Dealing…", async () => LocalBoard.start(compatible(facts).pack, { decks: seat === "p1" ? { p1: selected.mine, p2: selected.theirs } : { p1: selected.theirs, p2: selected.mine }, human: seat }, { spawn, pointers, art: await artFor(facts.hash) }));
+  const start = () => facts && selected.mine && selected.theirs && begin("Dealing…", async () => LocalBoard.start(compatible(facts).pack, { decks: seat === "p1" ? { p1: selected.mine, p2: selected.theirs } : { p1: selected.theirs, p2: selected.mine }, human: seat, difficulty }, { spawn, pointers, art: await artFor(facts.hash) }));
   const resume = () => pointer && (facts || installed) && begin("Opening your saved match…", async () => {
     // In the shell the saved match's pack is read from the device, whichever pack is chosen.
     const f = installed && facts?.hash !== pointer.packHash ? readPack(await installed.store.load(pointer.packHash)) : facts!;
@@ -391,7 +393,7 @@ export function LocalArena({ skin: chosenSkin, staging, lighting, shell }: Stage
               </label>
             )}
             {!availableDecks.length && <p className="text-sm text-space-300">This pack contains only testing decks. Turn on “Show testing decks” to start a match.</p>}
-            <LocalMatchSetup artUrls={setupArt?.hash === facts.hash ? setupArt.urls : undefined} facts={{ ...facts, decks: availableDecks }} mine={selected.mine} theirs={selected.theirs} seat={seat} setMine={setMine} setTheirs={setTheirs} setSeat={setSeat} busy={busy} pendingLabel={phase.kind === "opening" ? phase.what : "Preparing…"} start={() => void start()} />
+            <LocalMatchSetup artUrls={setupArt?.hash === facts.hash ? setupArt.urls : undefined} facts={{ ...facts, decks: availableDecks }} mine={selected.mine} theirs={selected.theirs} seat={seat} setMine={setMine} setTheirs={setTheirs} setSeat={setSeat} difficulty={difficulty} setDifficulty={setDifficulty} busy={busy} pendingLabel={phase.kind === "opening" ? phase.what : "Preparing…"} start={() => void start()} />
           </div>
         )}
       </div>

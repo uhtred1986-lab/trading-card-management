@@ -7,6 +7,13 @@ import { useRef } from "react";
 import { JourneyDeckPicker } from "../PlayPicker";
 import { MatchSetup } from "../MatchSetup";
 import { Panel } from "@/components/ui";
+import type { LocalDifficulty } from "@/lib/arena/local/protocol";
+
+/** The two skills the owner asked for (8 Nov 2026), in the player's words. */
+export const DIFFICULTY_CHOICES: { value: LocalDifficulty; label: string; hint: string }[] = [
+  { value: "normal", label: "Normal", hint: "Thinks ahead, guessing the cards it cannot see." },
+  { value: "hard", label: "Hard", hint: "Thinks ahead and knows which cards are in your deck (never your hand or their order)." },
+];
 
 const MISSING = "This device pack does not include deck descriptions. The leader and card list below help identify the deck.";
 
@@ -30,10 +37,11 @@ function LocalCards({ facts, deckKey }: { facts: PackFacts; deckKey: string }) {
   return <details><summary className="tap cursor-pointer py-2 text-sm text-ki-300">See the cards</summary><ul className="space-y-1 text-sm text-space-200">{[...names].map(([id,n]) => <li key={id} className="break-words">{n}× {facts.pack.bundle.payload.defs[id]?.name ?? id} · {id}</li>)}</ul></details>;
 }
 
-export function LocalMatchSetup({ facts, mine, theirs, seat, setMine, setTheirs, setSeat, busy, pendingLabel, start, artUrls }: {
+export function LocalMatchSetup({ facts, mine, theirs, seat, setMine, setTheirs, setSeat, difficulty = "normal", setDifficulty, busy, pendingLabel, start, artUrls }: {
   artUrls?: ReadonlyMap<string, string>;
   facts: PackFacts; mine:string; theirs:string; seat:"p1"|"p2";
   setMine:(id:string)=>void; setTheirs:(id:string)=>void; setSeat:(seat:"p1"|"p2")=>void;
+  difficulty?: LocalDifficulty; setDifficulty?: (d: LocalDifficulty) => void;
   busy:boolean; pendingLabel:string; start:()=>void;
 }) {
   const setup = useRef<HTMLDivElement>(null);
@@ -53,8 +61,9 @@ export function LocalMatchSetup({ facts, mine, theirs, seat, setMine, setTheirs,
       opponent={<div className="space-y-3"><p className="text-sm text-space-200">The built-in computer player runs on this device.</p>
         <DeckDiscovery label="Computer's deck" decks={decks} value={theirs} onChange={setTheirs} disabled={busy} missingDescription={MISSING} /><LocalCards facts={facts} deckKey={theirs} />
         <fieldset className="space-y-1"><legend className="text-sm text-space-200">Your seat</legend><div className="grid grid-cols-2 gap-2">{(["p1","p2"] as const).map((s) => <button data-setup-seat={s} key={s} type="button" aria-pressed={seat===s} onClick={()=>setSeat(s)} disabled={busy} className={`tap rounded-lg border px-3 py-2 text-sm ${seat===s ? "border-ki-500 bg-space-800 text-space-50" : "border-space-700 text-space-300"}`}>{s==="p1"?"First":"Second"}</button>)}</div></fieldset>
+        {setDifficulty && <fieldset className="space-y-1"><legend className="text-sm text-space-200">Computer’s skill</legend><div className="grid grid-cols-2 gap-2">{DIFFICULTY_CHOICES.map((d) => <button data-setup-difficulty={d.value} key={d.value} type="button" aria-pressed={difficulty===d.value} onClick={()=>setDifficulty(d.value)} disabled={busy} className={`tap rounded-lg border px-3 py-2 text-sm ${difficulty===d.value ? "border-ki-500 bg-space-800 text-space-50" : "border-space-700 text-space-300"}`}>{d.label}</button>)}</div><p className="text-xs text-space-400">{DIFFICULTY_CHOICES.find((d) => d.value === difficulty)?.hint}</p></fieldset>}
       </div>}
-      review={<div className="space-y-4"><h3 className="text-sm font-semibold text-space-200">You play {seat==="p1"?"first":"second"} · Computer opponent</h3><section className="space-y-2"><h3 className="text-sm text-space-400">Your deck</h3>{own && <DeckFacts deck={own} missingDescription={MISSING} />}</section><section className="space-y-2"><h3 className="text-sm text-space-400">Computer’s deck</h3>{other && <DeckFacts deck={other} missingDescription={MISSING} />}</section></div>}
+      review={<div className="space-y-4"><h3 className="text-sm font-semibold text-space-200">You play {seat==="p1"?"first":"second"} · Computer opponent{setDifficulty ? ` (${DIFFICULTY_CHOICES.find((d) => d.value === difficulty)?.label ?? ""})` : ""}</h3><section className="space-y-2"><h3 className="text-sm text-space-400">Your deck</h3>{own && <DeckFacts deck={own} missingDescription={MISSING} />}</section><section className="space-y-2"><h3 className="text-sm text-space-400">Computer’s deck</h3>{other && <DeckFacts deck={other} missingDescription={MISSING} />}</section></div>}
       footer={<button type="button" className="tap w-full rounded-lg bg-ki-500 px-4 py-3 text-sm font-semibold text-space-950 disabled:opacity-40" disabled={busy || !own || !other} onClick={start}>{busy ? pendingLabel : "Start match"}</button>}
     />
     </div>
