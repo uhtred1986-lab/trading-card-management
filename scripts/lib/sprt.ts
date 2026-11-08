@@ -24,10 +24,11 @@
  * One addition to fishtest, for this game: the stopping rule is consulted only once `minPairs` pairs
  * AND `minInformativePairs` non-split pairs (any pair but 1 point of 2) are in. In the arena most
  * pairs split (the seat decides: 75 % in #826's holdout, 84 % in #899's), so an early sample is often
- * nearly all splits, its variance estimate near zero and its LLR a large spurious vote for H0. A
- * simulation of fishtest's rule alone at 84 % splits rejected a true +30 Elo 13 % of the time at
- * β = 5 %; with ≥ 20 pairs and ≥ 10 informative ones both error rates stay at or under 5 % from 50 %
- * to 90 % splits (`scripts/verify/arena-sprt-stats.mts` keeps that simulation). A run where the two
+ * nearly all splits, its variance estimate near zero and its LLR a large spurious vote for H0.
+ * Simulated, fishtest's rule with only a 20-pair minimum rejected a true +30 Elo 13 % of the time at
+ * 84 % splits and 19 % at 90 % (β is 5 %); with no minimum, 66 % at 75 % splits. With ≥ 20 pairs and
+ * ≥ 10 informative ones both error rates stay at or under 5 % from 50 % to 90 % splits
+ * (`scripts/verify/arena-sprt-stats.mts` keeps a version of that simulation). A run where the two
  * players never disagree (an A/A test of identical deterministic players) therefore never decides and
  * ends at its cap, with an LLR far below the lower bound: honest, since there is no variance to test.
  */

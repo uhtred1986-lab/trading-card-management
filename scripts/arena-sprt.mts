@@ -215,7 +215,11 @@ function orderedRun(pool: Pool, count: number, specAt: (i: number) => DealSpec, 
 
 // ---------------------------------------------------------------- reporting helpers
 
-const signed = (x: number, digits = 1) => (Number.isFinite(x) ? `${x >= 0 ? "+" : ""}${x.toFixed(digits)}` : x > 0 ? "+inf" : "-inf");
+const signed = (x: number, digits = 1) => {
+  if (!Number.isFinite(x)) return x > 0 ? "+inf" : "-inf";
+  const rounded = Number(x.toFixed(digits)) || 0; // never "-0.0"
+  return `${rounded >= 0 ? "+" : ""}${rounded.toFixed(digits)}`;
+};
 const eloText = (counts: Pentanomial) => {
   const e = eloEstimate(counts);
   return e ? `Elo ${signed(e.elo)} [${signed(e.eloCi95[0])}, ${signed(e.eloCi95[1])}] LOS ${(100 * e.los).toFixed(1)} %` : "Elo -";
@@ -238,6 +242,18 @@ const compactPair = (o: PairOutcome) => ({
   deal: o.deal, fixture: o.fixture, engineSeed: o.engineSeed, policySeed: o.policySeed, baseline: o.baseline, points: o.points,
   games: o.games.map((g) => ({ candidateSeat: g.candidateSeat, winner: g.winner, moves: g.moves, turn: g.turn, stopKind: g.stopKind, trace: g.trace, guards: g.guards, twins: [g.privacy.checks, g.privacy.nontrivial], ...(g.integrity.length ? { integrity: g.integrity } : {}) })),
 });
+/** Per matchup and per candidate seat: reported, never gated (the test is over all pairs). */
+function breakdown(pairs: PairOutcome[]) {
+  const byFixture = Object.fromEntries(fixtureCycle.map((fixture) => {
+    const t = pairs.filter((o) => o.fixture === fixture).reduce(tallyPair, emptyTally());
+    return [fixture, { pairs: t.pairs, wins: t.wins, draws: t.draws, losses: t.losses, unfinished: t.unfinished, pentanomial: t.counts, elo: eloEstimate(t.counts) }];
+  }));
+  const bySeat = Object.fromEntries((["p1", "p2"] as const).map((seat) => {
+    const games = pairs.flatMap((o) => o.games.filter((g) => g.candidateSeat === seat));
+    return [seat, { games: games.length, wins: games.filter((g) => g.winner === "candidate").length, draws: games.filter((g) => g.winner === "draw").length, losses: games.filter((g) => g.winner === "baseline").length, unfinished: games.filter((g) => g.winner === null).length }];
+  }));
+  return { byFixture, bySeat };
+}
 const integrityOf = (pairs: PairOutcome[]) => pairs.flatMap((o) => o.games.flatMap((g) => g.integrity.map((what) => `deal ${o.deal} (${o.fixture}, seed ${o.engineSeed}, candidate ${g.candidateSeat}, vs ${o.baseline}): ${what}`)));
 function timing(pairs: PairOutcome[], wallMs: number, poolSize: number) {
   const ms = pairs.flatMap((o) => o.games.map((g) => g.ms));
@@ -324,6 +340,7 @@ try {
         pairs: tally.pairs, games: tally.games, wins: tally.wins, draws: tally.draws, losses: tally.losses, unfinished: tally.unfinished,
         pentanomial: tally.counts, informativePairs: informativePairs(tally.counts), llr: state.llr, bounds: [state.lower, state.upper], elo,
         integrityFailures, integrity, privacyChecks: tally.privacyChecks, nontrivialTwins: tally.nontrivialTwins,
+        ...breakdown(consumedPairs),
         expectations: expectations(tally.counts),
         pairOutcomes: consumedPairs.map(compactPair),
       },
@@ -332,6 +349,9 @@ try {
     console.log(`Decision: ${verdict}`);
     console.log(`  ${tally.pairs} pairs, ${tally.games} games, ${wdl(tally)}, pentanomial ${tally.counts.join(",")} (${informativePairs(tally.counts)} informative), LLR ${state.llr.toFixed(3)} in (${state.lower.toFixed(3)}, ${state.upper.toFixed(3)}), ${eloText(tally.counts)}`);
     console.log(`  hidden-twin checks ${tally.privacyChecks} (${tally.nontrivialTwins} with a really different state), integrity failures ${integrityFailures}`);
+    const { byFixture, bySeat } = breakdown(consumedPairs);
+    for (const [fixture, f] of Object.entries(byFixture)) console.log(`  ${fixture}: ${f.pairs} pairs, W-D-L ${f.wins}-${f.draws}-${f.losses}, ptnml ${f.pentanomial.join(",")}, ${eloText(f.pentanomial)}`);
+    console.log(`  candidate as p1 W-D-L ${bySeat.p1.wins}-${bySeat.p1.draws}-${bySeat.p1.losses}, as p2 ${bySeat.p2.wins}-${bySeat.p2.draws}-${bySeat.p2.losses}`);
     if (discarded.length) console.log(`  ${discarded.length} deal(s) finished past the decision were discarded unread${integrityOf(discarded).length ? `; NOTE ${integrityOf(discarded).length} of their games had an integrity failure: ${integrityOf(discarded).join(" | ")}` : ""}`);
   } else {
     console.log(`Ladder for ${candidate}: ${ladderPairs} deals against each of ${LADDER.join(", ")}; ${fixtureNote}; ${pool.size} worker(s)`);
@@ -358,7 +378,7 @@ try {
 
 const sourceAtEnd = evaluationRunnerPin("arena-policy-eval", RUNNER_VERSION);
 const changed = JSON.stringify(sourceAtStart) !== JSON.stringify(sourceAtEnd);
-report = { ...report, source: { start: sourceAtStart, end: sourceAtEnd, changedDuringRun: changed, node: process.version } };
+report = { ...report, source: { commit: sourceAtStart.gitCommit, dirty: sourceAtStart.dirtyTreeSha256 !== null, start: sourceAtStart, end: sourceAtEnd, changedDuringRun: changed, node: process.version } };
 const run = report.run as ReturnType<typeof timing>;
 console.log(`Wall ${run.wallSeconds.toFixed(0)} s for ${run.games} games with ${run.workers} worker(s) on ${run.cpus} CPUs (load ${run.loadAverage.atStart[0]} at start, ${run.loadAverage.atEnd[0]} at end): ${run.wallSecondsPerGame?.toFixed(2)} s/game; one game takes ${run.gameSeconds?.mean.toFixed(2)} s on average in its process (p95 ${run.gameSeconds?.p95.toFixed(2)} s)`);
 console.log(`Source ${sourceAtStart.gitCommit}${sourceAtStart.dirtyTreeSha256 ? " (dirty tree)" : " (clean)"}${changed ? "; SOURCE CHANGED DURING THE RUN: the result is not evidence" : ""}`);
