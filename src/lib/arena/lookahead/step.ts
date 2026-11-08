@@ -46,7 +46,7 @@ import { evaluate, EVAL_WEIGHTS, type EvalWeights } from "./evaluate";
 
 export const LOOKAHEAD_VERSION = 1;
 
-export type Horizon = "turn" | "decision";
+export type Horizon = "turn" | "decision" | "reply";
 
 export interface LookaheadOptions {
   knowledge: Knowledge;
@@ -61,8 +61,11 @@ export interface LookaheadOptions {
   /** Take another option over the heuristic's only when its average is better by this much. */
   margin: number;
   /**
-   * Where a line is scored: "turn" plays the rest of the seat's turn (every
-   * option scored as the other seat's turn begins); "decision" stops when the
+   * Where a line is scored: "reply" plays the rest of the seat's turn and the
+   * other seat's whole reply turn (every option scored as the seat's next turn
+   * begins, so a card left exposed or a weak defence is actually punished);
+   * "turn" plays only the rest of the seat's turn (scored as the other seat's
+   * turn begins); "decision" stops when the
    * seat is next at its own Main-Phase choice, or the turn has passed — the
    * option's own consequences (a battle, a skill), several times cheaper.
    */
@@ -117,7 +120,9 @@ function rollout(match: PinnedMatch, seat: PlayerId, revision: number, limit: nu
   let at = match;
   let steps = 0;
   const turn = match.state.turn;
-  while (steps < limit && at.state.phase !== "over" && at.state.turn === turn && at.state.turnPlayer === seat) {
+  // "reply": on through the other seat's turn, until the seat's own next turn begins.
+  const going = (s: PinnedMatch["state"]) => (horizon === "reply" ? s.turn <= turn + 1 : s.turn === turn && s.turnPlayer === seat);
+  while (steps < limit && at.state.phase !== "over" && going(at.state)) {
     const actor = (at.state.prompt as { player?: PlayerId }).player;
     if (!actor) break;
     // "decision": the line ends when the seat is back at its own Main-Phase choice.
