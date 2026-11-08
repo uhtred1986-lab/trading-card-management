@@ -200,7 +200,9 @@ must never automatically pass AI-01 through AI-12 for every proposed deck.
    Next measure each affected archetype/matchup, then the aggregate. Reuse the
    predeclared search gate in `arena-policy-strength.md` for that experiment (at
    least 40 paired deals, 20 decisive pairs and a 95% lower bound above 50%); it
-   is not a blanket guarantee for all archetypes. Predeclare a tolerable per-archetype
+   is not a blanket guarantee for all archetypes. (From 8 November 2026 that aggregate step is the
+   SPRT of [arena-policy-sprt.md](arena-policy-sprt.md) instead: H1 at [0, 30] Elo against the
+   heuristic, which with these twelve benchmarks is the owner's definition of "smart enough".) Predeclare a tolerable per-archetype
    regression margin and a powered sample size before a broader comparison. If an
    archetype's interval is too wide to exclude that margin, mark its promotion
    inconclusive and gather new held-out deals. Strong aggregate wins cannot hide

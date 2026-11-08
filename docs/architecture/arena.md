@@ -151,6 +151,9 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   baseline with intervals, seat bias against a control, hidden-state variants, determinism, latency in
   Node and Chrome; `npm run arena:policy-eval -- --check` is the gate in `npm test`;
   `npm run arena:policy-browser` needs Chrome. The `holdout` seed set is reserved for O5.
+  **Strength gate (from 2026-11-08)**: `npm run arena:sprt`, a pentanomial SPRT on paired deals
+  (H1 at [0, 30] Elo against the heuristic) over seat players (`scripts/lib/arena-seat-duel.ts`, the
+  loop `playDuel` also runs on) and registered seed blocks: `docs/arena-policy-sprt.md`.
 - **Offline deck packs** (`src/lib/arena/local/pack.ts`, #655): one deck pair as a versioned,
   content-hashed pack — a #640 replay bundle (both faces' definitions and programs, art references,
   ruleset files, interpreter revision) plus decklists, token/generated dependencies, a transitive

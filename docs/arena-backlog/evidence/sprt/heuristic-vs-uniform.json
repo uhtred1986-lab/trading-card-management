@@ -1,0 +1,377 @@
+{
+  "format": "arena-sprt-v1",
+  "mode": "sprt",
+  "config": {
+    "candidate": "heuristic",
+    "baseline": "uniform",
+    "ladder": null,
+    "players": {
+      "heuristic": "today's local opponent, localPolicy() through localStep (main v2, combat v3, choices v2)",
+      "uniform": "a random legal answer in every window, no shortcuts (arena-policy-eval's `uniform` baseline)"
+    },
+    "playersModules": [],
+    "seedBlock": {
+      "name": "sprt-dev",
+      "base": 60000000,
+      "size": 1000000,
+      "policyBase": 560000000,
+      "status": "dev",
+      "note": "development and tuning of SPRT candidates; the harness's own A/A and vs-uniform measurements (2026-11-08)"
+    },
+    "fixtureCycle": [
+      "AvA",
+      "AvB",
+      "BvA",
+      "BvB"
+    ],
+    "maxMoves": 3000,
+    "privacyEvery": 20,
+    "maxGames": 400,
+    "maxPairs": 200,
+    "sprt": {
+      "elo0": 0,
+      "elo1": 30,
+      "alpha": 0.05,
+      "beta": 0.05,
+      "minPairs": 20,
+      "minInformativePairs": 10
+    }
+  },
+  "run": {
+    "workers": 3,
+    "cpus": 4,
+    "loadAverage": {
+      "atStart": [
+        1.7,
+        3.76,
+        4.62
+      ],
+      "atEnd": [
+        3.34,
+        3.92,
+        4.63
+      ]
+    },
+    "wallSeconds": 42.825331039999995,
+    "games": 40,
+    "wallSecondsPerGame": 1.070633276,
+    "gameSeconds": {
+      "mean": 2.925553391875,
+      "p50": 2.599236839000001,
+      "p95": 4.927991784,
+      "max": 7.5487029680000015
+    },
+    "discardedPastDecision": {
+      "deals": 0,
+      "integrityFailures": 0
+    }
+  },
+  "source": {
+    "commit": "548ecd7b2c1bc71588ef927302292b563b092e17",
+    "dirty": false,
+    "start": {
+      "id": "arena-policy-eval",
+      "version": "sprt-1",
+      "gitCommit": "548ecd7b2c1bc71588ef927302292b563b092e17",
+      "dirtyTreeSha256": null
+    },
+    "end": {
+      "id": "arena-policy-eval",
+      "version": "sprt-1",
+      "gitCommit": "548ecd7b2c1bc71588ef927302292b563b092e17",
+      "dirtyTreeSha256": null
+    },
+    "changedDuringRun": false,
+    "node": "v24.22.2"
+  },
+  "result": {
+    "decision": "H1",
+    "stoppedBy": "sprt",
+    "verdict": "H1 accepted (not a gate result: seed block sprt-dev is dev, not a fresh gate block; the baseline is uniform, not heuristic)",
+    "gateEligible": false,
+    "notGateReasons": [
+      "seed block sprt-dev is dev, not a fresh gate block",
+      "the baseline is uniform, not heuristic"
+    ],
+    "pairs": 20,
+    "games": 40,
+    "wins": 40,
+    "draws": 0,
+    "losses": 0,
+    "unfinished": 0,
+    "pentanomial": [
+      0,
+      0,
+      0,
+      0,
+      20
+    ],
+    "informativePairs": 20,
+    "llr": 4397.264663374317,
+    "bounds": [
+      -2.9444389791664403,
+      2.9444389791664403
+    ],
+    "elo": {
+      "pairs": 20,
+      "score": 0.9998750249950009,
+      "scoreCi95": [
+        0.9956327805056746,
+        0.999999999
+      ],
+      "elo": 1561.249023142419,
+      "eloCi95": [
+        943.1576668447051,
+        3599.9999856265263
+      ],
+      "los": 1,
+      "variance": 0.00009371563499737564
+    },
+    "integrityFailures": 0,
+    "integrity": [],
+    "privacyChecks": 141,
+    "nontrivialTwins": 141,
+    "byFixture": {
+      "AvA": {
+        "pairs": 5,
+        "wins": 10,
+        "draws": 0,
+        "losses": 0,
+        "unfinished": 0,
+        "pentanomial": [
+          0,
+          0,
+          0,
+          0,
+          5
+        ],
+        "elo": {
+          "pairs": 5,
+          "score": 0.9995003996802558,
+          "scoreCi95": [
+            0.982545831671261,
+            0.999999999
+          ],
+          "elo": 1320.46410578771,
+          "eloCi95": [
+            700.1814630174556,
+            3599.9999856265263
+          ],
+          "los": 1,
+          "variance": 0.000374450639328665
+        }
+      },
+      "AvB": {
+        "pairs": 5,
+        "wins": 10,
+        "draws": 0,
+        "losses": 0,
+        "unfinished": 0,
+        "pentanomial": [
+          0,
+          0,
+          0,
+          0,
+          5
+        ],
+        "elo": {
+          "pairs": 5,
+          "score": 0.9995003996802558,
+          "scoreCi95": [
+            0.982545831671261,
+            0.999999999
+          ],
+          "elo": 1320.46410578771,
+          "eloCi95": [
+            700.1814630174556,
+            3599.9999856265263
+          ],
+          "los": 1,
+          "variance": 0.000374450639328665
+        }
+      },
+      "BvA": {
+        "pairs": 5,
+        "wins": 10,
+        "draws": 0,
+        "losses": 0,
+        "unfinished": 0,
+        "pentanomial": [
+          0,
+          0,
+          0,
+          0,
+          5
+        ],
+        "elo": {
+          "pairs": 5,
+          "score": 0.9995003996802558,
+          "scoreCi95": [
+            0.982545831671261,
+            0.999999999
+          ],
+          "elo": 1320.46410578771,
+          "eloCi95": [
+            700.1814630174556,
+            3599.9999856265263
+          ],
+          "los": 1,
+          "variance": 0.000374450639328665
+        }
+      },
+      "BvB": {
+        "pairs": 5,
+        "wins": 10,
+        "draws": 0,
+        "losses": 0,
+        "unfinished": 0,
+        "pentanomial": [
+          0,
+          0,
+          0,
+          0,
+          5
+        ],
+        "elo": {
+          "pairs": 5,
+          "score": 0.9995003996802558,
+          "scoreCi95": [
+            0.982545831671261,
+            0.999999999
+          ],
+          "elo": 1320.46410578771,
+          "eloCi95": [
+            700.1814630174556,
+            3599.9999856265263
+          ],
+          "los": 1,
+          "variance": 0.000374450639328665
+        }
+      }
+    },
+    "bySeat": {
+      "p1": {
+        "games": 20,
+        "wins": 20,
+        "draws": 0,
+        "losses": 0,
+        "unfinished": 0
+      },
+      "p2": {
+        "games": 20,
+        "wins": 20,
+        "draws": 0,
+        "losses": 0,
+        "unfinished": 0
+      }
+    },
+    "expectations": [
+      {
+        "variance": "this run",
+        "perPairVariance": 0.00009371563499737564,
+        "elo": 0,
+        "pAcceptH1": 0.05000000000000001,
+        "expectedGames": 0.5355969753958038
+      },
+      {
+        "variance": "this run",
+        "perPairVariance": 0.00009371563499737564,
+        "elo": 15,
+        "pAcceptH1": 0.501370364083169,
+        "expectedGames": 0.8761270348872444
+      },
+      {
+        "variance": "this run",
+        "perPairVariance": 0.00009371563499737564,
+        "elo": 30,
+        "pAcceptH1": 0.95,
+        "expectedGames": 0.5355969753958038
+      },
+      {
+        "variance": "this run",
+        "perPairVariance": 0.00009371563499737564,
+        "elo": 60,
+        "pAcceptH1": 0.9998410214888909,
+        "expectedGames": 0.2002726561504547
+      },
+      {
+        "variance": "#826 holdout (11 won-both, 120 split, 29 lost-both)",
+        "perPairVariance": 0.059336016600079367,
+        "elo": 0,
+        "pAcceptH1": 0.05000000000000001,
+        "expectedGames": 339.11300951999806
+      },
+      {
+        "variance": "#826 holdout (11 won-both, 120 split, 29 lost-both)",
+        "perPairVariance": 0.059336016600079367,
+        "elo": 15,
+        "pAcceptH1": 0.501370364083169,
+        "expectedGames": 554.719479703719
+      },
+      {
+        "variance": "#826 holdout (11 won-both, 120 split, 29 lost-both)",
+        "perPairVariance": 0.059336016600079367,
+        "elo": 30,
+        "pAcceptH1": 0.95,
+        "expectedGames": 339.11300951999806
+      },
+      {
+        "variance": "#826 holdout (11 won-both, 120 split, 29 lost-both)",
+        "perPairVariance": 0.059336016600079367,
+        "elo": 60,
+        "pAcceptH1": 0.9998410214888909,
+        "expectedGames": 126.80255167900364
+      },
+      {
+        "variance": "#899 holdout (14 won-both, 134 split, 12 lost-both)",
+        "perPairVariance": 0.04058621191062626,
+        "elo": 0,
+        "pAcceptH1": 0.05000000000000001,
+        "expectedGames": 231.95545057890612
+      },
+      {
+        "variance": "#899 holdout (14 won-both, 134 split, 12 lost-both)",
+        "perPairVariance": 0.04058621191062626,
+        "elo": 15,
+        "pAcceptH1": 0.501370364083169,
+        "expectedGames": 379.4316444588794
+      },
+      {
+        "variance": "#899 holdout (14 won-both, 134 split, 12 lost-both)",
+        "perPairVariance": 0.04058621191062626,
+        "elo": 30,
+        "pAcceptH1": 0.95,
+        "expectedGames": 231.95545057890612
+      },
+      {
+        "variance": "#899 holdout (14 won-both, 134 split, 12 lost-both)",
+        "perPairVariance": 0.04058621191062626,
+        "elo": 60,
+        "pAcceptH1": 0.9998410214888909,
+        "expectedGames": 86.733750058397
+      }
+    ],
+    "pairOutcomes": [
+      {"deal":0,"fixture":"AvA","engineSeed":60000000,"policySeed":560000000,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":128,"turn":13,"stopKind":null,"trace":"80cc5187","guards":{"candidate":0,"baseline":0},"twins":[4,4]},{"candidateSeat":"p2","winner":"candidate","moves":117,"turn":10,"stopKind":null,"trace":"be11baad","guards":{"candidate":0,"baseline":0},"twins":[3,3]}]},
+      {"deal":1,"fixture":"AvB","engineSeed":60000001,"policySeed":560000001,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":129,"turn":13,"stopKind":null,"trace":"053a7580","guards":{"candidate":0,"baseline":0},"twins":[4,4]},{"candidateSeat":"p2","winner":"candidate","moves":116,"turn":12,"stopKind":null,"trace":"aac1ba7b","guards":{"candidate":0,"baseline":0},"twins":[3,3]}]},
+      {"deal":2,"fixture":"BvA","engineSeed":60000002,"policySeed":560000002,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":123,"turn":9,"stopKind":null,"trace":"1eab1524","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":127,"turn":13,"stopKind":null,"trace":"5a64a8af","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":3,"fixture":"BvB","engineSeed":60000003,"policySeed":560000003,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":97,"turn":9,"stopKind":null,"trace":"ab9e4d1f","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":93,"turn":9,"stopKind":null,"trace":"8367957c","guards":{"candidate":0,"baseline":0},"twins":[3,3]}]},
+      {"deal":4,"fixture":"AvA","engineSeed":60000004,"policySeed":560000004,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":107,"turn":11,"stopKind":null,"trace":"081f3123","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":148,"turn":13,"stopKind":null,"trace":"e1590c41","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":5,"fixture":"AvB","engineSeed":60000005,"policySeed":560000005,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":132,"turn":13,"stopKind":null,"trace":"e016e10a","guards":{"candidate":0,"baseline":0},"twins":[4,4]},{"candidateSeat":"p2","winner":"candidate","moves":114,"turn":11,"stopKind":null,"trace":"addd0922","guards":{"candidate":0,"baseline":0},"twins":[3,3]}]},
+      {"deal":6,"fixture":"BvA","engineSeed":60000006,"policySeed":560000006,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":109,"turn":12,"stopKind":null,"trace":"97550358","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":124,"turn":13,"stopKind":null,"trace":"cdbb4722","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":7,"fixture":"BvB","engineSeed":60000007,"policySeed":560000007,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":109,"turn":9,"stopKind":null,"trace":"f1af3e8e","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":101,"turn":10,"stopKind":null,"trace":"1cc4b563","guards":{"candidate":0,"baseline":0},"twins":[3,3]}]},
+      {"deal":8,"fixture":"AvA","engineSeed":60000008,"policySeed":560000008,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":144,"turn":15,"stopKind":null,"trace":"3605bee4","guards":{"candidate":0,"baseline":0},"twins":[4,4]},{"candidateSeat":"p2","winner":"candidate","moves":134,"turn":14,"stopKind":null,"trace":"6b37a41e","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":9,"fixture":"AvB","engineSeed":60000009,"policySeed":560000009,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":102,"turn":12,"stopKind":null,"trace":"28f3e534","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":140,"turn":11,"stopKind":null,"trace":"6eba6bc6","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":10,"fixture":"BvA","engineSeed":60000010,"policySeed":560000010,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":149,"turn":11,"stopKind":null,"trace":"1c277c3b","guards":{"candidate":0,"baseline":0},"twins":[4,4]},{"candidateSeat":"p2","winner":"candidate","moves":132,"turn":16,"stopKind":null,"trace":"5256a0d9","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":11,"fixture":"BvB","engineSeed":60000011,"policySeed":560000011,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":103,"turn":9,"stopKind":null,"trace":"7a2af06e","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":97,"turn":10,"stopKind":null,"trace":"666cc4a4","guards":{"candidate":0,"baseline":0},"twins":[3,3]}]},
+      {"deal":12,"fixture":"AvA","engineSeed":60000012,"policySeed":560000012,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":205,"turn":17,"stopKind":null,"trace":"d8b08f4e","guards":{"candidate":0,"baseline":0},"twins":[6,6]},{"candidateSeat":"p2","winner":"candidate","moves":143,"turn":15,"stopKind":null,"trace":"383900d9","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":13,"fixture":"AvB","engineSeed":60000013,"policySeed":560000013,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":103,"turn":11,"stopKind":null,"trace":"2246cb3b","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":126,"turn":9,"stopKind":null,"trace":"031dc09c","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":14,"fixture":"BvA","engineSeed":60000014,"policySeed":560000014,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":119,"turn":9,"stopKind":null,"trace":"e9b00170","guards":{"candidate":0,"baseline":0},"twins":[4,4]},{"candidateSeat":"p2","winner":"candidate","moves":107,"turn":11,"stopKind":null,"trace":"b2f05e12","guards":{"candidate":0,"baseline":0},"twins":[3,3]}]},
+      {"deal":15,"fixture":"BvB","engineSeed":60000015,"policySeed":560000015,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":91,"turn":9,"stopKind":null,"trace":"13b97c5f","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":105,"turn":10,"stopKind":null,"trace":"c0758d28","guards":{"candidate":0,"baseline":0},"twins":[3,3]}]},
+      {"deal":16,"fixture":"AvA","engineSeed":60000016,"policySeed":560000016,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":99,"turn":10,"stopKind":null,"trace":"da67f3af","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":156,"turn":15,"stopKind":null,"trace":"d09bfa3d","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":17,"fixture":"AvB","engineSeed":60000017,"policySeed":560000017,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":130,"turn":13,"stopKind":null,"trace":"ee064c9e","guards":{"candidate":0,"baseline":0},"twins":[4,4]},{"candidateSeat":"p2","winner":"candidate","moves":158,"turn":13,"stopKind":null,"trace":"a7cd086f","guards":{"candidate":0,"baseline":0},"twins":[5,5]}]},
+      {"deal":18,"fixture":"BvA","engineSeed":60000018,"policySeed":560000018,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":88,"turn":7,"stopKind":null,"trace":"a5708bed","guards":{"candidate":0,"baseline":0},"twins":[3,3]},{"candidateSeat":"p2","winner":"candidate","moves":83,"turn":8,"stopKind":null,"trace":"09492272","guards":{"candidate":0,"baseline":0},"twins":[2,2]}]},
+      {"deal":19,"fixture":"BvB","engineSeed":60000019,"policySeed":560000019,"baseline":"uniform","points":2,"games":[{"candidateSeat":"p1","winner":"candidate","moves":133,"turn":14,"stopKind":null,"trace":"42c1e11b","guards":{"candidate":0,"baseline":0},"twins":[4,4]},{"candidateSeat":"p2","winner":"candidate","moves":98,"turn":9,"stopKind":null,"trace":"f0c9e28b","guards":{"candidate":0,"baseline":0},"twins":[3,3]}]}
+    ]
+  }
+}

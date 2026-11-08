@@ -82,6 +82,8 @@ Audit two curated Masters decks early and package all required definitions, exec
 
 After the offline MVP, admit more Masters decks through capability and cross-deck scenario verification; fix shared mechanics through existing backlog owners. Add optional bounded search/difficulty using sampled unknown information, strict device budgets and a heuristic fallback. Exit per increment: added decks pass compatibility gates and policy improvements demonstrate measured strength without privacy, rules or performance regressions. Full-catalog support is a continuing coverage goal. Consider a small arena MCP wrapper around proven inspect/scenario/replay commands only if measured agent workflows justify it.
 
+**Strength gate from 8 November 2026 (owner decision).** "Policy improvements demonstrate measured strength" now means: SPRT H1 accepted at [0, 30] logistic Elo, α = β = 0.05, against the heuristic on a fresh `sprt-gate` seed block with zero integrity failures (`npm run arena:sprt`), and the twelve strategy benchmarks of [`arena-strategy-validation.md`](arena-strategy-validation.md). It replaces the decisive-pair Wilson gate that #663, #826 and #899 used: [`arena-policy-sprt.md`](arena-policy-sprt.md). Device budgets stay a separate requirement.
+
 | Issue | Work | Prerequisites |
 |---|---|---|
 | #662 (O5-01) | Add a repeatable deck admission gate and qualify the next pair | #661 |

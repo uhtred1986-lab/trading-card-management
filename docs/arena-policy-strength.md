@@ -1,5 +1,11 @@
 # Bounded policy search experiment (#663 / #664)
 
+> **The gate changed on 8 November 2026 (owner decision).** The decisive-pair Wilson gate declared
+> below is retired for the offline opponent. A strength claim now needs SPRT H1 at [0, 30] logistic
+> Elo (α = β = 0.05) against the heuristic on a fresh seed block, plus the twelve strategy benchmarks:
+> [arena-policy-sprt.md](arena-policy-sprt.md) (`npm run arena:sprt`). Everything on this page is the
+> unchanged record of the #663 experiment.
+
 O5 search is an optional, callable attack-sequence policy. The player opponent
 remains the heuristic until the predeclared promotion gate passes. This experiment
 does not change card rules, the online opponent, snapshots, replays or existing
