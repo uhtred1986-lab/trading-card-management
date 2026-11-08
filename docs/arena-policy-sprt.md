@@ -182,6 +182,7 @@ started, about 2–3 for the last two). Reports: [evidence/sprt/](arena-backlog/
 | `heuristic` vs `heuristic` (A/A), cap 400 games, commit 6259a06 | 400 (cap) | inconclusive at the cap: H1 not accepted; all 200 pairs split | −59,353.5 | +0.0 (−0.2, +0.2) | 0 (2,295 twin checks) | 1,289 s: 3.2 s/game |
 | `heuristic` vs `uniform`, commit 548ecd7 | 40 | **H1** at pair 20, the minimum (40–0) | +4,397 | lower bound +943 | 0 (141 twin checks) | 43 s: 1.1 s/game |
 | `--ladder` for `heuristic`, 12 deals each, commit 548ecd7 | 72 | uniform 24–0, shortcuts 24–0, heuristic 12–12 (all split) | – | – | 0 | 100 s: 1.4 s/game |
+| **gate** `lookahead-hard` (v1, turn horizon) vs `heuristic`, `sprt-gate-1`, commit b7cd1a6 | 334 | **H0** accepted: no 30-Elo improvement (162–172; ptnml 32/0/108/0/27) | −2.98 | −10.4 (−41.9, +20.9) | 0 (1,966 twin checks) | 3,988 s: 11.9 s/game |
 
 - **The A/A is exact.** All 200 A/A pairs are the same game twice (identical trace hashes): the
   pairing has no seat or memory asymmetry, and the first seat won 109 of the 200 deals. With no

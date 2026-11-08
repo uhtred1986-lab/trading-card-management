@@ -81,20 +81,49 @@ searching again (`replayPolicy`). The search draws the same number of world seed
 the AI's memory depends only on the decision count, and the replay's trace still proves the game. A
 48-decision resume took under a second.
 
-## Strength: not yet claimed
+## Strength: first gate result (8 Nov 2026): no gain
 
 A quick, non-gate paired run of the first version scored 22/48 against the heuristic. That version
 used a short horizon that scored each option right after it resolved. It mostly swapped plays for
 attacks, a measuring bias: a play's position and an attack's were compared at different points of the
 turn. The defaults now score every option at the start of the other seat's turn.
 
-The gate is the SPRT of `lookahead-normal` / `lookahead-hard` against the frozen heuristic. Its result
-is recorded here when it has run, whatever it is.
+**Gate 1** (`sprt-gate-1`, fresh seeds) measured `lookahead-hard` with that turn horizon against the
+heuristic of the same commit (`b7cd1a6`, clean tree):
+
+- Verdict: **H0 accepted: no 30-Elo improvement**, decided at 334 games.
+- Record 162–172, pentanomial 32 / 0 / 108 / 0 / 27.
+- Elo **−10.4** (95 %: −41.9 to +20.9).
+- Integrity: 0 integrity failures; 1,966 hidden-twin checks, every one on a genuinely different hidden state.
+- Report: [gate1-lookahead-hard.json](arena-backlog/evidence/sprt/gate1-lookahead-hard.json).
+
+By matchup, the lookahead gained with SD15 and lost with SD5:
+
+| Hard plays | Elo (95 %) |
+|---|---|
+| SD15 v SD15 | +24.9 (−33 to +84) |
+| SD15 v SD5 | +33.2 (−31 to +100) |
+| SD5 v SD15 | −41.6 (−111 to +24) |
+| SD5 v SD5 | −59.9 (−121 to −2) |
+
+Each cell is underpowered on its own. The pattern points at the evaluation misjudging what the SD5
+deck plays for. So the Normal and Hard difficulties are **not yet stronger than the heuristic**: they
+play differently, at about the same strength.
+
+A diagnostic on 24 searched positions (8 worlds each, development seeds) explains much of the tie:
+
+- In 14 of them every shortlisted option ends the turn at the same score: the turn horizon cannot tell
+  them apart.
+- Where the search does deviate, the estimated gains are small (mostly 1–3 points).
+- Two worlds disagree with eight about 10 % of the time.
+
+The next candidate scores lines after the other seat's whole reply turn (`horizon: "reply"`). It is
+being measured on the development block before any gate.
 
 Known limits:
 
 - `EVAL_WEIGHTS` are hand-set and untuned. Tuning them (SPSA against the SPRT) is the next lever.
 - Only Main-Phase choices are searched.
-- The horizon ends at the turn's end, so the other seat's next turn is judged only by the exposure
-  term.
+- The default horizon ends at the turn's end, so the other seat's next turn is judged only by the
+  exposure term (`"reply"` plays it, at several times the cost).
 - The rollouts are the heuristic's, so a line is only as good as its continuation.

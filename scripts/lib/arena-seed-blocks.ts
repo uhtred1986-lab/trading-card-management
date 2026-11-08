@@ -59,7 +59,7 @@ const BLOCK = 1_000_000;
 /** The SPRT gate's blocks. Add `sprt-gate-6`… after the last open block (+1,000,000 each, below 60,000,000). */
 export const SPRT_SEED_BLOCKS: readonly SprtSeedBlock[] = [
   { name: "sprt-dev", base: 60_000_000, size: BLOCK, policyBase: 560_000_000, status: "dev", note: "development and tuning of SPRT candidates; the harness's own A/A and vs-uniform measurements (2026-11-08)" },
-  { name: "sprt-gate-1", base: 50_000_000, size: BLOCK, policyBase: 550_000_000, status: "open", note: "first gate run" },
+  { name: "sprt-gate-1", base: 50_000_000, size: BLOCK, policyBase: 550_000_000, status: "consumed", note: "first gate run: lookahead-hard v1 (turn horizon) vs heuristic, 8 Nov 2026 — H0 accepted at 334 games, Elo -10.4 [-41.9, +20.9]", consumedBy: "docs/arena-backlog/evidence/sprt/gate1-lookahead-hard.json" },
   { name: "sprt-gate-2", base: 51_000_000, size: BLOCK, policyBase: 551_000_000, status: "open", note: "gate run after a failed or retuned sprt-gate-1 candidate" },
   { name: "sprt-gate-3", base: 52_000_000, size: BLOCK, policyBase: 552_000_000, status: "open", note: "next gate run" },
   { name: "sprt-gate-4", base: 53_000_000, size: BLOCK, policyBase: 553_000_000, status: "open", note: "next gate run" },
