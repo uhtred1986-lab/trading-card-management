@@ -1,0 +1,275 @@
+{
+  "version": 1,
+  "source": "policy_eval",
+  "requestId": "47a55dda-8c1e-464c-ab8e-46663390ba27",
+  "runner": {
+    "id": "arena-claude-duel",
+    "version": "1",
+    "gitCommit": "b7cd1a65ec54b9c66ba9b938014c01edc6ac34d6",
+    "dirtyTreeSha256": "48aca64b797a88e96035c3cd77d20aef498c54e3fbbe22f7370707542775ca79"
+  },
+  "protocol": {
+    "id": "arena-claude-duel-dry-v1",
+    "revision": "bc782600c849d1930c6868a507c38b318e6715d351774dbadd28462f61f901d7"
+  },
+  "seedSet": "custom",
+  "fixtures": [
+    {
+      "key": "duel-fixture-1",
+      "sourceId": "duel-fixture-1",
+      "runtimeRevision": "b7cd1a65ec54b9c66ba9b938014c01edc6ac34d6",
+      "bundleSha256": "03d4d7d671f500291c15044947019c26d07d7c102096d8086cce00236fbf477b",
+      "rulesSha256": "4e8ccd7185c7faea7b2e877c03f339e8b9963c7b81efa3e078fef02de2da9349",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "af2916faf869ed13054abdea82847bc2f5e0bf658f837f4f4dbb97f0f9cbad5b",
+      "p1DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p2DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "duel-fixture-2",
+      "sourceId": "duel-fixture-2",
+      "runtimeRevision": "b7cd1a65ec54b9c66ba9b938014c01edc6ac34d6",
+      "bundleSha256": "03d4d7d671f500291c15044947019c26d07d7c102096d8086cce00236fbf477b",
+      "rulesSha256": "4e8ccd7185c7faea7b2e877c03f339e8b9963c7b81efa3e078fef02de2da9349",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "af2916faf869ed13054abdea82847bc2f5e0bf658f837f4f4dbb97f0f9cbad5b",
+      "p1DeckSha256": "a2c7246eafec24408f40e868360ae907d422cc24d220092fc0472b8885361361",
+      "p2DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    },
+    {
+      "key": "duel-fixture-3",
+      "sourceId": "duel-fixture-3",
+      "runtimeRevision": "b7cd1a65ec54b9c66ba9b938014c01edc6ac34d6",
+      "bundleSha256": "03d4d7d671f500291c15044947019c26d07d7c102096d8086cce00236fbf477b",
+      "rulesSha256": "4e8ccd7185c7faea7b2e877c03f339e8b9963c7b81efa3e078fef02de2da9349",
+      "catalogSha256": "c04b3e38f3052186e151723032d2fa017a8f0823a94e7f4f8121c61a1aa9b577",
+      "programsSha256": "af2916faf869ed13054abdea82847bc2f5e0bf658f837f4f4dbb97f0f9cbad5b",
+      "p1DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p2DeckSha256": "ca95339ad69c9f4bef153593b3d88c6b4b7041be77aabd789ebd56b33b1accc7",
+      "p1RecipeId": null,
+      "p2RecipeId": null
+    }
+  ],
+  "policies": [
+    {
+      "key": "fake-claude-claude-opus-5-5",
+      "version": "duel-prompt-v1-fake-claude-opus-5-5",
+      "sha256": "aab6cc002cef8920fc7167f0edef434c163e79d2eb1fb2d491adf595f254a097"
+    },
+    {
+      "key": "local-policy",
+      "version": "heuristic-main-2-combat-4-choices-2",
+      "sha256": "0da7c66d208ccb7acc864ea4c2801722821945da0671ae05586eb70286374a68"
+    }
+  ],
+  "results": [
+    {
+      "key": "duel-1",
+      "kind": "policy_game",
+      "fixtureKey": "duel-fixture-1",
+      "candidatePolicyKey": "fake-claude-claude-opus-5-5",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 70000000,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "deterministic",
+          "v": null,
+          "seed": null,
+          "n": null
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 1140000002,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "stopKind": null,
+      "moves": 114,
+      "turn": 10,
+      "damageDealt": 5,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "e79e7128e783e04649a054c3d37d509243bc427cbe521a5f014b004f26c4e260"
+    },
+    {
+      "key": "duel-2",
+      "kind": "policy_game",
+      "fixtureKey": "duel-fixture-1",
+      "candidatePolicyKey": "fake-claude-claude-opus-5-5",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 70000000,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 1140000001,
+          "n": 0
+        },
+        "p2": {
+          "mode": "deterministic",
+          "v": null,
+          "seed": null,
+          "n": null
+        }
+      },
+      "outcome": "loss",
+      "winner": "p1",
+      "stopKind": null,
+      "moves": 117,
+      "turn": 9,
+      "damageDealt": 3,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "e00988bbac127845b02f2e2aa68acf0027dd776dbfa1bfc6ef93d0d24dee5346"
+    },
+    {
+      "key": "duel-3",
+      "kind": "policy_game",
+      "fixtureKey": "duel-fixture-2",
+      "candidatePolicyKey": "fake-claude-claude-opus-5-5",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 70000100,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "deterministic",
+          "v": null,
+          "seed": null,
+          "n": null
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 1140000002,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "stopKind": null,
+      "moves": 98,
+      "turn": 9,
+      "damageDealt": 2,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "410b9aa8accf041e8ae54d258a9b60724ca5819d58beb67a3b467ad281377e05"
+    },
+    {
+      "key": "duel-4",
+      "kind": "policy_game",
+      "fixtureKey": "duel-fixture-2",
+      "candidatePolicyKey": "fake-claude-claude-opus-5-5",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 70000100,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 1140000001,
+          "n": 0
+        },
+        "p2": {
+          "mode": "deterministic",
+          "v": null,
+          "seed": null,
+          "n": null
+        }
+      },
+      "outcome": "loss",
+      "winner": "p1",
+      "stopKind": null,
+      "moves": 75,
+      "turn": 8,
+      "damageDealt": 1,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "42d9842df592e66eb2bef19d26d2adac3efb9c849c1a4fbd997e88345587df2f"
+    },
+    {
+      "key": "duel-5",
+      "kind": "policy_game",
+      "fixtureKey": "duel-fixture-3",
+      "candidatePolicyKey": "fake-claude-claude-opus-5-5",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 70003200,
+      "candidateSeat": "p1",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "deterministic",
+          "v": null,
+          "seed": null,
+          "n": null
+        },
+        "p2": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 1140000002,
+          "n": 0
+        }
+      },
+      "outcome": "loss",
+      "winner": "p2",
+      "stopKind": null,
+      "moves": 115,
+      "turn": 12,
+      "damageDealt": 1,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "1ed65d5350c5e1c2f8520f0ce85b3071036a8209796db47980263d70d8ce2eb0"
+    },
+    {
+      "key": "duel-6",
+      "kind": "policy_game",
+      "fixtureKey": "duel-fixture-3",
+      "candidatePolicyKey": "fake-claude-claude-opus-5-5",
+      "baselinePolicyKey": "local-policy",
+      "seedIndex": null,
+      "seed": 70003200,
+      "candidateSeat": "p2",
+      "initialPolicyRng": {
+        "p1": {
+          "mode": "seeded",
+          "v": 1,
+          "seed": 1140000001,
+          "n": 0
+        },
+        "p2": {
+          "mode": "deterministic",
+          "v": null,
+          "seed": null,
+          "n": null
+        }
+      },
+      "outcome": "loss",
+      "winner": "p1",
+      "stopKind": null,
+      "moves": 104,
+      "turn": 9,
+      "damageDealt": 3,
+      "damageTaken": 8,
+      "guardTrips": 0,
+      "reportedCostMicros": 0,
+      "evidenceSha256": "d35fb6703303526c467040a8f3b579fd62fcdcc2b7445136cb43e07662cd6985"
+    }
+  ]
+}

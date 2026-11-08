@@ -44,12 +44,14 @@ export const CONSUMED_RANGES: readonly SeedRange[] = [
   { name: "826-interrupted", base: 20_000_000, size: 1_000_000, status: "consumed", note: "#826 first holdout attempt, interrupted (docs/arena-backlog/evidence/826/interrupted-20m.json)" },
   { name: "826-holdout", base: 30_000_000, size: 1_000_000, status: "consumed", note: "#826 resource search holdout at +30,000,000 (docs/arena-resource-search-826.md)" },
   { name: "899-holdout", base: 40_899_000, size: 101_000, status: "consumed", note: "#899 defensive-policy holdouts, 40,899,000 and 40,899,400 packs (docs/arena-backlog/evidence/899/fresh-holdouts-2026-10-19/)" },
+  { name: "claude-campaign", base: 70_000_000, size: 1_000_000, status: "consumed", note: "reserved for the local-policy versus Claude API campaign (#904 pilot, #905): scripts/arena-claude-pilot.mts plays from 70,000,000; never an SPRT block" },
 ];
 
 /** Policy-seed ranges earlier experiments used (7919 + … in #651/#663/#826; 89,940,000 in #899). */
 export const CONSUMED_POLICY_RANGES: readonly SeedRange[] = [
   { name: "legacy-policy", base: 0, size: 1_000_000, status: "consumed", note: "7919 + game / 7919 + 2k + seat (#651, #663, #826)" },
   { name: "899-policy", base: 89_940_000, size: 1_000_000, status: "consumed", note: "#899 policySeedBase 89,940,000" },
+  { name: "claude-campaign-policy", base: 570_000_000, size: 1_000_000, status: "consumed", note: "reserved for the Claude API campaign's policy seeds (scripts/arena-claude-pilot.mts)" },
 ];
 
 const BLOCK = 1_000_000;
