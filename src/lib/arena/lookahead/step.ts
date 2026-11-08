@@ -44,7 +44,8 @@ import type { PolicyObservation } from "../policy/observation";
 import { determinize, type Knowledge } from "./determinize";
 import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights, type FittedValue } from "./evaluate";
 
-export const LOOKAHEAD_VERSION = 1;
+/** 2 (8 Nov 2026): lines are scored by the fitted win probability (`FITTED_VALUE`); 1 used the hand-set value. */
+export const LOOKAHEAD_VERSION = 2;
 
 export type Horizon = "turn" | "decision" | "reply";
 
@@ -84,8 +85,8 @@ export interface LookaheadOptions {
 
 /** The two difficulties the owner asked for (8 Nov 2026): the same search, with and without your decklist. */
 export const DIFFICULTIES = {
-  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 1, horizon: "turn" },
-  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 1, horizon: "turn" },
+  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 1, horizon: "turn", value: "fitted" },
+  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 1, horizon: "turn", value: "fitted" },
 } as const satisfies Record<string, LookaheadOptions>;
 
 export type Difficulty = keyof typeof DIFFICULTIES;
