@@ -137,6 +137,18 @@ source (`changedDuringRun: false`).
 a combo-made lethal (AI-01), and it changes what is played, so v3 gets its own gates (`sprt-gate-4` for
 Hard, `sprt-gate-5` for Normal). The results above are v2's.
 
+**Gate 4** (`sprt-gate-4`, commit `975c3fa`, clean and unchanged during the run) measured
+`lookahead-hard` v3:
+
+- Verdict: **PASS: H1 accepted**, decided at 92 games.
+- Record 62–30, Elo **+126.1** (95 %: +57.8 to +205.4).
+- Integrity: 0 integrity failures, 547 hidden-twin checks.
+- Report: [gate4-lookahead-hard-v3.json](arena-backlog/evidence/sprt/gate4-lookahead-hard-v3.json).
+- By matchup: SD15 v SD15 −58 (−138 to +15), SD15 v SD5 +279, SD5 v SD15 +64, SD5 v SD5 +320.
+
+**Known weak spot: the SD15 mirror.** It has not been clearly positive in any run: +23 in gate 2,
+0 in gate 3, −58 here, −76 on the development block. It is the next thing to look at.
+
 **The other half of "smart enough"** (owner, 8 Nov 2026) is the 12 strategy benchmarks of
 `arena-strategy-validation.md`, and they are **not yet all built**. Five tactical subcases run in
 `arena-policy-strategy.mts`; the heuristic now passes AI-02 too, and fails AI-01 own-combo lethal and

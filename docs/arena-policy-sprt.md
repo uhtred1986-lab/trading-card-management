@@ -185,6 +185,7 @@ started, about 2–3 for the last two). Reports: [evidence/sprt/](arena-backlog/
 | **gate** `lookahead-hard` (v1, turn horizon) vs `heuristic`, `sprt-gate-1`, commit b7cd1a6 | 334 | **H0** accepted: no 30-Elo improvement (162–172; ptnml 32/0/108/0/27) | −2.98 | −10.4 (−41.9, +20.9) | 0 (1,966 twin checks) | 3,988 s: 11.9 s/game |
 | **gate** `lookahead-hard` (v2, fitted win probability) vs `heuristic`, `sprt-gate-2`, commit d9d8b55 | 120 | **PASS: H1** accepted (77–43; ptnml 6/0/31/0/23) | +3.08 | +101.2 (+42.8, +165.8) | 0 (698 twin checks) | 1,753 s: 14.6 s/game |
 | **gate** `lookahead-normal` (v2) vs `heuristic`, `sprt-gate-3`, commit d9d8b55 | 90 | **PASS: H1** accepted (61–29; ptnml 4/0/21/0/20) | +2.98 | +129.2 (+59.3, +210.8) | 0 (531 twin checks) | 1,464 s: 16.3 s/game |
+| **gate** `lookahead-hard` (v3, losing attacks shortlisted) vs `heuristic`, `sprt-gate-4`, commit 975c3fa | 92 | **PASS: H1** accepted (62–30; ptnml 4/0/22/0/20) | +3.01 | +126.1 (+57.8, +205.4) | 0 (547 twin checks) | 1,530 s: 16.6 s/game |
 
 - **The A/A is exact.** All 200 A/A pairs are the same game twice (identical trace hashes): the
   pairing has no seat or memory asymmetry, and the first seat won 109 of the 200 deals. With no
