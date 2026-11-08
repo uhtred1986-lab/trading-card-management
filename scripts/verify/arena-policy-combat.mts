@@ -15,8 +15,11 @@
  *      either side; [Critical] and [Double Strike] change what a hit is worth and so whether it is
  *      defended; a [Counter] that negates a lethal attack is taken, one against a survivable hit is
  *      not, nor one a [Blocker] makes unnecessary; a readable "+5000 power" battle activation
- *      covers a deficit more cheaply than a combo card. Each checks the cards, energy and life
- *      actually spent on the engine.
+ *      covers a deficit more cheaply than a combo card; and no combo is spent on a defence the
+ *      opponent's other active attacker undoes anyway (a guard KO'd by the second attack, AI-02's
+ *      Leader that must keep its 10,000 combo for the Double Strike still to come), with lethal,
+ *      survivable and out-of-reach controls. Each checks the cards, energy and life actually spent
+ *      on the engine.
  *   3. Termination: every staged battle ends within a handful of decisions; the cycle guard ends a
  *      battle window a looping policy would not (with its decline) and interrupts when nothing ends
  *      it; the cover search stays inside its work bound on a 14-card hand.
@@ -45,7 +48,7 @@ import { battleAt, combatFixtureBundle, combatMainPhase, p2MainPhase, COMBAT_FIX
 import { permutedFor } from "./arena-policy-permute.ts";
 import { playDuel, quantile, summarise, wilson, type DuelResult } from "./arena-policy-duel.ts";
 import type { PlayerId } from "../../src/lib/arena/types";
-import type { PinnedMatch } from "../../src/lib/arena/browser.ts";
+import { applyMove, legalMoves, type PinnedMatch } from "../../src/lib/arena/browser.ts";
 import { canonicalJson } from "../../src/lib/arena/replay-core.ts";
 import { applyDecision, localStep, policyTurn } from "../../src/lib/arena/policy/boundary.ts";
 import { answerFor, uniformPolicy, type Policy, type PolicyInput } from "../../src/lib/arena/policy/contract.ts";
@@ -349,6 +352,86 @@ scenario("p1 defends: block and keep the counter, or take the hit", () => {
   battleLengths.push(r2.steps.length);
   assert.ok(chosen(r2.steps, "blocker", "p1")[0]?.id.includes("null") && chosen(r2.steps, "counter", "p1")[0]?.id.includes("null"), `p1 takes the hit (${said(r2.steps)})`);
   assert.equal(lifeOf(r2.match, "p1"), 5);
+});
+
+// 2k. Combo waste (combat v4): a defence the rest of the turn undoes anyway is not paid for. p1 has two active
+//     attackers; p2's Leader is the plain one. Each case is first fought on the engine without the policy (p2
+//     combos the named card in the first battle and declines everything else, the second attacker follows), so
+//     the waste is the engine's outcome, not the scorer's opinion.
+//     - Battle Card: a rested 15,000 guard, one free 5,000 combo, two 15,000 attackers. The combo holds the first
+//       battle (ties go to the attacker, 8-4-6), the second attacker ties the guard again with nothing left: the
+//       guard is KO'd either way, so the policy takes the hit and keeps the card.
+//     - Leader (AI-02's shape, "saving one battle while losing the next is insufficient"): 2 life, a plain 15,000
+//       then a 15,000 [Double Strike]; a 10,000 combo (one energy, the only energy) and a free 5,000 in hand.
+//       Covering the first hit with the 10,000 leaves the 5,000 short of the Double Strike, which takes the last
+//       2 life. Taking the first hit (1 life; the life card to the hand) keeps the 10,000 for the Double Strike.
+//     Controls, unchanged from v3: a hit that is lethal now is still covered though a later attack wins anyway; a
+//     cover that leaves the turn survivable is spent; so is one whose later attacker does not reach the guard.
+scenario("combo waste: keep the cards a defence cannot save", () => {
+  const TWO = (a: string, b: string) => ({ hand: [], energy: ["C-V5", "C-V5"], battle: [{ cardId: a, mode: "active" as const }, { cardId: b, mode: "active" as const }], leaderMode: "rest" as const, energyMarkers: 0 });
+  const plain = { p2: "C-L-RED" };
+  /** p1, back in its Main Phase, declares its still-active `attacker` (a card id) at p2's Leader or its Battle Card `target`. */
+  const next = (m: PinnedMatch, attacker: string, target = "leader") => {
+    const atk = zone(m, "p1", "battle").find((id) => m.state.cards[id].cardId === attacker && m.state.cards[id].mode === "active");
+    const tgt = target === "leader" ? zone(m, "p2", "leader")[0] : zone(m, "p2", "battle").find((id) => m.state.cards[id].cardId === target);
+    const move = legalMoves(m).find((l) => l.action.type === "attack" && l.action.attacker === atk && l.action.target === tgt);
+    assert.ok(move, `p1 can attack ${target} with its other ${attacker}`);
+    return applyMove(m, move.action).match;
+  };
+  /** The engine alone: p2 combos `card` once in this battle, every other question is declined. */
+  const scripted = (match: PinnedMatch, card: string | null) => {
+    let m = match;
+    let spent = false;
+    for (let n = 0; n < 40 && !isOver(m) && !(m.state.prompt.kind === "main" && !m.state.battle); n++) {
+      const legal = legalMoves(m).map((l) => l.action);
+      const combo = !spent && card && actorOf(m) === "p2" ? legal.find((a) => a.type === "combo" && m.state.cards[a.card].cardId === card) : undefined;
+      if (combo) spent = true;
+      m = applyMove(m, combo ?? legal.find((a) => a.type === "pass" || ("card" in a && a.card === null)) ?? legal[0]).match;
+    }
+    return m;
+  };
+  const p2Combos = (steps: Step[]) => chosen(steps, "combo", "p2").filter((s) => s.id.startsWith("m:combo:")).length;
+
+  // Battle Card guard.
+  const guard = () => battleAt(opening, { p1: TWO("C-V10", "C-V10"), p2: DEFENDER(["C-V5"], 6, [{ cardId: "C-V10", mode: "rest" }]) }, "C-V10", "C-V10", plain);
+  const delayed = scripted(next(scripted(guard(), "C-V5"), "C-V10", "C-V10"), null);
+  assert.deepEqual(cardsIn(delayed, "p2", "battle"), [], "engine: the combo only delays the guard's KO to the second attack");
+  assert.ok(!cardsIn(delayed, "p2", "hand").includes("C-V5"), "engine: and the combo card is gone too");
+  const g = fight(guard());
+  battleLengths.push(g.steps.length);
+  assert.equal(p2Combos(g.steps), 0, `p2 does not combo for a guard the second attacker KOs anyway (${said(g.steps)})`);
+  assert.match(chosen(g.steps, "combo", "p2")[0]?.how ?? "", /no cover also holds C-V10 through the 1 other active attacker/, "because no cover holds the rest of the turn");
+  assert.deepEqual(cardsIn(g.match, "p2", "hand"), ["C-V5"], "the combo card is kept");
+
+  // Leader, the AI-02 shape.
+  const leader = () => battleAt(opening, { p1: TWO("C-V10", "C-DS"), p2: DEFENDER(["C-V5", "C-V10"], 2, [], 1) }, "C-V10", "leader", plain);
+  const lost = scripted(next(scripted(leader(), "C-V10"), "C-DS"), null);
+  assert.ok(isOver(lost) && lost.state.winner === "p1", "engine: covering the first hit with the 10,000 loses to the Double Strike");
+  const first = fight(leader());
+  battleLengths.push(first.steps.length);
+  assert.equal(p2Combos(first.steps), 0, `p2 takes the first, plain hit (${said(first.steps)})`);
+  assert.match(chosen(first.steps, "combo", "p2")[0]?.how ?? "", /no cover also holds the Leader/, "because covering it cannot also hold the Double Strike");
+  assert.equal(lifeOf(first.match, "p2"), 1, "one life is taken");
+  const second = fight(next(first.match, "C-DS"));
+  battleLengths.push(second.steps.length);
+  assert.ok(!isOver(second.match), `p2 survives the Double Strike (${said(second.steps)})`);
+  assert.equal(lifeOf(second.match, "p2"), 1, "at 1 life");
+  assert.ok(!cardsIn(second.match, "p2", "hand").includes("C-V10") && cardsIn(second.match, "p2", "hand").includes("C-V5"), "with the 10,000 spent on it and the 5,000 kept");
+  assert.equal(activeEnergy(second.match, "p2"), 0, "its one energy paid there");
+
+  // Controls.
+  const lethal = fight(battleAt(opening, { p1: TWO("C-V10", "C-DS"), p2: DEFENDER(["C-V10"], 1, [], 1) }, "C-V10", "leader", plain));
+  battleLengths.push(lethal.steps.length);
+  assert.equal(p2Combos(lethal.steps), 1, `a lethal hit is still covered (${said(lethal.steps)})`);
+  assert.equal(lifeOf(lethal.match, "p2"), 1);
+  const holds = fight(battleAt(opening, { p1: TWO("C-DS", "C-V10"), p2: DEFENDER(["C-V5", "C-V5"], 3, [], 0) }, "C-DS", "leader", plain));
+  battleLengths.push(holds.steps.length);
+  assert.equal(p2Combos(holds.steps), 2, `a Double Strike at 3 life is held when the plain attack still to come is survivable (${said(holds.steps)})`);
+  assert.equal(lifeOf(holds.match, "p2"), 3);
+  const short = fight(battleAt(opening, { p1: TWO("C-V10", "C-V5"), p2: DEFENDER(["C-V5"], 6, [{ cardId: "C-V10", mode: "rest" }]) }, "C-V10", "C-V10", plain));
+  battleLengths.push(short.steps.length);
+  assert.equal(p2Combos(short.steps), 1, `the guard is defended when the attacker still to come cannot reach it (${said(short.steps)})`);
+  assert.deepEqual(cardsIn(short.match, "p2", "battle"), ["C-V10"]);
 });
 
 // ---------------------------------------------------------------------------------------------

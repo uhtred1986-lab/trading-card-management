@@ -54,11 +54,34 @@
  *             a response nobody has made — and only when what the battle is
  *             worth exceeds that set's cost. A battle already won, one that
  *             cannot be won, or one not worth the cards is passed.
+ *   combo waste (v4) in defence, a cover is only paid for if, after it, the
+ *             seat could still hold the target through the rest of the turn:
+ *             each other card of the opponent's in Active Mode (Leader and
+ *             Battle Cards, the attacker aside) is an attack still to come,
+ *             assumed sent at this target. A Battle Card holds when every such
+ *             attack that reaches its power (ties to the attacker) can be
+ *             stopped; the Leader when enough can be stopped that the rest take
+ *             less than the life it has, no [Victory Strike] among them. The
+ *             means are the seat's own: the combo cards it keeps, its battle
+ *             activations left, its energy left, each other active [Blocker]
+ *             (one attack each), plus the cover's "for the turn" power — and
+ *             they are counted generously (combo power pooled across battles),
+ *             so a "no" means no order of them would do. When the cheapest cover
+ *             fails that test, the cheapest that passes it is taken; with none,
+ *             the hit is taken and the cards kept (in time to answer a later
+ *             attack: AI-02's "allow the first hit, survive the Double Strike").
+ *             It never applies to a Leader hit that is lethal now, nor with no
+ *             other active attacker, nor to a Unison. The opponent's hidden hand,
+ *             a card it has yet to play, an extra attack and its combos are not
+ *             counted, nor are the seat's counters or a Life card a hit would
+ *             put in its hand.
  *
  * **Bounded.** Every scoring step and every node of the cover search is
  * counted; at `COMBAT_LIMITS.work` the search stops with the best cover found
  * (none, when none was: the conservative answer, which declines). At most
- * `COMBAT_LIMITS.resources` resources enter a cover search.
+ * `COMBAT_LIMITS.resources` resources enter a cover search and at most
+ * `COMBAT_LIMITS.threats` attacks still to come the combo-waste test; when the
+ * work runs out inside that test, the cover chosen before it stands.
  *
  * Ties go to the first option in canonical order — declining first — so the
  * choice is a function of the observation and the decisions alone: no clock,
@@ -77,13 +100,15 @@ import { interruptingPolicy } from "./contract";
 /** What losing `damage` life costs its owner (`main.ts` since #650, where the choice handlers read it too). */
 export { lifeLoss };
 
-export const COMBAT_POLICY_VERSION = 3;
+export const COMBAT_POLICY_VERSION = 4;
 
 export const COMBAT_LIMITS = {
   /** Options scored per decision; the rest (by canonical id) are not considered. */
   decisions: 64,
   /** Resources (combo cards, pump activations) a cover search considers. */
   resources: 12,
+  /** The opponent's attacks still to come that the combo-waste test weighs (the strongest; the rest are not counted). */
+  threats: 6,
   /** Scoring and search steps per decision. */
   work: 4096,
 } as const;
@@ -202,6 +227,10 @@ interface Resource {
   loss: number;
   /** Power it gives the guard "for the turn" (#899), so it also holds the battles still to come; absent for a one-battle figure. */
   turn?: number;
+  /** The card a combo spends (it is gone for the battles still to come). */
+  card?: string;
+  /** A typed battle activation: unspent, it is still there for a later battle this turn. */
+  activation?: true;
 }
 
 interface Cover {
@@ -217,7 +246,7 @@ interface Cover {
  * branch-and-bound, every node a counted step; null when none is found (or the
  * work ran out before one was).
  */
-function cheapestCover(resources: readonly Resource[], need: number, energy: number, work: Work): Cover | null {
+function cheapestCover(resources: readonly Resource[], need: number, energy: number, work: Work, accept?: (c: Cover) => boolean): Cover | null {
   if (need <= 0) return { ids: [], power: 0, cost: 0 };
   const list = [...resources].filter((r) => r.power > 0).sort((a, b) => b.power - a.power || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).slice(0, COMBAT_LIMITS.resources);
   const cost = (r: Resource) => r.loss + COST.energy * r.energy;
@@ -231,7 +260,7 @@ function cheapestCover(resources: readonly Resource[], need: number, energy: num
     if (!work.step()) return;
     if (power >= need) {
       const c = { ids: [...ids], power, cost: paid };
-      if (better(c)) best = c;
+      if (better(c) && (!accept || accept(c))) best = c;
       return;
     }
     if (i >= list.length || power + tail[i] < need) return;
@@ -278,7 +307,7 @@ function offeredResources(o: PolicyObservation, bt: Battle, open: readonly MenuD
       const card = findCard(o, d.action.card);
       if (!card) continue;
       const fromHand = (o.you.hand ?? []).some((c) => c.id === card.id);
-      out.push({ id: d.id, power: Math.max(0, card.comboPower ?? 0), energy: Math.max(0, card.comboCost ?? 0), loss: fromHand ? COST.handCard : cardValue(card) });
+      out.push({ id: d.id, power: Math.max(0, card.comboPower ?? 0), energy: Math.max(0, card.comboCost ?? 0), loss: fromHand ? COST.handCard : cardValue(card), card: card.id });
     } else if (d.type === "activate") {
       const card = findCard(o, d.action.card);
       const used = typeof d.action.card === "string" ? activationsThisTurn(o, o.seat, d.action.card) : null;
@@ -292,7 +321,7 @@ function offeredResources(o: PolicyObservation, bt: Battle, open: readonly MenuD
       // From the hand it spends that card (an Extra), less what it draws first; on the field it costs the activation.
       const fromHand = !!card && (o.you.hand ?? []).some((c) => c.id === card.id);
       const loss = fromHand ? Math.max(0, COST.handCard - summary.drawnFirst) : COST.activation;
-      out.push({ id: d.id, power, energy, loss, ...(turn > 0 ? { turn } : {}) });
+      out.push({ id: d.id, power, energy, loss, ...(turn > 0 ? { turn } : {}), activation: true });
     }
   }
   return out;
@@ -417,29 +446,51 @@ function comboChoice(o: PolicyObservation, bt: Battle | null, open: MenuDecision
   const worth = hitLoss(bt, bt.target, bt.guardCard);
   const resources = offeredResources(o, bt, open, work);
   const energy = Math.max(0, o.you.activeEnergy);
-  let cover: Cover | null = cheapestCover(resources, need, energy, work);
   // #899: a "for the turn" figure also holds the public attackers still to come, a one-battle combo does not.
-  // Only when one is offered are the covers weighed by what they leave exposed; otherwise the choice is unchanged.
+  // Only when one is offered are the covers weighed by what they leave exposed; otherwise a cover's score is its cost.
   const turnLong = resources.filter((r) => r.turn);
-  let score = cover?.cost ?? Infinity;
-  if (turnLong.length) {
-    const turnOf = (ids: readonly string[]) => ids.reduce((n, id) => n + (resources.find((r) => r.id === id)?.turn ?? 0), 0);
-    const weigh = (c: Cover) => c.cost + exposure(o, bt, bt.guard + turnOf(c.ids), worth);
-    if (cover) score = weigh(cover);
+  const turnOf = (ids: readonly string[]) => ids.reduce((n, id) => n + (resources.find((r) => r.id === id)?.turn ?? 0), 0);
+  const weigh = (c: Cover) => (turnLong.length ? c.cost + exposure(o, bt, bt.guard + turnOf(c.ids), worth) : c.cost);
+  /** The best-scoring cover `accept` allows: the cheapest set, or a lone turn-long resource that leaves less exposed. */
+  const choose = (accept?: (c: Cover) => boolean): { cover: Cover | null; score: number } => {
+    let cover = cheapestCover(resources, need, energy, work, accept);
+    let score = cover ? weigh(cover) : Infinity;
     for (const r of turnLong) {
       if (!work.step() || r.power < need || r.energy > energy) continue;
       const alone: Cover = { ids: [r.id], power: r.power, cost: r.loss + COST.energy * r.energy };
+      if (accept && !accept(alone)) continue;
       const s = weigh(alone);
       if (s < score - 1e-9) {
         cover = alone;
         score = s;
       }
     }
-  }
+    return { cover, score };
+  };
+  let { cover, score } = choose();
   if (!cover) return { d: pass, loss: worth, how: `passes: ${need} more power is out of reach` };
+  // Combo waste (v4): a defence the rest of the turn undoes anyway is not paid for. When the chosen cover would
+  // leave the seat unable to hold the target through the opponent's other public attackers, the cheapest cover
+  // that would still hold is taken instead, and with none the hit is taken and the cards kept. Out of work, the
+  // first choice stands.
+  let holdsTurn = "";
+  const threats = restOfTurn(o, bt);
+  if (threats) {
+    const holds = turnHolder(o, bt, threats, resources, energy, work);
+    if (!holds(cover)) {
+      const kept = choose(holds);
+      if (!work.spent) {
+        const what = bt.target === "leader" ? "the Leader" : (bt.guardCard?.name ?? "the guard");
+        if (!kept.cover) return { d: pass, loss: worth, how: `passes: no cover also holds ${what} through the ${threats.length} other active attacker(s) this turn, so the cards are kept` };
+        cover = kept.cover;
+        score = kept.score;
+        holdsTurn = ", one that also holds the rest of the turn";
+      }
+    }
+  }
   if (score >= worth) return { d: pass, loss: worth, how: `passes: the cover (${score.toFixed(2)}) costs more than the battle is worth (${worth.toFixed(2)})` };
   const first = open.find((d) => d.id === cover!.ids[0])!;
-  return { d: first, loss: score, how: `${bt.attacking ? "offence" : "defence"}: ${cover.ids.length} resource(s) cover ${need} (${cover.power}), cost ${score.toFixed(2)} < worth ${worth.toFixed(2)}` };
+  return { d: first, loss: score, how: `${bt.attacking ? "offence" : "defence"}: ${cover.ids.length} resource(s) cover ${need} (${cover.power}), cost ${score.toFixed(2)} < worth ${worth.toFixed(2)}${holdsTurn}` };
 }
 
 /**
@@ -453,6 +504,118 @@ function exposure(o: PolicyObservation, bt: Battle, guard: number, hit: number):
   let n = 0;
   for (const c of [them.leader, ...them.battle]) if (c && c.mode === "active" && c.id !== bt.attackerCard?.id && (c.power ?? 0) >= guard) n++;
   return n * COST.future * hit;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Combo waste (v4): the rest of the turn, as the defender can see it.
+
+/** An attack the opponent can still make this turn, by the figures on its card. */
+interface Threat {
+  id: string;
+  power: number;
+  /** Life a hit on the Leader takes (22-7). */
+  damage: number;
+  victory: boolean;
+}
+
+/**
+ * The opponent's attacks still to come this turn, or null where the combo-waste test does not
+ * apply: offence, a Unison guard, a Leader hit that is lethal now (cards kept are worth nothing to
+ * a seat that has lost: such a hit is still covered when it can be), or no other attacker. Each other
+ * card of the opponent's in Active Mode — its Leader and Battle Cards, the attacker aside — is one
+ * attack, assumed sent at this battle's target. A card it has yet to play, an extra attack and its
+ * combos are not counted, so the threat is never overstated. At most `COMBAT_LIMITS.threats`, the strongest.
+ */
+function restOfTurn(o: PolicyObservation, bt: Battle): Threat[] | null {
+  if (bt.attacking || bt.target === "unison") return null;
+  if (bt.target === "leader" && (bt.victory || bt.damage >= bt.defender.life)) return null;
+  const attacker = o.battle?.attacker;
+  const out: Threat[] = [];
+  for (const c of [o.them.leader, ...o.them.battle]) {
+    if (!c || c.mode !== "active" || c.id === attacker || c.power === null) continue;
+    out.push({ id: c.id, power: c.power, damage: threatDamage(c), victory: hasKeyword(c, "victory strike") });
+  }
+  out.sort((a, b) => b.power - a.power || b.damage - a.damage || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return out.length ? out.slice(0, COMBAT_LIMITS.threats) : null;
+}
+
+/**
+ * The life a hit by `c` would take (22-7), for a battle not yet declared (no `stakes`). The board
+ * names the keyword's family ("Strike") and the printed text keeps its figure, as `search.ts` reads
+ * it: one printed [Double/Triple/Quadruple Strike] while the keyword is active and no effect grants
+ * a Strike. Anything less certain counts 1, the least a hit takes, so the threat is not overstated.
+ */
+function threatDamage(c: CardFacts): number {
+  const named = strikeOf(c);
+  if (named > 1 || !hasKeyword(c, "strike") || c.effects?.some((e) => e.keyword && /strike/i.test(e.keyword))) return named;
+  const printed = [...(c.text ?? "").matchAll(/\[(Double|Triple|Quadruple) Strike\]/gi)];
+  return printed.length === 1 ? { double: 2, triple: 3, quadruple: 4 }[printed[0][1].toLowerCase() as "double" | "triple" | "quadruple"] : 1;
+}
+
+/** The most power `resources` add for at most `energy` energy: a 0/1 knapsack over energy, one step per resource. */
+function maxPower(resources: readonly Resource[], energy: number, work: Work): number {
+  const list = resources.filter((r) => r.power > 0).slice(0, COMBAT_LIMITS.resources);
+  const cap = Math.max(0, Math.min(energy, list.reduce((n, r) => n + r.energy, 0)));
+  const best: number[] = new Array(cap + 1).fill(0);
+  for (const r of list) {
+    if (!work.step()) return Infinity;
+    for (let e = cap; e >= r.energy; e--) best[e] = Math.max(best[e], best[e - r.energy] + r.power);
+  }
+  return best[cap];
+}
+
+/**
+ * Whether, after spending a cover, the seat could still hold this battle's target through
+ * `threats`: the Leader alive (the life it has now, every [Victory Strike] that reaches it stopped),
+ * a Battle Card not KO'd (every attack that reaches it stopped). The target's power is its card's
+ * own (no combo of this battle) plus the cover's "for the turn" power; an attack reaches it at equal
+ * power (8-4-6) and needs the difference + 1 to stop. The seat's means are what it knows of its own:
+ * the combo cards left in hand and on the field (`estimatedResources`), the battle activations not
+ * spent, the energy left, and each other active [Blocker] of its own.
+ *
+ * Optimistic for the defender on purpose — the combos pooled as if split freely between battles,
+ * each blocker taking one attack whole, a [Counter] and a Life card a hit puts in the hand not
+ * counted against the threat but not counted for it either — so "no" means no order of the seat's
+ * known resources holds the target if the opponent sends those attackers at it. Out of work, "yes".
+ */
+function turnHolder(o: PolicyObservation, bt: Battle, threats: readonly Threat[], offered: readonly Resource[], energy: number, work: Work): (c: Cover) => boolean {
+  const guardId = bt.guardCard?.id ?? "";
+  const base = bt.guardCard?.power ?? bt.guard;
+  const memo = new Map<string, number>();
+  /** The least combo power that holds the target at `power` with `blockers` blockers. */
+  const least = (power: number, blockers: number): number => {
+    const key = `${power}:${blockers}`;
+    const known = memo.get(key);
+    if (known !== undefined) return known;
+    const reaching = threats.filter((t) => t.power >= power);
+    const needs = (ts: readonly Threat[]) => ts.map((t) => t.power - power + 1).sort((a, b) => b - a).slice(blockers).reduce((n, x) => n + x, 0);
+    let v = Infinity;
+    if (bt.target !== "leader") v = needs(reaching);
+    else {
+      // The attacks stopped (bit set) and those let through: less damage than the life left, no Victory Strike.
+      for (let mask = 0; mask < 1 << reaching.length; mask++) {
+        if (!work.step()) return 0;
+        const stopped = reaching.filter((_, i) => mask & (1 << i));
+        const through = reaching.filter((_, i) => !(mask & (1 << i)));
+        if (through.some((t) => t.victory) || through.reduce((n, t) => n + t.damage, 0) >= bt.defender.life) continue;
+        v = Math.min(v, needs(stopped));
+      }
+    }
+    memo.set(key, v);
+    return v;
+  };
+  return (c) => {
+    if (!work.step()) return true;
+    const spent = new Set(c.ids);
+    const used = offered.filter((r) => spent.has(r.id));
+    const gone = new Set([guardId, ...used.flatMap((r) => (r.card ? [r.card] : []))]);
+    const left = energy - used.reduce((n, r) => n + r.energy, 0);
+    const blockers = o.you.battle.filter((x) => x.mode === "active" && !gone.has(x.id) && hasKeyword(x, "blocker")).length;
+    const need = least(base + used.reduce((n, r) => n + (r.turn ?? 0), 0), blockers);
+    if (need <= 0) return true;
+    const later = [...estimatedResources(o, gone), ...offered.filter((r) => r.activation && !spent.has(r.id))];
+    return need <= maxPower(later, Math.max(0, left), work);
+  };
 }
 
 /** The battle choice for this input, or null outside the battle's windows (or with nothing to choose). Pure. */
