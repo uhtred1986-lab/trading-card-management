@@ -39,6 +39,7 @@ shortcuts) is the heuristic's answer, unchanged, including combat v4's combo-was
 | Never knows | the hand, deck order, Life, the game's RNG | the same |
 | Candidates / worlds / step budget | 3 (+ end turn) / 2 / 200 simulated decisions | same |
 | Horizon | rest of the turn | same |
+| Line score (v2) | fitted win probability, margin 1 point | same |
 
 The journal records the difficulty in its policy version (`main2+combat4+choices2+look1-hard`).
 `LOOKAHEAD_VERSION` must change with any change to the worlds, the search or `EVAL_WEIGHTS`, so a saved
@@ -81,7 +82,49 @@ searching again (`replayPolicy`). The search draws the same number of world seed
 the AI's memory depends only on the decision count, and the replay's trace still proves the game. A
 48-decision resume took under a second.
 
-## Strength: first gate result (8 Nov 2026): no gain
+## Strength: v2 passes the gate (Hard, 8 Nov 2026)
+
+**Gate 2** (`sprt-gate-2`, fresh seeds, commit `d9d8b55`, clean tree) measured `lookahead-hard` v2
+against the heuristic of the same commit:
+
+- Verdict: **PASS: H1 accepted**, at least 30 Elo stronger at α = β = 0.05, decided at 120 games.
+- Record 77–43, pentanomial 6 / 0 / 31 / 0 / 23.
+- Elo **+101.2** (95 %: +42.8 to +165.8).
+- Integrity: 0 integrity failures; 698 hidden-twin checks, every one on a genuinely different hidden state.
+- Report: [gate2-lookahead-hard.json](arena-backlog/evidence/sprt/gate2-lookahead-hard.json).
+
+v2 changes one thing from v1: a line's end is scored by a **win probability fitted from the
+heuristic's own games** (`FITTED_VALUE`, `scripts/arena-lookahead-fit.mts`) instead of the hand-set
+sum.
+
+- The fit used 360 self-play games on development seeds and 10,442 turn-start views.
+- Held-out log loss is 0.556, against 0.693 for a coin; it calls 67.6 % of winners.
+- Its weights value Life steeply only near the end: per point, 0.23 at full health, plus 0.49 below 3,
+  plus 0.70 for the last one. A card in hand is worth 0.27.
+- The hand-set value had under-rated the end of the life race. The longer it looked, the less it
+  attacked (with the reply horizon it went 4–16 in 20 development games).
+
+Before the gate, v2 went 68–40 (+92) on the development block.
+
+| Hard plays | gate 2 Elo (95 %) | gate 1, v1 |
+|---|---|---|
+| SD15 v SD15 | +23 (−99 to +152) | +25 |
+| SD15 v SD5 | +23 (−99 to +152) | +33 |
+| SD5 v SD15 | +120 (+33 to +226) | −42 |
+| SD5 v SD5 | +280 (+159 to +521) | −60 |
+
+Every matchup is positive. The SD5 decks gain most, which is where v1 lost; the SD15 cells are each
+underpowered on their own.
+
+Normal (no decklist) has its own gate on `sprt-gate-3`, recorded below when it has run.
+
+**The other half of "smart enough"** (owner, 8 Nov 2026) is the 12 strategy benchmarks of
+`arena-strategy-validation.md`, and they are **not yet all built**. Five tactical subcases run in
+`arena-policy-strategy.mts`; the heuristic, and with it the lookahead's battle windows, now passes AI-02
+too. AI-01 own-combo lethal and AI-05 Critical-first remain heuristic failures. The remaining
+benchmark families are still to be written.
+
+## Earlier: first gate result (8 Nov 2026): no gain
 
 A quick, non-gate paired run of the first version scored 22/48 against the heuristic. That version
 used a short horizon that scored each option right after it resolved. It mostly swapped plays for

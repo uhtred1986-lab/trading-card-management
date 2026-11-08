@@ -4,6 +4,18 @@ Last updated: 19 October 2026
 
 ## Current work
 
+**Offline opponent, 8 Nov 2026 (PR #1250).**
+
+- **Strength gate.** It is now the SPRT (`docs/arena-policy-sprt.md`).
+- **Normal and Hard.** The offline match setup has a "Computer's skill" choice: Normal and Hard, a
+  real-engine lookahead (`docs/arena-lookahead.md`).
+- **Hard v2 passes the gate.** It scores lines by a win probability fitted from self-play. Gate 2 on
+  fresh seeds: PASS, +101 Elo (+43 to +166) over the heuristic, 0 integrity failures. Normal's gate
+  (`sprt-gate-3`) follows.
+- **Combat v4** stops unaffordable-defense combo waste; the heuristic now passes AI-02.
+- **Not done.** The 12 strategy benchmarks are not all built yet. The paid Claude pilot was skipped
+  by the owner; its script stays available.
+
 Follow the [rules delivery plan](arena-rules-delivery.md) and #907. The bounded
 #897 corpus qualification is complete; persisted executable rules remain the
 authority. PR #1083's typed Absorb contract is deployed; its separately approved
