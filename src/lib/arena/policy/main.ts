@@ -405,6 +405,26 @@ export function mainChoice(input: PolicyInput): MainChoice | null {
 }
 
 /**
+ * Every open Main-Phase decision with the score `mainChoice` gives it, best
+ * first (ties in canonical id order), under the same work bound. Empty outside
+ * the Main Phase. Pure; `mainChoice`'s own answer is unchanged by it. The
+ * lookahead (`src/lib/arena/lookahead/`) reads it to pick which few options to
+ * play forward.
+ */
+export function mainRanking(input: PolicyInput): { id: string; score: number; type: string }[] {
+  const { observation: o, decisions } = input;
+  if (decisions.actor !== decisions.seat || decisions.window !== "main" || !decisions.decisions.length) return [];
+  const work = new Work(MAIN_LIMITS.work);
+  const open = [...decisions.decisions].sort(byId).slice(0, MAIN_LIMITS.decisions);
+  const out: { id: string; score: number; type: string }[] = [];
+  for (const d of open) {
+    if (!work.step()) break;
+    out.push({ id: d.id, score: scoreMain(o, d, work).score, type: d.kind === "menu" ? d.type : d.kind });
+  }
+  return out.sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/**
  * The energy question a play or activation opens (`payCost`): rest the energy
  * that leaves the most of the hand payable, then the fewest resources, markers
  * dearer than energy. Null when the question names no payments.

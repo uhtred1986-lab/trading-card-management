@@ -113,7 +113,8 @@ export interface PolicyTurn {
 export function policyTurn(match: PinnedMatch, seat: PlayerId, revision: number): PolicyTurn {
   const aliases = aliasTable(match, seat);
   const game = definitionOf(match);
-  const snapshot = projectSnapshot(match, seat, { revision });
+  // No previews: the observation never reads them, and they were most of a step's cost.
+  const snapshot = projectSnapshot(match, seat, { revision, previews: false });
   const observation: PolicyObservation = buildObservation(snapshot, seat, ownDeck(match, seat), aliases, secretAreas(game, seat));
   const prompt = match.state.prompt;
   const actor = "player" in prompt ? prompt.player : null;

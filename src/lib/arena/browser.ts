@@ -97,7 +97,7 @@ export function applyMove(match: PinnedMatch, action: Action): { match: PinnedMa
  * (`conceal.ts`). `unconcealedForProof` keeps the raw instance ids, for a
  * proof's negative control only (`arena-policy-contract.mts`).
  */
-export function projectSnapshot(match: PinnedMatch, viewer: PlayerId, options: { id?: number; revision?: number; mode?: ArenaMode; unconcealedForProof?: true } = {}): Snapshot {
+export function projectSnapshot(match: PinnedMatch, viewer: PlayerId, options: { id?: number; revision?: number; mode?: ArenaMode; unconcealedForProof?: true; previews?: false } = {}): Snapshot {
   const over = match.state.phase === "over";
   return (options.unconcealedForProof ? buildUnconcealedSnapshotForProof : buildSnapshot)({
     id: options.id ?? 0,
@@ -117,6 +117,7 @@ export function projectSnapshot(match: PinnedMatch, viewer: PlayerId, options: {
     ai: null,
     viewer,
     images: match.art,
+    ...(options.previews === false ? { previews: false } : {}),
   });
 }
 
