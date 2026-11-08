@@ -71,3 +71,61 @@ export function evaluate(o: PolicyObservation, w: EvalWeights = EVAL_WEIGHTS): n
   if (them.deck <= w.deckOutAt) v += w.deckOut;
   return v;
 }
+
+// ---------------------------------------------------------------------------------------------
+// The fitted value (8 Nov 2026): a win probability learned from the heuristic's own games
+// (`scripts/arena-lookahead-fit.mts`), from the same observation and nothing else.
+
+/** The features of a position, from the observing seat's side, in `FEATURE_NAMES` order. */
+export const FEATURE_NAMES = [
+  "lifeYou", "lifeThem", "lowLifeYou", "lowLifeThem", "lastLifeYou", "lastLifeThem",
+  "handYou", "handThem", "battleYou", "battleThem", "powerYou", "powerThem",
+  "energyYou", "energyThem", "deckLowYou", "deckLowThem", "myTurn",
+] as const;
+
+function sidePower(side: SideFacts): number {
+  return side.battle.reduce((sum, c) => sum + Math.max(0, c.power ?? 0), 0) / 10000;
+}
+
+export function features(o: PolicyObservation): number[] {
+  const you = o.you, them = o.them;
+  return [
+    you.life, them.life,
+    Math.max(0, 3 - you.life), Math.max(0, 3 - them.life),
+    you.life <= 1 ? 1 : 0, them.life <= 1 ? 1 : 0,
+    you.handCount, them.handCount,
+    you.battle.length, them.battle.length,
+    sidePower(you), sidePower(them),
+    you.energy.length, them.energy.length,
+    Math.max(0, 5 - you.deck), Math.max(0, 5 - them.deck),
+    o.turnPlayer === o.seat ? 1 : 0,
+  ];
+}
+
+export interface FittedValue {
+  bias: number;
+  weights: Record<(typeof FEATURE_NAMES)[number], number>;
+}
+
+/** The observing seat's chance of winning from this position (0–1) under a fitted value. */
+export function winProbability(o: PolicyObservation, model: FittedValue): number {
+  if (o.over) return o.over.winner === null ? 0.5 : o.over.winner === o.seat ? 1 : 0;
+  const x = features(o);
+  const z = FEATURE_NAMES.reduce((sum, name, k) => sum + model.weights[name] * x[k], model.bias);
+  return 1 / (1 + Math.exp(-z));
+}
+
+/**
+ * Fitted by `scripts/arena-lookahead-fit.mts` on 8 Nov 2026: 360 heuristic self-play games on the
+ * `sprt-dev` block (seeds 60,500,000+, 60,600,000+, 60,700,000+), 10,442 turn-start views of both
+ * seats. Held-out games: log loss 0.556 (a coin is 0.693), 67.6 % of winners called. The weights come
+ * out antisymmetric because both seats' views are in the data.
+ */
+export const FITTED_VALUE: FittedValue = {
+  bias: -0.2966,
+  weights: {
+    lifeYou: 0.2252, lifeThem: -0.2252, lowLifeYou: -0.4853, lowLifeThem: 0.4853, lastLifeYou: -0.701, lastLifeThem: 0.701,
+    handYou: 0.2676, handThem: -0.2676, battleYou: 0.0405, battleThem: -0.0405, powerYou: 0.3459, powerThem: -0.3459,
+    energyYou: 0.3509, energyThem: -0.3509, deckLowYou: 0, deckLowThem: 0, myTurn: 0.5933,
+  },
+};

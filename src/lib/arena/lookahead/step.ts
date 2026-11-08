@@ -42,7 +42,7 @@ import { guardedDecide, localMemory, mainRanking, type LocalMemory } from "../po
 import { nextInt, policyRng, type PolicyRng } from "../policy/rng";
 import type { PolicyObservation } from "../policy/observation";
 import { determinize, type Knowledge } from "./determinize";
-import { evaluate, EVAL_WEIGHTS, type EvalWeights } from "./evaluate";
+import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights, type FittedValue } from "./evaluate";
 
 export const LOOKAHEAD_VERSION = 1;
 
@@ -71,6 +71,13 @@ export interface LookaheadOptions {
    */
   horizon: Horizon;
   weights?: EvalWeights;
+  /**
+   * How a line's end is scored: "fitted" is the win probability (in percent) learned from the
+   * heuristic's own games (`FITTED_VALUE`, `scripts/arena-lookahead-fit.mts`); "handset" is the first
+   * hand-weighted sum (`EVAL_WEIGHTS`), which gate 1 measured. `margin` is in the value's own units.
+   */
+  value?: "fitted" | "handset";
+  fitted?: FittedValue;
   /** Host stop (deadline, cancellation, memory pressure): when it says stop, the heuristic answers. */
   stop?: () => boolean;
 }
@@ -192,6 +199,7 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   if (skip) return { answer: null, rng: r, report: { ...report, reason: skip } };
   report.candidates = ids;
   const weights = opts.weights ?? EVAL_WEIGHTS;
+  const score = (o: PolicyObservation) => (opts.value === "fitted" ? 100 * winProbability(o, opts.fitted ?? FITTED_VALUE) : evaluate(o, weights));
   const totals = new Map<string, number>(ids.map((id) => [id, 0]));
   let steps = 0;
   let complete = 0;
@@ -212,7 +220,7 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
         const line = rollout(played.match, seat, revision + 1, Math.min(opts.lineSteps, remaining), base, (seed + k * 7919) >>> 0, opts.horizon);
         steps += line.steps + 1;
         if (steps > opts.maxSteps) throw new Budget("step budget");
-        values.push(evaluate(observe(line.match, seat, revision + 1 + line.steps), weights));
+        values.push(score(observe(line.match, seat, revision + 1 + line.steps)));
       }
       ids.forEach((id, k) => totals.set(id, totals.get(id)! + values[k]));
       complete++;
