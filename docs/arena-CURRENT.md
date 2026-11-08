@@ -35,6 +35,19 @@ retain the original source pins, all consumed seeds and zero integrity failures.
 All eight cells remain underpowered. No new difficulty/default promotion is made;
 Worker performance remains unmeasured and known unaffordable-defense combo waste
 is unchanged. #899 closes as an inconclusive completed experiment.
+
+Combat policy v4 (8 November 2026, `src/lib/arena/policy/combat.ts`) addresses
+that named combo-waste limitation: a defensive cover is paid for only if the seat
+could still hold the target through the opponent's other active attackers this
+turn, read from the public board and its own hand; otherwise the cheapest cover
+that does hold is taken, or the hit is taken and the cards kept (AI-02's "allow
+the first hit, survive the Double Strike"). The six #899 defensive variants stay
+18/18 (both unaffordable variants now keep the card), the four tactical cases
+12/12, and `arena-policy-combat.mts` gains a combo-waste reproducer with controls.
+The strategy proof still pins the heuristic as failing AI-02, which v4 now passes;
+that pin awaits review. Strength is **not measured**: no gain is claimed until a
+paired comparison runs. `LOCAL_POLICY_VERSION` is now `main2+combat4+choices2`, so
+offline matches saved under `main2+combat3+choices2` are refused on resume.
 #929/#930 have implementations and #932 is closed after final integrated validation;
 their issue bodies retain their separate scope.
 
