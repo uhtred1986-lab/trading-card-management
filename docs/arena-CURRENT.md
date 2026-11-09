@@ -13,10 +13,13 @@ Last updated: 19 October 2026
   Fresh seeds, PASS for both, 0 integrity failures:
   - Hard (gate 2): +101 Elo (+43 to +166) over the heuristic.
   - Normal (gate 3): +129 Elo (+59 to +211).
-- **v3, shipped, passes both gates.** Combo-lethal attacks are shortlisted, and all five strategy
-  subcases pass.
+- **v3 passed both gates.** Combo-lethal attacks are shortlisted, and all five strategy subcases pass.
   - Hard (gate 4): +126 Elo (+58 to +205).
   - Normal (gate 5): +147 Elo (+73 to +237).
+- **v4, shipped, fixes the SD15 mirror.** Margin 3, and sure wins are always taken.
+  - Hard (gate 6): +104 Elo (+45 to +170).
+  - Normal (gate 7): +77 Elo (+27 to +131); the mirror +137.
+  - Every matchup is zero or positive.
 - **Combat v4** stops unaffordable-defense combo waste; the heuristic now passes AI-02.
 - **Not done.** The 12 strategy benchmarks are not all built yet. The paid Claude pilot was skipped
   by the owner; its script stays available.

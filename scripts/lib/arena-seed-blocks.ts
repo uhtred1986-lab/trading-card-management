@@ -64,8 +64,10 @@ export const SPRT_SEED_BLOCKS: readonly SprtSeedBlock[] = [
   { name: "sprt-gate-3", base: 52_000_000, size: BLOCK, policyBase: 552_000_000, status: "consumed", note: "lookahead-normal v2 (fitted win probability) vs heuristic, 8 Nov 2026 — PASS: H1 accepted at 90 games, Elo +129.2 [+59.3, +210.8]", consumedBy: "docs/arena-backlog/evidence/sprt/gate3-lookahead-normal.json" },
   { name: "sprt-gate-4", base: 53_000_000, size: BLOCK, policyBase: 553_000_000, status: "consumed", note: "lookahead-hard v3 vs heuristic, 8 Nov 2026 — PASS: H1 accepted at 92 games, Elo +126.1 [+57.8, +205.4]", consumedBy: "docs/arena-backlog/evidence/sprt/gate4-lookahead-hard-v3.json" },
   { name: "sprt-gate-5", base: 54_000_000, size: BLOCK, policyBase: 554_000_000, status: "consumed", note: "lookahead-normal v3 vs heuristic, 8 Nov 2026 — PASS: H1 accepted at 80 games, Elo +147.2 [+72.8, +237.3]", consumedBy: "docs/arena-backlog/evidence/sprt/gate5-lookahead-normal-v3.json" },
-  { name: "sprt-gate-6", base: 55_000_000, size: BLOCK, policyBase: 555_000_000, status: "open", note: "next gate run" },
-  { name: "sprt-gate-7", base: 56_000_000, size: BLOCK, policyBase: 556_000_000, status: "open", note: "next gate run" },
+  { name: "sprt-gate-6", base: 55_000_000, size: BLOCK, policyBase: 555_000_000, status: "consumed", note: "lookahead-hard v4 (margin 3, sure wins) vs heuristic, 9 Nov 2026 — PASS: H1 accepted at 96 games, Elo +104.4 [+45.0, +170.4]", consumedBy: "docs/arena-backlog/evidence/sprt/gate6-lookahead-hard-v4.json" },
+  { name: "sprt-gate-7", base: 56_000_000, size: BLOCK, policyBase: 556_000_000, status: "consumed", note: "lookahead-normal v4 vs heuristic, 9 Nov 2026 — PASS: H1 accepted at 128 games, Elo +77.2 [+27.4, +130.5]", consumedBy: "docs/arena-backlog/evidence/sprt/gate7-lookahead-normal-v4.json" },
+  { name: "sprt-gate-8", base: 57_000_000, size: BLOCK, policyBase: 557_000_000, status: "open", note: "next gate run" },
+  { name: "sprt-gate-9", base: 58_000_000, size: BLOCK, policyBase: 558_000_000, status: "open", note: "next gate run" },
 ];
 
 const overlaps = (a: { base: number; size: number }, b: { base: number; size: number }) => a.base < b.base + b.size && b.base < a.base + a.size;

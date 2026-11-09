@@ -187,6 +187,8 @@ started, about 2–3 for the last two). Reports: [evidence/sprt/](arena-backlog/
 | **gate** `lookahead-normal` (v2) vs `heuristic`, `sprt-gate-3`, commit d9d8b55 | 90 | **PASS: H1** accepted (61–29; ptnml 4/0/21/0/20) | +2.98 | +129.2 (+59.3, +210.8) | 0 (531 twin checks) | 1,464 s: 16.3 s/game |
 | **gate** `lookahead-hard` (v3, losing attacks shortlisted) vs `heuristic`, `sprt-gate-4`, commit 975c3fa | 92 | **PASS: H1** accepted (62–30; ptnml 4/0/22/0/20) | +3.01 | +126.1 (+57.8, +205.4) | 0 (547 twin checks) | 1,530 s: 16.6 s/game |
 | **gate** `lookahead-normal` (v3) vs `heuristic`, `sprt-gate-5`, commit 975c3fa | 80 | **PASS: H1** accepted (56–24; ptnml 3/0/18/0/19) | +3.15 | +147.2 (+72.8, +237.3) | 0 (457 twin checks) | 1,322 s: 16.5 s/game |
+| **gate** `lookahead-hard` (v4, margin 3, sure wins taken) vs `heuristic`, `sprt-gate-6`, commit 86efc19 | 96 | **PASS: H1** accepted (62–34; ptnml 3/0/28/0/17) | +3.10 | +104.4 (+45.0, +170.4) | 0 (541 twin checks) | run beside gate 7, 2 workers each |
+| **gate** `lookahead-normal` (v4) vs `heuristic`, `sprt-gate-7`, commit 86efc19 | 128 | **PASS: H1** accepted (78–50; ptnml 5/0/40/0/19) | +2.96 | +77.2 (+27.4, +130.5) | 0 (734 twin checks) | run beside gate 6, 2 workers each |
 
 - **The A/A is exact.** All 200 A/A pairs are the same game twice (identical trace hashes): the
   pairing has no seat or memory asymmetry, and the first seat won 109 of the 200 deals. With no

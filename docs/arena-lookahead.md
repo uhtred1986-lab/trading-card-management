@@ -39,7 +39,7 @@ shortcuts) is the heuristic's answer, unchanged, including combat v4's combo-was
 | Never knows | the hand, deck order, Life, the game's RNG | the same |
 | Candidates / worlds / step budget | 3 (+ end turn) / 2 / 200 simulated decisions | same |
 | Horizon | rest of the turn | same |
-| Line score (v2) | fitted win probability, margin 1 point | same |
+| Line score (v4) | fitted win probability (v3 model), margin 3 points; a line that wins in every world is always taken | same |
 
 The journal records the difficulty in its policy version (`main2+combat4+choices2+look1-hard`).
 `LOOKAHEAD_VERSION` must change with any change to the worlds, the search or `EVAL_WEIGHTS`, so a saved
@@ -156,11 +156,52 @@ Hard, `sprt-gate-5` for Normal). The results above are v2's.
 
 **Both shipped difficulties (v3) pass the gate.**
 
-**Known weak spot: the SD15 mirror.** It has not been clearly positive in any run: +23 in gate 2,
-0 in gate 3, −58 here, −76 on the development block. (+70 in gate 5.) On 6 development mirror games the lookahead's changes leaned to ending the turn
-early: 14 of its switches were to `endMain`, 8 of them replacing an attack, on gaps of a few points.
-The fitted value has no feature for an awakened Leader or for rested attackers. The next things to try
-are a larger `margin` and those features, measured on `sprt-dev` and gated on `sprt-gate-6`.
+**The SD15 mirror, fixed in v4 (9 Nov 2026).** In v3 the mirror was the one cell that was never
+clearly positive: +23 in gate 2, 0 in gate 3, −58 in gate 4, +70 in gate 5.
+
+On development mirror games the lookahead's switches leaned to ending the turn early: 14 of its
+changes were to `endMain`, 8 of them replacing an attack, on gaps of a few points that two sampled
+worlds cannot tell from noise.
+
+Two fixes were tried on `sprt-dev`, mirror only:
+
+- **A refit of the value with Leader, awakened, rested and Unison features, 600 games.** Its
+  held-out log loss was better (0.518 against 0.556), yet it played the mirror worse:
+  - with every feature, 2–18;
+  - without the awakened feature, 7–13.
+
+  The new weights are confounded: awakened scores −1.88, because Leaders awaken when already behind.
+  A value that predicts outcomes well is not automatically one that ranks moves well. The shipped
+  v3 value stays.
+- **Raising the margin to 3 points.** This fixed it: H1 accepted in the mirror, 45–21, Elo +132
+  (+63 to +214).
+
+A win probability is squeezed near certainty. A proven lethal (100) then sat within 3 points of
+ending the turn (97.9), and margin 3 alone lost AI-01 and AI-05. So v4 also takes **a line that wins
+in every world whatever the margin**, and all ten strategy rows pass again. v4 on all four matchups
+(development): H1, 45–23, +117.
+
+**Gates 6 and 7** (fresh seeds, commit `86efc19`, clean and unchanged; run side by side with two
+workers each):
+
+| Gate | Candidate | Verdict | Games | Elo (95 %) | Integrity |
+|---|---|---|---|---|---|
+| `sprt-gate-6` | Hard v4 | **PASS** | 96 | +104.4 (+45.0 to +170.4) | 0 failures, 541 twin checks |
+| `sprt-gate-7` | Normal v4 | **PASS** | 128 | +77.2 (+27.4 to +130.5) | 0 failures, 734 twin checks |
+
+By matchup:
+
+| Gate | SD15 v SD15 (mirror) | SD15 v SD5 | SD5 v SD15 | SD5 v SD5 |
+|---|---|---|---|---|
+| 6 (Hard) | +29 | +89 | +120 | +191 |
+| 7 (Normal) | **+137 (+28 to +281)** | 0 | +112 | +66 |
+
+Every cell is now zero or positive, and the mirror is clearly positive for Normal.
+
+Reports: [gate6-lookahead-hard-v4.json](arena-backlog/evidence/sprt/gate6-lookahead-hard-v4.json),
+[gate7-lookahead-normal-v4.json](arena-backlog/evidence/sprt/gate7-lookahead-normal-v4.json).
+
+The next weak spot is SD15 v SD5 for Normal (0 in gate 7; development also 0).
 
 **The other half of "smart enough"** (owner, 8 Nov 2026) is the 12 strategy benchmarks of
 `arena-strategy-validation.md`, and they are **not yet all built**. Five tactical subcases run in
