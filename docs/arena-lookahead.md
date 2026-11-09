@@ -237,6 +237,22 @@ v5 on development seeds it went 30–30 after 60 games, with 24 of 30 deals spli
 difference. It was stopped as a development run and stays off, because it only adds thinking time.
 The option remains in the code.
 
+**Also tried against v5 and not adopted** (development seeds; both runs stopped before a formal
+verdict):
+
+- **Three worlds instead of two:** 15–25 after 40 games, Elo −89 (−164 to −21). Every search completed
+  all its worlds; the step budget was not the cause.
+- **Margin 5 instead of 3:** 24–36 after 60 games, Elo −70 (−135 to −10).
+
+A direct check on two deals confirmed the variants play different games: different move traces, and
+a different number of overrides of the heuristic.
+
+The reading: the fitted value has blind spots, and a cleaner estimate lets the lookahead override the
+heuristic more confidently in exactly those spots. A larger margin throws away good overrides with
+the bad. v5 (two worlds, margin 3) sits at a local optimum of this design. Further gains need a
+better value (fitted on the lookahead's own positions, or without confounded features) or a deeper
+search, not tuning these two numbers.
+
 A measuring note: three times this session, two runs printed identical running tallies at the same
 pair count (gates 6/7 at 40 pairs; the v5 development run and an earlier mirror run at 20 and 30). The
 reports were checked each time: different seeds, different per-pair sequences, and no game trace
