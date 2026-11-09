@@ -299,6 +299,17 @@ search failed. None of them is tuned to win games.
 
 Three benchmark cases were made fair on the way (`arena-strategy-validation.md`).
 
+**v7 against v5's search, both on combat v5** (Hard, development seeds `sprt-dev`, commit `6b29db6`,
+4 workers): stopped at 50 pairs, before a formal verdict, to free the machine for the gates.
+
+- Record 49–51, pentanomial 13/0/25/0/12, Elo **−6.9 (−76.2 to +61.8)**, LLR −0.54 against [0, 30].
+- It leaned negative early: −52 at 20 pairs, −35 at 30 pairs, −17 at 40 pairs.
+- At 30 pairs I added a no-regression reading of the same counts, [−30, 0], decided before looking at
+  any further pairs. It went from −0.30 to +0.20 at 50 pairs, also undecided.
+- So v7 is not shown better or worse than v5 in whole games: its gains are the benchmark positions.
+- In two self-play games the defence-at-stake horizon ran on 14 of 102 searched Main-Phase decisions.
+  It overrode the heuristic in 6 of those 14, against 12 of the other 88. It is the part to watch.
+
 Time, Hard v7, three self-play games on a 4-vCPU host loaded by a 4-worker SPRT (inflated):
 
 | Window | Decisions | Mean | p95 | Max |
