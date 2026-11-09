@@ -72,6 +72,7 @@ export const SPRT_SEED_BLOCKS: readonly SprtSeedBlock[] = [
   { name: "sprt-gate-11", base: 61_000_000, size: BLOCK, policyBase: 561_000_000, status: "consumed", note: "lookahead-normal v7 vs heuristic, 9 Nov 2026 — PASS: H1 accepted at 100 games, Elo +123.0 [+55.9, +200.5] (60,000,000 is sprt-dev)", consumedBy: "docs/arena-backlog/evidence/sprt/gate11-lookahead-normal-v7.json" },
   { name: "sprt-gate-12", base: 62_000_000, size: BLOCK, policyBase: 562_000_000, status: "open", note: "next gate run" },
   { name: "sprt-gate-13", base: 63_000_000, size: BLOCK, policyBase: 563_000_000, status: "open", note: "next gate run" },
+  { name: "latest-decks", base: 64_000_000, size: BLOCK, policyBase: 564_000_000, status: "dev", note: "games on the latest-release decks (scripts/arena-latest-decks.mts, BT27+ prepared recipes), 9 Nov 2026; measurement, never a gate" },
 ];
 
 const overlaps = (a: { base: number; size: number }, b: { base: number; size: number }) => a.base < b.base + b.size && b.base < a.base + a.size;

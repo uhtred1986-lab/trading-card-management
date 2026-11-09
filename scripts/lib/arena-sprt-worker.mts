@@ -15,12 +15,24 @@ export type FromWorker =
   | { type: "result"; outcome: Awaited<ReturnType<typeof playDeal>> }
   | { type: "fatal"; error: string };
 
-/** Fixtures by name, in the order asked; the four audited SD15/SD5 matchups only. */
+/**
+ * Fixtures by name, in the order asked: the four audited SD15/SD5 matchups (AvA, AvB, BvA, BvB), or an
+ * ordered matchup of the latest-release decks named `p1~p2` (`scripts/arena-latest-decks.mts`, keys such
+ * as bt31_116), never a gate's declared cycle.
+ */
 export async function loadSprtFixtures(names: string[]): Promise<Map<string, Fixture>> {
-  const all = await loadAuditFixtures();
-  const unknown = names.filter((n) => !all.some((f) => f.name === n));
-  if (unknown.length) throw new Error(`unknown fixture ${unknown.join(",")} (known: ${all.map((f) => f.name).join(", ")})`);
-  return new Map(all.filter((f) => names.includes(f.name)).map((f) => [f.name, f]));
+  const latest = names.filter((n) => n.includes("~"));
+  const audited = names.filter((n) => !n.includes("~"));
+  const all = audited.length ? await loadAuditFixtures() : [];
+  const unknown = audited.filter((n) => !all.some((f) => f.name === n));
+  if (unknown.length) throw new Error(`unknown fixture ${unknown.join(",")} (known: ${all.map((f) => f.name).join(", ")}, or latest decks p1~p2)`);
+  const out = new Map(all.filter((f) => audited.includes(f.name)).map((f) => [f.name, f] as const));
+  if (latest.length) {
+    const { latestBundle, latestFixture } = await import("../arena-latest-decks.mts");
+    const built = await latestBundle();
+    for (const n of latest) out.set(n, await latestFixture(n, built));
+  }
+  return new Map(names.map((n) => [n, out.get(n)!]));
 }
 
 export async function importPlayerModules(files: string[]): Promise<void> {
