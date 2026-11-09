@@ -75,6 +75,11 @@ export interface LookaheadOptions {
    * option's own consequences (a battle, a skill), several times cheaper.
    */
   horizon: Horizon;
+  /**
+   * Also search the battle's defensive windows: when the heuristic would spend a card (combo, block,
+   * counter) in the other seat's turn, play that and declining through the rest of the turn.
+   */
+  defense?: boolean;
   weights?: EvalWeights;
   /**
    * How a line's end is scored: "fitted" is the win probability (in percent) learned from the
@@ -133,7 +138,8 @@ function rollout(match: PinnedMatch, seat: PlayerId, revision: number, limit: nu
   let steps = 0;
   const turn = match.state.turn;
   // "reply": on through the other seat's turn, until the seat's own next turn begins.
-  const going = (s: PinnedMatch["state"]) => (horizon === "reply" ? s.turn <= turn + 1 : s.turn === turn && s.turnPlayer === seat);
+  // "turn": until this turn ends (the seat's own, or — for a defensive decision — the other seat's).
+  const going = (s: PinnedMatch["state"]) => (horizon === "reply" ? s.turn <= turn + 1 : s.turn === turn);
   while (steps < limit && at.state.phase !== "over" && going(at.state)) {
     const actor = (at.state.prompt as { player?: PlayerId }).player;
     if (!actor) break;
@@ -160,7 +166,27 @@ function guardedStep(match: PinnedMatch, seat: PlayerId, revision: number, memor
   return { ...played, memory: decided.memory, guard: decided.guard };
 }
 
+/** The battle's defensive windows the lookahead may search (with `defense`). */
+const DEFENSE_WINDOWS = new Set(["combo", "blocker", "counter"]);
+
+/**
+ * A defensive decision worth playing forward: the heuristic would spend a card (a combo, a block, a
+ * counter) during the other seat's turn. The alternative is declining (pass / no block / no counter);
+ * both are played through the rest of that turn. A decline by the heuristic is not searched.
+ */
+function defenseShortlist(input: PolicyInput, heuristic: string): { ids: string[]; skip: string | null } {
+  const o = input.observation;
+  if (o.turnPlayer === o.seat) return { ids: [], skip: "own turn's battle" };
+  const menu = input.decisions.decisions.filter((d) => d.kind === "menu");
+  const chosen = menu.find((d) => d.id === heuristic);
+  const declines = (d: (typeof menu)[number]) => d.type === "pass" || ((d.type === "block" || d.type === "counter") && d.action.card === null);
+  if (!chosen || declines(chosen)) return { ids: [], skip: "the heuristic declines" };
+  const decline = menu.find(declines);
+  return decline ? { ids: [heuristic, decline.id], skip: null } : { ids: [], skip: "no decline open" };
+}
+
 function shortlist(input: PolicyInput, heuristic: string, opts: LookaheadOptions): { ids: string[]; skip: string | null } {
+  if (opts.defense && DEFENSE_WINDOWS.has(input.decisions.window)) return defenseShortlist(input, heuristic);
   if (input.decisions.window !== "main") return { ids: [], skip: `window ${input.decisions.window}` };
   const ranking = mainRanking(input);
   if (ranking.length < 2) return { ids: [], skip: "one option" };
@@ -268,13 +294,15 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
  * always does). Pass it to `localStep`: the cycle guard, the refusals and the
  * move are the same code; a recorded id that is not open is refused there.
  */
-export function replayPolicy(recordedId: string, opts: Pick<LookaheadOptions, "worlds">, base: Policy = localPolicy()): Policy {
+export function replayPolicy(recordedId: string, opts: Pick<LookaheadOptions, "worlds" | "defense">, base: Policy = localPolicy()): Policy {
   return (input, rng) => {
     const heuristic = base(input, rng);
     const after = worldSeeds(heuristic.rng, opts.worlds).rng;
-    // Only a Main-Phase choice is ever the search's; every other window is the heuristic's own answer
-    // (a card pick's cards included, which a journal entry does not keep), asked again as before.
-    return { answer: input.decisions.window === "main" ? answerFor(input.decisions, recordedId) : heuristic.answer, rng: after };
+    // Only a Main-Phase choice (and, with `defense`, a defensive battle choice, always a menu one) is
+    // ever the search's; every other window is the heuristic's own answer (a card pick's cards
+    // included, which a journal entry does not keep), asked again as before.
+    const searched = input.decisions.window === "main" || (!!opts.defense && DEFENSE_WINDOWS.has(input.decisions.window));
+    return { answer: searched ? answerFor(input.decisions, recordedId) : heuristic.answer, rng: after };
   };
 }
 
