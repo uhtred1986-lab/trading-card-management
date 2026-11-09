@@ -1,0 +1,4 @@
+SPRT lookahead-hard vs heuristic: H0 Elo 0, H1 Elo 30, alpha 0.05, beta 0.05, decisions from 20 pairs (10 informative), cap 24 pairs / 48 games; fixtures bt31_116~bt31_116,bt31_116~bt31_001,bt31_116~bt29_029,bt31_001~bt31_116,bt31_001~bt31_001,bt31_001~bt29_029,bt29_029~bt31_116,bt29_029~bt31_001,bt29_029~bt29_029 cycled by deal, seed block latest-decks [dev] engine seeds 64000000+deal, policy seeds 564000000+deal; 2 worker(s)
+pairs 3 games 6 | W-D-L 6-0-0 | ptnml 0,0,0,0,3 | LLR 99.11 (-2.94, 2.94) | Elo +1231.8 [+609.5, +3600.0] LOS 100.0 % | 626.95 s/game wall
+pairs 6 games 12 | W-D-L 12-0-0 | ptnml 0,0,0,0,6 | LLR 396.04 (-2.94, 2.94) | Elo +1352.1 [+732.3, +3600.0] LOS 100.0 % | 499.68 s/game wall
+pairs 9 games 18 | W-D-L 17-0-1 | ptnml 0,0,1,0,8 | LLR 6.60 (-2.94, 2.94) | Elo +491.5 [+289.7, +3600.0] LOS 100.0 % | 393.90 s/game wall

@@ -63,6 +63,30 @@ combo decision, and r188, a card choice.
 The AI comparisons below use the three decks that read completely and finish every game: White Cell,
 Gogeta and Cooler. That gives nine ordered matchups, three mirrors and six cross matchups.
 
-## Results
+## Results (9 Nov 2026)
 
-Recorded in `docs/arena-lookahead.md` ("The latest releases").
+These runs played lookahead v8 (main v3, combat v6) against the heuristic of the same commit, `c9b4527`,
+clean. The harness was the SPRT one: seat-swapped paired deals, the dev block `latest-decks`, with
+hidden-twin privacy checks. The nine ordered matchups were cycled by deal.
+
+Both runs were stopped at the session's two-hour limit for one job, after 9 pairs each. So every
+matchup was played once from both seats. With no final report written, their progress lines are kept:
+[Hard](sprt-hard-v8c-progress.txt), [Normal](sprt-normal-v8c-progress.txt).
+
+| Candidate | Games | Score vs heuristic | Pairs won both / split / lost both | Elo (95 %) | Integrity |
+|---|---|---|---|---|---|
+| Hard v8 | 18 | **17–1** | 8 / 1 / 0 | +491.5 (+289.7 to +3,600) | 0 failures |
+| Normal v8 | 18 | **15–3** | 6 / 3 / 0 | +279.4 (+130.2 to +755.8) | 0 failures |
+
+- On these decks both difficulties beat the heuristic by far more than on the starter decks, where
+  the gates measured +77 to +168.
+  - The heuristic scores moves one at a time with fixed numbers, so it misses what these cards do
+    over several steps: Evolve and Union-Fusion plays, Hidden energy, multi-card effects.
+  - The lookahead plays them out in the real engine.
+- **Thinking time** (Hard, White Cell against Gogeta, on a loaded host): a Main-Phase decision
+  averages 1.1 s; a card choice on the reply horizon averages 7.6 s, up to about 21 s.
+- **Game length.** A game took 5–10 minutes of wall time per worker, against about 2 minutes on the
+  starter decks.
+- **Sample size.** 18 games per difficulty is enough to show the direction and the size of the gap,
+  not to rank matchups.
+
