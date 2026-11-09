@@ -132,14 +132,16 @@ class Budget extends Error {}
  * game ends or `limit` decisions are spent. Returns where it stopped and how
  * many decisions it took.
  */
-function rollout(match: PinnedMatch, seat: PlayerId, revision: number, limit: number, base: Policy, seed: number, horizon: Horizon): { match: PinnedMatch; steps: number } {
+function rollout(match: PinnedMatch, seat: PlayerId, revision: number, limit: number, base: Policy, seed: number, horizon: Horizon, root: { turn: number; owner: PlayerId }): { match: PinnedMatch; steps: number } {
   const memory: Record<PlayerId, LocalMemory> = { p1: localMemory(policyRng(seed * 2 + 1)), p2: localMemory(policyRng(seed * 2 + 2)) };
   let at = match;
   let steps = 0;
   const turn = match.state.turn;
   // "reply": on through the other seat's turn, until the seat's own next turn begins.
-  // "turn": until this turn ends (the seat's own, or — for a defensive decision — the other seat's).
-  const going = (s: PinnedMatch["state"]) => (horizon === "reply" ? s.turn <= turn + 1 : s.turn === turn);
+  // "turn": while the turn the decision was taken in lasts — read off the position before the option
+  // was played (an "end the turn" option has already handed it over). For a Main-Phase decision that
+  // is the seat's own turn, exactly as v4 had it; for a defensive one, the other seat's.
+  const going = (s: PinnedMatch["state"]) => (horizon === "reply" ? s.turn <= turn + 1 : s.turn === root.turn && s.turnPlayer === root.owner);
   while (steps < limit && at.state.phase !== "over" && going(at.state)) {
     const actor = (at.state.prompt as { player?: PlayerId }).player;
     if (!actor) break;
@@ -253,7 +255,7 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
         if (!played.ok) throw new Error(`option ${id} refused in the world: ${played.detail}`);
         const remaining = opts.maxSteps - steps - 1;
         if (remaining <= 0) throw new Budget("step budget");
-        const line = rollout(played.match, seat, revision + 1, Math.min(opts.lineSteps, remaining), base, (seed + k * 7919) >>> 0, opts.horizon);
+        const line = rollout(played.match, seat, revision + 1, Math.min(opts.lineSteps, remaining), base, (seed + k * 7919) >>> 0, opts.horizon, { turn: world.state.turn, owner: world.state.turnPlayer });
         steps += line.steps + 1;
         if (steps > opts.maxSteps) throw new Budget("step budget");
         const end = observe(line.match, seat, revision + 1 + line.steps);
