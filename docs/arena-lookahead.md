@@ -45,7 +45,7 @@ counter conservation.
 | Horizon | rest of the turn; through the other seat's next turn for a card choice or mode, and for a Main-Phase decision that puts next turn's defence at stake (v7) | same |
 | Line score (v4, v7) | fitted win probability (v3 model), margin 3 points; a line that wins in every world is always taken, and one that loses in every world never kept when another does not | same |
 
-The journal records the difficulty in its policy version (`main2+combat5+choices2+look7-hard`), and a
+The journal records the difficulty in its policy version (`main3+combat6+choices2+look8-hard`), and a
 searched card choice's picked cards.
 `LOOKAHEAD_VERSION` must change with any change to the worlds, the search or `EVAL_WEIGHTS`, so a saved
 match is only continued by the policy that recorded it.
@@ -353,6 +353,44 @@ Time, Hard v7, three self-play games on a 4-vCPU host loaded by a 4-worker SPRT 
 v5 under similar load: 0.37 s mean, 3.9 s max. A card choice was 4.3 s on average (11 s at most) with 6
 answers and 1,200 steps; v6 ships 4 and 800, which keeps every benchmark pass. A policy step now asks
 the engine for the legal moves once instead of twice (about 7 % of a search step).
+
+**v8: plans for the next turn, and a horizon fix (9 Nov 2026).** AI-07 (Evolve and Union-Fusion
+materials) failed because the search never looked as far as the plan. Four things were fixed:
+
+- **Horizon.** With an Evolve-family or Union card in hand whose keyword price is a turn away, a
+  Main-Phase decision is scored after the seat's own next turn (`planHorizon: "next"`, 2,400 steps).
+  When the other seat has as many attackers as the seat has Life, it is scored after its reply
+  (`survivalHorizon`).
+- **A bug in the longer horizons, there since v6.** "reply" and "next" counted turns from the position
+  after the option was played. "End the turn" has already moved the counter on, so that one option's
+  line ran a turn longer than the others and was scored at a different seat's turn. That biased v6 and
+  v7 toward ending the turn wherever they looked further. The horizons now count from the decision's
+  own turn.
+- **The rollouts spent the plan.** The heuristic comboed an Evolve card away and charged it as energy.
+  Combat v6 makes an Evolve-family or Union card in hand cost 1.5 more to combo, and the charge rule
+  never charges one while another card can go.
+- **The rollouts never evolved.** Main v3 scores an Evolve from the hand as a play (the evolving card
+  over the weakest base). Before, it was a flat activation, below every play.
+
+AI-07 now passes 3 of 6 for both difficulties (it was 1); the benchmarks as a whole pass 64 of 70.
+`arena-strategy-validation.md` says what still fails and why.
+
+**Engine speed on complex cards (9 Nov 2026).** The latest releases' decks
+([evidence](arena-backlog/evidence/latest-decks/README.md)) made a search step cost up to 0.7 s,
+against 4 ms on the starter decks. One card choice took 203 s. Three changes, none of which changes
+behaviour:
+
+- The Fusion/Evolve/Potara/Absorb identity checks are pure functions of a recorded script. They are
+  now answered once per script object (`vm/skill-identity.ts`).
+- The immunities in force are read once per board reading, not once per candidate of every selector
+  (`vm/program.ts`).
+- The policy's lean board also leaves out the ability panel's evidence and the refused-move list,
+  which try moves on copies of the board and which the observation never reads (proved identical on
+  330 views).
+
+The same 46 decisions on White Cell against Gogeta went from 328 s to 69 s, and the slowest card
+choice from 203 s to 21 s. On those decks a Main-Phase decision now averages 1.1 s and a card choice
+on the reply horizon 7.6 s.
 
 ## Earlier: first gate result (8 Nov 2026): no gain
 
