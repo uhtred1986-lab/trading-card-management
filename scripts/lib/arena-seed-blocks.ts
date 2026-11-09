@@ -68,7 +68,7 @@ export const SPRT_SEED_BLOCKS: readonly SprtSeedBlock[] = [
   { name: "sprt-gate-7", base: 56_000_000, size: BLOCK, policyBase: 556_000_000, status: "consumed", note: "lookahead-normal v4 vs heuristic, 9 Nov 2026 — PASS: H1 accepted at 128 games, Elo +77.2 [+27.4, +130.5]", consumedBy: "docs/arena-backlog/evidence/sprt/gate7-lookahead-normal-v4.json" },
   { name: "sprt-gate-8", base: 57_000_000, size: BLOCK, policyBase: 557_000_000, status: "consumed", note: "lookahead-hard v5 (defensive search) vs heuristic, 9 Nov 2026 — PASS: H1 accepted at 88 games, Elo +114.5 [+49.9, +188.0]", consumedBy: "docs/arena-backlog/evidence/sprt/gate8-lookahead-hard-v5.json" },
   { name: "sprt-gate-9", base: 58_000_000, size: BLOCK, policyBase: 558_000_000, status: "consumed", note: "lookahead-normal v5 vs heuristic, 9 Nov 2026 — PASS: H1 accepted at 58 games, Elo +167.6 [+86.4, +271.1]", consumedBy: "docs/arena-backlog/evidence/sprt/gate9-lookahead-normal-v5.json" },
-  { name: "sprt-gate-10", base: 59_000_000, size: BLOCK, policyBase: 559_000_000, status: "open", note: "next gate run" },
+  { name: "sprt-gate-10", base: 59_000_000, size: BLOCK, policyBase: 559_000_000, status: "consumed", note: "lookahead-hard v7 (benchmark lessons, combat v5) vs heuristic, 9 Nov 2026 — PASS: H1 accepted at 68 games, Elo +152.1 [+74.1, +248.2]", consumedBy: "docs/arena-backlog/evidence/sprt/gate10-lookahead-hard-v7.json" },
   { name: "sprt-gate-11", base: 61_000_000, size: BLOCK, policyBase: 561_000_000, status: "open", note: "next gate run (60,000,000 is sprt-dev)" },
 ];
 
