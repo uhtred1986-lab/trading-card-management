@@ -81,10 +81,17 @@ export const FEATURE_NAMES = [
   "lifeYou", "lifeThem", "lowLifeYou", "lowLifeThem", "lastLifeYou", "lastLifeThem",
   "handYou", "handThem", "battleYou", "battleThem", "powerYou", "powerThem",
   "energyYou", "energyThem", "deckLowYou", "deckLowThem", "myTurn",
+  // Added for v4 (the SD15 mirror): the Leaders, the cards left rested, and a Unison in play.
+  "leaderPowerYou", "leaderPowerThem", "awakenedYou", "awakenedThem", "restedPowerYou", "restedPowerThem",
+  "unisonYou", "unisonThem",
 ] as const;
 
 function sidePower(side: SideFacts): number {
   return side.battle.reduce((sum, c) => sum + Math.max(0, c.power ?? 0), 0) / 10000;
+}
+
+function restedPower(side: SideFacts): number {
+  return side.battle.filter((c) => c.mode === "rest").reduce((sum, c) => sum + Math.max(0, c.power ?? 0), 0) / 10000;
 }
 
 export function features(o: PolicyObservation): number[] {
@@ -99,19 +106,24 @@ export function features(o: PolicyObservation): number[] {
     you.energy.length, them.energy.length,
     Math.max(0, 5 - you.deck), Math.max(0, 5 - them.deck),
     o.turnPlayer === o.seat ? 1 : 0,
+    Math.max(0, you.leader?.power ?? 0) / 10000, Math.max(0, them.leader?.power ?? 0) / 10000,
+    you.leader?.flipped ? 1 : 0, them.leader?.flipped ? 1 : 0,
+    restedPower(you), restedPower(them),
+    you.unison ? 1 : 0, them.unison ? 1 : 0,
   ];
 }
 
 export interface FittedValue {
   bias: number;
-  weights: Record<(typeof FEATURE_NAMES)[number], number>;
+  /** A feature a model was fitted without counts 0 (so an older model keeps its exact values). */
+  weights: Partial<Record<(typeof FEATURE_NAMES)[number], number>>;
 }
 
 /** The observing seat's chance of winning from this position (0–1) under a fitted value. */
 export function winProbability(o: PolicyObservation, model: FittedValue): number {
   if (o.over) return o.over.winner === null ? 0.5 : o.over.winner === o.seat ? 1 : 0;
   const x = features(o);
-  const z = FEATURE_NAMES.reduce((sum, name, k) => sum + model.weights[name] * x[k], model.bias);
+  const z = FEATURE_NAMES.reduce((sum, name, k) => sum + (model.weights[name] ?? 0) * x[k], model.bias);
   return 1 / (1 + Math.exp(-z));
 }
 
@@ -121,7 +133,7 @@ export function winProbability(o: PolicyObservation, model: FittedValue): number
  * seats. Held-out games: log loss 0.556 (a coin is 0.693), 67.6 % of winners called. The weights come
  * out antisymmetric because both seats' views are in the data.
  */
-export const FITTED_VALUE: FittedValue = {
+export const FITTED_VALUE_V3: FittedValue = {
   bias: -0.2966,
   weights: {
     lifeYou: 0.2252, lifeThem: -0.2252, lowLifeYou: -0.4853, lowLifeThem: 0.4853, lastLifeYou: -0.701, lastLifeThem: 0.701,
@@ -129,3 +141,6 @@ export const FITTED_VALUE: FittedValue = {
     energyYou: 0.3509, energyThem: -0.3509, deckLowYou: 0, deckLowThem: 0, myTurn: 0.5933,
   },
 };
+
+/** The value the lookahead uses (v3: `FITTED_VALUE_V3`). */
+export const FITTED_VALUE: FittedValue = FITTED_VALUE_V3;

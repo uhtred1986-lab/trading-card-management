@@ -10,7 +10,7 @@
  * gives the weights `evaluate.ts` turns into a win probability.
  *
  *   npx tsx scripts/arena-lookahead-fit.mts --collect --games 120 --seed 60500000 --out rows-a.jsonl
- *   npx tsx scripts/arena-lookahead-fit.mts --fit rows-a.jsonl rows-b.jsonl ...      # prints weights JSON
+ *   npx tsx scripts/arena-lookahead-fit.mts --fit rows-a.jsonl rows-b.jsonl ... [--model-out model.json]  # prints weights JSON
  *
  * Seeds: the `sprt-dev` block (development; never strength evidence). Only the seat's own restricted
  * observation is read, so the fitted value can read nothing a player could not.
@@ -120,9 +120,12 @@ function fit(files: string[]) {
   const tr = logLoss(train.map((r) => r.x), train.map((r) => r.y), w), te = logLoss(test.map((r) => r.x), test.map((r) => r.y), w);
   console.log(`rows ${rows.length} (train ${train.length}, held-out games' rows ${test.length})`);
   console.log(`log loss train ${tr.loss.toFixed(4)} / held-out ${te.loss.toFixed(4)} (coin ${base(test).toFixed(4)}); accuracy held-out ${(te.accuracy * 100).toFixed(1)} %`);
-  console.log(JSON.stringify({ bias: +w[0].toFixed(4), weights: Object.fromEntries(FEATURE_NAMES.map((n, k) => [n, +w[k + 1].toFixed(4)])) }, null, 1));
+  const model = { bias: +w[0].toFixed(4), weights: Object.fromEntries(FEATURE_NAMES.map((n, k) => [n, +w[k + 1].toFixed(4)])) };
+  console.log(JSON.stringify(model, null, 1));
+  const out = flag("--model-out");
+  if (out) { writeFileSync(out, JSON.stringify(model) + "\n"); console.log(`wrote ${out}`); }
 }
 
 if (process.argv.includes("--collect")) await collect();
-else if (process.argv.includes("--fit")) fit(process.argv.slice(process.argv.indexOf("--fit") + 1));
+else if (process.argv.includes("--fit")) fit(process.argv.slice(process.argv.indexOf("--fit") + 1).filter((a, i, all) => !a.startsWith("--") && all[i - 1] !== "--model-out"));
 else console.log("usage: --collect --games N --seed S --out FILE | --fit FILE...");
