@@ -29,8 +29,11 @@ The lookahead instead plays candidate moves forward in **the real rules engine**
 4. **Score.** It scores where each line ends from the seat's own observation (`evaluate.ts`) and takes
    the best average. It keeps the heuristic's choice unless another option is better by `margin`.
 
-Every other window (the battle's blocker, counter and combo windows, card picks, payments, the
-shortcuts) is the heuristic's answer, unchanged, including combat v4's combo-waste rule.
+Since v5 the battle's windows are searched too when the heuristic would spend a card there (`defense`).
+v6 adds card choices, modes, optional prices and payments (`choices`). v7 adds the seat's own attacking
+combos (`offense`). Everything else is the heuristic's answer, unchanged: the shortcuts, and the
+defensive windows where the heuristic declines. That includes combat v4's combo-waste rule and v5's
+counter conservation.
 
 | | Normal | Hard |
 |---|---|---|
@@ -38,10 +41,12 @@ shortcuts) is the heuristic's answer, unchanged, including combat v4's combo-was
 | Unseen cards of the human | half a copy of a card the human has shown, half a card of its own deck as a stand-in | exactly the unseen remainder of the human's decklist, shuffled |
 | Never knows | the hand, deck order, Life, the game's RNG | the same |
 | Candidates / worlds / step budget | 3 (+ end turn) / 2 / 200 simulated decisions | same |
-| Horizon | rest of the turn | same |
-| Line score (v4) | fitted win probability (v3 model), margin 3 points; a line that wins in every world is always taken | same |
+| Card choices (v6) | the heuristic's answer + 3 others, 800 steps | same |
+| Horizon | rest of the turn; through the other seat's next turn for a card choice or mode, and for a Main-Phase decision that puts next turn's defence at stake (v7) | same |
+| Line score (v4, v7) | fitted win probability (v3 model), margin 3 points; a line that wins in every world is always taken, and one that loses in every world never kept when another does not | same |
 
-The journal records the difficulty in its policy version (`main2+combat4+choices2+look1-hard`).
+The journal records the difficulty in its policy version (`main2+combat5+choices2+look7-hard`), and a
+searched card choice's picked cards.
 `LOOKAHEAD_VERSION` must change with any change to the worlds, the search or `EVAL_WEIGHTS`, so a saved
 match is only continued by the policy that recorded it.
 

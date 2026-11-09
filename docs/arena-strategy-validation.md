@@ -5,9 +5,10 @@ one resource-engine example, alongside aggro, control, fusion/evolution, recursi
 multicolor and Unison strategies. Deck qualification proves that required rules
 are available; a completed or winning game does not prove that the opponent used
 those rules well. This plan adds twelve general strategy benchmarks to #827 and
-supports the stronger-opponent work in #826. Five tactical subcases now have executable evidence in
-[resource-aware search](arena-resource-search-826.md); the twelve benchmark families
-are not yet fully covered. No paid comparison runs have started.
+supports the stronger-opponent work in #826. Five tactical subcases have executable evidence in
+[resource-aware search](arena-resource-search-826.md). Since 9 Nov 2026 all twelve families have
+engine-solved cases ("Benchmark coverage" below), on synthetic cards; cross-deck coverage on the
+release archetypes is still to come. No paid comparison runs have started.
 
 The [testing catalog](../src/lib/arena/testing/catalog.ts) has 64 proposed decks
 (16 first-wave) and 55 planned scenarios: 24 rule/interaction families, 12 general
@@ -157,6 +158,71 @@ recur when that enables the declared later result. Pin the horizon and response
 assumptions; ambiguous plans remain diagnostic. Variants: aggro mirror, aggro versus
 control and recursion/material versus resource denial. Generic development/battle
 proofs do not establish adaptation; named cross-archetype cases are missing.
+
+## Benchmark coverage (9 Nov 2026)
+
+All twelve families now have executable cases with an answer key from the real engine, not from the
+policy's preference.
+
+- **The kit** is `scripts/verify/strategy/kit.ts`. It stages a position on synthetic cards and
+  declares the objective, the horizon and the opponent's policy. It then solves the case exhaustively
+  through the real engine. A first move is acceptable when some line from it reaches the objective.
+- **Validity checks.** The runner asserts that every case is winnable (some first move is acceptable)
+  and that it discriminates (some first move is not).
+- **Pass rule.** A candidate passes when its first move is acceptable **and** its own line reaches the
+  objective.
+- **Risk cases (AI-11).** These are scored over several declared deals of the hidden cards. A first
+  move must be acceptable in at least 75% of the declared weight. The candidate must also give the same
+  answer in every deal and on hidden-state twins.
+
+Where the cases run:
+
+- `scripts/verify/arena-strategy-benchmarks.mts`: 65 cases (AI-03, 04, 06 to 12).
+- `arena-policy-strategy.mts` and `arena-lookahead-strategy.mts`: the five tactical subcases (AI-01,
+  02, 05).
+
+All three are in `npm test`. The benchmark runner keeps a ratchet (`strategy/expected.ts`): a recorded
+pass that fails later fails the run.
+
+Results with lookahead v7 and combat v5:
+
+| Family | Cases | Heuristic | Normal | Hard |
+|---|---|---|---|---|
+| AI-01, AI-02, AI-05 (tactical subcases) | 5 | 3 | 5 | 5 |
+| AI-03 energy, colours, future payments | 10 | 8 | 10 | 10 |
+| AI-04 combo opportunity costs | 8 | 4 | 8 | 8 |
+| AI-06 development curve | 3 | 3 | 3 | 3 |
+| AI-07 Evolve/Union-Fusion materials | 6 | 1 | 1 | 1 |
+| AI-08 removal targets | 10 | 2 | 10 | 10 |
+| AI-09 recursion and loops | 6 | 2 | 6 | 6 |
+| AI-10 optional payment and decline | 10 | 4 | 10 | 10 |
+| AI-11 hidden-information risk | 6 | 1 | 3 | 3 |
+| AI-12 pressure vs stabilize | 6 | 2 | 6 | 6 |
+| **All** | **70** | **30** | **62** | **62** |
+
+What still fails, for both difficulties:
+
+- **AI-07, five cases.** These keep an Evolve base or a Fusion pair for the next turn. The search scores
+  the end of this turn, or of the reply, with a value that knows nothing of a plan for the turn after.
+  This needs a value term for prepared materials or a two-turn search.
+- **AI-11, three risk cases.** Two are "pressure" from both seats, where swinging the [Blocker] loses
+  in three deals of four. The third is the Life-order case as p2. There the heuristic's tie-break picks
+  the wrong attacker first, and the search does not override it.
+
+Three fixes made cases fair. A case must not hang on a hidden card the player cannot know:
+
+- **AI-04 least-combo:** the first attacker now has [Critical], so the Life card goes to the Drop.
+- **AI-10:** the price now draws from a uniform deck, not from a named deck top.
+- **AI-04 hold-combo:** Hard's decklist says the Life card in hand is a combo card, so the case is fair
+  as built.
+
+Limits of this evidence:
+
+- The cases use synthetic cards on filler decks, not the qualified release archetypes. The
+  two-archetype cross-deck requirement above is still open.
+- AI-07 and AI-09 each have one-seat variants.
+
+Strength in whole games is measured separately (`arena-policy-sprt.md`, `arena-lookahead.md`).
 
 ## Existing evidence and its scope
 

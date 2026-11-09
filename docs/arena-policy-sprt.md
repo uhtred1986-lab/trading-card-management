@@ -192,6 +192,7 @@ started, about 2–3 for the last two). Reports: [evidence/sprt/](arena-backlog/
 | dev `lookahead-hard` v5 vs v4 itself, `sprt-dev` (not a gate) | 64 | H1 accepted (44–20; ptnml 1/0/18/0/13) | +3.08 | +137.0 (+65.5, +221.8) over v4 | 0 (364 twin checks) | 4 workers |
 | **gate** `lookahead-hard` (v5, defensive search) vs `heuristic`, `sprt-gate-8`, commit 6ea401b | 88 | **PASS: H1** accepted (58–30; ptnml 3/0/24/0/17) | +2.95 | +114.5 (+49.9, +188.0) | 0 (511 twin checks) | beside gate 9, 2 workers each |
 | **gate** `lookahead-normal` (v5) vs `heuristic`, `sprt-gate-9`, commit 6ea401b | 58 | **PASS: H1** accepted (42–16; ptnml 1/0/14/0/14) | +3.20 | +167.6 (+86.4, +271.1) | 0 (333 twin checks) | beside gate 8, 2 workers each |
+| dev `heuristic` (combat v5, counter conservation) vs combat v4, `sprt-dev`, commit a4ab9fd (not a gate) | 1,000 (cap) | no measurable difference: 500–500, 498 of 500 pairs split, 2 informative (one each way). The rule rarely fires in the starter decks. | −463.6 | +0.0 (−1.9, +1.9) | 0 (5,864 twin checks) | 1,476 s: 1.5 s/game |
 
 - **The A/A is exact.** All 200 A/A pairs are the same game twice (identical trace hashes): the
   pairing has no seat or memory asymmetry, and the first seat won 109 of the 200 deals. With no
