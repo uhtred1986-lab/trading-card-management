@@ -45,11 +45,13 @@ import { determinize, type Knowledge } from "./determinize";
 import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights, type FittedValue } from "./evaluate";
 
 /**
+ * 5 (9 Nov 2026): the defensive search is on (a combo, block or counter the heuristic would spend in
+ * the other seat's turn is played forward against declining).
  * 4 (9 Nov 2026): a line that wins in every world is always taken, and the margin is 3 points (the
  * SD15 mirror's noisy switches). 3 (8 Nov 2026): attacks the heuristic scores as losing are shortlisted too. 2: lines are scored by
  * the fitted win probability (`FITTED_VALUE`). 1: the hand-set value.
  */
-export const LOOKAHEAD_VERSION = 4;
+export const LOOKAHEAD_VERSION = 5;
 
 export type Horizon = "turn" | "decision" | "reply";
 
@@ -94,8 +96,8 @@ export interface LookaheadOptions {
 
 /** The two difficulties the owner asked for (8 Nov 2026): the same search, with and without your decklist. */
 export const DIFFICULTIES = {
-  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted" },
-  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted" },
+  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true },
+  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true },
 } as const satisfies Record<string, LookaheadOptions>;
 
 export type Difficulty = keyof typeof DIFFICULTIES;
