@@ -47,7 +47,7 @@ import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights,
 /**
  * 6 (9 Nov 2026): card choices, modes, optional prices and payments are searched too (`choices`); a
  * card choice or mode is scored after the other seat's next turn (`choiceHorizon: "reply"`), since what
- * it keeps is often needed only then.
+ * it keeps is often needed only then; at most 4 answers and 800 steps (a choice took 3 s on average).
  * 5 (9 Nov 2026): the defensive search is on (a combo, block or counter the heuristic would spend in
  * the other seat's turn is played forward against declining).
  * 4 (9 Nov 2026): a line that wins in every world is always taken, and the margin is 3 points (the
@@ -99,6 +99,8 @@ export interface LookaheadOptions {
   choiceHorizon?: Horizon;
   /** Step budget for a searched choice (default `maxSteps`); a reply line is long. */
   choiceSteps?: number;
+  /** Answers a searched choice plays forward, the heuristic's included (default 6). */
+  choiceAnswers?: number;
   /**
    * The horizon for Main-Phase decisions (default `horizon`): "reply" plays the other seat's next
    * turn too, so a [Blocker] swung away or a counter colour spent is punished where it matters.
@@ -120,8 +122,8 @@ export interface LookaheadOptions {
 
 /** The two difficulties the owner asked for (8 Nov 2026): the same search, with and without your decklist. */
 export const DIFFICULTIES = {
-  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, choices: true, choiceHorizon: "reply", choiceSteps: 1200 },
-  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, choices: true, choiceHorizon: "reply", choiceSteps: 1200 },
+  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4 },
+  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4 },
 } as const satisfies Record<string, LookaheadOptions>;
 
 export type Difficulty = keyof typeof DIFFICULTIES;
@@ -236,22 +238,22 @@ function offenseShortlist(input: PolicyInput, heuristic: string): { ids: string[
 
 /** The windows `choices` searches. */
 const CHOICE_WINDOWS = new Set(["chooseCards", "chooseMode", "payCost"]);
-const CHOICE_ALTERNATIVES = 5;
+const CHOICE_ANSWERS = 6;
 
 /** An answer's identity: a menu decision by its id, a pick by its cards. */
 export const answerKey = (a: PolicyAnswer) => (a.cards ? `${a.id}[${[...a.cards].sort().join(",")}]` : a.id);
 
 /**
- * A card choice, mode, optional price or payment: the heuristic's answer, then up to
- * `CHOICE_ALTERNATIVES` other menu answers the engine offers (each card, "none", each mode, each
+ * A card choice, mode, optional price or payment: the heuristic's answer, then other menu answers the
+ * engine offers, up to `most` in all (each card, "none", each mode, each
  * payment), in canonical order.
  */
-function choiceShortlist(input: PolicyInput, heuristic: PolicyAnswer): { answers: PolicyAnswer[]; skip: string | null } {
+function choiceShortlist(input: PolicyInput, heuristic: PolicyAnswer, most: number): { answers: PolicyAnswer[]; skip: string | null } {
   const answers = [heuristic];
   const seen = new Set([answerKey(heuristic)]);
   const menu = input.decisions.decisions.filter((d) => d.kind === "menu").sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   for (const d of menu) {
-    if (answers.length > CHOICE_ALTERNATIVES) break;
+    if (answers.length >= most) break;
     const a = answerFor(input.decisions, d.id);
     if (!seen.has(answerKey(a))) { seen.add(answerKey(a)); answers.push(a); }
   }
@@ -303,7 +305,7 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   const report: SearchReport = { status: "skipped", reason: "", candidates: [], means: {}, worlds: 0, failedWorlds: 0, steps: 0, chosen: heuristic.id, heuristic: heuristic.id };
   const { seeds, rng: r } = worldSeeds(rng, opts.worlds);
   const listed = opts.choices && CHOICE_WINDOWS.has(input.decisions.window)
-    ? choiceShortlist(input, heuristic)
+    ? choiceShortlist(input, heuristic, opts.choiceAnswers ?? CHOICE_ANSWERS)
     : (() => { const s = shortlist(input, heuristic.id, opts); return { answers: s.ids.map((id) => (id === heuristic.id ? heuristic : answerFor(input.decisions, id))), skip: s.skip }; })();
   if (listed.skip) return { answer: null, rng: r, report: { ...report, reason: listed.skip } };
   const byKey = new Map(listed.answers.map((a) => [answerKey(a), a] as const));

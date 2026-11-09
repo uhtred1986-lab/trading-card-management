@@ -75,6 +75,16 @@
  *             a card it has yet to play, an extra attack and its combos are not
  *             counted, nor are the seat's counters or a Life card a hit would
  *             put in its hand.
+ *   counter conservation (v5) at the counter timing, a negating counter is
+ *             declined when the seat's combos can hold this attack and the
+ *             counter kept is what holds the rest of the turn: after the
+ *             cheapest combo cover, the counter stops one attack still to come
+ *             (each other active attacker of the opponent's, as above, a lethal
+ *             hit now included) and the remaining combos the others; spending
+ *             the counter now would leave those attacks unanswerable. The other
+ *             negating counters offered stop one attack each in both lines,
+ *             each for its own energy. AI-10's "Negate the 30,000, the combos
+ *             hold the 20,000" when the 20,000 attacks first.
  *
  * **Bounded.** Every scoring step and every node of the cover search is
  * counted; at `COMBAT_LIMITS.work` the search stops with the best cover found
@@ -100,7 +110,7 @@ import { interruptingPolicy } from "./contract";
 /** What losing `damage` life costs its owner (`main.ts` since #650, where the choice handlers read it too). */
 export { lifeLoss };
 
-export const COMBAT_POLICY_VERSION = 4;
+export const COMBAT_POLICY_VERSION = 5;
 
 export const COMBAT_LIMITS = {
   /** Options scored per decision; the rest (by canonical id) are not considered. */
@@ -433,7 +443,86 @@ function counterChoice(o: PolicyObservation, bt: Battle | null, open: MenuDecisi
     const extra = d.action.alt && summary.alternativePrice !== "free" && !d.cost?.energy ? COST.unknownAlt : 0;
     options.push({ d, loss: COST.handCard + COST.energy * energy + extra, how: `counters with ${card?.name ?? "a card"}: negates the attack` });
   }
-  return cheapest(options);
+  const best = cheapest(options);
+  if (!best || best.d === decline) return best;
+  const kept = counterKept(o, bt, open, best.d, work);
+  return kept ? { d: decline, loss: threat.loss, how: `keeps the counter: ${kept}` } : best;
+}
+
+/** The negating counters offered at this timing: card and energy, canonical order. */
+function negatingCounters(o: PolicyObservation, open: readonly MenuDecision[]): { d: MenuDecision; card: string; energy: number }[] {
+  const out: { d: MenuDecision; card: string; energy: number }[] = [];
+  for (const d of [...open].sort(byId)) {
+    if (d.type !== "counter" || d.action.card === null || d.action.alt) continue;
+    const summary = counterResponseOf(d);
+    if (summary?.negatesAttack !== true || !["counter:attack", "counter:battle card attack"].includes(summary.kind)) continue;
+    const card = findCard(o, d.action.card);
+    out.push({ d, card: String(d.action.card), energy: d.cost ? d.cost.energy : Math.max(0, card?.energyCost ?? 0) });
+  }
+  return out;
+}
+
+/**
+ * Counter conservation (v5): why declining `chosen` and holding this attack with combos keeps the rest
+ * of the turn answerable when countering now does not; null when it does not (the counter stands).
+ * Defence of the Leader or a Battle Card only, with at least one other active attacker of the
+ * opponent's. Both lines are judged by `holdsRest` on the seat's own known means.
+ */
+function counterKept(o: PolicyObservation, bt: Battle, open: readonly MenuDecision[], chosen: MenuDecision, work: Work): string | null {
+  if (bt.attacking || bt.target === "unison" || bt.victory) return null;
+  const threats = attacksToCome(o);
+  if (!threats.length) return null;
+  const counters = negatingCounters(o, open);
+  const spent = counters.find((c) => c.d.id === chosen.id);
+  if (!spent) return null;
+  const others = counters.filter((c) => c !== spent);
+  const energy = Math.max(0, o.you.activeEnergy);
+  const guardSet = new Set([bt.guardCard?.id ?? "", ...counters.map((c) => c.card)]);
+  const base = bt.guardCard?.power ?? bt.guard;
+  const blockers = o.you.battle.filter((x) => x.mode === "active" && x.id !== bt.guardCard?.id && hasKeyword(x, "blocker")).length;
+  // Countering now: the counter and its energy gone, everything else kept.
+  const afterCounter = holdsRest(bt, threats, base, blockers, others, estimatedResources(o, guardSet), energy - spent.energy, work);
+  if (afterCounter !== false) return null;
+  // Declining: the cheapest combo cover holds this battle (the attacker wins ties), then the counter is kept.
+  const means = estimatedResources(o, guardSet);
+  const cover = cheapestCover(means, bt.attack - bt.guard + 1, energy, work);
+  if (!cover || work.spent) return null;
+  const used = new Set(cover.ids);
+  const left = energy - means.filter((r) => used.has(r.id)).reduce((n, r) => n + r.energy, 0);
+  const afterDecline = holdsRest(bt, threats, base, blockers, counters, means.filter((r) => !used.has(r.id)), left, work);
+  if (afterDecline !== true) return null;
+  return `${cover.ids.length} combo(s) hold this attack (${cover.power}) and the counter answers one of the ${threats.length} attack(s) still to come; countering now leaves them unanswerable`;
+}
+
+/** Each other card of the opponent's in Active Mode (the attacker aside) is an attack still to come, the strongest first. */
+function attacksToCome(o: PolicyObservation): Threat[] {
+  const attacker = o.battle?.attacker;
+  const out: Threat[] = [];
+  for (const c of [o.them.leader, ...o.them.battle]) {
+    if (!c || c.mode !== "active" || c.id === attacker || c.power === null) continue;
+    out.push({ id: c.id, power: c.power, damage: threatDamage(c), victory: hasKeyword(c, "victory strike") });
+  }
+  out.sort((a, b) => b.power - a.power || b.damage - a.damage || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return out.slice(0, COMBAT_LIMITS.threats);
+}
+
+/**
+ * Whether the target (at `power`) holds through `threats` with `blockers` blockers, the `counters`
+ * (one attack each, for its energy) and the combo `means` for the energy left: some number of the
+ * cheapest counters used, the rest of the energy to combos. Null when the work ran out.
+ */
+function holdsRest(bt: Battle, threats: readonly Threat[], power: number, blockers: number, counters: readonly { energy: number }[], means: readonly Resource[], energy: number, work: Work): boolean | null {
+  if (energy < 0) return false;
+  const costs = counters.map((c) => c.energy).sort((a, b) => a - b);
+  let paid = 0;
+  for (let k = 0; k <= costs.length; k++) {
+    if (k > 0) paid += costs[k - 1];
+    if (paid > energy) break;
+    const need = leastToHold(bt, threats, power, blockers + k, work);
+    if (work.spent) return null;
+    if (need <= 0 || need <= maxPower(means, energy - paid, work)) return work.spent ? null : true;
+  }
+  return work.spent ? null : false;
 }
 
 function comboChoice(o: PolicyObservation, bt: Battle | null, open: MenuDecision[], work: Work): Option | null {
@@ -587,20 +676,7 @@ function turnHolder(o: PolicyObservation, bt: Battle, threats: readonly Threat[]
     const key = `${power}:${blockers}`;
     const known = memo.get(key);
     if (known !== undefined) return known;
-    const reaching = threats.filter((t) => t.power >= power);
-    const needs = (ts: readonly Threat[]) => ts.map((t) => t.power - power + 1).sort((a, b) => b - a).slice(blockers).reduce((n, x) => n + x, 0);
-    let v = Infinity;
-    if (bt.target !== "leader") v = needs(reaching);
-    else {
-      // The attacks stopped (bit set) and those let through: less damage than the life left, no Victory Strike.
-      for (let mask = 0; mask < 1 << reaching.length; mask++) {
-        if (!work.step()) return 0;
-        const stopped = reaching.filter((_, i) => mask & (1 << i));
-        const through = reaching.filter((_, i) => !(mask & (1 << i)));
-        if (through.some((t) => t.victory) || through.reduce((n, t) => n + t.damage, 0) >= bt.defender.life) continue;
-        v = Math.min(v, needs(stopped));
-      }
-    }
+    const v = leastToHold(bt, threats, power, blockers, work);
     memo.set(key, v);
     return v;
   };
@@ -616,6 +692,28 @@ function turnHolder(o: PolicyObservation, bt: Battle, threats: readonly Threat[]
     const later = [...estimatedResources(o, gone), ...offered.filter((r) => r.activation && !spent.has(r.id))];
     return need <= maxPower(later, Math.max(0, left), work);
   };
+}
+
+/**
+ * The least combo power that holds this battle's target at `power` through `threats`, with `blockers`
+ * attacks stopped whole (the largest needs first): a Battle Card every attack that reaches it stopped;
+ * the Leader enough stopped that the rest take less than the life it has, no [Victory Strike] among
+ * them. Infinity when nothing does; 0 out of work.
+ */
+function leastToHold(bt: Battle, threats: readonly Threat[], power: number, blockers: number, work: Work): number {
+  const reaching = threats.filter((t) => t.power >= power);
+  const needs = (ts: readonly Threat[]) => ts.map((t) => t.power - power + 1).sort((a, b) => b - a).slice(blockers).reduce((n, x) => n + x, 0);
+  if (bt.target !== "leader") return needs(reaching);
+  let v = Infinity;
+  // The attacks stopped (bit set) and those let through: less damage than the life left, no Victory Strike.
+  for (let mask = 0; mask < 1 << reaching.length; mask++) {
+    if (!work.step()) return 0;
+    const stopped = reaching.filter((_, i) => mask & (1 << i));
+    const through = reaching.filter((_, i) => !(mask & (1 << i)));
+    if (through.some((t) => t.victory) || through.reduce((n, t) => n + t.damage, 0) >= bt.defender.life) continue;
+    v = Math.min(v, needs(stopped));
+  }
+  return v;
 }
 
 /** The battle choice for this input, or null outside the battle's windows (or with nothing to choose). Pure. */

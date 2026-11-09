@@ -113,12 +113,14 @@ export interface PolicyTurn {
 export function policyTurn(match: PinnedMatch, seat: PlayerId, revision: number): PolicyTurn {
   const aliases = aliasTable(match, seat);
   const game = definitionOf(match);
+  const over = match.state.phase === "over";
+  // One engine call for the moves, shared by the board and the decisions (it was two per step).
+  const legal = over ? [] : legalMoves(match);
   // No previews: the observation never reads them, and they were most of a step's cost.
-  const snapshot = projectSnapshot(match, seat, { revision, previews: false });
+  const snapshot = projectSnapshot(match, seat, { revision, previews: false, legal });
   const observation: PolicyObservation = buildObservation(snapshot, seat, ownDeck(match, seat), aliases, secretAreas(game, seat));
   const prompt = match.state.prompt;
   const actor = "player" in prompt ? prompt.player : null;
-  const over = match.state.phase === "over";
   const choice = prompt.kind === "chooseCards" && actor === seat && !over ? cardQuestion(match) : null;
   const powerChoice = over || actor !== seat ? {} : battlePowerChoices(match.ctx, game, match.state, seat);
   if (choice && powerChoice.target) choice.battlePowerTarget = powerChoice.target;
@@ -128,7 +130,7 @@ export function policyTurn(match: PinnedMatch, seat: PlayerId, revision: number)
     observation,
     window: over ? "gameOver" : prompt.kind,
     actor: over ? null : actor,
-    legal: over || actor !== seat ? [] : legalMoves(match).map(legal => ({
+    legal: over || actor !== seat ? [] : legal.map(legal => ({
       ...legal,
       ...defensiveSummary(match.ctx, game, match.state, legal, seat),
       ...(legal.action.type === "chooseMode" && powerChoice.target && powerChoice.modes?.includes(legal.action.index) ? { battlePowerTarget: powerChoice.target } : {}),

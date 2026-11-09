@@ -434,6 +434,58 @@ scenario("combo waste: keep the cards a defence cannot save", () => {
   assert.deepEqual(cardsIn(short.match, "p2", "battle"), ["C-V10"]);
 });
 
+// 2l. Counter conservation (combat v5): a negating counter is kept for the attack only it can answer. p2 is at 1
+//     life behind a 10,000 Leader with one energy, a Negate counter and two free 5,000 combos; p1's 15,000 attacks
+//     first and its 25,000 is still to come. The two combos hold the 15,000 (20,000; ties go to the attacker),
+//     and the kept Negate stops the 25,000. Negating the 15,000 instead leaves 20,000 against the 25,000: lethal,
+//     which the engine alone shows first. Controls: a lone attacker is still countered when lethal (2h), and with
+//     the combos one short of the first attack the counter is spent on it.
+scenario("counter conservation: keep the Negate for the bigger attack still to come", () => {
+  const TWO = (a: string, b: string) => ({ hand: [], energy: ["C-V5", "C-V5"], battle: [{ cardId: a, mode: "active" as const }, { cardId: b, mode: "active" as const }], leaderMode: "rest" as const, energyMarkers: 0 });
+  const plain = { p2: "C-L-RED" };
+  const setup = (hand: string[]) => battleAt(opening, { p1: TWO("C-V10", "C-BIG"), p2: DEFENDER(hand, 1, [], 1) }, "C-V10", "leader", plain);
+  const second = (m: PinnedMatch) => {
+    const atk = zone(m, "p1", "battle").find((id) => m.state.cards[id].cardId === "C-BIG" && m.state.cards[id].mode === "active");
+    const move = legalMoves(m).find((l) => l.action.type === "attack" && l.action.attacker === atk && l.action.target === zone(m, "p2", "leader")[0]);
+    assert.ok(move, "p1 can attack with its 25,000");
+    return applyMove(m, move.action).match;
+  };
+  /** The engine alone: p2 counters with the Negate in the first battle and combos everything in the second. */
+  const scripted = (match: PinnedMatch, battle: 1 | 2) => {
+    let m = match;
+    for (let n = 0; n < 40 && !isOver(m) && !(m.state.prompt.kind === "main" && !m.state.battle); n++) {
+      const legal = legalMoves(m).map((l) => l.action);
+      const mine = actorOf(m) === "p2";
+      const pick = mine && battle === 1 ? legal.find((a) => a.type === "counter" && a.card !== null && m.state.cards[a.card].cardId === "C-NEG")
+        : mine && battle === 2 ? legal.find((a) => a.type === "combo") : undefined;
+      m = applyMove(m, pick ?? legal.find((a) => a.type === "pass" || ("card" in a && a.card === null)) ?? legal[0]).match;
+    }
+    return m;
+  };
+  const wasted = scripted(second(scripted(setup(["C-NEG", "C-V5", "C-V5"]), 1)), 2);
+  assert.ok(isOver(wasted) && wasted.state.winner === "p1", "engine: negating the 15,000 loses to the 25,000 though both combos are spent on it");
+
+  const first = fight(setup(["C-NEG", "C-V5", "C-V5"]));
+  battleLengths.push(first.steps.length);
+  const kept = chosen(first.steps, "counter", "p2")[0];
+  assert.ok(kept?.id.includes("null"), `p2 keeps the Negate against the 15,000 (${said(first.steps)})`);
+  assert.match(kept.how, /keeps the counter: 2 combo\(s\) hold this attack/, "because the combos hold it and the counter answers the attack to come");
+  assert.equal(lifeOf(first.match, "p2"), 1, "the combos hold the first attack");
+  assert.deepEqual(cardsIn(first.match, "p2", "hand"), ["C-NEG"], "with both combos, the Negate kept");
+  const then = fight(second(first.match));
+  battleLengths.push(then.steps.length);
+  assert.ok(!isOver(then.match), `p2 survives the 25,000 (${said(then.steps)})`);
+  const negated = chosen(then.steps, "counter", "p2")[0];
+  assert.ok(negated && !negated.id.includes("null"), "by negating it");
+  assert.equal(lifeOf(then.match, "p2"), 1);
+
+  // Control: one 5,000 combo cannot hold the 15,000 (it needs 5,001), so the Negate goes on the lethal first attack.
+  const short = fight(setup(["C-NEG", "C-V5"]));
+  battleLengths.push(short.steps.length);
+  const spent = chosen(short.steps, "counter", "p2")[0];
+  assert.ok(spent && !spent.id.includes("null"), `with no combo cover the counter is spent on the first attack (${said(short.steps)})`);
+});
+
 // ---------------------------------------------------------------------------------------------
 // 3. Termination.
 assert.ok(Math.max(...battleLengths) <= 12, `every staged battle ends within 12 decisions (${battleLengths.join(", ")})`);
