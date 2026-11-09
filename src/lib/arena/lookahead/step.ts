@@ -36,7 +36,7 @@
 import type { PlayerId } from "../types";
 import type { PinnedMatch } from "../browser";
 import { applyDecision, policyTurn, type LocalStep } from "../policy/boundary";
-import { answerFor, type Policy, type PolicyAnswer, type PolicyInput } from "../policy/contract";
+import { answerFor, PICK_ID, type Policy, type PolicyAnswer, type PolicyInput } from "../policy/contract";
 import { localPolicy } from "../policy/combat";
 import { guardedDecide, localMemory, mainRanking, type LocalMemory } from "../policy/main";
 import { nextInt, policyRng, type PolicyRng } from "../policy/rng";
@@ -45,13 +45,16 @@ import { determinize, type Knowledge } from "./determinize";
 import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights, type FittedValue } from "./evaluate";
 
 /**
+ * 6 (9 Nov 2026): card choices, modes, optional prices and payments are searched too (`choices`); a
+ * card choice or mode is scored after the other seat's next turn (`choiceHorizon: "reply"`), since what
+ * it keeps is often needed only then.
  * 5 (9 Nov 2026): the defensive search is on (a combo, block or counter the heuristic would spend in
  * the other seat's turn is played forward against declining).
  * 4 (9 Nov 2026): a line that wins in every world is always taken, and the margin is 3 points (the
  * SD15 mirror's noisy switches). 3 (8 Nov 2026): attacks the heuristic scores as losing are shortlisted too. 2: lines are scored by
  * the fitted win probability (`FITTED_VALUE`). 1: the hand-set value.
  */
-export const LOOKAHEAD_VERSION = 5;
+export const LOOKAHEAD_VERSION = 6;
 
 export type Horizon = "turn" | "decision" | "reply";
 
@@ -84,6 +87,18 @@ export interface LookaheadOptions {
   defense?: boolean;
   /** Also search the seat's own attacking combo decisions: the heuristic's choice, passing, the strongest combo card. */
   offense?: boolean;
+  /**
+   * Also search card choices, modes, optional prices and payments (`chooseCards`, `chooseMode`,
+   * `payCost`): the heuristic's answer against up to five other offered answers, "none" included.
+   */
+  choices?: boolean;
+  /**
+   * The horizon for card choices and modes (`chooseCards`, `chooseMode`; not payments): "reply" plays
+   * the other seat's next turn too, since what a card choice keeps is often only needed then.
+   */
+  choiceHorizon?: Horizon;
+  /** Step budget for a searched choice (default `maxSteps`); a reply line is long. */
+  choiceSteps?: number;
   weights?: EvalWeights;
   /**
    * How a line's end is scored: "fitted" is the win probability (in percent) learned from the
@@ -98,8 +113,8 @@ export interface LookaheadOptions {
 
 /** The two difficulties the owner asked for (8 Nov 2026): the same search, with and without your decklist. */
 export const DIFFICULTIES = {
-  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true },
-  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true },
+  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, choices: true, choiceHorizon: "reply", choiceSteps: 1200 },
+  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, choices: true, choiceHorizon: "reply", choiceSteps: 1200 },
 } as const satisfies Record<string, LookaheadOptions>;
 
 export type Difficulty = keyof typeof DIFFICULTIES;
@@ -212,6 +227,30 @@ function offenseShortlist(input: PolicyInput, heuristic: string): { ids: string[
   return ids.length < 2 ? { ids: [], skip: "nothing else to play forward" } : { ids, skip: null };
 }
 
+/** The windows `choices` searches. */
+const CHOICE_WINDOWS = new Set(["chooseCards", "chooseMode", "payCost"]);
+const CHOICE_ALTERNATIVES = 5;
+
+/** An answer's identity: a menu decision by its id, a pick by its cards. */
+export const answerKey = (a: PolicyAnswer) => (a.cards ? `${a.id}[${[...a.cards].sort().join(",")}]` : a.id);
+
+/**
+ * A card choice, mode, optional price or payment: the heuristic's answer, then up to
+ * `CHOICE_ALTERNATIVES` other menu answers the engine offers (each card, "none", each mode, each
+ * payment), in canonical order.
+ */
+function choiceShortlist(input: PolicyInput, heuristic: PolicyAnswer): { answers: PolicyAnswer[]; skip: string | null } {
+  const answers = [heuristic];
+  const seen = new Set([answerKey(heuristic)]);
+  const menu = input.decisions.decisions.filter((d) => d.kind === "menu").sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const d of menu) {
+    if (answers.length > CHOICE_ALTERNATIVES) break;
+    const a = answerFor(input.decisions, d.id);
+    if (!seen.has(answerKey(a))) { seen.add(answerKey(a)); answers.push(a); }
+  }
+  return answers.length < 2 ? { answers: [], skip: "one answer" } : { answers, skip: null };
+}
+
 function shortlist(input: PolicyInput, heuristic: string, opts: LookaheadOptions): { ids: string[]; skip: string | null } {
   if (opts.defense && DEFENSE_WINDOWS.has(input.decisions.window) && input.observation.turnPlayer !== input.observation.seat) return defenseShortlist(input, heuristic);
   if (opts.offense && input.decisions.window === "combo" && input.observation.turnPlayer === input.observation.seat) return offenseShortlist(input, heuristic);
@@ -256,8 +295,19 @@ function worldSeeds(rng: PolicyRng, worlds: number): { seeds: number[]; rng: Pol
 export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: number, input: PolicyInput, heuristic: PolicyAnswer, rng: PolicyRng, opts: LookaheadOptions, base: Policy = localPolicy()): { answer: PolicyAnswer | null; rng: PolicyRng; report: SearchReport } {
   const report: SearchReport = { status: "skipped", reason: "", candidates: [], means: {}, worlds: 0, failedWorlds: 0, steps: 0, chosen: heuristic.id, heuristic: heuristic.id };
   const { seeds, rng: r } = worldSeeds(rng, opts.worlds);
-  const { ids, skip } = shortlist(input, heuristic.id, opts);
-  if (skip) return { answer: null, rng: r, report: { ...report, reason: skip } };
+  const listed = opts.choices && CHOICE_WINDOWS.has(input.decisions.window)
+    ? choiceShortlist(input, heuristic)
+    : (() => { const s = shortlist(input, heuristic.id, opts); return { answers: s.ids.map((id) => (id === heuristic.id ? heuristic : answerFor(input.decisions, id))), skip: s.skip }; })();
+  if (listed.skip) return { answer: null, rng: r, report: { ...report, reason: listed.skip } };
+  const byKey = new Map(listed.answers.map((a) => [answerKey(a), a] as const));
+  const replyChoice = !!opts.choices && (input.decisions.window === "chooseCards" || input.decisions.window === "chooseMode");
+  const horizon = replyChoice ? opts.choiceHorizon ?? opts.horizon : opts.horizon;
+  const budget = replyChoice ? opts.choiceSteps ?? opts.maxSteps : opts.maxSteps;
+  const lineCap = horizon === "reply" ? Math.max(opts.lineSteps, 150) : opts.lineSteps;
+  const ids = [...byKey.keys()];
+  const heuristicKey = answerKey(heuristic);
+  report.heuristic = heuristicKey;
+  report.chosen = heuristicKey;
   report.candidates = ids;
   const weights = opts.weights ?? EVAL_WEIGHTS;
   const score = (o: PolicyObservation) => (opts.value === "fitted" ? 100 * winProbability(o, opts.fitted ?? FITTED_VALUE) : evaluate(o, weights));
@@ -276,14 +326,18 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
       const won: boolean[] = [];
       for (const [k, id] of ids.entries()) {
         if (opts.stop?.()) throw new Budget("host stop");
-        if (!root.input.decisions.decisions.some((d) => d.id === id)) throw new Error(`option ${id} is not open in the world`);
-        const played = applyDecision(world, root.key, answerFor(root.input.decisions, id));
+        const a = byKey.get(id)!;
+        const open = a.id === PICK_ID
+          ? root.input.decisions.decisions.some((d) => d.kind === "pick" && (a.cards ?? []).every((c) => d.candidates.includes(c)))
+          : root.input.decisions.decisions.some((d) => d.id === a.id);
+        if (!open) throw new Error(`option ${id} is not open in the world`);
+        const played = applyDecision(world, root.key, answerFor(root.input.decisions, a.id, a.cards));
         if (!played.ok) throw new Error(`option ${id} refused in the world: ${played.detail}`);
-        const remaining = opts.maxSteps - steps - 1;
+        const remaining = budget - steps - 1;
         if (remaining <= 0) throw new Budget("step budget");
-        const line = rollout(played.match, seat, revision + 1, Math.min(opts.lineSteps, remaining), base, (seed + k * 7919) >>> 0, opts.horizon, { turn: world.state.turn, owner: world.state.turnPlayer });
+        const line = rollout(played.match, seat, revision + 1, Math.min(lineCap, remaining), base, (seed + k * 7919) >>> 0, horizon, { turn: world.state.turn, owner: world.state.turnPlayer });
         steps += line.steps + 1;
-        if (steps > opts.maxSteps) throw new Budget("step budget");
+        if (steps > budget) throw new Budget("step budget");
         const end = observe(line.match, seat, revision + 1 + line.steps);
         values.push(score(end));
         won.push(!!end.over && end.over.winner === seat);
@@ -308,11 +362,11 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   const sure = ids.find((id) => wins.get(id) === complete);
   let top = ids[0];
   for (const id of ids) if (means[id] > means[top]) top = id;
-  const best = sure ?? (top !== heuristic.id && means[top] - means[heuristic.id] >= opts.margin ? top : heuristic.id);
+  const best = sure ?? (top !== heuristicKey && means[top] - means[heuristicKey] >= opts.margin ? top : heuristicKey);
   report.status = "searched";
   report.reason = stopped ? `${complete} world(s) before ${stopped}` : `${complete} world(s)`;
   report.chosen = best;
-  return { answer: best === heuristic.id ? heuristic : answerFor(input.decisions, best), rng: r, report };
+  return { answer: best === heuristicKey ? heuristic : byKey.get(best)!, rng: r, report };
 }
 
 /**
@@ -322,7 +376,7 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
  * always does). Pass it to `localStep`: the cycle guard, the refusals and the
  * move are the same code; a recorded id that is not open is refused there.
  */
-export function replayPolicy(recordedId: string, opts: Pick<LookaheadOptions, "worlds" | "defense" | "offense">, base: Policy = localPolicy()): Policy {
+export function replayPolicy(recordedId: string, opts: Pick<LookaheadOptions, "worlds" | "defense" | "offense" | "choices">, base: Policy = localPolicy(), recordedCards?: string[]): Policy {
   return (input, rng) => {
     const heuristic = base(input, rng);
     const after = worldSeeds(heuristic.rng, opts.worlds).rng;
@@ -330,8 +384,10 @@ export function replayPolicy(recordedId: string, opts: Pick<LookaheadOptions, "w
     // ever the search's; every other window is the heuristic's own answer (a card pick's cards
     // included, which a journal entry does not keep), asked again as before.
     const w = input.decisions.window;
-    const searched = w === "main" || (!!opts.defense && DEFENSE_WINDOWS.has(w)) || (!!opts.offense && w === "combo");
-    return { answer: searched ? answerFor(input.decisions, recordedId) : heuristic.answer, rng: after };
+    const searched = w === "main" || (!!opts.defense && DEFENSE_WINDOWS.has(w)) || (!!opts.offense && w === "combo") || (!!opts.choices && CHOICE_WINDOWS.has(w));
+    // A searched pick is replayed with the cards the journal kept (the heuristic's own when it kept none).
+    if (searched && recordedId === PICK_ID && !recordedCards) return { answer: heuristic.answer, rng: after };
+    return { answer: searched ? answerFor(input.decisions, recordedId, recordedCards) : heuristic.answer, rng: after };
   };
 }
 

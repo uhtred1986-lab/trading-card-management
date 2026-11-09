@@ -4,7 +4,7 @@
  * answer key), checked to discriminate (some first moves reach the objective, some do not), and then
  * played by the heuristic, Normal and Hard. Prints the matrix; `--json FILE` writes it.
  *
- *   npx tsx scripts/verify/arena-strategy-benchmarks.mts [--only ai-06] [--json out.json]
+ *   npx tsx scripts/verify/arena-strategy-benchmarks.mts [--only ai-06[,ai-07]] [--json out.json]
  */
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
@@ -33,7 +33,7 @@ const FAMILIES: { cards: Parameters<typeof benchBundle>[0]; cases: (bundle: Awai
 ];
 const bundle = await benchBundle(FAMILIES.flatMap((f) => f.cards));
 const only = flag("--only");
-const cases = (await Promise.all(FAMILIES.map((f) => f.cases(bundle)))).flat().filter((c) => !only || c.benchmark === only);
+const cases = (await Promise.all(FAMILIES.map((f) => f.cases(bundle)))).flat().filter((c) => !only || only.split(",").includes(c.benchmark));
 
 const base = localPolicy();
 const CANDIDATES: Record<string, Candidate> = {

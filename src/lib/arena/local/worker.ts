@@ -78,7 +78,7 @@ export const JOURNAL_FORMAT = 1;
 /** One committed decision. A human move is kept as the engine move it resolved to; an AI move by its decision id, and replayed by asking the policy again. */
 export type JournalEntry =
   | { seat: PlayerId; kind: "human"; action: Action; requestId: string }
-  | { seat: PlayerId; kind: "ai"; id: string };
+  | { seat: PlayerId; kind: "ai"; id: string; /** A lookahead's searched card pick: which cards (the id alone is "pick"). */ cards?: string[] };
 
 export interface Receipt { requestId: string; fingerprint: string; revision: number; /** `advance` only. */ stopped?: AdvanceStop }
 
@@ -367,7 +367,7 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
         if (entry.seat !== ai || askedSeat(match) !== ai) throw new Refusal("journal", `${where}: the AI seat was not asked`);
         // A lookahead decision is replayed from its record, not searched again: the memory it left
         // depends only on the decision count (`replayPolicy`), and the trace below proves the game.
-        const step = localStep(match, ai, i, memory, difficulty ? replayPolicy(entry.id, DIFFICULTIES[difficulty], policy) : policy);
+        const step = localStep(match, ai, i, memory, difficulty ? replayPolicy(entry.id, DIFFICULTIES[difficulty], policy, entry.cards) : policy);
         if (!step.ok || step.id !== entry.id) throw new Refusal("journal", `${where}: the policy answered ${step.ok ? step.id : step.reason} where the journal has ${entry.id}`);
         memory = step.memory;
         match = step.match;
@@ -462,7 +462,8 @@ export function createLocalMatchHost(options: LocalHostOptions): LocalMatchHost 
           const step = s.difficulty ? lookaheadStep(m, s.ai, at, memory, DIFFICULTIES[s.difficulty], policy) : localStep(m, s.ai, at, memory, policy);
           options.observe?.({ seat: s.ai, window, ms: performance.now() - t0 });
           if (!step.ok) { failed = `${step.reason}: ${step.detail}`; break; }
-          const entry: JournalEntry = { seat: s.ai, kind: "ai", id: step.id };
+          const picked = s.difficulty ? (step as { answer?: { cards?: string[] } }).answer?.cards : undefined;
+          const entry: JournalEntry = { seat: s.ai, kind: "ai", id: step.id, ...(picked ? { cards: [...picked] } : {}) };
           added.push(entry);
           memory = step.memory;
           m = step.match;
