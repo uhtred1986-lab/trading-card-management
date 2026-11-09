@@ -231,6 +231,12 @@ Reports: [gate8-lookahead-hard-v5.json](arena-backlog/evidence/sprt/gate8-lookah
 Searched decisions take about 1.3–1.4 s at p50 and up to about 3 s on an idle 4-vCPU host (one game,
 Hard).
 
+**Tried and not adopted: the attacking-combo search** (`offense`, 9 Nov 2026). It searches the seat's
+own combo decisions as attacker: the heuristic's choice, passing, and the strongest combo card. Against
+v5 on development seeds it went 30–30 after 60 games, with 24 of 30 deals split: no measurable
+difference. It was stopped as a development run and stays off, because it only adds thinking time.
+The option remains in the code.
+
 A measuring note: three times this session, two runs printed identical running tallies at the same
 pair count (gates 6/7 at 40 pairs; the v5 development run and an earlier mirror run at 20 and 30). The
 reports were checked each time: different seeds, different per-pair sequences, and no game trace
