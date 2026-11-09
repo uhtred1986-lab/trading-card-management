@@ -38,6 +38,16 @@ Last updated: 19 October 2026
     (+56 to +201).
   - Against v5's search on development seeds: −7 (−76 to +62), no measured difference.
   - Normal's SD15 mirror cell is −27 (−121 to +64): the one to watch.
+- **v8, shipped** (9 Nov 2026).
+  - Plans through the next turn (AI-07 3/6), a survival trigger, and a horizon bug fix.
+  - Heuristic main v3 (an Evolve is a play) and combat v6 (plan cards kept out of combos).
+  - Hard v8 passes gate 12: +251 Elo (+136 to +456).
+  - Normal v8 has no gate of its own (the owner stopped after gate 12; Normal v7 passed gate 11).
+  - Benchmarks 64 of 70 for both difficulties.
+- **Latest releases** (BT27–BT31, `scripts/arena-latest-decks.mts`).
+  - White Cell, Gogeta and Cooler play to the end; five decks stop at unread clauses.
+  - Hard v8 beat the heuristic 17–1 there, and Normal v8 15–3.
+  - Engine caches made searches on these cards about 5× faster.
 - **Combat v4** stops unaffordable-defense combo waste; the heuristic now passes AI-02.
 - **Not done.** The paid Claude pilot was skipped by the owner; its script stays available.
 

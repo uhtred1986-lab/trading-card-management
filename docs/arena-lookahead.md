@@ -375,6 +375,29 @@ materials) failed because the search never looked as far as the plan. Four thing
 AI-07 now passes 3 of 6 for both difficulties (it was 1); the benchmarks as a whole pass 64 of 70.
 `arena-strategy-validation.md` says what still fails and why.
 
+**Gate 12** (`sprt-gate-12`, fresh seeds, commit `418b398`, clean and unchanged, four workers) measured
+`lookahead-hard` v8 against the heuristic of the same commit (main v3, combat v6):
+
+- Verdict: **PASS: H1 accepted**, decided at 42 games.
+- Record 34–8, pentanomial 1/0/6/0/14, LLR 3.15, Elo **+251.3 (+136.1 to +456.2)**.
+- Integrity: 0 failures, 257 hidden-twin checks.
+- By matchup: SD15 v SD15 +191, SD15 v SD5 +241, SD5 v SD15 +241, SD5 v SD5 +381.
+- Report: [gate12-lookahead-hard-v8.json](arena-backlog/evidence/sprt/gate12-lookahead-hard-v8.json).
+
+The owner stopped the programme after gate 12, so **Normal v8 has no gate of its own**:
+- Normal v7 passed gate 11 (+123.0).
+- Normal v8 went 15–3 on the latest-release decks (below).
+- `sprt-gate-13` stays open for it.
+
+**The latest releases.** On White Cell, Gogeta and Cooler (BT29–BT31), 18 games each across all nine
+matchups ([evidence](arena-backlog/evidence/latest-decks/README.md)):
+
+- Hard v8 beat the heuristic 17–1, Elo +491.5 (+289.7 to +3,600).
+- Normal v8 beat it 15–3, Elo +279.4 (+130.2 to +755.8).
+
+The margin is far wider than on the starter decks, because these cards' plays unfold over several
+steps, which the heuristic scores one at a time.
+
 **Engine speed on complex cards (9 Nov 2026).** The latest releases' decks
 ([evidence](arena-backlog/evidence/latest-decks/README.md)) made a search step cost up to 0.7 s,
 against 4 ms on the starter decks. One card choice took 203 s. Three changes, none of which changes
