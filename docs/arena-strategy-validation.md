@@ -184,7 +184,7 @@ Where the cases run:
 All three are in `npm test`. The benchmark runner keeps a ratchet (`strategy/expected.ts`): a recorded
 pass that fails later fails the run.
 
-Results with lookahead v7 and combat v5:
+Results with lookahead v8, main v3 and combat v6 (9 Nov 2026):
 
 | Family | Cases | Heuristic | Normal | Hard |
 |---|---|---|---|---|
@@ -192,29 +192,38 @@ Results with lookahead v7 and combat v5:
 | AI-03 energy, colours, future payments | 10 | 8 | 10 | 10 |
 | AI-04 combo opportunity costs | 8 | 4 | 8 | 8 |
 | AI-06 development curve | 3 | 3 | 3 | 3 |
-| AI-07 Evolve/Union-Fusion materials | 6 | 1 | 1 | 1 |
+| AI-07 Evolve/Union-Fusion materials | 6 | 1 | 3 | 3 |
 | AI-08 removal targets | 10 | 2 | 10 | 10 |
 | AI-09 recursion and loops | 6 | 2 | 6 | 6 |
 | AI-10 optional payment and decline | 10 | 4 | 10 | 10 |
 | AI-11 hidden-information risk | 6 | 1 | 3 | 3 |
 | AI-12 pressure vs stabilize | 6 | 2 | 6 | 6 |
-| **All** | **70** | **30** | **62** | **62** |
+| **All** | **70** | **30** | **64** | **64** |
 
 What still fails, for both difficulties:
 
-- **AI-07, five cases.** These keep an Evolve base or a Fusion pair for the next turn. The search scores
-  the end of this turn, or of the reply, with a value that knows nothing of a plan for the turn after.
-  This needs a value term for prepared materials or a two-turn search.
+- **AI-07, three cases** (keep-base from both seats, develop-base). v8 searches a pending plan through
+  the seat's own next turn. The heuristic now evolves, and keeps plan cards out of combos and energy.
+  That fixed survive-over-base and fusion-materials. What remains:
+  - The rollout heuristic swings an Evolve base it has just played, which leaves it to be KO'd.
+  - In these synthetic cases the evolved card is only a vanilla 25,000, so the fitted value rates
+    keeping the base about level with pressing.
+  - Telling the heuristic which card is a base needs the character names an Evolve matches. The
+    policy's view of a card does not carry them.
 - **AI-11, three risk cases.** Two are "pressure" from both seats, where swinging the [Blocker] loses
   in three deals of four. The third is the Life-order case as p2. There the heuristic's tie-break picks
   the wrong attacker first, and the search does not override it.
 
-Three fixes made cases fair. A case must not hang on a hidden card the player cannot know:
+Fixes made cases fair. A case must not hang on a hidden card the player cannot know, and must ask one
+question:
 
 - **AI-04 least-combo:** the first attacker now has [Critical], so the Life card goes to the Drop.
 - **AI-10:** the price now draws from a uniform deck, not from a named deck top.
 - **AI-04 hold-combo:** Hard's decklist says the Life card in hand is a combo card, so the case is fair
   as built.
+- **AI-07 keep-base:** the non-base attacker is now a 25,000 and the opposing 20,000 is active. Attacking
+  with the non-base is free, so the case asks only which card keeps the base. With a 15,000 attacker
+  it was also a trade: one damage for a card the 20,000 KOs.
 
 Limits of this evidence:
 
