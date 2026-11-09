@@ -45,10 +45,11 @@ import { determinize, type Knowledge } from "./determinize";
 import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights, type FittedValue } from "./evaluate";
 
 /**
- * 3 (8 Nov 2026): attacks the heuristic scores as losing are shortlisted too. 2: lines are scored by
+ * 4 (9 Nov 2026): a line that wins in every world is always taken, and the margin is 3 points (the
+ * SD15 mirror's noisy switches). 3 (8 Nov 2026): attacks the heuristic scores as losing are shortlisted too. 2: lines are scored by
  * the fitted win probability (`FITTED_VALUE`). 1: the hand-set value.
  */
-export const LOOKAHEAD_VERSION = 3;
+export const LOOKAHEAD_VERSION = 4;
 
 export type Horizon = "turn" | "decision" | "reply";
 
@@ -88,8 +89,8 @@ export interface LookaheadOptions {
 
 /** The two difficulties the owner asked for (8 Nov 2026): the same search, with and without your decklist. */
 export const DIFFICULTIES = {
-  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 1, horizon: "turn", value: "fitted" },
-  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 1, horizon: "turn", value: "fitted" },
+  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted" },
+  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted" },
 } as const satisfies Record<string, LookaheadOptions>;
 
 export type Difficulty = keyof typeof DIFFICULTIES;
@@ -207,6 +208,8 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   const weights = opts.weights ?? EVAL_WEIGHTS;
   const score = (o: PolicyObservation) => (opts.value === "fitted" ? 100 * winProbability(o, opts.fitted ?? FITTED_VALUE) : evaluate(o, weights));
   const totals = new Map<string, number>(ids.map((id) => [id, 0]));
+  // Worlds in which the line ended with the seat having won the game.
+  const wins = new Map<string, number>(ids.map((id) => [id, 0]));
   let steps = 0;
   let complete = 0;
   let stopped: string | null = null;
@@ -216,6 +219,7 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
       const world = determinize(match, seat, opts.knowledge, seed).match;
       const root = policyTurn(world, seat, revision);
       const values: number[] = [];
+      const won: boolean[] = [];
       for (const [k, id] of ids.entries()) {
         if (opts.stop?.()) throw new Budget("host stop");
         if (!root.input.decisions.decisions.some((d) => d.id === id)) throw new Error(`option ${id} is not open in the world`);
@@ -226,9 +230,11 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
         const line = rollout(played.match, seat, revision + 1, Math.min(opts.lineSteps, remaining), base, (seed + k * 7919) >>> 0, opts.horizon);
         steps += line.steps + 1;
         if (steps > opts.maxSteps) throw new Budget("step budget");
-        values.push(score(observe(line.match, seat, revision + 1 + line.steps)));
+        const end = observe(line.match, seat, revision + 1 + line.steps);
+        values.push(score(end));
+        won.push(!!end.over && end.over.winner === seat);
       }
-      ids.forEach((id, k) => totals.set(id, totals.get(id)! + values[k]));
+      ids.forEach((id, k) => { totals.set(id, totals.get(id)! + values[k]); if (won[k]) wins.set(id, wins.get(id)! + 1); });
       complete++;
     } catch (error) {
       if (error instanceof Budget) { stopped = error.message; break; }
@@ -241,10 +247,14 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   const means: Record<string, number> = {};
   for (const id of ids) means[id] = totals.get(id)! / complete;
   report.means = means;
-  // The best average (ties to the earlier option, the heuristic's first), kept only if it beats the heuristic's by `margin`.
+  // A line that won the game in every world is taken whatever the margin (the heuristic's own first,
+  // if it is one): a win probability is squeezed near certainty, so a sure win can sit within `margin`
+  // of a merely likely one (AI-01: 100 against 97.9). Otherwise the best average, ties to the earlier
+  // option (the heuristic's first), kept only if it beats the heuristic's by `margin`.
+  const sure = ids.find((id) => wins.get(id) === complete);
   let top = ids[0];
   for (const id of ids) if (means[id] > means[top]) top = id;
-  const best = top !== heuristic.id && means[top] - means[heuristic.id] >= opts.margin ? top : heuristic.id;
+  const best = sure ?? (top !== heuristic.id && means[top] - means[heuristic.id] >= opts.margin ? top : heuristic.id);
   report.status = "searched";
   report.reason = stopped ? `${complete} world(s) before ${stopped}` : `${complete} world(s)`;
   report.chosen = best;
