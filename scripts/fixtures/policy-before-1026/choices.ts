@@ -56,7 +56,7 @@
  */
 import type { PlayerId } from "../../../src/lib/arena/types";
 import { answerFor, type DecisionWindow, type MenuDecision, type PickDecision, type Policy, type PolicyInput } from "../../../src/lib/arena/policy/contract";
-import { cardValue, lifeLoss } from "../../../src/lib/arena/policy/main";
+import { cardValue, lifeLoss } from "./main";
 import type { CardFacts, PolicyObservation } from "../../../src/lib/arena/policy/observation";
 
 export const CHOICE_POLICY_VERSION = 1;
