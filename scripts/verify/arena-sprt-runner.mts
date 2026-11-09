@@ -24,14 +24,15 @@ assert.equal(dev.status, "dev");
 assert.deepEqual(dealSeeds(dev, 7), { engineSeed: 60_000_007, policySeed: 560_000_007 });
 assert.throws(() => dealSeeds(dev, dev.size), /outside seed block/);
 assert.ok(SPRT_SEED_BLOCKS.some((b) => b.status === "open"), "a fresh gate block is available");
-const block = (over: Partial<SprtSeedBlock>): SprtSeedBlock => ({ name: "x", base: 70_000_000, size: 1_000_000, policyBase: 570_000_000, status: "open", note: "", ...over });
+// A hypothetical block in a range nothing uses (70,000,000 / 570,000,000 are reserved for the Claude campaign).
+const block = (over: Partial<SprtSeedBlock>): SprtSeedBlock => ({ name: "x", base: 80_000_000, size: 1_000_000, policyBase: 580_000_000, status: "open", note: "", ...over });
 assert.throws(() => assertSeedRegistry([block({ base: 30_500_000 })]), /overlap consumed 826-holdout/, "the #826 +30M range is refused");
 assert.throws(() => assertSeedRegistry([block({ base: 10_000_000 })]), /overlap consumed 651-holdout/, "the #663 +10M range is refused");
 assert.throws(() => assertSeedRegistry([block({ base: 40_899_500, size: 10 })]), /overlap consumed 899-holdout/, "the #899 40,899,000 range is refused");
 assert.throws(() => assertSeedRegistry([block({ base: 650_000, size: 10 })]), /overlap consumed legacy-small/, "the #651 dev seeds are refused");
 assert.throws(() => assertSeedRegistry([block({ policyBase: 89_940_100 })]), /overlap consumed 899-policy/, "#899's policy seeds are refused");
-assert.throws(() => assertSeedRegistry([block({}), block({ name: "y", base: 70_500_000, policyBase: 580_000_000 })]), /x engine seeds overlap y engine seeds/, "two blocks may not share seeds");
-assert.throws(() => assertSeedRegistry([block({}), block({ name: "y", base: 570_000_000, policyBase: 580_000_000 })]), /overlap/, "an engine range may not reuse another block's policy seeds");
+assert.throws(() => assertSeedRegistry([block({}), block({ name: "y", base: 80_500_000, policyBase: 590_000_000 })]), /x engine seeds overlap y engine seeds/, "two blocks may not share seeds");
+assert.throws(() => assertSeedRegistry([block({}), block({ name: "y", base: 580_000_000, policyBase: 590_000_000 })]), /overlap/, "an engine range may not reuse another block's policy seeds");
 assert.throws(() => assertSeedRegistry([block({ status: "consumed" })]), /does not name the evidence/);
 assert.throws(() => sprtSeedBlock("x", [block({ status: "consumed", consumedBy: "docs/x.json" })]), /consumed/, "a consumed block is refused");
 assert.throws(() => sprtSeedBlock("nope"), /unknown seed block/);
