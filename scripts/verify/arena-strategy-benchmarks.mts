@@ -12,11 +12,15 @@ import { localPolicy } from "../../src/lib/arena/policy/combat";
 import { DIFFICULTIES, lookaheadStep } from "../../src/lib/arena/lookahead/step";
 import { answeringStep } from "../lib/arena-seat-duel";
 import { benchBundle, judge, solve, type BenchCase, type Candidate, type Result } from "./strategy/kit";
+import { AI03_CARDS, ai03Cases } from "./strategy/ai-03";
+import { AI04_CARDS, ai04Cases } from "./strategy/ai-04";
 import { AI06_CARDS, ai06Cases } from "./strategy/ai-06";
 
 const flag = (name: string) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : undefined; };
 const t0 = performance.now();
 const FAMILIES: { cards: Parameters<typeof benchBundle>[0]; cases: (bundle: Awaited<ReturnType<typeof benchBundle>>) => Promise<BenchCase[]> }[] = [
+  { cards: AI03_CARDS, cases: ai03Cases },
+  { cards: AI04_CARDS, cases: ai04Cases },
   { cards: AI06_CARDS, cases: ai06Cases },
 ];
 const bundle = await benchBundle(FAMILIES.flatMap((f) => f.cards));
