@@ -299,6 +299,28 @@ search failed. None of them is tuned to win games.
 
 Three benchmark cases were made fair on the way (`arena-strategy-validation.md`).
 
+**Gates 10 and 11** (fresh seeds, commit `6b29db6`, clean and unchanged; run side by side with two
+workers each) measured v7, on combat v5, against the heuristic of the same commit:
+
+| Gate | Candidate | Verdict | Games | Elo (95 %) | Integrity |
+|---|---|---|---|---|---|
+| `sprt-gate-10` | Hard v7 | **PASS** | 68 | +152.1 (+74.1 to +248.2) | 0 failures, 409 twin checks |
+| `sprt-gate-11` | Normal v7 | **PASS** | 100 | +123.0 (+55.9 to +200.5) | 0 failures, 584 twin checks |
+
+By matchup:
+
+| Gate | SD15 v SD15 | SD15 v SD5 | SD5 v SD15 | SD5 v SD5 |
+|---|---|---|---|---|
+| 10 (Hard) | +166 | +120 | +89 | +255 |
+| 11 (Normal) | **−27 (−121 to +64)** | +111 | +120 | +416 |
+
+Reports: [gate10-lookahead-hard-v7.json](arena-backlog/evidence/sprt/gate10-lookahead-hard-v7.json),
+[gate11-lookahead-normal-v7.json](arena-backlog/evidence/sprt/gate11-lookahead-normal-v7.json).
+
+**Both v7 difficulties pass, and v7 is what ships.** The one cell to watch is Normal's SD15 mirror.
+It was +255 for Normal v5 in gate 9 and +166 for Hard v7 here. With 13 pairs its interval spans
+zero, so it is not a measured regression, but it is where the next development run should look.
+
 **v7 against v5's search, both on combat v5** (Hard, development seeds `sprt-dev`, commit `6b29db6`,
 4 workers): stopped at 50 pairs, before a formal verdict, to free the machine for the gates.
 

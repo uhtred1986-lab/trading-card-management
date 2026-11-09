@@ -139,14 +139,18 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   cannot see (`determinize.ts`: every hidden card resampled slot by slot, hidden ids renamed
   canonically, the game RNG replaced; Hard knows the other decklist's counts, Normal does not),
   plays each option and the rest of the turn through the real engine with the heuristic for both
-  seats, and scores the end (`evaluate.ts`). **It sits beside the boundary, not in the policy
+  seats, and scores the end (`evaluate.ts`). Since v5–v7 it also searches the defensive and attacking
+  battle windows, card choices, modes and payments, and looks through the other seat's next turn for a
+  card choice and for a Main-Phase decision that puts that turn's defence at stake. **It sits beside the boundary, not in the policy
   layer**: it reads the pinned match, but only through `determinize`, whose worlds are proved equal
   for hidden-state twins. Deterministic step budget; a stop or an unplayable world plays the exact
-  heuristic answer. Every other window is the heuristic's. The worker records the difficulty in
+  heuristic answer. The shortcuts are the heuristic's. The worker records the difficulty in
   the journal's policy version and replays lookahead decisions without searching (`replayPolicy`).
   The policy board is built with `previews: false` (the observation never reads them; about two
   thirds of a step's cost). Proofs: `scripts/verify/arena-lookahead.mts`,
-  `scripts/verify/arena-local-lookahead.mts` (`npm test`). Detail: `docs/arena-lookahead.md`.
+  `scripts/verify/arena-local-lookahead.mts`, and the strategy benchmarks
+  (`scripts/verify/arena-strategy-benchmarks.mts` on the oracle kit `scripts/verify/strategy/`, with a
+  pass ratchet), all in `npm test`. Detail: `docs/arena-lookahead.md`.
   **Evaluation (#651)**: `docs/arena-policy-evaluation.md` — seeded games across both seats and every
   baseline with intervals, seat bias against a control, hidden-state variants, determinism, latency in
   Node and Chrome; `npm run arena:policy-eval -- --check` is the gate in `npm test`;

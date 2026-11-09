@@ -20,13 +20,26 @@ Last updated: 19 October 2026
   - Hard (gate 6): +104 Elo (+45 to +170).
   - Normal (gate 7): +77 Elo (+27 to +131); the mirror +137.
   - Every matchup is zero or positive.
-- **v5, shipped, adds the defensive search** (combo, block or counter in the other seat's turn).
+- **v5 adds the defensive search** (combo, block or counter in the other seat's turn).
   - +137 over v4 itself on development seeds.
   - Hard (gate 8): +115 Elo over the heuristic (+50 to +188).
   - Normal (gate 9): +168 Elo (+86 to +271).
+- **All 12 strategy benchmark families are built** (9 Nov 2026): 70 engine-solved cases in
+  `npm test`, with a pass ratchet. Heuristic 30, Normal 62, Hard 62. Still failing: AI-07 (Evolve and
+  Fusion materials for the next turn) and three AI-11 risk cases.
+  (`docs/arena-strategy-validation.md`).
+- **v7, shipped, is what the benchmarks taught the search.**
+  - Card choices are searched (v6).
+  - A Main-Phase decision with the next turn's defence at stake is scored after that turn.
+  - No sure loss is kept.
+  - Attacking combos are searched.
+  - **Combat v5** keeps a Negate for the bigger attack still to come.
+  - Gates against the heuristic: Hard (gate 10) +152 Elo (+74 to +248); Normal (gate 11) +123 Elo
+    (+56 to +201).
+  - Against v5's search on development seeds: −7 (−76 to +62), no measured difference.
+  - Normal's SD15 mirror cell is −27 (−121 to +64): the one to watch.
 - **Combat v4** stops unaffordable-defense combo waste; the heuristic now passes AI-02.
-- **Not done.** The 12 strategy benchmarks are not all built yet. The paid Claude pilot was skipped
-  by the owner; its script stays available.
+- **Not done.** The paid Claude pilot was skipped by the owner; its script stays available.
 
 Follow the [rules delivery plan](arena-rules-delivery.md) and #907. The bounded
 #897 corpus qualification is complete; persisted executable rules remain the
