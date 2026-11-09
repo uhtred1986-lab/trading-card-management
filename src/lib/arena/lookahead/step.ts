@@ -82,6 +82,8 @@ export interface LookaheadOptions {
    * counter) in the other seat's turn, play that and declining through the rest of the turn.
    */
   defense?: boolean;
+  /** Also search the seat's own attacking combo decisions: the heuristic's choice, passing, the strongest combo card. */
+  offense?: boolean;
   weights?: EvalWeights;
   /**
    * How a line's end is scored: "fitted" is the win probability (in percent) learned from the
@@ -189,8 +191,30 @@ function defenseShortlist(input: PolicyInput, heuristic: string): { ids: string[
   return decline ? { ids: [heuristic, decline.id], skip: null } : { ids: [], skip: "no decline open" };
 }
 
+/**
+ * An attacking combo decision (the seat's own turn, its attacker in battle): the heuristic's choice, and
+ * the main alternatives it did not take — passing, and the hand's strongest combo card.
+ */
+function offenseShortlist(input: PolicyInput, heuristic: string): { ids: string[]; skip: string | null } {
+  const o = input.observation;
+  if (o.turnPlayer !== o.seat) return { ids: [], skip: "the other seat's battle" };
+  const menu = input.decisions.decisions.filter((d) => d.kind === "menu");
+  const pass = menu.find((d) => d.type === "pass");
+  const combos = menu.filter((d) => d.type === "combo");
+  if (!combos.length) return { ids: [], skip: "no combo open" };
+  const power = (d: (typeof menu)[number]) => {
+    const card = o.you.hand?.find((c) => c.id === d.action.card);
+    return card?.comboPower ?? 0;
+  };
+  const strongest = [...combos].sort((a, b) => power(b) - power(a) || (a.id < b.id ? -1 : 1))[0];
+  const ids = [heuristic];
+  for (const d of [pass, strongest]) if (d && !ids.includes(d.id)) ids.push(d.id);
+  return ids.length < 2 ? { ids: [], skip: "nothing else to play forward" } : { ids, skip: null };
+}
+
 function shortlist(input: PolicyInput, heuristic: string, opts: LookaheadOptions): { ids: string[]; skip: string | null } {
-  if (opts.defense && DEFENSE_WINDOWS.has(input.decisions.window)) return defenseShortlist(input, heuristic);
+  if (opts.defense && DEFENSE_WINDOWS.has(input.decisions.window) && input.observation.turnPlayer !== input.observation.seat) return defenseShortlist(input, heuristic);
+  if (opts.offense && input.decisions.window === "combo" && input.observation.turnPlayer === input.observation.seat) return offenseShortlist(input, heuristic);
   if (input.decisions.window !== "main") return { ids: [], skip: `window ${input.decisions.window}` };
   const ranking = mainRanking(input);
   if (ranking.length < 2) return { ids: [], skip: "one option" };
@@ -298,14 +322,15 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
  * always does). Pass it to `localStep`: the cycle guard, the refusals and the
  * move are the same code; a recorded id that is not open is refused there.
  */
-export function replayPolicy(recordedId: string, opts: Pick<LookaheadOptions, "worlds" | "defense">, base: Policy = localPolicy()): Policy {
+export function replayPolicy(recordedId: string, opts: Pick<LookaheadOptions, "worlds" | "defense" | "offense">, base: Policy = localPolicy()): Policy {
   return (input, rng) => {
     const heuristic = base(input, rng);
     const after = worldSeeds(heuristic.rng, opts.worlds).rng;
     // Only a Main-Phase choice (and, with `defense`, a defensive battle choice, always a menu one) is
     // ever the search's; every other window is the heuristic's own answer (a card pick's cards
     // included, which a journal entry does not keep), asked again as before.
-    const searched = input.decisions.window === "main" || (!!opts.defense && DEFENSE_WINDOWS.has(input.decisions.window));
+    const w = input.decisions.window;
+    const searched = w === "main" || (!!opts.defense && DEFENSE_WINDOWS.has(w)) || (!!opts.offense && w === "combo");
     return { answer: searched ? answerFor(input.decisions, recordedId) : heuristic.answer, rng: after };
   };
 }
