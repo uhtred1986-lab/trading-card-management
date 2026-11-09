@@ -121,8 +121,14 @@ export interface BenchCase {
   horizon: Horizon;
   /** The declared opponent: how the other seat answers in every line, the oracle's and the candidate's. */
   opponent: Policy;
-  /** Oracle bounds (defaults: 4,000 nodes, 80 decisions deep). */
-  limits?: { nodes?: number; depth?: number };
+  /**
+   * Oracle bounds (defaults: 4,000 nodes, 80 decisions deep). `depthFails`: a line deeper than `depth`
+   * fails instead of stopping the solve — for a position holding an unbounded free loop, whose
+   * objective then reads "within that many decisions" (the line can never come back under the bound).
+   */
+  limits?: { nodes?: number; depth?: number; depthFails?: boolean };
+  /** The candidate must end its turns itself: a decision its cycle guard answered (not its policy) fails the case. */
+  unguarded?: boolean;
 }
 
 export interface Line { match: PinnedMatch; battles: number }
@@ -191,7 +197,10 @@ export function solve(c: BenchCase): Oracle {
   const reach = (line: Line, depth: number, memory: LocalMemory): boolean => {
     if (++nodes > maxNodes) throw new Error(`${c.key}: the oracle needs more than ${maxNodes} nodes; make the position smaller`);
     if (ended(c, start, line)) return c.objective(line.match, start);
-    if (depth > maxDepth) throw new Error(`${c.key}: a line is deeper than ${maxDepth} decisions`);
+    if (depth > maxDepth) {
+      if (c.limits?.depthFails) return false;
+      throw new Error(`${c.key}: a line is deeper than ${maxDepth} decisions`);
+    }
     const actor = actorOf(line.match);
     if (!actor) return c.objective(line.match, start);
     if (actor !== c.seat) {
@@ -220,7 +229,7 @@ export function solve(c: BenchCase): Oracle {
 }
 
 /** A candidate: one decision for its seat (the same shape as `localStep`, and it must say what it answered). */
-export type Candidate = (match: PinnedMatch, seat: PlayerId, revision: number, memory: LocalMemory) => { ok: true; match: PinnedMatch; events: { type: string }[]; memory: LocalMemory; answer?: PolicyAnswer; id: string } | { ok: false; reason: string; detail: string; memory: LocalMemory };
+export type Candidate = (match: PinnedMatch, seat: PlayerId, revision: number, memory: LocalMemory) => { ok: true; match: PinnedMatch; events: { type: string }[]; memory: LocalMemory; answer?: PolicyAnswer; id: string; guard?: string | null } | { ok: false; reason: string; detail: string; memory: LocalMemory };
 
 export interface Result {
   benchmark: Benchmark;
@@ -231,6 +240,8 @@ export interface Result {
   outcome: "pass" | "fail" | "interrupted";
   firstAcceptable: boolean;
   objective: boolean;
+  /** The cycle guard, not the candidate's policy, answered one of its decisions. */
+  guarded: boolean;
   first: string | null;
   acceptable: string[];
   options: number;
@@ -242,6 +253,7 @@ export function judge(c: BenchCase, oracle: Oracle, name: string, candidate: Can
   const memory: Record<PlayerId, LocalMemory> = { p1: localMemory(policyRng(41)), p2: localMemory(policyRng(42)) };
   let first: string | null = null;
   let stop: string | null = null;
+  let guarded = false;
   for (let n = 0; n < 400 && !ended(c, c.match, line); n++) {
     const actor = actorOf(line.match);
     if (!actor) break;
@@ -259,6 +271,7 @@ export function judge(c: BenchCase, oracle: Oracle, name: string, candidate: Can
       first = step.answer ? answerKey(step.answer) : step.id;
       void turn;
     }
+    if (step.guard) guarded = true;
     memory[c.seat] = step.memory;
     line = { match: step.match, battles: line.battles + battlesIn(step.events) };
   }
@@ -266,8 +279,8 @@ export function judge(c: BenchCase, oracle: Oracle, name: string, candidate: Can
   const firstAcceptable = first !== null && oracle.acceptable.has(first);
   return {
     benchmark: c.benchmark, key: c.key, variant: c.variant, seat: c.seat, candidate: name,
-    outcome: stop ? "interrupted" : firstAcceptable && objective ? "pass" : "fail",
-    firstAcceptable, objective, first, acceptable: [...oracle.acceptable], options: oracle.options.length,
+    outcome: stop ? "interrupted" : firstAcceptable && objective && !(c.unguarded && guarded) ? "pass" : "fail",
+    firstAcceptable, objective, guarded, first, acceptable: [...oracle.acceptable], options: oracle.options.length,
   };
 }
 

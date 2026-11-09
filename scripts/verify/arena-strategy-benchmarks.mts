@@ -15,7 +15,9 @@ import { benchBundle, judge, solve, type BenchCase, type Candidate, type Result 
 import { AI03_CARDS, ai03Cases } from "./strategy/ai-03";
 import { AI04_CARDS, ai04Cases } from "./strategy/ai-04";
 import { AI06_CARDS, ai06Cases } from "./strategy/ai-06";
+import { AI07_CARDS, ai07Cases } from "./strategy/ai-07";
 import { AI08_CARDS, ai08Cases } from "./strategy/ai-08";
+import { AI09_CARDS, ai09Cases } from "./strategy/ai-09";
 import { AI10_CARDS, ai10Cases } from "./strategy/ai-10";
 
 const flag = (name: string) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : undefined; };
@@ -24,7 +26,9 @@ const FAMILIES: { cards: Parameters<typeof benchBundle>[0]; cases: (bundle: Awai
   { cards: AI03_CARDS, cases: ai03Cases },
   { cards: AI04_CARDS, cases: ai04Cases },
   { cards: AI06_CARDS, cases: ai06Cases },
+  { cards: AI07_CARDS, cases: ai07Cases },
   { cards: AI08_CARDS, cases: ai08Cases },
+  { cards: AI09_CARDS, cases: ai09Cases },
   { cards: AI10_CARDS, cases: ai10Cases },
 ];
 const bundle = await benchBundle(FAMILIES.flatMap((f) => f.cards));
