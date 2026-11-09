@@ -20,6 +20,10 @@ Last updated: 19 October 2026
   - Hard (gate 6): +104 Elo (+45 to +170).
   - Normal (gate 7): +77 Elo (+27 to +131); the mirror +137.
   - Every matchup is zero or positive.
+- **v5, shipped, adds the defensive search** (combo, block or counter in the other seat's turn).
+  - +137 over v4 itself on development seeds.
+  - Hard (gate 8): +115 Elo over the heuristic (+50 to +188).
+  - Normal (gate 9): +168 Elo (+86 to +271).
 - **Combat v4** stops unaffordable-defense combo waste; the heuristic now passes AI-02.
 - **Not done.** The 12 strategy benchmarks are not all built yet. The paid Claude pilot was skipped
   by the owner; its script stays available.

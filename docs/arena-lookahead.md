@@ -203,6 +203,39 @@ Reports: [gate6-lookahead-hard-v4.json](arena-backlog/evidence/sprt/gate6-lookah
 
 The next weak spot is SD15 v SD5 for Normal (0 in gate 7; development also 0).
 
+**v5: the defensive search (9 Nov 2026).** In the other seat's turn the battle's windows (combo,
+block, counter) were still the heuristic's alone. With `defense`, when the heuristic would spend a card
+there, the lookahead plays that and declining through the rest of the turn and keeps the better. The
+search only runs when a card would be spent.
+
+v5 against v4 itself on development seeds: H1, 44–20, **+137 over v4** (+66 to +222), every matchup
+positive ([dev-v5-vs-v4.json](arena-backlog/evidence/sprt/dev-v5-vs-v4.json); not a gate).
+
+Gates against the heuristic (fresh seeds, commit `6ea401b`, clean and unchanged):
+
+| Gate | Candidate | Verdict | Games | Elo (95 %) | Integrity |
+|---|---|---|---|---|---|
+| `sprt-gate-8` | Hard v5 | **PASS** | 88 | +114.5 (+49.9 to +188.0) | 0 failures, 511 twin checks |
+| `sprt-gate-9` | Normal v5 | **PASS** | 58 | +167.6 (+86.4 to +271.1) | 0 failures, 333 twin checks |
+
+By matchup:
+
+| Gate | SD15 v SD15 | SD15 v SD5 | SD5 v SD15 | SD5 v SD5 |
+|---|---|---|---|---|
+| 8 (Hard) | +97 | +261 | 0 | +132 |
+| 9 (Normal) | +255 | +50 | +226 | +159 |
+
+Reports: [gate8-lookahead-hard-v5.json](arena-backlog/evidence/sprt/gate8-lookahead-hard-v5.json),
+[gate9-lookahead-normal-v5.json](arena-backlog/evidence/sprt/gate9-lookahead-normal-v5.json).
+
+Searched decisions take about 1.3–1.4 s at p50 and up to about 3 s on an idle 4-vCPU host (one game,
+Hard).
+
+A measuring note: three times this session, two runs printed identical running tallies at the same
+pair count (gates 6/7 at 40 pairs; the v5 development run and an earlier mirror run at 20 and 30). The
+reports were checked each time: different seeds, different per-pair sequences, and no game trace
+shared. With most pairs split or won both, equal totals come up more often than intuition says.
+
 **The other half of "smart enough"** (owner, 8 Nov 2026) is the 12 strategy benchmarks of
 `arena-strategy-validation.md`, and they are **not yet all built**. Five tactical subcases run in
 `arena-policy-strategy.mts`; the heuristic now passes AI-02 too, and fails AI-01 own-combo lethal and
