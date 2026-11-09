@@ -75,6 +75,8 @@
  *             a card it has yet to play, an extra attack and its combos are not
  *             counted, nor are the seat's counters or a Life card a hit would
  *             put in its hand.
+ *   plan cards (v6) an Evolve-family or Union card in hand costs 1.5 more
+ *             to combo than a plain hand card: it is a play for a later turn.
  *   counter conservation (v5) at the counter timing, a negating counter is
  *             declined when the seat's combos can hold this attack and the
  *             counter kept is what holds the rest of the turn: after the
@@ -103,14 +105,14 @@
 import { answerFor, type Decision, type MenuDecision, type Policy, type PolicyInput } from "./contract";
 import { activationsThisTurn, cardValue, lifeLoss, mainThen } from "./main";
 import type { CardFacts, PolicyObservation, SideFacts } from "./observation";
-import { shortcutThen } from "./shortcuts";
+import { PLAN_KEYWORD, shortcutThen } from "./shortcuts";
 import { choicesThen } from "./choices";
 import { interruptingPolicy } from "./contract";
 
 /** What losing `damage` life costs its owner (`main.ts` since #650, where the choice handlers read it too). */
 export { lifeLoss };
 
-export const COMBAT_POLICY_VERSION = 5;
+export const COMBAT_POLICY_VERSION = 6;
 
 export const COMBAT_LIMITS = {
   /** Options scored per decision; the rest (by canonical id) are not considered. */
@@ -126,7 +128,14 @@ export const COMBAT_LIMITS = {
 /** The windows this module answers. */
 export const COMBAT_WINDOWS = ["blocker", "counter", "combo"] as const;
 
-const COST = { future: 0.5, lethal: 1000, handCard: 1, energy: 0.25, restBlocker: 0.25, marker: 0.75, activation: 0.5, unknownAlt: 1 } as const;
+const COST = { future: 0.5, lethal: 1000, handCard: 1, energy: 0.25, restBlocker: 0.25, marker: 0.75, activation: 0.5, unknownAlt: 1, planCard: 1.5 } as const;
+
+/**
+ * Plan cards (v6): an Evolve-family or Union card in hand is a play for a later turn (its base or
+ * materials), not only a combo card, so comboing it costs `COST.planCard` more than a plain hand card.
+ * It is still spent when the battle is worth it (a lethal hit always is). AI-07.
+ */
+const handLoss = (c: CardFacts) => COST.handCard + (PLAN_KEYWORD.test(c.text ?? "") ? COST.planCard : 0);
 
 export interface CombatChoice {
   id: string;
@@ -317,7 +326,7 @@ function offeredResources(o: PolicyObservation, bt: Battle, open: readonly MenuD
       const card = findCard(o, d.action.card);
       if (!card) continue;
       const fromHand = (o.you.hand ?? []).some((c) => c.id === card.id);
-      out.push({ id: d.id, power: Math.max(0, card.comboPower ?? 0), energy: Math.max(0, card.comboCost ?? 0), loss: fromHand ? COST.handCard : cardValue(card), card: card.id });
+      out.push({ id: d.id, power: Math.max(0, card.comboPower ?? 0), energy: Math.max(0, card.comboCost ?? 0), loss: fromHand ? handLoss(card) : cardValue(card), card: card.id });
     } else if (d.type === "activate") {
       const card = findCard(o, d.action.card);
       const used = typeof d.action.card === "string" ? activationsThisTurn(o, o.seat, d.action.card) : null;
@@ -346,7 +355,7 @@ function offeredResources(o: PolicyObservation, bt: Battle, open: readonly MenuD
 function estimatedResources(o: PolicyObservation, exclude: ReadonlySet<string>): Resource[] {
   const out: Resource[] = [];
   const usable = (c: CardFacts) => c.comboCost !== null && c.comboPower !== null && c.comboPower > 0 && !exclude.has(c.id);
-  for (const c of [...(o.you.hand ?? [])].sort(byId)) if (usable(c)) out.push({ id: c.id, power: c.comboPower!, energy: Math.max(0, c.comboCost!), loss: COST.handCard });
+  for (const c of [...(o.you.hand ?? [])].sort(byId)) if (usable(c)) out.push({ id: c.id, power: c.comboPower!, energy: Math.max(0, c.comboCost!), loss: handLoss(c) });
   for (const c of [...o.you.battle].sort(byId)) if (c.mode === "active" && usable(c)) out.push({ id: c.id, power: c.comboPower!, energy: Math.max(0, c.comboCost!), loss: cardValue(c) });
   return out;
 }

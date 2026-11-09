@@ -20,7 +20,9 @@
  *                                   else the one redraw     "opening hand rule"
  *   charge                       -> the card least likely to be played: the dearest
  *                                   (an X cost counts 9), +10 if a colour is off the
- *                                   leader's                "charge rule"
+ *                                   leader's; never an Evolve or Union card while
+ *                                   another can go (its keyword is a plan for a
+ *                                   later turn, AI-07)       "charge rule"
  *   zEnergyFromCombo             -> keep a card, not decline "keeps the Z-Energy"
  *   empowerCarry                 -> the prompt's maximum    "carries maximum N Empower markers"
  *
@@ -38,6 +40,9 @@
 import type { PlayerId } from "../types";
 import { answerFor, type Policy, type PolicyInput } from "./contract";
 
+/** An Evolve-family or Union keyword: the card's play is planned for a later turn (`combat.ts` reads the same). */
+export const PLAN_KEYWORD = /\[(?:EX-|Xeno-)?Evolve\]|\[Union-(?:Fusion|Potara|Absorb)\]/i;
+
 /** One open menu decision, as a shortcut reads it. `action` is the move's arguments (the engine's `Action`, less `player`, for a contract decision). */
 export interface ShortcutDecision {
   id: string;
@@ -51,6 +56,8 @@ export interface ShortcutCard {
   /** The printed cost; null for an X cost or none. */
   energyCost: number | null;
   colors: readonly string[];
+  /** An Evolve-family or Union card: played through its keyword later, so not given up as energy while another card can be. */
+  plan?: boolean;
 }
 
 /** Everything a shortcut reads. A `PolicyInput` gives one (`shortcutInputOf`); the online opponent builds one from its engine. */
@@ -106,7 +113,7 @@ function chargeFor(input: ShortcutInput): ShortcutDecision | undefined {
     const card = input.hand.find((c) => c.id === id);
     const cost = card && card.energyCost !== null ? card.energyCost : 9;
     const offColour = card?.colors.some((c) => !input.leaderColors.includes(c)) ? 10 : 0;
-    const score = cost + offColour;
+    const score = cost + offColour - (card?.plan ? 100 : 0);
     // Strictly greater: of equal scores the earlier decision stays.
     if (score > bestScore) {
       best = d;
@@ -161,7 +168,7 @@ export function shortcutInputOf(input: PolicyInput): ShortcutInput {
     seat: decisions.seat,
     window: decisions.window,
     decisions: decisions.decisions.flatMap((d) => (d.kind === "menu" ? [{ id: d.id, type: d.type, action: d.action }] : [])),
-    hand: (observation.you.hand ?? []).map((c) => ({ id: c.id, energyCost: c.energyCost, colors: c.colors })),
+    hand: (observation.you.hand ?? []).map((c) => ({ id: c.id, energyCost: c.energyCost, colors: c.colors, ...(PLAN_KEYWORD.test(c.text ?? "") ? { plan: true } : {}) })),
     leaderColors: observation.you.leader?.colors ?? [],
     carryMax: mine?.max ?? (offered.length ? Math.max(...offered) : null),
   };

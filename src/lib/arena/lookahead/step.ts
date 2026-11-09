@@ -45,6 +45,12 @@ import { determinize, type Knowledge } from "./determinize";
 import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights, type FittedValue } from "./evaluate";
 
 /**
+ * 8 (9 Nov 2026): plans and survival (AI-07). With an Evolve or Union card in hand whose keyword price is
+ * a turn away, a Main-Phase decision is scored after the seat's own next turn (`planHorizon: "next"`);
+ * when the other seat has as many attackers as the seat has Life, after its reply (`survivalHorizon`).
+ * The reply and next horizons now count from the decision's own turn: "end the turn" had moved the
+ * counter on, which gave its line an extra turn. With main v3, combat v6 and the charge rule, the
+ * heuristic now plays an Evolve and keeps plan cards out of combos and energy.
  * 7 (9 Nov 2026): the strategy benchmarks' lessons. A Main-Phase decision that puts the seat's defence
  * in the other seat's next turn at stake (swinging a [Blocker], spending a counter's energy) is scored
  * after that turn (`mainHorizon: "reply"`, `mainHorizonOnlyForDefence`); a heuristic line that loses in
@@ -59,9 +65,9 @@ import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights,
  * SD15 mirror's noisy switches). 3 (8 Nov 2026): attacks the heuristic scores as losing are shortlisted too. 2: lines are scored by
  * the fitted win probability (`FITTED_VALUE`). 1: the hand-set value.
  */
-export const LOOKAHEAD_VERSION = 7;
+export const LOOKAHEAD_VERSION = 8;
 
-export type Horizon = "turn" | "decision" | "reply";
+export type Horizon = "turn" | "decision" | "reply" | "next";
 
 export interface LookaheadOptions {
   knowledge: Knowledge;
@@ -116,10 +122,19 @@ export interface LookaheadOptions {
   /** Step budget for a searched Main-Phase decision (default `maxSteps`). */
   mainSteps?: number;
   /**
+   * With a plan pending (`planPending`: an Evolve or Union card in hand whose keyword price is one turn
+   * away), a Main-Phase decision is scored after the seat's own next turn (`"next"`), where the plan is
+   * played; budget `planSteps`.
+   */
+  planHorizon?: Horizon;
+  planSteps?: number;
+  /**
    * Use `mainHorizon` only when a shortlisted Main-Phase option puts the seat's defence in the other
    * seat's next turn at stake (`defenceAtStake`), which the turn horizon cannot see; otherwise `horizon`.
    */
   mainHorizonOnlyForDefence?: boolean;
+  /** Also treat the seat's survival as at stake (the other seat has as many attackers as the seat has Life). */
+  survivalHorizon?: boolean;
   weights?: EvalWeights;
   /**
    * How a line's end is scored: "fitted" is the win probability (in percent) learned from the
@@ -134,8 +149,8 @@ export interface LookaheadOptions {
 
 /** The two difficulties the owner asked for (8 Nov 2026): the same search, with and without your decklist. */
 export const DIFFICULTIES = {
-  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, offense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4, mainHorizon: "reply", mainSteps: 1200, mainHorizonOnlyForDefence: true, avoidSureLoss: true },
-  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, offense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4, mainHorizon: "reply", mainSteps: 1200, mainHorizonOnlyForDefence: true, avoidSureLoss: true },
+  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, offense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4, mainHorizon: "reply", mainSteps: 1200, mainHorizonOnlyForDefence: true, survivalHorizon: true, avoidSureLoss: true, planHorizon: "next", planSteps: 2400 },
+  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, offense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4, mainHorizon: "reply", mainSteps: 1200, mainHorizonOnlyForDefence: true, survivalHorizon: true, avoidSureLoss: true, planHorizon: "next", planSteps: 2400 },
 } as const satisfies Record<string, LookaheadOptions>;
 
 export type Difficulty = keyof typeof DIFFICULTIES;
@@ -176,12 +191,16 @@ function rollout(match: PinnedMatch, seat: PlayerId, revision: number, limit: nu
   const memory: Record<PlayerId, LocalMemory> = { p1: localMemory(policyRng(seed * 2 + 1)), p2: localMemory(policyRng(seed * 2 + 2)) };
   let at = match;
   let steps = 0;
-  const turn = match.state.turn;
+  // Counted from the turn the decision was taken in (`root.turn`), not from the position after the option:
+  // "end the turn" has already moved the counter on, and counting from there gave that option's line one
+  // more turn than the others, scored at a different seat's turn (fixed 9 Nov 2026, v8).
+  const turn = root.turn;
   // "reply": on through the other seat's turn, until the seat's own next turn begins.
   // "turn": while the turn the decision was taken in lasts — read off the position before the option
   // was played (an "end the turn" option has already handed it over). For a Main-Phase decision that
   // is the seat's own turn, exactly as v4 had it; for a defensive one, the other seat's.
-  const going = (s: PinnedMatch["state"]) => (horizon === "reply" ? s.turn <= turn + 1 : s.turn === root.turn && s.turnPlayer === root.owner);
+  // "next": on through the other seat's turn and the seat's own next turn (a plan for the turn after this one).
+  const going = (s: PinnedMatch["state"]) => (horizon === "next" ? s.turn <= turn + 2 : horizon === "reply" ? s.turn <= turn + 1 : s.turn === root.turn && s.turnPlayer === root.owner);
   while (steps < limit && at.state.phase !== "over" && going(at.state)) {
     const actor = (at.state.prompt as { player?: PlayerId }).player;
     if (!actor) break;
@@ -254,8 +273,14 @@ function offenseShortlist(input: PolicyInput, heuristic: string): { ids: string[
  * activation that leaves less active energy than the cheapest attack [Counter] in its hand needs.
  * Only a trigger for looking further (`mainHorizonOnlyForDefence`): the search still decides.
  */
-function defenceAtStake(input: PolicyInput, answers: readonly PolicyAnswer[]): boolean {
+function defenceAtStake(input: PolicyInput, answers: readonly PolicyAnswer[], survival = false): boolean {
   const you = input.observation.you;
+  // v8: the other seat could take the last Life next turn (one attack per card it has, each at least one Life).
+  if (survival) {
+    const them = input.observation.them;
+    const attackers = (them.leader ? 1 : 0) + them.battle.length;
+    if (you.life <= attackers) return true;
+  }
   const blockers = new Set(you.battle.filter((c) => c.keywords.some((k) => k.trim().toLowerCase() === "blocker")).map((c) => c.id));
   const counters = (you.hand ?? []).filter((c) => /\[Counter: (Battle Card )?Attack\]/i.test(c.text ?? "")).map((c) => Math.max(0, c.energyCost ?? 0));
   const reserve = counters.length ? Math.min(...counters) : null;
@@ -264,6 +289,22 @@ function defenceAtStake(input: PolicyInput, answers: readonly PolicyAnswer[]): b
     if (d?.kind !== "menu") return false;
     if (d.type === "attack") return blockers.has(String(d.action.attacker));
     return reserve !== null && you.activeEnergy >= reserve && you.activeEnergy - (d.cost?.energy ?? 0) < reserve;
+  });
+}
+
+/**
+ * Whether the seat has a plan for its next turn: an Evolve-family or Union card in hand whose keyword's
+ * printed orbs it cannot pay now but can next turn (its energy, all standing again, plus one charge).
+ * Only a trigger for looking further (`planHorizon`): the search still decides.
+ */
+export function planPending(input: PolicyInput): boolean {
+  const you = input.observation.you;
+  const KEYWORD = /\[(?:EX-|Xeno-)?Evolve\]((?:\{[^}]*\})*)|\[Union-(?:Fusion|Potara|Absorb)\]((?:\{[^}]*\})*)/i;
+  return (you.hand ?? []).some((c) => {
+    const m = KEYWORD.exec(c.text ?? "");
+    if (!m) return false;
+    const orbs = ((m[1] ?? m[2] ?? "").match(/\{[^}]*\}/g) ?? []).length;
+    return orbs > you.activeEnergy && orbs <= you.energy.length + 1;
   });
 }
 
@@ -344,10 +385,11 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   // battle's windows stay on `horizon`).
   const w = input.decisions.window;
   const choice = !!opts.choices && (w === "chooseCards" || w === "chooseMode");
-  const farMain = w === "main" && !!opts.mainHorizon && (!opts.mainHorizonOnlyForDefence || defenceAtStake(input, listed.answers));
-  const horizon = choice ? opts.choiceHorizon ?? opts.horizon : farMain ? opts.mainHorizon! : opts.horizon;
-  const budget = choice ? opts.choiceSteps ?? opts.maxSteps : farMain ? opts.mainSteps ?? opts.maxSteps : opts.maxSteps;
-  const lineCap = horizon === "reply" ? Math.max(opts.lineSteps, 150) : opts.lineSteps;
+  const plan = w === "main" && !!opts.planHorizon && planPending(input);
+  const farMain = w === "main" && !!opts.mainHorizon && (!opts.mainHorizonOnlyForDefence || defenceAtStake(input, listed.answers, !!opts.survivalHorizon));
+  const horizon = choice ? opts.choiceHorizon ?? opts.horizon : plan ? opts.planHorizon! : farMain ? opts.mainHorizon! : opts.horizon;
+  const budget = choice ? opts.choiceSteps ?? opts.maxSteps : plan ? opts.planSteps ?? opts.maxSteps : farMain ? opts.mainSteps ?? opts.maxSteps : opts.maxSteps;
+  const lineCap = horizon === "next" ? Math.max(opts.lineSteps, 300) : horizon === "reply" ? Math.max(opts.lineSteps, 150) : opts.lineSteps;
   const ids = [...byKey.keys()];
   const heuristicKey = answerKey(heuristic);
   report.heuristic = heuristicKey;

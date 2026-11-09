@@ -20,6 +20,13 @@ import { count, lifeOf, opening, other, position, synthetic, winner, type BenchC
 const PAN = synthetic("B7-PAN", 10000, { characters: ["Pan"] });
 /** Not a base: a stronger <Goten> Battle Card for the same cost. */
 const GOTEN = synthetic("B7-GOTEN", 15000, { characters: ["Goten"] });
+/**
+ * Keep-base's attacker that is not the base: a 25,000 <Goten>, which the opponent's 20,000 cannot KO even
+ * rested, so attacking with it is free and the case asks only the AI-07 question (which card keeps the
+ * base). With the 15,000 <Goten> the attack was also a trade (one damage for a card the 20,000 KOs), and
+ * ending the turn was a defensible answer the objective refused.
+ */
+const BIGGOTEN = synthetic("B7-GOTEN25", 25000, { characters: ["Goten"] });
 /** The Evolve card: 4 energy to play from the hand, {r}{r} to evolve onto a <Pan>. */
 const SSPAN = synthetic("B7-SSPAN", 25000, { energyCost: 4, characters: ["Pan"], skill: "[Evolve]{r}{r}: <Pan>" });
 /** A 15,000 <Pan>: with the 15,000 <Goten> the one equal-power pair the Union-Fusion takes (the 10,000 <Pan> is not). */
@@ -29,7 +36,7 @@ const FUSE = synthetic("B7-FUSE", 35000, { energyCost: 5, characters: ["Pan"], s
 /** The opponent's 20,000 Battle Card. */
 const BRUTE = synthetic("B7-BRUTE", 20000);
 
-export const AI07_CARDS = [PAN, GOTEN, SSPAN, FPAN, FUSE, BRUTE];
+export const AI07_CARDS = [PAN, GOTEN, BIGGOTEN, SSPAN, FPAN, FUSE, BRUTE];
 
 type M = Parameters<BenchCase["objective"]>[0];
 /** Cards with <Pan> in their character name: what "[Evolve]{r}{r}: <Pan>" may evolve onto. */
@@ -45,10 +52,11 @@ export async function ai07Cases(bundle: Parameters<typeof opening>[0]): Promise<
     // 1. Keep the base home: pressure with the Battle Card that is not the base.
     cases.push({
       benchmark: "ai-07", key: `ai-07-keep-base-${seat}`, variant: "success", seat,
-      note: "1 energy (the {r}{r} Evolve waits a turn), a <Pan> base and a stronger <Goten> on board, the opponent with a 20,000 Battle Card: attack with the <Goten> and keep the <Pan> active, since a rested <Pan> is KO'd and the evolution is lost.",
+      note: "1 energy (the {r}{r} Evolve waits a turn), a 10,000 <Pan> base and a 25,000 <Goten> on board, the opponent with an active 20,000 Battle Card: attack with the <Goten> (safe even rested) and keep the <Pan> active, since a rested <Pan> is KO'd and the evolution is lost.",
       match: position(base, {
-        [seat]: { hand: [SSPAN.id], energy: ["B-F"], energyMarkers: 0, battle: [{ cardId: PAN.id, mode: "active" }, { cardId: GOTEN.id, mode: "active" }], life: 4, leaderMode: "rest" },
-        [other(seat)]: { hand: [], energy: [], energyMarkers: 0, battle: [{ cardId: BRUTE.id, mode: "rest" }], life: 4, leaderMode: "rest" },
+        [seat]: { hand: [SSPAN.id], energy: ["B-F"], energyMarkers: 0, battle: [{ cardId: PAN.id, mode: "active" }, { cardId: BIGGOTEN.id, mode: "active" }], life: 4, leaderMode: "rest" },
+        // Active, so it cannot be attacked this turn (only rested cards can): with the 25,000 <Goten> a rested 20,000 is a KO target, a different question.
+        [other(seat)]: { hand: [], energy: [], energyMarkers: 0, battle: [{ cardId: BRUTE.id, mode: "active" }], life: 4, leaderMode: "rest" },
       }),
       objective: (end, start) => evolveReady(end, seat) && lifeOf(end, other(seat)) < lifeOf(start, other(seat)),
       horizon: { kind: "turns", n: 2 },
