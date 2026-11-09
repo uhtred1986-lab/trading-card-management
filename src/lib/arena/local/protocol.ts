@@ -76,11 +76,21 @@ export interface StartRequest {
   interpreterRevision: string;
   /** The policy version the page expects; any other is refused. Omitted: the worker's own. */
   policyVersion?: string;
+  /**
+   * The computer's skill (owner's request, 8 Nov 2026): "normal" plays its important choices
+   * forward without the human's decklist, "hard" with it (`lookahead/step.ts`). Omitted: the plain
+   * heuristic, as before. Recorded in the journal's policy version, so a resume needs nothing.
+   */
+  difficulty?: LocalDifficulty;
   /** AI decisions per committed batch (default `BATCH_DEFAULT`). */
   batch?: number;
   /** #654: the writer lease the page holds for this match; every commit is fenced by it. Omitted: unfenced (refused while any writer holds the match). */
   writer?: WriterClaim;
 }
+
+/** The difficulties a start may ask for. */
+export const LOCAL_DIFFICULTIES = ["normal", "hard"] as const;
+export type LocalDifficulty = (typeof LOCAL_DIFFICULTIES)[number];
 
 /** The page's writer lease for a match (`ownership.ts`): its tab id and the fencing epoch it was granted. */
 export interface WriterClaim {
@@ -292,7 +302,7 @@ const optionalBound = (v: unknown, max: number) => v === undefined || (Number.is
 export type Parsed<T> = { ok: true; value: T } | { ok: false; code: "malformed" | "version"; message: string; requestId: string | null; sessionId: string | null };
 
 const REQUEST_FIELDS: Record<LocalRequestType, string[]> = {
-  start: ["sessionId", "matchId", "gameId", "pack", "decks", "human", "seed", "policySeed", "interpreterRevision", "policyVersion", "batch", "writer"],
+  start: ["sessionId", "matchId", "gameId", "pack", "decks", "human", "seed", "policySeed", "interpreterRevision", "policyVersion", "difficulty", "batch", "writer"],
   resume: ["sessionId", "matchId", "gameId", "pack", "interpreterRevision", "policyVersion", "batch", "writer", "readOnly"],
   read: ["sessionId"],
   apply: ["sessionId", "actor", "action", "basedOn"],
@@ -339,6 +349,7 @@ export function parseRequest(data: unknown): Parsed<LocalRequest> {
         if (!isRecord(decks) || typeof decks.p1 !== "string" || typeof decks.p2 !== "string" || Object.keys(decks).length !== 2) return bad("decks must name a deck key for p1 and p2");
         if (!isSeat(data.human)) return bad("human is not a seat");
         if (!isInt(data.seed) || !isInt(data.policySeed)) return bad("seed and policySeed must be integers");
+        if (data.difficulty !== undefined && !(LOCAL_DIFFICULTIES as readonly unknown[]).includes(data.difficulty)) return bad(`difficulty is one of ${LOCAL_DIFFICULTIES.join(", ")}`);
       }
       break;
     }

@@ -4,6 +4,53 @@ Last updated: 19 October 2026
 
 ## Current work
 
+**Offline opponent, 8 Nov 2026 (PR #1250).**
+
+- **Strength gate.** It is now the SPRT (`docs/arena-policy-sprt.md`).
+- **Normal and Hard.** The offline match setup has a "Computer's skill" choice: Normal and Hard, a
+  real-engine lookahead (`docs/arena-lookahead.md`).
+- **Hard and Normal v2 pass the gate.** They score lines by a win probability fitted from self-play.
+  Fresh seeds, PASS for both, 0 integrity failures:
+  - Hard (gate 2): +101 Elo (+43 to +166) over the heuristic.
+  - Normal (gate 3): +129 Elo (+59 to +211).
+- **v3 passed both gates.** Combo-lethal attacks are shortlisted, and all five strategy subcases pass.
+  - Hard (gate 4): +126 Elo (+58 to +205).
+  - Normal (gate 5): +147 Elo (+73 to +237).
+- **v4, shipped, fixes the SD15 mirror.** Margin 3, and sure wins are always taken.
+  - Hard (gate 6): +104 Elo (+45 to +170).
+  - Normal (gate 7): +77 Elo (+27 to +131); the mirror +137.
+  - Every matchup is zero or positive.
+- **v5 adds the defensive search** (combo, block or counter in the other seat's turn).
+  - +137 over v4 itself on development seeds.
+  - Hard (gate 8): +115 Elo over the heuristic (+50 to +188).
+  - Normal (gate 9): +168 Elo (+86 to +271).
+- **All 12 strategy benchmark families are built** (9 Nov 2026): 70 engine-solved cases in
+  `npm test`, with a pass ratchet. Heuristic 30, Normal 62, Hard 62. Still failing: AI-07 (Evolve and
+  Fusion materials for the next turn) and three AI-11 risk cases.
+  (`docs/arena-strategy-validation.md`).
+- **v7, shipped, is what the benchmarks taught the search.**
+  - Card choices are searched (v6).
+  - A Main-Phase decision with the next turn's defence at stake is scored after that turn.
+  - No sure loss is kept.
+  - Attacking combos are searched.
+  - **Combat v5** keeps a Negate for the bigger attack still to come.
+  - Gates against the heuristic: Hard (gate 10) +152 Elo (+74 to +248); Normal (gate 11) +123 Elo
+    (+56 to +201).
+  - Against v5's search on development seeds: −7 (−76 to +62), no measured difference.
+  - Normal's SD15 mirror cell is −27 (−121 to +64): the one to watch.
+- **v8, shipped** (9 Nov 2026).
+  - Plans through the next turn (AI-07 3/6), a survival trigger, and a horizon bug fix.
+  - Heuristic main v3 (an Evolve is a play) and combat v6 (plan cards kept out of combos).
+  - Hard v8 passes gate 12: +251 Elo (+136 to +456).
+  - Normal v8 has no gate of its own (the owner stopped after gate 12; Normal v7 passed gate 11).
+  - Benchmarks 64 of 70 for both difficulties.
+- **Latest releases** (BT27–BT31, `scripts/arena-latest-decks.mts`).
+  - White Cell, Gogeta and Cooler play to the end; five decks stop at unread clauses.
+  - Hard v8 beat the heuristic 17–1 there, and Normal v8 15–3.
+  - Engine caches made searches on these cards about 5× faster.
+- **Combat v4** stops unaffordable-defense combo waste; the heuristic now passes AI-02.
+- **Not done.** The paid Claude pilot was skipped by the owner; its script stays available.
+
 Follow the [rules delivery plan](arena-rules-delivery.md) and #907. The bounded
 #897 corpus qualification is complete; persisted executable rules remain the
 authority. PR #1083's typed Absorb contract is deployed; its separately approved
@@ -35,6 +82,19 @@ retain the original source pins, all consumed seeds and zero integrity failures.
 All eight cells remain underpowered. No new difficulty/default promotion is made;
 Worker performance remains unmeasured and known unaffordable-defense combo waste
 is unchanged. #899 closes as an inconclusive completed experiment.
+
+Combat policy v4 (8 November 2026, `src/lib/arena/policy/combat.ts`) addresses
+that named combo-waste limitation: a defensive cover is paid for only if the seat
+could still hold the target through the opponent's other active attackers this
+turn, read from the public board and its own hand; otherwise the cheapest cover
+that does hold is taken, or the hit is taken and the cards kept (AI-02's "allow
+the first hit, survive the Double Strike"). The six #899 defensive variants stay
+18/18 (both unaffordable variants now keep the card), the four tactical cases
+12/12, and `arena-policy-combat.mts` gains a combo-waste reproducer with controls.
+The strategy proof still pins the heuristic as failing AI-02, which v4 now passes;
+that pin awaits review. Strength is **not measured**: no gain is claimed until a
+paired comparison runs. `LOCAL_POLICY_VERSION` is now `main2+combat4+choices2`, so
+offline matches saved under `main2+combat3+choices2` are refused on resume.
 #929/#930 have implementations and #932 is closed after final integrated validation;
 their issue bodies retain their separate scope.
 

@@ -46,7 +46,7 @@ import { canonicalJson, type ReplayBundleRecord } from "../src/lib/arena/replay-
 import type { CardDef, PlayerId } from "../src/lib/arena/types";
 import type { CatalogCard } from "../src/lib/catalog/deckplanet";
 import type { AiProvider } from "../src/lib/ai/types";
-import { CAMPAIGN_RATES, formatUsd, rateFor, sheetHash } from "./lib/claude-campaign-rates";
+import { CAMPAIGN_RATES, formatUsd, rateFor, sheetHash, type RateSheet } from "./lib/claude-campaign-rates";
 import { APPROVED_CAPS, CampaignLedger, paidLedgerDir, type CampaignCaps, type CampaignPhase } from "./lib/claude-campaign-ledger";
 import { campaignApiProvider } from "./lib/claude-campaign-provider";
 import { DEFAULT_SETTINGS, DUEL_RUNNER_VERSION, playClaudeDuel, recordedProvider, type DuelResult, type DuelSettings, type ProviderKind } from "./lib/claude-duel";
@@ -158,7 +158,13 @@ async function replay(path: string) {
   }
 }
 
-async function main() {
+/**
+ * One run of the campaign, as the command line says. `sheet` is the rate sheet a paid run is gated and
+ * priced by: the committed `CAMPAIGN_RATES`, or — from the owner's own pilot command
+ * (`scripts/arena-claude-pilot.mts`) — that sheet with the owner's price confirmation and the verified
+ * model access the command just established. Nothing else changes it.
+ */
+export async function runCampaign(sheet: RateSheet = CAMPAIGN_RATES) {
   // The paid ledger's place is fixed outside the checkout (`paidLedgerDir`): no flag can point a paid
   // run at a fresh, empty ledger. Only the dry run takes --ledger.
   const ledgerDirFor = (kind: ProviderKind) => {
@@ -186,7 +192,7 @@ async function main() {
   if (providerKind !== "fake" && providerKind !== "anthropic-api") throw new Error("--provider is fake or anthropic-api; nothing else (no subscription, no OpenRouter)");
   const paid = providerKind === "anthropic-api";
   if (paid && !process.argv.includes("--allow-paid")) throw new Error("a paid run needs --allow-paid, and the owner's explicit go (#906)");
-  const rate = rateFor(model, { paid });
+  const rate = rateFor(model, { paid, sheet });
   if (!rate.ok) throw new Error(rate.reason);
   const phase = (flag("--phase") ?? "pilot") as CampaignPhase;
   if (phase !== "pilot" && phase !== "full") throw new Error("--phase is pilot or full");
@@ -211,7 +217,7 @@ async function main() {
   const ledgerDir = ledgerDirFor(providerKind);
   // A paid ledger is created only by the explicit first start (--new-campaign); after that a missing
   // one is an error, never a fresh $100.
-  const ledger = CampaignLedger.open(ledgerDir, { campaign: paid ? CAMPAIGN : `${CAMPAIGN}-dry-run`, caps: APPROVED_CAPS, rateSheet: sheetHash(), dryRun: !paid, mustExist: paid && !process.argv.includes("--new-campaign") });
+  const ledger = CampaignLedger.open(ledgerDir, { campaign: paid ? CAMPAIGN : `${CAMPAIGN}-dry-run`, caps: APPROVED_CAPS, rateSheet: sheetHash(sheet), dryRun: !paid, mustExist: paid && !process.argv.includes("--new-campaign") });
   const recovered = ledger.recoverOrphans();
   if (recovered.released.length || recovered.ambiguous.length || recovered.games.length) console.log(`recovered orphans: ${recovered.released.length} released (never sent), ${recovered.ambiguous.length} ambiguous (kept as spent), ${recovered.games.length} game(s) closed as interrupted`);
 
@@ -245,7 +251,7 @@ async function main() {
   const evidence: EvidenceFile = {
     format: 1, runner: DUEL_RUNNER_VERSION, campaign: CAMPAIGN, providerKind, settings,
     inputs: { source: inputs.source, runtime: inputs.runtime, bundleHash: inputs.bundle.hash, packHash: inputs.packHash },
-    rateSheet: { verifiedOn: CAMPAIGN_RATES.verifiedOn, sha256: sheetHash() },
+    rateSheet: { verifiedOn: sheet.verifiedOn, sha256: sheetHash(sheet) },
     ledger: { dir: ledgerDir, caps: APPROVED_CAPS }, games: played,
   };
   const evidenceOut = flag("--evidence-out");
@@ -263,4 +269,4 @@ async function main() {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) await main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) await runCampaign();

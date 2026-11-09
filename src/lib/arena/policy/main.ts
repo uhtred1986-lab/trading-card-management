@@ -17,6 +17,11 @@
  *                 off the public beat history): an optional ability is never
  *                 looped. Without a readable history the activation is not taken.
  *                 A typed mandatory-Life payment exhausting own Life is declined.
+ *                 An Evolve-family keyword used from the hand (v3) is a play: 20
+ *                 + the evolving card's value − the value of the seat's weakest
+ *                 Battle Card (the base it most likely covers, which keeps its
+ *                 place and mode) + 1 for playing a card whose printed cost is
+ *                 out of reach (AI-07).
  *   attack        a hit that wins (attacker ≥ guard: the attacker wins ties, 8-4)
  *                 on a Leader scores 5 + damage, a lethal one 1,000; a win against
  *                 a rested Battle Card scores 6 + the card's value; a Battle Card
@@ -59,7 +64,7 @@ import type { CardFacts, PolicyObservation } from "./observation";
 import type { PolicyRng } from "./rng";
 import { shortcutThen } from "./shortcuts";
 
-export const MAIN_POLICY_VERSION = 2;
+export const MAIN_POLICY_VERSION = 3;
 
 export const MAIN_LIMITS = {
   /** Options scored per decision; the rest (by canonical id) are not considered. */
@@ -80,6 +85,8 @@ export const TURN_GUARD = {
 } as const;
 
 const SCORE = { play: 20, activate: 12, endMain: 0, unsupported: -1, lethal: 1000 } as const;
+/** An Evolve-family keyword, whose activation from the hand puts that card onto a base (v3). */
+const EVOLVE_KEYWORD = /\[(?:EX-|Xeno-)?Evolve\]/i;
 
 export interface MainChoice {
   id: string;
@@ -327,6 +334,13 @@ function scoreActivate(o: PolicyObservation, d: MenuDecision): Scored {
   if (used >= MAIN_LIMITS.activationsPerCard) return { score: SCORE.unsupported, how: "activation already used this turn" };
   const energy = d.cost?.energy ?? 0;
   const markers = Math.max(0, d.cost?.markers ?? 0);
+  const evolving = card ? (o.you.hand ?? []).find((c) => c.id === card) : undefined;
+  if (evolving && EVOLVE_KEYWORD.test(evolving.text ?? "") && o.you.battle.length) {
+    const base = Math.min(...o.you.battle.map(cardValue));
+    const outOfReach = evolving.energyCost !== null && evolving.energyCost > o.you.activeEnergy ? 1 : 0;
+    const score = SCORE.play + Math.max(0, cardValue(evolving) - base) + outOfReach;
+    return { score, how: `evolves into ${evolving.name} (value ${cardValue(evolving).toFixed(1)} over a ${base.toFixed(1)} base)` };
+  }
   return { score: SCORE.activate + 1 - 0.5 * (energy + markers), how: `activates ${findCard(o, card)?.name ?? card} once` };
 }
 
@@ -402,6 +416,26 @@ export function mainChoice(input: PolicyInput): MainChoice | null {
     considered,
     bounded,
   };
+}
+
+/**
+ * Every open Main-Phase decision with the score `mainChoice` gives it, best
+ * first (ties in canonical id order), under the same work bound. Empty outside
+ * the Main Phase. Pure; `mainChoice`'s own answer is unchanged by it. The
+ * lookahead (`src/lib/arena/lookahead/`) reads it to pick which few options to
+ * play forward.
+ */
+export function mainRanking(input: PolicyInput): { id: string; score: number; type: string }[] {
+  const { observation: o, decisions } = input;
+  if (decisions.actor !== decisions.seat || decisions.window !== "main" || !decisions.decisions.length) return [];
+  const work = new Work(MAIN_LIMITS.work);
+  const open = [...decisions.decisions].sort(byId).slice(0, MAIN_LIMITS.decisions);
+  const out: { id: string; score: number; type: string }[] = [];
+  for (const d of open) {
+    if (!work.step()) break;
+    out.push({ id: d.id, score: scoreMain(o, d, work).score, type: d.kind === "menu" ? d.type : d.kind });
+  }
+  return out.sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**

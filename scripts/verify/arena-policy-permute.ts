@@ -1,7 +1,8 @@
 /**
  * #644's permutation-invariance harness, shared (#646): an equivalent information set for one
- * seat — every card it cannot see swapped for another of the same owner, the fully hidden areas
- * reordered and those cards' instance ids permuted throughout the state and the beat history.
+ * seat — every card it cannot see swapped for another of the same owner, the fully hidden secret areas
+ * (decks, Life, the other hand and Z-Deck) reordered and those cards' instance ids permuted throughout
+ * the state and the beat history.
  * `arena-policy-contract.mts` proves the observation and decisions are unchanged by it;
  * `arena-policy-main.mts` proves the Main-Phase policy's answers are.
  */
@@ -74,7 +75,10 @@ export function permutedFor(match: PinnedMatch, seat: PlayerId, salt: number): P
     const ids = shuffled(mine.map((id) => state.cards[id].cardId), rand);
     mine.forEach((id, i) => (state.cards[id].cardId = ids[i]));
     const zones = state.sides[p].zones as Record<string, string[]>;
-    for (const z of Object.keys(zones)) if (zones[z]?.length && zones[z].every((id) => hidden.has(id))) zones[z] = shuffled(zones[z], rand);
+    // Only the secret areas are reordered: a public area whose cards are all face-down (a side's energy
+    // all switched to Hidden mode, BT31) still shows its order and each card's mode on the table.
+    const secret = new Set(["deck", "life", ...(p === seat ? [] : ["hand", "zDeck"])]);
+    for (const z of Object.keys(zones)) if (secret.has(z) && zones[z]?.length && zones[z].every((id) => hidden.has(id))) zones[z] = shuffled(zones[z], rand);
   }
   const pool = SEATS.map((p) => [...hidden].filter((id) => state.cards[id].owner === p).sort());
   const sigma = new Map<string, string>();

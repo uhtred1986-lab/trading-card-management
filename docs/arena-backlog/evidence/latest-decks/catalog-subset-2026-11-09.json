@@ -1,0 +1,5200 @@
+{
+ "source": {
+  "url": "https://api.deckplanet.net/cardsearch/dbs_masters_cards?limit=500&page=1",
+  "retrieved": "2026-11-09T12:19:10.248Z",
+  "rawRecords": 6619,
+  "note": "Read-only GETs of the public deckplanet Masters catalog, shaped by shapeCatalog (errata.ts applied); only the 122 cards of the BT27+ prepared recipes kept (122 found)."
+ },
+ "cards": [
+  {
+   "id": "BT16-117",
+   "setCode": "BT16",
+   "game": "dbs",
+   "name": "Demon God Putine, Umbral Might",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[blocker]\r [dark over realm 3]{1}\r [auto] When this card is played from your hand, play 1 Demon Realm Soldier Token. (Demon Realm Soldier Tokens have 5000 power, 0 combo cost, and 5000 combo power.)\r [activate: battle][once per turn] Choose 1 of your Demon Realm Soldier Tokens and remove it from the game: Draw 1 card, then switch this card to Active Mode and it gets +10000 power for the battle.",
+   "characters": [
+    "Putine"
+   ],
+   "traits": [
+    "Demon God"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Blocker",
+    "Dark Over Realm 3",
+    "Auto",
+    "Activate: Battle",
+    "Once per turn"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 7,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT16-117.png",
+   "backImageUrl": null,
+   "deckplanetId": 377,
+   "searchText": "bt16-117 bt16117 demon god putine, umbral might  putine"
+  },
+  {
+   "id": "BT27-045",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Piccolo",
+   "cardType": "LEADER",
+   "colors": [
+    "Green"
+   ],
+   "energyCost": null,
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Activate: Main]{g}, add 1 card from your life to your hand: Draw 1 card, then play up to 1 ≪Namekian≫ card with an energy cost of 4 and a [Revive] skill from your hand.\n[br]\n[Awaken] When your life is at 5 or less: Draw 2 cards.",
+   "characters": [
+    "Piccolo"
+   ],
+   "traits": [
+    "Namekian"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [
+    "Activate: Main",
+    "Revive",
+    "Awaken",
+    "Permanent"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": "Piccolo, Brotherhood Bonds",
+   "backSkill": "[Permanent] Reduce the combo cost of ≪Namekian≫ cards with a [Revive] skill in your hand by 1.\n[br]\n[Activate: Main]{g}: Play up to 1 ≪Namekian≫ card with an energy cost of 4 or 5 and a [Revive] skill from your hand, and if you play a card, draw 1 card.",
+   "backPower": 15000,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-045.png",
+   "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-045_b.png",
+   "deckplanetId": 8348,
+   "searchText": "bt27-045 bt27045 piccolo piccolo, brotherhood bonds piccolo"
+  },
+  {
+   "id": "BT27-048",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Piccolo, Power-Up",
+   "cardType": "Z-BATTLE",
+   "colors": [
+    "Green"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": "2",
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Dual Attack]\n[br]\n[Permanent][Bond 3] This card gets +10000 power.\n[br]\n[Auto][Bond 5] Green Battle Card: When this card is played, choose up to 1 of your opponent's Battle Cards, ignoring [Barrier], and KO it.",
+   "characters": [
+    "Piccolo"
+   ],
+   "traits": [
+    "Namekian",
+    "God"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Dual Attack",
+    "Permanent",
+    "Bond 3",
+    "Auto",
+    "Bond 5",
+    "Barrier"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-048.png",
+   "backImageUrl": null,
+   "deckplanetId": 8349,
+   "searchText": "bt27-048 bt27048 piccolo, power-up  piccolo"
+  },
+  {
+   "id": "BT27-061",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Kamehameha Energy Release",
+   "cardType": "EXTRA",
+   "colors": [
+    "Green"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Counter: Attack][Limit 1] Discard 1 green ≪Adventure≫ card from your hand: Negate the attack and draw 2 cards.\n[br]\n[Activate: Battle]{g}: Choose up to 1 of your <Son Goku: Childhood> or <Master Roshi> cards -- both green and with ≪Adventure≫ -- and it gets +15000 power, [Critical], and [Double Strike] for the battle.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "Counter: Attack",
+    "Limit 1",
+    "Activate: Battle",
+    "Critical",
+    "Double Strike"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-061.png",
+   "backImageUrl": null,
+   "deckplanetId": 8341,
+   "searchText": "bt27-061 bt27061 kamehameha energy release "
+  },
+  {
+   "id": "BT27-062",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Battle on Namek",
+   "cardType": "EXTRA",
+   "colors": [
+    "Green"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Field]\n[br]\n[Permanent] If your Leader's back side is {Piccolo, Brotherhood Bonds} and your ≪Namekian≫ card with a [Revive] skill would be removed from a Battle Area by an opponent's skill, you may KO that card instead.\n[br]\n[Activate: Battle] If your Leader's back side is {Piccolo, Brotherhood Bonds} and you switch this card to Rest Mode: Choose up to 1 of your green ≪Namekian≫ cards and it gets +5000 power for the battle.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "Field",
+    "Permanent",
+    "Revive",
+    "Activate: Battle"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-062.png",
+   "backImageUrl": null,
+   "deckplanetId": 8351,
+   "searchText": "bt27-062 bt27062 battle on namek "
+  },
+  {
+   "id": "BT27-064",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Dende's Healing Power",
+   "cardType": "EXTRA",
+   "colors": [
+    "Green"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Counter: Attack] Negate the attack, draw 1 card, then choose up to 1 of your Battle Cards with a [Revive] skill and switch it to Active Mode.\n[br]\n[Activate: Main] Look at up to 7 cards from the top of your deck, add up to 2 total ≪Namekian≫ cards with a  [Revive] skill and/or <Porunga> cards with an energy cost of 7 or less -- both green -- to your hand, then shuffle your deck.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "Counter: Attack",
+    "Revive",
+    "Activate: Main"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-064.png",
+   "backImageUrl": null,
+   "deckplanetId": 8353,
+   "searchText": "bt27-064 bt27064 dende's healing power "
+  },
+  {
+   "id": "BT27-092",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Mechikabura",
+   "cardType": "LEADER",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": null,
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Activate: Main][Once per turn][Burst 2] Add 1 card from your life to your hand: Look at up to 5 cards from the top of your deck, add up to 1 black ≪Demon Realm Race≫ or ≪Demon God≫ card to your hand, then shuffle your deck.\n[br]\n[Awaken][Burst 1] When your life is at 5 or less: Draw 2 cards.",
+   "characters": [
+    "Mechikabura"
+   ],
+   "traits": [
+    "Demon Realm Race"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Activate: Main",
+    "Once per turn",
+    "Burst 2",
+    "Awaken",
+    "Burst 1",
+    "Auto",
+    "Dark Over Realm"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": "Dark King Mechikabura & Supreme Kai of Time, Legion",
+   "backSkill": "[Auto] When your Battle Card is played by a [Dark Over Realm] skill, draw 1 card and place up to 3 black Battle Cards from your Warp into their owner's Drop.\n[br]\n[Activate: Main][Once per turn] During this turn, the next time you activate a [Dark Over Realm] skill from your hand, reduce its skill cost by {b}.",
+   "backPower": 15000,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-092.png",
+   "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-092_b.png",
+   "deckplanetId": 8314,
+   "searchText": "bt27-092 bt27092 mechikabura dark king mechikabura & supreme kai of time, legion mechikabura"
+  },
+  {
+   "id": "BT27-093",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "SS4 Vegito, Barrage",
+   "cardType": "Z-BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": "3",
+   "power": 30000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Deflect][Triple Attack]\n[br]\n[Permanent] If you have a Battle Card with an [Over Realm] or [Dark Over Realm] skill in play, reduce the energy cost of this card in your Z-Deck by 2.",
+   "characters": [
+    "Vegito: Xeno"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Deflect",
+    "Triple Attack",
+    "Permanent",
+    "Over Realm",
+    "Dark Over Realm"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-093.png",
+   "backImageUrl": null,
+   "deckplanetId": 8315,
+   "searchText": "bt27-093 bt27093 ss4 vegito, barrage  vegito: xeno"
+  },
+  {
+   "id": "BT27-095",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Bardock, Destiny-Changing Willpower",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Counter: Attack][Limit 1] If your Leader is black: Negate the attack and play this card.\n[br]\n[Permanent] If your life is at 4 or less and you have 5 or more cards in your Drop, you can activate this card's [Counter] skill from your hand by sending all the cards in your Drop to their owner's Warp instead of paying its energy cost.",
+   "characters": [
+    "Bardock"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Bardock Saga"
+   ],
+   "keywords": [
+    "Counter: Attack",
+    "Limit 1",
+    "Permanent",
+    "Counter"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-095.png",
+   "backImageUrl": null,
+   "deckplanetId": 8316,
+   "searchText": "bt27-095 bt27095 bardock, destiny-changing willpower  bardock"
+  },
+  {
+   "id": "BT27-099",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Supreme Kai of Time, Imprisoned Godly Spirit",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Barrier][Servant][Blocker]\n[br]\n[Dark Over Realm 5]{b}\n[br]\n[Auto] At the end of your turn, switch this card to Active Mode.",
+   "characters": [
+    "Supreme Kai of Time"
+   ],
+   "traits": [
+    "God"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Barrier",
+    "Servant",
+    "Blocker",
+    "Dark Over Realm 5",
+    "Auto"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-099.png",
+   "backImageUrl": null,
+   "deckplanetId": 8324,
+   "searchText": "bt27-099 bt27099 supreme kai of time, imprisoned godly spirit  supreme kai of time"
+  },
+  {
+   "id": "BT27-100",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Demigra, Encroaching Shadow",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Wormhole]\n[br]\n[Dark Over Realm 4]{b}, if your Leader is a <Mechikabura> card and you draw 1 card:",
+   "characters": [
+    "Demigra"
+   ],
+   "traits": [
+    "Demon God"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Wormhole",
+    "Dark Over Realm 4"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-100.png",
+   "backImageUrl": null,
+   "deckplanetId": 8317,
+   "searchText": "bt27-100 bt27100 demigra, encroaching shadow  demigra"
+  },
+  {
+   "id": "BT27-101",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Robelu, Hotshot",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Permanent] If your Leader is a <Mechikabura> card and you have 2 or more energy, this card gains [Wormhole].\n[br]\n[Auto] When this card is played, draw 1 card.",
+   "characters": [
+    "Robelu"
+   ],
+   "traits": [
+    "Demon Realm Race"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Permanent",
+    "Wormhole",
+    "Auto"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-101.png",
+   "backImageUrl": null,
+   "deckplanetId": 8325,
+   "searchText": "bt27-101 bt27101 robelu, hotshot  robelu"
+  },
+  {
+   "id": "BT27-102",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Demon God Putine, Scheming",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Dark Over Realm 4]{b}, if your Leader is a <Mechikabura> card and you draw 1 card:\n[br]\n[Auto][Limit 1] When your Battle Card other than this card is played by a [Dark Over Realm] skill, draw 1 card.",
+   "characters": [
+    "Putine"
+   ],
+   "traits": [
+    "Demon God"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Dark Over Realm 4",
+    "Auto",
+    "Limit 1",
+    "Dark Over Realm"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-102.png",
+   "backImageUrl": null,
+   "deckplanetId": 8318,
+   "searchText": "bt27-102 bt27102 demon god putine, scheming  putine"
+  },
+  {
+   "id": "BT27-103",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Demon God Shroom, Scheming",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[dual attack]\n[br]\n[dark over realm 4]{b}, if your Leader is a <Mechikabura> card:\n[br]\n[auto] When this card attacks, use up to 1 black Battle Card with 5000 combo power from your Warp in a combo with its skill negated for the turn.",
+   "characters": [
+    "Shroom"
+   ],
+   "traits": [
+    "Demon Realm Race",
+    "Demon God"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Dual Attack",
+    "Dark Over Realm 4",
+    "Auto"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-103.png",
+   "backImageUrl": null,
+   "deckplanetId": 8326,
+   "searchText": "bt27-103 bt27103 demon god shroom, scheming  shroom"
+  },
+  {
+   "id": "BT27-104",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Demon God Salsa, Scheming",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Dark Over Realm 4]{b}, if your Leader is a <Mechikabura> card: \n[br]\n[Auto] When this card is played, your opponent chooses 1 card in their hand and sends it to its owner's Warp.\n[br]\n[Auto] At the end of your turn, choose up to 2 of your Battle Cards with a [Dark Over Realm] skill and switch them to Active Mode.",
+   "characters": [
+    "Salsa"
+   ],
+   "traits": [
+    "Demon Realm Race",
+    "Demon God"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Dark Over Realm 4",
+    "Auto",
+    "Dark Over Realm"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-104.png",
+   "backImageUrl": null,
+   "deckplanetId": 8319,
+   "searchText": "bt27-104 bt27104 demon god salsa, scheming  salsa"
+  },
+  {
+   "id": "BT27-105",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Dark King Mechikabura, Call to Duty",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "8",
+   "zEnergyCost": null,
+   "power": 30000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Double Strike]\n[br]\n[Auto] When this card is played, play up to 1 Battle Card with an energy cost of 5 or less and an [Over Realm] or [Dark Over Realm] skill from your Warp with its non-keyword skills negated for the game.\n[br]\n[Activate: Main][Limit 1]{b}{b}, if your Leader is black and you have 3 or more energy: Choose up to 1 of your opponent's Battle Cards and send it to its owner's Warp, then play this card from your hand.",
+   "characters": [
+    "Mechikabura"
+   ],
+   "traits": [
+    "Demon Realm Race",
+    "Demon God"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Double Strike",
+    "Auto",
+    "Over Realm",
+    "Dark Over Realm",
+    "Activate: Main",
+    "Limit 1"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-105.png",
+   "backImageUrl": null,
+   "deckplanetId": 8327,
+   "searchText": "bt27-105 bt27105 dark king mechikabura, call to duty  mechikabura"
+  },
+  {
+   "id": "BT27-106",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Demon God Towa, Scheming",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Double Strike]\n[br]\n[Dark Over Realm 5]{b}, if your Leader is a <Mechikabura> card:\n[br]\n[Auto] When this card is played, place up to 2 of your black Battle Cards from your Warp into their owner's Drop, then choose up to 1 of your opponent's Battle Cards and send it to its owner's Warp.",
+   "characters": [
+    "Towa"
+   ],
+   "traits": [
+    "Demon Realm Race",
+    "Demon God"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Double Strike",
+    "Dark Over Realm 5",
+    "Auto"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-106.png",
+   "backImageUrl": null,
+   "deckplanetId": 8320,
+   "searchText": "bt27-106 bt27106 demon god towa, scheming  towa"
+  },
+  {
+   "id": "BT27-107",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Towa, Encroaching Shadow",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 0,
+   "comboPower": 10000,
+   "skill": "[Super Combo]\n[br]\n[Auto] If your Leader is black and -- your Leader is Z-Leader, or you have 2 or more Z-Energy, or you have a Z-Battle Card in play: When this card is used in a combo, draw 1 card.",
+   "characters": [
+    "Towa"
+   ],
+   "traits": [
+    "Demon Realm Race"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Super Combo",
+    "Auto"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-107.png",
+   "backImageUrl": null,
+   "deckplanetId": 8328,
+   "searchText": "bt27-107 bt27107 towa, encroaching shadow  towa"
+  },
+  {
+   "id": "BT27-108",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Dabura, Encroaching Shadow",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 ≪Demon Realm Race≫ or ≪Demon God≫ card -- both black with an energy cost of 5 or less -- to your hand, then shuffle your deck.\n[br]\n[Auto][Once per turn][Burst 2] When your Battle Card with a [Dark Over Realm] skill is played, this card gets +6000 power for the turn.",
+   "characters": [
+    "Dabura: Xeno"
+   ],
+   "traits": [
+    "Demon Realm Race"
+   ],
+   "eras": [
+    "Dark Empire Saga"
+   ],
+   "keywords": [
+    "Auto",
+    "Once per turn",
+    "Burst 2",
+    "Dark Over Realm"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-108.png",
+   "backImageUrl": null,
+   "deckplanetId": 8321,
+   "searchText": "bt27-108 bt27108 dabura, encroaching shadow  dabura: xeno"
+  },
+  {
+   "id": "BT27-109",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Fu, Scheming Scientist",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Overlord][Once per turn]\n[br]\n[Auto] When this card is played, draw 1 card.\n[br]\n[Activate: Main][Limit 1] If your Leader is a black <Fu> card, you remove this card in your Drop from the game, and you place 1 black <Cumber> card from your hand into your Z-Deck face-up: Draw 1 card.",
+   "characters": [
+    "Fu"
+   ],
+   "traits": [
+    "Scientist"
+   ],
+   "eras": [
+    "Pr"
+   ],
+   "keywords": [
+    "Overlord",
+    "Once per turn",
+    "Auto",
+    "Activate: Main",
+    "Limit 1"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-109.png",
+   "backImageUrl": null,
+   "deckplanetId": 8329,
+   "searchText": "bt27-109 bt27109 fu, scheming scientist  fu"
+  },
+  {
+   "id": "BT27-110",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Cumber, Vicious Warrior",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "6",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Servant]\n[br]\n[Activate: Main] If your Leader is a black <Fu> card: Play this card from under a <Fu> Z-Battle Card.\n[br]\n[Activate: Main][Limit 1]{b}, if you have 3 or more energy and you place 1 black <Fu> or <Cumber> card from your hand into your Z-Deck face-up: Play up to 1 {Super Fu, Assault Dominator} from your Z-Deck or hand.",
+   "characters": [
+    "Cumber"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Prison Planet Saga"
+   ],
+   "keywords": [
+    "Servant",
+    "Activate: Main",
+    "Limit 1"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-110.png",
+   "backImageUrl": null,
+   "deckplanetId": 8322,
+   "searchText": "bt27-110 bt27110 cumber, vicious warrior  cumber"
+  },
+  {
+   "id": "BT27-111",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Darkness Fall",
+   "cardType": "EXTRA",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "0",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Activate: Main][Limit 1] If your Leader is a black <Mechikabura> card: Choose up to 1 of your Battle Cards with a [Dark Over Realm] skill and it gains [Servant] until the end of your opponent's turn. Additionally, if the chosen card is a <Supreme Kai of Time> card, place up to 2 black Battle Cards from your Warp into their owner's Drop.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "Activate: Main",
+    "Limit 1",
+    "Dark Over Realm",
+    "Servant"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-111.png",
+   "backImageUrl": null,
+   "deckplanetId": 8330,
+   "searchText": "bt27-111 bt27111 darkness fall "
+  },
+  {
+   "id": "BT27-125",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "King Piccolo, Survival Strategy",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue",
+    "Green"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[Energy-Exhaust][Revive Blue/Green]\n[br]\n[Dual Attack][Limit 1]\n[br]\n[Activate: Main][Limit 1] Play up to 1 ≪Namekian≫ card with an energy cost of 5 or less and a [Revive] skill from under this card.",
+   "characters": [
+    "King Piccolo"
+   ],
+   "traits": [
+    "Namekian"
+   ],
+   "eras": [
+    "King Piccolo Saga"
+   ],
+   "keywords": [
+    "Energy-Exhaust",
+    "Revive Blue/Green",
+    "Dual Attack",
+    "Limit 1",
+    "Activate: Main",
+    "Revive"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-125.png",
+   "backImageUrl": null,
+   "deckplanetId": 8354,
+   "searchText": "bt27-125 bt27125 king piccolo, survival strategy  king piccolo"
+  },
+  {
+   "id": "BT27-126",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Piccolo Jr., Survival Strategy",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue",
+    "Green"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[Energy-Exhaust][Blocker][Revive Blue/Green]\n[br]\n[Activate: Battle][Limit 1]{u}, if your Leader is blue or green and you have 3 or more energy: Draw 1 card and play this card from your hand.\n[br]\n[Activate: Battle][Once per turn]{u}{g}: This card gets +10000 power and [Triple Strike] for the turn.",
+   "characters": [
+    "Piccolo Jr."
+   ],
+   "traits": [
+    "Namekian"
+   ],
+   "eras": [
+    "King Piccolo Saga"
+   ],
+   "keywords": [
+    "Energy-Exhaust",
+    "Blocker",
+    "Revive Blue/Green",
+    "Activate: Battle",
+    "Limit 1",
+    "Once per turn",
+    "Triple Strike"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-126.png",
+   "backImageUrl": null,
+   "deckplanetId": 8355,
+   "searchText": "bt27-126 bt27126 piccolo jr., survival strategy  piccolo jr."
+  },
+  {
+   "id": "BT27-127",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Lord Slug, Survival Strategy",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue",
+    "Green"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[Energy-Exhaust][Critical][Revive Blue/Green]\n[br]\n[Activate: Main][Limit 1] Choose 1 of your ≪Namekian≫ cards with a [Revive] skill and KO it: Choose up to 1 of your opponent's Battle Cards and place it at the bottom of its owner's deck.",
+   "characters": [
+    "Lord Slug"
+   ],
+   "traits": [
+    "Namekian",
+    "Slug's Army"
+   ],
+   "eras": [
+    "Lord Slug Saga"
+   ],
+   "keywords": [
+    "Energy-Exhaust",
+    "Critical",
+    "Revive Blue/Green",
+    "Activate: Main",
+    "Limit 1",
+    "Revive"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-127.png",
+   "backImageUrl": null,
+   "deckplanetId": 8356,
+   "searchText": "bt27-127 bt27127 lord slug, survival strategy  lord slug"
+  },
+  {
+   "id": "BT27-128",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Dende, Survival Strategy",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue",
+    "Green"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[Energy-Exhaust][Revive Blue/Green]\n[br]\n[Auto] When this card is played, look at up to 3 cards from the top of your deck, add up to 1 green <Porunga>, ≪Namekian≫, or Extra to your hand, then place the remaining cards at the bottom of their owner's deck in any order.",
+   "characters": [
+    "Dende"
+   ],
+   "traits": [
+    "Namekian"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [
+    "Energy-Exhaust",
+    "Revive Blue/Green",
+    "Auto"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-128.png",
+   "backImageUrl": null,
+   "deckplanetId": 8357,
+   "searchText": "bt27-128 bt27128 dende, survival strategy  dende"
+  },
+  {
+   "id": "BT27-129",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Nail, Survival Strategy",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue",
+    "Green"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[Energy-Exhaust][Revive Blue/Green]\n[br]\n[Permanent] If your Leader's back side is {Piccolo, Brotherhood Bonds}, negate this card's [Energy-Exhaust] skill in all areas.\n[br]\n[Activate: Main][Limit 1] Choose 1 of your ≪Namekian≫ Battle Cards with a [Revive] skill and place this card under it: Draw 1 card, then choose up to 1 of your opponent's Battle Cards and return it to its owner's hand.",
+   "characters": [
+    "Nail"
+   ],
+   "traits": [
+    "Namekian"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [
+    "Energy-Exhaust",
+    "Revive Blue/Green",
+    "Permanent",
+    "Activate: Main",
+    "Limit 1",
+    "Revive"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-129.png",
+   "backImageUrl": null,
+   "deckplanetId": 8358,
+   "searchText": "bt27-129 bt27129 nail, survival strategy  nail"
+  },
+  {
+   "id": "BT27-130",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Guru, Survival Strategy",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue",
+    "Green"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[Energy-Exhaust][Revive Blue/Green]\n[br]\n[Permanent] If your Leader's back side is {Piccolo, Brotherhood Bonds}, negate this card's [Energy-Exhaust] skill in all areas.\n[br]\n[Activate: Main][Limit 1] Play up to 1 ≪Namekian≫ card with an energy cost of 5 or less and a [Revive] skill from under this card.",
+   "characters": [
+    "Guru"
+   ],
+   "traits": [
+    "Namekian"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [
+    "Energy-Exhaust",
+    "Revive Blue/Green",
+    "Permanent",
+    "Activate: Main",
+    "Limit 1",
+    "Revive"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-130.png",
+   "backImageUrl": null,
+   "deckplanetId": 8359,
+   "searchText": "bt27-130 bt27130 guru, survival strategy  guru"
+  },
+  {
+   "id": "BT27-131",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Muri, Survival Strategy",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue",
+    "Green"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[Energy-Exhaust][Deflect][Revive Blue/Green]\n[br]\n[Permanent] If your Leader's back side is {Piccolo, Brotherhood Bonds}, negate this card's [Energy-Exhaust] skill in all areas.\n[br]\n[Auto] Discard 1 card from your hand: When this card is played, activate up to 1 {Battle on Namek} from your deck, then shuffle your deck.",
+   "characters": [
+    "Muri"
+   ],
+   "traits": [
+    "Namekian"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [
+    "Energy-Exhaust",
+    "Deflect",
+    "Revive Blue/Green",
+    "Permanent",
+    "Auto"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-131.png",
+   "backImageUrl": null,
+   "deckplanetId": 8360,
+   "searchText": "bt27-131 bt27131 muri, survival strategy  muri"
+  },
+  {
+   "id": "BT27-132",
+   "setCode": "BT27",
+   "game": "dbs",
+   "name": "Kami, Survival Strategy",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue",
+    "Green"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[Energy-Exhaust][Revive Blue/Green]\n[br]\n[Activate: Battle][Limit 1] Choose 1 of your ≪Namekian≫ Battle Cards with a [Revive] skill and place this card under the chosen card: That card gets +10000 power for the turn.",
+   "characters": [
+    "Kami"
+   ],
+   "traits": [
+    "Namekian",
+    "God"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Energy-Exhaust",
+    "Revive Blue/Green",
+    "Activate: Battle",
+    "Limit 1",
+    "Revive"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT27-132.png",
+   "backImageUrl": null,
+   "deckplanetId": 8361,
+   "searchText": "bt27-132 bt27132 kami, survival strategy  kami"
+  },
+  {
+   "id": "BT29-029",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Cooler",
+   "cardType": "LEADER",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": null,
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[auto] When this card attacks, draw 1 card.\n[br]\n[auto] If you have 2 or more energy: When you activate a blue Extra from your hand, draw 2 cards, add cards from your life to your hand until you have 6 life left, then flip this card to its back side.\n[br]\n[activate: main] Add up to 1 {Yes, Time to Die!} from your deck to your hand, shuffle your deck, and negate this skill for the game.\n[br]\n[awaken] When your life is at5 or less: Draw 2 cards.",
+   "characters": [
+    "Cooler"
+   ],
+   "traits": [
+    "Frieza Clan"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": "Cooler, Incredible Strongest Warrior",
+   "backSkill": "[auto][once per turn] When a blue ≪Cooler's Armored Squadron≫ card or blue Extra is returned from your Battle Area to its owner's hand, you may play 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 5 from your energy. If you do, add 1 card from your hand to your energy in Rest Mode.\n[br]\n[activate: battle][once per turn] Choose up to 1 blue ≪Cooler's Armored Squadron≫ card that's not in a battle or up to 1 blue Extra in your Battle Area and return it to its owner's hand.",
+   "backPower": 15000,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-029_PR2.png",
+   "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-029_b.png",
+   "deckplanetId": 9625,
+   "searchText": "bt29-029 bt29029 cooler cooler, incredible strongest warrior cooler"
+  },
+  {
+   "id": "BT29-031",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Cooler, Incredible Ultimate Evolution",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "8",
+   "zEnergyCost": null,
+   "power": 30000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[double strike][blocker]\n[auto][once per turn] When this card attacks, choose up to 1 of your opponent's Battle Cards, ignoring [barrier], and return it to its owner's hand.\n[activate: main]{2}, if your Leader is a <Cooler> card and your opponent has 3 or more energy: Draw 1 card and play this card from your hand.\n[activate: battle][limit 1] Choose 1 blue ≪Cooler's Armored Squadron≫ card or blue Extra in your Battle Area and return it to its owner's hand: Switch this card to Active Mode.",
+   "characters": [
+    "Cooler"
+   ],
+   "traits": [
+    "Frieza Clan"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-031.png",
+   "backImageUrl": null,
+   "deckplanetId": 9663,
+   "searchText": "bt29-031 bt29031 cooler, incredible ultimate evolution  cooler"
+  },
+  {
+   "id": "BT29-032",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Cooler, Incredible Ultimate Power",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "6",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[auto] When this card is played, draw 2 cards, discard 1 card from your hand, then choose up to 1 of your opponent's Battle Cards and return it to its owner's hand.\n<br>\n[auto] At the end of your turn, you may add 1 blue ≪Cooler's Armored Squadron≫ card with an energy cost of 1 or 5 from your Drop to your energy in Rest Mode. If you do, add 1 card from your energy to your Z-Energy.\n<br>\n[activate: main][limit 1]{u}, if your Leader is blue and your opponent has 2 or more energy: Play this card from your hand.",
+   "characters": [
+    "Cooler"
+   ],
+   "traits": [
+    "Frieza Clan"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-032.png",
+   "backImageUrl": null,
+   "deckplanetId": 9664,
+   "searchText": "bt29-032 bt29032 cooler, incredible ultimate power  cooler"
+  },
+  {
+   "id": "BT29-033",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Salza, Elite Squad Splendor",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[Dual Attack]\n[Auto][Limit 1] When this card is played, draw 1 card, then choose up to 1 of your cards and it gets +5000 power for the turn.",
+   "characters": [
+    "Salza"
+   ],
+   "traits": [
+    "Cooler’s Armored Squadron"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-033.png",
+   "backImageUrl": null,
+   "deckplanetId": 9665,
+   "searchText": "bt29-033 bt29033 salza, elite squad splendor  salza"
+  },
+  {
+   "id": "BT29-034",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Salza, Brains of the Armored Squadron",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": null,
+   "comboPower": 10000,
+   "skill": "[super combo]\n[auto] If your Leader is blue and your life is at 4 or less: When this card is used in a combo, draw 1 card.",
+   "characters": [
+    "Salza"
+   ],
+   "traits": [
+    "Cooler’s Armored Squadron"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-034.png",
+   "backImageUrl": null,
+   "deckplanetId": 9667,
+   "searchText": "bt29-034 bt29034 salza, brains of the armored squadron  salza"
+  },
+  {
+   "id": "BT29-035",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Salza, Technique",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[counter: attack] Negate the attack and play this card.\n[auto] If it's your turn: When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue <Cooler> card, blue ≪Cooler's Armored Squadron≫ card, or blue Extra with an energy cost of 0 to your hand, then shuffle your deck.",
+   "characters": [
+    "Salza"
+   ],
+   "traits": [
+    "Cooler’s Armored Squadron"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-035.png",
+   "backImageUrl": null,
+   "deckplanetId": 9668,
+   "searchText": "bt29-035 bt29035 salza, technique  salza"
+  },
+  {
+   "id": "BT29-036",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Dore, Elite Squad Splendor",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[Critical]\n[Auto][Limit 1] When this card is played, draw 1 card, then choose up to 1 of your opponent's Battle Cards that's not in a battle and return it to its owner's hand.",
+   "characters": [
+    "Dore"
+   ],
+   "traits": [
+    "Cooler’s Armored Squadron"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-036.png",
+   "backImageUrl": null,
+   "deckplanetId": 9669,
+   "searchText": "bt29-036 bt29036 dore, elite squad splendor  dore"
+  },
+  {
+   "id": "BT29-037",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Dore, Power",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[swap 5][limit 1] If your opponent has 2 or more energy and you discard 1 card from your hand: Blue ≪Cooler's Armored Squadron≫ card with an energy cost of 5.\n[auto] When this card is played, draw 1 card.",
+   "characters": [
+    "Dore"
+   ],
+   "traits": [
+    "Cooler’s Armored Squadron"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-037.png",
+   "backImageUrl": null,
+   "deckplanetId": 9670,
+   "searchText": "bt29-037 bt29037 dore, power  dore"
+  },
+  {
+   "id": "BT29-038",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Neiz, Elite Squad Splendor",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[Blocker]\n[Auto][Limit 1] When this card is played, draw 1 card, and this card gains [Barrier] until the end of your opponent's turn.",
+   "characters": [
+    "Neiz"
+   ],
+   "traits": [
+    "Cooler’s Armored Squadron"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-038.png",
+   "backImageUrl": null,
+   "deckplanetId": 9671,
+   "searchText": "bt29-038 bt29038 neiz, elite squad splendor  neiz"
+  },
+  {
+   "id": "BT29-039",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Neiz, Speed",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[swap 5][limit 1] If your opponent has 2 or more energy and you discard 1 card from your hand: Blue ≪Cooler's Armored Squadron≫ card with an energy cost of 5.\n[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 blue <Cooler> card, blue ≪Cooler's Armored Squadron≫ card, or blue Extra with an energy cost of 0 to your hand, then shuffle your deck.",
+   "characters": [
+    "Neiz"
+   ],
+   "traits": [
+    "Cooler’s Armored Squadron"
+   ],
+   "eras": [
+    "Cooler Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-039.png",
+   "backImageUrl": null,
+   "deckplanetId": 9672,
+   "searchText": "bt29-039 bt29039 neiz, speed  neiz"
+  },
+  {
+   "id": "BT29-040",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Yes, Time to Die!",
+   "cardType": "EXTRA",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "0",
+   "zEnergyCost": null,
+   "power": 0,
+   "comboCost": 0,
+   "comboPower": 0,
+   "skill": "[activate: main/battle][limit 1] If your Leader is blue: Until the end of your opponent's turn, if your opponent's Battle Card would be returned to its owner's hand by a skill on your card, place it at the bottom of its owner's deck instead.\n[activate: main][limit 1]{u}, if your Leader is a blue <Cooler> card, you choose 1 blue Extra in your Battle Area, and return it to its owner's hand: Add this card in your Drop to your hand.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-040.png",
+   "backImageUrl": null,
+   "deckplanetId": 9673,
+   "searchText": "bt29-040 bt29040 yes, time to die! "
+  },
+  {
+   "id": "BT29-041",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Fearsome Conquest",
+   "cardType": "EXTRA",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "0",
+   "zEnergyCost": null,
+   "power": 0,
+   "comboCost": 0,
+   "comboPower": 0,
+   "skill": "[Field] If your Leader is a blue <Cooler> card :\n[Permanent] The [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings.\n[Auto] When this card is placed in a Battle Area, choose up to 1 of your opponent's Battle Cards and it can't activate skills while this card is in a Battle Area.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "field",
+    "permanent",
+    "auto",
+    "activate: battle"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-041.png",
+   "backImageUrl": null,
+   "deckplanetId": 9675,
+   "searchText": "bt29-041 bt29041 fearsome conquest "
+  },
+  {
+   "id": "BT29-042",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Loyalty to Cooler",
+   "cardType": "EXTRA",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "0",
+   "zEnergyCost": null,
+   "power": 0,
+   "comboCost": 0,
+   "comboPower": 0,
+   "skill": "[Field] If your Leader is a blue <Cooler> card :\n[Permanent] The [Field] skill on this card in your hand can also be activated at [Activate: Battle] timings.\n[Auto] When this card is placed in a Battle Area, choose up to 1 of your blue <Cooler> or ≪Cooler's Armored Squadron≫ Battle Cards and it gains [Barrier] while this card is in a Battle Area.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "field",
+    "auto",
+    "activate: battle",
+    "permanent",
+    "barrier"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-042.png",
+   "backImageUrl": null,
+   "deckplanetId": 9676,
+   "searchText": "bt29-042 bt29042 loyalty to cooler "
+  },
+  {
+   "id": "BT29-057",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Vegeta",
+   "cardType": "LEADER",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": null,
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[auto] When this card attacks, place up to 1 {Vegeta, Back From the Brink of Death} from your deck into its owner's Drop, shuffle your deck, then draw 1 card.\n[br]\n[awaken] When your life is at 4 or less, or you have 2 or more energy and {Formidable Ambition} inf your Battle Area: Draw 2 cards and add cards from your life to your hand until you have 6 life left.",
+   "characters": [
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": "Vegeta, Warrior Race Pride",
+   "backSkill": "[permanent] This card gains all of the [permanent] skills on ≪Frieza's Army≫ cards with {Battle With Vegeta} in their card names in your Battle Area.\n[br]\n[auto][once per turn] When your {Vegeta, Back From the Brink of Death} is played, place up to 1 ≪Frieza's Army≫ card with {Battle With Vegeta} in its card name under the played card, and the played card gains all of the [permanent] skills on the card placed under it until the end of your turn.\n[br]\n[auto] When this card attacks, draw 1 card.",
+   "backPower": 15000,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-057_PR.png",
+   "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-057_b.png",
+   "deckplanetId": 9627,
+   "searchText": "bt29-057 bt29057 vegeta vegeta, warrior race pride vegeta"
+  },
+  {
+   "id": "BT29-061",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Formidable Ambition",
+   "cardType": "Z-EXTRA",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 0,
+   "comboCost": 0,
+   "comboPower": 0,
+   "skill": "[activate: main][limit 1] If your Leader is {Vegeta, Warrior Race Pride}, you add 1 card from your life to your hand, and you discard 1 card from your hand: Add the top card of your deck to your life at the end of the turn.\n[activate: battle] Remove this card from the game: Choose up to 1 of your <Vegeta> cards and it gets +10000 power for the battle.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": true,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-061.png",
+   "backImageUrl": null,
+   "deckplanetId": 9694,
+   "searchText": "bt29-061 bt29061 formidable ambition "
+  },
+  {
+   "id": "BT29-062",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Son Gohan, Tricking Vegeta",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[Auto] When this card is played, draw 1 card.\n[Activate: Main][Once per turn] Place up to 1 {Vegeta, Back From the Brink of Death} from your deck or Warp into its owner's Drop, then shuffle your deck.",
+   "characters": [
+    "Son Gohan: Youth"
+   ],
+   "traits": [
+    "Saiyan",
+    "Earthling"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-062.png",
+   "backImageUrl": null,
+   "deckplanetId": 9695,
+   "searchText": "bt29-062 bt29062 son gohan, tricking vegeta  son gohan: youth"
+  },
+  {
+   "id": "BT29-063",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Vegeta, By a Saiyan",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "6",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[permanent] If your life is at 3 or less, this card gets +5000 power and [double strike].\n[auto] When this card attacks, until the end of your opponent's turn, the next time your opponent switches a Battle Card to Active Mode by one of their skills, place that card into its owner's Drop.\n[activate: main][limit 1]{y}, if you have 3 or more energy: Play this card from your hand. Additionally, you may add 1 card from your life to your hand. If you do, add the top card of your deck to your life at the end of the turn.",
+   "characters": [
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-063.png",
+   "backImageUrl": null,
+   "deckplanetId": 9696,
+   "searchText": "bt29-063 bt29063 vegeta, by a saiyan  vegeta"
+  },
+  {
+   "id": "BT29-064",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Vegeta, One-Man Army",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[ex-evolve][limit 1]{y}, draw 1 card: Yellow <Vegeta> card with an energy cost of 3.\n[auto] When this card is placed into its owner's Drop by a skill on one of your yellow ≪Frieza's Army≫ cards, play up to 1 {Vegeta, Back From the Brink of Death} from your Drop.\n[activate: main][limit 1]{y}, if your Leader is {Vegeta, Warrior Race Pride} and you have 3 or more energy: Draw 1 card and play this card from your hand.",
+   "characters": [
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-064.png",
+   "backImageUrl": null,
+   "deckplanetId": 9697,
+   "searchText": "bt29-064 bt29064 vegeta, one-man army  vegeta"
+  },
+  {
+   "id": "BT29-065",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Vegeta, Back From the Brink of Death",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[deflect][unique]\n[permanent] If your life is at 6 or less, this card gets +10000 power.\n[permanent] If your life is at 4 or less, this card gets +10000 power.\n[permanent] If your life is at 2 or less, this card gets +10000 power.\n[auto] If your Leader is {Vegeta, Warrior Race Pride}: When your life moves to another area, you may play this card from your Drop.",
+   "characters": [
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-065.png",
+   "backImageUrl": null,
+   "deckplanetId": 9698,
+   "searchText": "bt29-065 bt29065 vegeta, back from the brink of death  vegeta"
+  },
+  {
+   "id": "BT29-066",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Krillin, Almost Killing Vegeta",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[counter: play][limit 1] If your Leader is {Vegeta, Warrior Race Pride}, you choose 1 of your <Vegeta> cards, and place it into its owner's Drop: Play this card. Additionally, you may add 1 card from your life to your hand. If you do, add the top card of your deck to your life at the end of the turn.\n[auto] When this card is played, draw 1 card.",
+   "characters": [
+    "Krillin"
+   ],
+   "traits": [
+    "Earthling"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-066.png",
+   "backImageUrl": null,
+   "deckplanetId": 9700,
+   "searchText": "bt29-066 bt29066 krillin, almost killing vegeta  krillin"
+  },
+  {
+   "id": "BT29-067",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Dende, Refusing Vegeta",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[auto] If your Leader's back side is {Vegeta, Warrior Race Pride}: When this card is played, look at up to 5 cards from the top of your deck, add up to 1 yellow non-<Vegeta> Battle Card with an energy cost of 6 or less to your hand, then shuffle your deck.\n[activate: main][once per turn] Place up to 1 {Vegeta, Back From the Brink of Death} from your deck or Warp into its owner's Drop, then shuffle your deck.",
+   "characters": [
+    "Dende"
+   ],
+   "traits": [
+    "Namekian"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-067.png",
+   "backImageUrl": null,
+   "deckplanetId": 9701,
+   "searchText": "bt29-067 bt29067 dende, refusing vegeta  dende"
+  },
+  {
+   "id": "BT29-068",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Frieza, Battle With Vegeta",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "8",
+   "zEnergyCost": null,
+   "power": 30000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[permanent] If your Leader is {Vegeta, Warrior Race Pride} and your opponent has 3 or more energy, this card gains [dual attack].\n[auto] Choose 1 of your <Vegeta> cards and KO it: When this card is played, play up to 1 ≪Frieza's Army≫ card with an energy cost of 7 or less and {Battle With Vegeta} in its card name from your Drop.\n[activate: main][limit 1]{y}{y}, if you have 3 or more energy: Play this card from your hand.",
+   "characters": [
+    "Frieza"
+   ],
+   "traits": [
+    "Frieza Clan",
+    "Frieza’s Army"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-068.png",
+   "backImageUrl": null,
+   "deckplanetId": 9702,
+   "searchText": "bt29-068 bt29068 frieza, battle with vegeta  frieza"
+  },
+  {
+   "id": "BT29-071",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Ginyu, Failed Change",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[auto] When this card is played, draw 1 card.\n[activate: battle][limit 1] If it's your opponent's turn, and this card and all of your energy are in Rest Mode: Switch the target of attack to this card.",
+   "characters": [
+    "Ginyu"
+   ],
+   "traits": [
+    "Ginyu Force",
+    "Frieza’s Army"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-071.png",
+   "backImageUrl": null,
+   "deckplanetId": 9706,
+   "searchText": "bt29-071 bt29071 ginyu, failed change  ginyu"
+  },
+  {
+   "id": "BT29-074",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Recoome, Battle With Vegeta",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "7",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[permanent] If your Leader is {Vegeta, Warrior Race Pride} and your opponent has 3 or more energy, this card gains [double strike].\n[auto] Choose 1 of your <Vegeta> cards and KO it: When this card attacks, draw 1 card, choose up to 1 of your opponent's Battle Cards, switch it to Rest Mode, and it can't switch to Active Mode until the end of your opponent's turn.\n[activate: main][limit 1]{y}, if you have 3 or more energy: Play this card from your hand.",
+   "characters": [
+    "Recoome"
+   ],
+   "traits": [
+    "Ginyu Force",
+    "Frieza’s Army"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-074.png",
+   "backImageUrl": null,
+   "deckplanetId": 9709,
+   "searchText": "bt29-074 bt29074 recoome, battle with vegeta  recoome"
+  },
+  {
+   "id": "BT29-075",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Recoome, Elite Forces",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[auto] When this card attacks, choose up to 1 of your opponent's Rest Mode Battle Cards and KO it.\n[activate: battle][limit 1] If your Leader is a yellow ≪Ginyu Force≫ card: Place this card from your Drop on top of your deck.",
+   "characters": [
+    "Recoome"
+   ],
+   "traits": [
+    "Ginyu Force",
+    "Frieza’s Army"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-075.png",
+   "backImageUrl": null,
+   "deckplanetId": 9710,
+   "searchText": "bt29-075 bt29075 recoome, elite forces  recoome"
+  },
+  {
+   "id": "BT29-077",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Zarbon, Battle With Vegeta",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "6",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[permanent] If your opponent has 3 or more energy, this card gains [barrier] and [blocker].\n[activate: main][limit 1]{y}, if your Leader is a yellow <Vegeta> or ≪Frieza's Army≫ card and you have 2 or more energy: Draw 1 card and play this card from your hand.\n[activate: main][once per turn] Choose 1 of your yellow Battle Cards with an energy cost of 3 and KO it: Choose up to 1 of your opponent's Battle Cards and switch it to Rest Mode.",
+   "characters": [
+    "Zarbon"
+   ],
+   "traits": [
+    "Frieza’s Army"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-077.png",
+   "backImageUrl": null,
+   "deckplanetId": 9712,
+   "searchText": "bt29-077 bt29077 zarbon, battle with vegeta  zarbon"
+  },
+  {
+   "id": "BT29-078",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Dodoria, Battle With Vegeta",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[permanent] If your opponent has 2 or more energy, this card gains [critical].\n[activate: main][limit 1]{y}, if your Leader is {Vegeta, Warrior Race Pride}: Draw 1 card and play this card from your hand.\n[activate: main][once per turn] Choose 1 of your yellow Battle Cards with an energy cost of 3 and KO it: Choose up to 1 of your opponent's Rest Mode Battle Cards and KO it.",
+   "characters": [
+    "Dodoria"
+   ],
+   "traits": [
+    "Frieza’s Army"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-078.png",
+   "backImageUrl": null,
+   "deckplanetId": 9713,
+   "searchText": "bt29-078 bt29078 dodoria, battle with vegeta  dodoria"
+  },
+  {
+   "id": "BT29-079",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Cui, Battle With Vegeta",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": null,
+   "comboPower": 5000,
+   "skill": "[permanent] Your opponent can't activate [blocker] skills while this card is in a battle.\n[activate: main][limit 1]{y}, if your Leader is {Vegeta, Warrior Race Pride}: Draw 1 card and play this card from your hand.\n[activate: main][once per turn] Choose 1 of your yellow Battle Cards with an energy cost of 3 and KO it: Choose up to 1 of your Battle Cards and it and your Leader get +5000 power until the end of your opponent's turn.",
+   "characters": [
+    "Cui"
+   ],
+   "traits": [
+    "Frieza’s Army"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-079.png",
+   "backImageUrl": null,
+   "deckplanetId": 9714,
+   "searchText": "bt29-079 bt29079 cui, battle with vegeta  cui"
+  },
+  {
+   "id": "BT29-080",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "Appule, Advance Guard",
+   "cardType": "BATTLE",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": null,
+   "comboPower": 10000,
+   "skill": "[super combo]\n[auto] If your Leader is yellow and your life is at 4 or less: When this card is used in a combo, draw 1 card.",
+   "characters": [
+    "Appule"
+   ],
+   "traits": [
+    "Frieza’s Army"
+   ],
+   "eras": [
+    "Frieza Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-080.png",
+   "backImageUrl": null,
+   "deckplanetId": 9715,
+   "searchText": "bt29-080 bt29080 appule, advance guard  appule"
+  },
+  {
+   "id": "BT29-081",
+   "setCode": "BT29",
+   "game": "dbs",
+   "name": "We Will Not Lose!!!",
+   "cardType": "EXTRA",
+   "colors": [
+    "Yellow"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 0,
+   "comboCost": 0,
+   "comboPower": 0,
+   "skill": "[counter: attack][limit 1] Discard 1 yellow card from your hand: Negate the attack and draw 2 cards.\n[activate: main] Draw 1 card, choose up to 1 {Vegeta, Back From the Brink of Death} in your Battle Area, place up to 1 ≪Frieza's Army≫ card with {Battle With Vegeta} in its card name from your Drop under the chosen card, and the chosen card gains all of the [permanent] skills on the card placed under it for the turn.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": null,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT29-081.png",
+   "backImageUrl": null,
+   "deckplanetId": 9716,
+   "searchText": "bt29-081 bt29081 we will not lose!!! "
+  },
+  {
+   "id": "BT30-001",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Son Goku, Vegeta, & Trunks",
+   "cardType": "LEADER",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": null,
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[auto] When this card attacks, look at up to 5 cards from the top of your deck, add up to 1 red ≪Saiyan≫ card to your hand, then shuffle your deck.\n[br]\n[awaken] When your life is at 4 or less or you have a total of 3 or more red ≪Saiyan≫ cards in your energy and Battle Area: Switch up to 1 of your energy to Active Mode, add up to 1 {Spirit} from your deck to your hand, shuffle your deck, and add cards from your life to your hand until you have 6 life left.",
+   "characters": [
+    "Son Goku",
+    "Vegeta",
+    "Trunks: Future"
+   ],
+   "traits": [
+    "Saiyan",
+    "Earthling"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": "Super Saiyans United",
+   "backSkill": "[auto][once per turn] When one of your cards is added to your Z-Energy, draw 1 card.\n[br]\n[auto] If you have 1 or more {Spirit} under any of the cards in your Battle Area and you place all of them at the bottom of their owner's deck: At the end of your turn, draw 1 card.\n[br]\n[activate: battle][once per turn] Place 1 {Spirit} from your Z-Energy at the bottom of its owner's deck: Choose up to 1 of your cards and it gets +5000 power for the battle.",
+   "backPower": 15000,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-001_SLR.png",
+   "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-001_b.png",
+   "deckplanetId": 10025,
+   "searchText": "bt30-001 bt30001 son goku, vegeta, & trunks super saiyans united son goku vegeta trunks: future"
+  },
+  {
+   "id": "BT30-003",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "SS Son Goku, Infinite Power",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "6",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[double strike]\n[br]\n[auto]{r}: When this card attacks, place up to 4 Extras from your Z-Energy under this card, then choose any number of your opponent's Battle Cards whose total power is less than or equal to this card's power, ignoring [barrier], and KO them.\n[br]\n[activate: main][limit 1]{r}, if your Leader is a red ≪Saiyan≫ card and you have 3 or more energy: Draw 1 card and play this card from your hand.",
+   "characters": [
+    "Son Goku"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-003.png",
+   "backImageUrl": null,
+   "deckplanetId": 10027,
+   "searchText": "bt30-003 bt30003 ss son goku, infinite power  son goku"
+  },
+  {
+   "id": "BT30-004",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "SS Son Goku, Unmatched Power",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[dual attack]\n[br]\n[auto] When this card attacks, add up to 1 {Spirit} from your Drop to your Z-Energy.\n[br]\n[activate: main][limit 1], if your Leader is {Super Saiyans United} and you have 3 or more energy: Play this card from your hand, then add up to 1 {Spirit} from your Drop to your Z-Energy.",
+   "characters": [
+    "Son Goku"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-004.png",
+   "backImageUrl": null,
+   "deckplanetId": 10028,
+   "searchText": "bt30-004 bt30004 ss son goku, unmatched power  son goku"
+  },
+  {
+   "id": "BT30-005",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Son Goku, Saiyans Assembled",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[critical]\n[br]\n[activate: main][limit 1], if your Leader's back side is {Super Saiyans United} and you have 2 or more energy: Play this card from your hand, then add up to 1 {Spirit} from your Drop to your Z-Energy.\n[br]\n[activate: main][once per turn] Place up to 1 {Spirit} from your Z-Energy under this card.",
+   "characters": [
+    "Son Goku"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-005.png",
+   "backImageUrl": null,
+   "deckplanetId": 10029,
+   "searchText": "bt30-005 bt30005 son goku, saiyans assembled  son goku"
+  },
+  {
+   "id": "BT30-006",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "SS Son Goku, SS Vegeta, & SS Trunks, Golden Warriors",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "6",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[dual attack]\n[br]\n[activate: main][limit 1]{r}, if your Leader is red, you have 3 or more energy, and you have 4 or more Z-Energy: Play this card from your hand.\n[br]\n[activate: main][limit 1] Place 1 of your Z-Energy under this card: Your Leader gets +5000 power until the end of your opponent's turn.",
+   "characters": [
+    "Son Goku",
+    "Vegeta",
+    "Trunks: Future"
+   ],
+   "traits": [
+    "Saiyan",
+    "Earthling"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-006.png",
+   "backImageUrl": null,
+   "deckplanetId": 10030,
+   "searchText": "bt30-006 bt30006 ss son goku, ss vegeta, & ss trunks, golden warriors  son goku vegeta trunks: future"
+  },
+  {
+   "id": "BT30-007",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Son Gohan, Rising Up",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[auto] When this card is played, add up to 1 {Spirit} from your deck to your hand, then shuffle your deck.\n[br]\n[activate: main][limit 1] If your Leader's back side is {Super Saiyans United} and you add this card to your Z-Energy: Add up to 1 {Spirit} from your life to your hand, then shuffle your life.",
+   "characters": [
+    "Son Gohan: Childhood"
+   ],
+   "traits": [
+    "Saiyan",
+    "Earthling"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-007.png",
+   "backImageUrl": null,
+   "deckplanetId": 10031,
+   "searchText": "bt30-007 bt30007 son gohan, rising up  son gohan: childhood"
+  },
+  {
+   "id": "BT30-008",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "SS Vegeta, Unmatched Power",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[auto] When this card is played, choose up to 2 of your opponent's Battle Cards with 25000 power or less and KO them.\n[br]\n[activate: main][limit 1], if your Leader is {Super Saiyans United} and your opponent has 3 or more energy: Play this card from your hand, add up to 1 {Spirit} from your deck to your hand, then shuffle your deck.",
+   "characters": [
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-008.png",
+   "backImageUrl": null,
+   "deckplanetId": 10032,
+   "searchText": "bt30-008 bt30008 ss vegeta, unmatched power  vegeta"
+  },
+  {
+   "id": "BT30-009",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Vegeta, Saiyans Assembled",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect]\n[br]\n[auto] When this card is played or attacks, choose up to 1 of your opponent's Battle Cards and it gets -10000 power for the turn.\n[br]\n[activate: main][limit 1], if your Leader's back side is {Super Saiyans United} and you have 2 or more energy: Play this card from your hand, add up to 1 {Spirit} from your deck to your hand, then shuffle your deck.",
+   "characters": [
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-009.png",
+   "backImageUrl": null,
+   "deckplanetId": 10033,
+   "searchText": "bt30-009 bt30009 vegeta, saiyans assembled  vegeta"
+  },
+  {
+   "id": "BT30-010",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "SS Trunks, Unmatched Power",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect]\n[br]\n[auto] When this card is played or attacks, choose one --\n[ul]\n[li] Place up to 1 red card from your deck into its owner's Drop, then shuffle your deck.[/li]\n[li] Add up to 1 red card from your Drop to your Z-Energy with its skills negated for the turn [/li]\n[/ul]\n<br> [activate: main], if your Leader is red and you have 2 or more energy: Draw 1 card and play this card from your hand.",
+   "characters": [
+    "Trunks: Future"
+   ],
+   "traits": [
+    "Saiyan",
+    "Earthling"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-010.png",
+   "backImageUrl": null,
+   "deckplanetId": 10034,
+   "searchText": "bt30-010 bt30010 ss trunks, unmatched power  trunks: future"
+  },
+  {
+   "id": "BT30-011",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Trunks, Saiyans Assembled",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 red ≪Saiyan≫ card with an energy cost of 4 or less to your hand, then shuffle your deck.\n[br]\n[activate: main] If your Leader's back side is {Super Saiyans United} and you add this card to your Z-Energy: Place up to 1 {Spirit} from your deck into its owner's Drop, then shuffle your deck.",
+   "characters": [
+    "Trunks: Future"
+   ],
+   "traits": [
+    "Saiyan",
+    "Earthling"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-011.png",
+   "backImageUrl": null,
+   "deckplanetId": 10035,
+   "searchText": "bt30-011 bt30011 trunks, saiyans assembled  trunks: future"
+  },
+  {
+   "id": "BT30-012",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Piccolo, Rescue",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[counter: attack] If your Leader is {Super Saiyans United}: Negate the attack and play this card.\n[br]\n[auto] When this card is played, add up to 1 {Spirit} from your deck to your hand, then shuffle your deck.",
+   "characters": [
+    "Piccolo"
+   ],
+   "traits": [
+    "Namekian",
+    "God"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-012.png",
+   "backImageUrl": null,
+   "deckplanetId": 10036,
+   "searchText": "bt30-012 bt30012 piccolo, rescue  piccolo"
+  },
+  {
+   "id": "BT30-013",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Android 18, Cold Stare",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 0,
+   "skill": "[super combo]\n[br]\n[auto] If your Leader is red, your life is at 4 or less, and all of your energy is red: When this card is used in a combo, it gets +10000 combo power for the battle. Additionally, you may place 1 card from your hand at the bottom of your deck. If you do, draw 2 cards.",
+   "characters": [
+    "Android 18"
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android 13 Saga"
+   ],
+   "keywords": [
+    "super combo",
+    "auto"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-013.png",
+   "backImageUrl": null,
+   "deckplanetId": 10037,
+   "searchText": "bt30-013 bt30013 android 18, cold stare  android 18"
+  },
+  {
+   "id": "BT30-015",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Spirit",
+   "cardType": "EXTRA",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "0",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[permanent] If your Leader is {Super Saiyans United} and this card is under a <Son Goku> Battle Card, the card on top of this card gets +10000 power. \n[br]\n[activate: main] If your Leader's back side is {Super Saiyans United}: Draw 1 card.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-015.png",
+   "backImageUrl": null,
+   "deckplanetId": 10039,
+   "searchText": "bt30-015 bt30015 spirit "
+  },
+  {
+   "id": "BT30-082",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Brianne De Chateau",
+   "cardType": "LEADER",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": null,
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[activate: main][once per turn] Send the top 2 cards of your deck to your Warp, then discard 1 ≪Maiden Squadron≫ card from your hand: Draw 2 cards.\n[br]\n[awaken] When your life is at 4 or less, or you have 2 or more energy and {Support Broadcast} in your Battle Area: Draw 2 cards and add cards from your life to your hand until you have 6 life left.",
+   "characters": [
+    "Brianne De Chateau"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": "The 2nd Universe's Witchy Warriors",
+   "backSkill": "[auto] When this card attacks, draw 2 cards, send 1 card from your hand to its owner's Warp, then place up to 1 black ≪Maiden Squadron≫ card from your Warp at the bottom of its owner's deck.\n[br]\n[activate: main/battle][once per turn] Send 2 ≪Universe 2≫ cards from your Drop to their owner's Warp: Play up to 1 black ≪Maiden Squadron≫ card with an energy cost of 2 from your hand.",
+   "backPower": 15000,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-082_SLR.png",
+   "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-082_b.png",
+   "deckplanetId": 10057,
+   "searchText": "bt30-082 bt30082 brianne de chateau the 2nd universe's witchy warriors brianne de chateau"
+  },
+  {
+   "id": "BT30-084",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Support Broadcast",
+   "cardType": "Z-EXTRA",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": "1",
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[activate: main/battle]{1}, if your opponent has 2 or more energy and you choose 1 of your black ≪Maiden Squadron≫ Battle Cards: Play up to 1 Battle Card whose card name is in the text of a skill on the chosen card from your Warp on top of the chosen card.\n[br]\n[activate: battle] {1}, remove this card from the game: Choose up to 1 of your ≪Maiden Squadron≫ Battle Cards and it gets +5000 power for the battle for every 2 ≪Universe 2≫ cards in your Warp.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": true,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-084.png",
+   "backImageUrl": null,
+   "deckplanetId": 10164,
+   "searchText": "bt30-084 bt30084 support broadcast "
+  },
+  {
+   "id": "BT30-085",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Son Goku, Ultra Technique",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect] [blocker] [revenge]\n[br]\n[auto] [once per turn] Add 1 card from your hand to your Z-Energy: When this card attacks, draw 1 card and switch this card to Active Mode.\n[br]\n[activate: main] [limit 1] {1}, if your Leader is a ≪Universe 7≫ card, you have 3 or more energy, and you place 1 card from your Warp into its owner's Drop: Draw 1 card and play this card from your hand.",
+   "characters": [
+    "Son Goku"
+   ],
+   "traits": [
+    "Saiyan",
+    "Universe 7"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-085.png",
+   "backImageUrl": null,
+   "deckplanetId": 10165,
+   "searchText": "bt30-085 bt30085 son goku, ultra technique  son goku"
+  },
+  {
+   "id": "BT30-088",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "SSB Vegeta, Accepted Fate",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect]\n[br]\n[auto] Add 1 card from your hand to your Z-Energy: When this card is played, choose up to 1 of your opponent's Battle Cards and send it to its owner's Warp. Additionally, if you have 4 or more Z-Energy, this card gains [double strike] for the turn.\n[br]\n[activate: main] [limit 1] {b}, if you have 3 or more energy and you place 1 black card from your Warp into its owner's Drop: Draw 1 card and play this card from your hand.",
+   "characters": [
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan",
+    "Universe 7"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-088.png",
+   "backImageUrl": null,
+   "deckplanetId": 10168,
+   "searchText": "bt30-088 bt30088 ssb vegeta, accepted fate  vegeta"
+  },
+  {
+   "id": "BT30-095",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Ribrianne, Witchy Warrior",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect] [double strike]\n[br]\n[auto] Choose 1 {Support Broadcast} in your Battle Area and switch it to Rest Mode: When this card is played, add up to 1 black ≪Maiden Squadron≫ card with an energy cost of 2 from your Drop or Warp to your hand.\n[br]\n[auto] Place 2 ≪Maiden Squadron≫ cards from your Warp at the bottom of your deck: When this card attacks, choose up to 1 of your opponent's Battle Cards and send it to its owner's Warp.",
+   "characters": [
+    "Ribrianne"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-095.png",
+   "backImageUrl": null,
+   "deckplanetId": 10170,
+   "searchText": "bt30-095 bt30095 ribrianne, witchy warrior  ribrianne"
+  },
+  {
+   "id": "BT30-096",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Song of Love and Victory! Maiden Squadron",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[auto] [burst 2] When this card attacks, play up to 1 ≪Maiden Squadron≫ card with an energy cost of 2 from your hand, then choose up to 1 of your cards and it gets +5000 power for the turn.\n[br]\n[activate: main] [limit 1] {1}, if your Leader is black or includes ≪Universe≫ in its special traits and your opponent has 2 or more energy: Choose up to 1 of your opponent's Battle Cards with an energy cost of 4 or less ignoring [barrier], send it to its owner's Warp, then play this card from your hand.",
+   "characters": [
+    "Ribrianne",
+    "Kakunsa",
+    "Rozie"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [
+    "auto",
+    "burst 2",
+    "activate: main",
+    "limit 1",
+    "barrier"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-096.png",
+   "backImageUrl": null,
+   "deckplanetId": 10198,
+   "searchText": "bt30-096 bt30096 song of love and victory! maiden squadron  ribrianne kakunsa rozie"
+  },
+  {
+   "id": "BT30-097",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Formation!! Brianne De Chateau",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect]\n[br]\n[auto] [limit 1] If your Leader is a ≪Universe 2≫ card: When this card is played, draw 1 card, send up to 1 {Ribrianne, Witchy Warrior} from your Drop to your Warp, then choose up to 2 of your ≪Universe 2≫ cards and they get +5000 power for the turn.",
+   "characters": [
+    "Brianne De Chateau"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-097.png",
+   "backImageUrl": null,
+   "deckplanetId": 10171,
+   "searchText": "bt30-097 bt30097 formation!! brianne de chateau  brianne de chateau"
+  },
+  {
+   "id": "BT30-098",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Brianne De Chateau, Hope of the Multiverse",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[counter: attack] Discard 1 card from your hand: Negate the attack, play this card, then play up to 1 black ≪Maiden Squadron≫ card with an energy cost of 2 from your Warp in Rest Mode.\n[br]\n[counter: counter] If your life is at 2 or less and your ≪Universe 2≫ card is in a battle: Play this card, switch your card that's in a battle with this card, then play up to 1 black ≪Maiden Squadron≫ card from your Warp on top of this card in Active Mode.",
+   "characters": [
+    "Brianne De Chateau"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [
+    "counter: attack",
+    "counter: counter"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-098.png",
+   "backImageUrl": null,
+   "deckplanetId": 10199,
+   "searchText": "bt30-098 bt30098 brianne de chateau, hope of the multiverse  brianne de chateau"
+  },
+  {
+   "id": "BT30-099",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Kakunsa, Witchy Warrior",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[blocker]\n[br]\n[auto] [limit 1] When this card is played, it gains [barrier] for the turn.\n[br]\n[auto] Place 2 ≪Maiden Squadron≫ cards from your Warp at the bottom of your deck: When this card attacks, your opponent sends 1 card from their hand to its owner's Warp, then you switch this card to Active Mode at the end of the turn.",
+   "characters": [
+    "Kakunsa"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [
+    "blocker",
+    "auto",
+    "limit 1",
+    "barrier"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-099.png",
+   "backImageUrl": null,
+   "deckplanetId": 10200,
+   "searchText": "bt30-099 bt30099 kakunsa, witchy warrior  kakunsa"
+  },
+  {
+   "id": "BT30-100",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Formation! Sanka Ku",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect]\n[br]\n[auto] [limit 1] If your Leader is a ≪Universe 2≫ card: When this card is played, draw 1 card, send up to 1 {Kakunsa, Witchy Warrior} from your Drop to your Warp, then choose up to 1 of your opponent's Battle Cards, and until the end of your opponent's turn, that card can't attack unless your opponent sends 2 cards from their hand to their warp each time.",
+   "characters": [
+    "Sanka Ku"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [
+    "deflect",
+    "auto",
+    "limit 1"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-100.png",
+   "backImageUrl": null,
+   "deckplanetId": 10201,
+   "searchText": "bt30-100 bt30100 formation! sanka ku  sanka ku"
+  },
+  {
+   "id": "BT30-101",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Sanka Ku, Fighting Maiden",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[auto] [limit 1] When this card is played, look at up to 5 cards from the top of your deck, choose up to 2 ≪Universe 2≫ cards, add up to 1 card to your hand, send up to 1 card to your Warp, then shuffle your deck.\n[br]\n[activate: main] [limit 1] If your Leader is a ≪Universe 2≫ card and you send this card from your Drop to your Warp: Look at up to 2 cards from the top of your deck, place up to 1 card in your Drop, send up to 1 card to its owner's Warp, then place the rest at the bottom of your deck in any order.",
+   "characters": [
+    "Sanka Ku"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [
+    "auto",
+    "limit 1",
+    "activate: main"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-101.png",
+   "backImageUrl": null,
+   "deckplanetId": 10202,
+   "searchText": "bt30-101 bt30101 sanka ku, fighting maiden  sanka ku"
+  },
+  {
+   "id": "BT30-102",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Rozie, Witchy Warrior",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[auto] [limit 1] When this card is played, choose up to 1 of your black ≪Maiden Squadron≫ Battle Cards and switch it to Active Mode.\n[br]\n[activate: battle] [once per turn] Place 2 ≪Maiden Squadron≫ cards from your Warp at the bottom of your deck: Use up to 1 card from under your ≪Maiden Squadron≫ card in a combo with its skills negated for the turn.",
+   "characters": [
+    "Rozie"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [
+    "auto",
+    "limit 1",
+    "activate: battle",
+    "once per turn"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-102.png",
+   "backImageUrl": null,
+   "deckplanetId": 10203,
+   "searchText": "bt30-102 bt30102 rozie, witchy warrior  rozie"
+  },
+  {
+   "id": "BT30-103",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Formation! Su Roas",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect]\n[br]\n[auto] [limit 1] If your Leader is a ≪Universe 2≫ card: When this card is played, draw 1 card, send up to 1 {Rozie, Witchy Warrior} from your Drop to your Warp, add up to 1 black ≪Maiden Squadron≫ card from your Drop or Warp to your Z-Energy, then send up to 2 Battle Cards from your opponent's Drop to their owner's Warp.",
+   "characters": [
+    "Su Roas"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [
+    "deflect",
+    "auto",
+    "limit 1"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-103.png",
+   "backImageUrl": null,
+   "deckplanetId": 10204,
+   "searchText": "bt30-103 bt30103 formation! su roas  su roas"
+  },
+  {
+   "id": "BT30-104",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Su Roas, Fighting Maiden",
+   "cardType": "BATTLE",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[permanent] During your turn, if your black ≪Maiden Squadron≫ card would be removed from a Battle Area by an opponent's skill, you may remove this card in your Warp from the game instead.\n[br]\n[auto] [limit 1] When this card is played, look at up to 5 cards from the top of your deck, choose up to 2 ≪Universe 2≫ cards, add up to 1 card to your hand, send up to 1 card to your Warp, then shuffle your deck.",
+   "characters": [
+    "Su Roas"
+   ],
+   "traits": [
+    "Maiden Squadron",
+    "Universe 2"
+   ],
+   "eras": [
+    "Universe Survival Saga"
+   ],
+   "keywords": [
+    "permanent",
+    "auto",
+    "limit 1"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-104.png",
+   "backImageUrl": null,
+   "deckplanetId": 10205,
+   "searchText": "bt30-104 bt30104 su roas, fighting maiden  su roas"
+  },
+  {
+   "id": "BT30-106",
+   "setCode": "BT30",
+   "game": "dbs",
+   "name": "Delivery of Love",
+   "cardType": "EXTRA",
+   "colors": [
+    "Black"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[counter: attack] Negate the attack, and during this turn, the next time you activate the [activate: main/battle] skill on {Support Broadcast} in your Battle Area, reduce the skill cost by {1}. \n[br]\n[permanent] This card gains ≪Maiden Squadron≫ in all areas.\n[br]\n[auto] When this card is sent from your deck to your Warp by your <Heles> card's skill, look at up to 1 card from the top of your deck, play up to 1 black ≪Maiden Squadron≫ card, then send the rest to their owner's Warp.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "counter: attack",
+    "activate: main/battle",
+    "permanent",
+    "auto"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT30-106.png",
+   "backImageUrl": null,
+   "deckplanetId": 10207,
+   "searchText": "bt30-106 bt30106 delivery of love "
+  },
+  {
+   "id": "BT31-001",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Son Goku & Vegeta",
+   "cardType": "LEADER",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": null,
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[activate: main] [once per turn] Discard 1 card from your hand: Look at up to 5 cards from the top of your deck and add up to 1 red ≪Saiyan≫ card to your hand, then shuffle your deck.\n[br]\n[awaken] When your life is at 4 or less, or you have 2 or more energy and you have 1 or more red <Son Goku> cards and 1 or more red <Vegeta> cards in your Drop: Draw 2 cards and add cards from your life to your hand until you have 6 life left.",
+   "characters": [
+    "Son Goku",
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "activate: main",
+    "once per turn",
+    "awaken",
+    "permanent",
+    "union",
+    "auto"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": "SS Gogeta, Situation Reversal Fusion",
+   "backSkill": "[permanent] You can choose the specified Battle Cards in your Battle Area or your Drop when choosing cards to use with the [union] skill of a red <Veku> or <Gogeta> card from your hand. If you do, send the chosen cards to their owner's Warp.\n[br]\n[auto] When this card attacks, draw 1 card.",
+   "backPower": 15000,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-001_SLR.png",
+   "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-001_b.png",
+   "deckplanetId": 10746,
+   "searchText": "bt31-001 bt31001 son goku & vegeta ss gogeta, situation reversal fusion son goku vegeta"
+  },
+  {
+   "id": "BT31-007",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "SS3 Son Goku, Struggle in Another World",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 16000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[activate: main] [limit 1] Place this card from your Warp into its owner's Drop and discard 1 red <Vegeta> card from your hand: Add up to 1 red <Veku> card with an energy cost of 5 from your Drop or Warp to your hand.\n[br]\n[activate: battle] [once per turn] Choose up to 1 of your red cards and it gets +5000 power for the turn.",
+   "characters": [
+    "Son Goku"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "activate: main",
+    "limit 1",
+    "activate: battle",
+    "once per turn"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-007.png",
+   "backImageUrl": null,
+   "deckplanetId": 10798,
+   "searchText": "bt31-007 bt31007 ss3 son goku, struggle in another world  son goku"
+  },
+  {
+   "id": "BT31-008",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Son Goku, Other World Warrior",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 16000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[permanent] If you have 2 or fewer red ≪Saiyan≫ cards in your Warp, this card can't attack.\n[br]\n[activate: main] [limit 1] {r}, if your Leader's back side is a red <Gogeta> card: Draw 1 card and play this card from your hand.\n[br]\n[activate: main] [limit 1] If you have 2 or more energy and you place this card into its owner's Drop: Play up to 1 mono-red <Son Goku> card with 16000 power from your hand.",
+   "characters": [
+    "Son Goku"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "permanent",
+    "activate: main",
+    "limit 1"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-008.png",
+   "backImageUrl": null,
+   "deckplanetId": 10786,
+   "searchText": "bt31-008 bt31008 son goku, other world warrior  son goku"
+  },
+  {
+   "id": "BT31-009",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Son Goku, Training in Another World",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 0,
+   "comboPower": 10000,
+   "skill": "[super combo]\n[br]\n[auto] [sparking 5] If your Leader is red: When this card is used in a combo, draw 1 card.",
+   "characters": [
+    "Son Goku"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "super combo",
+    "auto",
+    "sparking 5"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-009.png",
+   "backImageUrl": null,
+   "deckplanetId": 10787,
+   "searchText": "bt31-009 bt31009 son goku, training in another world  son goku"
+  },
+  {
+   "id": "BT31-010",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Son Goku & Vegeta, Battling Against Evil",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 16000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[blocker]\n[br]\n[auto] [limit 1] When this card is played, choose one --\n[ul]\n[li] Draw 1 card. [/li]\n[li] Play up to 1 <Son Goku> or <Vegeta> card -- both mono-red with 16000 power --from your Warp [/li]\n[/ul]\n[activate: main/battle] {r}, choose 1 of your Red <Veku> or <Gogeta> cards and place it into its owner's Drop: Play this card from its owner's Warp.",
+   "characters": [
+    "Son Goku",
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "blocker",
+    "auto",
+    "limit 1",
+    "activate: main/battle"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-010.png",
+   "backImageUrl": null,
+   "deckplanetId": 10777,
+   "searchText": "bt31-010 bt31010 son goku & vegeta, battling against evil  son goku vegeta"
+  },
+  {
+   "id": "BT31-011",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "SS Vegeta, Struggle in Another World",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 16000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[activate: main] [limit 1] Place this card from your Warp into its owner's Drop and discard 1 red <Son Goku> card from your hand: Add up to 1 red <Veku> card with an energy cost of 5 from your Drop or Warp to your hand.\n[br]\n[activate: battle] [once per turn] Choose up to 1 of your opponent's Battle Cards and it gets -10000 power for the turn.",
+   "characters": [
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "activate: main",
+    "limit 1",
+    "activate: battle",
+    "once per turn"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-011.png",
+   "backImageUrl": null,
+   "deckplanetId": 10799,
+   "searchText": "bt31-011 bt31011 ss vegeta, struggle in another world  vegeta"
+  },
+  {
+   "id": "BT31-012",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Vegeta, Hellish Warrior",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 16000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[permanent] If you have 2 or fewer red ≪Saiyan≫ cards in your Warp, this card can't attack.\n[br]\n[activate: main] [limit 1] {r}, if your Leader's back side is a red <Gogeta> card: Draw 1 card and play this card from your hand.\n[br]\n[activate: main] [limit 1] If you have 2 or more energy and you place this card into its owner's Drop: Play up to 1 mono-red <Vegeta> card with 16000 power from your hand.",
+   "characters": [
+    "Vegeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "permanent",
+    "activate: main",
+    "limit 1"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-012.png",
+   "backImageUrl": null,
+   "deckplanetId": 10788,
+   "searchText": "bt31-012 bt31012 vegeta, hellish warrior  vegeta"
+  },
+  {
+   "id": "BT31-013",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Veku, Incomplete Fusion",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "5",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect]\n[br]\n[union-fusion] If your Leader is a red <Gogeta> card and you draw 1 card: Red <Son Goku> card and red <Vegeta> card.\n[br]\n[activate: main] [limit 1] {r}, if your opponent has 2 or more energy: Play up to 1 red <Gogeta> card with an energy cost of 2 from your Z-Deck on top of this card.\n[br]\n[activate: main] [limit 1] Add up to 1 <Son Goku> or <Vegeta> card -- both red and with 16000 power -- from your Warp to your hand.",
+   "characters": [
+    "Veku"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "deflect",
+    "union-fusion",
+    "activate: main",
+    "limit 1"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-013.png",
+   "backImageUrl": null,
+   "deckplanetId": 10780,
+   "searchText": "bt31-013 bt31013 veku, incomplete fusion  veku"
+  },
+  {
+   "id": "BT31-014",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "SS Gogeta, Revoker of Evil",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "8",
+   "zEnergyCost": null,
+   "power": 30000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[triple strike] [revenge]\n[br]\n[union-fusion] {r}{r}, if your opponent has 3 or more energy and you draw 2 cards: Red <Son Goku> card and red <Vegeta> card.\n[br]\n[auto] When this card is played, choose up to 1 of your opponent's Battle Cards and it gets -30000 power for the turn.\n[br]\n[auto] When this card is removed from a Battle Area by an opponent's skill, choose all of your opponent's cards and they get -25000 power for the turn.",
+   "characters": [
+    "Gogeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "triple strike",
+    "revenge",
+    "union-fusion",
+    "auto"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-014.png",
+   "backImageUrl": null,
+   "deckplanetId": 10778,
+   "searchText": "bt31-014 bt31014 ss gogeta, revoker of evil  gogeta"
+  },
+  {
+   "id": "BT31-015",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "SS Gogeta, Vanquisher",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "6",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[revenge]\n[br]\n[union-fusion] {r}, if you have 3 or more energy and you draw 1 card: Red <Son Goku> card and red <Vegeta> card.\n[br]\n[auto] When this card is played or removed from a Battle Area by a skill, choose up to 1 of your opponent's Battle Cards or Unisons and it gets -20000 power for the turn.\n[br]\n[activate: battle] [once per turn] Use up to 1 red card with 5000 combo power from your Warp in a combo with its skills negated for the turn.",
+   "characters": [
+    "Gogeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "revenge",
+    "union-fusion",
+    "auto",
+    "activate: battle",
+    "once per turn"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-015.png",
+   "backImageUrl": null,
+   "deckplanetId": 10781,
+   "searchText": "bt31-015 bt31015 ss gogeta, vanquisher  gogeta"
+  },
+  {
+   "id": "BT31-017",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Janemba, Demonic Howl",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[counter: attack] [limit 1] Negate the attack and play this card.\n[br]\n[permanent] If your Leader is an ≪Evil Incarnate≫ card and your life is at 5 or less, you can activate this card's [counter] skill from your hand by adding 1 card from your life to your hand instead of paying its energy cost. \n[br]\n[auto] When this card is played, draw 1 card, choose up to 1 of your opponent's Battle Cards and it gets -5000 power for the turn.",
+   "characters": [
+    "Janemba"
+   ],
+   "traits": [
+    "Evil Incarnate"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "counter: attack",
+    "limit 1",
+    "permanent",
+    "counter",
+    "auto"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-017.png",
+   "backImageUrl": null,
+   "deckplanetId": 10790,
+   "searchText": "bt31-017 bt31017 janemba, demonic howl  janemba"
+  },
+  {
+   "id": "BT31-018",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Janemba, Unintentional Evil",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[auto] [burst 1] When this card is played, choose up to 1 of your opponent's Battle Cards, ignoring [barrier], and it gets -5000 power for the turn.\n[br]\n[auto] [limit 1] If your Leader is {Janemba, Blade of Hatred}: When this card is sent to its owner's Warp by a skill, play this card from its owner's Warp.\n[br]\n[activate: main/battle] {r}, if you have an ≪Evil Incarnate≫ card in your Drop: Draw 1 card and play this card from your hand.",
+   "characters": [
+    "Janemba"
+   ],
+   "traits": [
+    "Evil Incarnate"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "auto",
+    "burst 1",
+    "barrier",
+    "limit 1",
+    "activate: main/battle"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-018.png",
+   "backImageUrl": null,
+   "deckplanetId": 10785,
+   "searchText": "bt31-018 bt31018 janemba, unintentional evil  janemba"
+  },
+  {
+   "id": "BT31-024",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Power Release",
+   "cardType": "EXTRA",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[activate: main] Look at up to 5 cards from the top of your deck, add up to 2 red ≪Saiyan≫ cards with an energy cost of 3 or less to your hand, then shuffle your deck.\n[br]\n[activate: battle] Draw 1 card, choose up to 1 of your red cards and it gets +15000 power for the battle. Additionally, if the chosen card is a ≪Saiyan≫ card, choose up to 1 of your opponent's cards and that card gets -5000 power for the battle.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "activate: main",
+    "activate: battle"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-024.png",
+   "backImageUrl": null,
+   "deckplanetId": 10804,
+   "searchText": "bt31-024 bt31024 power release "
+  },
+  {
+   "id": "BT31-025",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Buying Time",
+   "cardType": "EXTRA",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[counter: attack] Draw 1 card, choose up to 1 of your red Battle Cards or Unisons and switch the target of attack to it.\n[br]\n[permanent] If your Leader is red, you can activate this card's [counter] skill from your hand by adding 1 card from your life to your hand instead of paying its energy cost.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "counter: attack",
+    "permanent",
+    "counter"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-025.png",
+   "backImageUrl": null,
+   "deckplanetId": 10791,
+   "searchText": "bt31-025 bt31025 buying time "
+  },
+  {
+   "id": "BT31-116",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell",
+   "cardType": "LEADER",
+   "colors": [
+    "White"
+   ],
+   "energyCost": null,
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[permanent] You can't include non-white Extra in your deck.\n[br]\n[activate: main] [once per turn] Place up to 1 white <Cell> card from your deck into its owner's Drop, then shuffle your deck.\n[br]\n[awaken] When your life is at 4 or less, or you have a total of 3 or more white <Cell> cards and Extras in your Drop: Draw 2 cards, then add cards from your life to your hand until you have 6 life left.",
+   "characters": [
+    "Cell"
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "permanent",
+    "activate: main",
+    "once per turn",
+    "awaken",
+    "auto",
+    "activate: main/battle"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": "Cell, Perfect Power",
+   "backSkill": "[auto] Switch 1 of your energy to Hidden Mode: When your <Cell> or <Cell Jr.> card -- both white and with an energy cost of 3 or more -- is played, activate an [activate: main/battle] skill of up to 1 mono-white Extra with an energy cost of 2 in your hand.\n[br]\n[activate: main/battle] [once per turn] Add up to 1 white Extra with an [activate: main/battle] skill and an energy cost of 2 from your Drop to your hand.",
+   "backPower": 15000,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-116_SLR.png",
+   "backImageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-116_b.png",
+   "deckplanetId": 10753,
+   "searchText": "bt31-116 bt31116 cell cell, perfect power cell"
+  },
+  {
+   "id": "BT31-119",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell, Creeping Terror",
+   "cardType": "Z-BATTLE",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": "1",
+   "power": 15000,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Deflect]<br>[Permanent] If you have energy in Hidden Mode, reduce the energy cost of this card in your Z-Deck by 2.<br>[Auto] When this card is played, place a total of up to 2 white &lt;Cell&gt; cards or white Extras from your deck into your Drop, then shuffle your deck and place up to 1 white 《Android》 card from your Drop under this card.",
+   "characters": [
+    "Cell"
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Deflect",
+    "Permanent",
+    "Auto"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-119.png",
+   "backImageUrl": null,
+   "deckplanetId": 11106,
+   "searchText": "bt31-119 bt31119 cell, creeping terror  cell"
+  },
+  {
+   "id": "BT31-126",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Android 18, Supporter",
+   "cardType": "BATTLE",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 0,
+   "comboPower": 10000,
+   "skill": "[Super Combo]<br>[Auto][Sparking 5] If your Leader is white: When this card is used in a combo, draw 1 card.",
+   "characters": [
+    "Android 18"
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Super Combo",
+    "Auto",
+    "Sparking 5"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-126.png",
+   "backImageUrl": null,
+   "deckplanetId": 11113,
+   "searchText": "bt31-126 bt31126 android 18, supporter  android 18"
+  },
+  {
+   "id": "BT31-127",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Dende, Training Assistant",
+   "cardType": "BATTLE",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 1000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Auto] When this card is played, draw 1 card.<br>[Activate: Main/Battle][Limit 1] Place this card from under a &lt;Hyperbolic Time Chamber&gt; card into its owner's Drop, then place 1 card from your hand under your &lt;Hyperbolic Time Chamber&gt; Leader: Draw 1 card.",
+   "characters": [
+    "Dende"
+   ],
+   "traits": [
+    "Namekian",
+    "God"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Auto",
+    "Activate: Main/Battle",
+    "Limit 1"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-127.png",
+   "backImageUrl": null,
+   "deckplanetId": 11114,
+   "searchText": "bt31-127 bt31127 dende, training assistant  dende"
+  },
+  {
+   "id": "BT31-128",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell, Ultimate Form",
+   "cardType": "BATTLE",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "8",
+   "zEnergyCost": null,
+   "power": 30000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect][double strike]<br>[evolve]{1}, if you have 3 or more energy: White <Cell> card.<br>[auto] When this card is played, draw 1 card, switch this card to Active Mode, choose up to 1 of your opponent's Battle Cards and KO it, then at the end of the turn, switch all of your energy to Revealed Mode.<br>[activate: main][limit 1]{2}, if your Leader is white or an 《Android》 card, and you have 3 or more energy: Play this card from your hand.",
+   "characters": [
+    "Cell"
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Deflect",
+    "Double Strike",
+    "Evolve",
+    "Auto",
+    "Activate: Main",
+    "Limit 1"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-128.png",
+   "backImageUrl": null,
+   "deckplanetId": 11115,
+   "searchText": "bt31-128 bt31128 cell, ultimate form  cell"
+  },
+  {
+   "id": "BT31-129",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell, Perfect Form",
+   "cardType": "BATTLE",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "6",
+   "zEnergyCost": null,
+   "power": 25000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Deflect][Dual Attack]<br>[EX-Evolve][Limit 1]{w}, if you have 3 or more energy and you draw 1 card: White &lt;Cell&gt; card with an energy cost of 3 or more.<br>[Auto] When this card attacks, switch up to 1 of your energy to Revealed Mode.<br>[Auto] When this card is removed from your Battle Area by a skill, play up to 1 white &lt;Cell&gt; card with an energy cost of 4 from your Drop.",
+   "characters": [
+    "Cell"
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Deflect",
+    "Dual Attack",
+    "EX-Evolve",
+    "Limit 1",
+    "Auto"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-129.png",
+   "backImageUrl": null,
+   "deckplanetId": 11116,
+   "searchText": "bt31-129 bt31129 cell, perfect form  cell"
+  },
+  {
+   "id": "BT31-130",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell, Absorbed Form",
+   "cardType": "BATTLE",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "4",
+   "zEnergyCost": null,
+   "power": 20000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[blocker]<br>[permanent] If your Leader is a white <Cell> card and this card is under a white <Cell> card, the card on top of this card gains [barrier].<br>[auto][limit 1]{1}: When this card is removed from your Battle Area by a skill, choose all of your and your opponent's Battle Cards with energy costs of 4 or less and place them into their owner's Drop.",
+   "characters": [
+    "Cell"
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Blocker",
+    "Permanent",
+    "Barrier",
+    "Auto",
+    "Limit 1"
+   ],
+   "rarity": "Rare[R]",
+   "rarityCode": "R",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-130.png",
+   "backImageUrl": null,
+   "deckplanetId": 11117,
+   "searchText": "bt31-130 bt31130 cell, absorbed form  cell"
+  },
+  {
+   "id": "BT31-131",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell, Ominous Android",
+   "cardType": "BATTLE",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 14000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[deflect]<br>[activate: main/battle][limit 1] If your Leader is a white <Cell> card, you have 2 or more energy and switch 1 of your energy to Hidden Mode: Play this card from your Drop in Rest Mode.<br>[activate: battle][limit 1]{1}, if your opponent has 2 or more energy and it's your opponent's turn: Play up to 1 white <Cell> card with an energy cost of 4 from your Drop on top of this card in Active Mode.",
+   "characters": [
+    "Cell"
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Deflect",
+    "Activate: Main/Battle",
+    "Limit 1",
+    "Activate: Battle"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-131.png",
+   "backImageUrl": null,
+   "deckplanetId": 11118,
+   "searchText": "bt31-131 bt31131 cell, ominous android  cell"
+  },
+  {
+   "id": "BT31-132",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell, Ominous Larva",
+   "cardType": "BATTLE",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 4000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Auto] When this card is played, look at up to 5 cards from the top of your deck, add up to 1 white 《Android》 card to your hand, then shuffle your deck.<br>[Activate: Main][Limit 1] If your Leader is a white &lt;Cell&gt; card, and you remove this card in your Drop from the game and discard 1 card from your hand: Add up to 1 white Extra with an[Activate: Main/Battle] skill from your Drop to your hand.",
+   "characters": [
+    "Cell"
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Auto",
+    "Activate: Main",
+    "Limit 1",
+    "Activate: Main/Battle"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-132.png",
+   "backImageUrl": null,
+   "deckplanetId": 11120,
+   "searchText": "bt31-132 bt31132 cell, ominous larva  cell"
+  },
+  {
+   "id": "BT31-133",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell Jr., the Fiendish",
+   "cardType": "BATTLE",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Auto] When this card is played, draw 1 card and add 1 card from your hand to your Z-Energy with its skills negated for the turn.<br>[Activate: Battle][Limit 1] If your Leader is white, your opponent has 2 or more energy, during your opponent's turn, and you switch 1 of your energy to Revealed Mode: Play this card from your hand, choose up to 1 of your cards and it gets +5000 power for the battle.",
+   "characters": [
+    "Cell Jr."
+   ],
+   "traits": [
+    "Android"
+   ],
+   "eras": [
+    "Android Cell Saga"
+   ],
+   "keywords": [
+    "Auto",
+    "Activate: Battle",
+    "Limit 1"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-133.png",
+   "backImageUrl": null,
+   "deckplanetId": 11121,
+   "searchText": "bt31-133 bt31133 cell jr., the fiendish  cell jr."
+  },
+  {
+   "id": "BT31-138",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell's Solar Flare",
+   "cardType": "EXTRA",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Activate: Main/Battle] Choose up to 1 of your white &lt;Cell&gt; cards and return it to your hand, choose up to 1 keyword skill on your opponent's Battle Card or Unison and negate that skill for the turn.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "Activate: Main/Battle"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-138.png",
+   "backImageUrl": null,
+   "deckplanetId": 11127,
+   "searchText": "bt31-138 bt31138 cell's solar flare "
+  },
+  {
+   "id": "BT31-139",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Absorb and Power Up",
+   "cardType": "EXTRA",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Activate: Main/Battle] Draw 1 card, choose 1 of your white &lt;Cell&gt; Battle Cards and you may place 1 《Android》 card from your Drop under the chosen card. If you do, play up to 1 white &lt;Cell&gt; card with an energy cost of 4 or less from your Drop on top of the chosen card in Active Mode.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "Activate: Main/Battle"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-139.png",
+   "backImageUrl": null,
+   "deckplanetId": 11128,
+   "searchText": "bt31-139 bt31139 absorb and power up "
+  },
+  {
+   "id": "BT31-140",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Regeneration Skill",
+   "cardType": "EXTRA",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Activate: Main/Battle] Draw 1 card and switch up to 3 of your energy to Revealed Mode. Additionally, if your opponent's card is attacking, your Leader gets +10000 power for the battle.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "Activate: Main/Battle"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-140.png",
+   "backImageUrl": null,
+   "deckplanetId": 11129,
+   "searchText": "bt31-140 bt31140 regeneration skill "
+  },
+  {
+   "id": "BT31-141",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell Jr. Summon",
+   "cardType": "EXTRA",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Activate: Main/Battle] Play 2 Cell Jr. Tokens and they gain [Blocker] for the turn. (Cell Jr. Tokens have 10000 power, 0 combo cost, and 5000 combo power.)",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "Activate: Main/Battle",
+    "Blocker"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-141.png",
+   "backImageUrl": null,
+   "deckplanetId": 11130,
+   "searchText": "bt31-141 bt31141 cell jr. summon "
+  },
+  {
+   "id": "BT31-142",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "Cell's Kamehameha",
+   "cardType": "EXTRA",
+   "colors": [
+    "White"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": null,
+   "comboCost": null,
+   "comboPower": null,
+   "skill": "[Activate: Main/Battle] Draw 1 card, then choose up to 1 of your white Battle Cards and it gets +10000 power for the turn. Additionally, if it's your turn, choose up to 1 of your opponent's Battle Cards and place it into its owner's Drop.",
+   "characters": [],
+   "traits": [],
+   "eras": [],
+   "keywords": [
+    "Activate: Main/Battle"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-142.png",
+   "backImageUrl": null,
+   "deckplanetId": 11131,
+   "searchText": "bt31-142 bt31142 cell's kamehameha "
+  },
+  {
+   "id": "BT31-149",
+   "setCode": "BT31",
+   "game": "dbs",
+   "name": "SS Gogeta, Hell-Piercing Flash",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "8",
+   "zEnergyCost": null,
+   "power": 40000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[ultimate] [barrier] [triple attack]\n[br]\n[union-fusion] {1}, if your opponent has 3 or more energy and you draw 3 cards: <Son Goku> card and <Vegeta> card.\n[br]\n[auto] When this card is played, choose all of your opponent's Battle Cards and Unisons, ignoring [barrier], and they get -25000 power for the turn.\n[br]\n[auto] When your opponent's card is played, choose up to 1 of your opponent's cards, ignoring [barrier], and it gets -10000 power for the turn.",
+   "characters": [
+    "Gogeta"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "Janemba Saga"
+   ],
+   "keywords": [
+    "ultimate",
+    "barrier",
+    "triple attack",
+    "union-fusion",
+    "auto"
+   ],
+   "rarity": "Secret Rare[SCR]",
+   "rarityCode": "SCR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT31-149.png",
+   "backImageUrl": null,
+   "deckplanetId": 10552,
+   "searchText": "bt31-149 bt31149 ss gogeta, hell-piercing flash  gogeta"
+  },
+  {
+   "id": "BT4-028",
+   "setCode": "BT4",
+   "game": "dbs",
+   "name": "Son Gohan",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue"
+   ],
+   "energyCost": "1",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": null,
+   "characters": [
+    "Son Gohan: Adolescence"
+   ],
+   "traits": [
+    "Saiyan",
+    "Earthling"
+   ],
+   "eras": [
+    "Hirudegarn Saga"
+   ],
+   "keywords": [],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT4-028.png",
+   "backImageUrl": null,
+   "deckplanetId": 4622,
+   "searchText": "bt4-028 bt4028 son gohan  son gohan: adolescence"
+  },
+  {
+   "id": "BT5-061",
+   "setCode": "BT5",
+   "game": "dbs",
+   "name": "Defensive Stance Piccolo",
+   "cardType": "BATTLE",
+   "colors": [
+    "Green"
+   ],
+   "energyCost": "2",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 10000,
+   "skill": "[Super Combo] (You can only include up to 4 cards with [Super Combo] in your deck.)<br>[Auto] When you combo with this card, if your Leader Card is green and your life is at 4 or less, draw 1 card.",
+   "characters": [
+    "Piccolo"
+   ],
+   "traits": [
+    "Namekian",
+    "God"
+   ],
+   "eras": [
+    "Super 17 Saga"
+   ],
+   "keywords": [
+    "Super Combo",
+    "Auto"
+   ],
+   "rarity": "Common[C]",
+   "rarityCode": "C",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT5-061.png",
+   "backImageUrl": null,
+   "deckplanetId": 4772,
+   "searchText": "bt5-061 bt5061 defensive stance piccolo  piccolo"
+  },
+  {
+   "id": "BT6-003",
+   "setCode": "BT6",
+   "game": "dbs",
+   "name": "Harmonic Energy SSB Son Goku",
+   "cardType": "BATTLE",
+   "colors": [
+    "Red"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 10000,
+   "comboCost": 0,
+   "comboPower": 5000,
+   "skill": "[Auto] [Sparking 3] When you play this card from your hand, look at up to 7 cards from the top of your deck, choose up to 1 red &lt;Vegeta: Br&gt; card among them and play it in Rest Mode, then shuffle your deck.<br>[Activate: Main][Once per turn] This card gets +10000 power and can attack Battle Cards in Active Mode for the duration of the turn.<br>[Auto] At the end of your turn, return this card to its owner's hand.",
+   "characters": [
+    "Son Goku: Br"
+   ],
+   "traits": [
+    "Saiyan"
+   ],
+   "eras": [
+    "DBS: Broly Saga"
+   ],
+   "keywords": [
+    "Auto",
+    "Sparking 3",
+    "Activate: Main",
+    "Once per turn"
+   ],
+   "rarity": "Uncommon[UC]",
+   "rarityCode": "UC",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT6-003.png",
+   "backImageUrl": null,
+   "deckplanetId": 4008,
+   "searchText": "bt6-003 bt6003 harmonic energy ssb son goku  son goku: br"
+  },
+  {
+   "id": "BT8-119",
+   "setCode": "BT8",
+   "game": "dbs",
+   "name": "Son Gohan & Piccolo, Pupil and Master",
+   "cardType": "BATTLE",
+   "colors": [
+    "Blue",
+    "Green"
+   ],
+   "energyCost": "3",
+   "zEnergyCost": null,
+   "power": 15000,
+   "comboCost": 1,
+   "comboPower": 10000,
+   "skill": "[Barrier]<br>[Energy-Exhaust]<br>[Revive Blue/Green] (Place cards in your hand in your Drop Area that match all colors specified by [Revive]: When this card is KO'd, play this card and negate this skill for the duration of the turn.)<br>[Auto] When this card attacks, your opponent chooses 1 card in their hand and places it in their Drop Area.",
+   "characters": [
+    "Son Gohan: Youth",
+    "Piccolo"
+   ],
+   "traits": [
+    "Saiyan",
+    "Earthling",
+    "Namekian"
+   ],
+   "eras": [
+    "Dr.Uiro Saga"
+   ],
+   "keywords": [
+    "Barrier",
+    "Energy-Exhaust",
+    "Revive Blue/Green",
+    "Revive",
+    "Auto"
+   ],
+   "rarity": "Super Rare[SR]",
+   "rarityCode": "SR",
+   "limitedTo": 4,
+   "isBanned": false,
+   "isLimited": false,
+   "hasErrata": false,
+   "isHorizontal": false,
+   "backName": null,
+   "backSkill": null,
+   "backPower": null,
+   "imageUrl": "https://storage.googleapis.com/deckplanet_card_images/BT8-119.png",
+   "backImageUrl": null,
+   "deckplanetId": 5197,
+   "searchText": "bt8-119 bt8119 son gohan & piccolo, pupil and master  son gohan: youth piccolo"
+  }
+ ]
+}

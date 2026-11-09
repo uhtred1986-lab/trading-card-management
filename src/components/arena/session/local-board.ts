@@ -22,7 +22,7 @@
 import { capabilitiesOf, type ArenaSession, type SessionConnection, type SessionResult, type WatchHandle, type WatchOptions } from "./contract";
 import { LocalWorkerSession, type LocalNewMatch, type LocalStartInput } from "./local";
 import { LocalMatchSupervisor, type SpawnedWorker, type SupervisorOptions, type SupervisorState } from "../../../lib/arena/local/recovery";
-import { ERROR_SENTENCE, type LocalErrorCode } from "../../../lib/arena/local/protocol";
+import { ERROR_SENTENCE, type LocalDifficulty, type LocalErrorCode } from "../../../lib/arena/local/protocol";
 import type { OwnershipOptions } from "../../../lib/arena/local/ownership";
 import type { OfflinePack } from "../../../lib/arena/local/pack";
 import type { Snapshot } from "@/lib/arena/snapshot";
@@ -151,6 +151,8 @@ export interface LocalBoardDeps {
 export interface LocalSetup {
   decks: { p1: string; p2: string };
   human: PlayerId;
+  /** The computer's skill for a new match; a resumed match keeps the one it was started with (its journal says). */
+  difficulty?: LocalDifficulty;
 }
 
 export type BoardTone = "ok" | "busy" | "warn" | "error";
@@ -266,6 +268,7 @@ export class LocalBoard implements ArenaSession {
     const input: LocalNewMatch = {
       matchId: identity.matchId, gameId: identity.gameId, pack: facts.pack, interpreterRevision: facts.runtimeRevision,
       decks: { ...setup.decks }, human: setup.human, seed: draw(), policySeed: draw(),
+      ...(setup.difficulty ? { difficulty: setup.difficulty } : {}),
       ...(deps.batch ? { batch: deps.batch } : {}),
     };
     const supervisor = await LocalMatchSupervisor.open({ start: input }, LocalBoard.supervisorOptions(deps));

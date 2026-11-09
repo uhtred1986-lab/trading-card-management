@@ -68,9 +68,9 @@
  * `scripts/verify/arena-policy-contract.mts`).
  */
 import { answerFor, type Decision, type MenuDecision, type Policy, type PolicyInput } from "../../../src/lib/arena/policy/contract";
-import { activationsThisTurn, cardValue, lifeLoss, mainThen } from "../../../src/lib/arena/policy/main";
+import { activationsThisTurn, cardValue, lifeLoss, mainThen } from "./main";
 import type { CardFacts, PolicyObservation, SideFacts } from "../../../src/lib/arena/policy/observation";
-import { shortcutThen } from "../../../src/lib/arena/policy/shortcuts";
+import { shortcutThen } from "./shortcuts";
 import { choicesThen } from "./choices";
 import { interruptingPolicy } from "../../../src/lib/arena/policy/contract";
 

@@ -171,7 +171,15 @@ interface StaticsScope {
   ctx: EngineContext;
   game: GameDefinition;
   standing: VmStatic[] | null;
+  /** The immunities in force (`immunityStatics`), read once per reading like `standing`. */
+  immune: VmStatic[] | null;
 }
+/**
+ * The immunities worked out inside one `readStatics` walk (where `statics` reads as nothing, so the
+ * answer differs from the scope's): the board cannot change during the walk, and every selector's
+ * candidate asked for them again (9 Nov 2026: most of a search step on BT29–BT31 decks).
+ */
+let immuneWhileReading: { state: VmState; ctx: EngineContext; game: GameDefinition; value: VmStatic[] } | null = null;
 let staticsScope: StaticsScope | null = null;
 
 /** Run one read-only question about `state` with its statics read once. The state must not be changed in place while `read` runs. */
@@ -179,7 +187,7 @@ export function readingBoard<T>(ctx: EngineContext, game: GameDefinition, state:
   const outer = staticsScope;
   // Already inside a reading of this very board: its statics are this one's.
   if (outer && outer.state === state && outer.ctx === ctx && outer.game === game) return read();
-  staticsScope = { state, ctx, game, standing: null };
+  staticsScope = { state, ctx, game, standing: null, immune: null };
   try {
     return read();
   } finally {
@@ -221,7 +229,9 @@ function grantBarred(ctx: EngineContext, game: GameDefinition, state: VmState, i
 
 
 function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
+  const outerImmune = immuneWhileReading;
   readingStatics = true;
+  immuneWhileReading = null;
   try {
     const targets = (frame: ScriptFrame, op: Op) => resolveRef(ctx, game, state, frame, ("target" in op && op.target ? op.target : { sel: { special: "self" } }) as Ref);
     const holds = (frame: ScriptFrame, op: Op) => (op.op === "if" ? condHolds(ctx, game, state, frame, op.cond) : false);
@@ -245,6 +255,7 @@ function readStatics(ctx: EngineContext, game: GameDefinition, state: VmState): 
           if (mayCarry(ctx, state, id, names)) for (const b of hookBodiesFor(ctx, game, state, id, "altPayment")) bodies.push({ card: id, master: p, ops: b.ops });
     return bodies.length ? [...standing, ...keywordStatics(ctx, state, bodies, targets, holds, measure)] : standing;
   } finally {
+    immuneWhileReading = outerImmune;
     readingStatics = false;
   }
 }
@@ -307,6 +318,17 @@ function grantsImmunity(ops: Op[]): boolean {
  */
 function immunityStatics(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   if (readingImmunities) return [];
+  const same = (k: { state: VmState; ctx: EngineContext; game: GameDefinition } | null) => !!k && k.state === state && k.ctx === ctx && k.game === game;
+  if (readingStatics && same(immuneWhileReading)) return immuneWhileReading!.value;
+  const scope = !readingStatics && same(staticsScope) ? staticsScope : null;
+  if (scope?.immune) return scope.immune;
+  const value = immunityStaticsNow(ctx, game, state);
+  if (readingStatics) immuneWhileReading = { state, ctx, game, value };
+  else if (scope) scope.immune = value;
+  return value;
+}
+
+function immunityStaticsNow(ctx: EngineContext, game: GameDefinition, state: VmState): VmStatic[] {
   readingImmunities = true;
   try {
     return permanents(

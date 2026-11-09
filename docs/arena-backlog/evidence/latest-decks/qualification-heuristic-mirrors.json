@@ -1,0 +1,482 @@
+{
+  "format": "arena-sprt-v1",
+  "mode": "sprt",
+  "config": {
+    "candidate": "heuristic",
+    "baseline": "heuristic",
+    "ladder": null,
+    "players": {
+      "heuristic": "today's local opponent, localPolicy() through localStep (main v2, combat v5, choices v2)"
+    },
+    "playersModules": [],
+    "seedBlock": {
+      "name": "latest-decks",
+      "base": 64000000,
+      "size": 1000000,
+      "policyBase": 564000000,
+      "status": "dev",
+      "note": "games on the latest-release decks (scripts/arena-latest-decks.mts, BT27+ prepared recipes), 9 Nov 2026; measurement, never a gate"
+    },
+    "fixtureCycle": [
+      "bt31_116~bt31_116",
+      "bt31_001~bt31_001",
+      "bt30_001~bt30_001",
+      "bt30_082~bt30_082",
+      "bt29_029~bt29_029",
+      "bt29_057~bt29_057",
+      "bt27_092~bt27_092",
+      "bt27_045~bt27_045"
+    ],
+    "maxMoves": 3000,
+    "privacyEvery": 20,
+    "maxGames": 32,
+    "maxPairs": 16,
+    "sprt": {
+      "elo0": 0,
+      "elo1": 30,
+      "alpha": 0.05,
+      "beta": 0.05,
+      "minPairs": 16,
+      "minInformativePairs": 10
+    }
+  },
+  "run": {
+    "workers": 2,
+    "cpus": 4,
+    "loadAverage": {
+      "atStart": [
+        2.86,
+        1.44,
+        1.54
+      ],
+      "atEnd": [
+        3.66,
+        2.79,
+        2.09
+      ]
+    },
+    "wallSeconds": 221.58027465600003,
+    "games": 32,
+    "wallSecondsPerGame": 6.924383583000001,
+    "gameSeconds": {
+      "mean": 12.09713337609375,
+      "p50": 7.664280588000008,
+      "p95": 37.583003676,
+      "max": 38.629826018000024
+    },
+    "discardedPastDecision": {
+      "deals": 0,
+      "integrityFailures": 0
+    }
+  },
+  "source": {
+    "commit": "c4f5546466f91237b90c2a62d0e77f103a4e5b83",
+    "dirty": true,
+    "start": {
+      "id": "arena-policy-eval",
+      "version": "sprt-1",
+      "gitCommit": "c4f5546466f91237b90c2a62d0e77f103a4e5b83",
+      "dirtyTreeSha256": "ead7840087e7a7a192d025ac36049ed937f2a86a4ca36d71752b348e908fc000"
+    },
+    "end": {
+      "id": "arena-policy-eval",
+      "version": "sprt-1",
+      "gitCommit": "c4f5546466f91237b90c2a62d0e77f103a4e5b83",
+      "dirtyTreeSha256": "ead7840087e7a7a192d025ac36049ed937f2a86a4ca36d71752b348e908fc000"
+    },
+    "changedDuringRun": false,
+    "node": "v24.22.2"
+  },
+  "result": {
+    "decision": "inconclusive",
+    "stoppedBy": "cap",
+    "verdict": "FAIL: 15 integrity failure(s)",
+    "gateEligible": false,
+    "notGateReasons": [
+      "seed block latest-decks is dev, not a fresh gate block",
+      "the SPRT parameters are not the declared gate's",
+      "not the declared fixture cycle",
+      "the working tree was not clean"
+    ],
+    "pairs": 16,
+    "games": 32,
+    "wins": 9,
+    "draws": 0,
+    "losses": 9,
+    "unfinished": 14,
+    "pentanomial": [
+      7,
+      0,
+      9,
+      0,
+      0
+    ],
+    "informativePairs": 7,
+    "llr": -2.6893633467690834,
+    "bounds": [
+      -2.9444389791664403,
+      2.9444389791664403
+    ],
+    "elo": {
+      "pairs": 16,
+      "score": 0.28132225207773537,
+      "scoreCi95": [
+        0.15976257457506632,
+        0.4028819295804044
+      ],
+      "elo": -162.93204511392702,
+      "eloCi95": [
+        -288.3707884709183,
+        -68.35297034122173
+      ],
+      "los": 0.00021106745975020023,
+      "variance": 0.06155797170193307
+    },
+    "integrityFailures": 15,
+    "integrity": [
+      "deal 2 (bt30_001~bt30_001, seed 64000002, candidate p1, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 2 (bt30_001~bt30_001, seed 64000002, candidate p2, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 3 (bt30_082~bt30_082, seed 64000003, candidate p1, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 3 (bt30_082~bt30_082, seed 64000003, candidate p2, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 5 (bt29_057~bt29_057, seed 64000005, candidate p1, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 5 (bt29_057~bt29_057, seed 64000005, candidate p2, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 6 (bt27_092~bt27_092, seed 64000006, candidate p1, vs heuristic): hidden-twin privacy: 1 failure(s), e.g. r196 chooseMode: the decision plays on the real position but not on the twin",
+      "deal 7 (bt27_045~bt27_045, seed 64000007, candidate p1, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 7 (bt27_045~bt27_045, seed 64000007, candidate p2, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 10 (bt30_001~bt30_001, seed 64000010, candidate p1, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 10 (bt30_001~bt30_001, seed 64000010, candidate p2, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 13 (bt29_057~bt29_057, seed 64000013, candidate p1, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 13 (bt29_057~bt29_057, seed 64000013, candidate p2, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 15 (bt27_045~bt27_045, seed 64000015, candidate p1, vs heuristic): interrupted: This game was interrupted before a result was reached.",
+      "deal 15 (bt27_045~bt27_045, seed 64000015, candidate p2, vs heuristic): interrupted: This game was interrupted before a result was reached."
+    ],
+    "privacyChecks": 129,
+    "nontrivialTwins": 129,
+    "byFixture": {
+      "bt31_116~bt31_116": {
+        "pairs": 2,
+        "wins": 2,
+        "draws": 0,
+        "losses": 2,
+        "unfinished": 0,
+        "pentanomial": [
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        "elo": {
+          "pairs": 2,
+          "score": 0.5000000000000001,
+          "scoreCi95": [
+            0.4755493514902689,
+            0.5244506485097313
+          ],
+          "elo": 7.714619732426298e-14,
+          "eloCi95": [
+            -17.00361320567638,
+            17.003613205676544
+          ],
+          "los": 0.4999999850000033,
+          "variance": 0.0003118762475049901
+        }
+      },
+      "bt31_001~bt31_001": {
+        "pairs": 2,
+        "wins": 2,
+        "draws": 0,
+        "losses": 2,
+        "unfinished": 0,
+        "pentanomial": [
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        "elo": {
+          "pairs": 2,
+          "score": 0.5000000000000001,
+          "scoreCi95": [
+            0.4755493514902689,
+            0.5244506485097313
+          ],
+          "elo": 7.714619732426298e-14,
+          "eloCi95": [
+            -17.00361320567638,
+            17.003613205676544
+          ],
+          "los": 0.4999999850000033,
+          "variance": 0.0003118762475049901
+        }
+      },
+      "bt30_001~bt30_001": {
+        "pairs": 2,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "unfinished": 4,
+        "pentanomial": [
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        "elo": {
+          "pairs": 2,
+          "score": 0.00124750499001996,
+          "scoreCi95": [
+            1e-9,
+            0.043562034799363686
+          ],
+          "elo": -1161.3662343076346,
+          "eloCi95": [
+            -3599.9999998262824,
+            -536.619459684581
+          ],
+          "los": 2.2264601540883746e-118,
+          "variance": 0.0009340724738148455
+        }
+      },
+      "bt30_082~bt30_082": {
+        "pairs": 2,
+        "wins": 1,
+        "draws": 0,
+        "losses": 1,
+        "unfinished": 2,
+        "pentanomial": [
+          1,
+          0,
+          1,
+          0,
+          0
+        ],
+        "elo": {
+          "pairs": 2,
+          "score": 0.2506240639041438,
+          "scoreCi95": [
+            1e-9,
+            0.5977025475992762
+          ],
+          "elo": -190.2707900393004,
+          "eloCi95": [
+            -3599.9999998262824,
+            68.77512983361157
+          ],
+          "los": 0.0795308422744324,
+          "variance": 0.06281164249631543
+        }
+      },
+      "bt29_029~bt29_029": {
+        "pairs": 2,
+        "wins": 2,
+        "draws": 0,
+        "losses": 2,
+        "unfinished": 0,
+        "pentanomial": [
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        "elo": {
+          "pairs": 2,
+          "score": 0.5000000000000001,
+          "scoreCi95": [
+            0.4755493514902689,
+            0.5244506485097313
+          ],
+          "elo": 7.714619732426298e-14,
+          "eloCi95": [
+            -17.00361320567638,
+            17.003613205676544
+          ],
+          "los": 0.4999999850000033,
+          "variance": 0.0003118762475049901
+        }
+      },
+      "bt29_057~bt29_057": {
+        "pairs": 2,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "unfinished": 4,
+        "pentanomial": [
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        "elo": {
+          "pairs": 2,
+          "score": 0.00124750499001996,
+          "scoreCi95": [
+            1e-9,
+            0.043562034799363686
+          ],
+          "elo": -1161.3662343076346,
+          "eloCi95": [
+            -3599.9999998262824,
+            -536.619459684581
+          ],
+          "los": 2.2264601540883746e-118,
+          "variance": 0.0009340724738148455
+        }
+      },
+      "bt27_092~bt27_092": {
+        "pairs": 2,
+        "wins": 2,
+        "draws": 0,
+        "losses": 2,
+        "unfinished": 0,
+        "pentanomial": [
+          0,
+          0,
+          2,
+          0,
+          0
+        ],
+        "elo": {
+          "pairs": 2,
+          "score": 0.5000000000000001,
+          "scoreCi95": [
+            0.4755493514902689,
+            0.5244506485097313
+          ],
+          "elo": 7.714619732426298e-14,
+          "eloCi95": [
+            -17.00361320567638,
+            17.003613205676544
+          ],
+          "los": 0.4999999850000033,
+          "variance": 0.0003118762475049901
+        }
+      },
+      "bt27_045~bt27_045": {
+        "pairs": 2,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "unfinished": 4,
+        "pentanomial": [
+          2,
+          0,
+          0,
+          0,
+          0
+        ],
+        "elo": {
+          "pairs": 2,
+          "score": 0.00124750499001996,
+          "scoreCi95": [
+            1e-9,
+            0.043562034799363686
+          ],
+          "elo": -1161.3662343076346,
+          "eloCi95": [
+            -3599.9999998262824,
+            -536.619459684581
+          ],
+          "los": 2.2264601540883746e-118,
+          "variance": 0.0009340724738148455
+        }
+      }
+    },
+    "bySeat": {
+      "p1": {
+        "games": 16,
+        "wins": 5,
+        "draws": 0,
+        "losses": 4,
+        "unfinished": 7
+      },
+      "p2": {
+        "games": 16,
+        "wins": 4,
+        "draws": 0,
+        "losses": 5,
+        "unfinished": 7
+      }
+    },
+    "expectations": [
+      {
+        "variance": "#826 holdout (11 won-both, 120 split, 29 lost-both)",
+        "perPairVariance": 0.059336016600079367,
+        "elo": 0,
+        "pAcceptH1": 0.05000000000000001,
+        "expectedGames": 339.11300951999806
+      },
+      {
+        "variance": "#826 holdout (11 won-both, 120 split, 29 lost-both)",
+        "perPairVariance": 0.059336016600079367,
+        "elo": 15,
+        "pAcceptH1": 0.501370364083169,
+        "expectedGames": 554.719479703719
+      },
+      {
+        "variance": "#826 holdout (11 won-both, 120 split, 29 lost-both)",
+        "perPairVariance": 0.059336016600079367,
+        "elo": 30,
+        "pAcceptH1": 0.95,
+        "expectedGames": 339.11300951999806
+      },
+      {
+        "variance": "#826 holdout (11 won-both, 120 split, 29 lost-both)",
+        "perPairVariance": 0.059336016600079367,
+        "elo": 60,
+        "pAcceptH1": 0.9998410214888909,
+        "expectedGames": 126.80255167900364
+      },
+      {
+        "variance": "#899 holdout (14 won-both, 134 split, 12 lost-both)",
+        "perPairVariance": 0.04058621191062626,
+        "elo": 0,
+        "pAcceptH1": 0.05000000000000001,
+        "expectedGames": 231.95545057890612
+      },
+      {
+        "variance": "#899 holdout (14 won-both, 134 split, 12 lost-both)",
+        "perPairVariance": 0.04058621191062626,
+        "elo": 15,
+        "pAcceptH1": 0.501370364083169,
+        "expectedGames": 379.4316444588794
+      },
+      {
+        "variance": "#899 holdout (14 won-both, 134 split, 12 lost-both)",
+        "perPairVariance": 0.04058621191062626,
+        "elo": 30,
+        "pAcceptH1": 0.95,
+        "expectedGames": 231.95545057890612
+      },
+      {
+        "variance": "#899 holdout (14 won-both, 134 split, 12 lost-both)",
+        "perPairVariance": 0.04058621191062626,
+        "elo": 60,
+        "pAcceptH1": 0.9998410214888909,
+        "expectedGames": 86.733750058397
+      }
+    ],
+    "pairOutcomes": [
+      {"deal":0,"fixture":"bt31_116~bt31_116","engineSeed":64000000,"policySeed":564000000,"baseline":"heuristic","points":1,"games":[{"candidateSeat":"p1","winner":"candidate","moves":310,"turn":13,"stopKind":null,"trace":"36807e48","guards":{"candidate":0,"baseline":0},"twins":[9,9]},{"candidateSeat":"p2","winner":"baseline","moves":310,"turn":13,"stopKind":null,"trace":"36807e48","guards":{"candidate":0,"baseline":0},"twins":[7,7]}]},
+      {"deal":1,"fixture":"bt31_001~bt31_001","engineSeed":64000001,"policySeed":564000001,"baseline":"heuristic","points":1,"games":[{"candidateSeat":"p1","winner":"baseline","moves":190,"turn":10,"stopKind":null,"trace":"2350ec79","guards":{"candidate":0,"baseline":0},"twins":[5,5]},{"candidateSeat":"p2","winner":"candidate","moves":190,"turn":10,"stopKind":null,"trace":"2350ec79","guards":{"candidate":0,"baseline":0},"twins":[6,6]}]},
+      {"deal":2,"fixture":"bt30_001~bt30_001","engineSeed":64000002,"policySeed":564000002,"baseline":"heuristic","points":0,"games":[{"candidateSeat":"p1","winner":null,"moves":54,"turn":3,"stopKind":"interrupted","trace":"7dd4ea14","guards":{"candidate":0,"baseline":0},"twins":[1,1],"integrity":["interrupted: This game was interrupted before a result was reached."]},{"candidateSeat":"p2","winner":null,"moves":54,"turn":3,"stopKind":"interrupted","trace":"7dd4ea14","guards":{"candidate":0,"baseline":0},"twins":[2,2],"integrity":["interrupted: This game was interrupted before a result was reached."]}]},
+      {"deal":3,"fixture":"bt30_082~bt30_082","engineSeed":64000003,"policySeed":564000003,"baseline":"heuristic","points":0,"games":[{"candidateSeat":"p1","winner":null,"moves":162,"turn":10,"stopKind":"interrupted","trace":"831409f4","guards":{"candidate":0,"baseline":0},"twins":[4,4],"integrity":["interrupted: This game was interrupted before a result was reached."]},{"candidateSeat":"p2","winner":null,"moves":162,"turn":10,"stopKind":"interrupted","trace":"831409f4","guards":{"candidate":0,"baseline":0},"twins":[5,5],"integrity":["interrupted: This game was interrupted before a result was reached."]}]},
+      {"deal":4,"fixture":"bt29_029~bt29_029","engineSeed":64000004,"policySeed":564000004,"baseline":"heuristic","points":1,"games":[{"candidateSeat":"p1","winner":"baseline","moves":130,"turn":8,"stopKind":null,"trace":"d722079c","guards":{"candidate":0,"baseline":0},"twins":[4,4]},{"candidateSeat":"p2","winner":"candidate","moves":130,"turn":8,"stopKind":null,"trace":"d722079c","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":5,"fixture":"bt29_057~bt29_057","engineSeed":64000005,"policySeed":564000005,"baseline":"heuristic","points":0,"games":[{"candidateSeat":"p1","winner":null,"moves":72,"turn":8,"stopKind":"interrupted","trace":"c119639c","guards":{"candidate":0,"baseline":0},"twins":[2,2],"integrity":["interrupted: This game was interrupted before a result was reached."]},{"candidateSeat":"p2","winner":null,"moves":72,"turn":8,"stopKind":"interrupted","trace":"c119639c","guards":{"candidate":0,"baseline":0},"twins":[2,2],"integrity":["interrupted: This game was interrupted before a result was reached."]}]},
+      {"deal":6,"fixture":"bt27_092~bt27_092","engineSeed":64000006,"policySeed":564000006,"baseline":"heuristic","points":1,"games":[{"candidateSeat":"p1","winner":"candidate","moves":217,"turn":11,"stopKind":null,"trace":"5f2b211b","guards":{"candidate":0,"baseline":0},"twins":[6,6],"integrity":["hidden-twin privacy: 1 failure(s), e.g. r196 chooseMode: the decision plays on the real position but not on the twin"]},{"candidateSeat":"p2","winner":"baseline","moves":217,"turn":11,"stopKind":null,"trace":"5f2b211b","guards":{"candidate":0,"baseline":0},"twins":[6,6]}]},
+      {"deal":7,"fixture":"bt27_045~bt27_045","engineSeed":64000007,"policySeed":564000007,"baseline":"heuristic","points":0,"games":[{"candidateSeat":"p1","winner":null,"moves":14,"turn":3,"stopKind":"interrupted","trace":"0460ed02","guards":{"candidate":0,"baseline":0},"twins":[1,1],"integrity":["interrupted: This game was interrupted before a result was reached."]},{"candidateSeat":"p2","winner":null,"moves":14,"turn":3,"stopKind":"interrupted","trace":"0460ed02","guards":{"candidate":0,"baseline":0},"twins":[1,1],"integrity":["interrupted: This game was interrupted before a result was reached."]}]},
+      {"deal":8,"fixture":"bt31_116~bt31_116","engineSeed":64000008,"policySeed":564000008,"baseline":"heuristic","points":1,"games":[{"candidateSeat":"p1","winner":"candidate","moves":157,"turn":11,"stopKind":null,"trace":"b6781725","guards":{"candidate":0,"baseline":0},"twins":[5,5]},{"candidateSeat":"p2","winner":"baseline","moves":157,"turn":11,"stopKind":null,"trace":"b6781725","guards":{"candidate":0,"baseline":0},"twins":[4,4]}]},
+      {"deal":9,"fixture":"bt31_001~bt31_001","engineSeed":64000009,"policySeed":564000009,"baseline":"heuristic","points":1,"games":[{"candidateSeat":"p1","winner":"candidate","moves":195,"turn":9,"stopKind":null,"trace":"4721d45f","guards":{"candidate":0,"baseline":0},"twins":[5,5]},{"candidateSeat":"p2","winner":"baseline","moves":195,"turn":9,"stopKind":null,"trace":"4721d45f","guards":{"candidate":0,"baseline":0},"twins":[5,5]}]},
+      {"deal":10,"fixture":"bt30_001~bt30_001","engineSeed":64000010,"policySeed":564000010,"baseline":"heuristic","points":0,"games":[{"candidateSeat":"p1","winner":null,"moves":64,"turn":3,"stopKind":"interrupted","trace":"aa1a1e84","guards":{"candidate":0,"baseline":0},"twins":[3,3],"integrity":["interrupted: This game was interrupted before a result was reached."]},{"candidateSeat":"p2","winner":null,"moves":64,"turn":3,"stopKind":"interrupted","trace":"aa1a1e84","guards":{"candidate":0,"baseline":0},"twins":[1,1],"integrity":["interrupted: This game was interrupted before a result was reached."]}]},
+      {"deal":11,"fixture":"bt30_082~bt30_082","engineSeed":64000011,"policySeed":564000011,"baseline":"heuristic","points":1,"games":[{"candidateSeat":"p1","winner":"candidate","moves":221,"turn":12,"stopKind":null,"trace":"28fcf546","guards":{"candidate":0,"baseline":0},"twins":[6,6]},{"candidateSeat":"p2","winner":"baseline","moves":221,"turn":12,"stopKind":null,"trace":"28fcf546","guards":{"candidate":0,"baseline":0},"twins":[6,6]}]},
+      {"deal":12,"fixture":"bt29_029~bt29_029","engineSeed":64000012,"policySeed":564000012,"baseline":"heuristic","points":1,"games":[{"candidateSeat":"p1","winner":"baseline","moves":198,"turn":9,"stopKind":null,"trace":"6b06f6d9","guards":{"candidate":0,"baseline":0},"twins":[5,5]},{"candidateSeat":"p2","winner":"candidate","moves":198,"turn":9,"stopKind":null,"trace":"6b06f6d9","guards":{"candidate":0,"baseline":0},"twins":[6,6]}]},
+      {"deal":13,"fixture":"bt29_057~bt29_057","engineSeed":64000013,"policySeed":564000013,"baseline":"heuristic","points":0,"games":[{"candidateSeat":"p1","winner":null,"moves":61,"turn":7,"stopKind":"interrupted","trace":"0ebd9601","guards":{"candidate":0,"baseline":0},"twins":[2,2],"integrity":["interrupted: This game was interrupted before a result was reached."]},{"candidateSeat":"p2","winner":null,"moves":61,"turn":7,"stopKind":"interrupted","trace":"0ebd9601","guards":{"candidate":0,"baseline":0},"twins":[2,2],"integrity":["interrupted: This game was interrupted before a result was reached."]}]},
+      {"deal":14,"fixture":"bt27_092~bt27_092","engineSeed":64000014,"policySeed":564000014,"baseline":"heuristic","points":1,"games":[{"candidateSeat":"p1","winner":"baseline","moves":211,"turn":10,"stopKind":null,"trace":"9ec30fa6","guards":{"candidate":0,"baseline":0},"twins":[6,6]},{"candidateSeat":"p2","winner":"candidate","moves":211,"turn":10,"stopKind":null,"trace":"9ec30fa6","guards":{"candidate":0,"baseline":0},"twins":[6,6]}]},
+      {"deal":15,"fixture":"bt27_045~bt27_045","engineSeed":64000015,"policySeed":564000015,"baseline":"heuristic","points":0,"games":[{"candidateSeat":"p1","winner":null,"moves":9,"turn":2,"stopKind":"interrupted","trace":"dfdbd7f7","guards":{"candidate":0,"baseline":0},"twins":[1,1],"integrity":["interrupted: This game was interrupted before a result was reached."]},{"candidateSeat":"p2","winner":null,"moves":9,"turn":2,"stopKind":"interrupted","trace":"dfdbd7f7","guards":{"candidate":0,"baseline":0},"twins":[1,1],"integrity":["interrupted: This game was interrupted before a result was reached."]}]}
+    ]
+  }
+}

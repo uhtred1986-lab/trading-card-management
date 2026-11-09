@@ -9,31 +9,50 @@ import { skillPriceProblem } from "./skill-payment";
 import { NotYet } from "./errors";
 
 export const FUSION_IDENTITY_REBUILD = "missing or contradictory recorded Union-Fusion identity; regenerate rules and rebuild saved matches/exports (#907)";
-export function fusionIdentityProblem(script: Pick<Script, "kind" | "price"> | undefined, required = false): string | null {
+/**
+ * The identity checks below are pure functions of a recorded script (its kind, price and ops), which a
+ * game never changes, and `skillsShowing` asks them for every printed line many times per engine step.
+ * Each answer is kept per script object (and per `required`), so the schema checks run once per record
+ * (9 Nov 2026: about a third of a search step on BT29–BT31 decks). A new or rebuilt script object is a
+ * new key, so nothing stale is read.
+ */
+function perScript<S extends object>(check: (script: S | undefined, required: boolean) => string | null): (script: S | undefined, required?: boolean) => string | null {
+  const known = [new WeakMap<object, string | null>(), new WeakMap<object, string | null>()];
+  return (script, required = false) => {
+    if (!script) return check(script, required);
+    const cache = known[required ? 1 : 0];
+    if (cache.has(script)) return cache.get(script)!;
+    const answer = check(script, required);
+    cache.set(script, answer);
+    return answer;
+  };
+}
+
+export const fusionIdentityProblem = perScript((script: Pick<Script, "kind" | "price"> | undefined, required: boolean): string | null => {
   if (!required && script?.price?.fusion === undefined) return null;
   if (script?.kind !== "keyword") return FUSION_IDENTITY_REBUILD;
   return skillPriceProblem(script.price) ?? fusionMaterialsProblem(script.price?.fusion);
-}
-export function evolutionIdentityProblem(script: Pick<Script, "kind" | "price"> | undefined, required = false): string | null {
+});
+export const evolutionIdentityProblem = perScript((script: Pick<Script, "kind" | "price"> | undefined, required: boolean): string | null => {
   if (!required && script?.price?.evolution === undefined) return null;
   if (script?.kind !== "keyword") return EVOLUTION_REBUILD;
   return skillPriceProblem(script.price) ?? evolutionBaseProblem(script.price?.evolution);
-}
-export function potaraIdentityProblem(script: (Pick<Script, "kind" | "price"> & {ops?: Script["ops"]}) | undefined, required = false): string | null {
+});
+export const potaraIdentityProblem = perScript((script: (Pick<Script, "kind" | "price"> & {ops?: Script["ops"]}) | undefined, required: boolean): string | null => {
   if (!required && script?.price?.potara === undefined) return null;
   if (script?.kind !== "keyword") return POTARA_REBUILD;
   return skillPriceProblem(script.price) ?? potaraMaterialsProblem(script.price?.potara) ?? (potaraPrintedSelector(script.ops) ? POTARA_REBUILD : null);
-}
+});
 export function potaraLineProblem(line: { script?: Script; skill: Skill; keyword?: {name: string} }, required = false): string | null {
   if (!required && line.script?.price?.potara === undefined && !isPotaraSkill(line.skill)) return null;
   return potaraIdentityProblem(line.script, true) ?? (!isPotaraSkill(line.skill) || line.skill.kind !== "keyword" || line.keyword?.name !== "Union" ? POTARA_REBUILD : null);
 }
 /** Identity is joint with the complete bounded recorded cost and effect programs. */
-export function absorbIdentityProblem(script: Pick<Script, "kind" | "price" | "ops"> | undefined, required = false): string | null {
+export const absorbIdentityProblem = perScript((script: Pick<Script, "kind" | "price" | "ops"> | undefined, required: boolean): string | null => {
   if (!required && script?.price?.absorb === undefined) return null;
   if (script?.kind !== "keyword" || script.price?.absorb === undefined) return ABSORB_REBUILD;
   return skillPriceProblem(script.price) ?? absorbEffectProblem(script.ops);
-}
+});
 export function absorbLineProblem(line: { script?: Script; skill: Skill; keyword?: { name: string } }, required = false): string | null {
   if (!required && line.script?.price?.absorb === undefined && !isAbsorbSkill(line.skill)) return null;
   return absorbIdentityProblem(line.script, true) ?? (line.skill.kind !== "keyword" || !isAbsorbSkill(line.skill) || line.keyword?.name !== "Union" ? ABSORB_REBUILD : null);

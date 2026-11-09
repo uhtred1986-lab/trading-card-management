@@ -126,6 +126,17 @@ export interface SnapshotInput {
   p2User?: string | null;
   /** Card art from the catalog, keyed by catalog id. Empty is fine. */
   images: Record<string, CardArt>;
+  /**
+   * False to leave out the choice, attack and block previews (the board's
+   * "what would happen" overlays), the ability panel's offered/refused evidence
+   * and the refused-move list. Only a local policy's board asks for that
+   * (`policy/boundary.ts`): its observation reads none of them
+   * (`scripts/verify/arena-lookahead.mts` proves it identical to the full
+   * board's). The attack previews alone were about two thirds of a policy step;
+   * the ability evidence and refusals, which try moves on copies of the board,
+   * were about two fifths of one on BT29–BT31 decks (9 Nov 2026). Absent means built.
+   */
+  previews?: boolean;
 }
 
 /**
@@ -238,18 +249,19 @@ export function buildUnconcealedSnapshotForProof(input: SnapshotInput): Snapshot
 
 function buildSnapshotInRead(input: SnapshotInput): Snapshot {
   const viewer = viewerFor(input);
-  const rejected = rejectedFor(input);
+  const want = input.previews !== false;
+  const rejected = want ? rejectedFor(input) : [];
   const legal = legalFor(input);
   const pinned = (input.ctx as EngineContext & { rulesetDefinition?: GameDefinition }).rulesetDefinition;
   const loaded = pinned?.id === input.state.game ? null : rulesetFor(input.state.game);
   const definition = pinned?.id === input.state.game ? pinned : loaded?.ok ? loaded.definition : null;
-  const previews = definition && legal.length ? choicePreviews(withTokens(input.ctx), definition, input.state, legal) : [];
-  const attacks = definition && legal.some((entry) => entry.action.type === "attack")
+  const previews = want && definition && legal.length ? choicePreviews(withTokens(input.ctx), definition, input.state, legal) : [];
+  const attacks = want && definition && legal.some((entry) => entry.action.type === "attack")
     ? attackPreviews(withTokens(input.ctx), definition, input.state, legal, viewer, input.images) : [];
-  const blocks = definition && legal.some((entry) => entry.action.type === "block" && entry.action.card)
+  const blocks = want && definition && legal.some((entry) => entry.action.type === "block" && entry.action.card)
     ? blockPreviews(withTokens(input.ctx), definition, input.state, legal, viewer, input.images) : [];
   const outcome = resolveOutcome(input.state as EngineState & { outcome?: import("./outcome").StoredOutcome | null }, input.status);
-  const abilityAvailability = RULES.abilityAvailability(input.ctx, input.state, viewer, legal, rejected);
+  const abilityAvailability = want ? RULES.abilityAvailability(input.ctx, input.state, viewer, legal, rejected) : [];
   const boardView = RULES.boardView(input.ctx, input.state, viewer, input.images, abilityAvailability);
   if (outcome) boardView.over = { winner: outcome.winner, reason: outcome.reason };
   return {
