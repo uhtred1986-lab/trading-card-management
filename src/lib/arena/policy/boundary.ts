@@ -16,6 +16,7 @@
 import type { Action, GameEvent, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets/types";
 import { applyMove, legalMoves, projectSnapshot, type PinnedMatch } from "../browser";
+import { withSnapshotReading } from "../snapshot-core";
 import { rulesetFor } from "../rulesets";
 import { IllegalAction } from "../vm/common";
 import { battlePowerChoices, defensiveSummary } from "../vm/decision-summary";
@@ -111,6 +112,13 @@ export interface PolicyTurn {
  * when the board looks the same.
  */
 export function policyTurn(match: PinnedMatch, seat: PlayerId, revision: number): PolicyTurn {
+  // One reading of one board: the legal moves, the board, the card question and every defensive summary
+  // below read the same immutable state, so its standing rules are worked out once, not once per read
+  // (9 Nov 2026: most of a search step on BT29–BT31 decks).
+  return withSnapshotReading({ ctx: match.ctx, state: match.state }, () => policyTurnNow(match, seat, revision));
+}
+
+function policyTurnNow(match: PinnedMatch, seat: PlayerId, revision: number): PolicyTurn {
   const aliases = aliasTable(match, seat);
   const game = definitionOf(match);
   const over = match.state.phase === "over";
