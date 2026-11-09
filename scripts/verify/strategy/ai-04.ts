@@ -20,6 +20,8 @@ const NO_COMBO = { comboCost: null, comboPower: null };
 export const AI04_CARDS = [
   synthetic("B4-A5", 5000, NO_COMBO), synthetic("B4-A10", 10000, NO_COMBO),
   synthetic("B4-A15", 15000, NO_COMBO), synthetic("B4-A20", 20000, NO_COMBO),
+  /** A 10,000 with [Critical]: its hit sends the Life card to the Drop, so the defender's hand stays known. */
+  synthetic("B4-A10C", 10000, { ...NO_COMBO, skill: "[Critical]" }),
   /** Combo cards (free to combo): +5,000 and +10,000. */
   synthetic("B4-X5", 5000, { comboPower: 5000 }),
   synthetic("B4-X10", 10000, { comboPower: 10000 }),
@@ -70,12 +72,13 @@ export async function ai04Cases(bundle: Parameters<typeof opening>[0]): Promise<
     const mine = await opening(bundle, seat);
     cases.push({
       benchmark: "ai-04", key: `ai-04-attack-least-combo-${seat}`, variant: "success", seat,
-      note: "The opponent at 2 Life with a 15,000 Leader and no defence, a 10,000 and a 5,000 attacker and a +5,000 and a +10,000 combo in hand, the 10,000 attack declared: combo just the +5,000 (a tie hits) and keep the +10,000 for the 5,000 attacker's lethal hit.",
+      note: "The opponent at 2 Life with a 15,000 Leader, an empty hand and no defence, a 10,000 [Critical] and a 5,000 attacker and a +5,000 and a +10,000 combo in hand, the 10,000 attack declared: combo just the +5,000 (a tie hits) and keep the +10,000 for the 5,000 attacker's lethal hit.",
       match: attackWith(position(mine, {
-        [seat]: { hand: ["B4-X5", "B4-X10"], battle: [{ cardId: "B4-A10", mode: "active" }, { cardId: "B4-A5", mode: "active" }], energy: [], energyMarkers: 0, leaderMode: "rest" },
-        // The Life card the first hit moves to hand cannot combo, so the second battle is the arithmetic alone.
-        [opp]: { hand: [], battle: [], energy: [], energyMarkers: 0, life: 2, lifeCards: ["B4-A10", "B4-A10"], leader: "B4-L15", leaderMode: "rest" },
-      }), "B4-A10"),
+        [seat]: { hand: ["B4-X5", "B4-X10"], battle: [{ cardId: "B4-A10C", mode: "active" }, { cardId: "B4-A5", mode: "active" }], energy: [], energyMarkers: 0, leaderMode: "rest" },
+        // [Critical]: the first hit sends its Life card to the Drop, so the defender's hand stays empty and
+        // known, and the second battle is the arithmetic alone for every candidate (no hidden card decides it).
+        [opp]: { hand: [], battle: [], energy: [], energyMarkers: 0, life: 2, leader: "B4-L15", leaderMode: "rest" },
+      }), "B4-A10C"),
       objective: (end) => winner(end) === seat,
       horizon: { kind: "turn" },
       opponent: localPolicy(),
