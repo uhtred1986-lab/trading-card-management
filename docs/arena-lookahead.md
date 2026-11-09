@@ -264,12 +264,53 @@ reports were checked each time: different seeds, different per-pair sequences, a
 shared. With most pairs split or won both, equal totals come up more often than intuition says.
 
 **The other half of "smart enough"** (owner, 8 Nov 2026) is the 12 strategy benchmarks of
-`arena-strategy-validation.md`, and they are **not yet all built**. Five tactical subcases run in
-`arena-policy-strategy.mts`; the heuristic now passes AI-02 too, and fails AI-01 own-combo lethal and
-AI-05 Critical-first. With the lookahead (v3), all five pass on both difficulties
-(`arena-lookahead-strategy.mts`), and the search changes the heuristic's first move in exactly those
-two cases. The remaining nine benchmark families (AI-03, AI-04, AI-06 to AI-12) are still to be
-written. Most need printed cards and a reviewed set of acceptable answers.
+`arena-strategy-validation.md`. Since 9 Nov 2026 all twelve families have engine-solved cases (70 in
+all, in `npm test`; "Benchmark coverage" there). With v7 and combat v5:
+
+- the heuristic passes 30 cases;
+- Normal and Hard pass 62 each.
+
+Every family passes in full for both difficulties except AI-07 (Evolve/Fusion materials for the next
+turn) and three AI-11 risk cases.
+
+**v6 and v7 (9 Nov 2026): what the benchmarks taught the search.** Each change answers a benchmark the
+search failed. None of them is tuned to win games.
+
+- **v6 searches card choices, modes, optional prices and payments** (`choices`): the heuristic's answer
+  and up to 3 others. A card choice or mode is scored after the other seat's next turn, since what it
+  keeps is often needed only then (AI-09 recover-for-defence, AI-10 exact price). Payments stay on the
+  turn horizon: they did worse on the reply horizon (AI-03 pay-preserve). The journal records a
+  searched pick's cards, so a resumed match replays the exact answer.
+- **v7, defence at stake.** A Main-Phase decision is scored after the other seat's next turn when one
+  of its options would rest one of the seat's own [Blocker]s by attacking, or spend the energy the
+  cheapest counter in hand needs (AI-12 stabilize and blocked race, AI-11 decline, AI-03
+  no-spare-colour). The full reply horizon on every Main-Phase decision was tried first. It was
+  several times slower, and it lost the AI-06 curve, an AI-09 loop and an AI-11 Life-order case.
+- **v7, no sure losses.** A heuristic line that loses in every world gives way to the best option that
+  does not, whatever the margin. Near 0 the win probability is squeezed just as near 100: ending the
+  turn scored 2.4 points against a sure loss, under the margin of 3 (AI-03).
+- **v7, attacking combos** (`offense`; even against v5 in whole games, 30–30) are searched again:
+  AI-04 hold-combo needs them.
+- **Combat v5** (the heuristic, so both difficulties and their rollouts): counter conservation. A
+  negating counter is kept when combos hold this attack and the counter is what holds a bigger one
+  still to come (AI-10 pay-expendable, whose rollouts spent the Negate on the smaller attack). In the
+  starter decks it almost never fires: 1,000 games against combat v4, 498 of 500 pairs identical
+  (`arena-policy-sprt.md`).
+
+Three benchmark cases were made fair on the way (`arena-strategy-validation.md`).
+
+Time, Hard v7, three self-play games on a 4-vCPU host loaded by a 4-worker SPRT (inflated):
+
+| Window | Decisions | Mean | p95 | Max |
+|---|---|---|---|---|
+| Main Phase | 186 | 1.2 s | 3.9 s | 6.3 s |
+| Card choice | 44 | 3.0 s | 5.0 s | 6.4 s |
+| Combo | 169 | 0.26 s | 0.9 s | 1.5 s |
+| All decisions | 528 | 0.78 s | 3.5 s | 6.4 s |
+
+v5 under similar load: 0.37 s mean, 3.9 s max. A card choice was 4.3 s on average (11 s at most) with 6
+answers and 1,200 steps; v6 ships 4 and 800, which keeps every benchmark pass. A policy step now asks
+the engine for the legal moves once instead of twice (about 7 % of a search step).
 
 ## Earlier: first gate result (8 Nov 2026): no gain
 
