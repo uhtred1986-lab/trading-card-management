@@ -114,6 +114,10 @@ function logLoss(X: number[][], y: number[], w: number[]): { loss: number; accur
 function fit(files: string[]) {
   const rows = files.flatMap((f) => readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { g: number; y: number; x: number[] }));
   // Hold out whole games (every fifth) so the check is on unseen games.
+  // --drop a,b: fit without those features (their weight is 0), e.g. one that only marks a losing position.
+  const drop = new Set((flag("--drop") ?? "").split(",").filter(Boolean));
+  for (const name of drop) if (!(FEATURE_NAMES as readonly string[]).includes(name)) throw new Error(`unknown feature ${name}`);
+  if (drop.size) for (const r of rows) r.x = r.x.map((v, k) => (drop.has(FEATURE_NAMES[k]) ? 0 : v));
   const train = rows.filter((r) => r.g % 5 !== 0), test = rows.filter((r) => r.g % 5 === 0);
   const w = fitLogistic(train.map((r) => r.x), train.map((r) => r.y));
   const base = (s: typeof rows) => { const p = s.reduce((a, r) => a + r.y, 0) / s.length; return -(p * Math.log(p) + (1 - p) * Math.log(1 - p)); };
@@ -127,5 +131,5 @@ function fit(files: string[]) {
 }
 
 if (process.argv.includes("--collect")) await collect();
-else if (process.argv.includes("--fit")) fit(process.argv.slice(process.argv.indexOf("--fit") + 1).filter((a, i, all) => !a.startsWith("--") && all[i - 1] !== "--model-out"));
+else if (process.argv.includes("--fit")) fit(process.argv.slice(process.argv.indexOf("--fit") + 1).filter((a, i, all) => !a.startsWith("--") && all[i - 1] !== "--model-out" && all[i - 1] !== "--drop"));
 else console.log("usage: --collect --games N --seed S --out FILE | --fit FILE...");
