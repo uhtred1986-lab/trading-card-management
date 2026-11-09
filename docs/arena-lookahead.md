@@ -317,9 +317,18 @@ By matchup:
 Reports: [gate10-lookahead-hard-v7.json](arena-backlog/evidence/sprt/gate10-lookahead-hard-v7.json),
 [gate11-lookahead-normal-v7.json](arena-backlog/evidence/sprt/gate11-lookahead-normal-v7.json).
 
-**Both v7 difficulties pass, and v7 is what ships.** The one cell to watch is Normal's SD15 mirror.
-It was +255 for Normal v5 in gate 9 and +166 for Hard v7 here. With 13 pairs its interval spans
-zero, so it is not a measured regression, but it is where the next development run should look.
+**Both v7 difficulties pass.** The one cell to watch was Normal's SD15 mirror. It was +255 for Normal
+v5 in gate 9 and +166 for Hard v7 here, against −27 over gate 11's 13 pairs.
+
+A development run measured the mirror alone: Normal v7 against the heuristic, `sprt-dev`, commit
+`c4f5546`, two workers.
+
+- At 50 pairs (100 games) it stood 61–39, pentanomial 7/0/25/0/18, Elo **+77.7 (+11.7 to +149.8)**.
+- It was stopped there, before a formal verdict (LLR 1.69), to free the machine. Its progress lines
+  are kept in
+  [dev-normal-v7-mirror-progress.txt](arena-backlog/evidence/sprt/dev-normal-v7-mirror-progress.txt).
+- So the gate-11 cell was small-sample noise: in the mirror, Normal is clearly stronger than the
+  heuristic. Its play there needed no fix.
 
 **v7 against v5's search, both on combat v5** (Hard, development seeds `sprt-dev`, commit `6b29db6`,
 4 workers): stopped at 50 pairs, before a formal verdict, to free the machine for the gates.
