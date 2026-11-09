@@ -8,10 +8,15 @@
  * answer required to be the same in every deal and on hidden-state twins. Prints the matrix;
  * `--json FILE` writes it.
  *
- *   npx tsx scripts/verify/arena-strategy-benchmarks.mts [--only ai-06[,ai-07]] [--json out.json]
+ * A ratchet (`strategy/expected.ts`): the cases each candidate passed when last recorded. A recorded
+ * pass that now fails fails the run (a decision-quality regression); a new pass is reported, and
+ * `--record` rewrites the file from this run (whole runs only).
+ *
+ *   npx tsx scripts/verify/arena-strategy-benchmarks.mts [--only ai-06[,ai-07]] [--json out.json] [--record]
  */
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { localPolicy } from "../../src/lib/arena/policy/combat";
 import { DIFFICULTIES, lookaheadStep } from "../../src/lib/arena/lookahead/step";
 import { answeringStep } from "../lib/arena-seat-duel";
@@ -25,6 +30,7 @@ import { AI09_CARDS, ai09Cases } from "./strategy/ai-09";
 import { AI10_CARDS, ai10Cases } from "./strategy/ai-10";
 import { AI11_CARDS, ai11RiskCases, judgeRisk, solveRisk, type RiskCase } from "./strategy/ai-11";
 import { AI12_CARDS, ai12Cases } from "./strategy/ai-12";
+import { EXPECTED_PASSES } from "./strategy/expected";
 
 const flag = (name: string) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : undefined; };
 const t0 = performance.now();
@@ -89,4 +95,32 @@ if (out) writeFileSync(out, JSON.stringify({
   risks: risks.map((rc) => ({ benchmark: rc.benchmark, key: rc.key, variant: rc.variant, seat: rc.seat, note: rc.note, rule: rc.rule, threshold: rc.threshold, deals: rc.deals.map((d) => ({ label: d.label, weight: d.weight })), horizon: rc.deals[0].case.horizon, shares: riskShares[rc.key] })),
   results,
 }, null, 1) + "\n");
+
+// The ratchet.
+const passed = (n: string) => results.filter((r) => r.candidate === n && r.outcome === "pass").map((r) => r.key).sort();
+const ran = new Set(results.map((r) => r.key));
+const regressions: string[] = [];
+const gains: string[] = [];
+for (const n of Object.keys(CANDIDATES) as (keyof typeof EXPECTED_PASSES)[]) {
+  const now = new Set(passed(n));
+  const was = new Set(EXPECTED_PASSES[n]);
+  for (const k of was) if (ran.has(k) && !now.has(k)) regressions.push(`${n} ${k}`);
+  for (const k of now) if (!was.has(k)) gains.push(`${n} ${k}`);
+}
+if (gains.length && !process.argv.includes("--record")) console.log(`${gains.length} new pass(es), not yet recorded in strategy/expected.ts (--record): ${gains.slice(0, 12).join("; ")}${gains.length > 12 ? "; …" : ""}`);
+if (process.argv.includes("--record")) {
+  assert.ok(!only, "--record needs the whole run (no --only)");
+  const file = fileURLToPath(new URL("./strategy/expected.ts", import.meta.url));
+  const lists = Object.keys(CANDIDATES).map((n) => `  ${n}: [\n${passed(n).map((k) => `    "${k}",`).join("\n")}\n  ],`).join("\n");
+  writeFileSync(file, `/**
+ * The strategy benchmarks' ratchet (\`arena-strategy-benchmarks.mts\`): the cases each candidate passed when
+ * last recorded. Written by \`--record\`; a recorded pass that fails later fails the run.
+ */
+export const EXPECTED_PASSES: Record<"heuristic" | "normal" | "hard", string[]> = {
+${lists}
+};
+`);
+  console.log(`recorded ${file}`);
+}
+assert.deepEqual(regressions, [], `recorded benchmark passes now fail: ${regressions.join("; ")}`);
 console.log(`arena-strategy-benchmarks: ${total} cases in ${((performance.now() - t0) / 1000).toFixed(0)} s`);

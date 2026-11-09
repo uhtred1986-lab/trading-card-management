@@ -45,6 +45,11 @@ import { determinize, type Knowledge } from "./determinize";
 import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights, type FittedValue } from "./evaluate";
 
 /**
+ * 7 (9 Nov 2026): the strategy benchmarks' lessons. A Main-Phase decision that puts the seat's defence
+ * in the other seat's next turn at stake (swinging a [Blocker], spending a counter's energy) is scored
+ * after that turn (`mainHorizon: "reply"`, `mainHorizonOnlyForDefence`); a heuristic line that loses in
+ * every world gives way to one that does not (`avoidSureLoss`); the seat's own attacking combos are
+ * searched (`offense`).
  * 6 (9 Nov 2026): card choices, modes, optional prices and payments are searched too (`choices`); a
  * card choice or mode is scored after the other seat's next turn (`choiceHorizon: "reply"`), since what
  * it keeps is often needed only then; at most 4 answers and 800 steps (a choice took 3 s on average).
@@ -54,7 +59,7 @@ import { evaluate, EVAL_WEIGHTS, FITTED_VALUE, winProbability, type EvalWeights,
  * SD15 mirror's noisy switches). 3 (8 Nov 2026): attacks the heuristic scores as losing are shortlisted too. 2: lines are scored by
  * the fitted win probability (`FITTED_VALUE`). 1: the hand-set value.
  */
-export const LOOKAHEAD_VERSION = 6;
+export const LOOKAHEAD_VERSION = 7;
 
 export type Horizon = "turn" | "decision" | "reply";
 
@@ -99,6 +104,8 @@ export interface LookaheadOptions {
   choiceHorizon?: Horizon;
   /** Step budget for a searched choice (default `maxSteps`); a reply line is long. */
   choiceSteps?: number;
+  /** A heuristic line that lost the game in every world gives way to the best one that did not, whatever the margin. */
+  avoidSureLoss?: boolean;
   /** Answers a searched choice plays forward, the heuristic's included (default 6). */
   choiceAnswers?: number;
   /**
@@ -108,6 +115,11 @@ export interface LookaheadOptions {
   mainHorizon?: Horizon;
   /** Step budget for a searched Main-Phase decision (default `maxSteps`). */
   mainSteps?: number;
+  /**
+   * Use `mainHorizon` only when a shortlisted Main-Phase option puts the seat's defence in the other
+   * seat's next turn at stake (`defenceAtStake`), which the turn horizon cannot see; otherwise `horizon`.
+   */
+  mainHorizonOnlyForDefence?: boolean;
   weights?: EvalWeights;
   /**
    * How a line's end is scored: "fitted" is the win probability (in percent) learned from the
@@ -122,8 +134,8 @@ export interface LookaheadOptions {
 
 /** The two difficulties the owner asked for (8 Nov 2026): the same search, with and without your decklist. */
 export const DIFFICULTIES = {
-  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4 },
-  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4 },
+  normal: { knowledge: "none", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, offense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4, mainHorizon: "reply", mainSteps: 1200, mainHorizonOnlyForDefence: true, avoidSureLoss: true },
+  hard: { knowledge: "deck", candidates: 3, worlds: 2, maxSteps: 200, lineSteps: 60, margin: 3, horizon: "turn", value: "fitted", defense: true, offense: true, choices: true, choiceHorizon: "reply", choiceSteps: 800, choiceAnswers: 4, mainHorizon: "reply", mainSteps: 1200, mainHorizonOnlyForDefence: true, avoidSureLoss: true },
 } as const satisfies Record<string, LookaheadOptions>;
 
 export type Difficulty = keyof typeof DIFFICULTIES;
@@ -236,6 +248,25 @@ function offenseShortlist(input: PolicyInput, heuristic: string): { ids: string[
   return ids.length < 2 ? { ids: [], skip: "nothing else to play forward" } : { ids, skip: null };
 }
 
+/**
+ * Whether one of `answers` (Main-Phase options) changes what the seat can defend with in the other
+ * seat's next turn: an attack by one of its own [Blocker]s (it is then rested), or a play or
+ * activation that leaves less active energy than the cheapest attack [Counter] in its hand needs.
+ * Only a trigger for looking further (`mainHorizonOnlyForDefence`): the search still decides.
+ */
+function defenceAtStake(input: PolicyInput, answers: readonly PolicyAnswer[]): boolean {
+  const you = input.observation.you;
+  const blockers = new Set(you.battle.filter((c) => c.keywords.some((k) => k.trim().toLowerCase() === "blocker")).map((c) => c.id));
+  const counters = (you.hand ?? []).filter((c) => /\[Counter: (Battle Card )?Attack\]/i.test(c.text ?? "")).map((c) => Math.max(0, c.energyCost ?? 0));
+  const reserve = counters.length ? Math.min(...counters) : null;
+  return answers.some((a) => {
+    const d = input.decisions.decisions.find((x) => x.id === a.id);
+    if (d?.kind !== "menu") return false;
+    if (d.type === "attack") return blockers.has(String(d.action.attacker));
+    return reserve !== null && you.activeEnergy >= reserve && you.activeEnergy - (d.cost?.energy ?? 0) < reserve;
+  });
+}
+
 /** The windows `choices` searches. */
 const CHOICE_WINDOWS = new Set(["chooseCards", "chooseMode", "payCost"]);
 const CHOICE_ANSWERS = 6;
@@ -313,8 +344,9 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   // battle's windows stay on `horizon`).
   const w = input.decisions.window;
   const choice = !!opts.choices && (w === "chooseCards" || w === "chooseMode");
-  const horizon = choice ? opts.choiceHorizon ?? opts.horizon : w === "main" ? opts.mainHorizon ?? opts.horizon : opts.horizon;
-  const budget = choice ? opts.choiceSteps ?? opts.maxSteps : w === "main" ? opts.mainSteps ?? opts.maxSteps : opts.maxSteps;
+  const farMain = w === "main" && !!opts.mainHorizon && (!opts.mainHorizonOnlyForDefence || defenceAtStake(input, listed.answers));
+  const horizon = choice ? opts.choiceHorizon ?? opts.horizon : farMain ? opts.mainHorizon! : opts.horizon;
+  const budget = choice ? opts.choiceSteps ?? opts.maxSteps : farMain ? opts.mainSteps ?? opts.maxSteps : opts.maxSteps;
   const lineCap = horizon === "reply" ? Math.max(opts.lineSteps, 150) : opts.lineSteps;
   const ids = [...byKey.keys()];
   const heuristicKey = answerKey(heuristic);
@@ -324,8 +356,9 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   const weights = opts.weights ?? EVAL_WEIGHTS;
   const score = (o: PolicyObservation) => (opts.value === "fitted" ? 100 * winProbability(o, opts.fitted ?? FITTED_VALUE) : evaluate(o, weights));
   const totals = new Map<string, number>(ids.map((id) => [id, 0]));
-  // Worlds in which the line ended with the seat having won the game.
+  // Worlds in which the line ended with the seat having won the game, or having lost it.
   const wins = new Map<string, number>(ids.map((id) => [id, 0]));
+  const losses = new Map<string, number>(ids.map((id) => [id, 0]));
   let steps = 0;
   let complete = 0;
   let stopped: string | null = null;
@@ -336,6 +369,7 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
       const root = policyTurn(world, seat, revision);
       const values: number[] = [];
       const won: boolean[] = [];
+      const lost: boolean[] = [];
       for (const [k, id] of ids.entries()) {
         if (opts.stop?.()) throw new Budget("host stop");
         const a = byKey.get(id)!;
@@ -353,8 +387,13 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
         const end = observe(line.match, seat, revision + 1 + line.steps);
         values.push(score(end));
         won.push(!!end.over && end.over.winner === seat);
+        lost.push(!!end.over && end.over.winner !== null && end.over.winner !== seat);
       }
-      ids.forEach((id, k) => { totals.set(id, totals.get(id)! + values[k]); if (won[k]) wins.set(id, wins.get(id)! + 1); });
+      ids.forEach((id, k) => {
+        totals.set(id, totals.get(id)! + values[k]);
+        if (won[k]) wins.set(id, wins.get(id)! + 1);
+        if (lost[k]) losses.set(id, losses.get(id)! + 1);
+      });
       complete++;
     } catch (error) {
       if (error instanceof Budget) { stopped = error.message; break; }
@@ -371,10 +410,15 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
   // if it is one): a win probability is squeezed near certainty, so a sure win can sit within `margin`
   // of a merely likely one (AI-01: 100 against 97.9). Otherwise the best average, ties to the earlier
   // option (the heuristic's first), kept only if it beats the heuristic's by `margin`.
+  // The mirror (v7, AI-03): near 0 the probability is squeezed too, so with `avoidSureLoss` a heuristic
+  // line that lost the game in every world gives way to the best option that did not, whatever the margin.
   const sure = ids.find((id) => wins.get(id) === complete);
   let top = ids[0];
   for (const id of ids) if (means[id] > means[top]) top = id;
-  const best = sure ?? (top !== heuristicKey && means[top] - means[heuristicKey] >= opts.margin ? top : heuristicKey);
+  const doomed = (id: string) => losses.get(id) === complete;
+  let rescue: string | undefined;
+  if (opts.avoidSureLoss && doomed(heuristicKey)) for (const id of ids) if (!doomed(id) && (rescue === undefined || means[id] > means[rescue])) rescue = id;
+  const best = sure ?? rescue ?? (top !== heuristicKey && means[top] - means[heuristicKey] >= opts.margin ? top : heuristicKey);
   report.status = "searched";
   report.reason = stopped ? `${complete} world(s) before ${stopped}` : `${complete} world(s)`;
   report.chosen = best;
