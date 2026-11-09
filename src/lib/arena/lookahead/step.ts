@@ -99,6 +99,13 @@ export interface LookaheadOptions {
   choiceHorizon?: Horizon;
   /** Step budget for a searched choice (default `maxSteps`); a reply line is long. */
   choiceSteps?: number;
+  /**
+   * The horizon for Main-Phase decisions (default `horizon`): "reply" plays the other seat's next
+   * turn too, so a [Blocker] swung away or a counter colour spent is punished where it matters.
+   */
+  mainHorizon?: Horizon;
+  /** Step budget for a searched Main-Phase decision (default `maxSteps`). */
+  mainSteps?: number;
   weights?: EvalWeights;
   /**
    * How a line's end is scored: "fitted" is the win probability (in percent) learned from the
@@ -300,9 +307,12 @@ export function searchDecision(match: PinnedMatch, seat: PlayerId, revision: num
     : (() => { const s = shortlist(input, heuristic.id, opts); return { answers: s.ids.map((id) => (id === heuristic.id ? heuristic : answerFor(input.decisions, id))), skip: s.skip }; })();
   if (listed.skip) return { answer: null, rng: r, report: { ...report, reason: listed.skip } };
   const byKey = new Map(listed.answers.map((a) => [answerKey(a), a] as const));
-  const replyChoice = !!opts.choices && (input.decisions.window === "chooseCards" || input.decisions.window === "chooseMode");
-  const horizon = replyChoice ? opts.choiceHorizon ?? opts.horizon : opts.horizon;
-  const budget = replyChoice ? opts.choiceSteps ?? opts.maxSteps : opts.maxSteps;
+  // Card choices and modes, and Main-Phase decisions, may look further than the rest (payments and the
+  // battle's windows stay on `horizon`).
+  const w = input.decisions.window;
+  const choice = !!opts.choices && (w === "chooseCards" || w === "chooseMode");
+  const horizon = choice ? opts.choiceHorizon ?? opts.horizon : w === "main" ? opts.mainHorizon ?? opts.horizon : opts.horizon;
+  const budget = choice ? opts.choiceSteps ?? opts.maxSteps : w === "main" ? opts.mainSteps ?? opts.maxSteps : opts.maxSteps;
   const lineCap = horizon === "reply" ? Math.max(opts.lineSteps, 150) : opts.lineSteps;
   const ids = [...byKey.keys()];
   const heuristicKey = answerKey(heuristic);
