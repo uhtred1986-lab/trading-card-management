@@ -35,12 +35,14 @@ export const AI10_CARDS = [
 
 const alive = (seat: PlayerId) => (end: Match) => winner(end) !== other(seat);
 
-/** Name the top cards of `seat`'s deck (what the price would draw), on a copy of `match`. */
-function deckTop(match: Match, seat: PlayerId, cardIds: string[]): Match {
+/**
+ * Name `seat`'s whole deck `cardId` (what the price would draw), on a copy of `match`. The whole deck,
+ * not just its top: a player knows its decklist, not the order, so a draw is only knowable when every
+ * card left in the deck is the same (the lookahead's worlds fill the deck from the decklist remainder).
+ */
+function deckOf(match: Match, seat: PlayerId, cardId: string): Match {
   const state = JSON.parse(JSON.stringify(match.state)) as Match["state"];
-  const deck = state.sides[seat].zones.deck;
-  if (deck.length < cardIds.length) throw new Error(`deckTop: ${seat}'s deck is too small`);
-  cardIds.forEach((cardId, i) => { state.cards[deck[i]].cardId = cardId; });
+  for (const id of state.sides[seat].zones.deck) state.cards[id].cardId = cardId;
   return { ...match, state };
 }
 
@@ -63,10 +65,10 @@ export async function ai10Cases(bundle: Parameters<typeof opening>[0]): Promise<
     cases.push({
       benchmark: "ai-10", key: `ai-10-keep-counter-${seat}`, variant: "decline", seat,
       note: "At 1 Life behind a 15,000 Leader facing a 30,000 attacker, the draw-2 price could only take the Negate counter: the 5,000 body and two 5,000 draws only tie the 30,000 (a tie hits), so decline.",
-      match: playFromHand(deckTop(position(base, {
+      match: playFromHand(deckOf(position(base, {
         [seat]: { hand: ["B10-DRAW", "B10-NEG"], energy: ["B-F", "B-F"], battle: [], life: 1, leader: "B10-L15", leaderMode: "rest" },
         [foe]: { hand: [], battle: [{ cardId: "B10-BIG", mode: "rest" }], life: 4, leaderMode: "rest" },
-      }), seat, ["B10-C5", "B10-C5"]), seat, "B10-DRAW"),
+      }), seat, "B10-C5"), seat, "B10-DRAW"),
       objective: alive(seat),
       horizon: { kind: "turns", n: 2 },
       opponent: localPolicy(),
@@ -75,10 +77,10 @@ export async function ai10Cases(bundle: Parameters<typeof opening>[0]): Promise<
     cases.push({
       benchmark: "ai-10", key: `ai-10-pay-expendable-${seat}`, variant: "success", seat,
       note: "At 1 Life behind a 15,000 Leader facing a 30,000 and a 20,000 attacker, with the Negate counter and an unaffordable Extra in hand: pay with the Extra (Negate the 30,000, the two drawn combos hold the 20,000); declining or paying with the counter loses.",
-      match: playFromHand(deckTop(position(base, {
+      match: playFromHand(deckOf(position(base, {
         [seat]: { hand: ["B10-DRAW", "B10-NEG", "B10-EXP"], energy: ["B-F", "B-F"], battle: [], life: 1, leader: "B10-L15", leaderMode: "rest" },
         [foe]: { hand: [], battle: [{ cardId: "B10-BIG", mode: "rest" }, { cardId: "B10-MID", mode: "rest" }], life: 4, leaderMode: "rest" },
-      }), seat, ["B10-C5", "B10-C5"]), seat, "B10-DRAW"),
+      }), seat, "B10-C5"), seat, "B10-DRAW"),
       objective: alive(seat),
       horizon: { kind: "turns", n: 2 },
       opponent: localPolicy(),
@@ -87,10 +89,10 @@ export async function ai10Cases(bundle: Parameters<typeof opening>[0]): Promise<
     cases.push({
       benchmark: "ai-10", key: `ai-10-exact-price-${seat}`, variant: "adverse", seat,
       note: "At 1 Life behind a 15,000 Leader facing a 35,000, the price is exactly 2 cards (draw 3) and the hand is the Negate counter and one dead Extra: the Extra cannot pay alone, paying in full throws away the counter and the combos then reach only 35,000 (a tie hits), so decline.",
-      match: playFromHand(deckTop(position(base, {
+      match: playFromHand(deckOf(position(base, {
         [seat]: { hand: ["B10-TWO", "B10-NEG", "B10-EXP"], energy: ["B-F", "B-F"], battle: [], life: 1, leader: "B10-L15", leaderMode: "rest" },
         [foe]: { hand: [], battle: [{ cardId: "B10-HUGE", mode: "rest" }], life: 4, leaderMode: "rest" },
-      }), seat, ["B10-C5", "B10-C5", "B10-C5"]), seat, "B10-TWO", "chooseMode"),
+      }), seat, "B10-C5"), seat, "B10-TWO", "chooseMode"),
       objective: alive(seat),
       horizon: { kind: "turns", n: 2 },
       opponent: localPolicy(),
