@@ -47,6 +47,19 @@ The heuristic played itself in each deck's mirror, 4 games each
   - It is recorded for the rules programme. It is not an AI defect, and it was not investigated
     further here.
 
+**Two more twin-check failures, both with White Cell, were the test harness, not a leak** (fixed
+in `scripts/verify/arena-policy-permute.ts`). Both came from the first latest-deck SPRT runs: r215, a
+combo decision, and r188, a card choice.
+
+- White Cell can switch a side's whole energy to Hidden mode. The engine then shows those cards by
+  position alias, unreadable even to their owner.
+- The area's order and each card's rested/active mode stay public, though.
+- The harness reordered any area whose cards were all hidden, so the twin showed a different mode in
+  first place.
+- It now reorders only the secret areas: decks, Life, and the other hand and Z-Deck.
+- Replayed exactly, the r215 position gives an identical observation on its twin, and the twin still
+  differs in hidden state.
+
 The AI comparisons below use the three decks that read completely and finish every game: White Cell,
 Gogeta and Cooler. That gives nine ordered matchups, three mirrors and six cross matchups.
 
