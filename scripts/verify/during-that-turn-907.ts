@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import { DEFS, actsG, arenaG, assertConsistentG, autoTriggerMatches, card, compileCostProgram, compileSkill, describeScript, findG, leaderOf, parseFilter, parseSkills, playG, stagedG, zoneOf } from "./harness";
 import type { Action, EngineState, PlayerId } from "./harness";
 import type { ContinuousEffect } from "../../src/lib/arena/types";
+import { compileCostRecord } from "../../src/lib/arena/compile/prices";
 
 const read = (text: string) => compileSkill(parseSkills(text)[0]);
 type AnyOp = { op: string; [k: string]: unknown };
@@ -70,6 +71,13 @@ for (const [id, text] of Object.entries(PRINTED)) assert.deepEqual(read(text).un
   assert.equal(describeScript(read(PRINTED["BT2-036"]).ops).includes("choose all"), false);
   // The same typo on the others that print it.
   assert.match(describeScript(read("[+1] [Activate: Main] Choose up to 1of your opponent's Battle Cards and switch it to Rest Mode.").ops), /choose up to 1 Battle Card/);
+}
+{
+  // BT29-029's [Awaken] prints "at5": the missing space left the condition, and so the price, unreadable (10 Nov 2026).
+  const [sk] = parseSkills("[awaken] When your life is at5 or less: Draw 2 cards.");
+  const price = compileCostRecord(sk);
+  assert.equal(price.readable, true, "the Awaken's price reads");
+  assert.deepEqual(price.condition, { kind: "life", side: "you", atMost: 5 });
 }
 {
   // BT6-121: the condition after the timing phrase is asked when the delay fires, and "Activate this skill when" is a trigger.
