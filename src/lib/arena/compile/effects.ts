@@ -4854,6 +4854,9 @@ function compileImmunity(t: string, c: Ctx): Op[] | null {
   let mm: RegExpExecArray | null;
   let sourceDesc: string | null = null;
   if ((mm = /^the skills of (.+)$/.exec(tail))) sourceDesc = mm[1];
+  // "Your hand is not affected by your <Broly> Leader Card's skill" (BT1-081, Broly's Ring): one
+  // named card's skill, said with a possessive. The card is the source, the same as "the skills of X".
+  else if ((mm = /^(.+?\bcard)'s skills?$/i.exec(tail))) sourceDesc = mm[1];
   else if ((mm = /^(.+?) skills$/.exec(tail))) sourceDesc = mm[1];
   if (sourceDesc == null) return null;
 
@@ -4872,6 +4875,10 @@ function compileImmunity(t: string, c: Ctx): Op[] | null {
     rest = mm[1];
   } else if ((mm = /^(.+?)\s+in (?:any of )?your opponent'?s areas$/.exec(rest))) {
     from = "opponent";
+    rest = mm[1];
+  } else if ((mm = /^your\s+(.+\bcard)$/.exec(rest))) {
+    // "your <Broly> Leader Card's skill" (BT1-081): your own card's skill only.
+    from = "you";
     rest = mm[1];
   }
 

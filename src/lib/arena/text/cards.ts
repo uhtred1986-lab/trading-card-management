@@ -605,6 +605,10 @@ function tagFor(kw: KeywordSkill): string {
 function tidyEffect(effect: string): string {
   return effect
     .replace(/(\d)of\b/g, "$1 of")
+    // BT29-029's [Awaken] prints "When your life is **at5** or less" (the space is missing): no
+    // life reader knew "at5", so the Awaken's condition — and with it its price — was unreadable
+    // and the Leader could not awaken (offline deck check, 10 Nov 2026).
+    .replace(/\bat(\d+) or (less|more|fewer)\b/gi, "at $1 or $2")
     .replace(/\bit's owner/gi, "its owner")
     // "from you hand" (BT2-081, a misprint of "your"): no area reader knew the phrase, and for
     // "you can play this card from you hand without paying …" that left a permission to be read as
