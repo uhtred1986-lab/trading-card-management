@@ -307,7 +307,9 @@ for (const [id, text, rules] of [
   const bt27 = skillRecords(card("BT27-124", { skill: correctSkillText("BT27-124", "[Permanent] Negate the [Energy-Exhaust] skills on Blue/Green multicolor ≪Red Ribbon Army≫ cards in all of your areas.\n[br]\n[Auto] When this card is placed in a Batte Area, switch up to 1 of your blue ≪Red Ribbon Army≫ Leaders to Active Mode.") })).find((r) => r.skillIndex === 10);
   assert.ok(bt27 && !bt27.unread.length && bt27.trigger.length, `G: BT27-124 — the [Auto]'s moment reads (${bt27?.unread})`);
   const bt1 = skillRecords(card("BT1-081", { type: "EXTRA", skill: correctSkillText("BT1-081", "[Field] (Place and activate this card in the Battle Area. It remains in the Battle Area until you activate another [Field]. When you do, place this card in the Drop Area)[Permanent] Your hand is not affected by your  Leader Card Broly's skill.") }));
-  assert.ok(bt1.some((r) => r.kind === "permanent" && r.unread.length && /<Broly> Leader Card's skill/.test(r.printed)), `G: BT1-081 — its [Permanent] is its own line, and unread (${JSON.stringify(bt1.map((r) => [r.skillIndex, r.kind, r.unread]))})`);
+  // Read since 10 Nov 2026 (the zone-level immunity round 4 asked for): every card in your hand is immune to your own
+  // <Broly> Leader's skills, as BT1-081's and BT1-057's Q&A answer (`offline-deck-cards` plays it).
+  assert.ok(bt1.some((r) => r.kind === "permanent" && !r.unread.length && r.ops.some((o) => o.op === "immune") && /<Broly> Leader Card's skill/.test(r.printed)), `G: BT1-081 — its [Permanent] is its own line, read as the hand's immunity (${JSON.stringify(bt1.map((r) => [r.skillIndex, r.kind, r.unread]))})`);
   records += 6;
 }
 

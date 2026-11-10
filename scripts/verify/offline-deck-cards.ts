@@ -23,12 +23,15 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 
 /** BT1-057 Broly's front, as printed. */
 const BROLY = "[Permanent] This card cannot attack Battle Cards.<br>[Auto] When this card attacks, both players choose 1 card from their hand and place it in the Drop Area.<br>[Awaken] When your life is at 4 or less: You may draw 2 cards and flip this card over.";
+/** BT1-057's awakened side, as printed, as a Leader of its own (the flip is not what is proved here). */
+const BROLY_AWAKENED = "[Permanent] This card cannot attack Battle Cards.<br>[Auto] When this card attacks, draw 1 card. Then, both players choose 1 card from their hand and 1 card from their Battle Area, and place those cards in their Drop Areas.";
 /** BT1-081 Broly's Ring, as the catalog carries it. */
 const RING = "[Field] (Place and activate this card in the Battle Area. It remains in the Battle Area until you activate another [Field]. When you do, place this card in the Drop Area)<br>[Permanent] Your hand is not affected by your &lt;Broly&gt; Leader Card's skill.";
 
 const defs: Record<string, CardDef> = {
   ...DEFS,
   L_BROLY: card("L_BROLY", { type: "LEADER", name: "Broly", characters: ["Broly"], colors: ["Yellow"], energyCost: null, comboCost: null, comboPower: null, skill: BROLY, back: { name: "Broly, the Legendary Super Saiyan", power: 15000, skill: null } }),
+  L_BROLY_UP: card("L_BROLY_UP", { type: "LEADER", name: "Broly, The Legendary Super Saiyan", characters: ["Broly"], colors: ["Yellow"], energyCost: null, comboCost: null, comboPower: null, skill: BROLY_AWAKENED }),
   RING_OFFLINE: card("RING_OFFLINE", { type: "EXTRA", name: "Broly's Ring", characters: [], colors: ["Yellow"], energyCost: 1, power: null, comboCost: null, comboPower: null, skill: RING }),
 };
 const rows = Object.values(defs).flatMap((d) => skillRecords(d).map((r, id) => ({ ...r, id, source: "compiler", status: "draft" } as unknown as RuleRow)));
@@ -55,8 +58,8 @@ const game = loaded.definition;
 }
 
 // ── the VM ───────────────────────────────────────────────────────────────────
-function fresh(): VmState {
-  let s = RULES.createGame(ctx, { seed: 1081, p1: { name: "Broly", leader: "L_BROLY", main: fifty("V1") }, p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
+function fresh(leader = "L_BROLY"): VmState {
+  let s = RULES.createGame(ctx, { seed: 1081, p1: { name: "Broly", leader, main: fifty("V1") }, p2: { name: "Other", leader: "L-BLUE", main: fifty("V-BLUE") } }).state as VmState;
   for (const action of [
     { type: "chooseFirst", player: s.chooser, first: "p1" },
     { type: "mulligan", player: "p1", redraw: false },
@@ -70,13 +73,14 @@ function fresh(): VmState {
   assert.equal(s.prompt.kind, "main");
   return s;
 }
-function stageRing(s: VmState): string {
-  const id = s.sides.p1.zones.deck[0];
-  s.cards[id].cardId = "RING_OFFLINE";
-  assert.ok(moveCard(s, game, id, "battle", { owner: "p1" }).ok);
+function stage(s: VmState, p: PlayerId, cardId: string): string {
+  const id = s.sides[p].zones.deck[0];
+  s.cards[id].cardId = cardId;
+  assert.ok(moveCard(s, game, id, "battle", { owner: p }).ok);
   s.cards[id].mode = "active";
   return id;
 }
+const stageRing = (s: VmState) => stage(s, "p1", "RING_OFFLINE");
 /** The Leader attacks the other Leader; every prompt is answered with the first legal answer, to the end of the battle. */
 function attackWithLeader(s: VmState): VmState {
   const attacker = s.sides.p1.zones.leader[0];
@@ -117,4 +121,17 @@ const dropOf = (s: VmState, p: PlayerId) => s.sides[p].zones.drop.length;
   assert.equal(dropOf(r, "p1"), mine, "with Broly's Ring, its controller's hand is not affected by the Broly Leader's skill");
   assert.equal(r.sides.p1.zones.hand.length, hand, "Broly keeps every card in hand");
   assert.equal(dropOf(r, "p2"), theirs + 1, "the opponent still places a card from their hand in the Drop Area");
+}
+
+// The awakened side, with the Ring as Broly's only Battle Card (BT1-081's second Q&A, BT1-057's last): Broly draws,
+// sends the Ring itself from the Battle Area, and still places nothing from its hand; the opponent places both.
+{
+  const s = fresh("L_BROLY_UP");
+  const ring = stageRing(s);
+  stage(s, "p2", "V-BLUE");
+  const [mine, theirs, hand] = [dropOf(s, "p1"), dropOf(s, "p2"), s.sides.p1.zones.hand.length];
+  const r = attackWithLeader(s);
+  assert.equal(r.sides.p1.zones.hand.length, hand + 1, "Broly draws 1 and places nothing from its hand");
+  assert.deepEqual(r.sides.p1.zones.drop.slice(mine), [ring], "the only card Broly places is the Ring, from its Battle Area");
+  assert.equal(dropOf(r, "p2"), theirs + 2, "the opponent places a card from their hand and one from their Battle Area");
 }
