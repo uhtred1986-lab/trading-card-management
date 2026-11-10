@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { InstallProgress, PackStore } from "@/lib/arena/local/pack-store";
 import { formatBytes, friendlyError, type SavedMatch } from "@/lib/arena/local/prepare";
-import { deckBytes, deviceDeckIds, fetchDeckChecks, installDeviceDecks, matchesUsing, readDevicePack, takeDeckOff, type DevicePack, type OfflineDeckCheck } from "@/lib/arena/local/device-decks";
+import { allDecksPlan, deckBytes, deviceDeckIds, fetchAllDeckChecks, fetchDeckChecks, installDeviceDecks, matchesUsing, readDevicePack, takeDeckOff, type DevicePack, type OfflineDeckCheck } from "@/lib/arena/local/device-decks";
 import { DeckProgress, FailedNotice, othersProblem, type DeckRun } from "./OfflineDeck";
 
 /**
@@ -13,16 +13,24 @@ import { DeckProgress, FailedNotice, othersProblem, type DeckRun } from "./Offli
  * saved matches that play it go with it, after the page says so; every other deck and saved match
  * stays. Online and signed in, a deck whose list changed since it was downloaded says so and can be
  * updated. Remove everything stays in the panel above this list, for every player.
+ *
+ * "Your decks" (10 Nov 2026, the owner before a flight: "download all existing decks"): online and
+ * signed in, every one of the player's decks with whether it can go offline, and one button that puts
+ * every ready deck on the device in a single pack (`allDecksPlan`). A deck that cannot go offline says
+ * which cards block it; nothing forces it (#793's ruling: refuse until fixed).
  */
 
 const quiet = "tap inline-flex items-center justify-center rounded-lg border border-space-600 bg-space-900 px-3 py-2 text-sm text-space-100 hover:border-space-400 disabled:opacity-40";
 const primary = "tap inline-flex items-center justify-center rounded-lg bg-ki-500 px-3 py-2 text-sm font-semibold text-space-950 hover:bg-ki-400 disabled:opacity-40";
+/** The run key of "Download all my decks". */
+const ALL_KEY = "__all__";
 const danger = "tap inline-flex items-center justify-center rounded-lg border border-loss/60 bg-loss/10 px-3 py-2 text-sm font-medium text-space-50 hover:bg-loss/20 disabled:opacity-40";
 
 export function DeviceDecks({ store, packHash, saves, busy, onChanged }: { store: PackStore; packHash: string; saves: SavedMatch[]; busy: boolean; onChanged: () => void }) {
   const [device, setDevice] = useState<DevicePack | null>(null);
   const [bytes, setBytes] = useState<Map<string, number>>(new Map());
   const [checks, setChecks] = useState<Map<number, OfflineDeckCheck> | null>(null);
+  const [all, setAll] = useState<OfflineDeckCheck[] | null>(null);
   const [ask, setAsk] = useState<string | null>(null);
   const [run, setRun] = useState<DeckRun & { key?: string }>({ kind: "idle" });
   const [notice, setNotice] = useState<string | null>(null);
@@ -35,6 +43,7 @@ export function DeviceDecks({ store, packHash, saves, busy, onChanged }: { store
       if (d) {
         setBytes(await deckBytes(store, d).catch(() => new Map()));
         setChecks(await fetchDeckChecks(deviceDeckIds(d)));
+        setAll(await fetchAllDeckChecks());
       }
     } catch { setDevice(null); }
   }, [store]);
@@ -48,6 +57,38 @@ export function DeviceDecks({ store, packHash, saves, busy, onChanged }: { store
     const c = checks.get(d.deckId);
     return !!c?.listHash && c.listHash !== d.listHash;
   };
+
+  /** Every ready deck onto the device in one pack, with progress and Stop. */
+  async function downloadAll() {
+    setNotice(null);
+    setAsk(null);
+    const controller = new AbortController();
+    abort.current = controller;
+    const key = ALL_KEY;
+    const onProgress = (p: InstallProgress) => setRun({ kind: "working", op: "download", progress: p, key });
+    setRun({ kind: "working", op: "download", progress: null, key });
+    try {
+      const fresh = await fetchAllDeckChecks();
+      if (!fresh) throw Object.assign(new Error("checks unavailable"), { plain: "Your decks could not be checked. Check the connection and that you are signed in, then try again." });
+      const current = (await readDevicePack(store)) ?? device!;
+      const plan = allDecksPlan(fresh, deviceDeckIds(current));
+      if (plan.stuck.length) {
+        const names = plan.stuck.map((id) => `"${current.decks.find((d) => d.deckId === id)?.name ?? `deck ${id}`}"`).join(", ");
+        throw Object.assign(new Error("stuck decks"), { plain: `${names} ${plan.stuck.length === 1 ? "is" : "are"} on this device but can no longer be played offline. Remove ${plan.stuck.length === 1 ? "it" : "them"} below first, then download all again.` });
+      }
+      await installDeviceDecks(store, plan.ready, { onProgress, signal: controller.signal });
+      setNotice(`${plan.ready.length} of your decks are on this device${plan.toAdd.length ? ` (${plan.toAdd.length} new)` : ""}, with every card picture. No connection is needed to play them.`);
+      setRun({ kind: "idle" });
+    } catch (e) {
+      const plain = (e as { plain?: string }).plain;
+      if (controller.signal.aborted) { setRun({ kind: "idle" }); setNotice("Stopped. Nothing on this device changed."); }
+      else setRun({ kind: "failed", op: "download", key, error: plain ? { headline: "Your decks could not all be downloaded", detail: plain, technical: plain } : friendlyError(e) });
+    } finally {
+      abort.current = null;
+      onChanged();
+      void read();
+    }
+  }
 
   async function go(op: "remove" | "update", key: string) {
     setNotice(null);
@@ -82,8 +123,40 @@ export function DeviceDecks({ store, packHash, saves, busy, onChanged }: { store
     }
   }
 
+  const plan = all ? allDecksPlan(all, deviceDeckIds(device)) : null;
+
   return (
     <div className="space-y-2 border-t border-space-700/70 pt-3" data-device-decks>
+      {plan && all && all.length > 0 && (
+        <section aria-label="Your decks" className="space-y-2 rounded-lg border border-space-700 px-3 py-2 text-sm" data-all-decks>
+          <h3 className="text-xs uppercase tracking-widest text-space-400">Your decks</h3>
+          <p className="text-space-200">
+            {plan.ready.length} of your {all.length} decks can be played offline
+            {plan.toAdd.length ? `; ${plan.toAdd.length} ${plan.toAdd.length === 1 ? "is" : "are"} not on this device yet.` : plan.ready.length ? "; all of them are on this device." : "."}
+          </p>
+          {plan.toAdd.length > 0 && (
+            <button type="button" className={primary} disabled={busy || working} data-download-all onClick={() => void downloadAll()}>
+              Download all {plan.ready.length} to this device
+            </button>
+          )}
+          {run.kind !== "idle" && run.key === ALL_KEY && (run.kind === "working" ? <DeckProgress progress={run.progress} /> : <FailedNotice error={run.error} />)}
+          {plan.blocked.length > 0 && (
+            <details className="text-xs text-space-300" data-blocked-decks>
+              <summary className="tap inline-flex cursor-pointer items-center">{plan.blocked.length} {plan.blocked.length === 1 ? "deck stays" : "decks stay"} online only (why)</summary>
+              <ul className="mt-1 space-y-1">
+                {plan.blocked.map((c) => (
+                  <li key={c.deckId} data-blocked-deck={c.deckId}>
+                    <span className="font-medium text-space-100">{c.name}</span>
+                    {": "}
+                    {[...c.problems, ...c.blocking.slice(0, 3).map((b) => `${b.name} (${b.reasons[0] ?? "cannot be played yet"})`)].join("; ")}
+                    {c.blocking.length > 3 ? `; and ${c.blocking.length - 3} more cards` : ""}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
       <h3 className="text-xs uppercase tracking-widest text-space-400">Decks on this device</h3>
       <ul className="space-y-2" aria-label="Decks on this device">
         {device.decks.map((d) => {
@@ -126,7 +199,7 @@ export function DeviceDecks({ store, packHash, saves, busy, onChanged }: { store
       </ul>
       {working && <button type="button" className={quiet} onClick={() => abort.current?.abort()}>Stop</button>}
       {notice && <p role="status" className="text-sm text-space-200" data-deck-notice>{notice}</p>}
-      <p className="text-xs text-space-400">To add one of your own decks, open it under Decks and choose &ldquo;Download to this device&rdquo;.</p>
+      <p className="text-xs text-space-400">To add one of your own decks, use &ldquo;Download all&rdquo; above while online and signed in, or open it under Decks and choose &ldquo;Download to this device&rdquo;.</p>
     </div>
   );
 }

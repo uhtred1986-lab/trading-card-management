@@ -21,7 +21,7 @@
  * The pack carries the deck lists and public card data only (`privateDataViolations`): a deck's
  * name and list, never its owner, its lots or anything of the collection.
  */
-import { and, inArray } from "drizzle-orm";
+import { and, asc, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards as cardsTable, decks as decksTable } from "@/db/schema";
 import { deckScope, type OwnerScope } from "@/lib/collection/scope";
@@ -35,8 +35,11 @@ import type { CardDef, DeckInput } from "./types";
 import type { CardScripts } from "./vm/script";
 import type { CardArt } from "./view";
 
-/** The most decks one device pack may carry besides the starters. */
-export const MAX_OFFLINE_DECKS = 12;
+/**
+ * The most decks one device pack may carry besides the starters: room for every deck a player has
+ * (owner, 10 Nov 2026: "download all existing decks" before a flight; the database held 29 decks).
+ */
+export const MAX_OFFLINE_DECKS = 60;
 
 export type { BlockingCard, OfflineDeckCheck };
 
@@ -166,6 +169,13 @@ async function liveDecks(db: Db, scope: OwnerScope, deckIds: number[]): Promise<
     out.set(d.id, { check: base, deck, legality, defs, scripts, art });
   }
   return out;
+}
+
+/** Every deck `scope` can see, by name: what "Download all my decks" checks (Fusion World included, to say why it stays online). */
+export async function offlineDeckIds(db: Db, scope: OwnerScope): Promise<number[]> {
+  const scoped = deckScope(scope);
+  const rows = await db.select({ id: decksTable.id }).from(decksTable).where(scoped ?? undefined).orderBy(asc(decksTable.name), asc(decksTable.id));
+  return rows.map((r) => r.id);
 }
 
 /** Whether each deck can go offline, and if not which cards block it. A deck outside `scope` is absent. */

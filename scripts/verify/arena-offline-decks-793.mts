@@ -25,9 +25,9 @@ import { mastersPackInput, buildMastersPack } from "../build-arena-offline-pack.
 import { liveFixture } from "./arena-offline-decks-fixture.mts";
 import { rulesFor } from "../../src/lib/arena/rules-store.ts";
 import { defsForCards } from "../../src/lib/arena/load.ts";
-import { OfflineDeckRefused, buildDeviceOfflinePack, checkOfflineDecks, parseDeckIds } from "../../src/lib/arena/offline-decks.ts";
+import { MAX_OFFLINE_DECKS, OfflineDeckRefused, buildDeviceOfflinePack, checkOfflineDecks, offlineDeckIds, parseDeckIds } from "../../src/lib/arena/offline-decks.ts";
 import {
-  DEVICE_PACK_ID, LOCAL_POINTER_KEY, PLAYER_DECKS_SOURCE, deckBytes, deckIdOfKey, deckListHash, deviceDeckIds, devicePackUrl, installDeviceDecks, matchesUsing,
+  DEVICE_PACK_ID, LOCAL_POINTER_KEY, PLAYER_DECKS_SOURCE, allDecksPlan, deckBytes, deckIdOfKey, deckListHash, deviceDeckIds, devicePackUrl, installDeviceDecks, matchesUsing,
   offlineDeckKey, packWithout, readDevicePack, takeDeckOff,
 } from "../../src/lib/arena/local/device-decks.ts";
 import { packStore } from "../../src/lib/arena/local/pack-store.ts";
@@ -199,7 +199,25 @@ assert.equal((await checkOfflineDecks(db, null, [annRed])).size, 0, "the unowned
 assert.deepEqual(privateDataViolations(JSON.parse(canonicalJson(pack))), [], "no private-looking field in the pack");
 const text = canonicalJson(pack);
 for (const word of ['"ann"', '"bob"', "ann@", "Bob's"]) assert.ok(!text.includes(word), `the pack does not carry ${word}`);
-await assert.rejects(buildDeviceOfflinePack(db, "ann", Array.from({ length: 13 }, (_, i) => i + 1), starters), (e: unknown) => e instanceof OfflineDeckRefused && e.code === "too-many");
+await assert.rejects(buildDeviceOfflinePack(db, "ann", Array.from({ length: MAX_OFFLINE_DECKS + 1 }, (_, i) => i + 1), starters), (e: unknown) => e instanceof OfflineDeckRefused && e.code === "too-many");
+assert.ok(MAX_OFFLINE_DECKS >= 29, "a device can hold every deck the owner had (29 on 10 Nov 2026)");
+
+// "Download all my decks" (10 Nov 2026): every deck the looker can see, in name order, scoped like every other read.
+const annAll = await offlineDeckIds(db, "ann");
+assert.ok(annAll.includes(annRed) && annAll.includes(annRed2) && annAll.includes(annPride) && annAll.includes(fw.id), "every one of Ann's decks is listed, Fusion World included");
+assert.ok(!annAll.includes(bobDeck), "another player's deck is not listed");
+const annOwned = (await db.select({ id: schema.decks.id }).from(schema.decks).where(eq(schema.decks.owner, "ann"))).map((d) => d.id).sort((a, b) => a - b);
+assert.deepEqual([...annAll].sort((a, b) => a - b), annOwned, "exactly Ann's decks, each once (the page sorts them by name)");
+assert.ok((await offlineDeckIds(db, undefined)).includes(bobDeck), "an SL lists every deck");
+assert.ok(!(await offlineDeckIds(db, "bob")).includes(annRed), "Bob does not list Ann's decks");
+const annChecks = [...(await checkOfflineDecks(db, "ann", annAll)).values()];
+const plan = allDecksPlan(annChecks, [annRed]);
+assert.deepEqual([...plan.ready].sort(), annChecks.filter((c) => c.ready).map((c) => c.deckId).sort(), "the plan takes every ready deck");
+assert.ok(!plan.toAdd.includes(annRed) && plan.ready.includes(annRed), "a ready deck already on the device stays in the pack and is not new");
+assert.ok(plan.blocked.some((c) => c.deckId === fw.id), "the Fusion World deck stays online only, with its reason");
+assert.deepEqual(plan.stuck, [], "nothing on the device is stuck");
+assert.deepEqual(allDecksPlan(annChecks, [annRed, fw.id]).stuck, [fw.id], "a deck on the device that can no longer go offline is reported, not silently dropped");
+await buildDeviceOfflinePack(db, "ann", plan.ready, starters).then((p) => assert.equal(p.qualification.playable, true, "the pack of every ready deck builds and is playable"));
 assert.deepEqual(parseDeckIds("3, 1,3"), [3, 1]);
 assert.deepEqual(parseDeckIds(""), []);
 assert.equal(parseDeckIds("1;drop"), null);
