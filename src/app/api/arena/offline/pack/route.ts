@@ -6,6 +6,8 @@ import { OfflineDeckRefused, buildDeviceOfflinePack, parseDeckIds } from "@/lib/
 import { mastersPackInput } from "../../../../../../scripts/build-arena-offline-pack.mts";
 
 export const dynamic = "force-dynamic";
+/** A pack with every one of a player's decks reads each deck's cards and records: give it a minute. */
+export const maxDuration = 60;
 
 /**
  * The device's offline pack with the player's own decks (#793): `?decks=1,2` → the built-in

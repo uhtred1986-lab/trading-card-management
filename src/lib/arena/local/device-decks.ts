@@ -133,6 +133,37 @@ export async function fetchDeckChecks(deckIds: readonly number[], doFetch: typeo
   }
 }
 
+/**
+ * The checks for every deck the player can see ("Download all my decks", 10 Nov 2026), by name, or
+ * null when they cannot be read (offline, signed out, a build without the route).
+ */
+export async function fetchAllDeckChecks(doFetch: typeof fetch = (...a) => fetch(...a)): Promise<OfflineDeckCheck[] | null> {
+  try {
+    const res = await doFetch(`${DEVICE_DECKS_API}?all=1`, { cache: "no-store", credentials: "same-origin" });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { decks?: OfflineDeckCheck[] };
+    return [...(body.decks ?? [])].sort((a, b) => a.name.localeCompare(b.name) || a.deckId - b.deckId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What "Download all my decks" would put on the device: every ready deck. `stuck` are decks already
+ * on the device that are no longer the player's or can no longer be played offline: a new pack
+ * cannot carry them, so the player removes them first (the same rule as adding one deck).
+ */
+export function allDecksPlan(all: readonly OfflineDeckCheck[], onDevice: readonly number[]): { ready: number[]; toAdd: number[]; blocked: OfflineDeckCheck[]; stuck: number[] } {
+  const ready = all.filter((c) => c.ready).map((c) => c.deckId);
+  const readySet = new Set(ready);
+  return {
+    ready,
+    toAdd: ready.filter((id) => !onDevice.includes(id)),
+    blocked: all.filter((c) => !c.ready),
+    stuck: onDevice.filter((id) => !readySet.has(id)),
+  };
+}
+
 /** Put exactly `deckIds` (plus the starters) on the device: one new pack version, installed atomically. */
 export function installDeviceDecks(store: Pick<PackStore, "install">, deckIds: readonly number[], options: InstallOptions = {}): Promise<InstalledVersion> {
   return store.install({ url: devicePackUrl(deckIds) }, options);

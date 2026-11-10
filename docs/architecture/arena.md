@@ -294,7 +294,12 @@ Read before touching anything under `src/lib/arena/` or `src/components/arena/`.
   deck's picture storage, the changed-online flag and Update, and Remove for a player's deck: done on the device
   with no connection (`packWithout` rebuilds and reseals the pack; the saved matches that play the deck are
   deleted after the page says so, the others keep their pinned version). Preparing or updating the app keeps the
-  device's decks (`devicePackUrl`). "Remove everything" stays there, on a page that needs no sign-in. Proofs:
+  device's decks (`devicePackUrl`). "Remove everything" stays there, on a page that needs no sign-in.
+  Above that list, "Your decks" (10 Nov 2026) checks every deck the player can see
+  (`GET /api/arena/offline/decks?all=1`, `offlineDeckIds`, sorted by name) and "Download all N to this device"
+  puts every ready deck on the device as one pack (`fetchAllDeckChecks`, `allDecksPlan`; a deck on the device
+  that is no longer ready must be removed first). The decks that stay online only are listed with their
+  blocking cards. A pack holds up to `MAX_OFFLINE_DECKS` (60) decks; both routes allow 60 s. Proofs:
   `scripts/verify/arena-offline-decks-793.mts` §6 (the pack store on a fake IndexedDB) and
   `npm run arena:offline-decks-browser` (a production build behind Basic Auth that the browser never passes,
   the two routes answered from a PGlite build of the same data; the deck page itself needs the database and is

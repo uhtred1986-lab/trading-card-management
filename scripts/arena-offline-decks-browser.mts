@@ -25,6 +25,9 @@
  *   4. With the network off, "Remove" takes one deck off: no request is made, the other decks stay,
  *      the saved match of the removed deck goes and the other saved match stays; a new match on the
  *      remaining deck starts offline.
+ *   4b. "Download all my decks" (10 Nov 2026): "Your decks" counts the player's decks, the Fusion World
+ *      deck says why it stays online only, and one press puts every ready deck on the device in one
+ *      pack; a deck that came that way plays offline.
  *   5. Remove everything empties the device.
  *
  * Not shown here: the deck page's "Available offline" card (it needs the database), a real download
@@ -170,6 +173,14 @@ try {
   const checks = await checkOfflineDecks(fx.db, "ann", [red, red2]);
   answers.set(`/api/arena/offline/decks?ids=${red},${red2}`, JSON.stringify({ decks: [...checks.values()] }));
   answers.set(`/api/arena/offline/decks?ids=${red2}`, JSON.stringify({ decks: [checks.get(red2)] }));
+  // "Download all my decks" (10 Nov 2026): a third ready deck and a Fusion World deck that stays online only.
+  const red3 = await fx.addDeck("ann", "Ann's Crimson III", fx.specB);
+  const [fwDeck] = await fx.db.insert(schema.decks).values({ name: "Ann's Fusion World", owner: "ann", game: "fusion" }).returning({ id: schema.decks.id });
+  const allChecks = await checkOfflineDecks(fx.db, "ann", [red, red2, red3, fwDeck.id]);
+  answers.set("/api/arena/offline/decks?all=1", JSON.stringify({ decks: [...allChecks.values()] }));
+  answers.set(`/api/arena/offline/decks?ids=${red}`, JSON.stringify({ decks: [allChecks.get(red)] }));
+  answers.set(`/api/arena/offline/decks?ids=${red},${red2},${red3}`, JSON.stringify({ decks: [red, red2, red3].map((id) => allChecks.get(id)) }));
+  answers.set(devicePackUrl([red, red2, red3]), await packOf([red, red2, red3]));
   await fx.client.close();
 
   // ── 1. prepare, then the device pack with two of the player's decks ─────────────────────────
@@ -258,6 +269,31 @@ try {
   await page.setOffline(false);
   await page.goto(`${BASE}${SHELL_PATH}`);
   await until(page, `document.querySelectorAll("[data-device-deck]").length === 3`, "the decks again");
+
+  // ── 4b. "Download all my decks": every ready deck in one pack; the Fusion World deck says why it stays online ─
+  await until(page, `document.querySelector("[data-all-decks]")`, "the Your decks section");
+  const summary = await page.eval<string>(`document.querySelector("[data-all-decks]").innerText.replace(/\\s+/g, " ")`);
+  check(/3 of your 4 decks can be played offline; 2 are not on this device yet/.test(summary), `the section counts the player's decks: ${summary.slice(0, 160)}`);
+  await page.eval(`document.querySelector("[data-blocked-decks]").open = true; 0`);
+  const blockedText = await page.eval<string>(`document.querySelector("[data-blocked-decks]").innerText.replace(/\\s+/g, " ")`);
+  check(/Ann's Fusion World/.test(blockedText) && /Fusion World deck/.test(blockedText), `the Fusion World deck stays online only and says why: ${blockedText.slice(0, 160)}`);
+  const allFrom = served.length;
+  await shot(page, "4-your-decks");
+  await clickText(page, "Download all 3 to this device");
+  await until(page, `/3 of your decks are on this device/.test(document.querySelector("[data-deck-notice]")?.textContent ?? "")`, "the download of every deck", 240000);
+  check(served.slice(allFrom).includes(devicePackUrl([red, red2, red3])), `one pack with every ready deck came from ${devicePackUrl([red, red2, red3])}`);
+  await until(page, `document.querySelectorAll("[data-device-deck]").length === 5`, "five decks on the device");
+  list = await deckRows(page);
+  check(JSON.stringify(list.map((r) => r.key)) === JSON.stringify(["A", "B", k1, k2, offlineDeckKey(red3)]), `the starters and all three of the player's ready decks are on the device (${list.map((r) => r.key).join(", ")})`);
+  await until(page, `!document.querySelector("[data-download-all]")`, "the button to go once everything is on the device").catch(() => {});
+  check(!(await page.eval<boolean>(`!!document.querySelector("[data-download-all]")`)), "with every ready deck on the device the button is gone");
+  await shot(page, "5-all-decks-on-device");
+  await page.setOffline(true);
+  await startMatch(page, offlineDeckKey(red3), k2, "First");
+  check(true, `offline, a match starts on a deck that came with "Download all" (${offlineDeckKey(red3)} v ${k2})`);
+  await page.setOffline(false);
+  await page.goto(`${BASE}${SHELL_PATH}`);
+  await until(page, `document.querySelectorAll("[data-device-deck]").length === 5`, "the decks again");
 
   // ── 5. remove everything ─────────────────────────────────────────────────────────────────────
   await clickText(page, "Remove everything");

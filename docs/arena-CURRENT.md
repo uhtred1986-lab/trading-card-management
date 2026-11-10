@@ -4,6 +4,12 @@ Last updated: 19 October 2026
 
 ## Current work
 
+**Download all my decks for offline play, 10 Nov 2026.** `/arena/offline` has a "Your decks" section: it
+counts the player's decks that can go offline and "Download all N to this device" installs every ready one
+in one pack, with its card pictures. Fusion World decks and decks with a card the engine cannot play yet
+stay online only and are listed with the reason (`docs/architecture/arena.md`, "A player's own decks
+offline"). The cap is 60 decks.
+
 **Offline opponent, 8 Nov 2026 (PR #1250).**
 
 - **Strength gate.** It is now the SPRT (`docs/arena-policy-sprt.md`).
