@@ -430,12 +430,15 @@ export function CounterRefusals({ view }: { view: Pick<BoardView, "battle" | "yo
   if (!rows.length) return null;
   const nameOf = (id: string) => view.you.hand?.find((c) => c.id === id)?.name ?? "A Counter";
   return (
-    <ul className="space-y-0.5 rounded-lg border border-loss/50 bg-loss/10 px-2 py-1 text-[11px] leading-snug text-space-100" aria-label="Counters you could not play" data-counter-refusals>
-      {rows.slice(0, 3).map((row) => (
-        <li key={row.card} data-counter-refused={row.card}>
-          <b className="text-space-50">No counter with {nameOf(row.card)}:</b> {refusalLine(row.why, { name: nameOf(row.card), reaching: "counter", side: view.you, inHand: true }) ?? "the engine gave no reason."}
-        </li>
-      ))}
-    </ul>
+    <div className="rounded-lg border border-loss/50 bg-loss/10 px-2 py-1 text-[11px] leading-snug text-space-100" data-counter-refusals>
+      <p className="font-bold text-space-50">{rows.length === 1 ? "Your Counter could not answer this attack" : "Your Counters could not answer this attack"}</p>
+      <ul aria-label="Counters you could not play">
+        {rows.slice(0, 3).map((row) => (
+          <li key={row.card} data-counter-refused={row.card}>
+            {refusalLine(row.why, { name: nameOf(row.card), reaching: "counter", side: view.you, inHand: true }) ?? `${nameOf(row.card)}: the engine gave no reason.`}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
