@@ -168,14 +168,23 @@ export function PromptPanel({
   if (playing && pace !== "step" && !error) return null;
   const quietMain = view.prompt.kind === "main" && !view.over && !overOutcome && !playing && !bad && !isTargeting && !searching && !onRetry;
   if (quietMain) return <div className="flex flex-wrap items-center justify-end gap-2 px-3 py-2" data-arena-quiet-controls>
-    {playSelection && (
-      <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-play-confirm>
-        <p className="min-w-0 flex-1 text-sm font-bold text-space-50">Play {playSelection.card.name}?{playSelection.options[0].cost != null && <span className="block text-xs font-normal text-space-200">Costs {playSelection.options[0].cost} energy · {playSelection.ready} ready</span>}</p>
-        {playSelection.options.map((option, n) => (
-          <button key={n} type="button" disabled={busy} onClick={() => onSend(option.action)} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50" data-play-action>{playSelection.options.length > 1 ? option.label : "Play it"}</button>
-        ))}
-      </div>
-    )}
+    {playSelection && (() => {
+      // A Unison's X is the number of markers it enters with, one per energy rested (13-2-3), so its options
+      // say markers rather than "with X = 2".
+      const unison = playSelection.options.every((option) => option.action.type === "playUnison");
+      return (
+        <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-play-confirm>
+          <p className="min-w-0 flex-1 text-sm font-bold text-space-50">Play {playSelection.card.name}?{unison
+            ? <span className="block text-xs font-normal text-space-200">It enters with one marker for each energy you rest · {playSelection.ready} ready</span>
+            : playSelection.options[0].cost != null && <span className="block text-xs font-normal text-space-200">Costs {playSelection.options[0].cost} energy · {playSelection.ready} ready</span>}</p>
+          {playSelection.options.map((option, n) => (
+            <button key={n} type="button" disabled={busy} onClick={() => onSend(option.action)} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50" data-play-action>
+              {unison && option.action.type === "playUnison" ? `${option.action.x} marker${option.action.x === 1 ? "" : "s"}` : playSelection.options.length > 1 ? option.label : "Play it"}
+            </button>
+          ))}
+        </div>
+      );
+    })()}
     <button type="button" className="arena-iconbtn tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-space-100" aria-label="Open player guidance" aria-haspopup="dialog" onClick={() => setDetailOpen(true)}>?</button>
     {(busy || waitingOnServer) && <span role="status" className="mr-auto text-xs text-space-200">{waitingOnServer ? `${view.them.name} is thinking…` : "Sending move…"}</span>}
     {inlineBare.map(({ i, l }) => <button key={i} type="button" disabled={busy || waitingOnServer} onClick={() => onSend(l.action)} className="arena-btn tap min-h-11 rounded-xl border border-space-600 bg-space-800 px-4 text-sm font-semibold text-space-50 disabled:opacity-50">{l.action.type === "endMain" ? "End turn" : shortLabel(l.label)}</button>)}

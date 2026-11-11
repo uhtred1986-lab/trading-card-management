@@ -113,11 +113,14 @@ function move(action: LegalAction["action"], label = "engine offer", cost?: Lega
 }
 
 // A missing price projection must not become “free” through the legacy
-// `priceOf` card-cost fallback. The authoritative incomplete state is said.
+// `priceOf` card-cost fallback. The authoritative incomplete state is said —
+// as where the price is written (owner, 11 Nov 2026: "Cost details
+// unavailable" on The Masked Saiyan read as a broken skill; its price, placing
+// the top 3 cards in the Drop Area, is an action with no number to project).
 {
   const offered = line({ skillIndex: 0, category: "counter", kind: "counter:attack", availability: "offered", costPreview: { state: "incomplete" } });
   const legal = move({ type: "counter", player: "p1", card: card.id });
-  assert.equal(abilityCost(offered, legal), "Cost details unavailable");
+  assert.equal(abilityCost(offered, legal), "Price in the skill text");
   const priced = line({
     skillIndex: 0,
     category: "counter",
@@ -234,6 +237,13 @@ function move(action: LegalAction["action"], label = "engine offer", cost?: Lega
       else delete DEFS[id];
     }
   }
+}
+
+// A Unison marker price says which way the markers go: the engine words [+1] and [-2] alike ("1 marker", "2 markers").
+{
+  const plus = line({ skillIndex: 0, category: "manual", kind: "activate:main", availability: "offered", costPreview: { state: "incomplete" } });
+  assert.equal(abilityCost(plus, move({ type: "activate", player: "p1", card: card.id, skill: 0 }, "Activate", { energy: 0, markers: 1, describe: "+1 marker" })), "adds 1 marker");
+  assert.equal(abilityCost(plus, move({ type: "activate", player: "p1", card: card.id, skill: 0 }, "Activate", { energy: 1, markers: -2, describe: "1 energy · 2 markers" })), "1 energy · removes 2 markers");
 }
 
 console.log("Abilities now projection checks passed.");

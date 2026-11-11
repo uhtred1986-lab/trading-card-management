@@ -1,11 +1,13 @@
 .layer { position: fixed; inset: 0; z-index: 160; pointer-events: none; }
-.dismiss { position: absolute; inset: 0 0 auto; width: 100%; pointer-events: auto; background: #061d3433; border: 0; }
-.popup { position: absolute; left: max(18px, calc(50% - 210px)); right: max(18px, calc(50% - 210px)); top: max(70px, 13dvh); display: flex; flex-direction: column; pointer-events: auto; touch-action: pan-y; transition: transform 100ms ease-out; filter: drop-shadow(0 12px 24px #00182a70); }
+/* The card in focus is the only thing to look at (owner, 11 Nov 2026): the board above the hand is
+   dimmed nearly away, and the card takes the whole height above the hand. */
+.dismiss { position: absolute; inset: 0 0 auto; width: 100%; pointer-events: auto; background: #061d34c7; border: 0; }
+.popup { position: absolute; left: max(8px, calc(50% - 280px)); right: max(8px, calc(50% - 280px)); top: max(6px, env(safe-area-inset-top)); display: flex; flex-direction: column; pointer-events: auto; touch-action: pan-y; transition: transform 100ms ease-out; filter: drop-shadow(0 12px 24px #00182a70); }
 .popup [data-card-reader] { padding: 0 5px; touch-action: pan-y; }
 .popup [data-reader-face] { animation: pop 130ms ease-out; }
 .tools { display: flex; justify-content: flex-end; gap: 6px; flex-shrink: 0; padding-bottom: 4px; }
 .tools button { min-height: 44px; min-width: 44px; border: 1px solid #91bdd7; border-radius: 22px; padding: 0; background: #f3fbff; color: #112d40; font-size: 22px; font-weight: 700; }
-.hint { align-self: center; margin-top: 4px; border-radius: 12px; padding: 3px 10px; background: #f3fbff; color: #112d40; font-size: 11px; }
+.hint { align-self: center; margin-top: 2px; border-radius: 12px; padding: 2px 10px; background: #f3fbff; color: #112d40; font-size: 10.5px; }
 .layer[data-skin="night"] .tools button, .layer[data-skin="night"] .hint { background: #14283c; color: #eefaff; }
 @keyframes pop { from { opacity: .7; scale: .94; translate: 0 12px; } to { opacity: 1; scale: 1; translate: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .popup { transition: none; } .popup [data-reader-face] { animation: none; } }

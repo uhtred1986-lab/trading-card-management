@@ -20,10 +20,16 @@ try {
     await page.settle(100);
     assert.equal(await page.eval(`(window.__arenaSent??[]).length`), 0);
     assert.equal(await page.eval(`!!document.querySelector('dialog[open]')`), false);
+    // Every skill is written out in full: nothing to expand, and tapping the text does nothing.
     await page.tap('[data-hand-peek] [data-reader-ability] p');
-    assert.equal(await page.eval(`document.querySelector('[data-hand-peek] [data-reader-info]').getAttribute('aria-expanded')`), 'false', 'bar body cannot activate or expand an ability');
-    await page.tap('[data-hand-peek] [data-reader-info]');
-    assert.equal(await page.eval(`document.querySelector('[data-hand-peek] [data-reader-info]').getAttribute('aria-expanded')`), 'true');
+    assert.equal(await page.eval(`(window.__arenaSent??[]).length`), 0, 'reading a skill never sends a move');
+    assert.ok(await page.eval<boolean>(`[...document.querySelectorAll('[data-hand-peek] [data-reader-ability] p')].every(p => p.textContent.trim().length > 0)`), 'each skill shows its text');
+    // A keyword's rule is the one thing behind a tap (its ⓘ), when the card prints a keyword.
+    if (await page.eval<boolean>(`!!document.querySelector('[data-hand-peek] [data-reader-info]')`)) {
+      assert.equal(await page.eval(`document.querySelector('[data-hand-peek] [data-reader-info]').getAttribute('aria-expanded')`), 'false');
+      await page.tap('[data-hand-peek] [data-reader-info]');
+      assert.equal(await page.eval(`document.querySelector('[data-hand-peek] [data-reader-info]').getAttribute('aria-expanded')`), 'true');
+    }
     // A separately grabbed preview follows the finger and settles on release.
     const center = await page.eval<{x:number;y:number}>(`(()=>{const r=document.querySelector('[data-hand-peek] [data-reader-face]').getBoundingClientRect();return {x:r.x+r.width*.5,y:r.y+r.height*.25}})()`);
     await page.cdp('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });
@@ -37,7 +43,7 @@ try {
     await page.settle(80);
     assert.equal(await page.eval(`!!document.querySelector('[data-hand-peek]')`), false);
     assert.equal(await page.eval(`(window.__arenaSent??[]).length`), 0);
-    console.log(`${width}×${height} ${skin}: continuous browsing, floating movement, text expansion and cancellation pass`);
+    console.log(`${width}×${height} ${skin}: continuous browsing, floating movement, written-out text and cancellation pass`);
     await page.close();
   }
 } finally { await browser.close(); }
