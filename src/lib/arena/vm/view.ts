@@ -36,6 +36,7 @@ import { attrsOf, type Attrs } from "./cards";
 import { skillsOf } from "../text/cards";
 import { attrsNow, forbids, hasKeyword, keywordsInForce, permanentStaticsOf, readingBoard, staticsNow } from "./program";
 import { battleIntact, damageRule } from "./battle-damage";
+import { skippedCounterReasons } from "./battle";
 import { cardColors } from "./costs";
 import { DEFERRED_STATICS, STATIC_OPS } from "./effects";
 import { costModifierAs, describeScript, modifyAttrAs, negateAs, replaceAs, type Op } from "./script";
@@ -125,6 +126,8 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
     if (window === "offenseCombo") return viewer === state.turnPlayer;
     return true;
   });
+  // The defender's own counters the skipped window passed over, and why: their hand, so theirs alone.
+  const counterRefusals = viewer === defender && emptyResponses.includes("counter") ? skippedCounterReasons(ctx, game, state) : [];
   const how = damageRule(ctx, game, state, b.attacker);
   const hit = attackPower >= guardPower;
   const life = state.sides[defender].zones.life?.length ?? 0;
@@ -150,6 +153,7 @@ function battleView(ctx: EngineContext, game: GameDefinition, state: VmState, im
     attackPower,
     guardPower,
     ...(emptyResponses.length ? { emptyResponses } : {}),
+    ...(counterRefusals.length ? { counterRefusals } : {}),
     ...(!b.negated && battleIntact(state) && ["declared", "offense", "defense"].includes(b.step) ? { stakes: {
       hit, tied: attackPower === guardPower, target, lifeDamage, strikeDamage: Math.max(1, how.atLeast ?? 1),
       markerLoss: target === "unison" && hit ? Math.min(markers, how.allMarkers ? markers : Math.max(1, how.atLeast ?? 1)) : 0,

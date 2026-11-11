@@ -2014,6 +2014,24 @@ function comboWhy(ctx: EngineContext, game: GameDefinition, state: VmState, play
  * reason naming #716 for an action the strict host cannot prove — rather than
  * left in neither list.
  */
+/**
+ * Why each [Counter] in the defender's hand was not offered, once this battle's attack window opened with
+ * no candidates (`emptyResponses` has "counter", so no prompt ever named the cards): the reasons the
+ * counter prompt gives a card it refuses (`counterWhy`) — a rule the engine cannot run, the energy, a
+ * spent [Once per turn], a window of another kind. Hand contents: the view gives it to the defender only.
+ */
+export function skippedCounterReasons(ctx: EngineContext, game: GameDefinition, state: VmState): { card: string; why: Requirement[] }[] {
+  const b = state.battle;
+  if (!b || !(b.emptyResponses ?? []).includes("counter")) return [];
+  const defender = other(state.turnPlayer);
+  const out: { card: string; why: Requirement[] }[] = [];
+  for (const card of state.sides[defender].zones.hand ?? []) {
+    const why = counterWhy(ctx, game, state, defender, card, "attack", []);
+    if (why?.length) out.push({ card, why });
+  }
+  return out;
+}
+
 function counterWhy(ctx: EngineContext, game: GameDefinition, state: VmState, player: PlayerId, card: string, window: string, candidates: string[]): Requirement[] | null {
   const showing = skillsShowing(ctx, state, card);
   const counters = showing.skills.filter((sk) => sk.kind.startsWith("counter:"));

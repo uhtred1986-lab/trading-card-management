@@ -909,9 +909,15 @@ export function CardSheet({
         onPointerUp={end}
         onPointerCancel={end}
       >
-        <div className="mb-1 flex min-h-[48px] touch-none shrink-0 items-center justify-between gap-2 px-4">
+        <div className={`flex min-h-[48px] touch-none shrink-0 items-center justify-between gap-2 ${fullArt ? "px-3 pt-1" : "mb-1 px-4"}`}>
           {!fullArt && <span className="h-1 w-10 rounded-full bg-space-600" aria-hidden />}
-          {fullArt && position && <p className="min-w-0 flex-1 whitespace-nowrap text-center text-xs font-semibold text-space-100" aria-live="polite">{at + 1} / {items.length}</p>}
+          {/* One header row in card view (owner, 11 Nov 2026: the card gets the room): its name, where it
+              is and the position, then the toggles. */}
+          {fullArt && <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-bold leading-tight text-space-50">{card.hidden ? "Face-down card" : card.name}</h3>
+            <p className="truncate text-[11px] leading-tight text-space-300" aria-live="polite">{[where ?? sequence?.label, position ? `${at + 1} / ${items.length}` : null].filter(Boolean).join(" · ")}{pager ? " · flick to browse" : ""}</p>
+          </div>}
+          {fullArt && <button type="button" className="tap min-h-11 shrink-0 rounded-lg border border-space-600 px-2 text-xs text-space-100" aria-pressed={!showAbilities} aria-label={showAbilities ? "Show the artwork only" : "Show the card's skills"} onClick={() => setShowAbilities(value => !value)}>{showAbilities ? "Art" : "Text"}</button>}
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <button
               type="button"
@@ -935,10 +941,6 @@ export function CardSheet({
         </div>}
         {fullArt ? (
           <>
-            <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-1">
-              <div className="min-w-0"><h3 className="truncate text-base font-bold text-space-50">{card.hidden ? "Face-down card" : card.name}</h3><p className="text-[11px] text-space-300">{where ?? sequence?.label}{pager ? " · Flick left or right" : ""}</p></div>
-              <button type="button" className="tap min-h-11 shrink-0 rounded-lg border border-space-600 px-3 text-xs text-space-100" aria-pressed={showAbilities} onClick={() => setShowAbilities(value => !value)}>{showAbilities ? "Artwork only" : "Show abilities"}</button>
-            </div>
             <CardReader key={`${card.id}:${card.flipped}`} card={card} showAbilities={showAbilities} direction={readerDirection} />
             {pager && <div className="flex shrink-0 items-center gap-1 px-2" data-card-strip>
               <button type="button" onClick={() => go(at - 1)} disabled={at <= 0} aria-label="Previous card" className="tap h-11 w-11 shrink-0 rounded-full border border-space-500 text-xl text-space-50 disabled:opacity-30">‹</button>

@@ -8,7 +8,7 @@ import type { PublicOutcome } from "@/lib/arena/outcome";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import { energySummary, stakesSummary } from "./stakes-model";
 import { untilWords } from "@/lib/arena/effects";
-import { Sheet, isGhostAction, shortLabel } from "../shared";
+import { Sheet, isGhostAction, refusalLine, shortLabel } from "../shared";
 import phoneStyles from "./phone-board.module.css";
 import { CenterPrompt } from "./CenterPrompt";
 
@@ -168,14 +168,23 @@ export function PromptPanel({
   if (playing && pace !== "step" && !error) return null;
   const quietMain = view.prompt.kind === "main" && !view.over && !overOutcome && !playing && !bad && !isTargeting && !searching && !onRetry;
   if (quietMain) return <div className="flex flex-wrap items-center justify-end gap-2 px-3 py-2" data-arena-quiet-controls>
-    {playSelection && (
-      <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-play-confirm>
-        <p className="min-w-0 flex-1 text-sm font-bold text-space-50">Play {playSelection.card.name}?{playSelection.options[0].cost != null && <span className="block text-xs font-normal text-space-200">Costs {playSelection.options[0].cost} energy · {playSelection.ready} ready</span>}</p>
-        {playSelection.options.map((option, n) => (
-          <button key={n} type="button" disabled={busy} onClick={() => onSend(option.action)} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50" data-play-action>{playSelection.options.length > 1 ? option.label : "Play it"}</button>
-        ))}
-      </div>
-    )}
+    {playSelection && (() => {
+      // A Unison's X is the number of markers it enters with, one per energy rested (13-2-3), so its options
+      // say markers rather than "with X = 2".
+      const unison = playSelection.options.every((option) => option.action.type === "playUnison");
+      return (
+        <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-play-confirm>
+          <p className="min-w-0 flex-1 text-sm font-bold text-space-50">Play {playSelection.card.name}?{unison
+            ? <span className="block text-xs font-normal text-space-200">It enters with one marker for each energy you rest · {playSelection.ready} ready</span>
+            : playSelection.options[0].cost != null && <span className="block text-xs font-normal text-space-200">Costs {playSelection.options[0].cost} energy · {playSelection.ready} ready</span>}</p>
+          {playSelection.options.map((option, n) => (
+            <button key={n} type="button" disabled={busy} onClick={() => onSend(option.action)} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50" data-play-action>
+              {unison && option.action.type === "playUnison" ? `${option.action.x} marker${option.action.x === 1 ? "" : "s"}` : playSelection.options.length > 1 ? option.label : "Play it"}
+            </button>
+          ))}
+        </div>
+      );
+    })()}
     <button type="button" className="arena-iconbtn tap flex h-11 w-11 items-center justify-center rounded-full border border-space-600 text-space-100" aria-label="Open player guidance" aria-haspopup="dialog" onClick={() => setDetailOpen(true)}>?</button>
     {(busy || waitingOnServer) && <span role="status" className="mr-auto text-xs text-space-200">{waitingOnServer ? `${view.them.name} is thinking…` : "Sending move…"}</span>}
     {inlineBare.map(({ i, l }) => <button key={i} type="button" disabled={busy || waitingOnServer} onClick={() => onSend(l.action)} className="arena-btn tap min-h-11 rounded-xl border border-space-600 bg-space-800 px-4 text-sm font-semibold text-space-50 disabled:opacity-50">{l.action.type === "endMain" ? "End turn" : shortLabel(l.label)}</button>)}
@@ -297,7 +306,7 @@ export function PromptPanel({
           : l.action.type === "charge" && l.action.card == null ? "Don’t charge"
             : l.action.type === "counter" && l.action.card == null ? "Don’t counter"
               : l.action.type === "block" && l.action.card == null ? "No block"
-                : l.action.type === "pass" && view.prompt.kind === "combo" ? view.battle?.stakes ? view.battle.stakes.hit ? "Take the hit" : "Keep it as is" : "Done adding power"
+                : l.action.type === "pass" && view.prompt.kind === "combo" ? comboPassDetail(view, defending)
                 : l.action.type === "optionalCost" && !l.action.pay ? "Don’t pay the optional cost"
                   : view.prompt.passConsequence ?? "Pass this decision";
         return (
@@ -349,6 +358,17 @@ export function PromptPanel({
   return panel;
 }
 
+/**
+ * What passing the combo step means, read from the side passing it. The stakes are the attack's: `hit` is
+ * the attack getting through. Only the defender takes a hit; the attacker's pass keeps the attack as it is.
+ */
+export function comboPassDetail(view: Pick<BoardView, "battle">, defending: boolean): string {
+  const stakes = view.battle?.stakes;
+  if (!stakes) return defending ? "Done adding power" : "Attack with what you have";
+  if (defending) return stakes.hit ? "Take the hit" : "Keep it as is";
+  return stakes.hit ? "Attack as it is: it gets through" : "Attack as it is: it falls short";
+}
+
 /** The step the defender is on, as three dots with the current one lit; the words are for screen readers. */
 const DEFENCE_STEPS = ["counter", "blocker", "combo"] as const;
 
@@ -396,6 +416,29 @@ function DefenceBrief({ view, kind, thumbs = false }: { view: BoardView; kind: (
         ))}
         <span className="sr-only">Step: {kind === "blocker" ? "Block" : kind === "counter" ? "Counter" : "Combo"}</span>
       </p>
+      <CounterRefusals view={view} />
+    </div>
+  );
+}
+
+/**
+ * The defender's Counters that the attack window passed over, each with the engine's reason (the counter
+ * prompt never opens when none can answer, so without this a Counter in hand is skipped in silence).
+ */
+export function CounterRefusals({ view }: { view: Pick<BoardView, "battle" | "you"> }) {
+  const rows = view.battle?.counterRefusals ?? [];
+  if (!rows.length) return null;
+  const nameOf = (id: string) => view.you.hand?.find((c) => c.id === id)?.name ?? "A Counter";
+  return (
+    <div className="rounded-lg border border-loss/50 bg-loss/10 px-2 py-1 text-[11px] leading-snug text-space-100" data-counter-refusals>
+      <p className="font-bold text-space-50">{rows.length === 1 ? "Your Counter could not answer this attack" : "Your Counters could not answer this attack"}</p>
+      <ul aria-label="Counters you could not play">
+        {rows.slice(0, 3).map((row) => (
+          <li key={row.card} data-counter-refused={row.card}>
+            {refusalLine(row.why, { name: nameOf(row.card), reaching: "counter", side: view.you, inHand: true }) ?? `${nameOf(row.card)}: the engine gave no reason.`}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

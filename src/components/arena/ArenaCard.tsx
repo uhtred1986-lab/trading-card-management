@@ -70,7 +70,7 @@ const KEYWORD_GLYPH: Record<string, string> = {
 /**
  * The one chip a card wears for its [Permanent] skills, summarising the best
  * of them: lit while any is in force, dim while none is, and marked when the
- * engine cannot apply what it says (review Â§3.5). The face says "this card
+ * engine cannot apply what it says (review §3.5). The face says "this card
  * has a standing rule and here is whether it is doing anything"; the sheet
  * says what.
  */
@@ -92,7 +92,7 @@ export function permanentState(card: CardView): keyof typeof PERMANENT_CHIP | nu
 /**
  * `dead`: the card has no move but the engine can say why — it sits a little
  * desaturated and its cost badge turns red, so the board says "not this one"
- * before you even tap it (docs/arena-workflow-spec.md Â§4).
+ * before you even tap it (docs/arena-workflow-spec.md §4).
  */
 export type CardState = "plain" | "legal" | "selected" | "dim" | "attacker" | "guard" | "dead";
 
@@ -118,7 +118,7 @@ const RING: Record<CardState, string> = {
 const px = (n: number) => `calc(${n}px * var(--arena, 1))`;
 
 /**
- * One card on the board. Rest Mode is a 90Â° turn and energy sits upside-down,
+ * One card on the board. Rest Mode is a 90° turn and energy sits upside-down,
  * exactly as at the table (1-10-1-1-2), which is what makes the board readable
  * at a glance. The wrapper keeps the upright footprint so a rotated card does
  * not shove its neighbours around.
@@ -219,7 +219,7 @@ export function ArenaCard({
 
   return (
     // The id is in the DOM so the attack beam can find both of its ends.
-    <div data-arena-card={card.id} className="relative flex shrink-0 items-center justify-center" style={{ width: px(width), height: px(box) }}>
+    <div data-arena-card={card.id} className="relative isolate flex shrink-0 items-center justify-center" style={{ width: px(width), height: px(box) }}>
       <button
         type="button"
         onClick={onTap}
@@ -250,7 +250,7 @@ export function ArenaCard({
           if (hoverable) onHover!(null);
         }}
         disabled={!onTap && !onInspect && !hoverable}
-        aria-label={card.hidden ? "Face-down card" : `${card.name}${card.power != null ? `, ${card.power} power` : ""}`}
+        aria-label={card.hidden ? "Face-down card" : `${card.name}${card.power != null ? `, ${card.power} power` : ""}${card.markers > 0 ? `, ${card.markers} marker${card.markers === 1 ? "" : "s"}` : ""}${card.underCount > 0 ? `, ${card.underCount} card${card.underCount === 1 ? "" : "s"} under it` : ""}`}
         className={`arena-card ${styles.face} absolute rounded-[6px] border-2 border-[#12161f] bg-[#12161f] text-left transition-all duration-200 ${RING[state]} ${onTap ? "cursor-pointer" : ""} ${hoverable ? "hover:brightness-125" : ""} ${outlined ? "outline outline-[3px] outline-offset-2 outline-ki-300" : ""} ${rested ? "brightness-90 saturate-[0.8]" : ""}`}
         style={{ width: px(width), height: px(height), transform: `rotate(${rotation}deg)`, ["--cw" as string]: px(width) }}
       >
@@ -336,24 +336,41 @@ export function ArenaCard({
 
       {rested && !card.hidden && width >= 30 && <span className={`${styles.tag} ${styles.tagRest}`} style={{ ["--cw" as string]: px(width) }}>REST</span>}
 
-      {card.markers > 0 && (
-        <span className="pointer-events-none absolute -right-1 -top-1 flex gap-[2px]">
-          {Array.from({ length: Math.min(card.markers, 6) }, (_, i) => (
-            // Keyed by position, so a marker arriving pops in on its own rather
-            // than the whole row restarting.
-            <span key={i} className="arena-chip rounded-full border border-space-950 bg-ki-400" style={{ width: px(9), height: px(9), animationDelay: `${i * 40}ms` }} />
-          ))}
-          {card.markers > 6 && (
-            <span className="arena-num text-ki-300" style={{ fontSize: px(8) }}>
-              +{card.markers - 6}
-            </span>
-          )}
+      {/* A Unison's markers (13-4) are the number its [+N]/[-N] skills spend, so the badge says the
+          number rather than leaving a row of dots to count. Keyed by the count, so a marker arriving or
+          leaving pops the badge. */}
+      {card.markers > 0 && !card.hidden && (
+        <span
+          key={card.markers}
+          className="arena-chip pointer-events-none absolute -right-1.5 -top-1.5 z-10 flex items-center gap-[2px] rounded-full border border-space-950 bg-ki-400 font-black leading-none text-space-950 shadow"
+          style={{ fontSize: px(10), padding: `${px(2)} ${px(4)}` }}
+          data-card-markers={card.markers}
+          title={`${card.markers} marker${card.markers === 1 ? "" : "s"}`}
+        >
+          <span aria-hidden className="block rotate-45 rounded-[1px] bg-space-950" style={{ width: px(5), height: px(5) }} />
+          <span className="arena-num">{card.markers}</span>
         </span>
       )}
-      {card.underCount > 0 && (
-        <span className="pointer-events-none absolute -bottom-1 -left-1 rounded bg-space-700 px-1 arena-num text-space-100" style={{ fontSize: px(8) }}>
-          Ã—{card.underCount + 1}
-        </span>
+      {/* Cards under this one (23-2): its edges peek out behind it, and the count is said in words.
+          The pile is one card with the card on top (BT3-031's Q&A), so it says "under", never "×3". */}
+      {card.underCount > 0 && !card.hidden && (
+        <>
+          {Array.from({ length: Math.min(card.underCount, 3) }, (_, i) => (
+            <span
+              key={i}
+              aria-hidden
+              className="pointer-events-none absolute rounded-[6px] border-2 border-[#12161f] bg-space-600"
+              style={{ width: px(width), height: px(height), zIndex: -1 - i, transform: `translate(${px(-3 * (i + 1))}, ${px(-3 * (i + 1))})${rested ? " rotate(90deg)" : ""}` }}
+            />
+          ))}
+          <span
+            className="pointer-events-none absolute -bottom-1.5 -left-1.5 z-10 whitespace-nowrap rounded-full border border-space-950 bg-dbs-yellow font-black leading-none text-space-950 shadow"
+            style={{ fontSize: px(9), padding: `${px(2)} ${px(4)}` }}
+            data-card-under={card.underCount}
+          >
+            {card.underCount} under
+          </span>
+        </>
       )}
       {admin && card.referee && chrome && (
         <span className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 rounded bg-dbs-yellow px-1 font-bold tracking-wide text-space-950" style={{ fontSize: px(7) }}>

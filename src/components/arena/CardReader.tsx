@@ -3,54 +3,47 @@ import { Fragment, useId, useState } from "react";
 import type { CardView } from "@/lib/arena/view";
 import { cardImage } from "@/lib/catalog/card-image";
 import { useArenaAdmin } from "./admin-context";
-import { chipKind, chipLabel, keywordBadge, keywordRule, readerAbilities, skillBody, skillShortName, type KeywordBadge } from "./card-reader-model";
+import { chipKind, chipLabel, keywordBadge, keywordRule, readerAbilities, skillBody, type KeywordBadge } from "./card-reader-model";
 import type { KeywordRule } from "@/lib/arena/keyword-rules.generated";
 import styles from "./CardReader.module.css";
 
 /**
  * Reading one card (prototype scenarios "Look at a card" and "Review Claude's cards").
  *
- * The scan stays at its own size (never drawn wider than ~300 px). Over its lower half, where the
- * printed text is too small to read, a clean panel lists the skills the way the app words them:
- * a coloured keyword chip, a short name, and a "+" that opens that one skill's full text. The
- * "Full text" toggle opens them all. Inspection only: reading or swiping can never submit a game action.
+ * The card is drawn as large as the space it is given (owner, 11 Nov 2026: "when I look at the detail
+ * of a card I don't need to see anything else, text can be smaller"), up to twice the scan's own width.
+ * Over its lower part, where the printed text is too small to read, a clean panel writes every skill
+ * out in full, in small type, behind its coloured chip — no summaries to expand. A keyword's rule is a
+ * tap on its ⓘ. Inspection only: reading or swiping can never submit a game action.
  */
 export function CardReader({ card, showAbilities, direction, docked = false }: { card: CardView; showAbilities: boolean; direction: "next" | "prev"; /** In the desktop inspector: the scan is sized to the inspector's height, not to a sheet of its own. */ docked?: boolean }) {
   const id = useId();
   const admin = useArenaAdmin();
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
-  const [all, setAll] = useState(false);
+  const [openRule, setOpenRule] = useState<string | null>(null);
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const hasArt = !!card.imageUrl && failedImage !== card.imageUrl && !card.hidden;
   const abilities = readerAbilities(card);
-  const isOpen = (key: string) => all || open.has(key);
-  const toggle = (key: string) => {
-    // Closing one row while "Full text" is on turns the others into single openings.
-    const next = new Set(all ? abilities.map(line => line.key) : open);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    setAll(false);
-    setOpen(next);
-  };
-  const anyOpen = abilities.some(line => isOpen(line.key));
-  const count = `${abilities.length} skill${abilities.length === 1 ? "" : "s"}`;
-  const panel = <div className={styles.panel} data-reader-boxes data-reader-open={anyOpen || undefined} aria-label="Card skills">
-    <div className={styles.head}>
-      <span className={styles.count}>{admin ? `${card.cardId} · ` : ""}{count}</span>
-      {abilities.length > 0 && <button type="button" className={styles.fullToggle} data-reader-full aria-pressed={all} onClick={e => { e.stopPropagation(); setAll(!all); setOpen(new Set()); }}>{all ? "Names only" : "Full text"}</button>}
-    </div>
+  const stack = [
+    card.underCount > 0 ? `${card.underCount} card${card.underCount === 1 ? "" : "s"} under this card` : null,
+    card.markers > 0 ? `${card.markers} marker${card.markers === 1 ? "" : "s"}` : null,
+  ].filter(Boolean).join(" · ");
+  const panel = <div className={styles.panel} data-reader-boxes aria-label="Card skills">
+    {(admin || stack) && <p className={styles.count}>{[admin ? card.cardId : null, stack || null].filter(Boolean).join(" · ")}</p>}
     {abilities.map((line, index) => {
-      const expanded = isOpen(line.key);
+      const rule = keywordRule(line.tag);
+      const expanded = openRule === line.key;
       const textId = `${id}-${index}`;
-      return <div key={line.key} className={styles.ability} data-reader-ability={line.key} data-available={line.offered || undefined} data-chip={chipKind(line.tag, line.keyword)}>
-        <div className={styles.bar}>
+      // The tags are on the chip and the pills; a bare keyword line has nothing more to say.
+      const body = line.text.replace(/^(?:\s*\[[^\]]+\])+\s*/, "").trim();
+      const pills = [...line.extraTags.map(chipLabel), line.copied ? "Added" : line.offered ? "Available now" : line.state === "Pending" ? "Pending" : null].filter(Boolean) as string[];
+      return <div key={line.key} className={styles.ability} data-reader-ability={line.key} data-available={line.offered || undefined} data-chip={chipKind(line.tag, line.keyword)} data-rule={rule ? "" : undefined}>
+        <p className={styles.line}>
           <span className={styles.chip}>{chipLabel(line.tag)}</span>
-          <div className={styles.summary}>
-            <p className={styles.name}>{skillShortName(line)}</p>
-            {(line.extraTags.length > 0 || line.copied || line.offered || line.state === "Pending") && <span className={styles.note}>{[...line.extraTags, line.copied ? "Added" : line.offered ? "Available now" : line.state === "Pending" ? "Pending" : null].filter(Boolean).join(" · ")}</span>}
-          </div>
-          <button type="button" className={styles.info} data-reader-info aria-label={`${expanded ? "Hide" : "Read"} full text: ${line.title}`} aria-expanded={expanded} aria-controls={textId} onClick={e => { e.stopPropagation(); toggle(line.key); }}><span aria-hidden>{expanded ? "−" : "+"}</span></button>
-        </div>
-        {expanded && <div id={textId} className={styles.fullText} role="region" aria-label={`${line.title}, exact printed text`}><p>{line.text}</p>{keywordRule(line.tag) && <KeywordRuleText rule={keywordRule(line.tag)!} />}</div>}
+          {pills.map((pill) => <span key={pill} className={styles.pill}>{pill}</span>)}
+          {body && <> {body}</>}
+        </p>
+        {rule && <button type="button" className={styles.info} data-reader-info aria-label={`${expanded ? "Hide" : "How"} ${chipLabel(line.tag)} works`} aria-expanded={expanded} aria-controls={textId} onClick={e => { e.stopPropagation(); setOpenRule(expanded ? null : line.key); }}><span aria-hidden>ⓘ</span></button>}
+        {rule && expanded && <div id={textId} className={styles.fullText} role="region" aria-label={`How ${chipLabel(line.tag)} works`}><KeywordRuleText rule={rule} /></div>}
       </div>;
     })}
     {abilities.length === 0 && <p className={styles.empty}>No printed skills on this card.</p>}

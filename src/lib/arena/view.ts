@@ -202,6 +202,12 @@ export interface BattleView {
   guardPower: number;
   /** Windows the engine advanced past with no legal offers, filtered to what this viewer may know. */
   emptyResponses?: EmptyResponseWindow[];
+  /**
+   * The defender's [Counter] cards in hand that the skipped counter window passed over, each with why it
+   * could not answer (the counter prompt's own refusal reasons). Only on the defender's view; absent
+   * when the window opened or held no counter at all.
+   */
+  counterRefusals?: { card: string; why: Requirement[] }[];
   /** Conditional public projection, not a resolved result. Older engines omit it. */
   stakes?: {
     hit: boolean;

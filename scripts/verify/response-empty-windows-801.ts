@@ -84,5 +84,34 @@ function attack(state: VmState): VmState {
   assert.deepEqual(defender.emptyResponses, ["counter", "blocker", "defenseCombo"]);
 }
 
+// A [Counter] in the defender's hand that cannot answer (no energy to pay it) leaves the window empty, as
+// before; the defender — and only the defender — is told which card was passed over and why, since no
+// counter prompt ever named it (bug report of 11 Nov 2026: "I can't play counters").
+{
+  const state = atMain();
+  stage(state, "p2", "BLOCKER", "battle");
+  const counter = state.sides.p2.zones.deck.find((card) => state.cards[card].cardId === "V-BLUE")!;
+  state.sides.p2.zones.deck = state.sides.p2.zones.deck.filter((card) => card !== counter);
+  state.cards[counter].cardId = "E-NEGATE";
+  state.sides.p2.zones.hand.push(counter);
+  assert.equal(state.sides.p2.zones.energy.filter((card) => state.cards[card].mode === "active").length, 0, "the defender has no ready energy");
+  const battle = attack(state);
+  assert.equal(battle.prompt.kind, "blocker");
+  assert.deepEqual(battle.battle?.emptyResponses, ["counter"]);
+  const attacker = RULES.boardView(CTX, battle, "p1", {}).battle!;
+  const defender = RULES.boardView(CTX, battle, "p2", {}).battle!;
+  assert.equal(attacker.counterRefusals, undefined, "the attacker must not learn which Counter the defender holds");
+  assert.deepEqual(defender.counterRefusals?.map((row) => row.card), [counter], "the defender is told which Counter was passed over");
+  assert.ok(defender.counterRefusals![0].why.some((why) => why.kind === "energy" || why.kind === "energyColour"), `the reason is the energy: ${JSON.stringify(defender.counterRefusals![0].why)}`);
+}
+
+// With no Counter in hand there is nothing to explain.
+{
+  const state = atMain();
+  stage(state, "p2", "BLOCKER", "battle");
+  const battle = attack(state);
+  assert.equal(RULES.boardView(CTX, battle, "p2", {}).battle?.counterRefusals, undefined);
+}
+
 assert.ok(DEFS.BLOCKER, "the fixture includes the engine-readable Blocker keyword");
 console.log("#801 empty response windows: engine evidence and viewer privacy passed");
