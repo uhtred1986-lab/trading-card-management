@@ -1410,7 +1410,22 @@ export function ArenaStage({
       const cards = a.cards.flatMap((id) => { const c = cardOf(id); return c ? [c] : []; });
       return cards.length ? [{ key: `choose:${index}`, action: a, cards, label: cards.map((c) => c.name).join(" + "), note: null }] : [];
     }
-    return [];
+    // 8-5-2/3: the comboed Battle Card to keep as Z-Energy. The card sits in the Combo Area, which the
+    // centred question covers, so the card has to be offered here or it cannot be chosen at all.
+    if (view.prompt.kind === "zEnergyFromCombo" && a.type === "zEnergyFromCombo" && a.card) {
+      const card = cardOf(a.card);
+      return card ? [{ key: `zEnergy:${index}`, action: a, cards: [card], label: card.name, note: "Place it in your Z-Energy instead of the Drop" }] : [];
+    }
+    // Any other answer tied to one card — a [Counter: Play] outside a battle, an [Activate: Battle] at the
+    // combo step — is drawn here too: the centred question covers the board and the hand, so an answer
+    // left to a tap on the card underneath could never be given. Block and counter answers in a battle
+    // are listed by the defence panel instead.
+    const id = a.type === "pass" ? null : cardIdOf(a);
+    if (!id || (defendOptions.length > 0 && (a.type === "counter" || a.type === "block"))) return [];
+    const card = cardOf(id);
+    if (!card) return [];
+    const price = offer.cost?.describe ?? null;
+    return [{ key: `card:${index}`, action: a, cards: [card], label: offer.label, note: price && price !== "free" ? `Costs ${price}` : null }];
   });
   const centre = centreOn ? { options: centreOptions, escape: escapeAnswer(legal.map((l) => l.action)) } : null;
   const whereOf = (id: string) => {

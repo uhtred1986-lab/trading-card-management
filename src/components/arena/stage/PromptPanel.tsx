@@ -8,7 +8,7 @@ import type { PublicOutcome } from "@/lib/arena/outcome";
 import type { Snapshot } from "@/lib/arena/snapshot";
 import { energySummary, stakesSummary } from "./stakes-model";
 import { untilWords } from "@/lib/arena/effects";
-import { Sheet, isGhostAction, shortLabel } from "../shared";
+import { Sheet, isGhostAction, refusalLine, shortLabel } from "../shared";
 import phoneStyles from "./phone-board.module.css";
 import { CenterPrompt } from "./CenterPrompt";
 
@@ -297,7 +297,7 @@ export function PromptPanel({
           : l.action.type === "charge" && l.action.card == null ? "Don’t charge"
             : l.action.type === "counter" && l.action.card == null ? "Don’t counter"
               : l.action.type === "block" && l.action.card == null ? "No block"
-                : l.action.type === "pass" && view.prompt.kind === "combo" ? view.battle?.stakes ? view.battle.stakes.hit ? "Take the hit" : "Keep it as is" : "Done adding power"
+                : l.action.type === "pass" && view.prompt.kind === "combo" ? comboPassDetail(view, defending)
                 : l.action.type === "optionalCost" && !l.action.pay ? "Don’t pay the optional cost"
                   : view.prompt.passConsequence ?? "Pass this decision";
         return (
@@ -349,6 +349,17 @@ export function PromptPanel({
   return panel;
 }
 
+/**
+ * What passing the combo step means, read from the side passing it. The stakes are the attack's: `hit` is
+ * the attack getting through. Only the defender takes a hit; the attacker's pass keeps the attack as it is.
+ */
+export function comboPassDetail(view: Pick<BoardView, "battle">, defending: boolean): string {
+  const stakes = view.battle?.stakes;
+  if (!stakes) return defending ? "Done adding power" : "Attack with what you have";
+  if (defending) return stakes.hit ? "Take the hit" : "Keep it as is";
+  return stakes.hit ? "Attack as it is: it gets through" : "Attack as it is: it falls short";
+}
+
 /** The step the defender is on, as three dots with the current one lit; the words are for screen readers. */
 const DEFENCE_STEPS = ["counter", "blocker", "combo"] as const;
 
@@ -396,6 +407,26 @@ function DefenceBrief({ view, kind, thumbs = false }: { view: BoardView; kind: (
         ))}
         <span className="sr-only">Step: {kind === "blocker" ? "Block" : kind === "counter" ? "Counter" : "Combo"}</span>
       </p>
+      <CounterRefusals view={view} />
     </div>
+  );
+}
+
+/**
+ * The defender's Counters that the attack window passed over, each with the engine's reason (the counter
+ * prompt never opens when none can answer, so without this a Counter in hand is skipped in silence).
+ */
+export function CounterRefusals({ view }: { view: Pick<BoardView, "battle" | "you"> }) {
+  const rows = view.battle?.counterRefusals ?? [];
+  if (!rows.length) return null;
+  const nameOf = (id: string) => view.you.hand?.find((c) => c.id === id)?.name ?? "A Counter";
+  return (
+    <ul className="space-y-0.5 rounded-lg border border-loss/50 bg-loss/10 px-2 py-1 text-[11px] leading-snug text-space-100" aria-label="Counters you could not play" data-counter-refusals>
+      {rows.slice(0, 3).map((row) => (
+        <li key={row.card} data-counter-refused={row.card}>
+          <b className="text-space-50">No counter with {nameOf(row.card)}:</b> {refusalLine(row.why, { name: nameOf(row.card), reaching: "counter", side: view.you, inHand: true }) ?? "the engine gave no reason."}
+        </li>
+      ))}
+    </ul>
   );
 }
