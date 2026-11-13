@@ -518,7 +518,7 @@ The built shape, `src/lib/arena/beats.ts`:
 export type Beat =
   | { t: "phase"; phase: string; player: PlayerId; turn: number }
   | { t: "draw"; player: PlayerId; card: string | null }
-  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId; reveal?: true }
+  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId; reveal?: true; onto?: string }
   | { t: "mode"; card: string; mode: "active" | "rest" }
   | { t: "flip"; card: string }
   | { t: "markers"; card: string; delta: number; total: number; from?: string }
@@ -529,7 +529,11 @@ export type Beat =
   | { t: "damage"; player: PlayerId; amount: number; critical: boolean; cards: string[]; by?: string }
   | { t: "ko"; card: string }
   | { t: "negated" }
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true }
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true; steps?: number }
+  | { t: "look"; player: PlayerId; owner: PlayerId; area: Area; count: number; from?: "top" | "bottom"; search?: true }
+  | { t: "shuffle"; player: PlayerId; area: Area }
+  | { t: "resume"; card: string; label: string; owner: PlayerId; steps?: number }
+  | { t: "under"; card: string; host: string; owner: PlayerId; from?: Area }
   | { t: "effect"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; until: Duration | "permanent"; source: string | null; owner: PlayerId }
   | { t: "effectEnded"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; source: string | null }
   | { t: "say"; text: string }
@@ -605,6 +609,19 @@ Four things the build settled that the first draft of this section had wrong:
   end with. **`maskBeats` also blanks a `skill` beat's `label` and `text`** (to `"Skill"` and `""`)
   when the viewer may not see its card: the printed text names the card as surely as its face.
 
+- **The skill explainer's beats** (13 Nov 2026, `docs/arena-skill-explainer.md`), all additive — a client that
+  ignores them draws what it drew before, and the Kotlin mirror decodes each:
+  - `look` — a player looked at cards (20-11, 20-12): the top or bottom `count` of a deck, a hand, the life, or a
+    whole deck searched (`search`). It names no card; looking is not revealing.
+  - `shuffle` — a deck or the life was shuffled (5-11-2). Before, only the log said so.
+  - `resume` — a skill that stopped for a decision goes on with the answer, in a batch of its own; the `steps` beats
+    after it are more of that skill. It has no picture. `maskBeats` blanks its `label` on the `skill` beat's rule.
+  - `under` — a card placed under another by a skill (23-2), from `from`: it has left its area for the pile.
+  - `move.onto` — the card a play went on top of ([Evolve], [Union-Potara], a Z-Leader), now under it.
+  - `skill.steps` — how many beats right after the skill beat, in its batch, are what it did. Counted in
+    `relateBeats`, because only a batch knows where one action's story ends: a client reading the merged stream
+    would take the next action's energy payment for the last skill's effect.
+
 Three properties the clients depend on, all of which are the server's job:
 
 - **A beat names an instance id**, the same id `view` uses, for every card the viewer may read. The
@@ -617,7 +634,8 @@ Three properties the clients depend on, all of which are the server's job:
   the page already runs.
 - **`toBeats` is exhaustive over `GameEvent`.** Adding an engine event becomes a compile error in
   `src/lib/arena/beats.ts`, so the UI cannot silently stop showing something the rules do. Events
-  with no picture (`stack`, `hidden`, `note`, `delayed`) map to nothing, deliberately.
+  with no picture (`hidden`, `note`, `delayed`) map to nothing, deliberately; `stack` maps to nothing unless it
+  names the card that has just gone under (`placed`), which becomes `move.onto` or an `under` beat.
 
 Storage: one `beats jsonb` column on `arena_games` (`0024_grey_la_nuit.sql`), beside the existing
 `spotlight` precedent and nullable like it — the queue is an object, so an `'[]'` default would have

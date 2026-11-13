@@ -5257,8 +5257,27 @@
     "vars": {}
   },
   "look at the top 2": {
-    "events": [],
-    "beats": [],
+    "events": [
+      {
+        "type": "look",
+        "player": "p1",
+        "owner": "p1",
+        "area": "deck",
+        "count": 2,
+        "from": "top"
+      }
+    ],
+    "beats": [
+      {
+        "t": "look",
+        "player": "p1",
+        "owner": "p1",
+        "area": "deck",
+        "count": 2,
+        "from": "top",
+        "n": 1
+      }
+    ],
     "board": {
       "p1": {
         "id": "p1",
@@ -5434,8 +5453,27 @@
     }
   },
   "look at the bottom card": {
-    "events": [],
-    "beats": [],
+    "events": [
+      {
+        "type": "look",
+        "player": "p1",
+        "owner": "p1",
+        "area": "deck",
+        "count": 1,
+        "from": "bottom"
+      }
+    ],
+    "beats": [
+      {
+        "t": "look",
+        "player": "p1",
+        "owner": "p1",
+        "area": "deck",
+        "count": 1,
+        "from": "bottom",
+        "n": 1
+      }
+    ],
     "board": {
       "p1": {
         "id": "p1",
@@ -5610,8 +5648,27 @@
     }
   },
   "look at the top X of your opponent's deck": {
-    "events": [],
-    "beats": [],
+    "events": [
+      {
+        "type": "look",
+        "player": "p1",
+        "owner": "p2",
+        "area": "deck",
+        "count": 3,
+        "from": "top"
+      }
+    ],
+    "beats": [
+      {
+        "t": "look",
+        "player": "p1",
+        "owner": "p2",
+        "area": "deck",
+        "count": 3,
+        "from": "top",
+        "n": 1
+      }
+    ],
     "board": {
       "p1": {
         "id": "p1",
@@ -5788,8 +5845,25 @@
     }
   },
   "look at your opponent's hand": {
-    "events": [],
-    "beats": [],
+    "events": [
+      {
+        "type": "look",
+        "player": "p1",
+        "owner": "p2",
+        "area": "hand",
+        "count": 6
+      }
+    ],
+    "beats": [
+      {
+        "t": "look",
+        "player": "p1",
+        "owner": "p2",
+        "area": "hand",
+        "count": 6,
+        "n": 1
+      }
+    ],
     "board": {
       "p1": {
         "id": "p1",

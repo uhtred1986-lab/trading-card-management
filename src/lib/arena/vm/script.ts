@@ -2323,7 +2323,10 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
       // the chosen card**." Handing the names on is what makes that one skill
       // rather than two.
       // Phrasing batch 9 (20-12-3): a deck searched and not shuffled since is shuffled as the skill ends.
-      for (const p of frame.searchedDecks ?? []) h.shuffleDecks([p]);
+      for (const p of frame.searchedDecks ?? []) {
+        h.shuffleDecks([p]);
+        h.log({ type: "shuffle", player: p, area: "deck" });
+      }
       frame.searchedDecks = undefined;
       if (frame.saveVarsAs && frame.priceUnpaid) {
         h.priceUnpaid(frame.saveVarsAs, frame.priceUnpaid);
@@ -2530,6 +2533,7 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           for (const area of op.areas ?? ["deck"]) {
             if (op.inspectedOnly && !frame.lookedAreas?.[p]?.includes(area)) continue;
             h.log({ type: "note", text: `${h.playerName(p)} shuffles their ${area}` });
+            h.log({ type: "shuffle", player: p, area });
             if (area === "deck") {
               h.shuffleDecks([p]);
               if (frame.searchedDecks) frame.searchedDecks = frame.searchedDecks.filter((x) => x !== p);
@@ -2698,12 +2702,16 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
         if (op.area && op.area !== "deck") {
           if (op.area === "life") rememberLook(frame, p, ["life"]);
           frame.vars[op.as] = h.resolveSelector(frame, { side: op.side, area: op.area });
+          // The look itself, for the board (the skill explainer): who looked at whose area, and how many cards. A
+          // selector's "play" and "under" are not areas a board can point at, so those looks stay untold.
+          if (op.area !== "play" && op.area !== "under") h.log({ type: "look", player: master, owner: p, area: op.area, count: frame.vars[op.as].length });
           break;
         }
         rememberLook(frame, p, ["deck"]);
         const n = h.amount(frame, op.n);
         const deck = h.zone(p, "deck");
         frame.vars[op.as] = op.from === "bottom" ? deck.slice(Math.max(0, deck.length - n)) : deck.slice(0, n);
+        h.log({ type: "look", player: master, owner: p, area: "deck", count: frame.vars[op.as].length, from: op.from === "bottom" ? "bottom" : "top" });
         break;
       }
 
@@ -2734,7 +2742,15 @@ export function stepScript(h: ScriptHost, frame: ScriptFrame): "done" | "wait" {
           const inspected = (op.sel.areas ?? (op.sel.area ? [op.sel.area] : [])).filter((area): area is "deck" | "life" => area === "deck" || area === "life");
           for (const player of sideOf(master, op.sel.side)) if (inspected.length) rememberLook(frame, player, inspected);
           // Phrasing batch 9 (20-12-3): a choice out of the deck itself is a search, and the deck is shuffled after it.
-          if (inspected.includes("deck")) for (const player of sideOf(master, op.sel.side)) if (!frame.searchedDecks?.includes(player)) frame.searchedDecks = [...(frame.searchedDecks ?? []), player];
+          // The search is told once, the first time this frame goes through that deck (the skill explainer): the
+          // choice re-runs this step when its answer arrives, and by then the deck is already on the list.
+          if (inspected.includes("deck")) {
+            for (const player of sideOf(master, op.sel.side)) {
+              if (frame.searchedDecks?.includes(player)) continue;
+              frame.searchedDecks = [...(frame.searchedDecks ?? []), player];
+              h.log({ type: "look", player: master, owner: player, area: "deck", count: h.zone(player, "deck").length, search: true });
+            }
+          }
         }
         // "Any number … up to the number of your Hidden Mode cards" (BT29-139):
         // a bound read off the board, and the choice may stop short of it.

@@ -331,7 +331,8 @@ function withSkillRecord(ctx: EngineContext, cardId: string, index: number, rec:
   }
   assert.equal((r.s.prompt as { choice: { min: number } }).choice.min, 0);
   r = step(r.s, { type: "choose", player: "p1", cards: [in3] });
-  assert.deepEqual(r.beats, ["move SWAPPER battle>hand", "move COST3 hand>battle"], "22-22-4: back to the hand, then the swap is played");
+  // `resume` (the skill explainer, 13 Nov 2026): the swap goes on with the answer, so the board tells what follows as its.
+  assert.deepEqual(r.beats, ["resume SWAPPER", "move SWAPPER battle>hand", "move COST3 hand>battle"], "22-22-4: back to the hand, then the swap is played");
   assert.equal(r.s.prompt.kind, "main");
   assertConsistentG(r.s);
   // Declined: the card still goes back to the hand, the legacy reading.

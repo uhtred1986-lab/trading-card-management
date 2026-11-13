@@ -237,7 +237,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       const result = moveCard(state, game, id, "drop", { under: host });
       if (!result.ok) return false;
       clearAutoReveal(state, id);
-      log(ev, { type: "stack", top: host, under: state.cards[host].under.slice() });
+      log(ev, { type: "stack", top: host, under: state.cards[host].under.slice(), placed: id, ...(from ? { from: from as Area } : {}) });
       // 23-2: going into the pile is a moment for the card itself — "when
       // this card is placed under a <Vegito> card" (BT29-140) — and where it
       // came from is part of it ("when this card in your hand is placed
@@ -289,7 +289,7 @@ export function vmHost(ctx: EngineContext, game: GameDefinition, state: VmState,
       }
       clearAutoReveal(state, host);
       log(ev, { type: "note", text: `${nameOfCard(ctx, state, id)} is placed on top of ${nameOfCard(ctx, state, host)}` });
-      log(ev, { type: "stack", top: id, under: state.cards[id].under.slice() });
+      log(ev, { type: "stack", top: id, under: state.cards[id].under.slice(), placed: host, from: at.zone as Area });
       emit(ctx, game, state, ev, { event: "placedUnder", card: host, controller: masterOf(game, state, id), args: { to: "under", from: at.zone } }, null);
       // 6-2-4, 22-46-6-3: a card placed in the Leader Area — "when your Leader is placed" answers it.
       if (leaderStack) emit(ctx, game, state, ev, { event: "moved", card: id, controller: at.owner, args: { to: at.zone, asPlay: false } }, null);

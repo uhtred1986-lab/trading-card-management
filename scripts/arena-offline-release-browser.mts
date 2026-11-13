@@ -258,7 +258,7 @@ async function coldLaunch(): Promise<Launch> {
   await taps.guard(page);
   // The guard also fails card-art CDN requests at the page; here the service worker must answer them (or the image is missing), so the page's own interception is switched off. The Workers keep theirs.
   await page.cdp("Fetch.disable");
-  await page.beforeLoad(`try { localStorage.setItem("arena.pace", "step"); } catch {}\n${INSTRUMENT}`);
+  await page.beforeLoad(`try { localStorage.setItem("arena.pace.v2", "step"); } catch {}\n${INSTRUMENT}`);
   await page.setOffline(true);
   if (PHONE) await page.cdp("Emulation.setCPUThrottlingRate", { rate: 4 });
   return { page, taps, requests, failed, launchMs: Date.now() - t0 };

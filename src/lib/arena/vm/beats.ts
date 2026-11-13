@@ -5,7 +5,8 @@
  * translation rather than a passthrough: several events have no picture and
  * collapse to nothing. This is that translation for the events *this* engine
  * emits — a phase beginning, a card moving, a draw, a mode change, an energy
- * marker, an effect coming into force or ending, the game ending, and, since
+ * marker, an effect coming into force or ending, a look or a search and a
+ * shuffle (13 Nov 2026), the game ending, and, since
  * #152, the battle sub-flow's own events (`vm/battle.ts`, #150) — an attack
  * declared, a guard changing, the power compare, damage, a KO, a negated
  * attack and a skill firing, each drawn to the identical `Beat` shape
@@ -172,6 +173,42 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
         else push({ t: "effectEnded", card, player, kind: d.kind, label: d.label, source });
         break;
       }
+      // 23-2: a card that has just gone under another (`placed`). Played on top of it ([Evolve], [Union-Potara], a
+      // Z-Leader), it is said on the play itself, `onto`; placed there by a skill, it is a beat of its own, `under`.
+      // A card leaving a pile says nothing here: its own `move` already does.
+      case "stack": {
+        if (!e.placed) break;
+        remember(e.top);
+        const play = [...list].reverse().find((b): b is Extract<NumberedBeat, { t: "move" }> => b.t === "move" && b.card === e.top);
+        if (play && !play.onto && (play.to === "battle" || play.to === "unison" || play.to === "leader")) {
+          // The card played onto stood in the area the play went to: public, so its face is kept.
+          remember(e.placed);
+          play.onto = e.placed;
+          break;
+        }
+        // A card from an area both players see keeps its face. One from a deck, a life or a hand does not: a pile
+        // shows only how many cards it holds (BT2-009 fills one from the top of the deck, face down), and `art` is
+        // masked against the board as it stands now, where the pile's cards count as in play.
+        if (e.from && game?.zones[e.from]?.visibility === "all") remember(e.placed);
+        const owner = state.cards[e.placed]?.owner ?? state.cards[e.top]?.owner;
+        if (owner) push({ t: "under", card: e.placed, host: e.top, owner, ...(e.from ? { from: e.from } : {}) });
+        break;
+      }
+      // A look and a shuffle (the skill explainer, 13 Nov 2026): no card is named, only that it happened.
+      case "look":
+        push({ t: "look", player: e.player, owner: e.owner, area: e.area, count: e.count, ...(e.from ? { from: e.from } : {}), ...(e.search ? { search: true as const } : {}) });
+        break;
+      case "shuffle":
+        push({ t: "shuffle", player: e.player, area: e.area });
+        break;
+      // A skill going on after a decision: the skill beat's own label, so the steps that follow are told as its.
+      case "resume": {
+        if (!state.cards[e.card]) break;
+        const sk = skillsShowing(ctx, state, e.card).skills.find((x) => x.index === e.skill);
+        remember(e.card);
+        push({ t: "resume", card: e.card, label: sk?.tags[0] ?? SKILL_LABELS[sk?.kind ?? ""] ?? "Skill", owner: e.master });
+        break;
+      }
       case "gameOver":
         push({ t: "over", winner: e.winner, reason: e.reason, ...(state.outcome ? { kind: state.outcome.kind } : {}) });
         break;
@@ -194,5 +231,11 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
   // `beats.ts`'s own last step, so a `damage` beat's `by` and a `skill`
   // beat's `extra`/`noEffect` read the same on either engine (#463).
   relateBeats(list, state.prompt.kind);
+  // A skill that went on only to stop again, with nothing to show in between, has no story to continue.
+  if (list.some((b) => b.t === "resume" && !b.steps)) {
+    const kept = list.filter((b) => !(b.t === "resume" && !b.steps));
+    kept.forEach((b, i) => (b.n = after + i + 1));
+    return { seq: after + kept.length, list: kept, art };
+  }
   return { seq: n, list, art };
 }

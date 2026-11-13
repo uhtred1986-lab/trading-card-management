@@ -1041,7 +1041,7 @@ try {
     await page.eval(INSTRUMENT).catch(() => {});
     run.browser = await page.eval<string>("navigator.userAgent");
     run.screen = await page.eval<{ w: number; h: number; dpr: number }>("({ w: innerWidth, h: innerHeight, dpr: devicePixelRatio })");
-    run.pacePrevious = await page.eval<string | null>(`(() => { try { const p = localStorage.getItem("arena.pace"); localStorage.setItem("arena.pace", ${JSON.stringify(PACE)}); return p; } catch { return null; } })()`);
+    run.pacePrevious = await page.eval<string | null>(`(() => { try { const p = localStorage.getItem("arena.pace.v2"); localStorage.setItem("arena.pace.v2", ${JSON.stringify(PACE)}); return p; } catch { return null; } })()`);
     if (PREPARE) {
       await until(page, `[...document.querySelectorAll("button")].some((b) => ["Prepare for offline play", "Update", "Carry on preparing"].includes(b.textContent.trim()) && !b.disabled) || document.querySelector('[data-offline-status]')?.dataset.offlineStatus === "ready"`, 90000, "the preparation panel");
       const already = await page.eval<boolean>(`document.querySelector('[data-offline-status]')?.dataset.offlineStatus === "ready" && ![...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Update")`);
@@ -1076,7 +1076,7 @@ try {
   if (run.pacePrevious !== undefined) {
     const { page } = await T.coldLaunch(`${BASE}/arena`);
     await until(page, `document.querySelector("h1")?.textContent === "Play the computer"`, 60000).catch(() => {});
-    await page.eval(`(() => { try { const p = ${JSON.stringify(run.pacePrevious)}; if (p === null) localStorage.removeItem("arena.pace"); else localStorage.setItem("arena.pace", p); } catch {} })()`).catch(() => {});
+    await page.eval(`(() => { try { const p = ${JSON.stringify(run.pacePrevious)}; if (p === null) localStorage.removeItem("arena.pace.v2"); else localStorage.setItem("arena.pace.v2", p); } catch {} })()`).catch(() => {});
     await T.endCase();
   }
 } catch (e) {

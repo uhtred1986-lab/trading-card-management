@@ -300,6 +300,9 @@ export function historicalMask(b: NumberedBeat, secret: SecretAreas): NumberedBe
   if (b.t === "draw" && b.card && isSecret(b.player, "hand")) return { ...b, card: BEAT_ALIAS };
   if (b.t === "move" && !b.reveal && isSecret(b.owner, b.from) && isSecret(b.owner, b.to)) return { ...b, card: BEAT_ALIAS };
   if (b.t === "damage" && isSecret(b.player, "hand")) return { ...b, cards: b.cards.map(() => BEAT_ALIAS) };
+  // A card that went under another from an area this seat could not see (a deck, a life, the other hand): the pile
+  // shows only its count, so the beat keeps the moment and loses the card.
+  if (b.t === "under" && b.from && isSecret(b.owner, b.from)) return { ...b, card: BEAT_ALIAS };
   return b;
 }
 

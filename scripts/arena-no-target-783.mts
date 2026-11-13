@@ -39,7 +39,7 @@ try {
       const page = await browser.page({ name: "s21", width: 360, height: 800, mobile: true });
       await page.cdp("Emulation.setDeviceMetricsOverride", { width: 360, height: 800, deviceScaleFactor: 1, mobile: true });
       await page.beforeLoad(`window.__arenaPreviewDriver = { actions: [], advances: 0 };
-        try { localStorage.setItem("arena.pace", "normal"); } catch {}
+        try { localStorage.setItem("arena.pace.v2", "normal"); } catch {}
         addEventListener("DOMContentLoaded", () => { const s = document.createElement("style"); s.textContent = "nextjs-portal { display: none !important; }"; document.head.append(s); });`);
       await page.goto(`${base}/arena/preview?fixture=${fixture}&fx=${fx}&skin=${skin}&admin=0`);
       await page.waitFor(".arena", 60000);

@@ -9,7 +9,7 @@ import { ARENA_SKINS, SKIN_LABELS, type ArenaSkin } from "@/lib/arena/skin";
 import { ARENA_STAGINGS, STAGING_LABEL, type ArenaStaging } from "@/lib/arena/staging";
 
 
-const PACE_LABEL: Record<Pace, string> = { slow: "Slow", normal: "Normal", step: "Step" };
+const PACE_LABEL: Record<Pace, string> = { explain: "Explain", slow: "Slow", normal: "Normal", step: "Step" };
 
 /**
  * "Board settings" from Play's ⋯ menu (#370): the board's four per-device

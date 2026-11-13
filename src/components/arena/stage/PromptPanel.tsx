@@ -72,7 +72,7 @@ export function PromptPanel({
   refusalText: string | null;
   error: string | null;
   onRetry?: () => void;
-  pace: "slow" | "normal" | "step";
+  pace: import("@/lib/arena/pace").Pace;
   playingMine: boolean;
   playingIndex: number;
   /** How many things you could do now; the turn pill says whose turn it is, this says what is open. */

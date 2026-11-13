@@ -33,8 +33,10 @@ export type Beat =
    * Extra or a play going face up. The narration names a card that went into
    * a hidden area only on this flag, never because its face happens to be in
    * `art` (which is masked against the board as it stands *now*).
+   * `onto` (the skill explainer, 13 Nov 2026): the card this one was played on
+   * top of ([Evolve], [Union-Potara], a Z-Leader), which is now under it (23-2).
    */
-  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId; reveal?: true }
+  | { t: "move"; card: string; from: Area; to: Area; owner: PlayerId; reveal?: true; onto?: string }
   | { t: "mode"; card: string; mode: "active" | "rest" }
   | { t: "flip"; card: string }
   /** `from` is the Unison these markers were carried over from ([Empower], 22-45-3) — the count on a Unison is public, so this rides through `maskBeats` unchanged. */
@@ -64,8 +66,11 @@ export type Beat =
    * discarded. `noEffect`: nothing followed it, outside a battle, before the
    * game came back to a Main Phase prompt — the skill found nothing to act on.
    * `maskBeats` blanks `label` and `text` when the viewer may not see `card`.
+   * `steps` (the skill explainer, 13 Nov 2026): how many of the beats right after this one, in the same batch, are
+   * what the skill did — a card moving, a draw, a look, a power change — so a client can tell them as its steps.
+   * Absent when none are.
    */
-  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true; reveal?: true; revealEpoch?: number }
+  | { t: "skill"; card: string; label: string; text: string; unread: boolean; owner: PlayerId; inBattle: boolean; extra?: true; noEffect?: true; reveal?: true; revealEpoch?: number; steps?: number }
   /** Specified secret [Auto] before its optional price is paid; this is not an activated skill. */
   | { t: "autoDeclared"; card: string; label: string; text: string; owner: PlayerId; revealEpoch?: number }
   /**
@@ -74,6 +79,26 @@ export type Beat =
    * card. `owner` is whose skill made it; `source` the card that did.
    */
   | { t: "effect"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; until: EffectUntil; source: string | null; owner: PlayerId }
+  /**
+   * `player` looks at `count` cards in `owner`'s `area` (20-11, 20-12): the top or bottom of a deck (`from`), a hand,
+   * the life, or a whole deck searched (`search`). Looking is not revealing, so it names no card — only that it
+   * happened, which the other player is entitled to see.
+   */
+  | { t: "look"; player: PlayerId; owner: PlayerId; area: Area; count: number; from?: "top" | "bottom"; search?: true }
+  /**
+   * `card` (`owner`'s) is placed under `host` by a skill (23-2; BT3-031's Majin Buu), from `from`. It has left its
+   * area for the pile under `host`, which is what the board's "N under" count shows. A card from an area the viewer
+   * could not see is told as "a card": it has no face in `art`, and its id goes with `historicalMask`.
+   */
+  | { t: "under"; card: string; host: string; owner: PlayerId; from?: Area }
+  /** `player`'s `area` (a deck or the life) is shuffled (5-11-2). */
+  | { t: "shuffle"; player: PlayerId; area: Area }
+  /**
+   * A skill that stopped for a decision goes on with the answer, in a batch of its own: `steps` beats after this one
+   * are more of what `card`'s skill (`label`, `owner`'s) does. It has no picture: the skill explainer tells what
+   * follows as that skill's further steps. `maskBeats` blanks `label` as it blanks a `skill` beat's.
+   */
+  | { t: "resume"; card: string; label: string; owner: PlayerId; steps?: number }
   /** The same rule reaching the end of its duration, so the number changing back has a moment of its own. */
   | { t: "effectEnded"; card: string | null; player: PlayerId | null; kind: EffectKind; label: string; source: string | null }
   /** Claude's table talk, added by `run.ts` rather than by the engine. */

@@ -120,7 +120,7 @@ async function playUntil(page: Page, stop: (s: Snapshot) => boolean): Promise<Sn
   throw new Error("playUntil did not stop");
 }
 
-const SET_UP_BROWSER = `try { localStorage.setItem("arena.pace", "step"); } catch {}\n${WORKER_TAP}`;
+const SET_UP_BROWSER = `try { localStorage.setItem("arena.pace.v2", "step"); } catch {}\n${WORKER_TAP}`;
 const shot = async (page: Page, vp: Viewport, name: string) => { try { writeFileSync(join(out, `${vp.name}-${name}.png`), await page.screenshot(false)); } catch { /* page gone */ } };
 const layout = async (page: Page, vp: Viewport, what: string) => {
   const o = await page.eval<boolean>(`document.documentElement.scrollWidth > innerWidth + 1`);

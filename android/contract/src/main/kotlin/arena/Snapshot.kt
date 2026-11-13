@@ -511,10 +511,13 @@ sealed class Beat {
     @SerialName("draw")
     data class Draw(override val n: Int, val player: String, val card: String? = null) : Beat()
 
-    /** `reveal` (#463): the card was shown to both players as it moved — the only time a narration names a card that went into a hidden area. */
+    /**
+     * `reveal` (#463): the card was shown to both players as it moved — the only time a narration names a card that
+     * went into a hidden area. `onto` (13 Nov 2026): the card it was played on top of ([Evolve]), now under it.
+     */
     @Serializable
     @SerialName("move")
-    data class Move(override val n: Int, val card: String, val from: String, val to: String, val owner: String, val reveal: Boolean = false) : Beat()
+    data class Move(override val n: Int, val card: String, val from: String, val to: String, val owner: String, val reveal: Boolean = false, val onto: String? = null) : Beat()
 
     @Serializable
     @SerialName("mode")
@@ -588,6 +591,8 @@ sealed class Beat {
         val extra: Boolean = false,
         /** #463: nothing followed it before the game came back to a Main Phase prompt. */
         val noEffect: Boolean = false,
+        /** The skill explainer (13 Nov 2026): how many beats right after this one, in its batch, are what it did. */
+        val steps: Int? = null,
     ) : Beat()
 
     /** A rule coming into force on `card`, or on `player` when it is about a player rather than a card. */
@@ -603,6 +608,40 @@ sealed class Beat {
         val source: String? = null,
         val owner: String,
     ) : Beat()
+
+    /**
+     * `player` looks at `count` cards in `owner`'s `area` (20-11, 20-12): the top or bottom of a deck (`from`), a
+     * hand, the life, or a whole deck searched (`search`). It names no card: looking is not revealing.
+     */
+    @Serializable
+    @SerialName("look")
+    data class Look(
+        override val n: Int,
+        val player: String,
+        val owner: String,
+        val area: String,
+        val count: Int,
+        val from: String? = null,
+        val search: Boolean = false,
+    ) : Beat()
+
+    /** `card` is placed under `host` by a skill (23-2), from `from`. */
+    @Serializable
+    @SerialName("under")
+    data class Under(override val n: Int, val card: String, val host: String, val owner: String, val from: String? = null) : Beat()
+
+    /** `player`'s `area` (a deck or the life) is shuffled (5-11-2). */
+    @Serializable
+    @SerialName("shuffle")
+    data class Shuffle(override val n: Int, val player: String, val area: String) : Beat()
+
+    /**
+     * A skill that stopped for a decision goes on with the answer: `steps` beats after this one are more of what
+     * `card`'s skill does. No picture of its own.
+     */
+    @Serializable
+    @SerialName("resume")
+    data class Resume(override val n: Int, val card: String, val label: String, val owner: String, val steps: Int? = null) : Beat()
 
     /** The same rule reaching the end of its duration. */
     @Serializable

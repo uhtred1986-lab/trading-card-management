@@ -36,6 +36,7 @@ import { colourOf, DEFAULT_LIGHTING, turnVars, type TurnLighting } from "@/lib/a
 import type { ArenaSkin } from "@/lib/arena/skin";
 import { ReportBug } from "../ReportBug";
 import { narrate } from "@/lib/arena/narration";
+import { explainMoment } from "@/lib/arena/explain";
 import { foldStory, type StoryLine } from "@/lib/arena/story";
 import type { AdminDebug } from "@/lib/arena/admin-debug";
 import { AdminContext } from "../admin-context";
@@ -68,7 +69,8 @@ import { Hand } from "./Hand";
 import phoneStyles from "./phone-board.module.css";
 import type { DropState } from "./StageZones";
 import { MarkerFlight } from "./MarkerFlight";
-import { fxVars, msFor, phaseBanner, stepBannerMs, turnBannerMs } from "./motion";
+import { EXPLAIN, fxVars, msFor, phaseBanner, stepBannerMs, turnBannerMs } from "./motion";
+import { SkillExplainer } from "./SkillExplainer";
 import { StagingToggle } from "../StagingToggle";
 import { DEFAULT_STAGING, type ArenaStaging } from "@/lib/arena/staging";
 import type { Moment } from "./StageCard";
@@ -233,6 +235,8 @@ export function ArenaStage({
   const [closedSearch, setClosedSearch] = useState<string | null>(null);
   /** The last sentence the story told, kept after playback stops until you act. */
   const [held, setHeld] = useState<{ text: string; n: number; mine: boolean } | null>(null);
+  // A press held on the skill explainer: the story stands still until it is let go.
+  const [holding, setHolding] = useState(false);
   const [hover, setHover] = useState<{ card: CardView; box: DOMRect } | null>(null);
   /**
    * The docked inspector (lg and up; `docs/arena-backlog/rd-05`). It follows
@@ -470,6 +474,10 @@ export function ArenaStage({
   };
 
   const beatNow = playback.current;
+  // The skill explainer (the Explain pace, `docs/arena-skill-explainer.md`): the skill the beat on screen is part
+  // of, and where in its story the beat is — the callout or one of its steps.
+  const explained = pace === "explain" && playback.explain && beatNow ? explainMoment(playback.queue, beatNow.n, { viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }) : null;
+  if (!playback.playing && holding) setHolding(false);
   if (beatNow && held?.n !== beatNow.n) {
     // Adjusted while rendering rather than in an effect, as the beat player
     // does: it is a change of props the board reflects on the same paint.
@@ -525,9 +533,9 @@ export function ArenaStage({
    */
   const { pause, resume } = playback;
   useEffect(() => {
-    if (sheet || notice) pause();
+    if (sheet || notice || holding) pause();
     else resume();
-  }, [sheet, notice, playback.playing, pause, resume]);
+  }, [sheet, notice, holding, playback.playing, pause, resume]);
 
   // Escape lets go of a pinned card; hover takes the inspector back.
   useEffect(() => {
@@ -609,7 +617,7 @@ export function ArenaStage({
     setHeld(null);
     feel("tap");
     if (action.type === "charge" && action.card) {
-      const ms = pace === "slow" ? Math.round(950 * 2.4) : 950;
+      const ms = pace === "slow" || pace === "explain" ? Math.round(950 * 2.4) : 950;
       setGain((g) => ({ key: (g?.key ?? 0) + 1, ms }));
       if (gainTimer.current) clearTimeout(gainTimer.current);
       gainTimer.current = setTimeout(() => setGain(null), ms);
@@ -1567,7 +1575,21 @@ export function ArenaStage({
             animation cannot retain the card after concealment. */}
         {beat && (beat.t === "autoDeclared" || (beat.t === "skill" && beat.reveal))
           ? beats?.art[beat.card] && <SkillSpotlight key={`secret-${beat.n}`} spotlight={beatSpotlight} />
-          : <SkillSpotlight spotlight={(shape && beat?.t === "skill" && beat.inBattle) || skillCardYields(beat) ? null : beatSpotlight} />}
+          : <SkillSpotlight spotlight={(shape && beat?.t === "skill" && beat.inBattle) || skillCardYields(beat) || explained ? null : beatSpotlight} />}
+        {/* The Explain pace tells a skill in steps; it takes over from the skill card and banner while it does. */}
+        {explained && beatNow && (
+          <SkillExplainer
+            explained={explained}
+            beat={beatNow.n}
+            imageUrl={beats?.art[explained.moment.card]?.imageUrl ?? null}
+            ms={msFor(beatNow, pace, 0, null, { role: explained.role })}
+            receiptMs={EXPLAIN.receipt}
+            paused={playback.paused}
+            onNext={playback.next}
+            onHold={() => setHolding(true)}
+            onRelease={() => setHolding(false)}
+          />
+        )}
         {/* Everything in the flow but the docked inspector: one column of its own,
             so the inspector can run the full height of it, hand included. */}
         {/* From lg it is `display: contents`: its children are placed in the grid's areas. */}
@@ -2006,7 +2028,7 @@ export function ArenaStage({
         {admin && adminOpen && <AdminDrawer snapshot={live} debug={adminDebug} beats={beats?.list ?? []} narrator={{ viewer: view.you.player, them: view.them.name, art: beats?.art ?? {}, ownerOf }} onFlag={async (note) => (session.flag ? session.flag(note) : { error: "flagging is not available here", flag: null, created: false })} onClose={() => setAdminOpen(false)} />}
 
         {/* The ki beam and the barrier, measured between the two cards wherever they are. */}
-        <ArenaImmersion gameId={session.gameId} beat={beat} events={beats} cardOf={cardOf} art={beats?.art ?? {}} viewer={view.you.player} reducedMotion={!!still} durationMs={beat ? msFor(beat, pace) : 460} board={[view.you.leader, view.them.leader, view.you.unison, view.them.unison, ...view.you.battle, ...view.them.battle]} suppressed={!!sheet || moreOpen || (!!notice && admin) || !!turnCall} onSkip={() => { /* Only the optional effect is dismissed; narration continues. */ }} />
+        <ArenaImmersion gameId={session.gameId} beat={beat} events={beats} cardOf={cardOf} art={beats?.art ?? {}} viewer={view.you.player} reducedMotion={!!still} explaining={!!explained} durationMs={beat ? msFor(beat, pace) : 460} board={[view.you.leader, view.them.leader, view.you.unison, view.them.unison, ...view.you.battle, ...view.them.battle]} suppressed={!!sheet || moreOpen || (!!notice && admin) || !!turnCall} onSkip={() => { /* Only the optional effect is dismissed; narration continues. */ }} />
         <ClashBeam beat={beat} hostRef={boardRef} />
         <FeedbackOverlay cues={feedback} art={beats?.art ?? {}} hostRef={boardRef} />
         {/* The opponent playing a card, and a fight no staging is drawing: a dimmed board, the cards large. */}

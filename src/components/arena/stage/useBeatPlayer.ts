@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Beats, NumberedBeat } from "@/lib/arena/beats";
 import type { PlayerId } from "@/lib/arena/types";
+import { explainRoles, type ExplainRole } from "@/lib/arena/explain";
 import { feel } from "@/lib/arena/feel";
 import type { Pace } from "@/lib/arena/pace";
 import { anchorPoint, type Point } from "./anchors";
@@ -52,9 +53,19 @@ export interface Playback {
    * the guard, spin an awakening leader. Null when nothing is playing.
    */
   current: NumberedBeat | null;
+  /**
+   * What the beat on screen is in a skill being explained (`explain.ts`): the callout or one of its steps. Read by
+   * the presenter; null outside every moment, and at every pace but Explain.
+   */
+  explain: ExplainRole | null;
+  /** The story being told, in order: the presenter reads a moment's other beats from it. */
+  queue: readonly NumberedBeat[];
   /** Straight to the end state. Also what reduced motion does, at zero. */
   skip: () => void;
-  /** In step mode: play the next beat. A no-op otherwise. */
+  /**
+   * Play the next beat now. In step mode it is the only way on; at every other pace it cuts the beat on screen
+   * short, which is how a tap jumps the explainer to its next step (owner's decision, 13 Nov 2026).
+   */
   next: () => void;
   /**
    * Hold the story where it is. Opening a card mid-fight stops the playback
@@ -67,6 +78,9 @@ export interface Playback {
    * its first beat, so a story arriving while a card is open is held too, and
    * the caller's own effect — which re-runs as `playing` turns true — is what
    * lets it go again. `skip` always releases, so nothing can be stranded.
+   *
+   * The beat on screen stops too: its dwell is frozen where it was and resumes with what was left, so holding the
+   * explainer mid-step keeps that step on screen rather than letting it run out underneath.
    */
   pause: () => void;
   resume: () => void;
@@ -142,8 +156,9 @@ export function useBeatPlayer(
   useEffect(() => {
     drawnRef.current = drawn;
   }, [drawn]);
-  // Step mode: the walk waits here until `next()` lets it go on.
-  const waiting = useRef<(() => void) | null>(null);
+  // The dwell in progress: a timer that `next()` cuts short, `pause()` freezes and `resume()` restarts with what was
+  // left. In step mode it has no timer, and only `next()` lets the walk go on.
+  const waiting = useRef<Dwell | null>(null);
   // Read by the walk as it runs, so changing the pace mid-turn takes effect
   // from the next beat rather than restarting the story.
   const paceRef = useRef(pace);
@@ -210,24 +225,33 @@ export function useBeatPlayer(
     // Ends the walk in progress (its effect is keyed on `run`).
     setRun((r) => r + 1);
     release();
-    waiting.current?.();
+    waiting.current?.finish();
     waiting.current = null;
   }, [release]);
 
   const pause = useCallback(() => {
     held.current = true;
+    waiting.current?.freeze();
     setPaused(true);
   }, []);
 
   const resume = useCallback(() => {
     setPaused(false);
     release();
+    waiting.current?.thaw();
   }, [release]);
 
   const next = useCallback(() => {
-    waiting.current?.();
+    waiting.current?.finish();
     waiting.current = null;
   }, []);
+
+  // The Explain pace's roles for the story being told: the callout and the steps of each skill in it.
+  const roles = useMemo(() => (pace === "explain" ? explainRoles(queue, viewer) : NO_ROLES), [queue, viewer, pace]);
+  const rolesRef = useRef(roles);
+  useLayoutEffect(() => {
+    rolesRef.current = roles;
+  }, [roles]);
 
   // Walk the queue. Everything happens in a timer callback — the first tick
   // included — so the board paints the end state once before the story of how
@@ -245,10 +269,13 @@ export function useBeatPlayer(
 
     // The dwell after a beat: a timer at the chosen pace, or in step mode a
     // tap on Next. Skip resolves the wait too, so it never strands the walk.
-    // The beat after it is passed along, so a run of the same bookkeeping is grouped.
+    // The beat after it is passed along, so a run of the same bookkeeping is grouped;
+    // the one before it, so a KO's own trip to the Drop is told as the KO's tail.
+    const hold = (ms: number) => new Promise<void>((r) => (waiting.current = dwellFor(ms, r, held.current)));
     const dwell = (i: number) => {
       const q = queueRef.current;
-      return paceRef.current === "step" ? new Promise<void>((r) => (waiting.current = r)) : sleep(msFor(q[i], paceRef.current, chainAt[i], q[i + 1] ?? null));
+      if (paceRef.current === "step") return hold(Infinity);
+      return hold(msFor(q[i], paceRef.current, chainAt[i], q[i + 1] ?? null, { prev: q[i - 1] ?? null, role: rolesRef.current.get(q[i].n) ?? null }));
     };
     /** Held open while a card is being read; resolved by `resume` or `skip`. */
     const gate = () => (held.current ? new Promise<void>((r) => waiters.current.push(r)) : Promise.resolve());
@@ -278,8 +305,7 @@ export function useBeatPlayer(
           // Its own step: announced, held, then gone before the phase is.
           setTurnCall({ key: beat.n, player: beat.player, turn: beat.turn });
           setAhead((n) => Math.max(0, n - 1));
-          if (paceRef.current === "step") await new Promise<void>((r) => (waiting.current = r));
-          else await sleep(turnBannerMs(paceRef.current));
+          await hold(paceRef.current === "step" ? Infinity : turnBannerMs(paceRef.current));
           setTurnCall(null);
           await gate();
           if (cancelled) return;
@@ -322,6 +348,7 @@ export function useBeatPlayer(
     void walk();
     return () => {
       cancelled = true;
+      waiting.current?.drop();
       waiting.current = null;
     };
   }, [run, skip, hostRef, viewer]);
@@ -340,7 +367,71 @@ export function useBeatPlayer(
     }
   }
 
-  return { turnCall, turnAhead: playing && ahead > 0, playing, suppressed, ghosts, current: playing ? (queue[at] ?? null) : null, skip, next, pause, resume, paused: playing && paused, index: playing ? at : 0, total: queue.length };
+  const current = playing ? (queue[at] ?? null) : null;
+  return {
+    turnCall,
+    turnAhead: playing && ahead > 0,
+    playing,
+    suppressed,
+    ghosts,
+    current,
+    explain: current ? (roles.get(current.n) ?? null) : null,
+    queue,
+    skip,
+    next,
+    pause,
+    resume,
+    paused: playing && paused,
+    index: playing ? at : 0,
+    total: queue.length,
+  };
 }
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const NO_ROLES: ReadonlyMap<number, ExplainRole> = new Map();
+
+/** A beat's dwell: a timer that can be cut short, frozen and restarted with what was left. */
+interface Dwell {
+  /** End it now: the walk goes on. */
+  finish: () => void;
+  /** Stop the clock (a pause). */
+  freeze: () => void;
+  /** Start it again with what was left. */
+  thaw: () => void;
+  /** Forget it without letting the walk go on (the walk was cancelled). */
+  drop: () => void;
+}
+
+function dwellFor(ms: number, done: () => void, frozen: boolean): Dwell {
+  let left = ms;
+  let since = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let over = false;
+  const stop = () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  };
+  const d: Dwell = {
+    finish: () => {
+      if (over) return;
+      over = true;
+      stop();
+      done();
+    },
+    freeze: () => {
+      if (over || timer === null) return;
+      stop();
+      left = Math.max(0, left - (Date.now() - since));
+    },
+    thaw: () => {
+      if (over || timer !== null || !Number.isFinite(left)) return;
+      since = Date.now();
+      timer = setTimeout(d.finish, left);
+    },
+    drop: () => {
+      over = true;
+      stop();
+    },
+  };
+  if (!frozen) d.thaw();
+  return d;
+}

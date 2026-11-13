@@ -413,7 +413,8 @@
         "unread": false,
         "owner": "p1",
         "inBattle": false,
-        "n": 1
+        "n": 1,
+        "steps": 2
       },
       {
         "t": "effect",

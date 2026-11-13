@@ -1,0 +1,329 @@
+{
+  "contract": 2,
+  "game": {
+    "id": 1,
+    "revision": 0,
+    "mode": "versus",
+    "engine": "rules",
+    "game": "dbs",
+    "status": "playing",
+    "turn": 3,
+    "p1Name": "Claude",
+    "p2Name": "You",
+    "you": "p2"
+  },
+  "view": {
+    "you": {
+      "player": "p2",
+      "name": "You",
+      "leader": {
+        "id": "p2#0",
+        "cardId": "L-BLUE",
+        "name": "L-BLUE",
+        "power": 10000,
+        "colors": [
+          "Blue"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [],
+        "text": null,
+        "reading": "",
+        "referee": false
+      },
+      "unison": null,
+      "battle": [],
+      "combo": [],
+      "energy": [],
+      "energyColors": [],
+      "hand": [],
+      "handCount": 0,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 42,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 1,
+      "activeEnergy": 0,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "them": {
+      "player": "p1",
+      "name": "Claude",
+      "leader": {
+        "id": "p1#0",
+        "cardId": "L-RED",
+        "name": "L-RED",
+        "power": 10000,
+        "colors": [
+          "Red"
+        ],
+        "imageUrl": null,
+        "mode": "active",
+        "hidden": false,
+        "flipped": false,
+        "markers": 0,
+        "underCount": 0,
+        "isToken": false,
+        "cost": null,
+        "comboCost": null,
+        "comboPower": 0,
+        "keywords": [
+          "Awaken"
+        ],
+        "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+        "reading": "draw 1",
+        "referee": false,
+        "abilities": [
+          {
+            "skillIndex": 0,
+            "kind": "keyword",
+            "category": "manual",
+            "text": "[Awaken] When your life is at 4 or less: Draw 1 card and flip this card over.",
+            "tags": [
+              "Awaken"
+            ],
+            "zone": "leader",
+            "owner": "p1",
+            "controller": "p1",
+            "origin": "printed",
+            "availability": "notEvaluated",
+            "notEvaluatedReason": "notDecisionActor",
+            "costPreview": {
+              "state": "incomplete"
+            }
+          }
+        ]
+      },
+      "unison": null,
+      "battle": [
+        {
+          "id": "p1#15",
+          "cardId": "SEARCH",
+          "name": "SEARCH",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "active",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
+          "reading": "choose up to 1 <v1> card in your deck, move the chosen cards to hand, shuffle",
+          "referee": false,
+          "abilities": [
+            {
+              "skillIndex": 0,
+              "kind": "auto",
+              "category": "automatic",
+              "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
+              "tags": [
+                "Auto"
+              ],
+              "zone": "battle",
+              "owner": "p1",
+              "controller": "p1",
+              "origin": "printed",
+              "availability": "notEvaluated",
+              "costPreview": {
+                "state": "notApplicable"
+              },
+              "pending": false
+            }
+          ]
+        }
+      ],
+      "combo": [],
+      "energy": [
+        {
+          "id": "p1#35",
+          "cardId": "V1",
+          "name": "V1",
+          "power": 10000,
+          "colors": [
+            "Red"
+          ],
+          "imageUrl": null,
+          "mode": "rest",
+          "hidden": false,
+          "flipped": false,
+          "markers": 0,
+          "underCount": 0,
+          "isToken": false,
+          "cost": "1",
+          "comboCost": 0,
+          "comboPower": 5000,
+          "keywords": [],
+          "text": null,
+          "reading": "",
+          "referee": false
+        }
+      ],
+      "energyColors": [
+        {
+          "card": "p1#35",
+          "colors": [
+            "Red"
+          ],
+          "paymentColors": [
+            "Red"
+          ]
+        }
+      ],
+      "hand": null,
+      "handCount": 1,
+      "life": 8,
+      "lifeFaceUp": [],
+      "zDeckFaceUp": [],
+      "deck": 39,
+      "drop": 0,
+      "warp": 0,
+      "zDeck": 0,
+      "zEnergy": 0,
+      "energyMarkers": 0,
+      "activeEnergy": 0,
+      "dropTop": null,
+      "inspectableZones": {
+        "drop": [],
+        "warp": [],
+        "zEnergy": [],
+        "zDeck": []
+      }
+    },
+    "turn": 3,
+    "phase": "main",
+    "turnPlayer": "p1",
+    "battle": null,
+    "prompt": {
+      "kind": "main",
+      "player": "p1",
+      "question": "Your Main Phase.",
+      "hint": "Play cards, attack, or end the turn.",
+      "passConsequence": "End turn ends Main Phase; end-of-turn skills resolve before the next turn."
+    },
+    "over": null
+  },
+  "decision": {
+    "actor": "p1",
+    "window": "main",
+    "phase": "main",
+    "battleStep": null
+  },
+  "legal": [],
+  "taps": {
+    "byCard": {},
+    "bare": [],
+    "attackTargets": {}
+  },
+  "beats": {
+    "seq": 7,
+    "list": [
+      {
+        "t": "mode",
+        "card": "p1#35",
+        "mode": "rest",
+        "n": 1
+      },
+      {
+        "t": "move",
+        "card": "p1#15",
+        "from": "hand",
+        "to": "battle",
+        "owner": "p1",
+        "reveal": true,
+        "n": 2
+      },
+      {
+        "t": "skill",
+        "card": "p1#15",
+        "label": "Auto",
+        "text": "[Auto] When you play this card, add up to 1 <V1> card from your deck to your hand, then shuffle your deck.",
+        "unread": false,
+        "owner": "p1",
+        "inBattle": false,
+        "n": 3,
+        "steps": 1
+      },
+      {
+        "t": "look",
+        "player": "p1",
+        "owner": "p1",
+        "area": "deck",
+        "count": 40,
+        "search": true,
+        "n": 4
+      },
+      {
+        "t": "resume",
+        "card": "p1#15",
+        "label": "Auto",
+        "owner": "p1",
+        "n": 5,
+        "steps": 2
+      },
+      {
+        "t": "move",
+        "card": "?",
+        "from": "deck",
+        "to": "hand",
+        "owner": "p1",
+        "reveal": true,
+        "n": 6
+      },
+      {
+        "t": "shuffle",
+        "player": "p1",
+        "area": "deck",
+        "n": 7
+      }
+    ],
+    "art": {
+      "p1#35": {
+        "cardId": "V1",
+        "name": "V1",
+        "imageUrl": null
+      },
+      "p1#15": {
+        "cardId": "SEARCH",
+        "name": "SEARCH",
+        "imageUrl": null
+      }
+    }
+  },
+  "spotlight": null,
+  "log": [],
+  "waiting": "opponent",
+  "spend": {
+    "calls": 0,
+    "input": 0,
+    "output": 0,
+    "cached": 0,
+    "micros": 0
+  },
+  "over": null
+}

@@ -1467,7 +1467,9 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
     }
 
     // 20-11: a look — the top or the bottom of a deck, X cards, the
-    // opponent's deck, and a whole hand — bound alike, logged nowhere.
+    // opponent's deck, and a whole hand — bound alike. What it logs names no
+    // card: only that it happened, whose cards and how many (the skill
+    // explainer's `look`, 13 Nov 2026).
     {
       const top = same("look at the top 2", [{ op: "look", n: 2, as: "looked" }], nothing);
       assert.equal((top.r.vars as Record<string, string[]>).looked.length, 2, "look bound nothing on the rules engine, so the parity is over an empty run");
@@ -1475,7 +1477,8 @@ DEFS.COMBOER = card("COMBOER", { energyCost: 1, skill: "[Auto] When this card is
       same("look at the top X of your opponent's deck", [{ op: "look", n: { x: true }, as: "looked", side: "opponent" }], () => ({ x: 3 }));
       const hand = same("look at your opponent's hand", [{ op: "look", n: 99, as: "looked", side: "opponent", area: "hand" }], nothing);
       assert.ok((hand.r.vars as Record<string, string[]>).looked.length > 0, "look at a hand bound nothing on the rules engine");
-      assert.deepEqual(hand.r.events, [], "a look logged something — 20-11 shows the cards to one player only");
+      const looked = (hand.r.vars as Record<string, string[]>).looked.length;
+      assert.deepEqual(hand.r.events, [{ type: "look", player: "p1", owner: "p2", area: "hand", count: looked }], "a look logs only that it happened — 20-11 shows the cards to one player only");
     }
     assert.deepEqual([...checkedFixedScripts].sort(), Object.keys(FIXED_SCRIPT_SEEN_459).sort(), "the reviewed fixed script corpus has missing or unused cases");
   }

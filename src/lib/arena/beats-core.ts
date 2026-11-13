@@ -51,7 +51,12 @@ export function revealedMove(e: Extract<GameEvent, { type: "move" }>, faceUpNow:
  * - a `skill` beat whose card moved from the hand to the Drop earlier in the
  *   batch is an Extra being used (12-2-2), `extra`;
  * - a `skill` beat that is the batch's last, outside a battle, with the game
- *   back at a Main Phase prompt, did nothing anyone can see, `noEffect`.
+ *   back at a Main Phase prompt, did nothing anyone can see, `noEffect`;
+ * - a `skill` beat followed, in the same batch, by what it did (a card moving,
+ *   a draw, a look, a power change: `STEP_KINDS`) counts those beats, `steps`
+ *   (the skill explainer, 13 Nov 2026), and so does a `resume` beat, for what
+ *   a skill does after a decision. Only a batch knows where one action's story
+ *   ends, which is why it is counted here and not by a client.
  *
  * Mutates `list` in place; called once at the end of `toBeats`/`vmToBeats`.
  */
@@ -69,7 +74,23 @@ export function relateBeats(list: NumberedBeat[], promptKind: string): void {
       if (toDrop.has(b.card)) b.extra = true;
       if (i === list.length - 1 && !b.inBattle && promptKind === "main") b.noEffect = true;
     }
+    if (b.t === "skill" || b.t === "resume") {
+      let k = i + 1;
+      while (k < list.length && isStep(list[k])) k++;
+      if (k > i + 1) b.steps = k - i - 1;
+    }
   });
+}
+
+/**
+ * The beats a skill's resolution draws, told as its steps. A phase, an attack, a block, a clash, another skill and
+ * the end of the game each start something new, so a skill's story stops at them; so does a combo card going to the
+ * Drop after a battle, which is the battle's own clean-up rather than anything a skill did.
+ */
+const STEP_KINDS: ReadonlySet<NumberedBeat["t"]> = new Set<NumberedBeat["t"]>(["move", "draw", "mode", "flip", "markers", "token", "effect", "ko", "damage", "negated", "look", "shuffle", "under"]);
+
+function isStep(b: NumberedBeat): boolean {
+  return STEP_KINDS.has(b.t) && !(b.t === "move" && b.from === "combo");
 }
 
 /** Add a batch to a game's queue, keeping it bounded. */
@@ -120,10 +141,13 @@ export function maskBeats(state: EngineState, beats: Beats | null, viewer: Playe
   const hiddenSkill = (b: NumberedBeat) => (b.t === "skill" || b.t === "autoDeclared") && !seen.has(b.card)
     && !(declared.has(b.card) && isRevealBeat(b) && witnesses.some((w) => w.card === b.card && w.epoch === b.revealEpoch))
     && (b.text !== "" || b.label !== "Skill");
-  const masksSkill = beats.list.some(hiddenSkill);
+  // A `resume` beat names its skill the same way, so its label goes on the same rule.
+  const hiddenResume = (b: NumberedBeat) => b.t === "resume" && !seen.has(b.card) && b.label !== "Skill";
+  const masksSkill = beats.list.some((b) => hiddenSkill(b) || hiddenResume(b));
   const hasPrivateEpoch = beats.list.some((b) => (b.t === "skill" || b.t === "autoDeclared") && b.revealEpoch !== undefined);
   if (!masksSkill && !hasPrivateEpoch && Object.keys(art).length === Object.keys(beats.art).length) return beats;
   const list = beats.list.map((b) => {
+    if (b.t === "resume") return hiddenResume(b) ? { ...b, label: "Skill" } : b;
     if (b.t !== "skill" && b.t !== "autoDeclared") return b;
     // This authorization key belongs only to the server's saved match; never
     // put it in either viewer's returned beat history.

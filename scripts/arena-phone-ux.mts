@@ -18,7 +18,7 @@ try {
     // answer its unchanged-revision request without touching a database.
     await page.interceptFetch("*/api/v1/games/*");
     page.onFetchPaused(({ requestId }) => { setTimeout(() => { void page.fulfillFetch(requestId, "", 204).catch(() => {}); }, 500); });
-    await page.beforeLoad('try { localStorage.setItem("arena.pace", "step"); } catch {}');
+    await page.beforeLoad('try { localStorage.setItem("arena.pace.v2", "step"); } catch {}');
     for (const fixture of fixtures) for (const skin of ["anime", "night"]) {
       await page.setCookie("arenaSkin", skin, base);
       await page.goto(`${base}/arena/preview?fixture=${fixture}&skin=${skin}&pace=step&admin=0`);

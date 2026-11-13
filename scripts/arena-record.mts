@@ -92,7 +92,7 @@ let written = 0;
 try {
   for (const vp of viewports) {
     const page = await browser.page(vp);
-    await page.beforeLoad(`try { localStorage.setItem("arena.pace", ${JSON.stringify(pace)}); } catch {}`);
+    await page.beforeLoad(`try { localStorage.setItem("arena.pace.v2", ${JSON.stringify(pace)}); } catch {}`);
     for (const fixture of fixtures) {
       for (const skin of skins) {
         const extra = query ? `&${query}` : "";
