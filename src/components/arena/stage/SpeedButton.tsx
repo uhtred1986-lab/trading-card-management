@@ -3,8 +3,9 @@
 import { PACES, setPacePref, usePace, type Pace } from "@/lib/arena/pace";
 
 /** What the top bar's speed button says for each pace: the prototype's "1×", and the two either side of it. */
-const LABEL: Record<Pace, string> = { slow: "½×", normal: "1×", step: "Step" };
+const LABEL: Record<Pace, string> = { explain: "Explain", slow: "½×", normal: "1×", step: "Step" };
 const TITLE: Record<Pace, string> = {
+  explain: "Animation speed: explain — every skill is told step by step",
   slow: "Animation speed: slow — every beat gets time to be read",
   normal: "Animation speed: the board's own tempo",
   step: "Animation speed: step — tap Next to advance one beat at a time",

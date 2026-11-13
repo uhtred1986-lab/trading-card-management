@@ -57,7 +57,7 @@ async function main() {
 
     for (const viewport of VIEWPORTS) {
       const page = await browser.page(viewport);
-      await page.beforeLoad(`try { localStorage.setItem("arena.pace", "step"); } catch {}`);
+      await page.beforeLoad(`try { localStorage.setItem("arena.pace.v2", "step"); } catch {}`);
       for (const skin of ["anime", "night"] as const) {
         await page.setCookie("arenaSkin", skin, base);
         const expectedTitle = state === "before" ? "DRAW" : "GAME INTERRUPTED";

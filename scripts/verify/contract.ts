@@ -244,6 +244,46 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
     fixtures.search = snapshotFor(r.state, IMPL.toBeats(ctx, r.state, r.events, 0));
   }
   {
+    // The skill explainer (13 Nov 2026), from the other chair: Claude plays a card whose [Auto] searches the deck.
+    // The skill beat counts what it did in its own batch (`steps`: the search, a `look`), and the answer to the
+    // search arrives in a batch of its own, opened by a `resume` beat that counts the rest (the card taken, the
+    // shuffle). `/arena/preview?fixture=explain&pace=explain&replay=1` plays it.
+    const s = stagedG({ hand: ["SEARCH"], energy: ["V1"] });
+    const r1 = IMPL.apply(ctx, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "SEARCH") });
+    const first = IMPL.toBeats(ctx, r1.state, r1.events, 0);
+    assert.equal(r1.state.prompt.kind, "chooseCards", "the search asks which card");
+    const prompt = r1.state.prompt as Extract<typeof r1.state.prompt, { kind: "chooseCards" }>;
+    const pick = prompt.choice.candidates[0];
+    assert.ok(pick, "the deck has a card the search may take");
+    const r2 = IMPL.apply(ctx, r1.state, { type: "choose", player: "p1", cards: [pick] });
+    const second = IMPL.toBeats(ctx, r2.state, r2.events, first.seq);
+    const beats = appendBeats(first, second);
+    // Seen from p2's chair, the player who searched is the opponent: named as the board would name Claude.
+    const board = structuredClone(r2.state);
+    board.sides.p1.name = "Claude";
+    board.sides.p2.name = "You";
+    const shape = (b: NumberedBeat) => (b.t === "skill" || b.t === "resume" ? `${b.t}:${b.steps ?? 0}` : b.t === "move" ? `move:${b.from}>${b.to}` : b.t === "look" ? `look:${b.search ? "search" : b.count}` : b.t);
+    assert.deepEqual(first.list.map(shape).slice(-2), ["skill:1", "look:search"], "the skill counts its search as its one step");
+    assert.deepEqual(second.list.map(shape), ["resume:2", "move:deck>hand", "shuffle"], "the answer goes on with the same skill: the card taken, then the shuffle");
+    fixtures.explain = buildSnapshot({
+      id: 1,
+      mode: "versus",
+      status: "playing",
+      p1Name: "Claude",
+      p2Name: "You",
+      ctx,
+      state: board,
+      legal: IMPL.legalActions(ctx, board),
+      log: [],
+      beats,
+      spotlight: null,
+      spend: { calls: 0, input: 0, output: 0, cached: 0, micros: 0 },
+      ai: null,
+      viewer: "p2",
+      images: {},
+    });
+  }
+  {
     // A skill activation: exactly one `skill` beat (review §3.2), the two
     // effects it made as beats of their own with their source named (§3.3),
     // and the pumped card carrying `basePower` and `effects` (§3.3c).
@@ -428,7 +468,8 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
       // is what makes a client that has never seen the field fail loudly.
       at({ t: "phase", phase: "main", player: "p1", turn: s.turn, skipped: true }),
       at({ t: "draw", player: "p1", card: mine }),
-      at({ t: "move", card: mine, from: "hand", to: "battle", owner: "p1" }),
+      // `onto` (the skill explainer): played on top of a card, as [Evolve] plays it.
+      at({ t: "move", card: mine, from: "hand", to: "battle", owner: "p1", onto: theirs }),
       at({ t: "mode", card: mine, mode: "rest" }),
       at({ t: "flip", card: mine }),
       // `from` exercises issue #109's addition: the Kotlin round trip must
@@ -441,7 +482,12 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
       at({ t: "damage", player: "p2", amount: 1, critical: false, cards: [theirs] }),
       at({ t: "ko", card: theirs, owner: "p2" }),
       at({ t: "negated" }),
-      at({ t: "skill", card: mine, label: "Auto", text: "When this card attacks, draw 1 card.", unread: false, owner: "p1", inBattle: true }),
+      // `steps` (the skill explainer): the one beat after it that it did, the `look`.
+      at({ t: "skill", card: mine, label: "Auto", text: "When this card attacks, look at the top 3 cards of your deck.", unread: false, owner: "p1", inBattle: true, steps: 1 }),
+      at({ t: "look", player: "p1", owner: "p1", area: "deck", count: 3, from: "top" }),
+      at({ t: "resume", card: mine, label: "Auto", owner: "p1", steps: 1 }),
+      at({ t: "shuffle", player: "p1", area: "deck" }),
+      at({ t: "under", card: theirs, host: mine, owner: "p1", from: "hand" }),
       at({ t: "effect", card: mine, player: null, kind: "power", label: "+5000 power", until: "turn", source: mine, owner: "p1" }),
       at({ t: "effectEnded", card: mine, player: null, kind: "power", label: "+5000 power", source: mine }),
       at({ t: "say", text: "Let us see how you answer that." }),
@@ -537,6 +583,8 @@ import type { Beat, Beats, EngineState, NumberedBeat, PlayerId, Snapshot } from 
     standing: 1,
     // #458: the 1 v 1 fixture is p2's board on p1's turn, which lists none of p1's moves.
     versus: 0,
+    // The skill explainer's fixture is the same chair on Claude's turn.
+    explain: 0,
     // #447: "End Defense Step" (defend), the End Main Phase button (the rest).
     defend: 1,
     "attack-life": 1,

@@ -1,9 +1,10 @@
 "use client";
 
 import type { Beat, NumberedBeat } from "@/lib/arena/beats";
+import type { ExplainRole } from "@/lib/arena/explain";
 import type { Feel } from "@/lib/arena/feel";
 import type { Pace } from "@/lib/arena/pace";
-import type { PlayerId } from "@/lib/arena/types";
+import type { Area, PlayerId } from "@/lib/arena/types";
 
 /**
  * Every duration on the board, in one table.
@@ -33,8 +34,26 @@ import type { PlayerId } from "@/lib/arena/types";
  */
 export const TIER = { bookkeeping: 400, key: 1200, decisive: 1700 } as const;
 
-/** Slow pace is a gentle stretch of the same rhythm, not a second one. */
+/** Slow pace is a gentle stretch of the same rhythm, not a second one. The Explain pace stretches by the same factor. */
 export const SLOW_FACTOR = 1.3;
+
+/**
+ * The Explain pace's own numbers (`docs/arena-skill-explainer.md`, owner's decisions of 13 Nov 2026), in
+ * milliseconds. A skill is told in three parts: the callout (who uses what), each thing it does as a step, and a
+ * receipt of what changed, held after the last step. Everything else keeps the slow rhythm.
+ */
+export const EXPLAIN = {
+  /** The opponent's skill: the card lifts and the speech bubble is read. */
+  callout: 2600,
+  /** Your own skill: you chose it, so the callout is shorter. */
+  calloutYours: 1600,
+  /** The shortest a step is held: long enough to read its line and watch it happen. */
+  step: 1600,
+  /** A shuffle has little to watch. */
+  shuffle: 1200,
+  /** The receipt after the last step. */
+  receipt: 1800,
+} as const;
 
 /** Repeated bookkeeping of one kind (five energy charges) runs at this share of its dwell. */
 const GROUPED = 0.6;
@@ -48,7 +67,10 @@ export const NOTHING_TO_SHOW = 150;
 /** The "YOUR TURN" banner. In step pace the walk waits for a tap instead. */
 export const TURN_BANNER_MS = 1000;
 
-const stretch = (ms: number, pace: Pace): number => (pace === "slow" ? Math.round(ms * SLOW_FACTOR) : ms);
+/** The paces that stretch the rhythm: Slow, and Explain, which is Slow with its skills told in steps. */
+const stretched = (pace: Pace): boolean => pace === "slow" || pace === "explain";
+
+const stretch = (ms: number, pace: Pace): number => (stretched(pace) ? Math.round(ms * SLOW_FACTOR) : ms);
 
 /**
  * How long a beat is given before the next one starts, at the chosen pace.
@@ -69,12 +91,25 @@ const stretch = (ms: number, pace: Pace): number => (pace === "slow" ? Math.roun
  * `next` is the beat that follows, so a run of the same bookkeeping (draw,
  * draw; charge, charge) is grouped into a quicker stream instead of N equal pauses.
  */
-export function msFor(beat: Beat, pace: Pace = "normal", chain = 0, next: Beat | null = null): number {
+export function msFor(beat: Beat, pace: Pace = "normal", chain = 0, next: Beat | null = null, around: { prev?: Beat | null; role?: ExplainRole | null } = {}): number {
   const hurried = chain > CHAIN_ACCEL_AFTER && !DECISIVE.has(beat.t);
-  let base = baseMs(beat) * (hurried ? 0.7 : 1);
+  let base = baseMs(beat, around.prev ?? null) * (hurried ? 0.7 : 1);
   const kind = bookkeepingKind(beat);
   if (next && kind !== null && kind === bookkeepingKind(next)) base *= GROUPED;
-  return stretch(Math.round(base), pace);
+  const ms = stretch(Math.round(base), pace);
+  return pace === "explain" && around.role ? explainMs(beat, ms, around.role) : ms;
+}
+
+/**
+ * A beat's dwell when it is part of a skill being explained: the callout's own length, or a step held at least
+ * `EXPLAIN.step`, and the receipt added to the moment's last beat. A beat that only leads into or trails a step (the
+ * draw marker after its card flew, the first of three cards milled) keeps its ordinary dwell.
+ */
+function explainMs(beat: Beat, ms: number, role: ExplainRole): number {
+  if (role.kind === "callout") return role.mine ? EXPLAIN.calloutYours : EXPLAIN.callout;
+  if (role.kind === "resume") return ms;
+  const held = role.hold ? Math.max(beat.t === "shuffle" ? EXPLAIN.shuffle : EXPLAIN.step, ms) : ms;
+  return held + (role.receipt ? EXPLAIN.receipt : 0);
 }
 
 /** The kind of bookkeeping a beat is, or null when it is not bookkeeping. */
@@ -145,9 +180,9 @@ export const FX = {
   title: 640,
 } as const;
 
-/** The effects' multiplier: slow pace stretches them like every beat. Step plays at 1x. */
+/** The effects' multiplier: slow pace (and Explain) stretches them like every beat. Step plays at 1x. */
 export function fxScale(pace: Pace = "normal"): number {
-  return pace === "slow" ? SLOW_FACTOR : 1;
+  return stretched(pace) ? SLOW_FACTOR : 1;
 }
 
 /** An individual visual effect/flight is capped below the 700 ms limit. */
@@ -176,7 +211,7 @@ export const CHAIN_ACCEL_AFTER = 4;
 /** The beats that say how something turned out. Never accelerated. */
 const DECISIVE: ReadonlySet<Beat["t"]> = new Set<Beat["t"]>(["clash", "damage", "ko", "negated", "over"]);
 
-function baseMs(beat: Beat): number {
+function baseMs(beat: Beat, prev: Beat | null): number {
   switch (beat.t) {
     case "draw":
       // The card back already flew in on the deck-to-hand move before it:
@@ -197,7 +232,19 @@ function baseMs(beat: Beat): number {
       if (beat.from === "hand" && beat.to === "battle") return TIER.key;
       if (beat.to === "combo") return TIER.key;
       if (beat.from === "hand" && beat.to === "drop") return TIER.key;
+      if (changesPlay(beat, prev)) return TIER.key;
       return TIER.bookkeeping;
+    case "look":
+      // A look or a search names no card, but it is a decision to read: whose cards, and how many.
+      return TIER.key;
+    case "shuffle":
+      return TIER.bookkeeping;
+    case "resume":
+      // Nothing to show: the steps after it are the story.
+      return 0;
+    case "under":
+      // A card leaves its area for a pile (23-2): the board changes, so it is read.
+      return TIER.key;
     case "markers":
       // [Empower]'s carry names both cards (#109): the marker actually has to
       // cross the board to the new Unison, which takes longer than counting up.
@@ -225,6 +272,25 @@ function baseMs(beat: Beat): number {
       // step or a skipped phase is only a marker the fight passes through.
       return phaseBanner(beat) ? PHASE_BEAT_MS : NOTHING_TO_SHOW;
   }
+}
+
+const IN_PLAY: ReadonlySet<Area> = new Set<Area>(["battle", "unison", "leader"]);
+
+/**
+ * A card leaving play or changing hands is a key moment in every pace, never bookkeeping (owner's report, 13 Nov
+ * 2026: the computer's turn-1 Swap sent Gohan back to its hand in half a second, and "it looked like nothing
+ * happened"). That is a card out of the Battle, Unison or Leader Area, wherever it goes — except the tail of a KO,
+ * whose `ko` beat just before it is the moment; a card into one of them from anywhere (a play from the Drop, the
+ * Warp, the deck, a Unison or a Z-Leader); and a card into a hand from anywhere but the deck and the life, which are
+ * a draw and damage — unless it was shown on the way (a search that reveals, a revealed life card).
+ */
+export function changesPlay(beat: Extract<Beat, { t: "move" }>, prev: Beat | null = null): boolean {
+  const fromPlay = IN_PLAY.has(beat.from);
+  const toPlay = IN_PLAY.has(beat.to);
+  if (fromPlay && !toPlay) return !(beat.to === "drop" && prev?.t === "ko" && prev.card === beat.card);
+  if (toPlay && !fromPlay) return true;
+  if (beat.to === "hand") return (beat.from !== "deck" && beat.from !== "life") || !!beat.reveal;
+  return false;
 }
 
 /** The step-banner key ("phase:main") a phase beat announces, or null when it announces nothing. */

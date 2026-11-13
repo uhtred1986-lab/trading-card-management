@@ -33,7 +33,7 @@
  * Pure and client-safe, like the rest of `vm/`: no database, no network.
  */
 import type { EngineContext, GameEvent } from "../types";
-import type { Mode, PlayerId } from "../types";
+import type { Area, Mode, PlayerId } from "../types";
 import type { GameDefinition } from "../rulesets";
 import { attrsOf } from "./cards";
 import { addEffect } from "./effects";
@@ -418,7 +418,7 @@ function stackOnto(ctx: EngineContext, game: GameDefinition, state: VmState, ev:
     if (b.attacker === host) b.attacker = card;
     if (b.guard === host) b.guard = card;
   }
-  log(ev, { type: "stack", top: card, under: state.cards[card].under.slice() });
+  log(ev, { type: "stack", top: card, under: state.cards[card].under.slice(), placed: host, ...(cameFrom.get(host) ? { from: cameFrom.get(host) as Area } : {}) });
   // It has not left the area (23-2-2-2), but going under is still a moment
   // the card may name: "when this card is placed under a … card" (BT29-140).
   for (const id of placed) {

@@ -417,13 +417,21 @@
     }
   ],
   "beats": {
-    "seq": 2,
+    "seq": 3,
     "list": [
+      {
+        "t": "resume",
+        "card": "p1#15",
+        "label": "Auto",
+        "owner": "p1",
+        "n": 1,
+        "steps": 2
+      },
       {
         "t": "ko",
         "card": "p2#44",
         "owner": "p2",
-        "n": 1
+        "n": 2
       },
       {
         "t": "move",
@@ -431,10 +439,15 @@
         "from": "battle",
         "to": "drop",
         "owner": "p2",
-        "n": 2
+        "n": 3
       }
     ],
     "art": {
+      "p1#15": {
+        "cardId": "KILLER",
+        "name": "KILLER",
+        "imageUrl": null
+      },
       "p2#44": {
         "cardId": "V-BLUE",
         "name": "V-BLUE",

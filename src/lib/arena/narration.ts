@@ -108,6 +108,8 @@ function sentence(b: Beat, n: Narrator, words: BoardWords, full: boolean): strin
       // card it was, whatever `art` knows about it now.
       const c = unseen(b.from, o) && unseen(b.to, o) && !b.reveal ? "a card" : name(b.card);
       if (b.to === "energy" && b.from === "hand") return `${who(o, "charge", "charges")} ${c} as energy.`;
+      // [Evolve], [Union-Potara], a Z-Leader: played on top of a card, which is under it now (23-2).
+      if (b.onto && (b.to === "battle" || b.to === "leader" || b.to === "unison")) return `${who(o, "play", "plays")} ${c} on top of ${name(b.onto)}.`;
       if (b.to === "battle" && b.from === "hand") return `${who(o, "play", "plays")} ${c}.`;
       if (b.to === "battle") return `${c} enters the Battle Area from ${AREA[b.from]}.`;
       if (b.to === "unison") return `${who(o, "play", "plays")} Unison ${c}.`;
@@ -209,6 +211,28 @@ function sentence(b: Beat, n: Narrator, words: BoardWords, full: boolean): strin
       const subject = b.card ? name(b.card) : b.player ? (you(b.player) ? "you" : n.them) : "both players";
       return `${b.label} on ${subject} wears off.`;
     }
+    case "look": {
+      // 20-11/20-12: who looked at whose cards and how many — never which (the skill explainer, 13 Nov 2026).
+      const whose = b.owner === b.player ? (you(b.player) ? "your" : "their") : poss(b.owner);
+      if (b.search) return `${who(b.player, "search", "searches")} ${whose} deck.`;
+      if (b.area === "deck") {
+        const end = b.from === "bottom" ? "bottom" : "top";
+        return `${who(b.player, "look", "looks")} at the ${end} ${b.count === 1 ? "card" : `${b.count} cards`} of ${whose} deck.`;
+      }
+      if (b.area === "hand") return `${who(b.player, "look", "looks")} at ${whose} hand.`;
+      if (b.area === "life") return `${who(b.player, "look", "looks")} at ${whose} life cards.`;
+      return `${who(b.player, "look", "looks")} at ${whose} ${AREA[b.area] ?? b.area}.`;
+    }
+    case "shuffle":
+      return full ? `${who(b.player, "shuffle", "shuffles")} ${you(b.player) ? "your" : "their"} ${b.area === "life" ? "life cards" : "deck"}.` : null;
+    case "resume":
+      // A marker for the explainer: the steps after it say what happened.
+      return null;
+    case "under": {
+      // 23-2: named only where the viewer saw the card, as a move is.
+      const c = b.from && unseen(b.from, b.owner) ? "a card" : name(b.card);
+      return `${c.charAt(0).toUpperCase() + c.slice(1)} goes under ${name(b.host)}.`;
+    }
     case "say":
       return `${n.them}: “${b.text}”`;
     case "over":
@@ -218,4 +242,68 @@ function sentence(b: Beat, n: Narrator, words: BoardWords, full: boolean): strin
       if (!b.winner) return `A draw — ${b.reason}.`;
       return `${you(b.winner) ? "You win" : `${n.them} wins`} — ${b.reason}.`;
   }
+}
+
+/** "A", "A and B", "A, B and C". */
+function list(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * One sentence for a run of the same thing a skill did several times over (the skill explainer, 13 Nov 2026):
+ * two cards drawn, three cards milled to the Drop, two energy rested, one power change on several cards. The
+ * explainer tells the run as one step, so it reads as one sentence: "Claude draws 2 cards", "Dark Plot, Pan and
+ * Bardock go to the Drop". A run of one is the beat's own `full` sentence; a run this cannot say as one sentence
+ * says its last beat's. Card names follow the same rule as `narrate`: a card is named only where the viewer saw it.
+ */
+export function narrateRun(run: Beat[], n: Narrator, words: BoardWords = dbsWords()): string | null {
+  const last = run[run.length - 1];
+  if (!last) return null;
+  if (run.length === 1) return narrate(last, n, words, { full: true });
+  const you = (p: PlayerId | null | undefined) => p === n.viewer;
+  const who = (p: PlayerId | null | undefined, verb: string, third: string) => (you(p) ? `You ${verb}` : `${n.them} ${third}`);
+  const poss = (p: PlayerId | null | undefined) => (you(p) ? "your" : `${n.them}'s`);
+  const name = (id: string) => n.art[id]?.name ?? "a card";
+  const unseen = (area: Area, o: PlayerId) => area === "deck" || area === "life" || ((area === "hand" || area === "zDeck") && !you(o));
+  const count = run.length;
+  const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+  const head = run[0];
+  if (head.t === "draw" && run.every((b) => b.t === "draw" && b.player === head.player)) return `${who(head.player, "draw", "draws")} ${count} cards.`;
+  if (head.t === "move" && run.every((b) => b.t === "move" && b.from === head.from && b.to === head.to && b.owner === head.owner)) {
+    const moves = run as Extract<Beat, { t: "move" }>[];
+    const hidden = moves.some((b) => unseen(b.from, b.owner) && unseen(b.to, b.owner) && !b.reveal);
+    const cards = hidden ? `${count} cards` : list(moves.map((b) => name(b.card)));
+    const o = head.owner;
+    if (head.from === "deck" && head.to === "hand") return `${who(o, "add", "adds")} ${count} cards from the deck to hand.`;
+    if (head.to === "battle" && head.from === "hand") return `${who(o, "play", "plays")} ${cards}.`;
+    if (head.to === "energy") return `${cap(cards)} go to ${poss(o)} Energy Area.`;
+    if (head.to === "hand") return `${cap(cards)} return to ${poss(o)} hand.`;
+    if (head.to === "drop" && head.from === "hand") return `${who(o, "discard", "discards")} ${cards}.`;
+    if (head.to === "drop") return `${cap(cards)} go to the Drop.`;
+    if (head.to === "warp") return `${cap(cards)} are sent to the Warp.`;
+    if (head.to === "deck") return `${cap(cards)} go back into the deck.`;
+    if (head.to === "life") return `${cap(cards)} become life cards.`;
+    if (head.to === "removed") return `${cap(cards)} are removed from the game.`;
+    const AREA = words.narrationArea;
+    return `${cap(cards)} move from ${AREA[head.from] ?? head.from} to ${AREA[head.to] ?? head.to}.`;
+  }
+  if (head.t === "mode" && run.every((b) => b.t === "mode" && b.mode === head.mode)) {
+    return `${list(run.map((b) => name((b as Extract<Beat, { t: "mode" }>).card)))} switch to ${words.mode[head.mode === "rest" ? "rest" : "active"]}.`;
+  }
+  if (head.t === "ko" && run.every((b) => b.t === "ko")) return `${list(run.map((b) => name((b as Extract<Beat, { t: "ko" }>).card)))} are KO'd.`;
+  if (head.t === "under" && run.every((b) => b.t === "under" && b.host === head.host)) {
+    const unders = run as Extract<Beat, { t: "under" }>[];
+    const hidden = unders.some((b) => b.from && unseen(b.from, b.owner));
+    return `${cap(hidden ? `${count} cards` : list(unders.map((b) => name(b.card))))} go under ${name(head.host)}.`;
+  }
+  if (head.t === "effect" && run.every((b) => b.t === "effect" && b.kind === head.kind && b.label === head.label && b.until === head.until && !!b.card)) {
+    // The same rule on several cards: one sentence, the subjects joined.
+    const one = narrate(head, n, words, { full: true });
+    const subject = head.card ? name(head.card) : null;
+    if (one && subject && one.startsWith(subject)) {
+      const rest = one.slice(subject.length).replace(/^ gets /, " get ").replace(/^ gains /, " gain ");
+      return `${list(run.map((b) => name((b as Extract<Beat, { t: "effect" }>).card!)))}${rest}`;
+    }
+  }
+  return narrate(last, n, words, { full: true });
 }

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type CSSProperties } from "react";
 import type { SkillMoment } from "@/lib/arena/immersion/skills";
-import { bannerDuration } from "@/lib/arena/immersion/banner";
+import { skillBannerDuration } from "@/lib/arena/immersion/banner";
 import type { NeutralReason } from "@/lib/arena/immersion/types";
 import styles from "./SkillBanner.module.css";
 
@@ -18,8 +18,8 @@ export function SkillBanner({ moment, ...rest }: SkillBannerProps) {
 }
 function SkillBeat({ moment, durationMs, reducedMotion, neutral, onSkip }: SkillBannerProps & { moment: SkillMoment }) {
   const [finished, setFinished] = useState(false);
-  // Same cap as the combat banner: never longer than the beat, never past 1100 ms.
-  const duration = bannerDuration(durationMs, 850);
+  // As long as its beat (owner's decision, 13 Nov 2026: a Swap's banner was cut off at 1.1 s while its beat ran on).
+  const duration = skillBannerDuration(durationMs);
   useEffect(() => { const timer = window.setTimeout(() => setFinished(true), duration); return () => window.clearTimeout(timer); }, [duration]);
   if (finished) return null;
   // The event adapter supplies a face only when the viewer may see it.

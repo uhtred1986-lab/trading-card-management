@@ -1780,7 +1780,7 @@
     }
   ],
   "beats": {
-    "seq": 3,
+    "seq": 4,
     "list": [
       {
         "t": "mode",
@@ -1805,7 +1805,17 @@
         "unread": false,
         "owner": "p1",
         "inBattle": false,
-        "n": 3
+        "n": 3,
+        "steps": 1
+      },
+      {
+        "t": "look",
+        "player": "p1",
+        "owner": "p1",
+        "area": "deck",
+        "count": 40,
+        "search": true,
+        "n": 4
       }
     ],
     "art": {

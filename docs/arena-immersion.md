@@ -102,8 +102,10 @@ or hit/KO (hit) beat. The pose must be listed in the character's `frames` in `ch
 otherwise the banner stays neutral (`unmapped`) rather than substituting one. Neutral art (an energy
 emblem) carries the contract's reason in `data-neutral` (`hidden`, `unknown-card`, `face-changed`,
 `unmapped`, `no-subject`; `asset-pending` while a sheet loads). An approved technique labels only the
-attacker's mapped face. `SkillBanner` shares the duration cap and marks a faceless motion with the same
-reason. Reduced motion renders the static result at once with no timed phase; Skip clears the beat and
+attacker's mapped face. `SkillBanner` lasts its whole beat instead (`skillBannerDuration`; owner's decision of
+13 Nov 2026: a Swap read as "nothing happened" when its banner was gone after 1.1 s), stands down while the skill
+explainer tells the beat (the Explain pace, `docs/arena-skill-explainer.md`), and marks a faceless motion with the
+same reason. Reduced motion renders the static result at once with no timed phase; Skip clears the beat and
 its timers; a new beat key unmounts the old one. Audio is unchanged (#1109).
 
 Visual smoke: `npx tsx scripts/arena-banner-smoke.mts --base <dev server>` opens

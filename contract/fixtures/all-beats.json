@@ -341,7 +341,7 @@
     }
   ],
   "beats": {
-    "seq": 18,
+    "seq": 22,
     "list": [
       {
         "t": "phase",
@@ -363,6 +363,7 @@
         "from": "hand",
         "to": "battle",
         "owner": "p1",
+        "onto": "p2#44",
         "n": 3
       },
       {
@@ -435,11 +436,43 @@
         "t": "skill",
         "card": "p1#15",
         "label": "Auto",
-        "text": "When this card attacks, draw 1 card.",
+        "text": "When this card attacks, look at the top 3 cards of your deck.",
         "unread": false,
         "owner": "p1",
         "inBattle": true,
+        "steps": 1,
         "n": 14
+      },
+      {
+        "t": "look",
+        "player": "p1",
+        "owner": "p1",
+        "area": "deck",
+        "count": 3,
+        "from": "top",
+        "n": 15
+      },
+      {
+        "t": "resume",
+        "card": "p1#15",
+        "label": "Auto",
+        "owner": "p1",
+        "steps": 1,
+        "n": 16
+      },
+      {
+        "t": "shuffle",
+        "player": "p1",
+        "area": "deck",
+        "n": 17
+      },
+      {
+        "t": "under",
+        "card": "p2#44",
+        "host": "p1#15",
+        "owner": "p1",
+        "from": "hand",
+        "n": 18
       },
       {
         "t": "effect",
@@ -450,7 +483,7 @@
         "until": "turn",
         "source": "p1#15",
         "owner": "p1",
-        "n": 15
+        "n": 19
       },
       {
         "t": "effectEnded",
@@ -459,18 +492,18 @@
         "kind": "power",
         "label": "+5000 power",
         "source": "p1#15",
-        "n": 16
+        "n": 20
       },
       {
         "t": "say",
         "text": "Let us see how you answer that.",
-        "n": 17
+        "n": 21
       },
       {
         "t": "over",
         "winner": "p1",
         "reason": "no life left",
-        "n": 18
+        "n": 22
       }
     ],
     "art": {

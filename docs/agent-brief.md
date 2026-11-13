@@ -37,18 +37,21 @@ delegation only; nested delegation has lost work.
 
 ## Data
 
-The rule (stay off Neon, which scripts an agent does not run) is in `CLAUDE.md` → "Safety".
+The rule is in `CLAUDE.md` → "Safety": **never wait for the owner for database access** — you have every
+permission to use the database (owner, 13 Nov 2026). Connect as below and use it whenever the task needs it.
 
 - Migrations: `db:generate` after editing `src/db/schema.ts`. Additive only. Read the generated SQL;
   stop and report anything destructive.
 - Data the owner gives in chat (a card's specified cost, a ruling) goes in through a migration (as in
   0034 and 0049) or `npm run arena:rule`, never an ad hoc `UPDATE`.
 
-### When the owner asks for live data (rule review, a query)
+### Using the live database
 
-The owner allows reads of Neon for work that is *about* the data: the rule review queue (`card_rules`
-with status `open`/`draft`), a question about their collection or decks. Writes only on their say-so,
-through the repo's own scripts (`arena:rule`, ...).
+Reads, the database-backed scripts and writes are all allowed, without asking (owner's standing
+instruction, 13 Nov 2026): the rule review queue (`card_rules` with status `open`/`draft`), questions about
+the owner's collection or decks, `arena:fuzz` / `arena:reprobe` / `arena:diff` for engine and rules changes,
+and repairs. Write through the repo's own scripts (`arena:rule`, `rules:batch`, `arena:protected-records`,
+...) with their dry run first, never an ad hoc `UPDATE` for data the code owns (errata, migrations).
 
 The environment's `DATABASE_URL` and `NEON_PROJECT_ID` belong to the gullet-cove-dm app (no `cards`,
 `decks` or `card_rules` there). Take this app's **pooled** URL from the Vercel project
@@ -161,12 +164,14 @@ costs about as much as the full suite. That is expected, not a hang.
   backlog file needs nothing: the closing PR set its own `status: closed`. Run the retained backlog
   drift check locally when authenticated API access is available; otherwise compare changed issue
   metadata with the connector and verify cited paths.
-- **The coordinator may run the database-backed checks itself** (owner, 13 Oct 2026): `arena:fuzz`,
-  `sync:catalog` (`--no-review` unless Claude review was asked for), `db:check`, and paid AI checks the
-  owner names. Use `.env.local` from the main checkout in a dedicated worktree and prove it is this
-  app's database first (`npm run db:check` lists `card_rules`). Workers stay off Neon.
+- **Every agent runs the database-backed checks itself** (owner, 13 Nov 2026: never wait for the owner
+  for database access): `arena:fuzz`, `arena:reprobe`, `sync:catalog` (`--no-review` unless Claude review
+  was asked for), `db:check`, and paid AI checks the owner names. Connect as "Data" shows (or `.env.local`
+  from the main checkout in a dedicated worktree) and prove it is this app's database first
+  (`npm run db:check` lists `card_rules`).
 - **Rulings given in chat** are recorded first with `npm run arena:rule`; the coordinator schedules
   the code change when it judges the time right.
 - **Stop and ask the owner** (merging is not on this list) before anything under `CLAUDE.md` →
   "Safety" that needs their say-so (new dependency, destructive migration, production or Vercel
-  settings, any write to Neon), and before working an issue labelled `needs-owner-ruling` or `blocked`.
+  settings), and before working an issue labelled `needs-owner-ruling` or `blocked`. Database access is
+  not on this list: never wait for the owner for it.

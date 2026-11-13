@@ -1393,6 +1393,9 @@ function stepProgram(ctx: EngineContext, game: GameDefinition, state: VmState, e
     const substitute = state.battle?.endCombo?.stage === "departures" ? state.battle.endCombo.substituteDeparture : undefined;
     const ownCleanupSubstitute = !!substitute && frame.replacing === substitute.card;
     if (ownCleanupSubstitute) substitute.active = true;
+    // A program that stopped for a decision goes on with its answer: said, so the board tells what follows as
+    // more of the same skill (the skill explainer). Only a card's own skill; a hook or a replacement has no story.
+    if (frame.awaiting !== undefined && frame.skillIndex !== undefined && state.cards[frame.card]) log(ev, { type: "resume", card: frame.card, skill: frame.skillIndex, master: frame.master });
     try {
       return stepScript(vmHost(ctx, game, state, ev), frame);
     } finally {

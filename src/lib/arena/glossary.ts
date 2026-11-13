@@ -687,6 +687,10 @@ export interface ReadingRule {
  */
 export const READING_RULES: ReadingRule[] = [
   {
+    title: "Looks, searches, shuffles and a skill's later steps are reported (the skill explainer, 13 Nov 2026)",
+    body: "What the engine does with card text is unchanged; what it reports about it is not. A `look` op logs a `look` event — who looked, at whose cards, in which area, how many, and from which end of a deck — and a choice out of a deck logs one `look` with `search` the first time a frame goes through that deck (a choice re-run with its answer does not log it again). Neither names a card: looking is not revealing (20-11), so the other player learns that it happened and nothing more. Every shuffle a skill makes logs a `shuffle` event beside its log note: the `shuffle` op, and the 20-12-3 shuffle as a skill that searched a deck ends. A card's own skill that stopped for a decision logs `resume` when it goes on with the answer, so what it does next is told as more of that skill; a card going under another names itself and where it came from on the `stack` event (`placed`, `from`), so an [Evolve] is told as played on top of a card and a card a skill places under Majin Buu has a moment of its own. The board turns these into beats (`vm/beats.ts`) and tells every skill in steps (`explain.ts`, `docs/arena-skill-explainer.md`).",
+  },
+  {
     title: "Native indexed keyword hook continuations (#907)",
     body: "A ruleset-owned native keyword hook captures the actual projected skill's usage and validity records when its indexed frame is created. JSON continuation replay keeps those snapshots; old frames missing them still require rebuilding. This preserves native Dual Attack battle-end activation without treating an obsolete frame as unlimited."
   },

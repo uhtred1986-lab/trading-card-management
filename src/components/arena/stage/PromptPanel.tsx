@@ -72,7 +72,7 @@ export function PromptPanel({
   refusalText: string | null;
   error: string | null;
   onRetry?: () => void;
-  pace: "slow" | "normal" | "step";
+  pace: import("@/lib/arena/pace").Pace;
   playingMine: boolean;
   playingIndex: number;
   /** How many things you could do now; the turn pill says whose turn it is, this says what is open. */
@@ -169,17 +169,29 @@ export function PromptPanel({
   const quietMain = view.prompt.kind === "main" && !view.over && !overOutcome && !playing && !bad && !isTargeting && !searching && !onRetry;
   if (quietMain) return <div className="flex flex-wrap items-center justify-end gap-2 px-3 py-2" data-arena-quiet-controls>
     {playSelection && (() => {
-      // A Unison's X is the number of markers it enters with, one per energy rested (13-2-3), so its options
-      // say markers rather than "with X = 2".
+      // Every way to use the hand card, each a button of its own (owner, 13 Nov 2026: an [Evolve] from the hand
+      // was out of reach): a Unison's X is the markers it enters with, one per energy rested (13-2-3), so its
+      // options say markers; a skill used from the hand says what it does, without the card's name again.
       const unison = playSelection.options.every((option) => option.action.type === "playUnison");
+      const mixed = new Set(playSelection.options.map((option) => option.action.type)).size > 1;
+      const words = (option: (typeof playSelection.options)[number]) => {
+        const a = option.action;
+        if (a.type === "playUnison") return `${a.x} marker${a.x === 1 ? "" : "s"}`;
+        if (a.type === "growUnison") return "Grow the Unison";
+        if (a.type === "play") return playSelection.options.filter((o) => o.action.type === "play").length > 1 ? option.label : "Play it";
+        const short = option.label.split(playSelection.card.name).join("").replace(/\s{2,}/g, " ").trim();
+        return short || option.label;
+      };
       return (
         <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-play-confirm>
-          <p className="min-w-0 flex-1 text-sm font-bold text-space-50">Play {playSelection.card.name}?{unison
+          <p className={`min-w-0 text-sm font-bold text-space-50 ${mixed ? "basis-full" : "flex-1"}`}>{mixed ? "Use" : "Play"} {playSelection.card.name}?{unison
             ? <span className="block text-xs font-normal text-space-200">It enters with one marker for each energy you rest · {playSelection.ready} ready</span>
-            : playSelection.options[0].cost != null && <span className="block text-xs font-normal text-space-200">Costs {playSelection.options[0].cost} energy · {playSelection.ready} ready</span>}</p>
+            : mixed ? <span className="block text-xs font-normal text-space-200">{playSelection.ready} energy ready</span>
+              : playSelection.options[0].cost != null && <span className="block text-xs font-normal text-space-200">Costs {playSelection.options[0].cost} energy · {playSelection.ready} ready</span>}</p>
           {playSelection.options.map((option, n) => (
-            <button key={n} type="button" disabled={busy} onClick={() => onSend(option.action)} className="arena-btn tap min-h-11 rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50" data-play-action>
-              {unison && option.action.type === "playUnison" ? `${option.action.x} marker${option.action.x === 1 ? "" : "s"}` : playSelection.options.length > 1 ? option.label : "Play it"}
+            <button key={n} type="button" disabled={busy} onClick={() => onSend(option.action)} className="arena-btn tap min-h-11 max-w-full rounded-xl bg-ki-500 px-4 text-sm font-bold text-space-950 disabled:opacity-50" data-play-action={option.action.type}>
+              <span className="block">{words(option)}</span>
+              {mixed && option.cost != null && <span className="block text-xs font-semibold opacity-80">{option.cost} energy</span>}
             </button>
           ))}
         </div>
@@ -195,6 +207,50 @@ export function PromptPanel({
       {battleDetails}
     </Sheet>}
   </div>;
+  // One bare answer as a button: the pass family wears its title and what passing means.
+  const bareButton = ({ i, l }: { i: number; l: LegalAction }, index: number) => {
+        const ghost = isGhostAction(l.action) || (primaryBare >= 0 && index !== primaryBare);
+        const pass = isGhostAction(l.action);
+        const passTitle = l.action.type === "endMain" ? "End turn" : pass ? "Pass" : null;
+        const passDetail = l.action.type === "endMain"
+          ? attacksRemaining > 0 ? `${attacksRemaining} ${attacksRemaining === 1 ? "attacker" : "attackers"} can still attack` : "No attackers left"
+          : l.action.type === "charge" && l.action.card == null ? "Don’t charge"
+            : l.action.type === "counter" && l.action.card == null ? "Don’t counter"
+              : l.action.type === "block" && l.action.card == null ? "No block"
+                : l.action.type === "pass" && view.prompt.kind === "combo" ? comboPassDetail(view, defending)
+                : l.action.type === "optionalCost" && !l.action.pay ? "Don’t pay the optional cost"
+                  : view.prompt.passConsequence ?? "Pass this decision";
+        return (
+          <button
+            key={i}
+            type="button"
+            disabled={busy}
+            data-pass-action={isGhostAction(l.action) ? "" : undefined}
+            data-action-label={l.label}
+            data-action-type={l.action.type}
+            data-payment-option={l.action.type === "payCost" ? l.action.option : undefined}
+            onClick={() => onSend(l.action)}
+            className={`arena-btn tap min-h-12 max-w-full shrink-0 rounded-xl px-4 py-2 text-base disabled:opacity-50 sm:px-5 ${ghost ? "border border-space-600 bg-space-800 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"}`}
+          >
+            {passTitle ? <span className="block text-left"><b className="block">{passTitle}</b><span className="block text-xs font-normal opacity-80">{passDetail}</span></span> : <>
+              <span className="sm:hidden">{shortLabel(l.label)}</span>
+              <span className="hidden sm:inline">{l.label}</span>
+            </>}
+            {l.action.type === "payCost" && (() => {
+              const option = l.action.type === "payCost" ? l.action.option : -1;
+              const payment = view.prompt.payments?.find((p) => p.option === option);
+              return <span className="block text-xs font-normal" data-payment-preview>{payment ? `Remaining ready/total: ${energySummary(view.you, payment.energyRest)} · markers ${Math.max(0, view.you.energyMarkers - payment.markers)}` : "Remaining colours unavailable until payment is known."}</span>;
+            })()}
+          </button>
+        );
+  };
+  const declineFirst = centre && !playing ? inlineBare.filter(({ l }) => isGhostAction(l.action)) : [];
+  const declineRow = declineFirst.length > 0 ? (
+    <div className="flex w-full flex-wrap gap-2" data-decline-first>
+      {declineFirst.map((entry) => bareButton(entry, inlineBare.indexOf(entry)))}
+    </div>
+  ) : null;
+  const defenceStep = defending && ["counter", "blocker", "combo"].includes(view.prompt.kind) && !playing;
   const panel = (
     <section className={`arena-bar flex min-h-[72px] flex-wrap items-center gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 lg:min-h-20 lg:px-[22px]`} aria-live="polite" data-prompt-kind={view.prompt.kind}>
       {!playing && !view.over && !overOutcome && (
@@ -264,6 +320,7 @@ export function PromptPanel({
       {defending && ["counter", "blocker", "combo"].includes(view.prompt.kind) && !playing && (
         <div className="w-full" data-defend-step={view.prompt.kind}>
           <DefenceBrief view={view} kind={view.prompt.kind as "counter" | "blocker" | "combo"} thumbs={!!centre} />
+          {declineRow}
           {defendOptions.length > 0 && <div className={centre ? "space-y-1.5" : "max-h-[24dvh] space-y-1.5 overflow-y-auto"} aria-label={view.prompt.kind === "counter" ? "Counter options" : "Blocker options"}>
             {defendOptions.map((option, i) => (
               <div key={`${option.card.id}:${i}`} className={`rounded-xl border ${option.reason ? "border-loss/50 bg-loss/5" : "border-space-600 bg-space-900/90"} p-2`} data-defend-card={option.card.id}>
@@ -280,6 +337,7 @@ export function PromptPanel({
           </div>}
         </div>
       )}
+      {!defenceStep && declineRow}
       {centre && centre.options.length > 0 && (
         <ul className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Cards you can choose" data-centre-options>
           {centre.options.slice(0, 24).map((option) => (
@@ -297,42 +355,7 @@ export function PromptPanel({
           ))}
         </ul>
       )}
-      {inlineBare.map(({ i, l }, index) => {
-        const ghost = isGhostAction(l.action) || (primaryBare >= 0 && index !== primaryBare);
-        const pass = isGhostAction(l.action);
-        const passTitle = l.action.type === "endMain" ? "End turn" : pass ? "Pass" : null;
-        const passDetail = l.action.type === "endMain"
-          ? attacksRemaining > 0 ? `${attacksRemaining} ${attacksRemaining === 1 ? "attacker" : "attackers"} can still attack` : "No attackers left"
-          : l.action.type === "charge" && l.action.card == null ? "Don’t charge"
-            : l.action.type === "counter" && l.action.card == null ? "Don’t counter"
-              : l.action.type === "block" && l.action.card == null ? "No block"
-                : l.action.type === "pass" && view.prompt.kind === "combo" ? comboPassDetail(view, defending)
-                : l.action.type === "optionalCost" && !l.action.pay ? "Don’t pay the optional cost"
-                  : view.prompt.passConsequence ?? "Pass this decision";
-        return (
-          <button
-            key={i}
-            type="button"
-            disabled={busy}
-            data-pass-action={isGhostAction(l.action) ? "" : undefined}
-            data-action-label={l.label}
-            data-action-type={l.action.type}
-            data-payment-option={l.action.type === "payCost" ? l.action.option : undefined}
-            onClick={() => onSend(l.action)}
-            className={`arena-btn tap min-h-12 max-w-full shrink-0 rounded-xl px-4 py-2 text-base disabled:opacity-50 sm:px-5 ${ghost ? "border border-space-600 bg-space-800 text-space-50" : "bg-ki-500 text-space-950 hover:bg-ki-400"}`}
-          >
-            {passTitle ? <span className="block text-left"><b className="block">{passTitle}</b><span className="block text-xs font-normal opacity-80">{passDetail}</span></span> : <>
-              <span className="sm:hidden">{shortLabel(l.label)}</span>
-              <span className="hidden sm:inline">{l.label}</span>
-            </>}
-            {l.action.type === "payCost" && (() => {
-              const option = l.action.type === "payCost" ? l.action.option : -1;
-              const payment = view.prompt.payments?.find((p) => p.option === option);
-              return <span className="block text-xs font-normal" data-payment-preview>{payment ? `Remaining ready/total: ${energySummary(view.you, payment.energyRest)} · markers ${Math.max(0, view.you.energyMarkers - payment.markers)}` : "Remaining colours unavailable until payment is known."}</span>;
-            })()}
-          </button>
-        );
-      })}
+      {inlineBare.map((entry, index) => (declineFirst.includes(entry) ? null : bareButton(entry, index)))}
       {pickSelection && view.prompt.kind === "chooseCards" && (
         <div className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ki-500/60 bg-space-900/95 p-2" data-pick-confirm>
           <p className="min-w-0 flex-1 text-sm font-bold text-space-50">{pickSelection.card.name}<span className="block text-xs font-normal text-space-200">{pickSelection.question}</span></p>

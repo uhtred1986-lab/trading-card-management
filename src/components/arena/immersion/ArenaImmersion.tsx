@@ -18,10 +18,12 @@ export function ImmersionSettings() {
   const prefs = useImmersionPreferences();
   return <div className="space-y-3"><button type="button" className="tap min-h-11 text-sm" aria-pressed={prefs.banners} onClick={() => setImmersionPreferences({ banners: !prefs.banners })}>Combat banners: {prefs.banners ? "on" : "off"}</button><SoundControls enabled={prefs.sound} volume={prefs.volume} onEnabled={sound => setImmersionPreferences({ sound })} onVolume={volume => setImmersionPreferences({ volume })} /></div>;
 }
-export function ArenaImmersion({ gameId, beat, events, cardOf, art, viewer, reducedMotion, durationMs, suppressed, onSkip, board = [] }: {
+export function ArenaImmersion({ gameId, beat, events, cardOf, art, viewer, reducedMotion, durationMs, suppressed, onSkip, board = [], explaining = false }: {
   /** The cards in play: their hero sheets are fetched ahead, so the first attack already shows its hero. */
   board?: (CardView | null | undefined)[];
   gameId: number; beat: NumberedBeat | null; events?: Beats | null; cardOf: (id: string) => CardView | null; art: Record<string, BeatArt>; viewer: PlayerId; reducedMotion: boolean; durationMs: number; suppressed: boolean; onSkip: () => void;
+  /** The skill explainer is telling this beat (the Explain pace): the skill banner stands down for it. */
+  explaining?: boolean;
 }) {
   const prefs = useImmersionPreferences();
   const warmKey = board.map((c) => (c && !c.hidden ? `${c.cardId}:${c.flipped}` : "")).join("|");
@@ -70,7 +72,7 @@ export function ArenaImmersion({ gameId, beat, events, cardOf, art, viewer, redu
   const sequence = actionSequence(gameId, beat, { cardOf, art, viewer, durationMs });
   const plan = bannerPlan(sequence, beat);
   const rawSkill = sequence?.staging === "motion" ? skillMoment(gameId, beat, { cardOf, art, viewer }) : null;
-  const skill = bannerOwnsMoment(rawSkill, beat) ? rawSkill : null;
+  const skill = !explaining && bannerOwnsMoment(rawSkill, beat) ? rawSkill : null;
   const skip = () => { arenaAudio.stop(); onSkip(); };
   // Keep the keyed beat mounted while obscured, so restoring visibility cannot replay it.
   return <div style={{ display: prefs.banners && visible && !suppressed ? "contents" : "none" }}><CombatBanner plan={plan} reducedMotion={reducedMotion} onSkip={skip} /><SkillBanner moment={skill} durationMs={durationMs} reducedMotion={reducedMotion} neutral={sequence?.neutral ?? null} onSkip={skip} /></div>;

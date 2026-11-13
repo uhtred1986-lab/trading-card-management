@@ -41,6 +41,15 @@ export function bannerDuration(durationMs: number | undefined, fallback: number)
   return durationMs !== undefined && Number.isFinite(durationMs) ? Math.max(1, Math.min(BANNER_MAX_MS, Math.round(durationMs))) : fallback;
 }
 
+/**
+ * The skill banner's length: the beat's whole dwell, no longer capped at `BANNER_MAX_MS` (owner's decision, 13 Nov
+ * 2026: a Swap or a bounce read as "nothing happened" because its banner was gone after 1.1 s). The combat banner
+ * keeps the cap: its poses are timed to it.
+ */
+export function skillBannerDuration(durationMs: number | undefined): number {
+  return durationMs !== undefined && Number.isFinite(durationMs) ? Math.max(1, Math.round(durationMs)) : 850;
+}
+
 /** Which banner a contract cue opens. Only the beat's own cue decides it, never an earlier beat. */
 const KIND_OF: Partial<Record<ActionCueId, BannerKind>> = {
   "attack.buildup": "attack",

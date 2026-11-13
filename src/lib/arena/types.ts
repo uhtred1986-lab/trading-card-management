@@ -1608,7 +1608,28 @@ export type GameEvent =
   /** An effect written down for later; `label` is the timing in plain words. */
   | { type: "delayed"; card: string; label: string }
   | { type: "token"; card: string; owner: PlayerId }
-  | { type: "stack"; top: string; under: string[] }
+  /**
+   * `top`'s pile now holds `under` (23-2). `placed` is the card that has just gone under it and `from` where that
+   * card came from — a card played on top of another ([Evolve], [Union-Potara]) puts the old top card there, a
+   * skill places one there (BT3-031's Majin Buu) — so a client can say which card went under which (the skill
+   * explainer, 13 Nov 2026). Absent when a card left the pile instead.
+   */
+  | { type: "stack"; top: string; under: string[]; placed?: string; from?: Area }
+  /**
+   * 20-11/20-12: `player` looks at cards in `owner`'s `area` — the top or bottom `count` of a deck, a whole hand, the
+   * life, or a whole deck searched (`search`). Looking is not revealing, so the event names no card: it is how the
+   * other player gets to see that it happened ("Claude looks at the top 3 cards of their deck"), which before the
+   * skill explainer (13 Nov 2026) left no trace on the board at all.
+   */
+  | { type: "look"; player: PlayerId; owner: PlayerId; area: Area; count: number; from?: "top" | "bottom"; search?: true }
+  /** 5-11-2: `player`'s `area` (a deck, or the life) is shuffled. The `note` beside it is the log line. */
+  | { type: "shuffle"; player: PlayerId; area: Area }
+  /**
+   * A skill that stopped for a decision goes on with the answer (the skill explainer, 13 Nov 2026). What it does
+   * next is told as more of the same skill, which a client cannot work out on its own: the answer arrives as an
+   * action of its own, in a batch of its own, and nothing in that batch named the skill.
+   */
+  | { type: "resume"; card: string; skill: number; master: PlayerId }
   | { type: "note"; text: string }
   | { type: "gameOver"; winner: PlayerId | null; reason: string };
 
