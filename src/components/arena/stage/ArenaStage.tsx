@@ -19,7 +19,7 @@ import type { Snapshot } from "@/lib/arena/snapshot";
 import { planMoves, type GameplanPreview, type PlanMove } from "@/lib/arena/gameplan-types";
 import type { AttackPreview, CardView, ChoicePreview } from "@/lib/arena/view";
 import { useWakeLock } from "@/lib/arena/wake";
-import { isStructuralRequirement } from "../ability-panel-model";
+import { comboSkillNote, isStructuralRequirement } from "../ability-panel-model";
 import { ArenaCard, type CardState } from "../ArenaCard";
 import { CardImage } from "@/components/CardImage";
 import { FeelToggle } from "../FeelToggle";
@@ -884,7 +884,11 @@ export function ArenaStage({
   // legal way to play it. The engine still asks for any payment choice after the tap.
   const playCandidate = !wide && view.prompt.kind === "main" && yourTurn && playable && !busy && !isTargeting && !sheet && peekedId && inHand(peekedId) ? peekedId : null;
   const playCard = playCandidate ? cardOf(playCandidate) : null;
-  const playOptions = playCard ? (taps.byCard[playCandidate!] ?? []).filter((i) => legal[i].action.type === "play").map((i) => ({ action: legal[i].action, label: legal[i].label, cost: legal[i].cost?.energy ?? (Number.isFinite(Number(playCard.cost)) ? Number(playCard.cost) : null) })) : [];
+  // Every way to use the card from the hand, not only the plain play (owner, 13 Nov 2026: "I can't use the South
+  // Supreme Kai to evolve"): an [Evolve], [Union] or other skill used from the hand is an `activate` on the hand
+  // card, and a Unison's plays and growth are their own moves. Each is offered in the same bar, plain play first.
+  const HAND_USES: Action["type"][] = ["play", "playUnison", "growUnison", "activate"];
+  const playOptions = playCard ? (taps.byCard[playCandidate!] ?? []).filter((i) => HAND_USES.includes(legal[i].action.type)).sort((a, b) => HAND_USES.indexOf(legal[a].action.type) - HAND_USES.indexOf(legal[b].action.type)).map((i) => ({ action: legal[i].action, label: legal[i].label, cost: legal[i].cost?.energy ?? (legal[i].action.type === "play" && Number.isFinite(Number(playCard.cost)) ? Number(playCard.cost) : null) })) : [];
   const playSelection = playCard && playOptions.length > 0 ? { card: playCard, options: playOptions, ready: view.you.activeEnergy } : null;
   // A "choose a card" question (discard to the Drop, add to hand, …) answered from the hand: the card open in
   // the browse preview is offered with the engine's own `choose` action for it.
@@ -1400,7 +1404,9 @@ export function ArenaStage({
       if (!card) return [];
       const base = view.battle ? (defending ? view.battle.guardPower : view.battle.attackPower) : null;
       const add = card.comboPower;
-      return [{ key: `combo:${index}`, action: a, cards: [card], label: card.name, note: add != null ? `+${powerWord(add)} power${base != null ? ` → ${powerWord(base + add)}` : ""}${card.comboCost ? ` · costs ${card.comboCost}` : ""}` : offer.label }];
+      // The printed combo power, then what the card's own combo skill adds and when (BT3-043 prints +0 and gains +10,000 only at 4 life or less).
+      const skillNote = comboSkillNote(card.text);
+      return [{ key: `combo:${index}`, action: a, cards: [card], label: card.name, note: add != null ? `+${powerWord(add)} power${base != null ? ` → ${powerWord(base + add)}` : ""}${card.comboCost ? ` · costs ${card.comboCost}` : ""}${skillNote ? ` · ${skillNote}` : ""}` : offer.label }];
     }
     if (view.prompt.kind === "charge" && a.type === "charge" && a.card) {
       const card = cardOf(a.card);

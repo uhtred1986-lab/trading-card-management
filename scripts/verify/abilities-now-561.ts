@@ -11,6 +11,7 @@ import type { VmState } from "../../src/lib/arena/vm/state";
 import {
   abilityActionLabel,
   abilityCost,
+  comboSkillNote,
   abilityPanelRows,
   matchesAbilityAction,
   offeredMoves,
@@ -247,3 +248,19 @@ function move(action: LegalAction["action"], label = "engine offer", cost?: Lega
 }
 
 console.log("Abilities now projection checks passed.");
+
+// A combo card's own combo skill, read for the combo list (owner, 13 Nov 2026: Kibito Kai's combo "didn't add
+// fighting power" — it prints +0 and gains +10,000 only with a blue Leader at 4 life or less).
+{
+  assert.equal(
+    comboSkillNote("[Super Combo] (You can only include up to 4 cards with [Super Combo] in your deck) [Auto] When you combo with this card, if your Leader Card is blue and your life is at 4 or less, this card gains +10000 combo power for the duration of the turn. Then, choose up to 1 card in your opponent's Combo Area and return it to their owner's hand."),
+    "+10,000 more if your Leader Card is blue and your life is at 4 or less",
+  );
+  assert.equal(
+    comboSkillNote("[Auto] When you combo with this card, if your Leader Card is a yellow ≪Goku's Lineage≫ and your life is at 4 or less, draw 1 card and this card gains +10000 combo power for the duration of the turn."),
+    "+10,000 more if your Leader Card is a yellow ≪Goku's Lineage≫ and your life is at 4 or less",
+  );
+  assert.equal(comboSkillNote("[Auto] Choose 1 Extra Card in your hand and place it in your Drop Area: When you combo with this card, it gets +6000 combo power for the duration of the turn."), "+6,000 more from its skill");
+  assert.equal(comboSkillNote("[Blocker] [Barrier]"), null);
+  assert.equal(comboSkillNote(null), null);
+}

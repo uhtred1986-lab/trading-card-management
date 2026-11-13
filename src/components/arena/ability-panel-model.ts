@@ -78,6 +78,20 @@ export function markerCostWords(cost: NonNullable<LegalAction["cost"]>): string 
   return [...rest, `${cost.markers > 0 ? "adds" : "removes"} ${n} marker${n === 1 ? "" : "s"}`].join(" · ");
 }
 
+/**
+ * The combo power a card's own [Auto] adds when it is used in a combo, and the condition it asks, read from the
+ * printed text: "When you combo with this card, if your Leader Card is blue and your life is at 4 or less, this card
+ * gains +10000 combo power" (BT3-043). The combo list shows the printed combo power, which for such a card is 0;
+ * without this the player sees "+0" and cannot tell why (owner, 13 Nov 2026). Null when the card prints no such skill.
+ */
+export function comboSkillNote(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = /when you combo with this card,?\s*(?:(if [^.]+?),\s*)?(?:[^.]*?\band\s+)?(?:this card|it) (?:gains|gets) \+(\d{3,6}) combo power/i.exec(text.replace(/\s+/g, " "));
+  if (!m) return null;
+  const amount = `+${Number(m[2]).toLocaleString("en")} more`;
+  return m[1] ? `${amount} ${m[1]}` : `${amount} from its skill`;
+}
+
 export function abilityCost(line: AbilityLine, move: AbilitySheetMove): string {
   if (move.legal.cost) return markerCostWords(move.legal.cost);
   if (line.costPreview.state === "known") {
