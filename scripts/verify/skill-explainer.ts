@@ -237,4 +237,25 @@ assert.deepEqual(splitTrigger("[Awaken] When your life is at 4 or less : Draw 2 
   delete DEFS.UNDERHOST;
 }
 
+// ── …and one placed under the card a play just put down is not that play's "on top of" ──
+{
+  // BT3-031's shape: the card is played, then its own skill puts a card under it. The play is not an Evolve.
+  DEFS.PLAYUNDER = card("PLAYUNDER", { energyCost: 1, skill: "[Auto] When you play this card, choose up to 1 of your other Battle Cards and place it under this card." });
+  const s = stagedG({ hand: ["PLAYUNDER"], battle: ["V1"], energy: ["V1"] });
+  let r = IMPL.apply(CTX, s, { type: "play", player: "p1", card: findG(s, "p1", "hand", "PLAYUNDER") });
+  let events = r.events;
+  if (r.state.prompt.kind === "chooseCards") {
+    const choice = (r.state.prompt as Extract<typeof r.state.prompt, { kind: "chooseCards" }>).choice;
+    r = IMPL.apply(CTX, r.state, { type: "choose", player: "p1", cards: [choice.candidates[0]] });
+    events = [...events, ...r.events];
+  }
+  const host = zoneOf(r.state, "p1", "battle").find((id) => r.state.cards[id].cardId === "PLAYUNDER")!;
+  assert.equal(r.state.cards[host].under.length, 1, "the skill put a card under it");
+  const beats = IMPL.toBeats(CTX, r.state, events, 0).list;
+  const play = beats.find((b): b is Extract<NumberedBeat, { t: "move" }> => b.t === "move" && b.card === host && b.to === "battle");
+  assert.ok(play && !play.onto, "the play is a plain play, not one on top of the card its skill placed later");
+  assert.ok(beats.some((b) => b.t === "under" && b.host === host), `the card placed under it is its own beat (${beats.map((b) => b.t).join(" ")})`);
+  delete DEFS.PLAYUNDER;
+}
+
 console.log("skill-explainer: grouping, words, timing and the engine's look, search, shuffle, resume and under beats — ok");

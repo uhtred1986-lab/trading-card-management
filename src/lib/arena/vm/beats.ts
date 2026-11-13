@@ -179,7 +179,10 @@ export function vmToBeats(ctx: EngineContext, state: VmState, events: GameEvent[
       case "stack": {
         if (!e.placed) break;
         remember(e.top);
-        const play = [...list].reverse().find((b): b is Extract<NumberedBeat, { t: "move" }> => b.t === "move" && b.card === e.top);
+        // Played on top of it only when that play is the latest thing in the batch about this card: a skill told after
+        // the play (BT3-031's "when you play this card, place … under it") is a card placed under it, not an evolve.
+        const latest = [...list].reverse().find((b) => (b.t === "move" && b.card === e.top) || b.t === "skill" || b.t === "resume");
+        const play = latest?.t === "move" ? latest : null;
         if (play && !play.onto && (play.to === "battle" || play.to === "unison" || play.to === "leader")) {
           // The card played onto stood in the area the play went to: public, so its face is kept.
           remember(e.placed);
