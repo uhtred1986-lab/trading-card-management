@@ -31,10 +31,11 @@ export const PokemonWizardSchema = z.object({
     .array(
       z.object({
         outCardId: z.string().describe("Card id currently in the deck to remove"),
-        outQuantity: z.number().int().min(1).max(20),
+        // Up to a whole deck: a deck that is still short gets "add 25 basic Energy" as one swap (seen live, 14 Nov 2026).
+        outQuantity: z.number().int().min(1).max(60),
         inCardId: z.string().describe("Card id (PKM-…) from the player's cards or from a lookup, to add"),
         inName: z.string().describe("The name of the card to add, exactly as the player's list or the lookup gave it for that id"),
-        inQuantity: z.number().int().min(1).max(20),
+        inQuantity: z.number().int().min(1).max(60),
         rationale: z.string(),
         priority: z.enum(["high", "medium", "low"]),
       }),

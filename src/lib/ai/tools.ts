@@ -34,7 +34,11 @@ export interface LookupOptions {
   resultCap?: number;
 }
 
-const DEFAULTS: Required<LookupOptions> = { maxRounds: 5, perRound: 6, resultCap: 3500 };
+/*
+ * Three rounds of up to eight lookups. Every round is a whole model call: the live run of 14 Nov 2026 took
+ * 199 s for one deck with five rounds, close to the 300 s a page's function gets. Fewer, fuller rounds.
+ */
+const DEFAULTS: Required<LookupOptions> = { maxRounds: 3, perRound: 8, resultCap: 3500 };
 
 const add = (a: Usage, b: Usage): Usage => ({ input: a.input + b.input, output: a.output + b.output, cacheRead: a.cacheRead + b.cacheRead, cacheWrite: a.cacheWrite + b.cacheWrite });
 
@@ -43,6 +47,7 @@ export function lookupInstructions(tools: LookupTool[], opts: Required<LookupOpt
   return [
     "You can look cards up while you work. Every reply of yours is a JSON object with two fields: `lookups` and `answer`.",
     `To look cards up: put up to ${opts.perRound} entries in \`lookups\` and set \`answer\` to null. You get the results back and reply again (at most ${opts.maxRounds} lookup rounds).`,
+    "Every round costs the player waiting time: ask for everything you expect to need in your first round, and finish as soon as you can.",
     "To finish: set `lookups` to an empty list and put your complete answer in `answer`.",
     "A lookup is { tool, name, type, category, id }; set the fields the tool reads and the others to null. Tools:",
     ...tools.map((t) => `- ${t.name}: ${t.description}`),

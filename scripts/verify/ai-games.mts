@@ -600,8 +600,8 @@ resetProviders();
   const tool = { name: "get_card", description: "one card", run: async (a: { id?: string | null }) => (ran.push(a.id ?? ""), "ok") };
   const res = await generateWithLookups({ task: "deck_wizard", tier: "best", maxTokens: 1000, schema: z.object({ ok: z.boolean() }), system: [{ text: "RULES" }], messages: [{ role: "user", parts: [{ type: "text", text: "go" }] }] }, [tool]);
   assert.deepEqual(res.parsed, { ok: true });
-  assert.equal(ran.length, 6, "the first six of nine lookups ran");
-  assert.ok((fake.requests[1].messages[2].parts[0] as { text: string }).text.includes("your other 3 were not"));
+  assert.equal(ran.length, 8, "the first eight of nine lookups ran");
+  assert.ok((fake.requests[1].messages[2].parts[0] as { text: string }).text.includes("your other 1 were not"));
   resetProviders();
   void asked;
 }
