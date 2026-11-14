@@ -3,95 +3,23 @@
  * (explicit replace X → Y swaps), and new-set reviews. Everything reasons
  * from catalog card text we hold — no forum scraping.
  */
-import { and, asc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db";
-import { cardSets, cards, decks, ownedCards } from "@/db/schema";
-import { lotScope } from "@/lib/collection/scope";
-import { textArray } from "@/db/sqlx";
-import { currentLineFor, gameOfSetCode } from "@/lib/catalog/sets";
-import { deckRules, gameInfo, type Game } from "@/lib/catalog/games";
-import { deckToText, getDeck, type DeckCardRow } from "@/lib/decks/queries";
-import { hasKeyword, rulesFor } from "@/lib/decks/cardRules";
+import { cardSets, cards, decks } from "@/db/schema";
+import { gameOfSetCode } from "@/lib/catalog/sets";
+import { getDeck } from "@/lib/decks/queries";
 import { generateJson } from "./core";
 import { recordRun } from "./client";
+import { cardLine } from "./games/bandai";
+import { adapterFor } from "./games/registry";
+import { WizardSchema, type WizardResult } from "./games/schemas";
+import { generateWithLookups } from "./tools";
 
-/**
- * The two games share a brand and nothing else, so the model is told which one
- * it is looking at before anything else — a Fusion World deck analysed as if
- * it were Masters would be confidently wrong about its own rules.
- */
-function systemFor(game: Game) {
-  const info = gameInfo(game);
-  const r = info.deck;
-  return [
-    {
-      text: [
-        `You are an expert ${info.promptName} deck analyst.`,
-        "Reason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.",
-        "Refer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.",
-        `Deck rules for this game: 1 Leader, ${r.main}–${r.mainMax} cards in the main deck, at most ${r.copies} copies of a card number` +
-          (r.zMax > 0 ? `, and a Z-Deck of up to ${r.zMax} Z- cards.` : ", and no Z-Deck at all.") +
-          (r.colorStrict ? " Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak." : " Off-colour cards are legal but usually a mistake."),
-      ].join("\n"),
-    },
-  ];
-}
-
-/** Compact one-line card row for prompts. */
-export function cardLine(
-  c: {
-    id: string;
-    name: string;
-    cardType: string;
-    colors: string[];
-    energyCost: string | null;
-    power: number | null;
-    skill: string | null;
-    characters?: string[];
-    traits?: string[];
-    rarityCode?: string;
-  },
-  maxSkill = 320,
-): string {
-  const skill = (c.skill ?? "")
-    .replace(/<br\s*\/?>/gi, " / ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
-    .trim();
-  const parts = [
-    c.id,
-    c.name,
-    c.cardType,
-    c.colors.join("/"),
-    c.energyCost ? `cost ${c.energyCost}` : "",
-    c.power ? `pow ${c.power}` : "",
-    c.traits?.length ? `<${c.traits.join(",")}>` : "",
-    c.rarityCode ?? "",
-    skill.length > maxSkill ? `${skill.slice(0, maxSkill)}…` : skill,
-  ].filter(Boolean);
-  return parts.join(" | ");
-}
-
-function deckBlock(rows: DeckCardRow[]): string {
-  // Some keywords carry their own deck-building limit, printed on the card
-  // itself — spell it out so a suggestion never breaks it.
-  const rules = rulesFor(rows).map((r) => {
-    const used = rows.filter((x) => x.zone !== "side" && hasKeyword(x, r.keyword)).reduce((n, x) => n + x.quantity, 0);
-    return r.unlimitedCopies
-      ? `[${r.keyword}]: the 4-copy cap does not apply; the deck may hold at most ${r.max} cards with [${r.keyword}] in total, in any mix of copies. Currently ${used}/${r.max}.`
-      : `[${r.keyword}]: at most ${r.max} cards with [${r.keyword}] in total. Currently ${used}/${r.max}.`;
-  });
-  return [
-    "DECKLIST:",
-    deckToText(rows),
-    ...(rules.length ? ["", "SPECIAL DECK-BUILDING RULES FROM THE CARD TEXT:", ...rules] : []),
-    "",
-    "CARD TEXT:",
-    ...rows.map((r) => cardLine({ ...r, id: r.cardId })),
-  ].join("\n");
-}
+// The one-line card row and the wizard's answer shape now belong to the per-game adapters (`./games`);
+// they stay importable from here for the modules that always took them from this file.
+export { cardLine, WizardSchema };
+export type { WizardResult };
 
 // ── Summary ────────────────────────────────────────────────────────────────
 
@@ -111,7 +39,8 @@ export async function summariseDeck(db: Db, deckId: number): Promise<{ runId: nu
   const deck = await getDeck(db, deckId);
   if (!deck) throw new Error("Deck not found");
   if (deck.cards.length === 0) throw new Error("The deck is empty.");
-  const prompt = `${deckBlock(deck.cards)}
+  const adapter = adapterFor(deck.game);
+  const prompt = `${adapter.deckBlock(deck.cards, { format: deck.format })}
 
 ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Summarise this deck.`;
 
@@ -122,7 +51,7 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Summarise 
     thinking: "adaptive",
     effort: "medium",
     schema: DeckSummarySchema,
-    system: systemFor(deck.game),
+    system: [{ text: adapter.analystSystem({ format: deck.format }) }],
     messages: [{ role: "user", parts: [{ type: "text", text: prompt }] }],
   });
   const { id, output } = await recordRun<DeckSummary>(db, "deck_summary", { deckId }, res, deckId);
@@ -139,23 +68,6 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}Summarise 
 
 // ── Improvement wizard ─────────────────────────────────────────────────────
 
-export const WizardSchema = z.object({
-  assessment: z.string().describe("One paragraph on the deck's biggest gaps"),
-  swaps: z
-    .array(
-      z.object({
-        outCardId: z.string().describe("Card number currently in the deck to remove"),
-        outQuantity: z.number().int().min(1).max(4),
-        inCardId: z.string().describe("Card number from the CANDIDATE POOL to add"),
-        inQuantity: z.number().int().min(1).max(4),
-        rationale: z.string(),
-        priority: z.enum(["high", "medium", "low"]),
-      }),
-    )
-    .max(10),
-});
-export type WizardResult = z.infer<typeof WizardSchema>;
-
 export type WizardSwap = WizardResult["swaps"][number] & {
   outName: string;
   inName: string;
@@ -167,53 +79,6 @@ export type WizardSwap = WizardResult["swaps"][number] & {
   inColors: string[];
 };
 
-const POOL_CAP = 450;
-
-/** Legal, on-colour candidates. Owned-only when scoped, else current + deck's own sets, newest first. */
-async function candidatePool(db: Db, deck: NonNullable<Awaited<ReturnType<typeof getDeck>>>, scope: "owned" | "any") {
-  const leader = deck.cards.find((c) => c.zone === "leader");
-  const colours = leader ? [...leader.colors, "Colorless"] : null;
-  const inDeck = deck.cards.map((c) => c.cardId);
-  const base = [
-    eq(cards.isBanned, false),
-    // The other game's cards are not an option, and neither are game pieces.
-    eq(cards.game, deck.game),
-    notInArray(cards.cardType, gameInfo(deck.game).nonDeckTypes),
-    inDeck.length ? notInArray(cards.id, inDeck) : undefined,
-  ];
-  if (colours) base.push(sql`${cards.colors} <@ ${textArray(colours)}`);
-
-  const select = {
-    id: cards.id,
-    name: cards.name,
-    cardType: cards.cardType,
-    colors: cards.colors,
-    energyCost: cards.energyCost,
-    power: cards.power,
-    skill: cards.skill,
-    traits: cards.traits,
-    rarityCode: cards.rarityCode,
-  };
-
-  if (scope === "owned") {
-    return db
-      .selectDistinct(select)
-      .from(cards)
-      .innerJoin(ownedCards, eq(ownedCards.cardId, cards.id))
-      // The deck owner's own copies: a player's wizard never offers someone else's cards.
-      .where(and(...base, isNull(ownedCards.archivedAt), lotScope(deck.owner)))
-      .limit(POOL_CAP);
-  }
-  const deckSets = [...new Set(deck.cards.map((c) => c.cardId.split("-")[0]))];
-  return db
-    .select(select)
-    .from(cards)
-    .innerJoin(cardSets, eq(cardSets.code, cards.setCode))
-    .where(and(...base, sql`(${cardSets.line} = ${currentLineFor(deck.game)} or ${cards.setCode} in ${deckSets.length ? deckSets : ["-"]})`))
-    .orderBy(sql`${cardSets.sortKey} desc`, asc(cards.id))
-    .limit(POOL_CAP);
-}
-
 /**
  * `context` is whatever you told Claude you wanted from this run ("the curve
  * feels top-heavy", "optimise for going second"). It is stored with each
@@ -223,11 +88,11 @@ export async function runWizard(db: Db, deckId: number, scope: "owned" | "any", 
   const deck = await getDeck(db, deckId);
   if (!deck) throw new Error("Deck not found");
   if (deck.cards.length === 0) throw new Error("The deck is empty.");
-  const rules = deckRules(deck.game);
-  const pool = await candidatePool(db, deck, scope);
-  if (pool.length === 0) throw new Error(scope === "owned" ? "You don't own any on-colour cards outside this deck." : "No candidate cards found.");
+  const adapter = adapterFor(deck.game);
+  const ctx = { format: deck.format };
+  const source = await adapter.wizardSource(db, deck, scope);
+  if (source.error) throw new Error(source.error);
 
-  const poolBlock = `CANDIDATE POOL (${scope === "owned" ? "cards the player owns" : "legal cards"}; only suggest additions from this list):\n${pool.map((c) => cardLine(c, 240)).join("\n")}`;
   // Banned cards are not an improvement question — the deck cannot be played
   // with them, so every one has to come out. Named explicitly, because they are
   // easy to miss in a fifty-card list.
@@ -237,34 +102,38 @@ export async function runWizard(db: Db, deckId: number, scope: "owned" | "any", 
         .map((c) => `${c.quantity}× ${c.cardId} ${c.name} (${c.zone})`)
         .join("\n")}\n`
     : "";
-  const ask = `${deckBlock(deck.cards)}
+  const ask = `${adapter.deckBlock(deck.cards, ctx)}
 ${bannedBlock}
-${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context ? `WHAT THE PLAYER WANTS FROM THIS PASS:\n${context}\n\n` : ""}Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly ${rules.main} cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the ${rules.copies}-copy limit. Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3.${context ? " Weigh the player's request above over general improvements." : ""}`;
+${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context ? `WHAT THE PLAYER WANTS FROM THIS PASS:\n${context}\n\n` : ""}${adapter.swapInstruction()} Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3.${context ? " Weigh the player's request above over general improvements." : ""}`;
 
-  const call = (message: string) =>
-    generateJson({
-      task: "deck_wizard",
-      tier: "best",
+  const call = (message: string) => {
+    const request = {
+      task: "deck_wizard" as const,
+      tier: "best" as const,
       maxTokens: 12000,
-      thinking: "adaptive",
-      effort: "high",
-      schema: WizardSchema,
+      thinking: "adaptive" as const,
+      effort: "high" as const,
+      schema: adapter.wizardSchema as typeof WizardSchema,
       system: [
-        ...systemFor(deck.game),
-        { text: poolBlock, cache: "short" },
+        { text: adapter.analystSystem(ctx) },
+        ...(source.poolBlock ? [{ text: source.poolBlock, cache: "short" as const }] : []),
       ],
-      messages: [{ role: "user", parts: [{ type: "text", text: message }] }],
-    });
+      messages: [{ role: "user" as const, parts: [{ type: "text" as const, text: message }] }],
+    };
+    // A game with a live card source lets the model look cards up; the others send the one request they always did.
+    return source.tools.length ? generateWithLookups(request, source.tools) : generateJson(request);
+  };
 
   const res = await call(ask);
-  const { id, output } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, context, poolSize: pool.length }, res, deckId);
+  const lookups = "lookupLog" in res ? { lookups: res.lookupLog } : {};
+  const { id, output } = await recordRun<WizardResult>(db, "deck_wizard", { deckId, scope, context, poolSize: source.size, ...lookups }, res, deckId);
 
   // One focused follow-up if a banned card was still missed, rather than
   // shipping a deck that can't be played with a suggestion list that says so.
   const missed = banned.filter((c) => !output.swaps.some((s) => s.outCardId === c.cardId));
   if (missed.length) {
     const retry = await call(
-      `${deckBlock(deck.cards)}\n\nThese banned cards are still in the deck and have no replacement yet. Propose exactly one swap for each, from the candidate pool, at priority "high", replacing the full played count:\n${missed
+      `${adapter.deckBlock(deck.cards, ctx)}\n\nThese banned cards are still in the deck and have no replacement yet. Propose exactly one swap for each, from the candidate pool, at priority "high", replacing the full played count:\n${missed
         .map((c) => `${c.quantity}× ${c.cardId} ${c.name} (${c.zone})`)
         .join("\n")}`,
     );
@@ -277,6 +146,8 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context 
   }
 
   const ids = [...new Set(output.swaps.flatMap((s) => [s.outCardId, s.inCardId]))];
+  // A live-catalog game stores the cards the model picked from a lookup before they are shown or saved.
+  await source.materialise(db, ids);
   const meta = ids.length
     ? await db.select({ id: cards.id, name: cards.name, imageUrl: cards.imageUrl, cardType: cards.cardType, colors: cards.colors }).from(cards).where(inArray(cards.id, ids))
     : [];
@@ -340,12 +211,15 @@ export async function reviewSet(db: Db, setCode: string): Promise<{ runId: numbe
       skill: cards.skill,
       traits: cards.traits,
       rarityCode: cards.rarityCode,
+      details: cards.details,
     })
     .from(cards)
     .where(eq(cards.setCode, setCode))
     .orderBy(asc(sql`${cards.id} collate "C"`));
   if (rows.length === 0) throw new Error(`No cards in set ${setCode}`);
   const set = await db.query.cardSets.findFirst({ where: eq(cardSets.code, setCode) });
+  // A set is reviewed against its own game's rules and in that game's card language.
+  const adapter = adapterFor(gameOfSetCode(setCode));
 
   const res = await generateJson({
     task: "set_review",
@@ -354,15 +228,14 @@ export async function reviewSet(db: Db, setCode: string): Promise<{ runId: numbe
     thinking: "adaptive",
     effort: "high",
     schema: SetReviewSchema,
-    // A Fusion World set has to be reviewed against Fusion World's rules.
-    system: systemFor(gameOfSetCode(setCode)),
+    system: [{ text: adapter.analystSystem() }],
     messages: [
       {
         role: "user",
         parts: [
           {
             type: "text",
-            text: `NEW SET: ${set?.name ?? setCode} (${rows.length} cards)\n${rows.map((c) => cardLine(c, 280)).join("\n")}\n\nReview this set: standout cards, the archetypes it enables or upgrades, and sleepers.`,
+            text: `NEW SET: ${set?.name ?? setCode} (${rows.length} cards)\n${rows.map((c) => adapter.describeCard(c, 280)).join("\n")}\n\nReview this set: standout cards, the archetypes it enables or upgrades, and sleepers.`,
           },
         ],
       },

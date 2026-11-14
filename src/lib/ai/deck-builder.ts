@@ -15,7 +15,7 @@ import { currentLineFor } from "@/lib/catalog/sets";
 import { hasKeyword, rulesFor, type KeywordDeckRule } from "@/lib/decks/cardRules";
 import { generateJson } from "./core";
 import { recordRun } from "./client";
-import { cardLine } from "./deck";
+import { cardLine } from "./games/bandai";
 
 export const DeckDraftSchema = z.object({
   name: z.string().describe("Short deck name, e.g. 'Yellow Launch Tournament Aggro'"),
