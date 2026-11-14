@@ -1,31 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { addPokemonLotAction, setPokemonOwnedAction } from "@/app/pokemon/actions";
+import { addPokemonLotAction, setPokemonOwnedAction, undoPokemonDeckAddAction } from "@/app/pokemon/actions";
 import { INPUT_COPY, failureText } from "@/lib/pokemon/copy-input";
-import { gridCells, variantFromFinish } from "@/lib/pokemon/scan-match";
+import { variantFromFinish } from "@/lib/pokemon/scan-match";
+import type { PokemonBatchOffer, PokemonBatchState } from "@/lib/pokemon/scan-batch-types";
 import type { PokemonScanDetection } from "@/lib/pokemon/scan";
 import { pokemonImage, type PokemonHit, type PokemonVariant } from "@/lib/pokemon/types";
 import { downscaleImage } from "@/lib/scan/downscale";
-import { CandidateTile, ChipRow, DeckSelect, Stepper, loadCardDetail, numberLabel, primaryButton, secondaryButton, variantOptions, type DeckChoice } from "./AddParts";
+import { ChipRow, DeckSelect, loadCardDetail, numberLabel, primaryButton, secondaryButton, variantOptions, type DeckChoice } from "./AddParts";
+import { CellEditor, type Cell } from "./PhotoCell";
+import { BatchOfferCard, PokemonPageBatch } from "./PokemonPageBatch";
 
 const C = INPUT_COPY.photo;
 
 type Mode = "single" | "page";
-
-/** One card of a photo as the child handles it: what to save and whether she has said yes. */
-interface Cell {
-  det: PokemonScanDetection;
-  chosen: PokemonHit | null;
-  /** Saved when the page is saved. Exact and likely reads start on; an unsure read starts off until she taps it. */
-  include: boolean;
-  variant: PokemonVariant;
-  variants: { value: PokemonVariant; label: string }[];
-  language: "DE" | "EN";
-  quantity: number;
-  /** Variants are being read for `chosen`. */
-  loading: boolean;
-}
 
 interface Saved {
   key: number;
@@ -37,6 +26,10 @@ interface Saved {
   language: "DE" | "EN";
   added: number;
   number: string;
+  /** The deck this line also put copies into, how many, and how many the deck held before: the undo takes back exactly these. */
+  deckId: number | null;
+  deckAdded: number;
+  deckBefore: number;
 }
 
 type Phase = { kind: "idle" } | { kind: "reading"; preview: string } | { kind: "error"; preview: string; message: string } | { kind: "result"; preview: string };
@@ -57,147 +50,37 @@ function makeCell(det: PokemonScanDetection): Cell {
   };
 }
 
-function badge(c: PokemonScanDetection["confidence"], chosenByHand: boolean): { text: string; cls: string } {
-  if (chosenByHand) return { text: C.exact, cls: "bg-gain/15 text-gain" };
-  if (c === "exact") return { text: C.exact, cls: "bg-gain/15 text-gain" };
-  if (c === "likely") return { text: C.likely, cls: "bg-ki-500/20 text-ki-300" };
-  return { text: c === "none" ? C.none : C.check, cls: "bg-amber-300/15 text-amber-300" };
-}
-
-/** A typed search for the card she means, when the read missed it. Hits come from `/api/pokemon/search`. */
-function SearchRow({ initialQuery, onPick }: { initialQuery: string; onPick: (hit: PokemonHit) => void }) {
-  const [q, setQ] = useState(initialQuery);
-  const [hits, setHits] = useState<PokemonHit[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const go = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!q.trim()) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      const res = await fetch(`/api/pokemon/search?q=${encodeURIComponent(q.trim())}`, { cache: "no-store" });
-      const json = (await res.json()) as { hits?: PokemonHit[]; message?: string };
-      if (!res.ok || !json.hits) throw new Error(json.message ?? "Die Kartensuche ist gerade nicht erreichbar.");
-      setHits(json.hits.slice(0, 30));
-    } catch (error) {
-      setErr(failureText(error, "Die Kartensuche ist gerade nicht erreichbar."));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="space-y-2">
-      <form onSubmit={go} className="flex gap-2">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          aria-label={C.searchLabel}
-          placeholder={C.searchPlaceholder}
-          autoComplete="off"
-          enterKeyHint="search"
-          className="tap min-w-0 flex-1 rounded-lg border border-space-600 bg-space-900 px-3 py-2 text-base text-space-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-400"
-        />
-        <button type="submit" disabled={busy} className={secondaryButton}>
-          {INPUT_COPY.voice.typedGo}
-        </button>
-      </form>
-      {err ? (
-        <p role="alert" className="text-sm text-loss">
-          {err}
-        </p>
-      ) : null}
-      {hits ? (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2">
-          {hits.map((h) => (
-            <CandidateTile key={h.id} hit={h} onPick={onPick} />
-          ))}
-          {hits.length === 0 ? <p className="text-sm text-space-300">{INPUT_COPY.voice.nothing}</p> : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/** Everything for one card: candidates to tap, a search, then variant, language and number. */
-function CellEditor({ cell, onPick, onChange }: { cell: Cell; onPick: (hit: PokemonHit) => void; onChange: (patch: Partial<Cell>) => void }) {
-  const [searching, setSearching] = useState(false);
-  const { det, chosen } = cell;
-  const b = badge(det.confidence, !!chosen && chosen.id !== det.best?.id);
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${b.cls}`}>{b.text}</span>
-        <span className="text-space-300">
-          {det.seen.name}
-          {det.seen.number ? ` · ${det.seen.number}` : ""}
-        </span>
-      </div>
-      {det.confidence !== "exact" && det.confidence !== "none" && !chosen ? <p className="text-sm text-space-200">{det.reason}</p> : null}
-      {det.candidates.length > 0 ? (
-        <div>
-          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-space-300">{C.pickOne}</div>
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2">
-            {det.candidates.map((h) => (
-              <CandidateTile key={h.id} hit={h} selected={chosen?.id === h.id} onPick={onPick} />
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {searching || det.candidates.length === 0 ? (
-        <SearchRow initialQuery={det.seen.number && det.candidates.length === 0 ? det.seen.number : det.seen.name} onPick={(h) => { onPick(h); setSearching(false); }} />
-      ) : (
-        <button type="button" onClick={() => setSearching(true)} className="tap text-sm text-space-300 underline hover:text-space-50">
-          {C.notThis}
-        </button>
-      )}
-      {chosen ? (
-        <div className="space-y-4 rounded-xl border border-space-700/70 bg-space-900/50 p-3">
-          <div className="text-center">
-            <div className="text-lg font-semibold text-space-50">{chosen.name}</div>
-            <div className="text-sm text-space-300">
-              {chosen.setName} · {numberLabel(chosen)}
-            </div>
-          </div>
-          <ChipRow label={C.variant} value={cell.variant} options={cell.variants} onChange={(v) => onChange({ variant: v })} />
-          <ChipRow
-            label={C.language}
-            value={cell.language}
-            options={[
-              { value: "DE", label: INPUT_COPY.voice.langDe },
-              { value: "EN", label: INPUT_COPY.voice.langEn },
-            ]}
-            onChange={(l) => onChange({ language: l })}
-          />
-          <Stepper value={cell.quantity} onChange={(n) => onChange({ quantity: n })} lessLabel={C.less} moreLabel={C.more} />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 /**
- * Foto machen (docs/pokemon/design.md §5). One card: photo, result, variant, language and number,
- * save, the camera opens again, as quick capture does. A binder page: one photo of up to nine
- * cards as a 3x3 grid, each cell confirmed, corrected or skipped, one button to save the confirmed
- * ones. Nothing is stored by the scan; a card is written only by the save. A read that is unsure is
- * amber, "Bitte prüfen", and is saved only after a tap on it.
- *
- * The page flow is not kept in the scan-batch tables (they refer to local catalog cards, which a
- * Pokémon card does not have until it is stored); it lives in this screen until saved.
+ * Foto machen (docs/pokemon/design.md §5). One card ("Eine Karte"): photo, result, variant, language
+ * and number, save, the camera opens again, as quick capture does; nothing is stored by the scan, a
+ * card is written only by the save. A binder page ("Ganze Seite") is a kept scan batch
+ * (`PokemonPageBatch`): the photo is stored, the page survives leaving the screen and opens on any
+ * device of the same owner. An open page is offered here before a new one is started.
  */
-export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; initialDeck: number | null }) {
-  const [mode, setMode] = useState<Mode>("single");
+export function PokemonPhotoAdd({
+  decks,
+  initialDeck,
+  initialMode = "single",
+  offer,
+  initialBatch,
+}: {
+  decks: DeckChoice[];
+  initialDeck: number | null;
+  initialMode?: Mode;
+  /** The viewer's open page, if any (also given when `initialBatch` is). */
+  offer: PokemonBatchOffer | null;
+  initialBatch: PokemonBatchState | null;
+}) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const [cells, setCells] = useState<(Cell | null)[]>([]);
-  const [extra, setExtra] = useState(0);
-  const [open, setOpen] = useState<number | null>(null);
+  const [cell, setCell] = useState<Cell | null>(null);
   const [deckId, setDeckId] = useState<number | null>(initialDeck);
   const [autoNext, setAutoNext] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<Saved[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [offerGone, setOfferGone] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<string | null>(null);
   const counts = useRef(new Map<string, number>());
@@ -215,35 +98,33 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
     previewRef.current = url;
   };
 
-  const update = (i: number, patch: Partial<Cell>) => setCells((cs) => cs.map((c, k) => (k === i && c ? { ...c, ...patch } : c)));
+  const update = (patch: Partial<Cell>) => setCell((c) => (c ? { ...c, ...patch } : c));
 
   /** Reads a card's variants and the viewer's copies, and presets the variant from the finish the model saw. */
-  const loadFor = async (i: number, hit: PokemonHit, det: PokemonScanDetection) => {
+  const loadFor = async (hit: PokemonHit, det: PokemonScanDetection) => {
     try {
       const d = await loadCardDetail(hit.tcgdexId);
       const options = variantOptions(d.variants);
       variantsOf.current.set(hit.tcgdexId, options);
       for (const l of d.owned) ownedOf.current.set(countKey(hit.tcgdexId, l.variant, l.language), l.quantity);
       const variant = variantFromFinish(det.seen.finish, options.map((o) => o.value));
-      setCells((cs) => cs.map((c, k) => (k === i && c && c.chosen?.id === hit.id ? { ...c, variants: options, variant, loading: false } : c)));
+      setCell((c) => (c && c.chosen?.id === hit.id ? { ...c, variants: options, variant, loading: false } : c));
     } catch {
-      setCells((cs) => cs.map((c, k) => (k === i && c && c.chosen?.id === hit.id ? { ...c, loading: false } : c)));
+      setCell((c) => (c && c.chosen?.id === hit.id ? { ...c, loading: false } : c));
     }
   };
 
-  const pick = (i: number, hit: PokemonHit) => {
-    const cell = cells[i];
+  const pick = (hit: PokemonHit) => {
     if (!cell) return;
-    update(i, { chosen: hit, include: true, loading: true, variants: variantsOf.current.get(hit.tcgdexId) ?? [{ value: "normal", label: "Normal" }] });
-    void loadFor(i, hit, cell.det);
+    update({ chosen: hit, include: true, loading: true, variants: variantsOf.current.get(hit.tcgdexId) ?? [{ value: "normal", label: "Normal" }] });
+    void loadFor(hit, cell.det);
   };
 
   const onFile = async (file: File | undefined) => {
     if (fileRef.current) fileRef.current.value = "";
     if (!file) return;
     setError(null);
-    setMessage(null);
-    const scanMode = mode === "page" ? "batch" : "single";
+    setNotice(null);
     const { blob } = await downscaleImage(file);
     const preview = URL.createObjectURL(blob);
     setPreview(preview);
@@ -251,27 +132,16 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
     try {
       const fd = new FormData();
       fd.append("image", blob, "photo.jpg");
-      fd.append("mode", scanMode);
+      fd.append("mode", "single");
       const res = await fetch("/api/pokemon/scan", { method: "POST", body: fd });
       const json = (await res.json().catch(() => ({}))) as { detections?: PokemonScanDetection[]; error?: string };
       if (res.status === 503) throw new Error(C.unavailable);
       if (!res.ok || !json.detections) throw new Error(json.error ?? C.failed);
       if (json.detections.length === 0) throw new Error(C.nothingRead);
-      let next: (Cell | null)[];
-      if (scanMode === "batch") {
-        const placed = gridCells(json.detections.map((d) => ({ box: d.seen.box, d })));
-        next = placed.cells.map((c) => (c ? makeCell(c.d) : null));
-        setExtra(placed.extra.length);
-      } else {
-        next = [makeCell(json.detections[0])];
-        setExtra(0);
-      }
-      setCells(next);
-      setOpen(scanMode === "single" ? 0 : null);
+      const next = makeCell(json.detections[0]);
+      setCell(next);
       setPhase({ kind: "result", preview });
-      next.forEach((c, i) => {
-        if (c?.chosen) void loadFor(i, c.chosen, c.det);
-      });
+      if (next.chosen) void loadFor(next.chosen, next.det);
     } catch (e) {
       setPhase({ kind: "error", preview, message: failureText(e, C.failed) });
     }
@@ -280,22 +150,23 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
   const reset = () => {
     setPreview(null);
     setPhase({ kind: "idle" });
-    setCells([]);
-    setOpen(null);
-    setExtra(0);
+    setCell(null);
   };
 
-  /** Writes one confirmed card. Returns false (with the message set) when it did not work. */
-  const saveCell = async (cell: Cell): Promise<boolean> => {
-    if (!cell.chosen) return false;
-    const hit = cell.chosen;
-    const key = countKey(hit.tcgdexId, cell.variant, cell.language);
+  /** Writes the confirmed card. Returns false (with the message set) when it did not work. */
+  const saveCell = async (c: Cell): Promise<boolean> => {
+    if (!c.chosen) return false;
+    const hit = c.chosen;
+    const key = countKey(hit.tcgdexId, c.variant, c.language);
     const before = counts.current.get(key) ?? ownedOf.current.get(key) ?? 0;
     try {
-      const r = await addPokemonLotAction({ tcgdexId: hit.tcgdexId, variant: cell.variant, language: cell.language, quantity: cell.quantity, deckId });
+      const r = await addPokemonLotAction({ tcgdexId: hit.tcgdexId, variant: c.variant, language: c.language, quantity: c.quantity, deckId });
       counts.current.set(key, before + r.added);
-      const label = cell.variants.find((v) => v.value === cell.variant)?.label ?? cell.variant;
-      setSaved((s) => [{ key: savedKey++, tcgdexId: hit.tcgdexId, name: hit.name, image: hit.image, variant: cell.variant, variantLabel: label, language: cell.language, added: r.added, number: numberLabel(hit) }, ...s]);
+      const label = c.variants.find((v) => v.value === c.variant)?.label ?? c.variant;
+      setSaved((s) => [
+        { key: savedKey++, tcgdexId: hit.tcgdexId, name: hit.name, image: hit.image, variant: c.variant, variantLabel: label, language: c.language, added: r.added, number: numberLabel(hit), deckId, deckAdded: r.deckAdded, deckBefore: r.deckBefore },
+        ...s,
+      ]);
       return true;
     } catch (e) {
       setError(`${hit.name}: ${failureText(e, INPUT_COPY.voice.saveFailed)}`);
@@ -304,7 +175,6 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
   };
 
   const saveSingle = async () => {
-    const cell = cells[0];
     if (!cell?.chosen || saving) return;
     // The camera has to open inside the tap.
     if (autoNext) openCamera();
@@ -314,26 +184,7 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
     setSaving(false);
   };
 
-  const savePage = async () => {
-    if (saving) return;
-    setSaving(true);
-    setError(null);
-    setMessage(null);
-    let n = 0;
-    const done = new Set<number>();
-    for (const [i, c] of cells.entries()) {
-      if (!c?.include || !c.chosen) continue;
-      if (await saveCell(c)) {
-        n += c.quantity;
-        done.add(i);
-      }
-    }
-    // What was saved leaves the grid; what failed stays, with its message.
-    setCells((cs) => cs.map((c, i) => (done.has(i) ? null : c)));
-    setMessage(n > 0 ? C.pageDone(n) : null);
-    setSaving(false);
-  };
-
+  /** Takes back one line: the copies, and the deck copies that line added (never below what the deck held before). */
   const undo = async (line: Saved) => {
     const key = countKey(line.tcgdexId, line.variant, line.language);
     const known = counts.current.get(key) ?? line.added;
@@ -341,20 +192,51 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
       const r = await setPokemonOwnedAction({ tcgdexId: line.tcgdexId, variant: line.variant, language: line.language, quantity: Math.max(0, known - line.added) });
       counts.current.set(key, r.quantity);
       setSaved((s) => s.filter((x) => x.key !== line.key));
+      let text: string = INPUT_COPY.voice.undone;
+      if (line.deckId !== null && line.deckAdded > 0) {
+        try {
+          const d = await undoPokemonDeckAddAction({ deckId: line.deckId, tcgdexId: line.tcgdexId, added: line.deckAdded, before: line.deckBefore });
+          text = `${text}. ${d.removed > 0 ? INPUT_COPY.voice.deckRemoved(d.removed) : INPUT_COPY.voice.deckUnchanged}`;
+        } catch (e) {
+          text = `${text}. ${failureText(e, INPUT_COPY.voice.deckUnchanged)}`;
+        }
+      }
+      setNotice(text);
     } catch (e) {
       setError(failureText(e, INPUT_COPY.voice.saveFailed));
     }
   };
 
-  const ready = cells.filter((c) => c?.include && c.chosen);
-  const readyCount = ready.reduce((n, c) => n + (c?.quantity ?? 0), 0);
-  const detected = cells.filter(Boolean).length;
-  const single = cells[0] ?? null;
+  const showOffer = !!offer && !offerGone && mode === "single" && phase.kind === "idle";
+
+  if (mode === "page") {
+    return (
+      <div className="mx-auto max-w-md space-y-4 lg:max-w-5xl">
+        <div className="mx-auto max-w-md">
+          <h1 className="text-2xl font-semibold text-space-50">{C.title}</h1>
+          <div className="mt-4">
+            <ChipRow
+              label={C.title}
+              value={mode}
+              options={[
+                { value: "single", label: C.single },
+                { value: "page", label: C.page },
+              ]}
+              onChange={setMode}
+            />
+          </div>
+        </div>
+        <PokemonPageBatch decks={decks} initialDeck={initialDeck} initial={offerGone ? null : initialBatch} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-md space-y-4">
       <h1 className="text-2xl font-semibold text-space-50">{C.title}</h1>
       <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void onFile(e.target.files?.[0])} />
+
+      {showOffer && offer ? <BatchOfferCard offer={offer} onContinue={() => setMode("page")} onDiscarded={() => setOfferGone(true)} /> : null}
 
       {phase.kind === "idle" || phase.kind === "error" ? (
         <ChipRow
@@ -375,9 +257,9 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
           {error}
         </p>
       ) : null}
-      {message ? (
+      {notice ? (
         <p role="status" className="rounded-lg border border-gain/40 bg-gain/5 p-3 text-sm text-gain">
-          {message}
+          {notice}
         </p>
       ) : null}
 
@@ -390,8 +272,8 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
           <span className="text-5xl" aria-hidden>
             📷
           </span>
-          <span className="text-lg font-semibold">{mode === "page" ? C.takePage : C.takeOne}</span>
-          <span className="text-xs text-space-300">{mode === "page" ? C.takePageHint : C.takeOneHint}</span>
+          <span className="text-lg font-semibold">{C.takeOne}</span>
+          <span className="text-xs text-space-300">{C.takeOneHint}</span>
         </button>
       ) : null}
 
@@ -399,7 +281,7 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
         <div className="space-y-2 rounded-2xl border border-space-700/70 bg-space-900/50 p-3 text-center" role="status">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={phase.preview} alt={C.yourPhoto} className="mx-auto max-h-64 rounded-lg object-contain opacity-70" />
-          <p className="text-sm text-space-200 motion-safe:animate-pulse">{mode === "page" ? C.readingPage : C.reading}</p>
+          <p className="text-sm text-space-200 motion-safe:animate-pulse">{C.reading}</p>
         </div>
       ) : null}
 
@@ -421,7 +303,7 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
         </div>
       ) : null}
 
-      {phase.kind === "result" && mode === "single" && single ? (
+      {phase.kind === "result" && cell ? (
         <div className="space-y-3 rounded-2xl border border-space-700/70 bg-space-900/50 p-3">
           <div className="flex gap-3">
             <div className="w-24 shrink-0">
@@ -430,9 +312,9 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
             </div>
             <div className="min-w-0 flex-1 text-sm text-space-300">{C.unconfirmedHint}</div>
           </div>
-          <CellEditor cell={single} onPick={(h) => pick(0, h)} onChange={(p) => update(0, p)} />
+          <CellEditor cell={cell} onPick={pick} onChange={update} />
           <div className="flex gap-2">
-            <button type="button" onClick={saveSingle} disabled={saving || !single.chosen || single.loading} className={`${primaryButton} flex-1`}>
+            <button type="button" onClick={saveSingle} disabled={saving || !cell.chosen || cell.loading} className={`${primaryButton} flex-1`}>
               {saving ? C.saving : `✓ ${autoNext ? C.save : C.saveOnly}`}
             </button>
             <button type="button" onClick={reset} className={secondaryButton}>
@@ -442,67 +324,10 @@ export function PokemonPhotoAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
         </div>
       ) : null}
 
-      {phase.kind === "result" && mode === "page" ? (
-        <div className="space-y-3">
-          <p className="text-sm text-space-200">{C.pageIntro(detected)}</p>
-          {extra > 0 ? <p className="text-sm text-space-300">{C.extra(extra)}</p> : null}
-          <ul className="grid grid-cols-3 gap-2" aria-label={C.page}>
-            {cells.map((c, i) => {
-              if (!c) return <li key={i} className="card-aspect rounded-lg border border-dashed border-space-700" aria-hidden />;
-              const b = badge(c.det.confidence, !!c.chosen && c.chosen.id !== c.det.best?.id);
-              const src = pokemonImage(c.chosen?.image ?? null, "low");
-              const state = !c.chosen ? C.cellOpen : c.include ? C.cellConfirmed : C.cellSkipped;
-              return (
-                <li key={i}>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(open === i ? null : i)}
-                    aria-expanded={open === i}
-                    aria-label={`${c.chosen?.name ?? c.det.seen.name}, ${b.text}, ${state}. ${C.cellTap}`}
-                    className={`tap flex w-full flex-col gap-1 rounded-xl border p-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ki-400 ${open === i ? "border-ki-400" : c.include && c.chosen ? "border-gain/50" : "border-amber-400/50"} ${c.include || !c.chosen ? "" : "opacity-60"}`}
-                  >
-                    <span className="card-aspect relative block w-full overflow-hidden rounded-lg bg-space-800">
-                      {src ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="flex h-full items-center justify-center p-1 text-center text-xs text-space-300">{c.det.seen.name}</span>
-                      )}
-                    </span>
-                    <span className={`rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold ${b.cls}`}>{b.text}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {open !== null && cells[open] ? (
-            <div className="space-y-3 rounded-2xl border border-space-700/70 bg-space-900/50 p-3">
-              <CellEditor cell={cells[open]!} onPick={(h) => pick(open, h)} onChange={(p) => update(open, p)} />
-              <div className="flex gap-2">
-                <button type="button" onClick={() => { update(open, { include: true }); setOpen(null); }} disabled={!cells[open]!.chosen} className={`${primaryButton} flex-1`}>
-                  {C.include}
-                </button>
-                <button type="button" onClick={() => { update(open, { include: false }); setOpen(null); }} className={secondaryButton}>
-                  {C.exclude}
-                </button>
-              </div>
-            </div>
-          ) : null}
-          <button type="button" onClick={savePage} disabled={saving || ready.length === 0} className={primaryButton}>
-            {saving ? C.saving : ready.length === 0 ? C.saveNone : C.savePage(readyCount)}
-          </button>
-          <button type="button" onClick={() => { reset(); openCamera(); }} className={`${secondaryButton} w-full`}>
-            {C.newPage}
-          </button>
-        </div>
-      ) : null}
-
-      {mode === "single" ? (
-        <label className="flex items-center gap-2 text-xs text-space-300">
-          <input type="checkbox" checked={autoNext} onChange={(e) => setAutoNext(e.target.checked)} className="h-5 w-5" />
-          {C.save}
-        </label>
-      ) : null}
+      <label className="flex items-center gap-2 text-xs text-space-300">
+        <input type="checkbox" checked={autoNext} onChange={(e) => setAutoNext(e.target.checked)} className="h-5 w-5" />
+        {C.save}
+      </label>
 
       {saved.length ? (
         <section aria-label={C.savedList}>

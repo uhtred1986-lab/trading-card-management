@@ -51,7 +51,8 @@ export const INPUT_COPY = {
     toSearch: "Zum Suchen",
     close: "Schließen",
     inDeck: (name: string) => `auch im Deck ${name}`,
-    deckKept: "Die Karte bleibt im Deck, nimm sie dort heraus.",
+    deckRemoved: (n: number) => `${n === 1 ? "1 Karte" : `${n} Karten`} aus dem Deck genommen`,
+    deckUnchanged: "Im Deck hast du die Karten schon selbst geändert, dort bleibt es so.",
   },
   photo: {
     title: "Foto machen",
@@ -104,11 +105,40 @@ export const INPUT_COPY = {
     unconfirmedHint: "Eine unsichere Karte wird erst gespeichert, wenn du sie antippst und bestätigst.",
     confirm: "Das ist sie",
   },
+  /** A binder page that is kept (docs/pokemon/design.md §5): started on the phone, finished anywhere. */
+  batch: {
+    offer: (n: number) => `Du hast noch eine angefangene Seite: ${n} ${n === 1 ? "Karte" : "Karten"}`,
+    offerPhotoOnly: "Du hast noch eine angefangene Seite mit einem Foto.",
+    resume: "Weitermachen",
+    discard: "Verwerfen",
+    discardAsk: "Die ganze Seite verwerfen? Foto und Karten sind dann weg.",
+    discardYes: "Ja, verwerfen",
+    discardNo: "Behalten",
+    kept: "Die Seite bleibt gespeichert. Du kannst sie auf jedem Gerät weiter ansehen und speichern.",
+    photoOf: (n: number) => `Foto ${n}`,
+    foundN: (n: number) => `${n} ${n === 1 ? "Karte" : "Karten"} erkannt`,
+    readingNow: "wird gelesen …",
+    readFailed: "Das Foto konnte nicht gelesen werden.",
+    retry: "Noch einmal lesen",
+    addPhoto: "Noch ein Foto zu dieser Seite",
+    firstPhoto: "Foto von der Seite machen",
+    goneTitle: "Diese Seite gibt es nicht mehr.",
+    gone: "Sie wurde schon gespeichert oder verworfen.",
+    newPage: "Neue Seite",
+    savedN: (n: number) => `${n} ${n === 1 ? "Karte" : "Karten"} gespeichert.`,
+    savedDeck: (n: number) => `${n} davon auch ins Deck gelegt.`,
+    notSaved: "Diese Karten konnten nicht gespeichert werden:",
+    leftOpen: "Die Seite bleibt offen. Versuch es gleich noch einmal.",
+    stateSaved: "gespeichert",
+    openPhoto: "Foto vergrößern",
+    closePhoto: "Foto verkleinern",
+    refresh: "Neu laden",
+  },
 } as const;
 
 /** Why a save or a search failed, as one German sentence. */
 export function failureText(e: unknown, fallback: string): string {
   const m = e instanceof Error ? e.message : "";
   // Server Function errors reach the browser with a generic message in production; ours are already German.
-  return m && !/^An error occurred/i.test(m) && /[äöüß]|Karte|Deck|Sprache|Variante/.test(m) ? m : fallback;
+  return m && !/^An error occurred/i.test(m) && /[äöüß]|Karte|Deck|Sprache|Variante|Seite/.test(m) ? m : fallback;
 }

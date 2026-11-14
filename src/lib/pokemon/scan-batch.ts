@@ -24,69 +24,23 @@ import { AccessDenied, type Viewer } from "@/lib/auth";
 import { assertOwnBatch } from "@/lib/auth/ownership";
 import { MAX_COPIES } from "@/lib/collection/lots";
 import { markPhoto, photoBytes, storePhoto } from "@/lib/scan/batches";
-import { addPokemonLots, type PokemonLotLanguage } from "./collection";
+import { addPokemonLots } from "./collection";
+import { itemState, type PokemonBatchItem, type PokemonBatchPhoto, type PokemonBatchState, type PokemonBatchOffer, type PokemonCompleteResult, type PokemonItemPatch } from "./scan-batch-types";
 import { variantFromFinish } from "./scan-match";
 import { identifyPokemonCards, type PokemonScanDeps, type PokemonScanDetection } from "./scan";
 import type { loadPokemonCard } from "./store";
 import { POKEMON_VARIANTS, type PokemonHit, type PokemonVariant } from "./types";
 
 /** What an id that is not the viewer's, or not a Pokémon batch, answers. The message is a German sentence the screen can show. */
+export { itemState };
+export type { PokemonBatchItem, PokemonBatchOffer, PokemonBatchPhoto, PokemonBatchState, PokemonCompleteResult, PokemonItemPatch };
+export type { PokemonItemState } from "./scan-batch-types";
+
 export class PokemonBatchNotFound extends Error {
   constructor(message = "Diese Seite gibt es nicht.") {
     super(message);
     this.name = "PokemonBatchNotFound";
   }
-}
-
-export type PokemonItemState = "confirmed" | "check" | "skipped" | "saved";
-
-export interface PokemonBatchItem {
-  id: number;
-  photoId: number;
-  idx: number;
-  detection: PokemonScanDetection;
-  chosen: PokemonHit | null;
-  /** The child (or the read) said yes. */
-  include: boolean;
-  /** Picked by hand, so it is as good as confirmed. */
-  manual: boolean;
-  /** Null until a variant is known (the card's variants are read when the cell is opened). */
-  variant: PokemonVariant | null;
-  language: PokemonLotLanguage;
-  quantity: number;
-  saved: boolean;
-}
-
-export interface PokemonBatchPhoto {
-  id: number;
-  position: number;
-  width: number;
-  height: number;
-  status: "reading" | "done" | "error";
-  error: string | null;
-  found: number | null;
-  unreadable: number | null;
-}
-
-export interface PokemonBatchState {
-  batch: { id: number; name: string; deckId: number | null; owner: string | null; status: "open" | "done"; updatedAt: string };
-  photos: PokemonBatchPhoto[];
-  items: PokemonBatchItem[];
-}
-
-export interface PokemonBatchOffer {
-  id: number;
-  /** Cards still to save (not saved, not left out by hand). */
-  cards: number;
-  photos: number;
-  updatedAt: string;
-}
-
-/** The state of one item as the grid draws it. */
-export function itemState(i: Pick<PokemonBatchItem, "saved" | "chosen" | "include">): PokemonItemState {
-  if (i.saved) return "saved";
-  if (!i.chosen) return "check";
-  return i.include ? "confirmed" : "skipped";
 }
 
 const rowToItem = (r: typeof scanItems.$inferSelect): PokemonBatchItem => ({
@@ -303,15 +257,6 @@ export async function handlePokemonBatchScan(req: Request, db: Db, viewer: Viewe
   }
 }
 
-export interface PokemonItemPatch {
-  /** A card picked by hand (or null to clear). Picking one confirms the cell. */
-  chosen?: PokemonHit | null;
-  include?: boolean;
-  variant?: PokemonVariant;
-  language?: PokemonLotLanguage;
-  quantity?: number;
-}
-
 /** One edit of one cell. A saved item cannot be edited. */
 export async function updatePokemonItem(db: Db, viewer: Viewer, itemId: number, patch: PokemonItemPatch): Promise<PokemonBatchItem> {
   const { item } = await requireItem(db, viewer, itemId);
@@ -338,17 +283,6 @@ export async function updatePokemonItem(db: Db, viewer: Viewer, itemId: number, 
   const [row] = await db.update(scanItems).set(set).where(eq(scanItems.id, itemId)).returning();
   await touch(db, item.batchId);
   return rowToItem(row);
-}
-
-export interface PokemonCompleteResult {
-  /** Cards (copies) written to the collection by this call. */
-  added: number;
-  deckAdded: number;
-  deckId: number | null;
-  /** Items that could not be saved; the batch stays open with them. */
-  failed: { itemId: number; name: string; message: string }[];
-  /** The batch is closed and its photos are gone. */
-  done: boolean;
 }
 
 /**
