@@ -44,7 +44,7 @@ export function CollectionScreen({
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<number | null>(null);
   const [ownedNow, setOwnedNow] = useState<Record<string, number>>({});
-  const { wished, toggle, notice } = useWishes(wishedIds);
+  const { wished, toggle, merge, notice } = useWishes(wishedIds);
 
   const shown = useMemo(
     () =>
@@ -136,6 +136,7 @@ export function CollectionScreen({
           decks={decks}
           wished={wished}
           onToggleWish={toggle}
+          onWishKnown={(id) => merge([id])}
           onOwnedChange={showOwners ? undefined : (id, n) => setOwnedNow((m) => ({ ...m, [id]: n }))}
           onClose={() => setOpen(null)}
         />

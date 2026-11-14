@@ -199,6 +199,11 @@ html:is([data-skin="night"], [data-skin="instinct"]) .ds-color-blue { background
 .pk-atk{border-top:1px solid var(--ds-line);padding:8px 0;font-size:15px}
 .pk-atk b{display:flex;justify-content:space-between;gap:8px}
 .pk-atk p{margin:2px 0 0;color:var(--ds-muted);font-size:14px}
+.pk-evo{list-style:none;margin:0 0 12px;padding:0;display:flex;gap:10px;overflow-x:auto;scrollbar-width:thin}
+.pk-evo li{flex:none;width:92px}
+.pk-evo button{width:100%;min-height:44px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px;border-radius:12px;border:1.5px solid var(--ds-line);background:var(--ds-raised);color:var(--ds-ink);font:inherit;font-size:13px;font-weight:600;line-height:1.15;text-align:center;cursor:pointer}
+.pk-evo img{width:100%;aspect-ratio:63/88;object-fit:cover;border-radius:6px;background:var(--ds-line)}
+.pk-evo small{display:block;font-weight:500;color:var(--ds-muted);font-size:12px}
 .pk-ok{color:var(--pk-ok)}.pk-bad{color:var(--pk-bad)}.pk-warn{color:var(--pk-warn)}
 .pk-opt{width:100%;min-height:64px;border-radius:16px;border:1.5px solid var(--ds-line);background:var(--ds-raised);color:var(--ds-ink);display:flex;align-items:center;gap:14px;padding:8px 16px;font:inherit;font-weight:700;font-size:18px;margin-bottom:10px;text-align:left;cursor:pointer;text-decoration:none}
 .pk-opt svg{width:26px;height:26px;flex:none;stroke:var(--ds-link)}
@@ -216,6 +221,15 @@ html:is([data-skin="night"], [data-skin="instinct"]) .ds-color-blue { background
 .csv{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;background:#12242c;color:#fff;padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 .csv :focus-visible{outline-color:#fff}
 .csv-sheet :focus-visible{outline-color:var(--ds-focus,#1f66b3)}
+.csv-main{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column}
+.csv-body{flex:1;min-height:0;display:flex}
+.csv-col{flex:none;width:400px;max-width:36vw;overflow-y:auto;background:var(--ds-surface,#fffef8);color:var(--ds-ink,#1d3944);padding:16px 18px 24px;border-left:1px solid #0004}
+.csv-col :focus-visible{outline-color:var(--ds-focus,#1f66b3)}
+.csv-col h2{font:800 italic 21px/1.1 var(--font-impact),Impact,sans-serif;margin:0 0 12px}
+.csv-col a{color:var(--ds-link,#1f66b3)}
+.csv[data-column]{--csv-col:min(400px,36vw)}
+.csv-slide img{transform-origin:50% 50%}
+.csv-rail[data-zoomed]{scroll-snap-type:none}
 .csv-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 8px 0}
 .csv-bar button{width:44px;height:44px;display:grid;place-items:center;font-size:24px;background:none;border:0;color:#fff;cursor:pointer;border-radius:50%}
 .csv-bar output{font-variant-numeric:tabular-nums;font-weight:600;padding-right:12px}
@@ -248,5 +262,5 @@ html:is([data-skin="night"], [data-skin="instinct"]) .ds-color-blue { background
 .csv-sheet h2{font:800 italic 21px/1.1 var(--font-impact),Impact,sans-serif;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .csv-sheet h2 button{width:44px;height:44px;font-size:22px;margin:-8px -8px -8px 0;background:none;border:0;color:inherit;cursor:pointer}
 .csv-sheet a{color:var(--ds-link,#1f66b3)}
-.csv-status{position:absolute;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:6;background:#fffef8;color:#1d3944;border-radius:999px;padding:8px 16px;font-weight:600;font-size:14px;box-shadow:0 6px 16px #0006;max-width:calc(100% - 32px);text-align:center}
-@media(prefers-reduced-motion:reduce){.csv-big[data-pulse="1"]{animation:none}.csv-rail{scroll-behavior:auto}}
+.csv-status{position:absolute;left:calc(50% - var(--csv-col,0px)/2);bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:6;background:#fffef8;color:#1d3944;border-radius:999px;padding:8px 16px;font-weight:600;font-size:14px;box-shadow:0 6px 16px #0006;max-width:calc(100% - 32px);text-align:center}
+@media(prefers-reduced-motion:reduce){.csv-slide img{transition:none!important}.csv-big[data-pulse="1"]{animation:none}.csv-rail{scroll-behavior:auto}}

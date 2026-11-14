@@ -72,6 +72,7 @@ export function CardViewerProvider({ cards, children }: { cards: ViewerCard[]; c
           onClose={() => setOpen(null)}
           renderFooter={({ item }) => <CardFooter card={item.card} />}
           renderDetail={({ item }) => <CardFacts card={item.card} />}
+          detailColumn
         />
       ) : null}
     </Open.Provider>

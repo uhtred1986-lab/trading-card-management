@@ -95,6 +95,34 @@ export async function fetchCardInfo(tcgdexId: string, signal?: AbortSignal): Pro
   return (await res.json()) as PokemonCardInfo;
 }
 
+/** The cards around one card's evolution line, as tiles (`/api/pokemon/card/[id]/evolutions`). */
+export interface PokemonEvolutions {
+  from: PokemonTile | null;
+  into: PokemonTile[];
+}
+
+const evolutionsCache = new Map<string, PokemonEvolutions>();
+
+/**
+ * Reads the evolution line of one card. Answers `null` when the source is down or the browser is offline:
+ * the detail sheet then simply has no such section. A good answer is kept for the page's lifetime.
+ */
+export async function fetchEvolutions(tcgdexId: string, signal?: AbortSignal): Promise<PokemonEvolutions | null> {
+  const kept = evolutionsCache.get(tcgdexId);
+  if (kept) return kept;
+  try {
+    const res = await fetch(`/api/pokemon/card/${encodeURIComponent(tcgdexId)}/evolutions`, { signal, headers: { accept: "application/json" } });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { from: PokemonHit | null; into: PokemonHit[] };
+    const out: PokemonEvolutions = { from: body.from ? tileFromHit(body.from) : null, into: (body.into ?? []).map(tileFromHit) };
+    evolutionsCache.set(tcgdexId, out);
+    return out;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") throw e;
+    return null;
+  }
+}
+
 /** The type chips of the search: the API value (English), the German label and the dot colour (a type's own colour, not a skin colour). */
 export const TYPE_CHIPS: readonly { value: string; label: string; color: string }[] = [
   { value: "Fire", label: "Feuer", color: "#e8562a" },

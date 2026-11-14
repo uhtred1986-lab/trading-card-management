@@ -78,7 +78,7 @@ export function DeckScreen({
   const router = useRouter();
   const [pending, start] = useTransition();
   const progress = deckProgress(deck.count);
-  const { wished, toggle, notice, say } = useWishes(viewerWishedIds);
+  const { wished, toggle, merge, notice, say } = useWishes(viewerWishedIds);
 
   // Copies shown before the server has answered: valid only while the server still says what it said.
   const [shown, setShown] = useState<Record<string, { from: number; to: number }>>({});
@@ -402,7 +402,7 @@ export function DeckScreen({
         {notice}
       </p>
 
-      {open !== null && rows[open] ? <PokemonViewer tiles={rows.map((r) => r.tile)} startIndex={open} decks={viewerDecks} wished={wished} onToggleWish={toggle} onClose={() => setOpen(null)} /> : null}
+      {open !== null && rows[open] ? <PokemonViewer tiles={rows.map((r) => r.tile)} startIndex={open} decks={viewerDecks} wished={wished} onToggleWish={toggle} onWishKnown={(id) => merge([id])} onClose={() => setOpen(null)} /> : null}
     </div>
   );
 }

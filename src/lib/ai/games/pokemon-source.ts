@@ -12,12 +12,13 @@ import type { Db } from "@/db";
 import { cards, ownedCards } from "@/db/schema";
 import { lotScope, type OwnerScope } from "@/lib/collection/scope";
 import { getPokemonCard, PokemonSourceError, searchPokemon, type PokemonCardRecord, type PokemonSearchParams } from "@/lib/pokemon/tcgdex";
+import { evolvesIntoBriefs } from "@/lib/pokemon/evolutions";
 import { pokemonDetails, tcgdexIdOf, type PokemonDetails, type PokemonHit } from "@/lib/pokemon/types";
 import type { LookupArgs, LookupTool, PromptCard } from "./types";
 
 // ── The live source ──────────────────────────────────────────────────────────
 
-/** One card that evolves from a named Pokémon: enough to load it. */
+/** One card that evolves from a named Pokémon: enough to load it (`evolvesIntoBriefs` lives in `src/lib/pokemon/evolutions.ts`, which the detail sheet uses too). */
 export interface EvolutionHit {
   /** TCGdex id, e.g. "sv03.5-005". */
   tcgdexId: string;
@@ -32,30 +33,7 @@ export interface PokemonSource {
   evolvesInto(englishName: string): Promise<EvolutionHit[]>;
 }
 
-const BASE = "https://api.tcgdex.net/v2";
-
-/** `cards?evolveFrom=eq:<name>`: the one question `searchPokemon` cannot ask (it only filters by name, type, category and set). */
-async function evolvesIntoLive(englishName: string): Promise<EvolutionHit[]> {
-  const name = englishName.trim();
-  if (!name) return [];
-  const url = `${BASE}/en/cards?evolveFrom=${encodeURIComponent(`eq:${name}`)}&pagination:page=1&pagination:itemsPerPage=40`;
-  let res: Response;
-  try {
-    res = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8000), next: { revalidate: 24 * 60 * 60 } } as RequestInit);
-  } catch (err) {
-    const timeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
-    throw new PokemonSourceError(timeout ? "TCGdex did not answer in time" : "TCGdex is not reachable", timeout ? "timeout" : "unavailable");
-  }
-  if (res.status === 404) return [];
-  if (!res.ok) throw new PokemonSourceError(`TCGdex answered ${res.status}`, "unavailable", res.status);
-  const body: unknown = await res.json().catch(() => null);
-  if (!Array.isArray(body)) throw new PokemonSourceError("TCGdex sent something unexpected", "bad_response", res.status);
-  return body
-    .filter((c): c is { id: string; name?: string } => !!c && typeof (c as { id?: unknown }).id === "string")
-    .map((c) => ({ tcgdexId: c.id, name: c.name ?? c.id }));
-}
-
-export const liveSource: PokemonSource = { search: searchPokemon, get: getPokemonCard, evolvesInto: evolvesIntoLive };
+export const liveSource: PokemonSource = { search: searchPokemon, get: getPokemonCard, evolvesInto: evolvesIntoBriefs };
 
 // ── Describing a card to the model ───────────────────────────────────────────
 

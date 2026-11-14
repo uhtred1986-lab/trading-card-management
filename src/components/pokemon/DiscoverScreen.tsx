@@ -328,6 +328,7 @@ export function DiscoverScreen({ decks, target = null }: { decks: PokemonDeckRow
           decks={decks}
           wished={wished}
           onToggleWish={toggle}
+          onWishKnown={(id) => merge([id])}
           onOwnedChange={(id, copies) => setOwned((o) => ({ ...o, [id]: copies }))}
           targetDeck={target ? { id: target.id, name: target.name } : null}
           onDeckAdded={(id) => setInDeck((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }))}

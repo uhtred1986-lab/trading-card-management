@@ -180,6 +180,8 @@ export const PK = {
     type: "Typ",
     kind: "Art",
     evolvesFrom: "Entwickelt sich aus",
+    evolvesInto: "Entwickelt sich zu",
+    evolutionJump: (name: string) => `${name} ansehen`,
     attacks: "Attacken",
     abilities: "Fähigkeiten",
     weakness: "Schwäche",
