@@ -143,7 +143,13 @@ export function tracedLogLines(ctx: EngineContext, steps: ProbeStep[], from = 0)
     const beats = impl.toBeats(ctx, step.state, step.events, 0);
     const owners: (RulePath | null)[] = [];
     step.events.forEach((e, i) => {
-      const n = impl.toBeats(ctx, step.state, [e], 0).list.length;
+      let n = impl.toBeats(ctx, step.state, [e], 0).list.length;
+      // A `resume` beat is kept only when what the skill did follows it in the batch (13 Nov 2026), so alone it
+      // translates to nothing: when the batch holds it, it is this event's.
+      if (n === 0 && e.type === "resume") {
+        const b = beats.list[owners.length];
+        if (b?.t === "resume" && b.card === e.card) n = 1;
+      }
       for (let k = 0; k < n; k++) owners.push(step.paths?.[i] ?? null);
     });
     const aligned = owners.length === beats.list.length;
