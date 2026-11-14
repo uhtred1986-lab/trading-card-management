@@ -39,6 +39,7 @@ export function NewDeckFromCard({
   seed,
   renderSearch,
   deckHref = "/decks/{id}",
+  defaultOpen = false,
 }: {
   enabled: boolean;
   game?: Game;
@@ -46,9 +47,11 @@ export function NewDeckFromCard({
   seed?: FromCardSeed | null;
   renderSearch?: (onPick: (card: FromCardSeed) => void) => ReactNode;
   deckHref?: string;
+  /** Start with the panel open (a screen that is only about this: the Pokémon new-deck page). */
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [pickedCard, setPicked] = useState<FromCardSeed | null>(null);
   const picked = seed ?? pickedCard;
   const [error, setError] = useState<string | null>(null);

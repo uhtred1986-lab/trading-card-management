@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PK } from "@/lib/pokemon/copy";
+import "@/components/pokemon/pk-decks.css";
 
 export const metadata: Metadata = { title: PK.appName };
 

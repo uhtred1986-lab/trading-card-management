@@ -1,0 +1,127 @@
+/* The Pokémon deck screens (lane G, docs/pokemon/design.md §6). Tokens come from [data-skin="pokemon"] in
+   src/app/design-system.css; this file only adds what the deck list, the deck page and the new-deck screen need. */
+
+/* Back arrow in the title row, a 44 px target. */
+.pk-back{display:inline-grid;place-items:center;min-width:44px;min-height:44px;margin:-8px 0 -8px -10px;color:#fff;text-decoration:none;font-size:34px;line-height:1;text-shadow:0 2px 0 #1d3944}
+.pk-back:focus-visible{outline:3px solid #fff;outline-offset:-4px;border-radius:12px}
+.pk-top h1 .pk-name{overflow-wrap:anywhere}
+
+/* Deck list rows: a card picture, the name and the numbers, the legality badge. */
+.pk-decklist{display:grid;gap:10px;margin:0 0 12px;padding:0;list-style:none}
+.pk-deckrow{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:88px;padding:10px 12px;border-radius:18px;border:1px solid var(--ds-line);background:color-mix(in srgb,var(--ds-surface) 95%,transparent);box-shadow:var(--ds-shadow);color:var(--ds-ink);text-decoration:none}
+.pk-deckrow:focus-visible{outline:3px solid var(--ds-focus);outline-offset:2px}
+.pk-deckrow b{display:block;font-size:17px;line-height:1.15;overflow-wrap:anywhere}
+.pk-deckrow small{display:block;margin-top:2px;font-size:14px;color:var(--ds-muted);font-variant-numeric:tabular-nums}
+.pk-deckrow .pk-owner{display:block;font-size:13px}
+.pk-mini{position:relative;aspect-ratio:63/88;border-radius:6px;overflow:hidden;background:var(--ds-raised);box-shadow:0 2px 0 #1d394433,0 4px 10px #1d39442b}
+.pk-mini img{width:100%;height:100%;object-fit:cover;display:block}
+.pk-mini .pk-noimg{font-size:11px;padding:4px;border-radius:6px}
+.pk-badges{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.pk-pillstate{display:inline-flex;align-items:center;border-radius:999px;padding:3px 10px;min-height:24px;font-weight:700;font-size:13px;color:#fff;background:var(--pk-warn);white-space:nowrap}
+.pk-pillstate[data-state="legal"]{background:var(--pk-ok)}
+.pk-pillstate[data-state="illegal"]{background:var(--pk-bad)}
+.pk-pillstate[data-built="1"]{background:var(--ds-ink)}
+.pk-buttons{display:grid;gap:10px;margin:0 0 12px}
+
+/* The panel on the deck page: badge and format chips, progress, issues. */
+.pk-deckhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pk-deckhead .pk-chips{padding:0;margin:0;overflow:visible}
+.pk-bar{height:12px;border-radius:999px;background:var(--ds-raised);border:1px solid var(--ds-line);overflow:hidden;margin:10px 0 6px}
+.pk-bar i{display:block;height:100%;background:var(--pk-ok);border-radius:999px;transition:width .15s ease-out}
+.pk-bar[data-state="over"] i{background:var(--pk-bad)}
+.pk-bar[data-state="short"] i{background:var(--pk-warn)}
+.pk-progress{font-size:15px;font-weight:600;margin:0}
+.pk-issues{margin:8px 0 0;padding-left:18px;font-size:14px}
+.pk-issues li{margin-bottom:3px}
+.pk-issues li[data-sev="illegal"]{color:var(--pk-bad)}
+.pk-issues li[data-sev="incomplete"],.pk-issues li[data-sev="warning"]{color:var(--pk-warn)}
+.pk-issues li.pk-more-issues{color:var(--ds-muted);list-style:none;margin-left:-18px}
+
+/* Deck rows: picture, name and how many she has, the heart, the stepper. */
+.pk-group{margin:0 0 12px}
+.pk-grouphead{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--ds-ink);margin:14px 0 6px;display:flex;justify-content:space-between}
+.pk-grouphead span:last-child{font-variant-numeric:tabular-nums}
+.pk-drow{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--ds-line)}
+.pk-drow:last-child{border-bottom:0}
+.pk-drow>button{padding:0;border:0;background:none;cursor:pointer;display:block;border-radius:6px;width:48px}
+.pk-drow>button:focus-visible{outline:3px solid var(--ds-focus);outline-offset:2px}
+.pk-drow b{display:block;font-size:16px;line-height:1.15;overflow-wrap:anywhere}
+.pk-drow small{display:block;font-size:13.5px;line-height:1.3;margin-top:1px}
+.pk-drow .pk-flagline{font-weight:600}
+.pk-drow .pk-flagline[data-sev="illegal"]{color:var(--pk-bad)}
+.pk-drow .pk-flagline[data-sev="incomplete"],.pk-drow .pk-flagline[data-sev="warning"]{color:var(--pk-warn)}
+.pk-wishbtn{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 4px;border:0;background:none;color:var(--pk-heart);font:inherit;font-size:13.5px;font-weight:700;text-decoration:underline;cursor:pointer}
+.pk-wishbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2}
+.pk-wishbtn[aria-pressed="true"]{text-decoration:none}
+.pk-wishbtn[aria-pressed="true"] svg{fill:currentColor}
+.pk-wishbtn:focus-visible{outline:3px solid var(--ds-focus);outline-offset:0;border-radius:8px}
+.pk-qty{display:flex;align-items:center;gap:2px}
+.pk-qty button{width:44px;height:44px;border-radius:50%;font:inherit;font-size:22px;font-weight:700;background:var(--ds-raised);border:1px solid var(--ds-line);color:var(--ds-ink);cursor:pointer}
+.pk-qty button:focus-visible{outline:3px solid var(--ds-focus);outline-offset:2px}
+.pk-qty button:disabled{opacity:.45;cursor:default}
+.pk-qty output{min-width:26px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.pk-qty output[data-over="1"]{color:var(--pk-bad)}
+
+/* Built switch, messages, confirmation. */
+.pk-built{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:8px 16px;border-radius:16px;border:1.5px solid var(--ds-line);background:var(--ds-raised);color:var(--ds-ink);font:inherit;font-size:17px;font-weight:700;text-align:left;cursor:pointer}
+.pk-built[aria-pressed="true"]{background:var(--pk-ok);border-color:var(--pk-ok);color:#fff}
+.pk-built:focus-visible{outline:3px solid var(--ds-focus);outline-offset:2px}
+.pk-built[disabled]{opacity:.6;cursor:default}
+.pk-built i{flex:none;width:48px;height:28px;border-radius:999px;background:var(--ds-line);position:relative;transition:background .15s}
+.pk-built i::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 3px #0004}
+.pk-built[aria-pressed="true"] i{background:#ffffff66}
+.pk-built[aria-pressed="true"] i::after{transform:translateX(20px)}
+.pk-built small{display:block;font-weight:500;font-size:13.5px}
+.pk-refusal{border:1.5px solid var(--pk-bad);background:var(--ds-danger-fill);color:var(--ds-danger-ink);border-radius:14px;padding:10px 12px;margin:8px 0 0;font-size:15px;font-weight:600}
+.pk-ok-note{border:1.5px solid var(--pk-ok);background:var(--ds-success-fill);color:var(--ds-success-ink);border-radius:14px;padding:10px 12px;margin:8px 0 0;font-size:15px;font-weight:600}
+.pk-linkbtn{min-height:44px;padding:0 4px;border:0;background:none;font:inherit;font-size:15px;font-weight:600;color:var(--ds-link);text-decoration:underline;cursor:pointer}
+.pk-linkbtn:focus-visible{outline:3px solid var(--ds-focus);outline-offset:2px;border-radius:8px}
+.pk-linkbtn-bad{color:var(--pk-bad)}
+.pk-confirm{border:1.5px solid var(--pk-bad);border-radius:16px;padding:12px;background:var(--ds-surface);margin-top:8px}
+.pk-confirm p{margin:0 0 10px;font-weight:600}
+.pk-confirm .pk-buttons{margin:0}
+.pk-cta-bad{background:var(--pk-bad);color:#fff}
+
+/* Forms: a field with a visible label. */
+.pk-field{display:block;margin:0 0 12px}
+.pk-field>span{display:block;font-size:14px;font-weight:700;margin-bottom:4px}
+.pk-input{width:100%;min-height:48px;border-radius:14px;border:1.5px solid var(--ds-line);background:var(--ds-surface);color:var(--ds-ink);font:inherit;font-size:17px;padding:8px 14px}
+.pk-input:focus-visible{outline:3px solid var(--ds-focus);outline-offset:2px}
+textarea.pk-input{min-height:140px;font-size:15px;line-height:1.35;resize:vertical}
+.pk-renamebox{display:grid;gap:8px;margin-top:10px}
+.pk-seed{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.pk-seed .pk-mini{width:84px;flex:none}
+.pk-seed b{font-size:18px;display:block}
+.pk-seed small{display:block;color:var(--ds-muted)}
+.pk-orline{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--ds-muted);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+.pk-orline::before,.pk-orline::after{content:"";flex:1;height:1px;background:var(--ds-line)}
+.pk-list-unresolved{margin:6px 0 0;padding-left:18px;font-size:14px;color:var(--ds-ink)}
+.pk-list-unresolved code{font-size:13px;overflow-wrap:anywhere}
+
+/* The seed picker of "Deck mit Claude bauen": pictures to tap. */
+.pk-seedgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px}
+.pk-seedgrid button{display:block;padding:0;border:2px solid transparent;background:none;cursor:pointer;border-radius:8px;min-width:0;text-align:left}
+.pk-seedgrid button:focus-visible{outline:3px solid var(--ds-focus);outline-offset:2px}
+.pk-seedgrid small{display:block;font-size:12px;line-height:1.15;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ds-ink)}
+
+/* Claude's own components sit in the Pokémon skin: their small buttons become 56 px main buttons,
+   and the accent text (yellow on a light page) becomes the link blue. */
+.pk-claude>button{width:100%;min-height:56px;border-radius:16px;font-size:17px!important;font-weight:700;background:var(--ds-raised)!important;border:1.5px solid var(--ds-line)!important;color:var(--ds-ink)!important}
+.pk-claude>button:disabled{opacity:.6}
+.pk-claude [class*="text-ki-300"],.pk-claude [class*="text-ki-200"]{color:var(--ds-link)}
+.pk-claude [class*="bg-ki-500"]:not([class*="/"]){color:var(--ds-accent-ink)}
+.pk-claude [class*="text-space-950"]{color:var(--ds-accent-ink)}
+.pk-claude [class*="text-loss"]{color:var(--pk-bad)}
+.pk-claude [class*="text-gain"]{color:var(--pk-ok)}
+
+/* Entdecken for a deck (?deck=): the add button on a tile and the banner. */
+.pk-forDeck{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.pk-forDeck a{color:var(--ds-link);font-weight:700;min-height:44px;display:inline-flex;align-items:center}
+.pk-addbtn{position:absolute;top:2px;right:2px;min-width:44px;min-height:44px;display:grid;place-items:center;background:none;border:0;padding:0;cursor:pointer;z-index:2}
+.pk-addbtn span{min-width:34px;height:34px;padding:0 8px;border-radius:999px;background:var(--ds-accent);color:var(--ds-accent-ink);display:grid;place-items:center;font-weight:800;font-size:17px;box-shadow:0 1px 4px #0005;font-variant-numeric:tabular-nums}
+.pk-addbtn:focus-visible{outline:3px solid var(--ds-focus);outline-offset:-4px;border-radius:12px}
+.pk-addbtn[data-pulse="1"] span{animation:pk-pulse .15s ease-out}
+.pk-toggle{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-weight:600;cursor:pointer}
+.pk-toggle input{width:22px;height:22px;accent-color:var(--ds-ink)}
+
+@media (prefers-reduced-motion:reduce){.pk-bar i,.pk-built i,.pk-built i::after{transition:none}.pk-addbtn[data-pulse="1"] span{animation:none}}
