@@ -33,16 +33,19 @@ export const wishLabel = (name: string) => `Wishes of ${name}`;
  */
 export async function wishSources(db: Db, viewer: Viewer): Promise<WishSource[]> {
   if (viewer.kind !== "sl") return [];
+  // Wishes first (one sum per owner), then the player's name for that owner: two players sharing an owner name do not double it.
+  const wished = db
+    .select({ owner: wantList.owner, cards: sql<number>`sum(${wantList.quantity})::int`.as("cards") })
+    .from(wantList)
+    .groupBy(wantList.owner)
+    .as("wished");
   const found = await db
-    .select({
-      owner: players.owner,
-      name: sql<string>`min(${players.name})`,
-      cards: sql<number>`coalesce((select sum(w.quantity) from ${wantList} w where w.owner = ${players.owner}), 0)::int`,
-    })
-    .from(players)
-    .groupBy(players.owner)
+    .select({ owner: wished.owner, name: sql<string>`min(${players.name})`, cards: wished.cards })
+    .from(wished)
+    .innerJoin(players, eq(players.owner, wished.owner))
+    .groupBy(wished.owner, wished.cards)
     .orderBy(sql`min(${players.name})`);
-  return found.filter((r) => Number(r.cards) > 0 && r.owner !== viewer.owner).map((r) => ({ owner: r.owner, name: r.name, cards: Number(r.cards) }));
+  return found.filter((r): r is typeof r & { owner: string } => r.owner !== null && Number(r.cards) > 0 && r.owner !== viewer.owner).map((r) => ({ owner: r.owner, name: r.name, cards: Number(r.cards) }));
 }
 
 /**

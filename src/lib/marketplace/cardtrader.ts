@@ -87,6 +87,8 @@ export interface CtProduct {
   properties_hash: Record<string, unknown>;
   user: { id: number; username: string; country_code: string; can_sell_via_hub: boolean; max_sellable_in24h_quantity: number | null };
   on_vacation?: boolean;
+  /** Present on marketplace products per the API reference; the Pokémon check reads the expansion from it. */
+  expansion?: { id: number; code?: string | null; name_en?: string | null } | null;
   graded?: boolean;
   bundle_size?: number;
 }

@@ -45,7 +45,12 @@ Probed from this session on 14 Nov 2026 (`api.tcgdex.net/v2/{lang}/…`, no key,
 Two things a worker proves first, because the plan leans on them:
 
 1. That TCGdex's `thirdParty.cardtrader` number is a CardTrader **blueprint id** usable with
-   `marketplace/products?blueprint_id=` (needs the CardTrader token; one read call).
+   `marketplace/products?blueprint_id=` (needs the CardTrader token; one read call). **Still
+   unproven** (lane F had no token). Both paths are built: the direct id, and a fallback by CardTrader
+   expansion and collector number that stores the corrected id on the print. Run the proof by hand:
+   `CARDTRADER_API_TOKEN=… CARDTRADER_ENABLED=true npx tsx scripts/pokemon-ct-check.mts PKM-sv03.5-006`
+   (or a blueprint id with `--name` / `--number`); it is read-only and prints MATCH or MISMATCH for
+   name and collector number. Detail: `docs/architecture/catalog-and-sync.md`.
 2. German coverage of the newest sets.
 
 Her cards are German and English mixed (Q 2), so the search asks TCGdex in **both languages** and
