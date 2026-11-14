@@ -44,6 +44,9 @@ export function PokemonTileCard({
   onToggleWish,
   caption,
   photo = false,
+  onAdd,
+  addLabel,
+  inTarget = 0,
 }: {
   tile: PokemonTile;
   onOpen: () => void;
@@ -59,6 +62,12 @@ export function PokemonTileCard({
   caption?: React.ReactNode;
   /** The tile shows the viewer's own photo. */
   photo?: boolean;
+  /** Entdecken for a deck (`?deck=`): a "＋" on the picture that puts one copy into that deck. */
+  onAdd?: (tile: PokemonTile) => void;
+  /** Its spoken label ("Glurak ins Deck „Feuer“ legen"). */
+  addLabel?: string;
+  /** Copies already in the deck Entdecken was opened for. */
+  inTarget?: number;
 }) {
   const [pulse, setPulse] = useState(false);
   const line = [tile.setName, numberLabel(tile)].filter(Boolean).join(" · ");
@@ -70,8 +79,24 @@ export function PokemonTileCard({
           {photo ? <span className="pk-cam">{PK.collection.ownPhoto}</span> : null}
           {owned > 0 ? <span className="pk-badge">{(ownedLabel ?? PK.discover.ownedBadge)(owned)}</span> : null}
           {deckCount > 0 ? <span className="pk-badge pk-badge-deck">{PK.collection.inDecks(deckCount)}</span> : null}
+          {inTarget > 0 ? <span className="pk-badge pk-badge-in">{PK.discover.inTargetDeck(inTarget)}</span> : null}
         </PokemonArt>
       </button>
+      {onAdd ? (
+        <button
+          type="button"
+          className="pk-addbtn"
+          aria-label={addLabel ?? PK.discover.addToDeck}
+          data-pulse={pulse ? "1" : "0"}
+          onClick={() => {
+            setPulse(true);
+            window.setTimeout(() => setPulse(false), 200);
+            onAdd(tile);
+          }}
+        >
+          <span aria-hidden>＋</span>
+        </button>
+      ) : null}
       {wished !== undefined && onToggleWish ? (
         <button
           type="button"

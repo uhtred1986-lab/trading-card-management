@@ -47,6 +47,18 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
   Energy. Reservations and the over-reserve refusal are unchanged. Library code asks `GAME_INFO` /
   `DeckRules` (`leader`, `zMax`, `printedRules`, `copiesBy`, `formats`) rather than testing for a game;
   `strictGame()` is for write paths (an unknown game is an error), `gameOr()` for reads.
+  **Her decks' screens** (`/pokemon/decks`, `/pokemon/decks/[id]`, `/pokemon/decks/new`; German copy in
+  `PK.decks` / `PK.newDeck` / `PK.importList`): pure logic in `src/lib/pokemon/deck-logic.ts` (size text,
+  `summariseIssues` collapses many cards failing one format rule into one line and shows at most four,
+  `missingCopies`, `builtRefusal`, the German sentence of the one refusal), data in `deck-data.ts` (list,
+  `wishMissing` writes the *deck owner's* wishes with `addWant`, idempotent; `importPokemonDeckList`).
+  "Owned" on a row is `alloc.owned` of the deck owner, as a built deck reserves it. The Server Functions
+  (`src/app/pokemon/decks/actions.ts`) check `assertPokemonDeck` (owner or SL, and the game). **Pasted deck
+  lists** (`decklist.ts`, "4 Charizard ex OBF 125", English and German sections): a line with set code and
+  number is searched in that set (`deck-source.ts` turns "OBF" into TCGdex's set id through
+  `sets?abbreviation.official=`), else by name and number (several prints: the newest, listed as a guess),
+  else by name; lines nothing matches are returned, never dropped. A Pokémon deck opened under `/decks/[id]`
+  shows no Leader or Z-Deck tiles, groups by card type and links to the Pokémon page.
 - **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck.
   `addCardsToDeck` sorts by zone and **never caps or replaces** — an over-limit add is flagged
   rather than dropped.

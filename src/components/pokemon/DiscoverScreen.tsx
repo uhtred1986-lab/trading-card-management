@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { addPokemonToDeckAction } from "@/app/pokemon/actions";
 import { PK } from "@/lib/pokemon/copy";
 import { TYPE_CHIPS, tileFromHit, type PokemonTile } from "@/lib/pokemon/client";
 import type { PokemonSetInfo } from "@/lib/pokemon/tcgdex";
@@ -29,8 +30,18 @@ interface Result {
 }
 const fresh = (key: string): Result => ({ key, hits: [], done: false, phase: "loading", page: 0 });
 
+/** Entdecken opened from a deck (`?deck=`): where "Ins Deck" goes, what is in it now, and her own cards to pick from first. */
+export interface DiscoverTarget {
+  id: number;
+  name: string;
+  /** Copies per card id already in the deck. */
+  cards: Record<string, number>;
+  /** The deck owner's own cards, for "Meine Karten zuerst" before she has typed anything. */
+  own: PokemonTile[];
+}
+
 /** The live search: search field, chips, newest sets, and a grid with endless scroll. */
-export function DiscoverScreen({ decks }: { decks: PokemonDeckRow[] }) {
+export function DiscoverScreen({ decks, target = null }: { decks: PokemonDeckRow[]; target?: DiscoverTarget | null }) {
   const [input, setInput] = useState("");
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
@@ -38,8 +49,27 @@ export function DiscoverScreen({ decks }: { decks: PokemonDeckRow[] }) {
   const [set, setSet] = useState<{ id: string; name: string } | null>(null);
   const [res, setRes] = useState<Result>(() => ({ key: "", hits: [], done: false, phase: "idle", page: 0 }));
   const [owned, setOwned] = useState<Record<string, number>>({});
+  // What the searches said she owns: the order of "Meine Karten zuerst" follows this, so a card marked "Hab ich" does not jump while it is open.
+  const [seenOwned, setSeenOwned] = useState<Record<string, number>>({});
   const [open, setOpen] = useState<number | null>(null);
-  const { wished, toggle, merge, notice } = useWishes([]);
+  const { wished, toggle, merge, notice, say } = useWishes([]);
+  // For a deck: her own cards come first (a toggle, on by default), and "＋" puts a copy straight into it.
+  const [ownFirst, setOwnFirst] = useState(target !== null);
+  const [inDeck, setInDeck] = useState<Record<string, number>>(() => target?.cards ?? {});
+  const addToTarget = useCallback(
+    async (tile: PokemonTile) => {
+      if (!target) return;
+      setInDeck((m) => ({ ...m, [tile.id]: (m[tile.id] ?? 0) + 1 }));
+      try {
+        await addPokemonToDeckAction({ deckId: target.id, tcgdexId: tile.tcgdexId, quantity: 1 });
+        say(PK.discover.addedTo(target.name));
+      } catch {
+        setInDeck((m) => ({ ...m, [tile.id]: Math.max(0, (m[tile.id] ?? 1) - 1) }));
+        say(typeof navigator !== "undefined" && navigator.onLine === false ? PK.common.offline : PK.common.error);
+      }
+    },
+    [target, say],
+  );
 
   // Typing waits 300 ms; the field itself stays responsive.
   useEffect(() => {
@@ -72,6 +102,7 @@ export function DiscoverScreen({ decks }: { decks: PokemonDeckRow[] }) {
         if (c.signal.aborted) return;
         const tiles = data.hits.map(tileFromHit);
         setOwned((prev) => ({ ...prev, ...data.owned }));
+        setSeenOwned((prev) => ({ ...prev, ...data.owned }));
         merge(data.wished);
         setRes((prev) => {
           const base = prev.key === k ? prev : fresh(k);
@@ -134,10 +165,24 @@ export function DiscoverScreen({ decks }: { decks: PokemonDeckRow[] }) {
   };
 
   const sub = set ? PK.discover.setCards(set.name) : PK.discover.subtitle;
+  // "Meine Karten zuerst": the cards she has move to the front (the order inside each part stays); with no search yet, her own cards are the grid.
+  const shownHits = useMemo(() => (ownFirst ? [...hits].sort((a, b) => Number((seenOwned[b.id] ?? 0) > 0) - Number((seenOwned[a.id] ?? 0) > 0)) : hits), [ownFirst, hits, seenOwned]);
+  const showOwn = !active && ownFirst && target !== null;
+  const list = showOwn && target ? target.own : shownHits;
+  const addProps = (t: PokemonTile) => (target ? { onAdd: addToTarget, addLabel: PK.discover.addToDeckAria(t.name, target.name), inTarget: inDeck[t.id] ?? 0 } : {});
 
   return (
     <div className="pk-area">
       <PageTop title={PK.discover.title} sub={!set ? sub : undefined} />
+
+      {target ? (
+        <div className="pk-forDeck pk-panel" style={{ padding: "4px 12px" }}>
+          <b>{PK.discover.forDeck(target.name)}</b>
+          <Link href={`/pokemon/decks/${target.id}`} prefetch={false}>
+            ‹ {PK.discover.forDeckBack}
+          </Link>
+        </div>
+      ) : null}
 
       <div className="pk-search" role="search">
         <SearchIcon />
@@ -164,6 +209,11 @@ export function DiscoverScreen({ decks }: { decks: PokemonDeckRow[] }) {
         </Link>
       </div>
 
+      <div className="pk-chips">
+        <button type="button" className="pk-chip" aria-pressed={ownFirst} onClick={() => setOwnFirst((v) => !v)}>
+          {PK.discover.ownFirst}
+        </button>
+      </div>
       <div className="pk-chips" role="group" aria-label={PK.discover.categoryChips}>
         <button type="button" className="pk-chip" aria-pressed={category === ""} onClick={() => setCategory("")}>
           {PK.discover.all}
@@ -196,9 +246,27 @@ export function DiscoverScreen({ decks }: { decks: PokemonDeckRow[] }) {
         </div>
       ) : null}
 
-      {!active ? (
+      {showOwn && target ? (
+        <section aria-labelledby="pk-own">
+          <div className="pk-lbl" id="pk-own" style={{ color: "var(--ds-ink)" }}>
+            {PK.discover.ownCards}
+          </div>
+          {target.own.length === 0 ? (
+            <div className="pk-panel pk-empty" role="status">
+              <p>{PK.discover.ownCardsEmpty}</p>
+            </div>
+          ) : (
+            <div className="pk-grid">
+              {target.own.map((t, i) => (
+                <PokemonTileCard key={t.id} tile={t} onOpen={() => setOpen(i)} owned={owned[t.id] ?? 0} wished={wished.has(t.id)} onToggleWish={toggle} {...addProps(t)} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+      {!active && !showOwn ? (
         <NewestSets onPick={(s) => setSet(s)} />
-      ) : (
+      ) : !active ? null : (
         <>
           {phase === "loading" ? <SkeletonGrid count={8} /> : null}
           {phase === "unavailable" ? (
@@ -228,8 +296,8 @@ export function DiscoverScreen({ decks }: { decks: PokemonDeckRow[] }) {
           {hits.length > 0 ? (
             <>
               <div className="pk-grid">
-                {hits.map((t, i) => (
-                  <PokemonTileCard key={t.id} tile={t} onOpen={() => setOpen(i)} owned={owned[t.id] ?? 0} wished={wished.has(t.id)} onToggleWish={toggle} />
+                {shownHits.map((t, i) => (
+                  <PokemonTileCard key={t.id} tile={t} onOpen={() => setOpen(i)} owned={owned[t.id] ?? 0} wished={wished.has(t.id)} onToggleWish={toggle} {...addProps(t)} />
                 ))}
               </div>
               {phase === "more" ? (
@@ -253,14 +321,16 @@ export function DiscoverScreen({ decks }: { decks: PokemonDeckRow[] }) {
         {notice}
       </p>
 
-      {open !== null && hits[open] ? (
+      {open !== null && list[open] ? (
         <PokemonViewer
-          tiles={hits}
+          tiles={list}
           startIndex={open}
           decks={decks}
           wished={wished}
           onToggleWish={toggle}
           onOwnedChange={(id, copies) => setOwned((o) => ({ ...o, [id]: copies }))}
+          targetDeck={target ? { id: target.id, name: target.name } : null}
+          onDeckAdded={(id) => setInDeck((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }))}
           onClose={() => setOpen(null)}
         />
       ) : null}

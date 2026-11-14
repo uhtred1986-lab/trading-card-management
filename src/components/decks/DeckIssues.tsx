@@ -27,7 +27,9 @@ export function DeckIssues({ legality, game }: { legality: DeckLegality; game: G
     return (
       <div className="space-y-1">
         <p className="text-xs text-gain">
-          Tournament-legal: one leader, {RULES.main}–{RULES.mainMax} cards, copy limits respected.
+          {RULES.leader
+            ? `Tournament-legal: one leader, ${RULES.main}–${RULES.mainMax} cards, copy limits respected.`
+            : `Tournament-legal: ${RULES.main === RULES.mainMax ? RULES.main : `${RULES.main}–${RULES.mainMax}`} cards, copy limits respected.`}
         </p>
         {rules}
       </div>
