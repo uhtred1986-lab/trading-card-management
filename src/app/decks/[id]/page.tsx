@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { getDeck, ZONE_LABEL, ZONES, zonesFor, deckToText } from "@/lib/decks/queries";
+import { cardGroupsFor, getDeck, ZONE_LABEL, ZONES, zonesFor, deckToText } from "@/lib/decks/queries";
 import { currentScope, requireSignedInPage } from "@/lib/auth";
 import { copyLimit, mainCountLabel, mainCountOk } from "@/lib/decks/legality";
 import { deckRules, GAME_INFO } from "@/lib/catalog/games";
@@ -34,6 +35,10 @@ import { cardHealthsFor } from "@/lib/arena/rules-store";
 
 export const dynamic = "force-dynamic";
 
+/** Group headings of a game that groups its main deck by card type (Pokémon), and the names of its formats. */
+const GROUP_LABEL: Record<string, string> = { POKEMON: "Pokémon", TRAINER: "Trainer", ENERGY: "Energy" };
+const FORMAT_NAME: Record<string, string> = { standard: "Standard", expanded: "Expanded" };
+
 export default async function DeckPage({ params }: { params: Promise<{ id: string }> }) {
   const viewer = await requireSignedInPage();
   const canMarkTesting = viewer.kind === "sl";
@@ -59,6 +64,10 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
   const deckLocation = locations.find((l) => l.id === deck.locationId) ?? null;
   const leader = deck.cards.find((c) => c.zone === "leader");
   const rules = deckRules(deck.game);
+  // A game with no Leader (Pokémon) shows its most prominent card instead and groups the main deck by card type.
+  const groups = cardGroupsFor(deck.game);
+  const pokemonDeck = rules.ruleset === "pokemon";
+  const cover = rules.leader ? leader : (deck.cards.find((c) => c.imageUrl) ?? null);
   // A zone the game does not have is still shown when something is sitting in
   // it, so cards can never go missing behind a rule change.
   const zones = ZONES.filter((z) => zonesFor(deck.game).includes(z) || deck.cards.some((c) => c.zone === z));
@@ -68,8 +77,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
     <div className="space-y-5">
       <SectionTabs items={[{href:"/decks",label:"Decks",active:true},{href:"/leaders",label:"Leaders"},{href:"/collection",label:"Collection"},{href:"/cards",label:"Catalog"}]} />
       <div className="flex flex-wrap items-start gap-4">
-        <div className={`shrink-0 ${leader?.backImageUrl ? "w-48 sm:w-64" : "w-24 sm:w-32"}`}>
-          <CardFaces front={leader?.imageUrl} back={leader?.backImageUrl} name={leader?.name ?? "No leader"} backName={leader?.backName} sizes="128px" priority />
+        <div className={`shrink-0 ${cover?.backImageUrl ? "w-48 sm:w-64" : "w-24 sm:w-32"}`}>
+          <CardFaces front={cover?.imageUrl} back={cover?.backImageUrl} name={cover?.name ?? (rules.leader ? "No leader" : "No cards yet")} backName={cover?.backName} sizes="128px" priority />
         </div>
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -83,6 +92,11 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             )}
             {deck.isTesting ? <span className="rounded border border-ki-500/60 px-1.5 py-px text-[10px] font-semibold uppercase text-ki-300">Testing deck</span> : null}
             <DeckStatusBadge status={deck.legality.status} />
+            {pokemonDeck ? (
+              <Link href={`/pokemon/decks/${deck.id}`} className="tap rounded border border-ki-500/60 px-2 py-0.5 text-[11px] font-semibold text-ki-300 hover:bg-ki-500/10">
+                Open in the Pokémon area →
+              </Link>
+            ) : null}
             {deckLocation ? (
               <Link
                 href={`/collection?view=list&location=${deckLocation.id}`}
@@ -114,16 +128,18 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                   <ColorPill key={c} color={c} small />
                 ))}
               </>
-            ) : (
+            ) : rules.leader ? (
               "No leader — add one from the search panel."
-            )}
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
             <Stat label="Main" value={mainCountLabel(deck.legality.mainCount, deck.game)} warn={!mainCountOk(deck.legality.mainCount, deck.game)} />
             {/* Fusion World has no Z-Deck, so the tile only appears when the
                 game has one — or when stray Z-cards need pointing at. */}
             {rules.zMax > 0 || deck.legality.zCount > 0 ? <Stat label="Z-Deck" value={`${deck.legality.zCount}/${rules.zMax}`} warn={deck.legality.zCount > rules.zMax} /> : null}
-            <Stat label="Leader" value={`${deck.legality.leaderCount}`} warn={deck.legality.leaderCount !== 1} />
+            {/* A game without a Leader (Pokémon) has no Leader tile, unless one was left over from another game's deck. */}
+            {rules.leader || deck.legality.leaderCount > 0 ? <Stat label="Leader" value={`${deck.legality.leaderCount}`} warn={deck.legality.leaderCount !== 1} /> : null}
+            {rules.formats.length > 0 ? <Stat label="Format" value={FORMAT_NAME[deck.format ?? ""] ?? rules.formats[0]} /> : null}
             <Stat label="Game" value={GAME_INFO[deck.game].short} />
           </div>
           <DeckIssues legality={deck.legality} game={deck.game} />
@@ -149,8 +165,14 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                   <p className="rounded-xl border border-dashed border-space-700 p-4 text-center text-sm text-space-300">Search on the right to add cards.</p>
                 ) : (
                   <ul className="divide-y divide-space-800 rounded-xl border border-space-700/70">
-                    {rows.map((r) => (
-                      <li key={`${r.zone}:${r.cardId}`} className="px-2 py-1.5 text-sm">
+                    {rows.map((r, idx) => (
+                      <Fragment key={`${r.zone}:${r.cardId}`}>
+                      {groups && zone === "main" && (idx === 0 || rows[idx - 1].cardType !== r.cardType) ? (
+                        <li className="bg-space-900/60 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-space-300">
+                          {GROUP_LABEL[r.cardType] ?? r.cardType} · {rows.filter((x) => x.cardType === r.cardType).reduce((n, x) => n + x.quantity, 0)}
+                        </li>
+                      ) : null}
+                      <li className="px-2 py-1.5 text-sm">
                         <div className="flex items-center gap-2">
                           <div className="w-9 shrink-0">
                             <CardImage src={r.imageUrl} alt={r.name} sizes="36px" />
@@ -179,6 +201,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                         </div>
                         {suggestions.get(r.cardId)?.length ? <SwapSuggestions deckId={deck.id} zone={r.zone} suggestions={suggestions.get(r.cardId)!} /> : null}
                       </li>
+                      </Fragment>
                     ))}
                   </ul>
                 )}
@@ -188,7 +211,16 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <aside className="min-w-0 space-y-4">
-          <DeckBuilder key={`${deck.id}:${deck.game}`} deckId={deck.id} game={deck.game} />
+          {pokemonDeck ? (
+            <div className="rounded-xl border border-space-700/70 bg-space-900/50 p-3 text-sm">
+              <p className="text-space-300">Pokémon cards are searched live at TCGdex, so cards are added in the Pokémon area.</p>
+              <Link href={`/pokemon/discover?deck=${deck.id}`} className="tap mt-2 inline-flex items-center rounded-md bg-ki-500 px-3 py-1.5 text-sm font-semibold text-space-950 hover:bg-ki-400">
+                Search cards for this deck →
+              </Link>
+            </div>
+          ) : (
+            <DeckBuilder key={`${deck.id}:${deck.game}`} deckId={deck.id} game={deck.game} />
+          )}
           <DeckAI
             deckId={deck.id}
             aiSummary={deck.aiSummary}
@@ -243,6 +275,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             </div>
           </details>
 
+          {!pokemonDeck ? (
           <details className="rounded-xl border border-space-700/70 bg-space-900/50 p-3">
             <summary className="cursor-pointer text-sm font-semibold text-space-100">Import / export list</summary>
             <form action={importDeckListForm} className="mt-2 space-y-2">
@@ -254,6 +287,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             </form>
             <pre className="mt-3 max-h-64 overflow-auto rounded-md bg-space-950 p-2 font-mono text-[11px] text-space-300">{deckToText(deck.cards) || "(empty)"}</pre>
           </details>
+          ) : null}
 
           <div className="flex flex-wrap gap-2">
             <form action={duplicateDeckForm}>

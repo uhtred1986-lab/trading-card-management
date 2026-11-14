@@ -110,7 +110,8 @@ export const PK = {
     ownFirst: "Meine Karten zuerst",
     addToDeck: "Ins Deck",
     addToDeckAria: (name: string, deck: string) => `${name} ins Deck „${deck}“ legen`,
-    inTargetDeck: (n: number) => `Im Deck ×${n}`,
+    ownCards: "Deine Karten",
+    ownCardsEmpty: "Du hast noch keine Pokémon-Karten. Such oben nach einer Karte.",
     addedTo: (deck: string) => `In „${deck}“ gelegt`,
   },
 

@@ -34,6 +34,8 @@ export function PokemonViewer({
   onToggleWish,
   onOwnedChange,
   onClose,
+  targetDeck,
+  onDeckAdded,
 }: {
   tiles: PokemonTile[];
   startIndex: number;
@@ -43,6 +45,10 @@ export function PokemonViewer({
   /** The viewer's number of copies of a card changed (so the grid's badge follows). */
   onOwnedChange?: (cardId: string, copies: number) => void;
   onClose: () => void;
+  /** Entdecken for a deck (`?deck=`): "Ins Deck" puts one copy straight into this deck instead of asking which. */
+  targetDeck?: { id: number; name: string } | null;
+  /** One copy went into `targetDeck`. */
+  onDeckAdded?: (cardId: string) => void;
 }) {
   const [infos, setInfos] = useState<Record<string, InfoState>>({});
   const asked = useRef(new Set<string>());
@@ -99,6 +105,8 @@ export function PokemonViewer({
             onOwnedChange?.(ctx.item.tile.id, copies);
           }}
           onRetry={() => load(ctx.item.tile, true)}
+          targetDeck={targetDeck ?? null}
+          onDeckAdded={onDeckAdded}
         />
       )}
       renderDetail={(ctx) => <PokemonDetail tile={ctx.item.tile} info={infos[ctx.item.tile.tcgdexId]} onRetry={() => load(ctx.item.tile, true)} />}
@@ -116,6 +124,8 @@ function PokemonFooter({
   onToggleWish,
   onOwned,
   onRetry,
+  targetDeck,
+  onDeckAdded,
 }: {
   tile: PokemonTile;
   info: InfoState | undefined;
@@ -124,15 +134,30 @@ function PokemonFooter({
   onToggleWish: (tile: PokemonTile) => void;
   onOwned: (info: PokemonCardInfo, copies: number) => void;
   onRetry: () => void;
+  targetDeck: { id: number; name: string } | null;
+  onDeckAdded?: (cardId: string) => void;
 }) {
   const [sheet, setSheet] = useState<"have" | "deck" | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [pulse, setPulse] = useState(false);
+  const [adding, setAdding] = useState(false);
   const owned = total(info);
   const say = (text: string) => {
     setStatus(text);
     window.setTimeout(() => setStatus((s) => (s === text ? null : s)), 3500);
   };
+  async function addToTarget() {
+    if (!targetDeck || adding) return;
+    setAdding(true);
+    try {
+      await addPokemonToDeckAction({ deckId: targetDeck.id, tcgdexId: tile.tcgdexId, quantity: 1 });
+      onDeckAdded?.(tile.id);
+      say(PK.deck.added(targetDeck.name));
+    } catch {
+      say(typeof navigator !== "undefined" && navigator.onLine === false ? PK.common.offline : PK.common.error);
+    }
+    setAdding(false);
+  }
 
   return (
     <>
@@ -155,7 +180,7 @@ function PokemonFooter({
           <HeartIcon />
           {wished ? PK.verbs.wished : PK.verbs.wish}
         </button>
-        <button type="button" className="csv-big" onClick={() => setSheet("deck")}>
+        <button type="button" className="csv-big" disabled={adding} onClick={() => (targetDeck ? void addToTarget() : setSheet("deck"))}>
           <DeckIcon />
           {PK.verbs.deck}
         </button>
