@@ -539,6 +539,8 @@ export const cardPhotos = pgTable(
 export const scanBatches = pgTable("scan_batches", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  /** Which game the batch belongs to: "dbs" (the Dragon Ball flow, also Fusion World) or "pokemon" (a binder page; its items live in the Pokémon columns of scan_items). */
+  game: text("game").notNull().default("dbs"),
   /** single | batch — default for photos added to this batch. */
   mode: text("mode").notNull().default("single"),
   /** open | done */
@@ -598,6 +600,11 @@ export const scanItems = pgTable(
     condition: text("condition").notNull().default("NM"),
     finish: text("finish").notNull().default("normal"),
     include: boolean("include").notNull().default(true),
+    /** Pokémon batches only: the variant (normal, holo, reverse, ...) and the card language (DE or EN) of the lot. For them `detection` is the PokemonScanDetection (candidates are live-source hits), `chosen` the chosen PokemonHit, `finish` and `printId` stay unused. */
+    variant: text("variant"),
+    language: text("language"),
+    /** Pokémon batches only: when the item was written to the collection. Set means it is saved and is never saved twice. */
+    savedAt: timestamp("saved_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("scan_items_batch_idx").on(t.batchId), index("scan_items_photo_idx").on(t.photoId)],

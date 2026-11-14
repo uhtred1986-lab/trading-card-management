@@ -12,7 +12,7 @@
  */
 import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { cardPrints, decks, ownedCards, wantList } from "@/db/schema";
+import { cardPrints, deckCards, decks, ownedCards, wantList } from "@/db/schema";
 import { AccessDenied, type Viewer } from "@/lib/auth";
 import { addCardsToDeck } from "@/lib/decks/add";
 import { addWant, removeWant } from "@/lib/decks/swaps";
@@ -74,13 +74,18 @@ export async function assertPokemonDeck(db: Db, viewer: Viewer, deckId: number):
  * Put `quantity` copies of one print and language into the collection (one `owned_cards` row per
  * copy, stamped with the viewer's owner), and into a deck when `deckId` is given.
  */
-export async function addPokemonLots(db: Db, viewer: Viewer, input: PokemonLotInput): Promise<{ cardId: string; printId: string; ids: number[]; added: number; deckAdded: number }> {
+export async function addPokemonLots(
+  db: Db,
+  viewer: Viewer,
+  input: PokemonLotInput,
+  deps: { load?: typeof loadPokemonCard } = {},
+): Promise<{ cardId: string; printId: string; ids: number[]; added: number; deckAdded: number; deckBefore: number }> {
   const tcgdexId = cleanTcgdexId(input.tcgdexId);
   const variant = cleanVariant(input.variant);
   const language = cleanLanguage(input.language);
   const deckId = input.deckId ?? null;
   if (deckId !== null) await assertPokemonDeck(db, viewer, deckId);
-  const src = await loadPokemonCard(tcgdexId);
+  const src = await (deps.load ?? loadPokemonCard)(tcgdexId);
   const owner = ownerOf(viewer);
   return db.transaction(async (tx) => {
     const t = tx as unknown as Db;
@@ -88,8 +93,53 @@ export async function addPokemonLots(db: Db, viewer: Viewer, input: PokemonLotIn
     const print = printFor(card, variant);
     const values = expand({ printId: print.id, cardId: card.cardId, owner, condition: "NM", finish: finishOf(variant), language }, input.quantity);
     const inserted = await t.insert(ownedCards).values(values).returning({ id: ownedCards.id });
+    // What the deck held of this card before this add: an undo never goes below it (`undoPokemonDeckAdd`).
+    const deckBefore = deckId !== null ? await copiesInDeck(t, deckId, card.cardId) : 0;
     const deckAdded = deckId !== null ? (await addCardsToDeck(t, deckId, [{ cardId: card.cardId, quantity: values.length }])).added : 0;
-    return { cardId: card.cardId, printId: print.id, ids: inserted.map((r) => r.id), added: values.length, deckAdded };
+    return { cardId: card.cardId, printId: print.id, ids: inserted.map((r) => r.id), added: values.length, deckAdded, deckBefore };
+  });
+}
+
+async function copiesInDeck(db: Db, deckId: number, cardId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`coalesce(sum(${deckCards.quantity}), 0)::int` })
+    .from(deckCards)
+    .where(and(eq(deckCards.deckId, deckId), eq(deckCards.cardId, cardId)));
+  return Number(row?.n ?? 0);
+}
+
+/**
+ * Take back what one add put into a deck: the card's deck line goes down by `added`, never below
+ * `before` (what the deck held before that add) and never below zero. A deck edited since then keeps
+ * its other changes. Reducing a line cannot over-reserve a built deck, so this is never refused for
+ * that. Returns how many copies left the deck.
+ */
+export async function undoPokemonDeckAdd(db: Db, viewer: Viewer, input: { deckId: number; tcgdexId: string; added: number; before: number }): Promise<{ removed: number }> {
+  const tcgdexId = cleanTcgdexId(input.tcgdexId);
+  await assertPokemonDeck(db, viewer, input.deckId);
+  const cardId = pokemonCardId(tcgdexId);
+  const added = Math.max(0, Math.floor(Number(input.added)) || 0);
+  const before = Math.max(0, Math.floor(Number(input.before)) || 0);
+  return db.transaction(async (tx) => {
+    const t = tx as unknown as Db;
+    const lines = await t
+      .select({ zone: deckCards.zone, quantity: deckCards.quantity })
+      .from(deckCards)
+      .where(and(eq(deckCards.deckId, input.deckId), eq(deckCards.cardId, cardId)));
+    const now = lines.reduce((n, l) => n + l.quantity, 0);
+    const target = Math.max(before, now - added);
+    const removed = now - target;
+    // A Pokémon card has one zone ("main"); take from the first line that has copies.
+    let left = removed;
+    for (const l of lines) {
+      if (left <= 0) break;
+      const take = Math.min(l.quantity, left);
+      left -= take;
+      if (l.quantity - take > 0) await t.update(deckCards).set({ quantity: l.quantity - take }).where(and(eq(deckCards.deckId, input.deckId), eq(deckCards.cardId, cardId), eq(deckCards.zone, l.zone)));
+      else await t.delete(deckCards).where(and(eq(deckCards.deckId, input.deckId), eq(deckCards.cardId, cardId), eq(deckCards.zone, l.zone)));
+    }
+    if (removed > 0) await t.update(decks).set({ updatedAt: new Date() }).where(eq(decks.id, input.deckId));
+    return { removed };
   });
 }
 

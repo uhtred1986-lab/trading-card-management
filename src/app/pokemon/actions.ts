@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { requireSignedIn } from "@/lib/auth";
-import { addPokemonLots, addPokemonToDeck, setPokemonOwned, togglePokemonWish, type PokemonLotInput, type PokemonLotLanguage } from "@/lib/pokemon/collection";
+import { addPokemonLots, addPokemonToDeck, setPokemonOwned, togglePokemonWish, undoPokemonDeckAdd, type PokemonLotInput, type PokemonLotLanguage } from "@/lib/pokemon/collection";
 import { pokemonCardId, type PokemonVariant } from "@/lib/pokemon/types";
 
 export interface AddPokemonLotInput {
@@ -30,11 +30,22 @@ function revalidateCard(tcgdexId: string, deckId?: number | null) {
  * Add copies of a card the viewer holds. The card is written to the catalog first (live read of
  * TCGdex), then one lot per copy, stamped with the viewer's owner; `deckId` adds them to that deck too.
  */
-export async function addPokemonLotAction(input: AddPokemonLotInput): Promise<{ cardId: string; printId: string; added: number; deckAdded: number }> {
+export async function addPokemonLotAction(input: AddPokemonLotInput): Promise<{ cardId: string; printId: string; added: number; deckAdded: number; deckBefore: number }> {
   const viewer = await requireSignedIn();
   const r = await addPokemonLots(db, viewer, input satisfies PokemonLotInput);
   revalidateCard(input.tcgdexId, input.deckId);
-  return { cardId: r.cardId, printId: r.printId, added: r.added, deckAdded: r.deckAdded };
+  return { cardId: r.cardId, printId: r.printId, added: r.added, deckAdded: r.deckAdded, deckBefore: r.deckBefore };
+}
+
+/**
+ * Take back the deck copies one add put in (the voice and photo screens' "Rückgängig"): the card's deck
+ * line goes down by what that add put in, never below what the deck held before it.
+ */
+export async function undoPokemonDeckAddAction(input: { deckId: number; tcgdexId: string; added: number; before: number }): Promise<{ removed: number }> {
+  const viewer = await requireSignedIn();
+  const r = await undoPokemonDeckAdd(db, viewer, input);
+  revalidateCard(input.tcgdexId, input.deckId);
+  return r;
 }
 
 /** Set the viewer's count of one variant and language to an exact number (0 archives them all). */
