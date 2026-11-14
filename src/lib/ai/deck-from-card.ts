@@ -17,7 +17,7 @@ import { currentLineFor } from "@/lib/catalog/sets";
 import { rulesFor } from "@/lib/decks/cardRules";
 import { generateJson } from "./core";
 import { recordRun } from "./client";
-import { cardLine } from "./deck";
+import { cardLine } from "./games/bandai";
 import { sanitiseDraft, type PoolCard } from "./deck-builder";
 
 const DeckFromCardDraftSchema = z.object({
