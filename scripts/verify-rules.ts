@@ -1059,7 +1059,7 @@ assert.ok(cardTypesFor("fusion").includes("ENERGY MARKER") && !cardTypesFor("dbs
   assert.equal(poke(rotated(), "bogus").status, "illegal", "an unknown format falls back to Standard");
   assert.equal(poke(rotated(), "expanded").status, "legal");
   const notExpanded = (): LegalityCard[] => [...without("P2"), basic("PKM-x", 4, { name: "Alt-Karte", legal: { standard: true, expanded: false } })];
-  assert.ok(poke(notExpanded(), "expanded").issues.some((i) => i.message === "Alt-Karte ist im Expanded-Format nicht mehr erlaubt"));
+  assert.ok(poke(notExpanded(), "expanded").issues.some((i) => i.message === "Alt-Karte ist im Erweitert-Format nicht mehr erlaubt"));
   assert.equal(poke(notExpanded()).status, "legal", "legal in Standard though not in Expanded");
   const unknown = poke([...without("P2"), basic("PKM-new", 4, { name: "Neuling", legal: null })]);
   assert.equal(unknown.flags["main:PKM-new"]?.severity, "warning");

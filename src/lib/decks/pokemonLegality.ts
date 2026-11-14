@@ -11,7 +11,7 @@ import { gameInfo, type Game } from "@/lib/catalog/games";
 import { pokemonDetails } from "@/lib/pokemon/types";
 import type { DeckFlag, DeckIssue, DeckLegality, DeckStatus, IssueSeverity, LegalityCard } from "./legality";
 
-const FORMAT_LABEL: Record<string, string> = { standard: "Standard", expanded: "Expanded" };
+const FORMAT_LABEL: Record<string, string> = { standard: "Standard", expanded: "Erweitert" };
 
 /** The deck's format, falling back to the game's default for a missing or unknown one. */
 export function pokemonFormatOf(format: string | null | undefined): string {
