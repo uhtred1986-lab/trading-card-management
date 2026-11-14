@@ -370,6 +370,7 @@ export async function blueprintsFor(db: Db, cardId: string) {
 const TCG_SEARCH_SLUG: Record<Game, string> = {
   dbs: "dragon-ball-super-ccg",
   fusion: "dragon-ball-super-fusion-world",
+  pokemon: "pokemon",
 };
 
 export function externalLinks(card: { id: string; name: string; game?: string | null }, tcgUrl?: string | null, cardMarketIds?: unknown) {

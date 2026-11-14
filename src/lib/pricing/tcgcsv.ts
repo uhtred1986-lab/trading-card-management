@@ -18,11 +18,11 @@ import type { Db } from "@/db";
 import { rows } from "@/db/rows";
 import { cardPrints, cards, tcgGroups, tcgPrices, tcgProducts } from "@/db/schema";
 import { baseNumber } from "@/lib/catalog/deckplanet";
-import { GAMES, GAME_INFO, type Game } from "@/lib/catalog/games";
+import { GAME_INFO, SYNCED_GAMES, syncSource, type SyncedGame } from "@/lib/catalog/games";
 import { setCodeOfNumber, setLineFor } from "@/lib/catalog/sets";
 
 const BASE = "https://tcgcsv.com/tcgplayer";
-export const TCG_CATEGORY_ID = GAME_INFO.dbs.tcgCategoryId;
+export const TCG_CATEGORY_ID = syncSource("dbs").tcgCategoryId;
 
 interface TcgGroup {
   groupId: number;
@@ -156,7 +156,7 @@ export interface PriceSyncSummary {
   /** Cards and prints that got their art from a TCGplayer photo this run. */
   imagesFilled?: number;
   /** Per-game breakdown; absent on a single-game run. */
-  games?: Record<Game, Omit<PriceSyncSummary, "capturedOn" | "games">>;
+  games?: Record<SyncedGame, Omit<PriceSyncSummary, "capturedOn" | "games">>;
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
@@ -179,12 +179,12 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
  */
 export async function syncPricesForGame(
   db: Db,
-  game: Game,
+  game: SyncedGame,
   capturedOn: string,
   lookup: Lookup,
   opts: { onProgress?: (done: number, total: number, name: string) => void } = {},
 ): Promise<Omit<PriceSyncSummary, "capturedOn" | "games">> {
-  const categoryId = GAME_INFO[game].tcgCategoryId;
+  const categoryId = syncSource(game).tcgCategoryId;
   const allGroups = await getJson<TcgGroup>(categoryId, "groups");
   // Fusion World sets that stray into the original game's category belong to
   // the other category, where they are imported properly.
@@ -433,12 +433,12 @@ export async function fillMissingImages(db: Db): Promise<number> {
   return prints + cardsFilled + backsFilled;
 }
 
-/** Both games, onto one snapshot date. */
+/** Both synced games, onto one snapshot date. Pokémon prices come with its live source instead. */
 export async function syncPrices(db: Db, opts: { onProgress?: (done: number, total: number, name: string) => void } = {}): Promise<PriceSyncSummary> {
   const capturedOn = new Date().toISOString().slice(0, 10);
   const lookup = await loadLookup(db);
-  const games = {} as Record<Game, Omit<PriceSyncSummary, "capturedOn" | "games">>;
-  for (const game of GAMES) {
+  const games = {} as Record<SyncedGame, Omit<PriceSyncSummary, "capturedOn" | "games">>;
+  for (const game of SYNCED_GAMES) {
     // Group names alone don't say which game they came from, and both games
     // count their groups from one, so the progress line carries the label.
     const label = GAME_INFO[game].short;
@@ -446,7 +446,7 @@ export async function syncPrices(db: Db, opts: { onProgress?: (done: number, tot
       onProgress: opts.onProgress && ((done, total, name) => opts.onProgress!(done, total, `${label}: ${name}`)),
     });
   }
-  const total = (pick: (s: Omit<PriceSyncSummary, "capturedOn" | "games">) => number) => GAMES.reduce((n, g) => n + pick(games[g]), 0);
+  const total = (pick: (s: Omit<PriceSyncSummary, "capturedOn" | "games">) => number) => SYNCED_GAMES.reduce((n, g) => n + pick(games[g]), 0);
   return {
     capturedOn,
     games,

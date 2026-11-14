@@ -108,6 +108,12 @@ export const cards = pgTable(
     /** Awakened side of a leader; null for single-sided cards. */
     backImageUrl: text("back_image_url"),
     deckplanetId: integer("deckplanet_id"),
+    /**
+     * Game-specific card data that has no column. Pokémon only so far (`PokemonDetails` in
+     * src/lib/pokemon/types.ts): both names, stage, evolves-from, attacks, weakness, retreat,
+     * regulation mark, format legality, dex numbers and the source's ids. Null for the Bandai games.
+     */
+    details: jsonb("details"),
     /** Lower-cased "number name characters" for ILIKE search. */
     searchText: text("search_text").notNull(),
     /**
@@ -143,6 +149,16 @@ export const cardPrints = pgTable(
     imageUrl: text("image_url"),
     isBase: boolean("is_base").notNull().default(false),
     deckplanetId: integer("deckplanet_id"),
+    /**
+     * Pokémon only: the CardTrader blueprint of this variant and its Cardmarket price, both as the
+     * live source reports them when the card is stored and at each nightly refresh. Integer cents
+     * with a currency code, like every amount in the app.
+     */
+    ctBlueprintId: integer("ct_blueprint_id"),
+    marketCents: integer("market_cents"),
+    marketLowCents: integer("market_low_cents"),
+    marketCurrency: text("market_currency"),
+    marketAt: timestamp("market_at", { withTimezone: true }),
   },
   (t) => [index("card_prints_card_idx").on(t.cardId)],
 );
@@ -321,6 +337,8 @@ export const decks = pgTable(
     isBuilt: boolean("is_built").notNull().default(false),
     /** Experimental decks are opt-in in the game picker; existing decks stay normal. */
     isTesting: boolean("is_testing").notNull().default(false),
+    /** The format the deck is built for, for games that have formats (Pokémon: "standard" | "expanded"); null otherwise. */
+    format: text("format"),
     builtAt: timestamp("built_at", { withTimezone: true }),
     /** Where the built deck physically sits — the same list the copies use. */
     locationId: integer("location_id").references(() => storageLocations.id, { onDelete: "set null" }),
@@ -493,6 +511,30 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
     return "bytea";
   },
 });
+
+/**
+ * A person's own photo of a card, shown in place of the catalog picture
+ * (docs/pokemon/plan.md §5). One per print and owner; shrunk in the browser
+ * before upload, so `data` stays near 100 KB. Works for every game.
+ */
+export const cardPhotos = pgTable(
+  "card_photos",
+  {
+    id: serial("id").primaryKey(),
+    printId: text("print_id")
+      .notNull()
+      .references(() => cardPrints.id, { onDelete: "cascade" }),
+    cardId: text("card_id")
+      .notNull()
+      .references(() => cards.id, { onDelete: "cascade" }),
+    owner: text("owner"),
+    data: bytea("data").notNull(),
+    mime: text("mime").notNull().default("image/webp"),
+    bytes: integer("bytes").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("card_photos_owner_print_unique").on(t.owner, t.printId).nullsNotDistinct(), index("card_photos_card_idx").on(t.cardId)],
+);
 
 export const scanBatches = pgTable("scan_batches", {
   id: serial("id").primaryKey(),
@@ -1162,6 +1204,8 @@ export const players = pgTable("players", {
   name: text("name").notNull(),
   owner: text("owner").notNull(),
   createdBy: text("created_by"),
+  /** The game this player's app opens on and is limited to in navigation; null means the Dragon Ball default. */
+  homeGame: text("home_game"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

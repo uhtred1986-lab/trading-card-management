@@ -61,15 +61,16 @@ Keeping that is what lets reservations, the cart and the optimiser work for Pok�
   and one `card_prints` row per variant, inside the same transaction as the lot, deck line or wish
   that needs it. It is the only writer of Pokémon rows in `cards`.
 - Card id: `PKM-` + TCGdex id (`PKM-sv03.5-006`), one card whatever the language; print id adds
-  variant and language (`PKM-sv03.5-006_holo_de`), because a German and an English copy are
-  different things to own and to buy. Variants are tracked apart, condition is not (Q 8). The prefix
+  the variant (`PKM-sv03.5-006_holo`). The language of a copy is the lot's existing
+  `owned_cards.language`, so a German and an English copy are told apart without a second print. Variants are tracked apart, condition is not (Q 8). The prefix
   keeps the id space apart from Bandai's. The card row keeps both names (`details.names`).
 - Column mapping: `card_type` = POKEMON / TRAINER / ENERGY, `colors` = types, `power` = HP,
   `skill` = abilities and attacks as text, `rarity` as printed. Everything else Pokémon-specific
   (stage, `evolveFrom`, attacks, weakness, retreat, regulation mark, legality, dex number, language,
   third-party ids) goes into one new nullable **`cards.details jsonb`**.
-- New nullable columns only, from `db:generate`: `cards.details`, `cards.lang`,
-  `card_prints.ct_blueprint_id`. Nothing existing changes shape.
+- Additive only, from `db:generate` (migration 0063): `cards.details`, `card_prints.ct_blueprint_id`
+  and the four `market_*` price columns, `decks.format`, `players.home_game`, and the `card_photos`
+  table. Nothing existing changes shape.
 - A card nobody refers to any more stays as a row (deleting catalog rows is not worth a destructive
   path); a nightly refresh skips them.
 - Because Pokémon rows are written at request time, `ensurePokemonCard` expires the catalog cache
@@ -138,7 +139,8 @@ Size: a few hundred to a few thousand rows for one child's collection, against 2
 ## 8. Wishes, trading and buying
 
 - **Wish**: a heart on any card in search, viewer or deck writes `want_list` for the child.
-- **Owner's view**: `/cart` for an SL gains "Wishes of ‹player›". Today an SL sees a player's
+- **Owner's view**: `/cart` for an SL gains "Wünsche von ‹user name›" (owner's wording), one
+  entry per player who has wishes. Today an SL sees a player's
   decks but not their wishes, so this closes a real gap for the Dragon Ball games too.
 - **CardTrader**: Pokémon is a separate CardTrader game with far too many blueprints to sync.
   Instead the blueprint id arrives with the card from TCGdex (§3) and listings are fetched per
@@ -151,7 +153,8 @@ Size: a few hundred to a few thousand rows for one child's collection, against 2
 
 ## 9. Decisions (owner, 14 Nov 2026)
 
-1. **User:** she is 12 and has her own phone; she gets a player account of her own by join code.
+1. **User:** she is 12 and has her own phone; she gets a player account of her own by one-time
+   join code, as the app already does (`/join?c=CODE`; owner: "as in Gullet Cove").
 2. **Language:** her cards are German and English mixed, so search, voice and buying handle both.
    The Pokémon screens speak **German**; the Dragon Ball screens stay English.
 3. **Money:** she may see prices.
@@ -166,7 +169,8 @@ Size: a few hundred to a few thousand rows for one child's collection, against 2
 ## 10. Code improvements proposed alongside
 
 From the code map made for this plan. Items 1 to 4 are needed for Pokémon anyway; 5 to 8 are worth
-doing while the files are open; 9 and 10 are part of this delivery; 11 is a separate suggestion.
+doing while the files are open; 9 to 11 were suggestions. **All eleven are in this delivery** (owner,
+14 Nov 2026).
 
 1. **Per-game capabilities in `GAME_INFO`**, not branches. About 25 places test for `"fusion"` or
    `"dbs"` (card types, colours, deck zones, stat labels, external links, catalog and price source).
@@ -189,7 +193,9 @@ doing while the files are open; 9 and 10 are part of this delivery; 11 is a sepa
 10. **One reusable swipe viewer.** Built here for Pokémon, then offered on `/cards` and `/collection`
    for the Dragon Ball games.
 11. **Collection and decks offline.** Only the arena works offline today; a child's phone is often
-    without signal. Sized separately, not part of this delivery.
+    without signal. In this delivery (lane J): the service worker keeps the last-seen collection,
+    decks, wishes and their card pictures readable without a network; adding and editing still need
+    one and say so.
 
 ## 11. Delivery: one run, one PR
 
@@ -216,6 +222,7 @@ Owner's wish: cheaper models do the work in one go and one PR, with a stronger m
 | 2 | F. Wishes for SL, CardTrader by blueprint id and language, EUR prices | Sonnet | `marketplace/*`, `cart/*` |
 | 3 | G. Deck builder UI, format picker and "build around this card" | Sonnet | `DeckBuilder.tsx`, after B and D |
 | 3 | I. Claude features game-neutral: per-game adapter, TCGdex search tool, analysis, wizard, "Build a deck with Claude" | Sonnet, coordinator reviews the adapter shape first | `src/lib/ai/*`, `NewDeckWithClaude.tsx`, after A and B |
+| 3 | J. Collection, decks and wishes readable offline (service worker cache, offline notice) | Sonnet | `public/sw.js`, `ServiceWorker.tsx`, after D |
 | 3 | H. Docs (`CLAUDE.md`, architecture pages), `verify-rules` / `verify-db` cases, guards | Haiku | docs, `scripts/verify*` |
 
 Gate, once, on the combined head: `npm run checks -- full` with `--build`, `npm run shots:compare`

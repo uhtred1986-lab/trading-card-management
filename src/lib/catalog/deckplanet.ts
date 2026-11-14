@@ -20,15 +20,15 @@ import { cardPrints, cardSets, cards } from "@/db/schema";
 import { applyMastersLeaderImages, applyOfficialImages, fetchOfficialImageNames, mastersLeaderCandidates } from "./bandai";
 import { correctCardFields, correctSkillText, SPECIFIED_COST_CORRECTIONS, unmatchedCorrections, unmatchedFieldCorrections } from "./errata";
 import { staleSpecifiedCosts } from "@/lib/arena/specified-cost";
-import { GAMES, GAME_INFO, arenaPlays, type Game } from "./games";
+import { SYNCED_GAMES, arenaPlays, syncSource, type Game, type SyncedGame } from "./games";
 import { setCodeOfNumber, setLineFor, setNameFor, setSortKey } from "./sets";
 import { draftCards, reviewOpenRules } from "@/lib/arena/draft";
 import { countRules } from "@/lib/arena/rules-store";
 import { catalogPageUrl, fetchCatalogPages } from "./deckplanet-fetch";
 
 /** First page of a game's catalog (the API caps `limit` at 500; see deckplanet-fetch.ts). */
-export function catalogUrl(game: Game): string {
-  return catalogPageUrl(GAME_INFO[game].catalogPath, 1);
+export function catalogUrl(game: SyncedGame): string {
+  return catalogPageUrl(syncSource(game).catalogPath, 1);
 }
 
 /** The original game's catalog, kept as a constant for the sync script. */
@@ -344,8 +344,8 @@ export function shapeCatalog(raw: DpCard[], game: Game = "dbs"): ShapedCatalog {
 
 // ── fetch + persist ────────────────────────────────────────────────────────
 
-export async function fetchDeckplanet(game: Game = "dbs"): Promise<DpCard[]> {
-  return fetchCatalogPages<DpCard>(game, GAME_INFO[game].catalogPath);
+export async function fetchDeckplanet(game: SyncedGame = "dbs"): Promise<DpCard[]> {
+  return fetchCatalogPages<DpCard>(game, syncSource(game).catalogPath);
 }
 
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -373,7 +373,7 @@ export interface CatalogSyncSummary {
 }
 
 /** One summary per game, plus the totals, so the settings page reads at a glance. */
-export type CatalogSyncSummaries = CatalogSyncSummary & { games: Record<Game, CatalogSyncSummary> };
+export type CatalogSyncSummaries = CatalogSyncSummary & { games: Record<SyncedGame, CatalogSyncSummary> };
 
 /** HEAD-checks a batch of URLs and returns the ones that 404 or error. */
 async function findBrokenImages(urls: Iterable<string>, concurrency: number): Promise<Set<string>> {
@@ -604,7 +604,7 @@ async function draftTouched(db: Db, game: Game, touched: string[], opts: Catalog
 }
 
 /** One game's catalog, end to end. */
-export async function syncCatalogFor(db: Db, game: Game, opts: CatalogSyncOptions = {}): Promise<CatalogSyncSummary> {
+export async function syncCatalogFor(db: Db, game: SyncedGame, opts: CatalogSyncOptions = {}): Promise<CatalogSyncSummary> {
   const raw = await fetchDeckplanet(game);
   // Every typo in `errata.ts` is a claim about what the source says today. This
   // is the one moment the source is in hand, so it is the only place the claim
@@ -648,11 +648,11 @@ export async function syncCatalogFor(db: Db, game: Game, opts: CatalogSyncOption
   return { ...imported, ...(await draftTouched(db, game, touched, opts)), backImages, frontImages, officialImages };
 }
 
-/** Both games, in order. A failure on either aborts the whole sync run. */
+/** Both synced games, in order (Pokémon has no imported catalog). A failure on either aborts the whole sync run. */
 export async function syncCatalog(db: Db, opts: CatalogSyncOptions = {}): Promise<CatalogSyncSummaries> {
-  const games = {} as Record<Game, CatalogSyncSummary>;
-  for (const game of GAMES) games[game] = await syncCatalogFor(db, game, opts);
-  const total = (pick: (s: CatalogSyncSummary) => number) => GAMES.reduce((n, g) => n + pick(games[g]), 0);
+  const games = {} as Record<SyncedGame, CatalogSyncSummary>;
+  for (const game of SYNCED_GAMES) games[game] = await syncCatalogFor(db, game, opts);
+  const total = (pick: (s: CatalogSyncSummary) => number) => SYNCED_GAMES.reduce((n, g) => n + pick(games[g]), 0);
   return {
     games,
     sets: total((s) => s.sets),

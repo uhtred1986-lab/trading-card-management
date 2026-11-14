@@ -19,13 +19,13 @@
  * `sync_runs` row, same as a catalog or price sync failure, rather than
  * crashing anything else.
  */
-import type { Game } from "@/lib/catalog/games";
+import type { SyncedGame } from "@/lib/catalog/games";
 
 const BASE = "https://www.deckplanet.net";
 const USER_AGENT = "Mozilla/5.0 DBSCardCompanion/0.1 (+https://github.com)";
 
 /** deckplanet's own path segment for each game's dashboard — distinct from GAME_INFO.catalogPath, which points at the cardsearch API. */
-const DASHBOARD_PATH: Record<Game, string> = { dbs: "dbs_masters", fusion: "fusion_world" };
+const DASHBOARD_PATH: Record<SyncedGame, string> = { dbs: "dbs_masters", fusion: "fusion_world" };
 
 export interface DpPlacement {
   deckId: string;
@@ -139,7 +139,7 @@ interface RawLeader {
   card_name: string;
 }
 
-export async function fetchDashboardEvents(game: Game): Promise<{ events: DpEvent[]; leaders: Map<string, DpLeader> }> {
+export async function fetchDashboardEvents(game: SyncedGame): Promise<{ events: DpEvent[]; leaders: Map<string, DpLeader> }> {
   const html = await fetchHtml(`${DASHBOARD_PATH[game]}/dashboard`);
   const text = decodeNextChunks(html);
 
@@ -166,7 +166,7 @@ interface RawDeckCard {
   card_id: { card_number: string; card_name: string };
 }
 
-export async function fetchDeckCards(game: Game, deckId: string): Promise<DpDeckCard[]> {
+export async function fetchDeckCards(game: SyncedGame, deckId: string): Promise<DpDeckCard[]> {
   const html = await fetchHtml(`${DASHBOARD_PATH[game]}/deck/${deckId}`);
   const text = decodeNextChunks(html);
 
@@ -183,10 +183,10 @@ export async function fetchDeckCards(game: Game, deckId: string): Promise<DpDeck
     }));
 }
 
-export function dashboardEventUrl(game: Game, eventId: string): string {
+export function dashboardEventUrl(game: SyncedGame, eventId: string): string {
   return `${BASE}/${DASHBOARD_PATH[game]}/meta/event/${eventId}`;
 }
 
-export function dashboardDeckUrl(game: Game, deckId: string): string {
+export function dashboardDeckUrl(game: SyncedGame, deckId: string): string {
   return `${BASE}/${DASHBOARD_PATH[game]}/deck/${deckId}`;
 }

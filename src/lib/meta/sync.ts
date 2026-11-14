@@ -7,7 +7,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cards, metaEvents, metaResultCards, metaResults } from "@/db/schema";
-import { GAMES } from "@/lib/catalog/games";
+import { SYNCED_GAMES } from "@/lib/catalog/games";
 import { dashboardDeckUrl, dashboardEventUrl, fetchDashboardEvents, fetchDeckCards } from "./deckplanet-results";
 
 export interface MetaSyncSummary {
@@ -37,7 +37,7 @@ export async function syncMeta(db: Db): Promise<MetaSyncSummary> {
   let cardsMatched = 0;
   let cardsUnmatched = 0;
 
-  for (const game of GAMES) {
+  for (const game of SYNCED_GAMES) {
     const { events: dpEvents, leaders } = await fetchDashboardEvents(game);
 
     for (const ev of dpEvents) {
