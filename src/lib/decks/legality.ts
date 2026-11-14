@@ -11,6 +11,8 @@ import { eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks } from "@/db/schema";
 import { DEFAULT_GAME, deckRules, gameInfo, gameOr, type Game } from "@/lib/catalog/games";
+import { pokemonDetails } from "@/lib/pokemon/types";
+import { pokemonLegality } from "./pokemonLegality";
 import { deckBuildingOf, hasKeyword, matchesCardFilter, rulesFor, type DeckBuildingRule } from "./cardRules";
 
 /**
@@ -35,7 +37,8 @@ export const RULES = deckRules(DEFAULT_GAME);
 /** "42/50" while the deck is still short, just the count once it is in range. */
 export function mainCountLabel(n: number, game: Game = DEFAULT_GAME): string {
   const r = deckRules(game);
-  return n < r.main ? `${n}/${r.main}` : `${n}`;
+  // A game with one exact size (Pokémon: 60) shows "60/60" so the full deck reads as full.
+  return n < r.main || r.main === r.mainMax ? `${n}/${r.main}` : `${n}`;
 }
 
 /** Whether a main-deck count is inside the game's legal range. */
@@ -69,6 +72,8 @@ export interface LegalityCard {
    * deal with one game; a card whose game differs from the deck's is flagged.
    */
   game?: Game;
+  /** `cards.details` (Pokémon: `PokemonDetails`); read by the Pokémon rules, ignored for the Bandai games. */
+  details?: unknown;
 }
 
 export interface DeckIssue {
@@ -108,14 +113,26 @@ export const STATUS_LABEL: Record<DeckStatus, string> = {
   illegal: "Illegal",
 };
 
-export function copyLimit(card: { zone?: string; limitedTo: number | null }, game: Game = DEFAULT_GAME): number {
-  if (card.zone === "leader") return 1;
-  return card.limitedTo ?? deckRules(game).copies;
+/**
+ * Copies of one card a deck may hold. Per card number for Bandai; Pokémon counts the name across
+ * printings (`legality` does that), so this is the per-row figure the +/- control stops at, with
+ * basic Energy unlimited.
+ */
+export function copyLimit(card: { zone?: string; limitedTo: number | null; details?: unknown }, game: Game = DEFAULT_GAME): number {
+  const rules = deckRules(game);
+  if (card.zone === "leader" && rules.leader) return 1;
+  if (rules.copiesBy === "name" && pokemonDetails(card.details).basicEnergy) return Number.POSITIVE_INFINITY;
+  return card.limitedTo ?? rules.copies;
 }
 
-export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckLegality {
+/**
+ * Labels a deck; never blocks. `format` is the deck's `decks.format` (Pokémon: "standard" by default;
+ * ignored by the Bandai games).
+ */
+export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME, format?: string | null): DeckLegality {
   const info = gameInfo(game);
   const RULES = info.deck;
+  if (RULES.ruleset === "pokemon") return pokemonLegality(rows, game, format);
   const issues: DeckIssue[] = [];
   const flags: Record<string, DeckFlag> = {};
   const flag = (r: LegalityCard, severity: IssueSeverity, label: string, quiet = false) => {
@@ -162,7 +179,7 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
   // Pooled keyword limits ([Dragon Ball], [Super Combo], Masters [Ultimate]).
   const allRules = rulesFor(rows);
   // [Ultimate] is a Masters keyword limit, not a cross-brand deck rule.
-  const rules = game === "dbs" ? allRules : allRules.filter((rule) => rule.keyword.toLowerCase() !== "ultimate");
+  const rules = RULES.printedRules ? allRules : allRules.filter((rule) => rule.keyword.toLowerCase() !== "ultimate");
   const keywordRules: KeywordRuleUse[] = [];
   for (const rule of rules) {
     const members = rows.filter((r) => r.zone !== "side" && hasKeyword(r, rule.keyword));
@@ -177,7 +194,7 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
   const copyLimitWaived = (row: LegalityCard) => rules.some((r) => r.unlimitedCopies && hasKeyword(row, r.keyword));
 
   // Deck-building clauses printed on the cards (#1146). The original game only: Fusion World prints none.
-  const printed = (r: LegalityCard): DeckBuildingRule[] => (game === "dbs" ? [...deckBuildingOf(r.skill).rules, ...deckBuildingOf(r.backSkill).rules] : []);
+  const printed = (r: LegalityCard): DeckBuildingRule[] => (RULES.printedRules ? [...deckBuildingOf(r.skill).rules, ...deckBuildingOf(r.backSkill).rules] : []);
   const copyRulesOf = (r: LegalityCard) => printed(r).filter((x): x is Extract<DeckBuildingRule, { kind: "copies" }> => x.kind === "copies");
 
   for (const { n, row } of perCard.values()) {
@@ -202,7 +219,7 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
   }
 
   // The Leader's restrictions (front and back) and the pooled limits any card prints.
-  if (game === "dbs") {
+  if (RULES.printedRules) {
     const inDeck = rows.filter((r) => r.zone !== "side" && r.zone !== "leader" && (!r.game || r.game === game));
     for (const leader of rows.filter((r) => r.zone === "leader" && (!r.game || r.game === game))) {
       for (const rule of printed(leader)) {
@@ -250,8 +267,8 @@ export function legality(rows: LegalityCard[], game: Game = DEFAULT_GAME): DeckL
     const isLeaderCard = r.cardType === "LEADER";
     if (r.zone === "leader" && !isLeaderCard) flag(r, "illegal", "not a Leader card");
     if (r.zone !== "leader" && isLeaderCard) flag(r, "illegal", "Leader cards belong in the leader slot");
-    if (game === "dbs" && r.zone === "main" && r.cardType.startsWith("Z-")) flag(r, "illegal", "Z-Cards belong in the Z-Deck");
-    if (game === "dbs" && r.zone === "leader" && r.cardType.startsWith("Z-")) flag(r, "illegal", "Z-Cards belong in the Z-Deck, not the Leader slot");
+    if (RULES.zMax > 0 && r.zone === "main" && r.cardType.startsWith("Z-")) flag(r, "illegal", "Z-Cards belong in the Z-Deck");
+    if (RULES.zMax > 0 && r.zone === "leader" && r.cardType.startsWith("Z-")) flag(r, "illegal", "Z-Cards belong in the Z-Deck, not the Leader slot");
     if (r.zone === "z" && !r.cardType.startsWith("Z-")) flag(r, "illegal", "only Z- cards go in the Z-Deck");
     if (r.zone !== "leader" && leaderColors.size > 0 && r.colors.length > 0 && !r.colors.includes("Colorless") && !r.colors.some((c) => leaderColors.has(c))) {
       // Fusion World forbids off-colour cards outright; the original game
@@ -288,19 +305,21 @@ export async function legalityForDecks(db: Db, deckIds: number[]): Promise<Map<n
         characters: cards.characters,
         energyCost: cards.energyCost,
         game: cards.game,
+        details: cards.details,
       })
       .from(deckCards)
       .innerJoin(cards, eq(cards.id, deckCards.cardId))
       .where(inArray(deckCards.deckId, deckIds)),
-    db.select({ id: decks.id, game: decks.game }).from(decks).where(inArray(decks.id, deckIds)),
+    db.select({ id: decks.id, game: decks.game, format: decks.format }).from(decks).where(inArray(decks.id, deckIds)),
   ]);
   const gameOf = new Map(deckGames.map((d) => [d.id, gameOr(d.game)]));
+  const formatOf = new Map(deckGames.map((d) => [d.id, d.format]));
   const byDeck = new Map<number, LegalityCard[]>();
   for (const r of rows) {
     const list = byDeck.get(r.deckId) ?? [];
     list.push({ ...r, game: gameOr(r.game) });
     byDeck.set(r.deckId, list);
   }
-  for (const id of deckIds) out.set(id, legality(byDeck.get(id) ?? [], gameOf.get(id)));
+  for (const id of deckIds) out.set(id, legality(byDeck.get(id) ?? [], gameOf.get(id), formatOf.get(id)));
   return out;
 }

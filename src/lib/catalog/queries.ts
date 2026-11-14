@@ -3,18 +3,18 @@ import type { Db } from "@/db";
 import { cardPrints, cardSets, cards, ownedCards } from "@/db/schema";
 import { abilityKeywordsOf } from "./abilityKeywords";
 import { sameKeyword } from "@/lib/decks/cardRules";
-import { GAME_INFO, type Game } from "./games";
+import { GAMES, GAME_INFO, type Game } from "./games";
 
-/** Card types across both games; Fusion World adds ENERGY MARKER and has no Z- types. */
-export const CARD_TYPES = ["LEADER", "BATTLE", "EXTRA", "UNISON", "Z-LEADER", "Z-BATTLE", "Z-EXTRA", "Z-UNISON", "TOKEN", "ENERGY MARKER"];
-export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"];
-
-/** The types a game actually prints, for the type dropdown. */
+/** The types a game prints, for the type dropdown: its deck card types, then the ones that never sit in a deck. */
 export function cardTypesFor(game?: Game): string[] {
   if (!game) return CARD_TYPES;
-  const fusion = ["LEADER", "BATTLE", "EXTRA", "ENERGY MARKER"];
-  return game === "fusion" ? fusion : CARD_TYPES.filter((t) => t !== "ENERGY MARKER");
+  const info = GAME_INFO[game];
+  return [...info.cardTypes, ...info.nonDeckTypes];
 }
+
+/** Card types across every game, in first-seen order. */
+export const CARD_TYPES: string[] = [...new Set(GAMES.flatMap((g) => cardTypesFor(g)))];
+export const COLORS = ["Red", "Blue", "Green", "Yellow", "Black", "White", "Colorless"];
 
 export interface CardSearch {
   q?: string;

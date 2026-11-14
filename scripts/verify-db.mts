@@ -376,6 +376,141 @@ assert.equal(priceForFinish(prices.get("BT18-020_SPR"), "foil"), 199);
   assert.ok((await breakdown(db, {}, pre)).byGame.length >= 2, "the seeded collection spans both games");
 }
 
+// ── Pokémon decks: zones, format, reservations ─────────────────────────────
+// The third game rides the same tables. Its rows are written by the live-catalog
+// code; here they are inserted directly with a `details` of the PokemonDetails shape.
+{
+  const { eq } = await import("drizzle-orm");
+  const { legalityForDecks } = await import("../src/lib/decks/legality.ts");
+  const { addCardsToDeck } = await import("../src/lib/decks/add.ts");
+  const { getDeck, listDecks } = await import("../src/lib/decks/queries.ts");
+  const { setDeckFormat } = await import("../src/lib/decks/format.ts");
+
+  await db.insert(schema.cardSets).values({ code: "PKM-sv03.5", name: "151", game: "pokemon", line: "pokemon", sortKey: 1 });
+  const details = (o: Record<string, unknown> = {}) => ({
+    tcgdexId: "x",
+    localId: "001",
+    setTotal: 165,
+    names: {},
+    setNames: {},
+    stage: null,
+    basicEnergy: false,
+    onePerDeck: null,
+    legal: { standard: true, expanded: true },
+    ...o,
+  });
+  const pk = (id: string, name: string, cardType: string, d: Record<string, unknown> = {}) => ({
+    id,
+    setCode: "PKM-sv03.5",
+    game: "pokemon",
+    name,
+    cardType,
+    rarity: "Common",
+    rarityCode: "C",
+    searchText: `${id} ${name}`.toLowerCase(),
+    details: details(d),
+  });
+  await db.insert(schema.cards).values([
+    pk("PKM-sv03.5-004", "Glutexo", "POKEMON", { stage: "Basic", names: { de: "Glutexo", en: "Charmander" } }),
+    pk("PKM-sv03.5-005", "Glutessa", "POKEMON", { stage: "Stage1", names: { en: "Charmeleon" } }),
+    pk("PKM-sv03.5-165", "Boss-Befehl", "TRAINER", { stage: "Supporter" }),
+    pk("PKM-sve-002", "Feuer-Energie", "ENERGY", { stage: "Basic", basicEnergy: true }),
+  ]);
+  const baseId = ["PKM-sv03.5-004", "PKM-sv03.5-005", "PKM-sv03.5-165", "PKM-sve-002"];
+  await db.insert(schema.cardPrints).values(baseId.map((id) => ({ id, cardId: id, suffix: "", label: "Standard", rarity: "C", isBase: true })));
+
+  const [deck] = await db.insert(schema.decks).values({ name: "Feuer", game: "pokemon", format: "standard", owner: "mia" }).returning({ id: schema.decks.id });
+  // Bought in this order, so the stored order is not the display order.
+  const r = await addCardsToDeck(db, deck.id, [
+    { cardId: "PKM-sve-002", quantity: 44 },
+    { cardId: "PKM-sv03.5-165", quantity: 4 },
+    { cardId: "PKM-sv03.5-005", quantity: 4 },
+    { cardId: "PKM-sv03.5-004", quantity: 4 },
+  ]);
+  assert.equal(r.added, 56);
+  const lines = await db.select().from(schema.deckCards).where(eq(schema.deckCards.deckId, deck.id));
+  assert.ok(lines.every((l) => l.zone === "main"), "every Pokémon card lands in the main deck");
+  // 56 now; a fifth Boss-Befehl and a Leader card are added, never refused or dropped.
+  await addCardsToDeck(db, deck.id, [{ cardId: "PKM-sv03.5-165", quantity: 1 }]);
+  const afterFifth = (await legalityForDecks(db, [deck.id])).get(deck.id)!;
+  assert.equal(afterFifth.mainCount, 57, "the over-limit copy was added, not dropped");
+  assert.equal(afterFifth.flags["main:PKM-sv03.5-165"]?.severity, "illegal");
+  assert.equal(afterFifth.flags["main:PKM-sv03.5-165"]?.label, "Höchstens 4 Karten mit dem Namen Boss-Befehl (du hast 5)");
+  assert.ok(afterFifth.issues.some((i) => i.message === "Noch 3 Karten bis 60"));
+  await db.update(schema.deckCards).set({ quantity: 4 }).where(eq(schema.deckCards.cardId, "PKM-sv03.5-165"));
+  await addCardsToDeck(db, deck.id, [{ cardId: "PKM-sve-002", quantity: 4 }]);
+
+  const full = (await legalityForDecks(db, [deck.id])).get(deck.id)!;
+  assert.equal(full.mainCount, 60);
+  assert.equal(full.status, "legal", full.issues.map((i) => i.message).join("; "));
+
+  // Deck page data: the format comes back, and the cards read Pokémon (Basic, Stage 1), Trainer, Energy.
+  const page = (await getDeck(db, deck.id))!;
+  assert.equal(page.format, "standard");
+  assert.equal(page.game, "pokemon");
+  assert.deepEqual(page.cards.map((c) => c.cardId), ["PKM-sv03.5-004", "PKM-sv03.5-005", "PKM-sv03.5-165", "PKM-sve-002"]);
+  assert.equal(page.legality.status, "legal");
+  const listed = (await listDecks(db, { game: "pokemon" })).find((d) => d.id === deck.id)!;
+  assert.equal(listed.format, "standard");
+  assert.equal(listed.mainCount, 60);
+
+  // The format is stored and changes what is flagged: a card out of Standard only.
+  await db.update(schema.cards).set({ details: details({ stage: "Stage1", names: { en: "Charmeleon" }, legal: { standard: false, expanded: true } }) }).where(eq(schema.cards.id, "PKM-sv03.5-005"));
+  const rotated = (await legalityForDecks(db, [deck.id])).get(deck.id)!;
+  assert.equal(rotated.status, "illegal");
+  assert.equal(rotated.flags["main:PKM-sv03.5-005"]?.label, "Im Standard-Format nicht mehr erlaubt");
+  assert.deepEqual(await setDeckFormat(db, deck.id, "expanded"), { ok: true, format: "expanded" });
+  assert.equal((await db.query.decks.findFirst({ where: eq(schema.decks.id, deck.id) }))!.format, "expanded");
+  assert.equal((await legalityForDecks(db, [deck.id])).get(deck.id)!.status, "legal", "legal in Expanded");
+  const bad = await setDeckFormat(db, deck.id, "unlimited");
+  assert.equal(bad.ok, false);
+  assert.equal((await db.query.decks.findFirst({ where: eq(schema.decks.id, deck.id) }))!.format, "expanded", "a format the game does not have changes nothing");
+  assert.equal((await setDeckFormat(db, 999999, "standard")).ok, false, "unknown deck");
+  const [bandaiDeck] = await db.insert(schema.decks).values({ name: "Bandai" }).returning({ id: schema.decks.id });
+  assert.equal((await setDeckFormat(db, bandaiDeck.id, "standard")).ok, false, "a Dragon Ball deck has no formats");
+  assert.equal((await db.query.decks.findFirst({ where: eq(schema.decks.id, bandaiDeck.id) }))!.format, null);
+
+  // Unknown legality (details without `legal`) is a warning, not a guess.
+  await db.update(schema.cards).set({ details: { stage: "Basic", names: { en: "Charmander" }, basicEnergy: false, onePerDeck: null } }).where(eq(schema.cards.id, "PKM-sv03.5-004"));
+  const unknownLegal = (await legalityForDecks(db, [deck.id])).get(deck.id)!;
+  assert.equal(unknownLegal.flags["main:PKM-sv03.5-004"]?.severity, "warning");
+  assert.equal(unknownLegal.status, "legal");
+  await db.update(schema.cards).set({ details: details({ stage: "Basic", names: { de: "Glutexo", en: "Charmander" } }) }).where(eq(schema.cards.id, "PKM-sv03.5-004"));
+
+  // Reservations work as for the Bandai games: a built deck reserves only its owner's copies.
+  const lot = (cardId: string, n: number, owner: string) => expand({ printId: cardId, cardId, owner }, n);
+  await db.insert(schema.ownedCards).values([
+    ...lot("PKM-sv03.5-004", 4, "mia"),
+    ...lot("PKM-sv03.5-005", 4, "mia"),
+    ...lot("PKM-sv03.5-165", 4, "mia"),
+    ...lot("PKM-sve-002", 48, "mia"),
+  ]);
+  assert.deepEqual(await buildConflicts(db, deck.id), [], "mia owns everything her deck needs");
+  await db.update(schema.decks).set({ isBuilt: true, builtAt: new Date() }).where(eq(schema.decks.id, deck.id));
+  assert.deepEqual(await buildConflicts(db, deck.id), [], "an already-built deck re-checks clean");
+  const mia = await allocationForCards(db, ["PKM-sv03.5-004", "PKM-sve-002"], "mia");
+  assert.deepEqual(mia.get("PKM-sv03.5-004"), { owned: 4, reserved: 4, available: 0 });
+  assert.deepEqual(mia.get("PKM-sve-002"), { owned: 48, reserved: 48, available: 0 });
+  // The deck page counts the deck owner's copies.
+  assert.deepEqual((await getDeck(db, deck.id))!.cards.find((c) => c.cardId === "PKM-sv03.5-004")!.alloc, { owned: 4, reserved: 4, available: 0 });
+
+  // A second deck of hers that wants one more Glutexo cannot be built: over-reserving is the one thing refused.
+  const [second] = await db.insert(schema.decks).values({ name: "Feuer 2", game: "pokemon", format: "standard", owner: "mia" }).returning({ id: schema.decks.id });
+  await addCardsToDeck(db, second.id, [{ cardId: "PKM-sv03.5-004", quantity: 1 }]);
+  const over = await buildConflicts(db, second.id);
+  assert.equal(over.length, 1);
+  assert.deepEqual({ cardId: over[0].cardId, needed: over[0].needed, owned: over[0].owned, reservedElsewhere: over[0].reservedElsewhere, short: over[0].short }, { cardId: "PKM-sv03.5-004", needed: 1, owned: 4, reservedElsewhere: 4, short: 1 });
+  // Another player's deck does not touch hers, and hers does not cover his: only the deck owner's lots count.
+  const [his] = await db.insert(schema.decks).values({ name: "Max", game: "pokemon", format: "standard", owner: "max" }).returning({ id: schema.decks.id });
+  await addCardsToDeck(db, his.id, [{ cardId: "PKM-sv03.5-004", quantity: 1 }]);
+  assert.equal((await buildConflicts(db, his.id))[0]?.owned, 0, "Mia's copies are not Max's");
+  await db.insert(schema.ownedCards).values(lot("PKM-sv03.5-004", 1, "max"));
+  assert.deepEqual(await buildConflicts(db, his.id), [], "his own copy covers his deck; her built deck does not reserve it");
+  // Taking the built deck apart frees her copies again.
+  await db.update(schema.decks).set({ isBuilt: false }).where(eq(schema.decks.id, deck.id));
+  assert.deepEqual(await buildConflicts(db, second.id), []);
+}
+
 // ── What the compiler cannot read is on the rule, and so is the brief ──────
 // `card_text_notes` held both the measurement and the writing about it. The
 // measurement has been on `card_rules.unread` since the rules became records,

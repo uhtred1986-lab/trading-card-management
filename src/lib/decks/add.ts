@@ -34,11 +34,13 @@ export async function deckOptions(db: Db, opts: { game?: Game; scope?: OwnerScop
 /**
  * Where a card lands when it is added without a zone being chosen. A game with
  * no Z-Deck has nowhere else to put a Z- card, so it goes to the main deck and
- * is flagged there — visible beats vanished.
+ * is flagged there — visible beats vanished. The same goes for a Leader in a
+ * game without a Leader slot: every Pokémon card lands in the main deck.
  */
 export function zoneForType(cardType: string, game: Game = "dbs"): Zone {
-  if (cardType === "LEADER") return "leader";
-  if (cardType.startsWith("Z-") && deckRules(game).zMax > 0) return "z";
+  const rules = deckRules(game);
+  if (cardType === "LEADER" && rules.leader) return "leader";
+  if (cardType.startsWith("Z-") && rules.zMax > 0) return "z";
   return "main";
 }
 

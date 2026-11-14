@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cards, deckCards, decks, storageLocations } from "@/db/schema";
-import { deckRules, gameOr, type Game } from "@/lib/catalog/games";
+import { deckRules, gameInfo, gameOr, type Game } from "@/lib/catalog/games";
+import { pokemonDetails } from "@/lib/pokemon/types";
 import { allocationForCards, type Allocation } from "./reservations";
 import { deckScope, type OwnerScope } from "@/lib/collection/scope";
 import { legality, legalityForDecks, RULES } from "./legality";
@@ -26,7 +27,39 @@ export const ZONE_LABEL: Record<Zone, string> = {
  * loses cards silently.
  */
 export function zonesFor(game: Game): Zone[] {
-  return deckRules(game).zMax === 0 ? ZONES.filter((z) => z !== "z") : [...ZONES];
+  const rules = deckRules(game);
+  return ZONES.filter((z) => (z !== "z" || rules.zMax > 0) && (z !== "leader" || rules.leader));
+}
+
+/** Where evolution stages sort in a Pokémon deck: Basic first, then Stage 1, Stage 2, the rest after. */
+const STAGE_ORDER = ["Basic", "Stage1", "Stage2"];
+
+/**
+ * The deck-list groups of a game: Pokémon / Trainer / Energy for Pokémon (the game's card types, in
+ * order), null for the Bandai games, whose groups are the zones.
+ */
+export function cardGroupsFor(game: Game): readonly string[] | null {
+  return deckRules(game).copiesBy === "name" ? gameInfo(game).cardTypes : null;
+}
+
+/**
+ * Pokémon deck order: by group (Pokémon, Trainer, Energy), Pokémon by evolution stage, then name.
+ * Stable for every other game (returns the rows unchanged).
+ */
+export function sortDeckRows<T extends { zone: string; cardType: string; name: string; details?: unknown }>(rows: T[], game: Game): T[] {
+  const groups = cardGroupsFor(game);
+  if (!groups) return rows;
+  const group = (r: T) => {
+    const i = groups.indexOf(r.cardType);
+    return i < 0 ? groups.length : i;
+  };
+  const stage = (r: T) => {
+    const s = pokemonDetails(r.details).stage;
+    const i = s ? STAGE_ORDER.indexOf(s) : -1;
+    return r.cardType === "POKEMON" ? (i < 0 ? STAGE_ORDER.length : i) : 0;
+  };
+  const zones = ZONES as readonly string[];
+  return [...rows].sort((a, b) => zones.indexOf(a.zone) - zones.indexOf(b.zone) || group(a) - group(b) || stage(a) - stage(b) || a.name.localeCompare(b.name));
 }
 
 export interface CardDeckMembership {
@@ -70,6 +103,7 @@ export async function listDecks(db: Db, opts: { game?: Game; games?: readonly Ga
       name: decks.name,
       game: decks.game,
       description: decks.description,
+      format: decks.format,
       isBuilt: decks.isBuilt,
       isTesting: decks.isTesting,
       updatedAt: decks.updatedAt,
@@ -124,6 +158,8 @@ export interface DeckCardRow {
   traits: string[];
   /** The card's own game — a mismatch with the deck's is flagged by `legality`. */
   game: Game;
+  /** `cards.details`: Pokémon's stage, legality and one-per-deck marks; null for the Bandai games. */
+  details: unknown;
   alloc: Allocation;
 }
 
@@ -157,6 +193,7 @@ export async function getDeck(db: Db, id: number, viewer?: OwnerScope) {
         backSkill: cards.backSkill,
         characters: cards.characters,
         traits: cards.traits,
+        details: cards.details,
       })
       .from(deckCards)
       .innerJoin(cards, eq(cards.id, deckCards.cardId))
@@ -168,8 +205,11 @@ export async function getDeck(db: Db, id: number, viewer?: OwnerScope) {
   const game = gameOr(deck.game);
 
   const alloc = await allocationForCards(db, [...new Set(rows.map((r) => r.cardId))], deck.owner);
-  const cardsOut: DeckCardRow[] = rows.map((r) => ({ ...r, zone: r.zone as Zone, game: gameOr(r.game), alloc: alloc.get(r.cardId)! }));
-  return { ...deck, game, cards: cardsOut, legality: legality(cardsOut, game) };
+  const cardsOut: DeckCardRow[] = sortDeckRows(
+    rows.map((r) => ({ ...r, zone: r.zone as Zone, game: gameOr(r.game), alloc: alloc.get(r.cardId)! })),
+    game,
+  );
+  return { ...deck, game, cards: cardsOut, legality: legality(cardsOut, game, deck.format) };
 }
 
 /** Plain-text decklist for prompts and export: "4 BT18-020 Omega Shenron, …". */

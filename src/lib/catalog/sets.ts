@@ -12,9 +12,9 @@
  * the original game uses BT/EX/SD/TB/EB/DB/XD/P — so a card number on its own
  * says which game a card belongs to.
  */
-import { DEFAULT_GAME, type Game } from "./games";
+import { DEFAULT_GAME, GAME_INFO, type Game } from "./games";
 
-export type SetLine = "legacy" | "masters" | "fusion";
+export type SetLine = "legacy" | "masters" | "fusion" | "pokemon";
 
 const MASTERS_FROM_BT = 26;
 const MASTERS_FROM_DATE = "2024-10-01";
@@ -178,6 +178,8 @@ const FUSION_FAMILIES = ["FB", "FS", "SB", "ST", "FP", "E"];
  * before it is read as the "E" family plus a number.
  */
 export function gameOfSetCode(code: string): Game {
+  // Pokémon set codes are `PKM-<TCGdex set id>`; a card id's prefix ("PKM") reads the same.
+  if (code === "PKM" || code.startsWith("PKM-")) return "pokemon";
   if (FIXED_FUSION[code]) return "fusion";
   const { family } = splitCode(code);
   return FUSION_FAMILIES.includes(family) ? "fusion" : DEFAULT_GAME;
@@ -222,8 +224,9 @@ export function setSortKey(code: string): number {
 }
 
 export function setLineFor(code: string, releasedOn: string | null): SetLine {
-  // Fusion World has only ever had the one line, so its sets are never split.
-  if (gameOfSetCode(code) === "fusion") return "fusion";
+  // A game with one line (Fusion World, Pokémon) never splits its sets.
+  const info = GAME_INFO[gameOfSetCode(code)];
+  if (!info.lineByDate) return info.currentLine as SetLine;
   const { family, num } = splitCode(code);
   if (family === "BT") return num >= MASTERS_FROM_BT ? "masters" : "legacy";
   if (releasedOn && releasedOn >= MASTERS_FROM_DATE) return "masters";
@@ -235,7 +238,7 @@ export function setLineFor(code: string, releasedOn: string | null): SetLine {
  * buying today", as opposed to the whole back catalogue.
  */
 export function currentLineFor(game: Game): SetLine {
-  return game === "fusion" ? "fusion" : "masters";
+  return GAME_INFO[game].currentLine;
 }
 
 /** "BT18-020" → "BT18"; "T_CLO_01" → "TOKEN"; "P-181" → "P". */
