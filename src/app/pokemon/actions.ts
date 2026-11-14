@@ -19,6 +19,9 @@ function revalidateCard(tcgdexId: string, deckId?: number | null) {
   revalidatePath("/");
   revalidatePath("/collection");
   revalidatePath("/decks");
+  // The Pokémon screens read the same rows.
+  revalidatePath("/pokemon");
+  revalidatePath("/pokemon/wishes");
   revalidatePath(`/cards/${encodeURIComponent(pokemonCardId(tcgdexId))}`);
   if (deckId) revalidatePath(`/decks/${deckId}`);
 }
