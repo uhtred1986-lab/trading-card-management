@@ -21,7 +21,8 @@ import { gridCells, matchPokemon, parsePrintedNumber, pokemonScanQueries, varian
 import { handlePokemonScan, identifyPokemonCards } from "../../src/lib/pokemon/scan.ts";
 import { recordFromTcgdex, type TcgdexCard } from "../../src/lib/pokemon/tcgdex.ts";
 import type { PokemonHit } from "../../src/lib/pokemon/types.ts";
-import { parseSpokenPokemon } from "../../src/lib/pokemon/voice.ts";
+import { parseSpokenPokemon, spokenCodeLetters } from "../../src/lib/pokemon/voice.ts";
+import { localIdCandidates, numberCandidates, parseCardIdQuery, readingOrder } from "../../src/lib/pokemon/card-id.ts";
 import { SPEECH_LANG_KEY, defaultSpeechLang, readSpeechLang, rememberSpeechLang, speechLangCode } from "../../src/lib/scan/speech-lang.ts";
 import { parseSpoken } from "../../src/lib/scan/voice.ts";
 import type { Db } from "../../src/db/index.ts";
@@ -110,6 +111,92 @@ const hitOf = (id: string): PokemonHit => recordFromTcgdex(card(id, "de"), card(
 
   // The Dragon Ball parser is not touched.
   assert.equal(parseSpoken("BT eighteen zero twenty times four").options[0].cardId, "BT18-020");
+}
+
+// ── Codes printed at the bottom: set code + number, collector ID ─────────────
+
+{
+  const known = new Set(["MEW"]);
+  const q = (text: string, lang: "de" | "en" = "de", setCodes?: ReadonlySet<string>) => parseSpokenPokemon(text, lang, { setCodes }).options.map((o) => o.query);
+
+  // Typed forms (the search field and `searchPokemon` read them the same way).
+  assert.deepEqual(parseCardIdQuery("MEW 6"), { letters: "MEW", digits: "6", number: 6, spaced: true, caps: true, size: null, sizeLetters: "" });
+  assert.deepEqual(parseCardIdQuery("MEW 006/165"), { letters: "MEW", digits: "006", number: 6, spaced: true, caps: true, size: 165, sizeLetters: "" });
+  assert.equal(parseCardIdQuery("PAL EN 001/193")?.digits, "001", "a language between code and number");
+  assert.deepEqual(parseCardIdQuery("swsh062"), { letters: "SWSH", digits: "062", number: 62, spaced: false, caps: false, size: null, sizeLetters: "" });
+  assert.deepEqual(parseCardIdQuery("TG12/TG30"), { letters: "TG", digits: "12", number: 12, spaced: false, caps: true, size: 30, sizeLetters: "TG" });
+  assert.equal(parseCardIdQuery("Mew 6")?.caps, false, "Mew is the name, MEW the code");
+  for (const not of ["Glurak", "6", "6/165", "006", "Glurak 6/165", "Porygon2", "Pikachu 25", "Glurak ex 6", "", null, "MEW 0"]) assert.equal(parseCardIdQuery(not as string | null), null, `"${not}" is no code`);
+  assert.deepEqual(readingOrder(parseCardIdQuery("MEW 6")!), ["set", "id"]);
+  assert.deepEqual(readingOrder(parseCardIdQuery("Mew 6")!), ["name", "set", "id"], "the name first unless it was written as a code");
+  assert.deepEqual(readingOrder(parseCardIdQuery("SWSH062")!), ["id", "set"]);
+  assert.deepEqual(readingOrder(parseCardIdQuery("TG12/TG30")!), ["id"]);
+  assert.deepEqual(localIdCandidates("SWSH", "62"), ["SWSH62", "SWSH062"]);
+  assert.deepEqual(localIdCandidates("GG", "01"), ["GG01", "GG001", "GG1"]);
+  assert.deepEqual(numberCandidates("6"), ["006", "6", "06"]);
+  assert.deepEqual(numberCandidates("006"), ["006", "6", "06"]);
+
+  // A set code and a number, spoken. The code reading comes first only when the code is known; the name stays.
+  assert.deepEqual(q("MEW sechs"), ["Mew 6", "6", "Mew"], "unknown code: exactly the old readings, nothing in front");
+  assert.deepEqual(q("MEW sechs", "de", known), ["MEW 6", "Mew 6", "6", "Mew"], "Mew is also a Pokémon: code first, name kept");
+  assert.deepEqual(q("MEW six", "en", known), ["MEW 6", "Mew 6", "6", "Mew"]);
+  assert.deepEqual(q("mew null null sechs", "de", known).slice(0, 2), ["MEW 006", "Mew 6"], "the zeros she said are kept");
+  assert.deepEqual(q("Nummer MEW sechs von hundertfünfundsechzig", "de", known).slice(0, 2), ["MEW 6/165", "Mew 6/165"]);
+  assert.deepEqual(q("MEW 006", "en", known).slice(0, 2), ["MEW 006", "Mew 6"]);
+  assert.deepEqual(q("PAL einhundertneunundneunzig", "de", new Set(["PAL"])).slice(0, 1), ["PAL 199"]);
+  assert.equal(parseSpokenPokemon("MEW sechs", "de", { setCodes: known }).name, "Mew", "the name reading is still reported");
+  assert.equal(parseSpokenPokemon("MEW sechs", "de", { setCodes: known }).number, 6);
+  assert.equal(spokenCodeLetters("MEW sechs"), "MEW", "the caller asks the source whether a set prints it");
+  assert.equal(spokenCodeLetters("SWSH null sechs zwei"), null, "a collector-ID prefix needs no look-up");
+  assert.equal(spokenCodeLetters("Glurak sechs"), null);
+  assert.equal(spokenCodeLetters("Glurak ex"), null);
+
+  // Spelled letter by letter: German and English letter names, plain letters, a mix.
+  for (const said of ["M E W null null sechs", "m e w null null sechs", "em e we null null sechs", "M E W oh oh six", "em ee double u zero zero six"]) {
+    assert.deepEqual(q(said).slice(0, 1), ["MEW 006"], `"${said}"`);
+    assert.ok(q(said).includes("Mew 6"), `"${said}" keeps the name reading behind the code`);
+    assert.ok(q(said).indexOf("MEW 006") < q(said).indexOf("Mew 6"));
+  }
+  assert.deepEqual(q("M E W sechs").slice(0, 1), ["MEW 6"]);
+  assert.deepEqual(q("es pe ha sechs").slice(0, 1), ["SPH 6"], "German letter names");
+  assert.deepEqual(q("ess pee aitch six", "en").slice(0, 1), ["SPH 6"], "English letter names");
+
+  // A collector ID with letters, run together or spelled, with the leading zeros the printed ID has.
+  for (const said of ["SWSH062", "swsh062", "S W S H null sechs zwei", "es we es ha null sechs zwei", "SWSH null sechs zwei", "swsh zero six two", "S W S H 062", "SWSH 062"]) {
+    assert.equal(q(said, "de")[0], "SWSH062", `"${said}"`);
+  }
+  assert.equal(q("SWSH zwei und sechzig")[0], "SWSH62", "no zero said, none added");
+  assert.equal(q("SWSH 62")[0], "SWSH62");
+  assert.equal(q("TG12")[0], "TG12");
+  assert.equal(q("T G zwölf")[0], "TG12");
+  assert.equal(q("T G twelve", "en")[0], "TG12");
+  assert.equal(q("tee gee twelve", "en")[0], "TG12");
+  assert.equal(q("TG zwölf")[0], "TG12");
+  assert.equal(q("TG zwölf von TG dreißig")[0], "TG12/TG30", "the printed total of a gallery card");
+  assert.equal(q("TG12 / TG30")[0], "TG12/TG30");
+  assert.equal(q("TG twelve of TG thirty", "en")[0], "TG12/TG30");
+  assert.equal(q("GG01")[0], "GG01");
+  assert.equal(q("G G null eins")[0], "GG01");
+  assert.equal(q("gee gee zero one", "en")[0], "GG01");
+  assert.equal(q("SV001")[0], "SV001");
+  assert.equal(q("S V null null eins")[0], "SV001");
+  assert.equal(q("RC5")[0], "RC5");
+  assert.equal(q("R C fünf")[0], "RC5");
+  assert.equal(q("RC five", "en")[0], "RC5");
+
+  // What is NOT a code stays what it was: names, numbers, rule-box words and names with numbers.
+  assert.deepEqual(q("Eevee 6"), ["Eevee 6", "6", "Eevee"], "a word that is no known code or prefix adds nothing");
+  assert.deepEqual(q("Glurak 6"), ["Glurak 6", "6", "Glurak"]);
+  assert.deepEqual(q("Glurak ex"), ["Glurak-ex", "Glurak ex", "Glurak"]);
+  assert.ok(!q("Glurak gee ex").some((x) => /^[A-Z]{2,5} ?\d/.test(x)), "letters inside a name phrase are not a code");
+  assert.deepEqual(q("sechs von hundertfünfundsechzig"), ["6/165"]);
+  assert.deepEqual(q("nummer sechs"), ["6"]);
+  assert.deepEqual(q("null null sechs"), ["6"]);
+  assert.deepEqual(q("einhundertneunundneunzig"), ["199"]);
+  assert.deepEqual(q("Pikachu V"), ["Pikachu-V", "Pikachu V", "Pikachu"]);
+  assert.deepEqual(q("Porygon 2", "de", known), q("Porygon 2"), "a known code elsewhere changes nothing");
+  assert.ok(!q("Glurak sechs", "de", known).some((x) => /^[A-Z]{2,5} \d/.test(x)), "no code reading from a name");
+  assert.equal(q("Glurak SWSH null sechs zwei").includes("SWSH062"), false, "a name beside a code is not a code phrase");
 }
 
 // ── Names ────────────────────────────────────────────────────────────────────
@@ -213,6 +300,49 @@ assert.equal(foldName("Glühend-EX"), "gluhend ex");
   assert.equal(crowd.extra.length, 2, "a tenth and eleventh card do not fit");
   const collide = gridCells([b(0.1, 0.1), b(0.12, 0.1)].map((x, i) => ({ ...x, i })));
   assert.deepEqual(collide.cells.slice(0, 2).map((c) => c?.i), [0, 1], "two cards in one cell: the later takes the next free one");
+}
+
+// ── Scan matcher: the code at the bottom edge ───────────────────────────────
+
+{
+  const glurakEx = hitOf("sv03.5-006");
+  const mk = (over: Partial<PokemonHit> & { tcgdexId: string }): PokemonHit => ({ ...glurakEx, id: `PKM-${over.tcgdexId}`, ...over });
+  const det = (over: Partial<PokemonDetection> = {}): PokemonDetection => ({ name: "Glurak-ex", language: "DE", number: "006/165", setCode: null, confidence: 0.95, ...over });
+
+  // Queries: a letter ID is searched as printed, a set code goes in front of its number; the old queries stay behind them.
+  assert.deepEqual(pokemonScanQueries({ name: "Pikachu VMAX", language: "EN", number: "SWSH062" }), ["SWSH062", "Pikachu VMAX", "Pikachu"]);
+  assert.equal(pokemonScanQueries({ name: "Pikachu VMAX", language: "EN", number: "SWSH062" })[0], "SWSH062");
+  assert.equal(pokemonScanQueries({ name: "Kricketune V", language: "EN", number: "TG12/TG30" })[0], "TG12/TG30");
+  assert.equal(pokemonScanQueries({ name: "", language: null, number: "swsh 062" })[0], "SWSH062");
+  assert.deepEqual(pokemonScanQueries({ name: "Glurak-ex", language: "DE", number: "006/165", setCode: "MEW" }), ["MEW 6", "6/165", "Glurak 6/165", "Glurak-ex", "Glurak"]);
+  assert.deepEqual(pokemonScanQueries({ name: "Glurak-ex", language: "DE", number: "006/165", setCode: "MEW EN" })[0], "MEW 6", "a language beside the code is dropped");
+  assert.deepEqual(pokemonScanQueries({ name: "Glurak-ex", language: "DE", number: "006/165", setCode: null }), ["6/165", "Glurak 6/165", "Glurak-ex", "Glurak"], "no code, the old queries");
+
+  // A letter ID with the set code and the name: exact. Without the code: likely, as before.
+  const promo = mk({ tcgdexId: "swshp-SWSH062", localId: "SWSH062", setTotal: null, name: "Pikachu VMAX", altName: "Pikachu VMAX", setName: "Sword & Shield Promos" });
+  const otherPromo = mk({ tcgdexId: "swshp-SWSH063", localId: "SWSH063", setTotal: null, name: "Pikachu VMAX", altName: "Pikachu VMAX", setName: "Sword & Shield Promos" });
+  const base = { name: "Pikachu VMAX", language: "EN" as const, number: "SWSH062" };
+  assert.equal(matchPokemon(det({ ...base }), [promo, otherPromo]).confidence, "likely", "ID and name alone");
+  const withCode = matchPokemon(det({ ...base, setCode: "SWSH", setIds: ["swshp"] }), [promo, otherPromo]);
+  assert.equal(withCode.confidence, "exact", "ID + set code + name");
+  assert.equal(withCode.best?.tcgdexId, "swshp-SWSH062");
+  assert.match(withCode.reason, /Set-Kürzel/);
+  assert.equal(matchPokemon(det({ ...base, setCode: "SWSH", setIds: ["swshp"], confidence: 0.4 }), [promo]).confidence, "likely", "a hesitant read never reaches exact");
+  assert.equal(matchPokemon(det({ ...base, setCode: "SWSH", setIds: ["sv03.5"] }), [promo]).confidence, "likely", "a code for another set does not vouch for this card");
+  assert.equal(matchPokemon(det({ ...base, name: "Raichu", setCode: "SWSH", setIds: ["swshp"] }), [promo]).confidence, "unsure", "the name still has to agree");
+
+  // The printed code names the set when the number alone fits several: TG12 exists in four galleries.
+  const tg = (set: string, name: string) => mk({ tcgdexId: `${set}-TG12`, localId: "TG12", setTotal: 30, name, altName: name, setName: set });
+  const gallery = [tg("swsh9tg", "Oranguru"), tg("swsh10tg", "Hoothoot"), tg("swsh12tg", "Kricketune V"), tg("swsh11tg", "Orbeetle V")];
+  const kr = matchPokemon(det({ name: "Kricketune V", language: "EN", number: "TG12/TG30", setCode: "SIT", setIds: ["swsh12tg"], confidence: 0.9 }), gallery);
+  assert.equal(kr.best?.tcgdexId, "swsh12tg-TG12");
+  assert.equal(kr.confidence, "exact");
+  // A plain number with its code and name, when the size was not readable.
+  const sixNoSize = matchPokemon(det({ number: "006", setCode: "MEW", setIds: ["sv03.5"] }), [glurakEx]);
+  assert.equal(sixNoSize.confidence, "exact");
+  assert.equal(matchPokemon(det({ number: "006" }), [glurakEx]).confidence, "likely", "no size and no code: as before");
+  // A size that disagrees is still a warning, whatever the code says.
+  assert.equal(matchPokemon(det({ number: "006/200", setCode: "MEW", setIds: ["sv03.5"] }), [glurakEx]).confidence, "likely");
 }
 
 // ── Per-game scan prompt ─────────────────────────────────────────────────────

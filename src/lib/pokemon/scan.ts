@@ -14,7 +14,7 @@ import { cleanBox, type Box } from "@/lib/ai/scan-match";
 import { prepareImage, readPokemonPhotoTiered, type PreparedImage } from "@/lib/ai/scan";
 import type { PokemonScanResult } from "@/lib/ai/scan-prompts";
 import { matchPokemon, pokemonScanQueries, type PokemonMatchConfidence } from "./scan-match";
-import { searchPokemon } from "./tcgdex";
+import { findPokemonSetsByCode, searchPokemon } from "./tcgdex";
 import type { PokemonHit } from "./types";
 
 export type PokemonScanMode = "single" | "batch";
@@ -37,6 +37,8 @@ export interface PokemonScanDetection {
 export interface PokemonScanDeps {
   read: typeof readPokemonPhotoTiered;
   search: (q: string) => Promise<PokemonHit[]>;
+  /** The TCGdex set ids a printed set code stands for ("MEW" gives sv03.5); empty when none or unknown. */
+  setIdsByCode: (code: string) => Promise<string[]>;
   record: typeof recordRun;
   available: () => boolean;
 }
@@ -44,6 +46,7 @@ export interface PokemonScanDeps {
 const defaultDeps: PokemonScanDeps = {
   read: readPokemonPhotoTiered,
   search: (q) => searchPokemon({ q }),
+  setIdsByCode: async (code) => (await findPokemonSetsByCode(code)).map((s) => s.id),
   record: recordRun,
   available: hasAnthropic,
 };
@@ -51,15 +54,17 @@ const defaultDeps: PokemonScanDeps = {
 const RANK: Record<PokemonMatchConfidence, number> = { exact: 3, likely: 2, unsure: 1, none: 0 };
 
 /** One read card to its detection: the queries run together, their hits merged and matched. */
-export async function detectionFor(read: Read, index: number, search: PokemonScanDeps["search"]): Promise<PokemonScanDetection> {
+export async function detectionFor(read: Read, index: number, search: PokemonScanDeps["search"], setIdsByCode?: PokemonScanDeps["setIdsByCode"]): Promise<PokemonScanDetection> {
   const seen = { ...read, box: cleanBox(read.box) };
-  const queries = pokemonScanQueries({ name: read.name, language: read.language, number: read.number });
+  const queries = pokemonScanQueries({ name: read.name, language: read.language, number: read.number, setCode: read.setCode });
   const settled = await Promise.allSettled(queries.map((q) => search(q)));
   const hits = settled.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
   if (settled.length > 0 && settled.every((r) => r.status === "rejected")) {
     return { index, seen, confidence: "none", best: null, candidates: [], reason: "Die Kartensuche ist gerade nicht erreichbar." };
   }
-  const m = matchPokemon({ name: read.name, language: read.language, number: read.number, setCode: read.setCode, confidence: read.confidence }, hits);
+  const code = /^[A-Za-z]{2,5}\b/.exec(read.setCode?.trim() ?? "")?.[0];
+  const setIds = code && setIdsByCode ? await setIdsByCode(code).catch(() => []) : [];
+  const m = matchPokemon({ name: read.name, language: read.language, number: read.number, setCode: read.setCode, setIds, confidence: read.confidence }, hits);
   return { index, seen, confidence: m.confidence, best: m.best, candidates: m.candidates.map((c) => c.hit), reason: m.reason };
 }
 
@@ -77,7 +82,7 @@ export async function identifyPokemonCards(
   for (const r of await d.read(prepared, mode)) {
     ({ id, output } = await d.record<PokemonScanResult>(db, "scan_identify", { mode, game: "pokemon", ...(r.fallbackFrom ? { fallbackFrom: r.fallbackFrom } : {}) }, r.res));
   }
-  const detections = await Promise.all(output.cards.map((card, index) => detectionFor(card, index, d.search)));
+  const detections = await Promise.all(output.cards.map((card, index) => detectionFor(card, index, d.search, d.setIdsByCode)));
   return { runId: id, unreadable: output.unreadable, detections };
 }
 
