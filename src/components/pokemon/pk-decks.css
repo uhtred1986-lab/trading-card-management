@@ -108,6 +108,7 @@ textarea.pk-input{min-height:140px;font-size:15px;line-height:1.35;resize:vertic
    and the accent text (yellow on a light page) becomes the link blue. */
 .pk-claude>button{width:100%;min-height:56px;border-radius:16px;font-size:17px!important;font-weight:700;background:var(--ds-raised)!important;border:1.5px solid var(--ds-line)!important;color:var(--ds-ink)!important}
 .pk-claude>button:disabled{opacity:.6}
+.pk-claude [aria-expanded]{min-height:44px;font-size:14px}
 .pk-claude [class*="text-ki-300"],.pk-claude [class*="text-ki-200"]{color:var(--ds-link)}
 .pk-claude [class*="bg-ki-500"]:not([class*="/"]){color:var(--ds-accent-ink)}
 .pk-claude [class*="text-space-950"]{color:var(--ds-accent-ink)}

@@ -18,7 +18,9 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "../../src/db/schema.ts";
 import type { Db } from "../../src/db/index.ts";
-import type { Viewer } from "../../src/lib/auth/index.ts";
+import { AccessDenied, type Viewer } from "../../src/lib/auth/index.ts";
+import { getDeck } from "../../src/lib/decks/queries.ts";
+import { PokemonInputError, assertPokemonDeck } from "../../src/lib/pokemon/collection.ts";
 import { legality, type LegalityCard } from "../../src/lib/decks/legality.ts";
 import { buildConflicts } from "../../src/lib/decks/reservations.ts";
 import { builtRefusal, deckProgress, missingCopies, summariseIssues, wishesToAdd } from "../../src/lib/pokemon/deck-logic.ts";
@@ -383,6 +385,20 @@ await giveLots("Lena", CHARMANDER, 4);
   const all = await pokemonDeckList(db, undefined);
   assert.deepEqual(all.map((d) => [d.id, d.owner]), [[made.id, "Mia"], [bad.id, "Papa"]], "an SL sees every deck, built first");
   assert.equal((await pokemonDeckList(db, "Nobody")).length, 0);
+}
+
+{
+  // A deck that is not hers answers not found (the page) and is refused (the Server Functions' check).
+  const lena: Viewer = { kind: "player", via: "code", playerId: 2, deviceId: 2, name: "Lena", login: "lena", owner: "Lena", homeGame: "pokemon" };
+  assert.equal(await getDeck(db, made.id, "Lena"), null, "another player's deck: not found");
+  assert.equal((await getDeck(db, made.id, "Mia"))?.cards.length, 4);
+  assert.equal((await getDeck(db, made.id, undefined))?.id, made.id, "an SL sees it");
+  await assert.rejects(assertPokemonDeck(db, lena, made.id), AccessDenied);
+  await assertPokemonDeck(db, papa, made.id);
+  await assertPokemonDeck(db, mia, made.id);
+  const [dbsDeck] = await db.insert(decks).values({ name: "Dragon Ball", game: "dbs", owner: "Mia" }).returning({ id: decks.id });
+  await assert.rejects(assertPokemonDeck(db, mia, dbsDeck.id), PokemonInputError, "a Dragon Ball deck is not a Pokémon deck");
+  await db.delete(decks).where(eq(decks.id, dbsDeck.id));
 }
 
 // ── 6. Pasting a deck list ───────────────────────────────────────────────────
