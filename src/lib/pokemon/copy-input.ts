@@ -20,7 +20,7 @@ export const INPUT_COPY = {
     langEn: "Englisch",
     micStart: "Mikrofon einschalten",
     micStop: "Mikrofon ausschalten",
-    idle: "Tippe auf das Mikrofon und sag den Namen oder die Nummer unten auf der Karte.",
+    idle: "Tippe auf das Mikrofon und sag den Namen, die Nummer oder den Code unten auf der Karte, zum Beispiel „MEW sechs“.",
     listening: "Ich höre zu …",
     resolving: "Ich suche …",
     heardLabel: "Verstanden",

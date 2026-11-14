@@ -3,8 +3,8 @@
 import { db } from "@/db";
 import { requireSignedIn } from "@/lib/auth";
 import { ownedCountsFor } from "@/lib/pokemon/collection";
-import { isPokemonSourceError, searchPokemon } from "@/lib/pokemon/tcgdex";
-import { parseSpokenPokemon, type SpokenPokemonParse } from "@/lib/pokemon/voice";
+import { findPokemonSetsByCode, isPokemonSourceError, searchPokemon } from "@/lib/pokemon/tcgdex";
+import { parseSpokenPokemon, spokenCodeLetters, type SpokenPokemonParse } from "@/lib/pokemon/voice";
 import type { PokemonHit, PokemonLang } from "@/lib/pokemon/types";
 
 export interface SpokenPokemonResolution {
@@ -44,7 +44,10 @@ export async function resolveSpokenPokemonAction(input: { alternatives: string[]
   let first: SpokenPokemonParse | null = null;
   let tries = 0;
   for (const alt of alternatives) {
-    const parsed = parseSpokenPokemon(alt, lang);
+    // "MEW sechs": one cached read says whether a set prints MEW, which decides whether the code comes before the name Mew.
+    const letters = spokenCodeLetters(alt);
+    const setCodes = letters && (await findPokemonSetsByCode(letters)).length > 0 ? new Set([letters]) : undefined;
+    const parsed = parseSpokenPokemon(alt, lang, { setCodes });
     first ??= parsed;
     for (const option of parsed.options) {
       if (tries++ >= MAX_TRIES) break;

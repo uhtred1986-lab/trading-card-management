@@ -7,7 +7,14 @@
  * never decides: it returns *ordered interpretations*, each a query for `searchPokemon` (whose `q`
  * takes "6/165" and "Name 6/165"), and the caller keeps the first one that finds cards. Nothing here
  * is saved; the child taps the card she means.
+ *
+ * She may also read the code at the bottom of the card: a printed set code and the number ("MEW
+ * sechs", "M E W null null sechs", "em e we null null sechs") or a collector ID with letters
+ * ("SWSH062", "S W S H null sechs zwei", "TG zwölf von TG dreißig"). Those become the query
+ * "MEW 6" or "SWSH062" that `searchPokemon` resolves (card-id.ts); the name reading stays among the
+ * options, after the code when the code is known, because "Mew" is also a Pokémon.
  */
+import { ID_PREFIXES } from "./card-id";
 import { displayName, splitNameSuffix, stripAccents, titleCase, type NameSuffix } from "./names";
 import type { PokemonLang } from "./types";
 
@@ -217,18 +224,11 @@ const numberText = (number: number, size: number | null) => (size === null ? Str
  * five", "6/165", "006/165"), or both, with a count ("zwei mal"); the rule-box suffixes ex, V, VMAX,
  * VSTAR and GX in the spellings a recogniser produces.
  */
-export function parseSpokenPokemon(text: string, lang: PokemonLang): SpokenPokemonParse {
-  const heard = text.trim();
-  const folded = stripAccents(heard)
-    .replace(/[.,!?;:"„“”'’()]/g, " ")
-    .replace(/\s*\/\s*/g, " / ")
-    .replace(/#/g, " ")
-    .replace(/(\d)\s*(?:-|–)\s*(?=\d)/g, "$1 / ");
-  const tokens = folded.split(/\s+/).filter(Boolean);
-
-  const { quantity, rest } = takeQuantity(tokens);
+export function parseSpokenPokemon(text: string, lang: PokemonLang, opts: SpokenPokemonOptions = {}): SpokenPokemonParse {
+  const { heard, quantity, rest } = prepare(text);
   // "out of" is one separator; the "out" is noise.
-  const spoken = numberWordsToDigits(rest.filter((t, i) => !(t === "out" && rest[i + 1] === "of")));
+  const cleaned = rest.filter((t, i) => !(t === "out" && rest[i + 1] === "of"));
+  const spoken = numberWordsToDigits(cleaned);
 
   // "6 von 165": a number, a separator, a number. Three digits at most each.
   let number: number | null = null;
@@ -288,5 +288,199 @@ export function parseSpokenPokemon(text: string, lang: PokemonLang): SpokenPokem
   // "Porygon 2": the digit may belong to the name.
   if (loneDigitName && /\p{L}/u.test(loneDigitName) && number !== null && size === null) push(titleCase(loneDigitName), titleCase(loneDigitName), null, null);
 
-  return { heard, lang, name: hasName ? names[0] : null, number, size, quantity, options };
+  const code = readSpokenCode(cleaned);
+  const around = code ? codeOptions(code, opts.setCodes) : { first: [], later: [] };
+  return { heard, lang, name: hasName ? names[0] : null, number, size, quantity, options: mergeOptions([...around.first, ...options, ...around.later]) };
+}
+
+export interface SpokenPokemonOptions {
+  /** Printed set codes known to exist (upper case), from `findPokemonSetsByCode`. A word that is one ("MEW") is read as the code first, the name after. */
+  setCodes?: ReadonlySet<string>;
+}
+
+/** The recogniser's text as folded tokens, with the count she said taken out. */
+function prepare(text: string): { heard: string; quantity: number | null; rest: string[] } {
+  const heard = text.trim();
+  const folded = stripAccents(heard)
+    .replace(/[.,!?;:"„“”'’()]/g, " ")
+    .replace(/\s*\/\s*/g, " / ")
+    .replace(/#/g, " ")
+    .replace(/(\d)\s*(?:-|–)\s*(?=\d)/g, "$1 / ");
+  const tokens = folded.split(/\s+/).filter(Boolean);
+  const { quantity, rest } = takeQuantity(tokens);
+  return { heard, quantity, rest };
+}
+
+/**
+ * The letters of a spoken set code that is one word ("MEW sechs" gives "MEW"), so the caller can ask
+ * the source whether a set has that code and hand the answer to `parseSpokenPokemon`. Null when the
+ * phrase is not a code followed by a number, or the letters are a collector-ID prefix (no look-up needed).
+ */
+export function spokenCodeLetters(text: string): string | null {
+  const { rest } = prepare(text);
+  const code = readSpokenCode(rest.filter((t, i) => !(t === "out" && rest[i + 1] === "of")));
+  return code && !ID_PREFIXES.has(code.letters) && !code.sizeLetters ? code.letters : null;
+}
+
+// ── Codes printed at the bottom: set code + number, collector ID ────────────
+
+/** How a recogniser writes the names of letters, German and English (both are accepted whatever the language, she mixes them). Accent-free, lower case. */
+const LETTER_NAMES: Record<string, string> = Object.assign(Object.create(null) as Record<string, string>, {
+  ay: "A", be: "B", bee: "B", ce: "C", ze: "C", tse: "C", cee: "C", see: "C", de: "D", dee: "D", ee: "E", ef: "F",
+  ge: "G", gee: "G", ha: "H", aitch: "H", eye: "I", jot: "J", jay: "J", ka: "K", kay: "K", el: "L", em: "M", en: "N", pe: "P", pee: "P",
+  ku: "Q", cue: "Q", queue: "Q", er: "R", ar: "R", are: "R", es: "S", ess: "S", te: "T", tee: "T", you: "U", vau: "V", fau: "V", vee: "V",
+  we: "W", doubleu: "W", doubleyou: "W", iks: "X", ecks: "X", eks: "X", ex: "X", ypsilon: "Y", why: "Y", zet: "Z", zee: "Z", zed: "Z",
+});
+
+/** One spoken letter at `i`: a bare letter ("m", "e"), its name ("em", "we") or "double u". */
+function letterUnit(t: string[], i: number): { letter: string; used: number } | null {
+  const w = t[i];
+  if (w === "double" && (t[i + 1] === "u" || t[i + 1] === "you")) return { letter: "W", used: 2 };
+  if (/^[a-z]$/.test(w)) return { letter: w.toUpperCase(), used: 1 };
+  return w in LETTER_NAMES ? { letter: LETTER_NAMES[w], used: 1 } : null;
+}
+
+/**
+ * Letters at `i`: a run of at least two spoken letters ("em e we"), or else one word of two to five
+ * letters that is no number word ("mew", "swsh", "tg"). At most five letters.
+ */
+function takeLetters(t: string[], i: number): { letters: string; spelled: boolean; next: number } | null {
+  let letters = "";
+  let units = 0;
+  let j = i;
+  while (j < t.length && letters.length < 5) {
+    const u = letterUnit(t, j);
+    if (!u) break;
+    letters += u.letter;
+    units++;
+    j += u.used;
+  }
+  if (units >= 2) return { letters, spelled: true, next: j };
+  if (/^[a-z]{2,5}$/.test(t[i] ?? "") && !isNumberWord(t[i])) return { letters: t[i].toUpperCase(), spelled: false, next: i + 1 };
+  return null;
+}
+
+/** Number words read digit by digit keep the zeros she said: "null null sechs" is "006", "null sechs zwei" is "062". Null when it is not one number of at most four digits. */
+function readDigits(tokens: string[]): string | null {
+  if (tokens.length === 0) return null;
+  if (tokens.every((w) => /^\d+$/.test(w))) {
+    const d = tokens.join("");
+    return d.length <= 4 && parseInt(d, 10) >= 1 ? d : null;
+  }
+  if (tokens.some((w) => /^\d+$/.test(w))) return null;
+  const value = evaluateRun(tokens);
+  if (value === null || value < 1) return null;
+  let lead = 0;
+  if (tokens.every(isDigitWord)) while (lead < tokens.length && digitOf(tokens[lead]) === 0) lead++;
+  const d = "0".repeat(lead) + String(value);
+  return d.length <= 4 ? d : null;
+}
+
+export interface SpokenCode {
+  /** Upper case: "MEW", "SWSH", "TG". */
+  letters: string;
+  /** With the zeros she said: "006", "62". */
+  digits: string;
+  size: number | null;
+  /** Letters before the size ("TG30"), which only a collector ID has. */
+  sizeLetters: string;
+  /** The letters were spelled one by one. */
+  spelled: boolean;
+}
+
+/** Fillers that may stand beside a code; "und" and "and" belong to the number words here. */
+const CODE_NOISE = new Set([...NOISE].filter((w) => w !== "und" && w !== "and"));
+
+/**
+ * The whole phrase as a code and a number, or null: "MEW sechs", "M E W null null sechs", "swsh062",
+ * "S W S H null sechs zwei", "TG zwölf von TG dreißig". Anything else in the phrase (a name, "ex")
+ * means it is not a code.
+ */
+function readSpokenCode(tokens: string[]): SpokenCode | null {
+  const t = tokens.filter((w) => !CODE_NOISE.has(w));
+  if (t.length === 0) return null;
+  const tail = (from: number): { digits: string; next: number } | null => {
+    let k = from;
+    while (k < t.length && !SEPARATORS.has(t[k]) && isNumberWord(t[k])) k++;
+    const digits = readDigits(t.slice(from, k));
+    return digits ? { digits, next: k } : null;
+  };
+
+  let letters: string;
+  let spelled = false;
+  let digits: string;
+  let k: number;
+  const glued = /^([a-z]{1,5})(\d{1,4})$/.exec(t[0]);
+  if (glued && parseInt(glued[2], 10) >= 1) {
+    letters = glued[1].toUpperCase();
+    digits = glued[2];
+    k = 1;
+  } else {
+    const head = takeLetters(t, 0);
+    if (!head) return null;
+    letters = head.letters;
+    spelled = head.spelled;
+    const d = tail(head.next);
+    if (!d) return null;
+    digits = d.digits;
+    k = d.next;
+  }
+
+  let size: number | null = null;
+  let sizeLetters = "";
+  if (k < t.length) {
+    if (!SEPARATORS.has(t[k])) return null;
+    k++;
+    const g = /^([a-z]{1,5})(\d{1,4})$/.exec(t[k] ?? "");
+    if (g) {
+      sizeLetters = g[1].toUpperCase();
+      size = parseInt(g[2], 10);
+      k++;
+    } else {
+      const sl = takeLetters(t, k);
+      if (sl) {
+        sizeLetters = sl.letters;
+        k = sl.next;
+      }
+      const d = tail(k);
+      if (!d) return null;
+      size = parseInt(d.digits, 10);
+      k = d.next;
+    }
+    if (k !== t.length || size === null || size < 1) return null;
+  }
+  return { letters, digits, size, sizeLetters, spelled };
+}
+
+/**
+ * The queries a code stands for. "MEW 6" and "MEW 6/165" are a set code and a number, "SWSH062" and
+ * "TG12/TG30" a collector ID (run together, the zeros as said); `searchPokemon` resolves both.
+ * First, before the name readings: spelled letters (never a name), a known collector-ID prefix, and
+ * a word that is a known set code. Later: the name reading of spelled letters ("Mew 6"). A word that
+ * is none of these ("Eevee 6") adds nothing: the name reading stands alone.
+ */
+function codeOptions(c: SpokenCode, setCodes: ReadonlySet<string> | undefined): { first: SpokenPokemonOption[]; later: SpokenPokemonOption[] } {
+  const number = parseInt(c.digits, 10);
+  const option = (query: string): SpokenPokemonOption => ({ query, name: null, number, size: c.size });
+  const setQuery = `${c.letters} ${c.digits}${c.size !== null && !c.sizeLetters ? `/${c.size}` : ""}`;
+  const idQuery = `${c.letters}${c.digits}${c.size !== null ? `/${c.sizeLetters}${c.size}` : ""}`;
+  const idForm = ID_PREFIXES.has(c.letters) || c.sizeLetters !== "";
+  const known = setCodes?.has(c.letters) ?? false;
+  const first: SpokenPokemonOption[] = [];
+  if (known && !c.sizeLetters) first.push(option(setQuery));
+  if (idForm) first.push(option(idQuery));
+  else if (c.spelled && !known) first.push(option(setQuery));
+  const later: SpokenPokemonOption[] = [];
+  if (c.spelled && c.letters.length >= 3 && !c.sizeLetters) later.push(option(`${titleCase(c.letters.toLowerCase())} ${number}`));
+  return { first, later };
+}
+
+/** Drops repeats of the same query (case matters: "MEW 6" is the code, "Mew 6" the name). */
+function mergeOptions(all: SpokenPokemonOption[]): SpokenPokemonOption[] {
+  const seen = new Set<string>();
+  return all.filter((o) => {
+    if (!o.query.trim() || seen.has(o.query)) return false;
+    seen.add(o.query);
+    return true;
+  });
 }
