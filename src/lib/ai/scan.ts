@@ -17,6 +17,8 @@ import { quickSearch } from "@/lib/catalog/queries";
 import { generateJson } from "./core";
 import { AiError } from "./errors";
 import { SONNET_MODEL, recordRun } from "./client";
+import type { Game } from "@/lib/catalog/games";
+import { PokemonScanSchema, scanPromptFor, type PokemonScanResult } from "./scan-prompts";
 import { assessMatch, cleanBox, needsOpusFallback, normaliseNumber, type Box, type MatchedBy } from "./scan-match";
 import type { AiResult } from "./types";
 
@@ -91,17 +93,12 @@ export async function prepareImage(buf: Buffer): Promise<PreparedImage> {
   return { data: out.toString("base64"), mediaType: "image/jpeg", buffer: out, width: info.width, height: info.height };
 }
 
-const SCAN_SYSTEM =
-  "You identify Dragon Ball Super Card Game cards (Bandai). Both of Bandai's lines are in scope and a photo may mix them: the original game numbers cards like BT18-020, SD22-02, EX13-16, P-181, TB1-005, DB2-010, and Fusion World like FB07-021, FS01-01, FP-060, SB01-046, ST01-014. Report numbers exactly as printed; if unsure of a digit, lower the confidence rather than guess. For every card also give a bounding box (fractions of the image) around its face so the user can compare it with the catalog art.";
-
-function scanInstruction(mode: "single" | "batch"): string {
-  return mode === "single"
-    ? "This photo shows one Dragon Ball Super Card Game card, from either the original game or Fusion World. Identify it: read the card number printed in the bottom corner and the name."
-    : "This photo shows several Dragon Ball Super Card Game cards (a binder page, a spread, or a pile), from either the original game or Fusion World, possibly mixed. List every distinct card you can see, reading each card number and name. Work systematically across the image, left to right then top to bottom.";
-}
-
-/** One read of one photo on the given tier. Sonnet and Opus take the same request shape. */
-export function readPhoto(tier: "standard" | "best", prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch") {
+/**
+ * One read of one photo on the given tier. Sonnet and Opus take the same request shape. The
+ * prompt is the game's (`scanPromptFor`); the Dragon Ball text is the one this has always sent.
+ */
+export function readPhoto(tier: "standard" | "best", prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch", game: Game = "dbs") {
+  const prompt = scanPromptFor(game, mode);
   return generateJson({
     task: "scan_identify",
     tier,
@@ -109,13 +106,36 @@ export function readPhoto(tier: "standard" | "best", prepared: Pick<PreparedImag
     thinking: "adaptive",
     effort: "medium",
     schema: ScanSchema,
-    system: [{ text: SCAN_SYSTEM }],
+    system: [{ text: prompt.system }],
     messages: [
       {
         role: "user",
         parts: [
           { type: "image", mediaType: prepared.mediaType, base64: prepared.data },
-          { type: "text", text: scanInstruction(mode) },
+          { type: "text", text: prompt.instruction },
+        ],
+      },
+    ],
+  });
+}
+
+/** The Pokemon read: the same request with the Pokemon prompt and schema. */
+export function readPokemonPhoto(tier: "standard" | "best", prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch") {
+  const prompt = scanPromptFor("pokemon", mode);
+  return generateJson({
+    task: "scan_identify",
+    tier,
+    maxTokens: 8000,
+    thinking: "adaptive",
+    effort: "medium",
+    schema: PokemonScanSchema,
+    system: [{ text: prompt.system }],
+    messages: [
+      {
+        role: "user",
+        parts: [
+          { type: "image", mediaType: prepared.mediaType, base64: prepared.data },
+          { type: "text", text: prompt.instruction },
         ],
       },
     ],
@@ -131,18 +151,30 @@ type ScanRead = AiResult<ScanResult>;
  * Returns every read that came back, in order, so the caller can record each
  * one; the last is the answer.
  */
-export async function readPhotoTiered(prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch"): Promise<{ model: string; res: ScanRead; fallbackFrom?: string }[]> {
-  let first: ScanRead | null = null;
+async function readTiered<T extends { cards: { number: string | null; confidence: number }[]; unreadable: number }>(
+  read: (tier: "standard" | "best") => Promise<AiResult<T>>,
+  mode: "single" | "batch",
+): Promise<{ model: string; res: AiResult<T>; fallbackFrom?: string }[]> {
+  let first: AiResult<T> | null = null;
   try {
-    first = await readPhoto("standard", prepared, mode);
+    first = await read("standard");
   } catch (err) {
     if (!(err instanceof AiError) || err.kind !== "bad_output") throw err;
   }
   if (first?.parsed && !needsOpusFallback(first.parsed, mode)) return [{ model: first.model, res: first }];
   // An unparseable first read has no model on it; the standard tier's model is what it ran on.
-  const second = { model: "", res: await readPhoto("best", prepared, mode), fallbackFrom: first?.model ?? SONNET_MODEL };
+  const second = { model: "", res: await read("best"), fallbackFrom: first?.model ?? SONNET_MODEL };
   second.model = second.res.model;
   return first?.parsed ? [{ model: first.model, res: first }, second] : [second];
+}
+
+export function readPhotoTiered(prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch"): Promise<{ model: string; res: ScanRead; fallbackFrom?: string }[]> {
+  return readTiered((tier) => readPhoto(tier, prepared, mode), mode);
+}
+
+/** The Pokemon photo read, with the same Sonnet-then-Opus rule. */
+export function readPokemonPhotoTiered(prepared: Pick<PreparedImage, "data" | "mediaType">, mode: "single" | "batch"): Promise<{ model: string; res: AiResult<PokemonScanResult>; fallbackFrom?: string }[]> {
+  return readTiered((tier) => readPokemonPhoto(tier, prepared, mode), mode);
 }
 
 export async function identifyCards(

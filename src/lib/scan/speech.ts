@@ -6,6 +6,8 @@
  * browser — no audio is uploaded and there is no API cost.
  */
 
+import { defaultSpeechLang } from "./speech-lang";
+
 interface SpeechAlternative {
   transcript: string;
   confidence: number;
@@ -63,7 +65,7 @@ export interface SpeechSession {
  * Starts continuous recognition. Chrome ends a session on its own every so
  * often, so it restarts itself until `stop()` is called.
  */
-export function startListening(handlers: SpeechHandlers, lang = "en-US"): SpeechSession | null {
+export function startListening(handlers: SpeechHandlers, lang: string = defaultSpeechLang()): SpeechSession | null {
   const Ctor = ctor();
   if (!Ctor) return null;
   const rec = new Ctor();
