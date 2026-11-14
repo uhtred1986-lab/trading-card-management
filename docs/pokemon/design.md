@@ -1,7 +1,8 @@
 # Pokémon screens: design
 
-Status: **draft for the owner, 14 Nov 2026.** Companion to `plan.md`. Wireframes are 390 px phone
-frames; desktop notes follow each. Copy is shown in German on the assumption in `plan.md` Q 2.
+Status: **updated with the owner's decisions, 14 Nov 2026** (`plan.md` §9). Companion to `plan.md`. Wireframes are 390 px phone
+frames; desktop notes follow each. Copy is shown in German, the one assumption still to confirm (`plan.md` §9, 2). The user is 12 with
+her own phone: plain language, but no need for a simplified child mode.
 Tokens, type and components come from `docs/design/design-system.md`; nothing here adds a colour or
 a font except one accent for the game mark.
 
@@ -16,7 +17,7 @@ a font except one accent for the game mark.
 4. **Never a dead end.** Voice or photo that is unsure shows candidates to tap; search stays one tap
    away.
 5. **Nothing of Dragon Ball leaks in** for a user whose home game is Pokémon: no arena tab, no
-   leaders, no meta, no prices (Q 3).
+   leaders, no meta. Prices are shown (Q 3).
 
 ## 2. Navigation
 
@@ -66,6 +67,8 @@ Bottom tabs for a Pokémon home user (five, as today):
   weiter." when TCGdex is down.
 - With an empty field the screen shows the newest sets as large logo tiles; a tap lists that set.
 - Owned count and heart are overlaid from the local database, so she sees at a glance what she has.
+- Her cards are German and English mixed: one search finds a card under either name ("Glurak" or
+  "Charizard"), and the detail line carries the Cardmarket price ("ab 3,99 €").
 - Desktop: 4 to 6 columns, filters in a left rail.
 
 ### The swipe viewer
@@ -95,7 +98,8 @@ A tap on any tile, anywhere, opens the card full screen. This is the "looking th
 
 - Built on CSS scroll snapping, so it needs no library and keeps native momentum. The next two
   images preload.
-- **Hab ich** opens a small sheet: variant chips (Normal / Holo / Reverse) and − 1 +. One more tap
+- **Hab ich** opens a small sheet: variant chips (Normal / Holo / Reverse), language chips
+  (DE / EN) and − 1 +. One more tap
   saves and the viewer stays on the card.
 - **Wunsch** toggles at once with a short pulse; no sheet.
 - **Deck** lists her decks as big rows plus "Neues Deck mit dieser Karte" (§6).
@@ -108,7 +112,7 @@ A tap on any tile, anywhere, opens the card full screen. This is the "looking th
 ```
 ┌──────────────────────────────────────┐
 │ Meine Sammlung            312 Karten │
-│ [Alle] [Doppelte] [Im Deck] [Neu]    │
+│ [Alle] [Im Deck] [Neu] [DE] [EN]     │
 │ Sortieren: Neueste ▾        ▦  ☰     │
 ├──────────────────────────────────────┤
 │ ┌──────────────┐  ┌──────────────┐   │
@@ -120,8 +124,7 @@ A tap on any tile, anywhere, opens the card full screen. This is the "looking th
 ```
 
 - Reads the local database only, so it is fast and works when TCGdex is down.
-- **Doppelte** is the trade list (Q 5): copies beyond what built decks reserve. A share button makes
-  a picture list to show a friend.
+- A value line in EUR sits under the count. There is no trade list (Q 5).
 - Tile tap opens the same swipe viewer, scoped to the filtered collection.
 - Empty state: "Noch keine Karten. Tippe auf ＋ und lies deine erste Karte vor." with the ＋ button
   repeated large.
@@ -171,7 +174,7 @@ The ＋ sheet offers three large tiles; the first two are the point.
 └──────────────────────────────────────┘
 ```
 
-- She may say a name, or the number at the bottom of the card ("sechs von hundertfünfundsechzig"),
+- A DE / EN switch beside the mic sets the listening language. She may say a name, or the number at the bottom of the card ("sechs von hundertfünfundsechzig"),
   or both. One exact match skips the candidate row.
 - "Speichern und weiter" saves and reopens the mic; a running count sits top right, and "Fertig"
   shows the session's list with undo per line.
@@ -205,8 +208,13 @@ The ＋ sheet offers three large tiles; the first two are the point.
 └──────────────────────────────────────┘
 ```
 
-- Legality is shown as friendly hints, never a block: "Noch 13 Karten", "Höchstens 4 mit dem Namen
-  Glutexo", "Du brauchst ein Basis-Pokémon". Format hints (Standard) stay small and optional (Q 7).
+- Legality is real and shown as plain flags, never a block (Q 7): "Noch 13 Karten", "Höchstens 4
+  mit dem Namen Glutexo", "Du brauchst ein Basis-Pokémon", "Nicht mehr im Standard-Format erlaubt".
+  The deck header carries a format chip (Standard / Erweitert) and one badge: legal, unfertig or
+  nicht legal.
+- **Mit Claude**: "Deck analysieren" and "Deck mit Claude bauen" are the same components the Dragon
+  Ball decks use, fed by the Pokémon adapter (`plan.md` §7). Claude's suggestions are card pictures
+  with the three verbs, so a suggestion becomes a wish or a deck line in one tap.
 - "＋ Karte" opens Entdecken with a "Meine Karten zuerst" toggle on.
 - **Neues Deck mit dieser Karte**: pick a favourite, and the app drafts the evolution line, matching
   Energy and Trainers she owns, then opens the deck for editing. Cards she lacks are listed with a
@@ -234,7 +242,7 @@ In the detail sheet of a card she owns:
 ## 8. Wünsche, and the owner's side
 
 Her tab: a grid of hearted cards with a short reason line where one exists ("fehlt im
-Feuerdrachen-Deck"), no prices (Q 3).
+Feuerdrachen-Deck"), the price per card and a total (Q 3).
 
 The owner, as SL, in `/cart`:
 
@@ -275,10 +283,9 @@ The owner, as SL, in `/cart`:
 - Images carry the card name as alt text.
 - Motion: one 150 ms pulse on save and on wish; nothing loops; all of it off under
   `prefers-reduced-motion`.
-- Text for a young reader: short sentences, "du", no jargon ("Wunsch", not "Want-Liste").
+- Text for a 12-year-old: short sentences, "du", no jargon ("Wunsch", not "Want-Liste").
 
-## 11. Open design questions
+## 11. Still open
 
-They follow `plan.md` §9: language (Q 2), prices for her (Q 3), whose photo (Q 4), what trading
-means (Q 5), format hints (Q 7), and the per-user start screen (Q 9). A clickable phone prototype of
-§3 and §5 can be made once Q 1 to Q 3 are answered, before any worker starts.
+Only the screen language (German assumed). A clickable phone prototype of §3 and §5 can be made
+before any worker starts, if the owner wants to see it first.

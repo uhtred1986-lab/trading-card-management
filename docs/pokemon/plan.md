@@ -1,17 +1,18 @@
 # Pokémon in the collection, deck and buying screens: plan
 
-Status: **draft for the owner, 14 Nov 2026.** Nothing is built. Open questions are in §9; every
-assumption they would change is marked **(Q n)**. The look and the flows are in `design.md` beside
+Status: **decisions taken, 14 Nov 2026** (owner's answers are in §9; the **(Q n)** marks point at
+them). Nothing is built. The look and the flows are in `design.md` beside
 this file.
 
 ## 1. Goal
 
 The owner's daughter keeps her **Pokémon TCG** collection and her decks in this app on her phone,
-finds cool cards and builds new decks around them, and marks what she wishes for. The owner buys
+finds cool cards and builds new decks around them, with Claude's help, and marks what she wishes for. The owner buys
 those cards on CardTrader with the existing cart optimiser.
 
-In scope: collection, live card search and browsing, decks, wishes, trade list, CardTrader buying,
-voice and photo input, photo override of a card's picture. Out of scope: the arena, meta, leaders,
+In scope: collection, live card search and browsing, decks with real format legality, the Claude
+deck features, wishes, CardTrader buying, voice and photo input, photo override of a card's picture.
+No trading feature (owner: "trading" meant buying). Out of scope: the arena, meta, leaders,
 set review, news and the rules screens (Pokémon gets `arena: false` and none of those tabs).
 
 ## 2. What the owner asked for, and how the plan answers it
@@ -23,7 +24,7 @@ set review, news and the rules screens (Pokémon gets `arena: false` and none of
 | Phone first, above all for looking through cards | 2-column grid with endless scroll and a full-screen swipe viewer (`design.md` §3). |
 | A card's picture can be replaced by a phone upload | `card_photos` table, shrunk in the browser, shown in place of the catalog image (§5). |
 | Input by reading aloud or by photo | German voice entry by name or number, and the existing scan pipeline with a Pokémon prompt (§6). |
-| Daughter records collection and decks, builds decks from cool cards | Pokémon deck rules, "build around this card" (§7). |
+| Daughter records collection and decks, builds decks from cool cards | Pokémon deck rules with Standard / Expanded legality, "build around this card", and the Claude deck features made game-neutral (§7). |
 | Owner buys through CardTrader | Wishes and deck shortfalls flow into `/cart`; an SL can open a player's wishes (§8). |
 
 ## 3. Card data source: TCGdex
@@ -45,8 +46,11 @@ Two things a worker proves first, because the plan leans on them:
 
 1. That TCGdex's `thirdParty.cardtrader` number is a CardTrader **blueprint id** usable with
    `marketplace/products?blueprint_id=` (needs the CardTrader token; one read call).
-2. German coverage of the newest sets. Where a German card is missing, the search falls back to the
-   English record and says so.
+2. German coverage of the newest sets.
+
+Her cards are German and English mixed (Q 2), so the search asks TCGdex in **both languages** and
+merges by card id: "Glurak" and "Charizard" find the same card. The tile shows the name in the
+language that matched; a language chip (DE / EN) on "Hab ich" records which printing she owns.
 
 ## 4. Data model: "materialise on reference"
 
@@ -56,8 +60,10 @@ Keeping that is what lets reservations, the cart and the optimiser work for Pok�
 - **`ensurePokemonCard(tcgdexId, lang)`** fetches the card from TCGdex and upserts one `cards` row
   and one `card_prints` row per variant, inside the same transaction as the lot, deck line or wish
   that needs it. It is the only writer of Pokémon rows in `cards`.
-- Card id: `PKM-` + TCGdex id (`PKM-sv03.5-006`); print id adds the variant
-  (`PKM-sv03.5-006_holo`). The prefix keeps the id space apart from Bandai's.
+- Card id: `PKM-` + TCGdex id (`PKM-sv03.5-006`), one card whatever the language; print id adds
+  variant and language (`PKM-sv03.5-006_holo_de`), because a German and an English copy are
+  different things to own and to buy. Variants are tracked apart, condition is not (Q 8). The prefix
+  keeps the id space apart from Bandai's. The card row keeps both names (`details.names`).
 - Column mapping: `card_type` = POKEMON / TRAINER / ENERGY, `colors` = types, `power` = HP,
   `skill` = abilities and attacks as text, `rarity` as printed. Everything else Pokémon-specific
   (stage, `evolveFrom`, attacks, weakness, retreat, regulation mark, legality, dex number, language,
@@ -79,14 +85,16 @@ Size: a few hundred to a few thousand rows for one child's collection, against 2
   the server refuses anything over 400 KB.
 - `GET /api/card-photo/[id]` serves it with a long cache and an id that changes on re-upload.
   `CardImage` takes the photo when one exists, else the catalog image.
-- One photo per print and owner; "Original wiederherstellen" removes it. **(Q 4)** decides whether
-  the owner sees the daughter's photo too (assumed: yes, SLs see everyone's as with lots).
+- "Local" means stored in the app's database, as opposed to loaded live (Q 4). One photo per print
+  and owner; "Original wiederherstellen" removes it. An SL sees a player's photo on that player's
+  cards, as with lots.
 - Works for the Dragon Ball games as well, at no extra cost.
 
 ## 6. Input: voice and photo
 
 **Voice** (free, on the device, no audio uploaded):
-- `startListening` already takes a language; Pokémon uses `de-AT` **(Q 2)**.
+- `startListening` already takes a language; Pokémon uses `de-AT` with a DE / EN switch on the
+  screen, since her cards are mixed (Q 2).
 - The child says a name ("Glurak ex") or a number ("sechs von hundertfünfundsechzig"). The text goes
   to the live search; number and set size narrow it. The answer is a row of pictures to tap, never a
   silent guess, since one name has dozens of printings.
@@ -107,15 +115,24 @@ Size: a few hundred to a few thousand rows for one child's collection, against 2
 
 - `GAME_INFO.pokemon.deck`: exactly 60 cards, no leader, no Z-Deck, 4 copies **by card name**
   (not by number), basic Energy unlimited, ACE SPEC and Radiant one per deck, at least one Basic
-  Pokémon. Format (Standard / Expanded) comes from TCGdex's `legal` flags.
+  Pokémon.
+- **Real format legality** (Q 7): each deck has a format, Standard (default) or Expanded. A card
+  outside the format is flagged from TCGdex's `legal` flags and regulation mark, refreshed nightly
+  for referenced cards so a rotation shows up without a deploy.
 - `legality(rows, game)` keeps its contract: it labels, it never blocks. Pokémon gets its own branch
   rather than more conditions in the leader-and-Z-Deck code.
 - Deck builder: groups are Pokémon / Trainer / Energy; the card picker searches live and offers
   "from my collection" first.
 - **Build around this card**: from a card the child likes, propose its evolution line
   (`evolveFrom`, searched live), Energy of its type and Trainers she owns, as a draft deck she
-  edits. Deterministic and free in this delivery. The Claude deck wizard for Pokémon is a later,
-  separate step **(Q 6)**.
+  edits. Deterministic and free.
+- **Claude, built now and shared** (Q 6): deck analysis, the wizard and "Build a deck with Claude"
+  become game-neutral instead of getting Pokémon copies. Each game supplies, through `GAME_INFO`
+  and one small adapter, its prompt name, its deck rules as text, how a card is described to the
+  model, and its **card source** (local catalog for the Dragon Ball games, live TCGdex search as a
+  tool for Pokémon). Provider routing, the ledger and the UI components stay single. The hardcoded
+  `dbs` / `fusion` options in `NewDeckWithClaude` go. These are paid calls at run time, as today;
+  building and testing them uses recorded responses, and a live smoke test only on the owner's ask.
 - Reservations, built vs. virtual decks and the over-reserve refusal apply unchanged.
 
 ## 8. Wishes, trading and buying
@@ -128,36 +145,29 @@ Size: a few hundred to a few thousand rows for one child's collection, against 2
   wished card, as `refreshListingsForCard` does now. Filters: language **(Q 2)**, condition, EUR,
   seller country. The optimiser itself is already game-neutral.
 - **Prices**: Cardmarket EUR from TCGdex for owned and wished cards only, refreshed by the existing
-  06:00 price cron. Whether the child sees money at all is **(Q 3)**.
-- **Trade list** **(Q 5)**: copies she owns beyond what her built decks reserve, as a list she can
-  show a friend. Read-only and computed, like reservations.
+  06:00 price cron. She sees prices and the cart like any player (Q 3); cart shipping settings stay
+  SL-only as today.
+- No trade list (Q 5).
 
-## 9. Open questions for the owner
+## 9. Decisions (owner, 14 Nov 2026)
 
-1. **Who uses it and how?** Her age and reading level; her own phone or yours; does she get her own
-   join code (assumed: yes, a player account of her own, which keeps her collection apart from yours).
-2. **Card and app language.** Are her cards German, English or mixed? Should the Pokémon screens
-   speak German (the app is English today; assumed: German copy for the Pokémon screens only, cards
-   stored in the language she adds them in)?
-3. **Money.** Should she see prices and the cart, or only hearts, with prices and buying on your
-   side (assumed: she sees no prices)?
-4. **Photo override.** One picture per card for the whole family, or per person? And did "local"
-   mean stored in the app (assumed) or only on the phone?
-5. **Trading.** Is a list of spare cards to show friends what you meant, or trades between app
-   users, or selling?
-6. **Deck help.** Is the free "evolution line + Energy + owned Trainers" draft enough for the first
-   delivery, with the Claude wizard later? The wizard costs per use.
-7. **Deck format.** Kitchen-table decks (60 cards, 4 copies, no rotation check) or real Standard
-   legality flags (assumed: flags shown, quietly, never blocking)?
-8. **Card conditions and variants.** Track holo / reverse holo separately (assumed: yes, they differ
-   in price) and condition (assumed: no, near mint when buying)?
-9. **Start screen.** May the installed app open on her collection instead of `/arena` for a user
-   whose game is Pokémon (assumed: yes, a per-user home game)?
+1. **User:** she is 12 and has her own phone; she gets a player account of her own by join code.
+2. **Language:** her cards are German and English mixed, so search, voice and buying handle both.
+   The owner did not say which language the Pokémon screens speak; **German is assumed** and is the
+   one point still to confirm.
+3. **Money:** she may see prices.
+4. **Photo override:** "local" meant stored in the app's database, not live from the API.
+5. **Trading:** meant buying only. No trading feature.
+6. **Claude:** built in this delivery, by making the existing Claude features game-neutral and
+   reusing them.
+7. **Format:** real legality.
+8. **Variants** tracked apart; **condition** not needed.
+9. **Start screen:** per-user home game, opening on her collection.
 
 ## 10. Code improvements proposed alongside
 
 From the code map made for this plan. Items 1 to 4 are needed for Pokémon anyway; 5 to 8 are worth
-doing while the files are open; 9 and 10 are separate suggestions.
+doing while the files are open; 9 and 10 are part of this delivery; 11 is a separate suggestion.
 
 1. **Per-game capabilities in `GAME_INFO`**, not branches. About 25 places test for `"fusion"` or
    `"dbs"` (card types, colours, deck zones, stat labels, external links, catalog and price source).
@@ -175,9 +185,11 @@ doing while the files are open; 9 and 10 are separate suggestions.
 7. **Voice language per user**, not the `en-US` default.
 8. **The PWA name and start URL** ("DBS Card Companion", `/arena`) become neutral, with the start
    screen chosen per user.
-9. **One reusable swipe viewer.** Built here for Pokémon, then offered on `/cards` and `/collection`
+9. **One game-neutral Claude layer** (§7), so prompts, tools and deck rules for a game live in one
+   adapter and a fix to the wizard reaches every game.
+10. **One reusable swipe viewer.** Built here for Pokémon, then offered on `/cards` and `/collection`
    for the Dragon Ball games.
-10. **Collection and decks offline.** Only the arena works offline today; a child's phone is often
+11. **Collection and decks offline.** Only the arena works offline today; a child's phone is often
     without signal. Sized separately, not part of this delivery.
 
 ## 11. Delivery: one run, one PR
@@ -202,8 +214,9 @@ Owner's wish: cheaper models do the work in one go and one PR, with a stronger m
 | 1 | C. Photo override: table use, upload action, route, `CardImage` | Sonnet | `CardImage.tsx`, new route |
 | 2 | D. Browse grid, swipe viewer, home game, navigation, German copy | Sonnet | `src/app/pokemon/*` or game-aware `/cards`, **`navigation.ts`** |
 | 2 | E. Voice (de-AT) and photo scan for Pokémon | Sonnet | `scan/*`, `ai/scan.ts` |
-| 2 | F. Wishes for SL, CardTrader by blueprint id, EUR prices, trade list | Sonnet | `marketplace/*`, `cart/*` |
-| 3 | G. Deck builder UI and "build around this card" | Sonnet | `DeckBuilder.tsx`, after B and D |
+| 2 | F. Wishes for SL, CardTrader by blueprint id and language, EUR prices | Sonnet | `marketplace/*`, `cart/*` |
+| 3 | G. Deck builder UI, format picker and "build around this card" | Sonnet | `DeckBuilder.tsx`, after B and D |
+| 3 | I. Claude features game-neutral: per-game adapter, TCGdex search tool, analysis, wizard, "Build a deck with Claude" | Sonnet, coordinator reviews the adapter shape first | `src/lib/ai/*`, `NewDeckWithClaude.tsx`, after A and B |
 | 3 | H. Docs (`CLAUDE.md`, architecture pages), `verify-rules` / `verify-db` cases, guards | Haiku | docs, `scripts/verify*` |
 
 Gate, once, on the combined head: `npm run checks -- full` with `--build`, `npm run shots:compare`
@@ -211,7 +224,7 @@ for every touched route at 390 and 1440, a live read against TCGdex, the CardTra
 (§3), and the migration SQL read for anything destructive. Merging deploys and migrates production,
 so the PR stays a draft until the owner has seen the screenshots.
 
-Needs the owner's say-so before the run: nothing, if the assumptions hold. No new npm dependency, no
+Needs the owner's say-so before the run: only the screen language (§9, 2). No new npm dependency, no
 destructive migration and no Vercel setting. A paid photo-scan test only if the owner asks for it.
 
 ## 12. Risks
