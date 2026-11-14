@@ -98,7 +98,11 @@ const wordsDone = (async () => {
     assert.equal(ask.prompts.length, 1);
     const user = ask.prompts[0].user;
     for (const s of [TIDECALLER, ctx.clauseWords, SAID, "[auto]", "THE OWNER IS TEACHING THE IF CLAUSE", "WHEN [auto] attacks"]) assert.ok(user.includes(s), `the prompt carries ${JSON.stringify(s)}`);
-    assert.ok(ask.prompts[0].system.length < 40_000, "the system prompt is a sensible size");
+    // The budget bounds the reference (asserted above); the system prompt is that plus the short intro, so it is held to the
+    // budget plus a small, explicit allowance for the intro, not to the budget itself.
+    const system = ask.prompts[0].system;
+    assert.ok(system.length - languageForPrompt().length < 1_500, "the intro in front of the reference stays short");
+    assert.ok(system.length < REFERENCE_BUDGET + 1_500, "the system prompt is a sensible size");
   }
 
   // One bad reply is retried with its LangError, and the second one stands.
