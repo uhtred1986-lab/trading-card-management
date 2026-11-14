@@ -29,6 +29,8 @@ export interface PokemonDetection {
   /** The number as printed at the bottom: "006/165", "006" or a promo code such as "SWSH062". */
   number: string | null;
   setCode: string | null;
+  /** The TCGdex set ids the printed `setCode` stands for (`findPokemonSetsByCode`), when the caller looked it up. A hit in one of them agrees on the set. */
+  setIds?: readonly string[];
   /** 0..1, how sure the model is about the number AND the name. */
   confidence: number;
 }
@@ -68,6 +70,8 @@ export interface PokemonCandidate {
   nameSim: number;
   /** The rule-box suffix (ex, V, ...) agrees, or neither has one. */
   suffixMatch: boolean;
+  /** The printed set code names this card's set. */
+  codeMatch: boolean;
 }
 
 export interface PokemonMatch {
@@ -90,6 +94,9 @@ const CLEAR_READ = 0.6;
 
 const suffixOf = (name: string) => splitNameSuffix(name).suffix;
 
+/** "sv03.5-006" is in set "sv03.5" (the same cut as `setIdOf` in tcgdex.ts, which a client bundle should not import). */
+const setOfHit = (h: PokemonHit): string => (h.tcgdexId.endsWith(`-${h.localId}`) ? h.tcgdexId.slice(0, h.tcgdexId.length - h.localId.length - 1) : h.tcgdexId.slice(0, Math.max(0, h.tcgdexId.lastIndexOf("-"))));
+
 function assess(detection: PokemonDetection, printed: PrintedNumber | null, hit: PokemonHit): PokemonCandidate {
   const detName = foldName(detection.name);
   const names = [hit.name, hit.altName].filter((n): n is string => !!n);
@@ -99,9 +106,9 @@ function assess(detection: PokemonDetection, printed: PrintedNumber | null, hit:
   const numberMatch = !!printed && canonicalLocalId(hit.localId) === printed.localId;
   const sizeMatch = !!printed && printed.size !== null && hit.setTotal === printed.size;
   const code = detection.setCode?.trim().toLowerCase();
-  const codeMatch = !!code && (hit.tcgdexId.toLowerCase().startsWith(`${code}-`) || hit.setName.toLowerCase() === code);
-  const score = (numberMatch ? 4 : 0) + (sizeMatch ? 2 : 0) + nameSim * 2 + (suffixMatch ? 0.25 : 0) + (codeMatch ? 0.5 : 0);
-  return { hit, score, numberMatch, sizeMatch, nameSim, suffixMatch };
+  const codeMatch = !!detection.setIds?.includes(setOfHit(hit)) || (!!code && (hit.tcgdexId.toLowerCase().startsWith(`${code}-`) || hit.setName.toLowerCase() === code));
+  const score = (numberMatch ? 4 : 0) + (sizeMatch ? 2 : 0) + nameSim * 2 + (suffixMatch ? 0.25 : 0) + (codeMatch ? 1 : 0);
+  return { hit, score, numberMatch, sizeMatch, nameSim, suffixMatch, codeMatch };
 }
 
 /**
@@ -122,9 +129,12 @@ export function matchPokemon(detection: PokemonDetection, hits: PokemonHit[]): P
 
   if (printed) {
     const sameName = (c: PokemonCandidate) => c.nameSim >= NAME_SAME && c.suffixMatch;
-    const full = all.filter((c) => c.numberMatch && c.sizeMatch && sameName(c));
+    // The set size, or the printed set code when no size was read (a promo "SWSH062", a gallery card "TG12"), is the second witness.
+    const full = all.filter((c) => c.numberMatch && (c.sizeMatch || (c.codeMatch && printed.size === null)) && sameName(c));
     if (full.length === 1) {
-      return read >= CLEAR_READ ? one(full[0], "exact", "Nummer, Setgröße und Name passen.") : one(full[0], "likely", "Passt, aber das Foto war nicht klar.");
+      return read >= CLEAR_READ
+        ? one(full[0], "exact", full[0].sizeMatch ? "Nummer, Setgröße und Name passen." : "Nummer, Set-Kürzel und Name passen.")
+        : one(full[0], "likely", "Passt, aber das Foto war nicht klar.");
     }
     if (full.length > 1) return unsure("Mehrere Karten haben dieselbe Nummer und denselben Namen.");
 
@@ -152,12 +162,16 @@ export function matchPokemon(detection: PokemonDetection, hits: PokemonHit[]): P
 }
 
 /** The `searchPokemon` queries for a detection, most precise first: the printed number with its size, then the name. */
-export function pokemonScanQueries(detection: Pick<PokemonDetection, "name" | "language" | "number">): string[] {
+export function pokemonScanQueries(detection: Pick<PokemonDetection, "name" | "language" | "number"> & { setCode?: string | null }): string[] {
   const printed = parsePrintedNumber(detection.number);
   const name = detection.name.trim().replace(/\s+/g, " ");
   const { base, suffix } = splitNameSuffix(name);
   const full = [displayName(base, suffix, detection.language === "EN" ? "space" : "hyphen")];
   const out: string[] = [];
+  // A collector ID with letters ("SWSH062", "TG12/TG30") is searched as printed; so is a printed set code with the number ("MEW 6").
+  if (printed && printed.number === null) out.push(detection.number!.trim().toUpperCase().replace(/^#/, "").replace(/\s+/g, ""));
+  const code = /^[A-Za-z]{2,5}\b/.exec(detection.setCode?.trim() ?? "")?.[0].toUpperCase();
+  if (code && printed && printed.number !== null) out.push(`${code} ${printed.number}`);
   const hasSize = !!printed && printed.size !== null;
   const numberText = printed && printed.number !== null ? (hasSize ? `${printed.number}/${printed.size}` : String(printed.number)) : null;
   if (numberText && hasSize) out.push(numberText);
