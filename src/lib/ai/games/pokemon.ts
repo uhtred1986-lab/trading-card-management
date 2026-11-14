@@ -93,8 +93,13 @@ export async function verifySwapNames<S extends { inCardId: string }>(db: Db, de
     const rec = await cardForName(deps.source, said, fmt);
     if (rec) kept.push({ ...s, inCardId: pokemonCardId(rec.tcgdexId) });
   }
-  return kept;
+  // A deck that is far from finished draws more swaps than a page should show: the most important ten.
+  const rank = (s: S) => ({ high: 0, medium: 1, low: 2 })[(s as { priority?: string }).priority ?? "low"] ?? 2;
+  return kept.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).slice(0, MAX_SWAPS).map((x) => x.s);
 }
+
+/** Most swaps one wizard run shows. */
+export const MAX_SWAPS = 10;
 
 const normaliseSwapId = (raw: string): string | null => {
   const t = raw.trim();
@@ -133,7 +138,7 @@ export function pokemonAdapter(deps: PokemonDeps = liveDeps): GameAdapter {
     },
     swapInstruction() {
       const r = info.deck;
-      return `Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the player's own cards or one you looked up with the tools (use the PKM-… card id exactly as given). Keep the deck at exactly ${r.main} cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the ${r.copies}-copy limit counted by card NAME (basic Energy is unlimited; one ACE SPEC, one Radiant).`;
+      return `Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the player's own cards or one you looked up with the tools (use the PKM-… card id exactly as given). For a well-known card you have no id for (a staple Trainer, a basic Energy), you need no lookup: give its exact official name, German or English, in inName and an empty string as inCardId; the app finds the printing that is legal in the format of the deck. Use lookups for cards whose text you need to read. Keep the deck at exactly ${r.main} cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the ${r.copies}-copy limit counted by card NAME (basic Energy is unlimited; one ACE SPEC, one Radiant).`;
     },
     wizardSchema: PokemonWizardSchema,
     async wizardSource(db, deck, scope): Promise<WizardSource> {
