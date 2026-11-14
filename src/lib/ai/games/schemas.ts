@@ -33,6 +33,7 @@ export const PokemonWizardSchema = z.object({
         outCardId: z.string().describe("Card id currently in the deck to remove"),
         outQuantity: z.number().int().min(1).max(20),
         inCardId: z.string().describe("Card id (PKM-…) from the player's cards or from a lookup, to add"),
+        inName: z.string().describe("The name of the card to add, exactly as the player's list or the lookup gave it for that id"),
         inQuantity: z.number().int().min(1).max(20),
         rationale: z.string(),
         priority: z.enum(["high", "medium", "low"]),

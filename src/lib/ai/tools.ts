@@ -50,7 +50,7 @@ export function lookupInstructions(tools: LookupTool[], opts: Required<LookupOpt
   ].join("\n");
 }
 
-function envelope<S extends ZodType>(schema: S, tools: LookupTool[], perRound: number) {
+function envelope<S extends ZodType>(schema: S, tools: LookupTool[]) {
   const names = tools.map((t) => t.name) as [string, ...string[]];
   return z.object({
     lookups: z
@@ -63,7 +63,9 @@ function envelope<S extends ZodType>(schema: S, tools: LookupTool[], perRound: n
           id: z.string().nullable(),
         }),
       )
-      .max(perRound),
+      // Not capped at `perRound` here: a model that asks for one lookup too many would have its whole reply
+      // rejected. The loop runs the first `perRound` and says the rest were not run.
+      .max(40),
     answer: schema.nullable(),
   });
 }
@@ -73,7 +75,7 @@ export type LookupResult<T> = AiResult<T> & { lookupLog: LookupLog[]; rounds: nu
 export async function generateWithLookups<S extends ZodType>(req: JsonRequest<S>, tools: LookupTool[], options: LookupOptions = {}): Promise<LookupResult<z.infer<S>>> {
   const opts = { ...DEFAULTS, ...options };
   const { schema, system, messages, ...rest } = req;
-  const env = envelope(schema, tools, opts.perRound);
+  const env = envelope(schema, tools);
   const sys = [system[0], { text: lookupInstructions(tools, opts) }, ...system.slice(1)];
   const log: LookupLog[] = [];
   const convo: AiMessage[] = [...messages];
@@ -94,7 +96,8 @@ export async function generateWithLookups<S extends ZodType>(req: JsonRequest<S>
       continue;
     }
     const results: string[] = [];
-    for (const [i, l] of out.lookups.entries()) {
+    const skipped = Math.max(0, out.lookups.length - opts.perRound);
+    for (const [i, l] of out.lookups.slice(0, opts.perRound).entries()) {
       const tool = tools.find((t) => t.name === l.tool);
       const args: LookupArgs = { name: l.name, type: l.type, category: l.category, id: l.id };
       const text = tool ? await tool.run(args) : `Unknown tool ${l.tool}.`;
@@ -102,7 +105,7 @@ export async function generateWithLookups<S extends ZodType>(req: JsonRequest<S>
       results.push(`[${i + 1}] ${l.tool}(${JSON.stringify(args)}):\n${text.length > opts.resultCap ? `${text.slice(0, opts.resultCap)}\n…(cut)` : text}`);
     }
     const next = round + 1 === opts.maxRounds ? "That was your last lookup round: give your complete answer now in `answer`." : "Look up more, or give your complete answer in `answer`.";
-    convo.push({ role: "assistant", parts: [{ type: "text", text: res.text }] }, { role: "user", parts: [{ type: "text", text: `LOOKUP RESULTS:\n${results.join("\n\n")}\n\n${next}` }] });
+    convo.push({ role: "assistant", parts: [{ type: "text", text: res.text }] }, { role: "user", parts: [{ type: "text", text: `LOOKUP RESULTS:\n${results.join("\n\n")}\n\n${skipped ? `Only the first ${opts.perRound} lookups of a reply are run; your other ${skipped} were not. ` : ""}${next}` }] });
   }
   throw new AiError("bad_output", "The model did not answer — try again.");
 }

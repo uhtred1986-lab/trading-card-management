@@ -44,6 +44,12 @@ export interface WizardSource {
   tools: LookupTool[];
   /** Makes sure every named card exists in `cards` (a live-catalog game stores on reference). Unknown ids are left out, never an error. */
   materialise(db: Db, ids: string[]): Promise<void>;
+  /**
+   * Optional: checks the swaps a model proposed against what the cards really are before they are stored
+   * or shown, and returns the ones to keep (corrected where it could). A game whose pool is the local
+   * catalog has no such step (its ids are checked against the pool as before).
+   */
+  verify?<S extends { inCardId: string }>(db: Db, swaps: S[], format: string | null): Promise<S[]>;
 }
 
 /** Anything a card can be described from: the catalog row, a deck row or a pool row. */

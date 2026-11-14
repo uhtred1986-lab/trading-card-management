@@ -145,6 +145,7 @@ ${deck.metaNotes ? `PLAYER'S META NOTES:\n${deck.metaNotes}\n\n` : ""}${context 
     }
   }
 
+  if (source.verify) output.swaps = await source.verify(db, output.swaps, deck.format);
   const ids = [...new Set(output.swaps.flatMap((s) => [s.outCardId, s.inCardId]))];
   // A live-catalog game stores the cards the model picked from a lookup before they are shown or saved.
   await source.materialise(db, ids);

@@ -13,8 +13,9 @@ import { pokemonFormatOf } from "@/lib/decks/pokemonLegality";
 import { deckToText } from "@/lib/decks/queries";
 import { ensurePokemonCard } from "@/lib/pokemon/store";
 import { PokemonSourceError } from "@/lib/pokemon/tcgdex";
-import { isPokemonCardId, tcgdexIdOf } from "@/lib/pokemon/types";
+import { isPokemonCardId, pokemonCardId, tcgdexIdOf } from "@/lib/pokemon/types";
 import { answerLanguageLine } from "./language";
+import { cardForName, cardNames, nameAgrees } from "./pokemon-names";
 import { describePokemonCard, liveSource, ownedLines, ownedPokemonCards, pokemonLookupTools, type PokemonSource } from "./pokemon-source";
 import { PokemonWizardSchema } from "./schemas";
 import type { AnalysisContext, GameAdapter, WizardSource } from "./types";
@@ -56,6 +57,50 @@ async function materialise(db: Db, deps: PokemonDeps, ids: string[]): Promise<vo
     }
   }
 }
+
+/**
+ * The name check of `pokemon-names.ts` for the wizard's swaps: an added card whose id is another card
+ * than the one the model named is looked up by that name; found, the swap takes the right id; not
+ * found, the swap is dropped. A swap that names no card (an old answer shape) is left alone.
+ */
+export async function verifySwapNames<S extends { inCardId: string }>(db: Db, deps: PokemonDeps, swaps: S[], format: string | null): Promise<S[]> {
+  const fmt = pokemonFormatOf(format);
+  const ids = [...new Set(swaps.map((s) => normaliseSwapId(s.inCardId)).filter((x): x is string => !!x))];
+  const stored = ids.length ? await db.select({ id: cards.id, name: cards.name, details: cards.details }).from(cards).where(inArray(cards.id, ids)) : [];
+  const names = new Map(stored.map((r) => [r.id, cardNames(r)]));
+  const kept: S[] = [];
+  for (const s of swaps) {
+    const said = (s as { inName?: unknown }).inName;
+    const id = normaliseSwapId(s.inCardId);
+    if (typeof said !== "string" || !said.trim()) {
+      kept.push(s);
+      continue;
+    }
+    let known = id ? names.get(id) : undefined;
+    if (id && !known) {
+      try {
+        const rec = await deps.source.get(tcgdexIdOf(id)!);
+        known = cardNames({ name: rec.hit.name, details: rec.details });
+        names.set(id, known);
+      } catch (err) {
+        if (!(err instanceof PokemonSourceError)) throw err;
+      }
+    }
+    if (id && known && nameAgrees(said, known)) {
+      kept.push({ ...s, inCardId: id });
+      continue;
+    }
+    const rec = await cardForName(deps.source, said, fmt);
+    if (rec) kept.push({ ...s, inCardId: pokemonCardId(rec.tcgdexId) });
+  }
+  return kept;
+}
+
+const normaliseSwapId = (raw: string): string | null => {
+  const t = raw.trim();
+  const id = isPokemonCardId(t) ? tcgdexIdOf(t) : null;
+  return id ? pokemonCardId(id) : null;
+};
 
 export function pokemonAdapter(deps: PokemonDeps = liveDeps): GameAdapter {
   const info = gameInfo("pokemon");
@@ -103,6 +148,7 @@ export function pokemonAdapter(deps: PokemonDeps = liveDeps): GameAdapter {
         poolBlock: `${head}\n${owned.length ? ownedLines(owned, 240).join("\n") : "(none)"}`,
         tools: lookups ? pokemonLookupTools(deps.source) : [],
         materialise: (db2, ids) => materialise(db2, deps, ids),
+        verify: (db2, swaps, format) => verifySwapNames(db2, deps, swaps, format),
       };
     },
     validate: (rows, format) => legality(rows, "pokemon", format),

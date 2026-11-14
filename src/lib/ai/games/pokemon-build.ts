@@ -20,6 +20,7 @@ import { pokemonCardId, pokemonDetails, tcgdexIdOf } from "@/lib/pokemon/types";
 import { recordRun } from "../client";
 import { generateWithLookups } from "../tools";
 import { answerLanguageLine } from "./language";
+import { cardForName, cardNames, nameAgrees } from "./pokemon-names";
 import { describeRecord, ownedLines, ownedPokemonCards, pokemonLookupTools } from "./pokemon-source";
 import { liveDeps, pokemonAdapter, pokemonRulesText, type PokemonDeps } from "./pokemon";
 
@@ -27,7 +28,7 @@ export const PokemonDraftSchema = z.object({
   name: z.string().describe("Short deck name, e.g. 'Glurak Feuersturm'"),
   strategy: z.string().describe("3–5 sentences: game plan, key interactions, how it wins"),
   cards: z
-    .array(z.object({ cardId: z.string(), quantity: z.number().int().min(1).max(20) }))
+    .array(z.object({ cardId: z.string(), name: z.string().describe("The card's name exactly as the player's list or the lookup gave it for that id"), quantity: z.number().int().min(1).max(20) }))
     .max(60)
     .describe("The deck: exactly 60 cards in total (basic Energy counts), card ids exactly as given"),
   purchases: z
@@ -46,6 +47,25 @@ export interface PokemonBuildInput {
   owner: string | null;
 }
 
+/** Most cards the builder adds by itself when the model's list falls short of the deck size (see `topUpEnergy`). */
+export const TOP_UP_LIMIT = 6;
+
+/**
+ * A list a few cards short of the deck size gets that many more of the basic Energy it already plays
+ * most of. Seen in the first live run (14 Nov 2026): a sound 59-card list. More basic Energy is the one
+ * addition that needs no judgement; a list further off, or one with no basic Energy, is left short and
+ * the checker says so. Returns how many were added.
+ */
+export function topUpEnergy(lines: { cardId: string; quantity: number }[], known: Map<string, KnownCard>, size = gameInfo("pokemon").deck.main): number {
+  const total = lines.reduce((n, l) => n + l.quantity, 0);
+  const gap = size - total;
+  if (gap <= 0 || gap > TOP_UP_LIMIT) return 0;
+  const energy = lines.filter((l) => pokemonDetails(known.get(l.cardId)?.details).basicEnergy).sort((a, b) => b.quantity - a.quantity)[0];
+  if (!energy) return 0;
+  energy.quantity += gap;
+  return gap;
+}
+
 export interface PokemonBuildResult {
   deckId: number;
   draft: PokemonDraft;
@@ -54,6 +74,10 @@ export interface PokemonBuildResult {
   toBuy: number;
   dropped: string[];
   trimmed: string[];
+  /** Entries whose id was another card than the one named, put right by name. */
+  corrected: number;
+  /** Basic Energy added to reach the deck size. */
+  toppedUp: number;
   legality: DeckLegality;
   lookups: number;
 }
@@ -209,6 +233,25 @@ export async function buildPokemonDeckWithClaude(db: Db, input: PokemonBuildInpu
   // Clean the draft against what the cards really are, then store the ones only the source knows.
   const wanted = [...new Set([...draft.cards.map((c) => normaliseCardId(c.cardId)), seedId].filter((x): x is string => !!x))];
   const { known, records } = await resolveKnown(db, deps, wanted);
+  // The name check (pokemon-names.ts): an id that is another card than the one named is put right by name.
+  let corrected = 0;
+  const idFix = new Map<string, string>();
+  for (const c of draft.cards) {
+    const id = normaliseCardId(c.cardId);
+    const k = id ? known.get(id) : undefined;
+    if (!c.name?.trim() || (k && nameAgrees(c.name, cardNames(k)))) continue;
+    const rec = await cardForName(deps.source, c.name, format);
+    if (!rec) continue;
+    const right = pokemonCardId(rec.tcgdexId);
+    if (!known.has(right)) {
+      known.set(right, { name: rec.hit.name, cardType: rec.category, details: rec.details });
+      records.set(right, rec);
+    }
+    idFix.set(c.cardId, right);
+    c.cardId = right;
+    corrected++;
+  }
+  for (const p of draft.purchases) p.cardId = idFix.get(p.cardId) ?? p.cardId;
   const cleaned = cleanPokemonDraft(draft.cards, known);
   if (seedId && known.has(seedId) && !cleaned.lines.some((l) => l.cardId === seedId)) {
     // The model was told the seed card must be in; enforce it rather than trust it (the Dragon Ball builder does the same).
@@ -225,6 +268,7 @@ export async function buildPokemonDeckWithClaude(db: Db, input: PokemonBuildInpu
       }
     }
   }
+  const toppedUp = topUpEnergy(cleaned.lines, known);
   for (const l of cleaned.lines) {
     const rec = records.get(l.cardId);
     if (rec) await deps.ensure(db, rec.tcgdexId, { record: rec });
@@ -240,6 +284,7 @@ export async function buildPokemonDeckWithClaude(db: Db, input: PokemonBuildInpu
     "",
     buy.length ? `Dir fehlen noch (${buy.length} Karte${buy.length === 1 ? "" : "n"}):\n${buy.map((l) => `- ${l.need}× ${known.get(l.cardId)!.name} (${l.cardId})${reasons.get(l.cardId) ? `: ${reasons.get(l.cardId)}` : ""}`).join("\n")}` : "Alles außer Energie hast du schon.",
     cleaned.dropped.length ? `\nNicht gefunden, ausgelassen: ${cleaned.dropped.join(", ")}` : "",
+    toppedUp ? `\nIch habe ${toppedUp} Basis-Energie ergänzt, damit es 60 Karten sind.` : "",
   ]
     .join("\n")
     .trim();
@@ -260,6 +305,8 @@ export async function buildPokemonDeckWithClaude(db: Db, input: PokemonBuildInpu
     toBuy: buy.reduce((n, l) => n + l.need, 0),
     dropped: cleaned.dropped,
     trimmed: cleaned.trimmed,
+    corrected,
+    toppedUp,
     legality: adapter.validate(rows, format),
     lookups: res.lookupLog.length,
   };

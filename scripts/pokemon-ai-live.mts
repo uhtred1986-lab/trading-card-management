@@ -80,9 +80,10 @@ async function step<T>(name: string, run: () => Promise<T>): Promise<T | null> {
     console.log(`\n== ${name}: ok in ${((Date.now() - t) / 1000).toFixed(1)} s`);
     return value;
   } catch (e) {
-    const err = e as Error & { kind?: string; detail?: string };
-    save(name, { error: err.message, kind: err.kind, detail: err.detail, stack: err.stack });
-    console.log(`\n== ${name}: FAILED in ${((Date.now() - t) / 1000).toFixed(1)} s: ${err.message}${err.detail ? ` (${err.detail})` : ""}`);
+    const err = e as Error & { kind?: string; cause?: unknown };
+    const why = err.cause instanceof Error ? err.cause.message : undefined;
+    save(name, { error: err.message, kind: err.kind, why, stack: err.stack });
+    console.log(`\n== ${name}: FAILED in ${((Date.now() - t) / 1000).toFixed(1)} s: ${err.message}${why ? ` (${why})` : ""}`);
     return null;
   }
 }

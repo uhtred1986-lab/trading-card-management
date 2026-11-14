@@ -9,7 +9,8 @@ import { GAME_INFO, type Game } from "@/lib/catalog/games";
 const GERMAN =
   "Answer in German (Deutsch), in plain words a 12-year-old understands: short sentences, no jargon unless you explain it in a few words. " +
   "Every free-text field of your answer (summary, explanations, rationale, strategy, deck name, notes) is German. " +
-  "Card ids stay exactly as given, and so do official card names.";
+  "Card ids stay exactly as given, and so do official card names. " +
+  "Use the words printed on German cards: KP (never HP), Basis-Pokémon, Phase 1, Phase 2, Energie, Trainer; the two formats are called Standard and Erweitert.";
 
 /** The instruction line for a game's answer language, or null when the game's screens are English. */
 export function answerLanguageLine(game: Game): string | null {
