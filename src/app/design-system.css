@@ -237,7 +237,7 @@ html:is([data-skin="night"], [data-skin="instinct"]) .ds-color-blue { background
 .csv-stage{position:relative;flex:1;min-height:0;display:flex}
 .csv-rail{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
 .csv-rail::-webkit-scrollbar{display:none}
-.csv-slide{flex:none;width:100%;scroll-snap-align:center;scroll-snap-stop:always;display:grid;place-items:center;padding:6px 26px;min-height:0}
+.csv-slide{grid-template:minmax(0,1fr)/minmax(0,1fr);flex:none;width:100%;scroll-snap-align:center;scroll-snap-stop:always;display:grid;place-items:center;padding:6px 26px;min-height:0}
 .csv-slide img{max-height:100%;max-width:100%;border-radius:14px;box-shadow:0 10px 30px #000a;object-fit:contain}
 .csv-noimg{aspect-ratio:63/88;height:min(100%,520px);max-width:100%;border-radius:14px;border:2px dashed #ffffff55;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;font-weight:700;font-size:20px;color:#cfe0e4}
 .csv-arrow{display:none;position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;background:#ffffff26;color:#fff;border:0;font-size:26px;cursor:pointer;z-index:2}

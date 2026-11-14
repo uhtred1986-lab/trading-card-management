@@ -312,9 +312,21 @@ Written after the build (14 Nov 2026). Each line names the file that shows the d
 20. Item 11, offline reading: done, with the limits in `docs/architecture/collection-and-decks.md`
     ("Offline reading"). `public/sw.js`, `src/lib/offline-pages.ts`, `scripts/verify/offline-reading.mts`.
 
+**Gaps closed afterwards** (the polish lane; each was reported against `design.md`)
+
+21. Zoom in the swipe viewer (§3 "double tap: zoom"): done, in the generic viewer. `src/components/CardSwipeViewer.tsx`, `src/lib/viewer-zoom.ts`.
+22. Evolves from / into as tappable pictures in the detail sheet (§3): done. `src/lib/pokemon/evolutions.ts`, `src/app/api/pokemon/card/[id]/evolutions/route.ts`, `PokemonViewer.tsx`.
+23. Desktop: the detail as a fixed right column from `lg` (§3): done for the Pokémon viewer, `/cards` and `/collection` (`detailColumn`).
+24. The reason line on wishes (§8): done, derived from her decks and copies. `src/lib/pokemon/views.ts`, `deck-logic.ts`.
+25. A Pokémon deck row on the shared `/decks` links to its German page and shows its format: done. `src/app/decks/page.tsx`.
+26. Source down (§9): search and set tiles share a retry panel; offline says "Kein Internet". `DiscoverScreen.tsx` (`DownPanel`).
+27. Desktop screenshots at 1280 px: `docs/pokemon/shots/*-1280.webp`; the viewer zoomed and the evolutions at 390 px.
+
 **Not checked in this delivery**
 
 - A real phone, real speech recognition, a real model run on a Pokémon photo or deck, and a real CardTrader
   call. The tests use recorded TCGdex responses (`scripts/verify/fixtures/pokemon/`), a stubbed `fetch` and a
   synthetic CardTrader fixture (`scripts/verify/pokemon-cart.mts`).
+- Pinch and double tap on a real phone: they were driven with synthetic touch events in Chromium (items 21),
+  and the Dragon Ball viewer's detail column was only compiled, no Dragon Ball cards being in the throwaway database.
 - The mapping of TCGdex's CardTrader number to a blueprint id (item 5).

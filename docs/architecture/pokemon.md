@@ -33,6 +33,7 @@ Routes (all open with `routeViewer()`, see `auth.md`):
 |---|---|
 | `GET /api/pokemon/search` | Live search, with the viewer's own copy counts and wishes |
 | `GET /api/pokemon/card/[id]` | One card, fully read (prices, variants, legality) |
+| `GET /api/pokemon/card/[id]/evolutions` | The line around one card: `{ from, into }` (`src/lib/pokemon/evolutions.ts`); 503 when the source is down |
 | `GET /api/pokemon/sets` | The cached set list |
 | `POST /api/pokemon/scan` | A photo: model read, then live match (`scan.ts`) |
 | `GET /api/card-photo/[id]` | A person's own photo of a print (`collection/photos.ts`) |
@@ -167,6 +168,24 @@ viewer so the scripts can run them on PGlite. Every Server Function opens with `
   `src/lib/pokemon/copy-input.ts`. The German Claude labels are in `src/lib/ai/games/labels-de.ts`.
 - Viewer: `src/components/CardSwipeViewer.tsx` is generic. `PokemonViewer.tsx` fills it with the three
   verbs; `CardViewer.tsx` uses it on `/cards` and `/collection` for the Dragon Ball games.
+- **Zoom** is in the generic viewer, so every game has it: double tap or double click 2.2x on the card under
+  the finger, pinch (or ctrl + wheel) 1x to 4x, drag to pan, `+` `-` `0`; zoomed, the rail does not scroll
+  and Escape or the close button zooms out first. The state is a pure reducer, `src/lib/viewer-zoom.ts`
+  (`pokemon-polish.mts`). No animation under `prefers-reduced-motion`.
+- **Detail column:** `detailColumn` on `CardSwipeViewer` shows the detail as a fixed right column from `lg`
+  instead of the sheet (Pokémon viewer, `/cards`, `/collection`).
+- **Evolutions** ("Entwickelt sich aus / zu", tappable pictures) load lazily when the detail opens, from
+  `GET /api/pokemon/card/[id]/evolutions`. `src/lib/pokemon/evolutions.ts` owns the read: evolves-from is
+  `details.evolveFrom` found through the live search (same set first, else the newest printing with a
+  picture), evolves-into is TCGdex's `evolveFrom` filter (moved here from `pokemon-source.ts`, which now
+  imports it). A source that is down means no section. A tapped card not in the list is added to the end
+  of it for that viewer session (`ctx.jumpTo`).
+- **Wish reason line:** `/pokemon/wishes` says "fehlt im Deck „X“ (und n weitere)". It is derived from her
+  decks against her copies (`wishReasons` in `deck-logic.ts`, read in `pokemonWishes`), not from
+  `want_list.deck_id`, which keeps only the deck of the first wish.
+- **Source down:** the search page and the set tiles share `DownPanel` (`DiscoverScreen.tsx`): a retry button, "Kein
+  Internet" while the browser is offline, and one automatic retry when the network is back.
+- `/decks` (English, shared) links a Pokémon deck to `/pokemon/decks/<id>` and shows its format (`deckListLink`).
 - The stat list of the shared card page is per game (`src/lib/catalog/card-stats.ts`).
 
 ## Offline reading
@@ -198,6 +217,7 @@ Run by `npm test` (PGlite, recorded or stubbed network, no model call, no CardTr
 | `scripts/verify/pokemon-input.mts` | Spoken parser, card-id reader, photo matcher |
 | `scripts/verify/pokemon-decks.mts` | Deck data, legality, pasted lists, the built refusal |
 | `scripts/verify/pokemon-cart.mts` | Wishes, mark as bought, listings with CardTrader stubbed (a synthetic fixture, not a recording) |
+| `scripts/verify/pokemon-polish.mts` | Viewer zoom reducer, the choice of evolution cards (stub source), the wish reason line, the `/decks` link |
 | `scripts/verify/card-photos.mts` | Own photos: save, replace, limits, scope |
 | `scripts/verify/offline-reading.mts` | `public/sw.js` routing and privacy for the Pokémon pages |
 | `scripts/verify/ai-games.mts` | The adapter; Dragon Ball requests byte for byte against `scripts/verify/fixtures/ai-games/` |

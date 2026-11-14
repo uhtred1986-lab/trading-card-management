@@ -461,7 +461,8 @@ export function CardSwipeViewer<T extends SwipeItem>({ items, startIndex = 0, on
           onDoubleClick={(e) => {
             // A touch double tap is handled by the touch listeners; a browser may still send a dblclick after it.
             if (Date.now() - touch.current.at < 800) return;
-            const r = (e.target as HTMLElement).closest<HTMLElement>(".csv-slide")?.getBoundingClientRect();
+            // The card in view, not the event target: while a mouse drag holds the pointer the target is the rail.
+            const r = e.currentTarget.querySelector<HTMLElement>(`.csv-slide[data-index="${activeRef.current}"]`)?.getBoundingClientRect();
             if (!r) return;
             dispatchZoom({ type: "toggle", px: e.clientX - (r.left + r.width / 2), py: e.clientY - (r.top + r.height / 2), box: zoomBox() });
           }}

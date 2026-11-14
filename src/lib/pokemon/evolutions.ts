@@ -12,8 +12,8 @@
  * The choice (`pickPrinting`, `intoCards`) is pure and checked in `scripts/verify/pokemon-polish.mts`;
  * `loadEvolutions` takes its source as an argument so that check runs on recorded answers.
  */
-import { hitFromTcgdex, listPokemonSets, PokemonSourceError, searchPokemon, setIdOf, type PokemonCardRecord, type PokemonSearchParams, type PokemonSetInfo } from "./tcgdex";
-import type { PokemonHit } from "./types";
+import { hitFromTcgdex, listPokemonSets, PokemonSourceError, searchPokemon, setIdOf, type PokemonSearchParams, type PokemonSetInfo } from "./tcgdex";
+import type { PokemonDetails, PokemonHit } from "./types";
 
 const BASE = "https://api.tcgdex.net/v2";
 /** At most this many different evolutions are shown (a Pokémon such as Eevee has more). */
@@ -132,7 +132,7 @@ export interface Evolutions {
  * The line around a record. A half answer is fine (only "into" when "from" could not be read, and the
  * other way round); throws `PokemonSourceError` only when everything it asked failed.
  */
-export async function loadEvolutions(record: Pick<PokemonCardRecord, "hit" | "details">, source: EvolutionSource = liveEvolutionSource): Promise<Evolutions> {
+export async function loadEvolutions(record: { hit: PokemonHit; details: Partial<PokemonDetails> }, source: EvolutionSource = liveEvolutionSource): Promise<Evolutions> {
   const { hit, details } = record;
   if (hit.category !== null && hit.category !== "POKEMON") return { from: null, into: [] };
   const own = setIdOf(hit.tcgdexId, hit.localId);
