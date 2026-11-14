@@ -15,6 +15,16 @@ export interface DiscoveryDeck {
   status?: string;
   note?: string;
   href?: string;
+  /** A game that plays in formats shows its deck's here ("Standard format") in place of the leader line. */
+  formatLabel?: string;
+}
+/**
+ * Where a deck row links to: a Pokémon deck has its own (German) deck page, every other game's deck is
+ * at `/decks/<id>`. `format` is the deck's stored format; a Pokémon deck without a known one is Standard.
+ */
+export function deckListLink(game: string, id: number | string, format?: string | null): { href: string; formatLabel?: string } {
+  if (game !== "pokemon") return { href: `/decks/${id}` };
+  return { href: `/pokemon/decks/${id}`, formatLabel: format === "expanded" ? "Expanded format" : "Standard format" };
 }
 export interface DeckFilters { q: string; color: string; leader: string; group: string; readyOnly: boolean }
 export const emptyDeckFilters = (readyOnly = false): DeckFilters => ({ q: "", color: "", leader: "", group: "", readyOnly });

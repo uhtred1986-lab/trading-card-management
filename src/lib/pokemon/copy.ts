@@ -126,6 +126,8 @@ export const PK = {
     totalNote: "Preise sind der Cardmarket-Trend. Wenn du mehr Exemplare willst, steht die Zahl bei der Karte.",
     wantCopies: (n: number) => `×${n}`,
     remove: "Vom Wunsch nehmen",
+    missingIn: (deck: string) => `fehlt im Deck „${deck}“`,
+    missingInMore: (deck: string, more: number) => `fehlt im Deck „${deck}“ und ${more} weitere`,
   },
 
   // ── The swipe viewer ────────────────────────────────────────────────────────
@@ -180,6 +182,8 @@ export const PK = {
     type: "Typ",
     kind: "Art",
     evolvesFrom: "Entwickelt sich aus",
+    evolvesInto: "Entwickelt sich zu",
+    evolutionJump: (name: string) => `${name} ansehen`,
     attacks: "Attacken",
     abilities: "Fähigkeiten",
     weakness: "Schwäche",

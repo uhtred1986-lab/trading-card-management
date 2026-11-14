@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { formatCents } from "@/lib/money";
 import { PK } from "@/lib/pokemon/copy";
+import { reasonLine } from "@/lib/pokemon/deck-logic";
 import type { PokemonDeckRow, WishEntry } from "@/lib/pokemon/views";
 import { PageTop } from "./PageTop";
 import { PokemonTileCard } from "./PokemonTileCard";
@@ -16,7 +17,7 @@ import { useWishes } from "./useWishes";
  * total follows). A tap on the picture opens the swipe viewer.
  */
 export function WishesScreen({ entries, decks }: { entries: WishEntry[]; decks: PokemonDeckRow[] }) {
-  const { wished, toggle, notice } = useWishes(entries.map((e) => e.id));
+  const { wished, toggle, merge, notice } = useWishes(entries.map((e) => e.id));
   const [open, setOpen] = useState<number | null>(null);
 
   const kept = useMemo(() => entries.filter((e) => wished.has(e.id)), [entries, wished]);
@@ -44,7 +45,12 @@ export function WishesScreen({ entries, decks }: { entries: WishEntry[]; decks: 
                 onOpen={() => setOpen(i)}
                 wished={wished.has(e.id)}
                 onToggleWish={toggle}
-                caption={e.wanted > 1 ? <span>{PK.wishes.wantCopies(e.wanted)}</span> : undefined}
+                caption={
+                  <>
+                    {e.wanted > 1 ? <span>{PK.wishes.wantCopies(e.wanted)}</span> : null}
+                    {reasonLine(e.lackingDecks) ? <span className="pk-reason">{reasonLine(e.lackingDecks)}</span> : null}
+                  </>
+                }
               />
             ))}
           </div>
@@ -65,7 +71,7 @@ export function WishesScreen({ entries, decks }: { entries: WishEntry[]; decks: 
         {notice}
       </p>
 
-      {open !== null && entries[open] ? <PokemonViewer tiles={entries} startIndex={open} decks={decks} wished={wished} onToggleWish={toggle} onClose={() => setOpen(null)} /> : null}
+      {open !== null && entries[open] ? <PokemonViewer tiles={entries} startIndex={open} decks={decks} wished={wished} onToggleWish={toggle} onWishKnown={(id) => merge([id])} onClose={() => setOpen(null)} /> : null}
     </div>
   );
 }

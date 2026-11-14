@@ -133,6 +133,44 @@ export function wishesToAdd(missing: readonly MissingLine[], wished: Readonly<Re
   return missing.map((m) => ({ cardId: m.cardId, add: Math.max(0, m.missing - (wished[m.cardId] ?? 0)) })).filter((x) => x.add > 0);
 }
 
+// ── Why a card is wished (design §8) ─────────────────────────────────────────
+
+export interface DeckNeed {
+  deckId: number;
+  deckName: string;
+  cardId: string;
+  /** Copies the deck holds (one row per zone adds up). */
+  quantity: number;
+}
+
+/**
+ * For each card, the decks that hold more copies of it than the owner has, in the order the decks come
+ * (oldest first). This is what "fehlt im Deck …" on the wishes screen says. It is derived from the decks
+ * as they are now, not read from `want_list.deck_id`, which keeps only the deck of the first wish and
+ * goes stale when the deck changes.
+ */
+export function wishReasons(needs: readonly DeckNeed[], ownedByCard: Readonly<Record<string, number>>): Map<string, string[]> {
+  const perDeck = new Map<string, { deckId: number; deckName: string; cardId: string; quantity: number }>();
+  for (const n of needs) {
+    const key = `${n.deckId}\u0000${n.cardId}`;
+    const e = perDeck.get(key) ?? { deckId: n.deckId, deckName: n.deckName, cardId: n.cardId, quantity: 0 };
+    e.quantity += Math.max(0, n.quantity);
+    perDeck.set(key, e);
+  }
+  const out = new Map<string, string[]>();
+  for (const e of [...perDeck.values()].sort((a, b) => a.deckId - b.deckId)) {
+    if (e.quantity <= (ownedByCard[e.cardId] ?? 0)) continue;
+    out.set(e.cardId, [...(out.get(e.cardId) ?? []), e.deckName]);
+  }
+  return out;
+}
+
+/** "fehlt im Deck „A“", or "fehlt im Deck „A“ und 2 weitere" (the first deck, then how many more). */
+export function reasonLine(deckNames: readonly string[]): string | null {
+  if (deckNames.length === 0) return null;
+  return deckNames.length === 1 ? PK.wishes.missingIn(deckNames[0]) : PK.wishes.missingInMore(deckNames[0], deckNames.length - 1);
+}
+
 // ── The one refusal ──────────────────────────────────────────────────────────
 
 export interface RefusalConflict {

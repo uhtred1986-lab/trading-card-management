@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addPokemonToDeckAction, setPokemonOwnedAction } from "@/app/pokemon/actions";
 import { CardSwipeViewer, ViewerSheet, type SwipeItem } from "@/components/CardSwipeViewer";
 import { PhotoOverride } from "@/components/PhotoOverride";
-import { CardInfoError, fetchCardInfo, numberLabel, type PokemonCardInfo, type PokemonTile } from "@/lib/pokemon/client";
+import { CardInfoError, fetchCardInfo, fetchEvolutions, numberLabel, type PokemonCardInfo, type PokemonEvolutions, type PokemonTile } from "@/lib/pokemon/client";
 import { PK, stageLabel } from "@/lib/pokemon/copy";
 import { POKEMON_FORMATS, pokemonPrintId, type PokemonVariant } from "@/lib/pokemon/types";
 import { formatCents } from "@/lib/money";
@@ -36,6 +36,7 @@ export function PokemonViewer({
   onClose,
   targetDeck,
   onDeckAdded,
+  onWishKnown,
 }: {
   tiles: PokemonTile[];
   startIndex: number;
@@ -49,16 +50,29 @@ export function PokemonViewer({
   targetDeck?: { id: number; name: string } | null;
   /** One copy went into `targetDeck`. */
   onDeckAdded?: (cardId: string) => void;
+  /** A card the screen's list does not hold (reached through an evolution) turned out to be on the viewer's wishes: let the screen's hearts know. */
+  onWishKnown?: (cardId: string) => void;
 }) {
   const [infos, setInfos] = useState<Record<string, InfoState>>({});
   const asked = useRef(new Set<string>());
+  // Cards reached through an evolution that the list does not hold: opened as one-off items at the end.
+  const [extra, setExtra] = useState<PokemonTile[]>([]);
+  const listed = useMemo(() => new Set(tiles.map((t) => t.id)), [tiles]);
+  const all = useMemo(() => (extra.length ? [...tiles, ...extra] : tiles), [tiles, extra]);
+  const onWishKnownRef = useRef(onWishKnown);
+  useEffect(() => {
+    onWishKnownRef.current = onWishKnown;
+  });
 
   const load = useCallback((tile: PokemonTile, force = false) => {
     if (!force && asked.current.has(tile.tcgdexId)) return;
     asked.current.add(tile.tcgdexId);
     setInfos((m) => (m[tile.tcgdexId] && typeof m[tile.tcgdexId] === "object" ? m : { ...m, [tile.tcgdexId]: "loading" }));
     fetchCardInfo(tile.tcgdexId)
-      .then((info) => setInfos((m) => ({ ...m, [tile.tcgdexId]: info })))
+      .then((info) => {
+        setInfos((m) => ({ ...m, [tile.tcgdexId]: info }));
+        if (info.wished) onWishKnownRef.current?.(tile.id);
+      })
       .catch((e) => {
         asked.current.delete(tile.tcgdexId);
         setInfos((m) => ({ ...m, [tile.tcgdexId]: e instanceof CardInfoError && e.kind === "unavailable" ? "unavailable" : "failed" }));
@@ -67,7 +81,7 @@ export function PokemonViewer({
 
   const items: ViewerItem[] = useMemo(
     () =>
-      tiles.map((tile) => {
+      all.map((tile) => {
         const info = infos[tile.tcgdexId];
         const loaded = info && typeof info === "object" ? info : null;
         const kind = loaded ? [loaded.hit.types.join(" / "), loaded.details.hp ? `${PK.detail.hp} ${loaded.details.hp}` : "", stageLabel(loaded.details.stage ?? null) ?? ""].filter(Boolean).join(" · ") : "";
@@ -82,7 +96,7 @@ export function PokemonViewer({
           side: price != null ? <strong>{formatCents(price)}</strong> : undefined,
         };
       }),
-    [tiles, infos],
+    [all, infos],
   );
 
   return (
@@ -109,7 +123,19 @@ export function PokemonViewer({
           onDeckAdded={onDeckAdded}
         />
       )}
-      renderDetail={(ctx) => <PokemonDetail tile={ctx.item.tile} info={infos[ctx.item.tile.tcgdexId]} onRetry={() => load(ctx.item.tile, true)} />}
+      detailColumn
+      renderDetail={(ctx) => (
+        <PokemonDetail
+          tile={ctx.item.tile}
+          info={infos[ctx.item.tile.tcgdexId]}
+          onRetry={() => load(ctx.item.tile, true)}
+          onJump={(to) => {
+            // A card of the list is jumped to; any other is opened as a one-off item at the end of it.
+            if (!listed.has(to.id) && !extra.some((x) => x.id === to.id)) setExtra((list) => [...list, to]);
+            ctx.jumpTo(to.id);
+          }}
+        />
+      )}
     />
   );
 }
@@ -330,7 +356,50 @@ function DeckSheet({ tile, decks, onClose, onAdded }: { tile: PokemonTile; decks
 
 // ── The detail sheet ─────────────────────────────────────────────────────────
 
-function PokemonDetail({ tile, info, onRetry }: { tile: PokemonTile; info: InfoState | undefined; onRetry: () => void }) {
+/**
+ * "Entwickelt sich aus / zu" as rows of card pictures with names; a tap opens that card in the viewer.
+ * Read live when the sheet opens; nothing is shown while it loads and when the source is down.
+ */
+function EvolutionRows({ tcgdexId, onJump }: { tcgdexId: string; onJump: (tile: PokemonTile) => void }) {
+  const [evo, setEvo] = useState<PokemonEvolutions | null>(null);
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchEvolutions(tcgdexId, ac.signal)
+      .then(setEvo)
+      .catch(() => {});
+    return () => ac.abort();
+  }, [tcgdexId]);
+  if (!evo || (!evo.from && evo.into.length === 0)) return null;
+  const row = (title: string, list: PokemonTile[]) => (
+    <>
+      <div className="pk-lbl">{title}</div>
+      <ul className="pk-evo">
+        {list.map((t) => (
+          <li key={t.id}>
+            <button type="button" className="tap" onClick={() => onJump(t)} aria-label={`${PK.detail.evolutionJump(t.name)}, ${t.setName}`}>
+              {t.imageLow ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={t.imageLow} alt="" loading="lazy" decoding="async" />
+              ) : null}
+              <span>
+                {t.name}
+                {t.setName ? <small>{t.setName}</small> : null}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+  return (
+    <>
+      {evo.from ? row(PK.detail.evolvesFrom, [evo.from]) : null}
+      {evo.into.length ? row(PK.detail.evolvesInto, evo.into) : null}
+    </>
+  );
+}
+
+function PokemonDetail({ tile, info, onRetry, onJump }: { tile: PokemonTile; info: InfoState | undefined; onRetry: () => void; onJump: (tile: PokemonTile) => void }) {
   if (!info || info === "loading") return <p className="pk-note" role="status">{PK.viewer.loadingDetails}</p>;
   if (info === "unavailable" || info === "failed") {
     return (
@@ -438,6 +507,8 @@ function PokemonDetail({ tile, info, onRetry }: { tile: PokemonTile; info: InfoS
           {a.effect ? <p>{a.effect}</p> : null}
         </div>
       ))}
+
+      {info.hit.category === null || info.hit.category === "POKEMON" ? <EvolutionRows key={tile.tcgdexId} tcgdexId={tile.tcgdexId} onJump={onJump} /> : null}
 
       <div className="pk-lbl">{PK.detail.yourCopies}</div>
       {owned.length === 0 ? (

@@ -12,6 +12,7 @@ import { PageTop } from "./PageTop";
 import { PokemonTileCard, SkeletonGrid } from "./PokemonTileCard";
 import { PokemonViewer } from "./PokemonViewer";
 import { CloseIcon, MicIcon, SearchIcon } from "./icons";
+import { useOnline } from "./useOnline";
 import { useWishes } from "./useWishes";
 
 type Category = "" | "POKEMON" | "TRAINER" | "ENERGY";
@@ -269,22 +270,7 @@ export function DiscoverScreen({ decks, target = null }: { decks: PokemonDeckRow
       ) : !active ? null : (
         <>
           {phase === "loading" ? <SkeletonGrid count={8} /> : null}
-          {phase === "unavailable" ? (
-            <div className="pk-panel pk-empty" role="alert">
-              <p>{PK.discover.unavailable}</p>
-              <button type="button" className="pk-cta pk-cta-alt pk-cta-inline" onClick={retry}>
-                {PK.common.retry}
-              </button>
-            </div>
-          ) : null}
-          {phase === "failed" ? (
-            <div className="pk-panel pk-empty" role="alert">
-              <p>{typeof navigator !== "undefined" && navigator.onLine === false ? PK.common.offline : PK.common.error}</p>
-              <button type="button" className="pk-cta pk-cta-alt pk-cta-inline" onClick={retry}>
-                {PK.common.retry}
-              </button>
-            </div>
-          ) : null}
+          {(phase === "unavailable" || phase === "failed") && hits.length === 0 ? <DownPanel failed={phase === "failed"} onRetry={retry} /> : null}
           {phase === "idle" && hits.length === 0 ? (
             <div className="pk-panel pk-empty" role="status">
               <p>{PK.discover.noResult}</p>
@@ -306,6 +292,7 @@ export function DiscoverScreen({ decks, target = null }: { decks: PokemonDeckRow
                 </div>
               ) : null}
               <div ref={sentinel} className="pk-sentinel" />
+              {phase === "unavailable" || phase === "failed" ? <DownPanel failed={phase === "failed"} onRetry={retry} /> : null}
               {phase === "idle" && !done ? (
                 <button type="button" className="pk-cta pk-cta-alt pk-cta-inline pk-more" onClick={more}>
                   {PK.common.more}
@@ -328,6 +315,7 @@ export function DiscoverScreen({ decks, target = null }: { decks: PokemonDeckRow
           decks={decks}
           wished={wished}
           onToggleWish={toggle}
+          onWishKnown={(id) => merge([id])}
           onOwnedChange={(id, copies) => setOwned((o) => ({ ...o, [id]: copies }))}
           targetDeck={target ? { id: target.id, name: target.name } : null}
           onDeckAdded={(id) => setInDeck((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }))}
@@ -358,6 +346,35 @@ function SetLogo({ set }: { set: PokemonSetInfo }) {
   );
 }
 
+/**
+ * The live source did not answer (search page, set tiles): what is wrong in plain words and a button that
+ * asks again. With no network it says "Kein Internet" instead of blaming the card search, and it asks
+ * again by itself the moment the network is back.
+ */
+function DownPanel({ failed, onRetry }: { failed: boolean; onRetry: () => void }) {
+  const online = useOnline();
+  const retryRef = useRef(onRetry);
+  useEffect(() => {
+    retryRef.current = onRetry;
+  });
+  const wasOffline = useRef(false);
+  useEffect(() => {
+    if (!online) wasOffline.current = true;
+    else if (wasOffline.current) {
+      wasOffline.current = false;
+      retryRef.current();
+    }
+  }, [online]);
+  return (
+    <div className="pk-panel pk-empty" role="alert">
+      <p>{!online ? PK.common.offline : failed ? PK.common.error : PK.discover.unavailable}</p>
+      <button type="button" className="pk-cta pk-cta-alt pk-cta-inline" onClick={onRetry}>
+        {PK.common.retry}
+      </button>
+    </div>
+  );
+}
+
 /** The empty search: the newest sets as logo tiles, each opening that set's cards. */
 function NewestSets({ onPick }: { onPick: (s: { id: string; name: string }) => void }) {
   const [sets, setSets] = useState<PokemonSetInfo[] | "loading" | "unavailable">("loading");
@@ -385,14 +402,7 @@ function NewestSets({ onPick }: { onPick: (s: { id: string; name: string }) => v
         {PK.discover.newestSets}
       </div>
       {sets === "loading" ? <p className="pk-note" role="status">{PK.discover.setsLoading}</p> : null}
-      {sets === "unavailable" ? (
-        <div className="pk-panel pk-empty" role="alert">
-          <p>{PK.discover.unavailable}</p>
-          <button type="button" className="pk-cta pk-cta-alt pk-cta-inline" onClick={load}>
-            {PK.common.retry}
-          </button>
-        </div>
-      ) : null}
+      {sets === "unavailable" ? <DownPanel failed={false} onRetry={load} /> : null}
       <div className="pk-sets">
         {shown.map((s) => (
           <button key={s.id} type="button" className="pk-set" onClick={() => onPick({ id: s.id, name: s.name })}>

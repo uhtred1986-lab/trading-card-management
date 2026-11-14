@@ -78,7 +78,7 @@ export function DeckDiscovery({ decks, label, value, onChange, readyOnly = false
               <div className="w-14 shrink-0"><CardImage src={d.leaderImage} alt="" sizes="56px" /></div>
               <div className="min-w-0 flex-1">
                 <Link href={d.href} className="tap block break-words text-base font-semibold text-ki-300">{d.name}</Link>
-                <p className="break-words text-sm text-space-300">{d.leaderName ?? "No leader yet"}{d.leaderId ? ` · ${d.leaderId}` : ""}</p>
+                <p className="break-words text-sm text-space-300">{d.formatLabel ?? <>{d.leaderName ?? "No leader yet"}{d.leaderId ? ` · ${d.leaderId}` : ""}</>}</p>
                 <p className="text-xs text-space-300">{d.group} · {d.colors.join(" / ")} · {d.mainCount} main cards · {d.status}</p>
               </div>
             </div>

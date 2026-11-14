@@ -3,12 +3,14 @@
  * down): the collection, the wishes and the viewer's decks. Every read takes the looker's scope
  * (`currentScope()`): a player sees their own lots and decks only, an SL everyone's.
  */
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { cardPrints, cardSets, cards, deckCards, decks, ownedCards, wantList } from "@/db/schema";
 import { cardPhotoIds } from "@/lib/collection/photos";
 import { deckScope, lotScope, type OwnerScope } from "@/lib/collection/scope";
+import { allocationForCards } from "@/lib/decks/reservations";
 import { lowImage, type PokemonTile } from "./client";
+import { wishReasons } from "./deck-logic";
 import { pokemonDetails } from "./types";
 
 export interface CollectionEntry extends PokemonTile {
@@ -119,6 +121,8 @@ export async function pokemonCollection(db: Db, scope: OwnerScope, prefer: strin
 export interface WishEntry extends PokemonTile {
   /** How many copies are wanted (the want list's quantity). */
   wanted: number;
+  /** Names of her decks that hold more copies of this card than she owns, oldest deck first (`wishReasons`). Empty when no deck lacks it. */
+  lackingDecks: string[];
 }
 
 /**
@@ -143,6 +147,22 @@ export async function pokemonWishes(db: Db, scope: OwnerScope, owner: string | n
     .innerJoin(cardSets, eq(cardSets.code, cards.setCode))
     .where(and(eq(cards.game, "pokemon"), mine === null ? isNull(wantList.owner) : eq(wantList.owner, mine)))
     .orderBy(sql`${wantList.createdAt} desc`, asc(wantList.id));
+  // Why: her decks that hold more copies of a wished card than she owns.
+  const wishedIds = rows.map((r) => r.cardId);
+  const lacking = new Map<string, string[]>();
+  if (wishedIds.length > 0) {
+    const [needs, alloc] = await Promise.all([
+      db
+        .select({ deckId: decks.id, deckName: decks.name, cardId: deckCards.cardId, quantity: sql<number>`sum(${deckCards.quantity})::int` })
+        .from(deckCards)
+        .innerJoin(decks, eq(decks.id, deckCards.deckId))
+        .where(and(eq(decks.game, "pokemon"), inArray(deckCards.cardId, wishedIds), mine === null ? isNull(decks.owner) : eq(decks.owner, mine)))
+        .groupBy(decks.id, deckCards.cardId),
+      allocationForCards(db, wishedIds, mine),
+    ]);
+    const ownedBy = Object.fromEntries(wishedIds.map((id) => [id, alloc.get(id)?.owned ?? 0]));
+    for (const [id, names] of wishReasons(needs.map((n) => ({ ...n, quantity: Number(n.quantity) })), ownedBy)) lacking.set(id, names);
+  }
   const entries: WishEntry[] = rows.map((r) => {
     const d = pokemonDetails(r.details);
     return {
@@ -157,6 +177,7 @@ export async function pokemonWishes(db: Db, scope: OwnerScope, owner: string | n
       imageHigh: r.imageUrl,
       priceCents: r.marketCents,
       wanted: r.quantity,
+      lackingDecks: lacking.get(r.cardId) ?? [],
     };
   });
   return {
