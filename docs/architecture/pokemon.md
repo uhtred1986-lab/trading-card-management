@@ -35,7 +35,8 @@ Routes (all open with `routeViewer()`, see `auth.md`):
 | `GET /api/pokemon/card/[id]` | One card, fully read (prices, variants, legality) |
 | `GET /api/pokemon/card/[id]/evolutions` | The line around one card: `{ from, into }` (`src/lib/pokemon/evolutions.ts`); 503 when the source is down |
 | `GET /api/pokemon/sets` | The cached set list |
-| `POST /api/pokemon/scan` | A photo: model read, then live match (`scan.ts`) |
+| `POST /api/pokemon/scan` | One card, one photo: model read, then live match (`scan.ts`); nothing is stored |
+| `POST /api/pokemon/scan/batch` | A binder page that is kept: the photo is stored, then read (`scan-batch.ts`); 404 for a batch or photo that is not the viewer's |
 | `GET /api/card-photo/[id]` | A person's own photo of a print (`collection/photos.ts`) |
 
 ## Data model
@@ -100,14 +101,41 @@ viewer so the scripts can run them on PGlite. Every Server Function opens with `
   used. Server side:
   `resolveSpokenPokemonAction` (`src/app/pokemon/add/actions.ts`).
 - **Photo** (`src/app/pokemon/add/photo/page.tsx`, `src/components/pokemon/PokemonPhotoAdd.tsx`). The browser
-  downscales the image (`src/lib/scan/downscale.ts`) and posts it to `POST /api/pokemon/scan` with
-  `mode` `single` or `batch` (a binder page). `handlePokemonScan` (`src/lib/pokemon/scan.ts`) calls
-  `readPokemonPhoto` / `readPokemonPhotoTiered` (`src/lib/ai/scan.ts`) with the Pokémon prompt and schema
-  in `src/lib/ai/scan-prompts.ts`, recorded in the ledger as `scan_identify` with `game: "pokemon"`. Each
-  read is then matched live (`matchPokemon` in `scan-match.ts`: exact, likely, unsure or none). Candidates
-  are shown; nothing is written until the child confirms. **The photo is not kept and no scan-batch rows
-  are written** for a Pokémon scan (`PokemonPhotoAdd.tsx` says so in its header).
-- Paid calls run only when someone scans. The tests make no model call (`pokemon-input.mts`).
+  downscales the image (`src/lib/scan/downscale.ts`). "Eine Karte" posts it to `POST /api/pokemon/scan`:
+  `handlePokemonScan` (`src/lib/pokemon/scan.ts`) calls `readPokemonPhotoTiered` (`src/lib/ai/scan.ts`) with the
+  Pokémon prompt and schema in `src/lib/ai/scan-prompts.ts`, recorded in the ledger as `scan_identify` with
+  `game: "pokemon"`; each read is then matched live (`matchPokemon` in `scan-match.ts`: exact, likely, unsure or
+  none). Candidates are shown; nothing is stored until the child confirms, and a single card stays unpersisted.
+- **A binder page ("Ganze Seite") is a kept scan batch** (`src/lib/pokemon/scan-batch.ts`, screen
+  `PokemonPageBatch.tsx`), so a page started on the phone is finished on the PC.
+  - *Storage.* It reuses `scan_batches` (`game = "pokemon"`, `mode = "batch"`, `owner`, `deck_id`), `scan_photos` and
+    `scan_items`, with three additive columns (migration `0064`): `scan_batches.game` (default `dbs`) and, on the item,
+    `variant`, `language` and `saved_at`. An item's `detection` holds the `PokemonScanDetection` with its candidates as
+    live-source hits (name, set, number, image), so the review draws without a network round trip; `chosen` is the
+    chosen hit, `include` says confirmed or left out, `printId` stays null (a Pokémon card has no local row until it is
+    stored) and `saved_at` marks an item already written. The Dragon Ball lists, review and completion look at
+    `game = "dbs"` only, and `completeBatch` refuses a Pokémon batch.
+  - *Flow.* `POST /api/pokemon/scan/batch` stores the photo first (`addPokemonPhoto`), then reads it
+    (`readPokemonPhoto`, a failed read marks the photo `error` and is retried from the stored bytes, no phone needed).
+    Several photos join one open page (`ensurePokemonBatch`: the viewer's newest open Pokémon batch). Every edit is
+    saved as it is made (`updatePokemonScanItemAction`); the screen reloads when the tab comes back to the front.
+    An open page is offered on `/pokemon/add` and `/pokemon/add/photo` (`pokemonBatchOffer`, `BatchOfferCard`:
+    "Du hast noch eine angefangene Seite: n Karten", Weitermachen / Verwerfen); `?batch=<id>` opens one page.
+  - *Save.* `completePokemonBatch` writes each confirmed item through `addPokemonLots` (`ensurePokemonCard` and one lot
+    per copy, stamped with the **batch owner** even when an SL completes it, variant and language on the lot, the
+    batch's deck if one was chosen). An item is claimed (`saved_at`) before it is written and released if the write
+    fails, so a second tap never adds a card twice; a failed card keeps the page open. When nothing failed, the photo
+    bytes are set to null and the batch is closed; the items stay, marked saved, as the record. "Verwerfen" deletes the
+    batch with its photos and items.
+  - *Access.* The batch, photo and item ids are checked with the helpers in `src/lib/auth/ownership.ts`
+    (`assertOwnBatch` and `ownsScanPhoto` take an optional `db` so the script can run them on PGlite); another
+    player's id, a missing id and a Dragon Ball batch all answer `PokemonBatchNotFound` (404 on the route). An SL may open any.
+    The photo is served by the existing `GET /api/scan/photo/[id]`.
+- **Undo** on the voice and photo screens takes back the copies of one line *and* the copies that line put into the
+  chosen deck (`undoPokemonDeckAdd`, `undoPokemonDeckAddAction`): the deck line goes down by what the add put in, never
+  below what the deck held before it (`addPokemonLots` returns `deckBefore`), so a deck she changed since keeps its other edits.
+- Paid calls run only when someone scans. The tests make no model call (`pokemon-input.mts`, `pokemon-scan-batch.mts`:
+  the read and the search are stubbed through the `deps` seam of `identifyPokemonCards`).
 
 ## Wishes, CardTrader and the cart
 
@@ -215,6 +243,7 @@ Run by `npm test` (PGlite, recorded or stubbed network, no model call, no CardTr
 |---|---|
 | `scripts/verify/pokemon-tcgdex.mts` | Id helpers, mappers, the German and English search merge, the collector-number query, source errors, `ensurePokemonCard`, the nightly refresh; recorded responses in `scripts/verify/fixtures/pokemon/` |
 | `scripts/verify/pokemon-input.mts` | Spoken parser, card-id reader, photo matcher |
+| `scripts/verify/pokemon-scan-batch.mts` | The kept binder page: stored photo, canned detection, edits, reopening as the same owner, another player refused, completing (owner, variant, language, deck, photos dropped), retry without duplicates, discard, the deck undo, and a Dragon Ball batch untouched |
 | `scripts/verify/pokemon-decks.mts` | Deck data, legality, pasted lists, the built refusal |
 | `scripts/verify/pokemon-cart.mts` | Wishes, mark as bought, listings with CardTrader stubbed (a synthetic fixture, not a recording) |
 | `scripts/verify/pokemon-polish.mts` | Viewer zoom reducer, the choice of evolution cards (stub source), the wish reason line, the `/decks` link |

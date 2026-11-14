@@ -102,7 +102,8 @@ export async function listOpenBatches(db: Db, owner?: string): Promise<ScanBatch
     })
     .from(scanBatches)
     .leftJoin(decks, eq(decks.id, scanBatches.deckId))
-    .where(and(eq(scanBatches.status, "open"), owner === undefined ? undefined : eq(scanBatches.owner, owner)))
+    // The Dragon Ball flow lists its own batches only; a Pokémon page is kept by src/lib/pokemon/scan-batch.ts.
+    .where(and(eq(scanBatches.status, "open"), eq(scanBatches.game, "dbs"), owner === undefined ? undefined : eq(scanBatches.owner, owner)))
     .orderBy(desc(scanBatches.updatedAt));
   if (batches.length === 0) return [];
   const ids = batches.map((b) => b.id);
@@ -153,7 +154,7 @@ export async function getBatch(
   photos: ScanPhotoMeta[];
   items: ScanItemRow[];
 } | null> {
-  const batch = await db.query.scanBatches.findFirst({ where: eq(scanBatches.id, id) });
+  const batch = await db.query.scanBatches.findFirst({ where: and(eq(scanBatches.id, id), eq(scanBatches.game, "dbs")) });
   if (!batch) return null;
   const [photos, items] = await Promise.all([
     db
@@ -266,7 +267,9 @@ async function touch(db: Db, batchId: number): Promise<void> {
  */
 export async function completeBatch(db: Db, batchId: number, owner: string | null = null): Promise<{ added: number; deckAdded: number; deckId: number | null }> {
   return db.transaction(async (tx) => {
-    const batch = await tx.query.scanBatches.findFirst({ where: eq(scanBatches.id, batchId), columns: { deckId: true, owner: true, locationId: true } });
+    const batch = await tx.query.scanBatches.findFirst({ where: eq(scanBatches.id, batchId), columns: { deckId: true, owner: true, locationId: true, game: true } });
+    // A Pokémon page is completed by completePokemonBatch; this one would drop its items unread.
+    if (batch && batch.game !== "dbs") throw new Error("Not a Dragon Ball scan batch.");
     const lotOwner = batch?.owner ?? owner;
     const locationId = batch?.locationId ?? null;
     const items = await tx

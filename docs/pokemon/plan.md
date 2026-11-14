@@ -268,9 +268,12 @@ Written after the build (14 Nov 2026). Each line names the file that shows the d
 3. **The Pokémon scan prompt** is in `src/lib/ai/scan-prompts.ts` (`scanPromptFor`), not in `src/lib/ai/scan.ts`,
    which carries only the Pokémon read (`readPokemonPhoto`). §6 put it in `scan.ts`.
    `src/lib/ai/scan-prompts.ts`, `src/lib/ai/scan.ts`.
-4. **A binder-page photo is not kept as a scan batch.** Nothing is stored by the Pokémon scan, and the
-   scan-batch tables are not used. §6 said the page goes through the existing scan batch.
-   `src/components/pokemon/PokemonPhotoAdd.tsx` (header comment), `src/lib/pokemon/scan.ts`.
+4. **A binder-page photo is a kept scan batch** (closed after the first build, lane K2, 14 Nov 2026). The first build
+   kept the page only in the screen, because the scan-batch tables assumed local catalog cards. It now reuses
+   `scan_batches`, `scan_photos` and `scan_items` with three additive columns (`scan_batches.game`, `scan_items.variant`,
+   `language`, `saved_at`; `drizzle/0064_*.sql`), the Pokémon detection and chosen hit living in the existing jsonb columns,
+   so a page started on the phone is finished on the PC as §6 said. A single card stays unpersisted (quick capture).
+   `src/lib/pokemon/scan-batch.ts`, `src/components/pokemon/PokemonPageBatch.tsx`, `src/app/api/pokemon/scan/batch/route.ts`.
 5. **CardTrader has two paths**, a direct blueprint id and a fallback by expansion and collector number that
    stores the corrected id on the print. §3 step 1 asked for the id to be proved first. **The mapping is
    unproven**: `scripts/pokemon-ct-check.mts` has not been run with a token. `src/lib/marketplace/cardtrader-pokemon.ts`.
@@ -321,6 +324,8 @@ Written after the build (14 Nov 2026). Each line names the file that shows the d
 25. A Pokémon deck row on the shared `/decks` links to its German page and shows its format: done. `src/app/decks/page.tsx`.
 26. Source down (§9): search and set tiles share a retry panel; offline says "Kein Internet". `DiscoverScreen.tsx` (`DownPanel`).
 27. Desktop screenshots at 1280 px: `docs/pokemon/shots/*-1280.webp`; the viewer zoomed and the evolutions at 390 px.
+28. **Undo on the voice screen also takes back the deck copies** that line added, never below what the deck held before.
+    `undoPokemonDeckAdd` in `src/lib/pokemon/collection.ts`; the photo screen's single-card undo does the same.
 
 **Not checked in this delivery**
 

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { INPUT_COPY } from "@/lib/pokemon/copy-input";
+import type { PokemonBatchOffer } from "@/lib/pokemon/scan-batch-types";
 import { DeckSelect, type DeckChoice } from "./AddParts";
+import { BatchOfferCard } from "./PokemonPageBatch";
 
 const C = INPUT_COPY.hub;
 
@@ -25,12 +27,13 @@ function Option({ href, icon, title, hint }: { href: string; icon: ReactNode; ti
 }
 
 /** The three ways in, and the deck new cards may also go into (passed on as `?deck=`). */
-export function AddHub({ decks, initialDeck }: { decks: DeckChoice[]; initialDeck: number | null }) {
+export function AddHub({ decks, initialDeck, offer }: { decks: DeckChoice[]; initialDeck: number | null; offer: PokemonBatchOffer | null }) {
   const [deckId, setDeckId] = useState<number | null>(initialDeck);
   const q = deckId ? `?deck=${deckId}` : "";
   return (
     <div className="mx-auto max-w-md space-y-4">
       <h1 className="text-2xl font-semibold text-space-50">{C.title}</h1>
+      {offer ? <BatchOfferCard offer={offer} href={`/pokemon/add/photo?mode=page${deckId ? `&deck=${deckId}` : ""}`} /> : null}
       <div className="space-y-3">
         <Option href={`/pokemon/add/voice${q}`} icon="🎤" title={C.voice.title} hint={C.voice.hint} />
         <Option href={`/pokemon/add/photo${q}`} icon="📷" title={C.photo.title} hint={C.photo.hint} />

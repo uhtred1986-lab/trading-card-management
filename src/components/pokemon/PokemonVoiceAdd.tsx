@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { addPokemonLotAction, setPokemonOwnedAction } from "@/app/pokemon/actions";
+import { addPokemonLotAction, setPokemonOwnedAction, undoPokemonDeckAddAction } from "@/app/pokemon/actions";
 import { resolveSpokenPokemonAction, type SpokenPokemonResolution } from "@/app/pokemon/add/actions";
 import { INPUT_COPY, failureText } from "@/lib/pokemon/copy-input";
 import { pokemonImage, type PokemonHit, type PokemonVariant } from "@/lib/pokemon/types";
@@ -23,6 +23,10 @@ interface Saved {
   language: "DE" | "EN";
   added: number;
   number: string;
+  /** The deck this line also put copies into, how many, and how many the deck held of the card before: the undo takes back exactly these. */
+  deckId: number | null;
+  deckAdded: number;
+  deckBefore: number;
 }
 
 type Phase = "idle" | "resolving" | "pick" | "none" | "unavailable";
@@ -192,7 +196,7 @@ export function PokemonVoiceAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
       const r = await addPokemonLotAction({ tcgdexId: snapshot.hit.tcgdexId, variant: snapshot.variant, language: snapshot.language, quantity: snapshot.quantity, deckId: snapshot.deckId });
       counts.current.set(key, before + r.added);
       setSaved((s) => [
-        { key: savedKey++, tcgdexId: snapshot.hit.tcgdexId, name: snapshot.hit.name, image: snapshot.hit.image, variant: snapshot.variant, variantLabel: label, language: snapshot.language, added: r.added, number: numberLabel(snapshot.hit) },
+        { key: savedKey++, tcgdexId: snapshot.hit.tcgdexId, name: snapshot.hit.name, image: snapshot.hit.image, variant: snapshot.variant, variantLabel: label, language: snapshot.language, added: r.added, number: numberLabel(snapshot.hit), deckId: snapshot.deckId, deckAdded: r.deckAdded, deckBefore: r.deckBefore },
         ...s,
       ]);
       setNotice(null);
@@ -213,8 +217,9 @@ export function PokemonVoiceAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
 
   /**
    * Undo of one line: the count goes back by exactly what that line added (`setPokemonOwnedAction`
-   * archives the newest copies, which the app keeps restorable). The deck line, if one was made,
-   * stays: a deck is edited in the deck.
+   * archives the newest copies, which the app keeps restorable), and so does the deck: the copies this
+   * line put into the chosen deck come out again, never below what the deck held before it
+   * (`undoPokemonDeckAddAction`). A deck she has changed since keeps its other changes.
    */
   const undo = async (line: Saved) => {
     const key = countKey(line.tcgdexId, line.variant, line.language);
@@ -223,7 +228,16 @@ export function PokemonVoiceAdd({ decks, initialDeck }: { decks: DeckChoice[]; i
       const r = await setPokemonOwnedAction({ tcgdexId: line.tcgdexId, variant: line.variant, language: line.language, quantity: Math.max(0, known - line.added) });
       counts.current.set(key, r.quantity);
       setSaved((s) => s.filter((x) => x.key !== line.key));
-      setNotice(deckId ? `${C.undone}. ${C.deckKept}` : C.undone);
+      let text: string = C.undone;
+      if (line.deckId !== null && line.deckAdded > 0) {
+        try {
+          const d = await undoPokemonDeckAddAction({ deckId: line.deckId, tcgdexId: line.tcgdexId, added: line.deckAdded, before: line.deckBefore });
+          text = `${C.undone}. ${d.removed > 0 ? C.deckRemoved(d.removed) : C.deckUnchanged}`;
+        } catch (e) {
+          text = `${C.undone}. ${failureText(e, C.deckUnchanged)}`;
+        }
+      }
+      setNotice(text);
     } catch (e) {
       setError(failureText(e, C.saveFailed));
     }

@@ -1,5 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
+import type { Db } from "@/db";
 import { arenaGames, decks, deckSwaps, ownedCards, scanBatches, scanItems, scanPhotos } from "@/db/schema";
 import { AccessDenied, type Viewer } from "./index";
 
@@ -44,23 +45,23 @@ export async function assertOwnSuggestion(viewer: Viewer, suggestionId: number):
 }
 
 /** A scan batch must be the player's own. */
-export async function assertOwnBatch(viewer: Viewer, batchId: number): Promise<void> {
+export async function assertOwnBatch(viewer: Viewer, batchId: number, conn: Db = db): Promise<void> {
   if (isSl(viewer)) return;
-  const [row] = await db.select({ owner: scanBatches.owner }).from(scanBatches).where(eq(scanBatches.id, batchId)).limit(1);
+  const [row] = await conn.select({ owner: scanBatches.owner }).from(scanBatches).where(eq(scanBatches.id, batchId)).limit(1);
   if (row && row.owner !== viewer.owner) throw new AccessDenied("That isn't your scan.");
 }
 
 /** A scanned item belongs to its batch. */
-export async function assertOwnScanItem(viewer: Viewer, itemId: number): Promise<void> {
+export async function assertOwnScanItem(viewer: Viewer, itemId: number, conn: Db = db): Promise<void> {
   if (isSl(viewer)) return;
-  const [row] = await db.select({ batchId: scanItems.batchId }).from(scanItems).where(eq(scanItems.id, itemId)).limit(1);
-  if (row) await assertOwnBatch(viewer, row.batchId);
+  const [row] = await conn.select({ batchId: scanItems.batchId }).from(scanItems).where(eq(scanItems.id, itemId)).limit(1);
+  if (row) await assertOwnBatch(viewer, row.batchId, conn);
 }
 
 /** A scan photo belongs to its batch (the photo route). */
-export async function ownsScanPhoto(viewer: Viewer, photoId: number): Promise<boolean> {
+export async function ownsScanPhoto(viewer: Viewer, photoId: number, conn: Db = db): Promise<boolean> {
   if (isSl(viewer)) return true;
-  const [row] = await db.select({ owner: scanBatches.owner }).from(scanPhotos).innerJoin(scanBatches, eq(scanBatches.id, scanPhotos.batchId)).where(eq(scanPhotos.id, photoId)).limit(1);
+  const [row] = await conn.select({ owner: scanBatches.owner }).from(scanPhotos).innerJoin(scanBatches, eq(scanBatches.id, scanPhotos.batchId)).where(eq(scanPhotos.id, photoId)).limit(1);
   return !!row && row.owner === viewer.owner;
 }
 
