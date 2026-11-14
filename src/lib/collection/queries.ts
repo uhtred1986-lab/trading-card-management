@@ -6,7 +6,7 @@ import type { Game } from "@/lib/catalog/games";
 import { sameKeyword } from "@/lib/decks/cardRules";
 import type { Currency } from "@/lib/money";
 import { latestUsdEur } from "@/lib/pricing/fx";
-import { basePricesAsOf, priceForFinish, pricesForPrints, type PriceSource } from "@/lib/pricing/queries";
+import { basePricesAsOf, marketValueOf, pricesForPrints, type PriceSource } from "@/lib/pricing/queries";
 import { lotScope, type OwnerScope } from "./scope";
 
 /**
@@ -103,11 +103,12 @@ export async function valuedLots(db: Db, opts: { game?: Game; prices?: PriceSour
   return {
     usdEur,
     lots: lots.map((l) => {
-      const usd = priceForFinish(prices.get(l.printId), l.finish);
+      // A Pokémon print is priced in EUR already (Cardmarket) and is not converted.
+      const v = marketValueOf(prices.get(l.printId), l.finish, usdEur);
       return {
         ...l,
-        marketUsdCents: usd,
-        marketEurCents: usd != null && usdEur != null ? Math.round(usd * usdEur) : null,
+        marketUsdCents: v.usd,
+        marketEurCents: v.eur,
       };
     }),
   };
@@ -158,8 +159,9 @@ export function summarise(lots: ValuedLot[], usdEur: number | null): CollectionS
       spent += eur;
       copiesWithCost += 1;
     }
-    if (l.marketUsdCents != null) {
-      valueUsd += l.marketUsdCents;
+    if (l.marketUsdCents != null || l.marketEurCents != null) {
+      // A Pokémon copy has a EUR value and no USD one; it adds to the EUR total only.
+      valueUsd += l.marketUsdCents ?? 0;
       valueEur += l.marketEurCents ?? 0;
       copiesWithValue += 1;
     }
@@ -253,6 +255,16 @@ export async function collectionCards(
       isBanned: cards.isBanned,
       isLimited: cards.isLimited,
       searchText: cards.searchText,
+      // The card page's stat list (`cardStats`), for the swipe viewer's Details sheet.
+      energyCost: cards.energyCost,
+      power: cards.power,
+      comboCost: cards.comboCost,
+      comboPower: cards.comboPower,
+      zEnergyCost: cards.zEnergyCost,
+      characters: cards.characters,
+      eras: cards.eras,
+      limitedTo: cards.limitedTo,
+      details: cards.details,
       traits: cards.traits,
       skill: cards.skill,
       backSkill: cards.backSkill,
@@ -399,12 +411,11 @@ export async function collectionCopies(
 
   const prices = await source.prices(printIdsOf(lots));
   let rows = lots.map((l) => {
-    const usd = priceForFinish(prices.get(l.printId), l.finish);
     return {
       ...l,
       // Written as EUR|USD by `normalise`; narrowed here so `formatCents` accepts it.
       currency: (l.currency === "USD" ? "USD" : "EUR") as Currency,
-      marketEurCents: usd != null && usdEur != null ? Math.round(usd * usdEur) : null,
+      marketEurCents: marketValueOf(prices.get(l.printId), l.finish, usdEur).eur,
     };
   });
 

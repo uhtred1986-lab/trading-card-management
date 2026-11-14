@@ -2,10 +2,13 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS, isActive } from "@/lib/navigation";
+import { NAV_ITEMS, isActive, type NavItem } from "@/lib/navigation";
 
-/** Desktop navigation in the header; hidden on phones where BottomTabs takes over. */
-export function HeaderNav() {
+/**
+ * Desktop navigation in the header; hidden on phones where BottomTabs takes over. `items` replaces
+ * the Dragon Ball entries (the Pokémon area passes its own, shown from `sm` instead of `lg`).
+ */
+export function HeaderNav({ items = NAV_ITEMS, fromSm = false }: { items?: NavItem[]; fromSm?: boolean }) {
   const pathname = usePathname();
   const link = (href: string, label: string) => {
     const active = isActive(pathname, href);
@@ -21,8 +24,8 @@ export function HeaderNav() {
     );
   };
   return (
-    <nav className="ds-primary-nav hidden flex-1 items-center gap-1 lg:flex">
-      {NAV_ITEMS.map((i) => link(i.href, i.label))}
+    <nav aria-label={fromSm ? "Hauptnavigation" : undefined} className={`ds-primary-nav hidden flex-1 items-center gap-1 ${fromSm ? "sm:flex" : "lg:flex"}`}>
+      {items.map((i) => link(i.href, i.label))}
 
     </nav>
   );

@@ -7,6 +7,11 @@ import { applyMastersLeaderImages, applyOfficialImages, mastersImageUrl, masters
 import { correctSkillText } from "../src/lib/catalog/errata";
 import { gameOfNumber, gameOfSetCode, setCodeOfNumber, setLineFor, setNameFor } from "../src/lib/catalog/sets";
 import { legality, parseDeckList, type DeckCardRow } from "../src/lib/decks/queries";
+import { copyLimit, mainCountLabel, mainCountOk, type LegalityCard } from "../src/lib/decks/legality";
+import { zoneForType } from "../src/lib/decks/add";
+import { sortDeckRows, zonesFor } from "../src/lib/decks/queries";
+import { cardTypesFor } from "../src/lib/catalog/queries";
+import { defaultFormat, strictGame } from "../src/lib/catalog/games";
 import { hasKeyword, leadingTags, matchesCardFilter, parseDeckBuilding, parseDeckRules, rulesFor, type DeckBuildingRule, type DeckCardFacts, type DeckCardFilter } from "../src/lib/decks/cardRules";
 import { formatCents, parseEuroInput } from "../src/lib/money";
 import { markerOf, matchProduct } from "../src/lib/pricing/tcgcsv";
@@ -310,6 +315,7 @@ const row = (cardId: string, zone: DeckCardRow["zone"], quantity: number, extra:
   characters: [],
   traits: [],
   game: "dbs",
+  details: null,
   alloc: { owned: 0, reserved: 0, available: 0 },
   ...extra,
 });
@@ -903,6 +909,195 @@ assert.equal(shouldSkipBuild({ VERCEL_ENV: "production" }), false, "production w
 assert.equal(shouldSkipBuild({ VERCEL_ENV: "production", VERCEL_GIT_PREVIOUS_SHA: "0".repeat(40), VERCEL_GIT_COMMIT_SHA: "1".repeat(40) }), false, "production with SHAs git does not know builds");
 assert.equal(shouldMigrate({ VERCEL_ENV: "production" }), true);
 assert.equal(shouldMigrate({ VERCEL_ENV: "preview" }), false, "a preview never migrates the shared database");
+
+// ── Pokémon: its own branch of the checker ────────────────────────────────
+assert.equal(gameOfSetCode("PKM-sv03.5"), "pokemon");
+assert.equal(gameOfSetCode("PKM"), "pokemon");
+assert.equal(gameOfNumber("PKM-sv03.5-006"), "pokemon");
+assert.equal(setLineFor("PKM-sv03.5", null), "pokemon");
+assert.equal(gameOfSetCode("BT18"), "dbs", "the other games are unchanged");
+assert.equal(gameOfSetCode("FB07"), "fusion");
+assert.equal(strictGame("pokemon"), "pokemon");
+assert.throws(() => strictGame("magic"), /Unknown game/);
+assert.throws(() => strictGame(undefined), /Unknown game/);
+assert.equal(defaultFormat("pokemon"), "standard");
+assert.equal(defaultFormat("dbs"), null);
+assert.equal(zoneForType("POKEMON", "pokemon"), "main");
+assert.equal(zoneForType("TRAINER", "pokemon"), "main");
+assert.equal(zoneForType("LEADER", "pokemon"), "main", "no Leader slot: nothing is dropped, it is flagged in the main deck");
+assert.equal(zoneForType("LEADER", "dbs"), "leader");
+assert.deepEqual(zonesFor("pokemon"), ["main", "side"]);
+assert.deepEqual(zonesFor("dbs"), ["leader", "main", "z", "side"]);
+assert.deepEqual(zonesFor("fusion"), ["leader", "main", "side"]);
+assert.equal(mainCountLabel(60, "pokemon"), "60/60");
+assert.equal(mainCountLabel(47, "pokemon"), "47/60");
+assert.equal(mainCountLabel(55, "dbs"), "55", "Bandai labels are unchanged");
+assert.equal(mainCountOk(60, "pokemon"), true);
+assert.equal(mainCountOk(59, "pokemon"), false);
+assert.equal(mainCountOk(61, "pokemon"), false);
+assert.deepEqual(cardTypesFor("pokemon"), ["POKEMON", "TRAINER", "ENERGY"]);
+assert.ok(cardTypesFor("fusion").includes("ENERGY MARKER") && !cardTypesFor("dbs").includes("ENERGY MARKER"));
+
+{
+  type Over = Partial<LegalityCard> & {
+    en?: string;
+    stage?: string | null;
+    basicEnergy?: boolean;
+    onePerDeck?: "ace-spec" | "radiant" | null;
+    legal?: { standard: boolean; expanded: boolean } | null;
+  };
+  const pk = (cardId: string, quantity: number, o: Over = {}): LegalityCard => {
+    const { en, stage, basicEnergy, onePerDeck, legal, ...rest } = o;
+    const cardType = rest.cardType ?? "TRAINER";
+    return {
+      cardId,
+      zone: "main",
+      quantity,
+      name: cardId,
+      cardType,
+      colors: [],
+      limitedTo: null,
+      isBanned: false,
+      game: "pokemon",
+      details: {
+        names: en ? { en } : {},
+        stage: stage === undefined ? (cardType === "POKEMON" ? "Basic" : null) : stage,
+        basicEnergy: basicEnergy ?? false,
+        onePerDeck: onePerDeck ?? null,
+        legal: legal === null ? undefined : (legal ?? { standard: true, expanded: true }),
+      },
+      ...rest,
+    };
+  };
+  const basic = (id: string, n: number, o: Over = {}) => pk(id, n, { cardType: "POKEMON", ...o });
+  const energy = (n: number, o: Over = {}) => pk("PKM-energy-fire", n, { cardType: "ENERGY", basicEnergy: true, stage: "Basic", ...o });
+  // 4 + 4 + 4 + 4 + 4 of five different names (20), 40 basic Energy = 60.
+  const sixty = (): LegalityCard[] => [basic("P1", 4), basic("P2", 4), pk("T1", 4), pk("T2", 4), pk("T3", 4), energy(40)];
+  const without = (...ids: string[]) => sixty().filter((r) => !ids.includes(r.cardId));
+  const poke = (rows: LegalityCard[], format?: string | null) => legality(rows, "pokemon", format);
+
+  const ok = poke(sixty());
+  assert.equal(ok.status, "legal", ok.issues.map((i) => i.message).join("; "));
+  assert.equal(ok.mainCount, 60);
+  assert.deepEqual(ok.issues, []);
+  assert.equal(ok.leaderCount, 0);
+  assert.equal(poke(sixty(), "expanded").status, "legal");
+
+  // Size: short is incomplete with the German count, long is illegal.
+  const thirteen = poke([basic("P1", 4), basic("P2", 4), pk("T1", 4), pk("T2", 4), pk("T3", 4), energy(27)]);
+  assert.equal(thirteen.mainCount, 47);
+  assert.equal(thirteen.status, "incomplete");
+  assert.ok(thirteen.issues.some((i) => i.message === "Noch 13 Karten bis 60"));
+  assert.ok(poke([basic("P1", 4), energy(55)]).issues.some((i) => i.message === "Noch 1 Karte bis 60"));
+  assert.equal(poke([]).status, "incomplete");
+  assert.ok(poke([]).issues.some((i) => i.message === "Noch 60 Karten bis 60"));
+  const over = poke([...sixty(), energy(1, { cardId: "PKM-energy-water", name: "Wasser-Energie" })]);
+  assert.equal(over.status, "illegal");
+  assert.ok(over.issues.some((i) => i.message === "1 Karte zu viel (höchstens 60)"));
+
+  // The 4-copy limit counts the name, across printings and numbers; basic Energy is unlimited.
+  const five = poke([...without("T1", "PKM-energy-fire"), pk("T1", 5, { name: "Boss-Befehl" }), energy(35)]);
+  assert.equal(five.status, "illegal");
+  assert.equal(five.flags["main:T1"]?.label, "Höchstens 4 Karten mit dem Namen Boss-Befehl (du hast 5)");
+  const twoPrints = poke([
+    basic("PKM-sv03.5-006", 3, { name: "Glutexo", en: "Charmander" }),
+    basic("PKM-sv01-040", 2, { name: "Glutexo", en: "Charmander" }),
+    pk("T2", 4),
+    pk("T3", 4),
+    basic("P2", 4),
+    energy(43),
+  ]);
+  assert.ok(twoPrints.issues.some((i) => i.message === "Höchstens 4 Karten mit dem Namen Glutexo (du hast 5)"), "two printings share one limit");
+  assert.equal(twoPrints.flags["main:PKM-sv03.5-006"]?.severity, "illegal");
+  assert.equal(twoPrints.flags["main:PKM-sv01-040"]?.severity, "illegal");
+  // The English name decides across languages: a German and an English printing of one card.
+  const mixedLang = poke([basic("A", 3, { name: "Glutexo", en: "Charmander" }), basic("B", 2, { name: "Charmander", en: "Charmander" }), energy(55)]);
+  assert.ok(mixedLang.issues.some((i) => /Namen Glutexo \(du hast 5\)/.test(i.message)));
+  // Without an English name the card's own name counts; different names do not share.
+  assert.equal(poke([basic("A", 4, { name: "Pikachu" }), basic("B", 4, { name: "Raichu" }), energy(52)]).status, "legal");
+  assert.equal(poke([basic("A", 3, { name: "Pikachu" }), basic("B", 3, { name: "Pikachu" }), energy(54)]).flags["main:A"]?.severity, "illegal");
+  const manyEnergy = poke([basic("P1", 4), energy(30), energy(26, { cardId: "PKM-energy-water", name: "Wasser-Energie" })]);
+  assert.equal(manyEnergy.flags["main:PKM-energy-fire"], undefined, "basic Energy has no copy limit");
+  assert.equal(manyEnergy.flags["main:PKM-energy-water"], undefined);
+  // A special (non-basic) Energy is limited like any card.
+  assert.equal(poke([basic("P1", 4), pk("SE", 5, { cardType: "ENERGY", basicEnergy: false }), energy(51)]).flags["main:SE"]?.severity, "illegal");
+  // The side zone is a scratch zone.
+  assert.deepEqual(poke([...sixty(), pk("T9", 9, { zone: "side" })]).issues, []);
+
+  // One ACE SPEC, one Radiant.
+  const room = () => without("T3", "PKM-energy-fire");
+  const ace = poke([...room(), pk("ACE1", 1, { onePerDeck: "ace-spec" }), pk("ACE2", 1, { onePerDeck: "ace-spec" }), energy(42)]);
+  assert.equal(ace.status, "illegal");
+  assert.equal(ace.flags["main:ACE1"]?.label, "Höchstens 1 ACE-SPEC-Karte pro Deck (du hast 2)");
+  assert.equal(poke([...room(), pk("ACE1", 1, { onePerDeck: "ace-spec" }), energy(43)]).status, "legal");
+  const rad = poke([...room(), basic("R1", 1, { onePerDeck: "radiant" }), basic("R2", 1, { onePerDeck: "radiant" }), energy(42)]);
+  assert.equal(rad.flags["main:R2"]?.label, "Höchstens 1 Strahlendes Pokémon pro Deck (du hast 2)");
+  assert.equal(poke([...room(), basic("R1", 1, { onePerDeck: "radiant" }), pk("ACE1", 1, { onePerDeck: "ace-spec" }), energy(42)]).status, "legal", "one of each kind is fine");
+
+  // At least one Basic Pokémon.
+  const noBasic = poke([basic("S1", 4, { stage: "Stage1" }), basic("S2", 4, { stage: "Stage2" }), pk("T1", 4), energy(48)]);
+  assert.equal(noBasic.status, "illegal");
+  assert.ok(noBasic.issues.some((i) => i.message === "Du brauchst mindestens ein Basis-Pokémon"));
+  const noBasicYet = poke([pk("T1", 4), energy(20)]);
+  assert.equal(noBasicYet.status, "incomplete", "still building: incomplete, not illegal");
+  assert.ok(noBasicYet.issues.some((i) => /Basis-Pokémon/.test(i.message)));
+  assert.ok(!poke([]).issues.some((i) => /Basis-Pokémon/.test(i.message)), "an empty deck only says how many cards are missing");
+
+  // No Leader slot, no Z-Deck.
+  const leaderRow = poke([...sixty(), pk("L1", 1, { zone: "leader", cardType: "LEADER" })]);
+  assert.equal(leaderRow.status, "illegal");
+  assert.equal(leaderRow.flags["leader:L1"]?.severity, "illegal");
+  assert.equal(poke([...sixty(), pk("Z1", 1, { zone: "z" })]).flags["z:Z1"]?.severity, "illegal");
+
+  // Format legality: the deck's format decides; absent data is unknown, never guessed.
+  const rotated = (): LegalityCard[] => [...without("P2"), basic("PKM-old", 4, { name: "Glurak-ex", legal: { standard: false, expanded: true } })];
+  const std = poke(rotated());
+  assert.equal(std.status, "illegal");
+  assert.ok(std.issues.some((i) => i.message === "Glurak-ex ist im Standard-Format nicht mehr erlaubt"));
+  assert.equal(std.flags["main:PKM-old"]?.severity, "illegal");
+  assert.equal(poke(rotated(), null).status, "illegal", "no format means Standard");
+  assert.equal(poke(rotated(), "bogus").status, "illegal", "an unknown format falls back to Standard");
+  assert.equal(poke(rotated(), "expanded").status, "legal");
+  const notExpanded = (): LegalityCard[] => [...without("P2"), basic("PKM-x", 4, { name: "Alt-Karte", legal: { standard: true, expanded: false } })];
+  assert.ok(poke(notExpanded(), "expanded").issues.some((i) => i.message === "Alt-Karte ist im Erweitert-Format nicht mehr erlaubt"));
+  assert.equal(poke(notExpanded()).status, "legal", "legal in Standard though not in Expanded");
+  const unknown = poke([...without("P2"), basic("PKM-new", 4, { name: "Neuling", legal: null })]);
+  assert.equal(unknown.flags["main:PKM-new"]?.severity, "warning");
+  assert.equal(unknown.status, "legal", "unknown is reported, it does not change the status");
+  assert.ok(unknown.issues.some((i) => i.severity === "warning" && /Legalität .* unbekannt: Neuling/.test(i.message)));
+  assert.equal(poke(sixty()).issues.length, 0, "known legality raises nothing");
+
+  // A card of another game is flagged, as for the Bandai games.
+  const alien = poke([...without("T1"), { ...row("BT18-020", "main", 4), game: "dbs" } as LegalityCard]);
+  assert.equal(alien.flags["main:BT18-020"]?.severity, "illegal");
+  assert.match(alien.flags["main:BT18-020"]!.label, /Super-Karte in einem Pokémon-Deck/);
+  assert.equal(legality([row("L", "leader", 1), ...fullMain.slice(1), { ...pk("PKM-1", 4), cardType: "POKEMON" } as LegalityCard]).flags["main:PKM-1"]?.label, "a Pokémon card in a Super deck");
+
+  // copyLimit knows basic Energy.
+  assert.equal(copyLimit({ zone: "main", limitedTo: null, details: { basicEnergy: true } }, "pokemon"), Number.POSITIVE_INFINITY);
+  assert.equal(copyLimit({ zone: "main", limitedTo: null, details: { basicEnergy: false } }, "pokemon"), 4);
+  assert.equal(copyLimit({ zone: "leader", limitedTo: null }, "dbs"), 1);
+  assert.equal(copyLimit({ zone: "main", limitedTo: 7 }, "dbs"), 7);
+
+  // Deck order: Pokémon by stage then name, then Trainer, then Energy.
+  const sorted = sortDeckRows(
+    [
+      { zone: "main", cardType: "ENERGY", name: "Feuer", details: null },
+      { zone: "main", cardType: "TRAINER", name: "Boss", details: null },
+      { zone: "main", cardType: "POKEMON", name: "Zeta", details: { stage: "Stage2" } },
+      { zone: "main", cardType: "POKEMON", name: "Beta", details: { stage: "Basic" } },
+      { zone: "main", cardType: "POKEMON", name: "Alpha", details: { stage: "Stage1" } },
+      { zone: "main", cardType: "POKEMON", name: "Alpha2", details: { stage: "Basic" } },
+    ],
+    "pokemon",
+  );
+  assert.deepEqual(sorted.map((r) => r.name), ["Alpha2", "Beta", "Alpha", "Zeta", "Boss", "Feuer"]);
+  const bandai = [
+    { zone: "main", cardType: "BATTLE", name: "Z", details: null },
+    { zone: "main", cardType: "BATTLE", name: "A", details: null },
+  ];
+  assert.deepEqual(sortDeckRows(bandai, "dbs"), bandai, "Bandai order is the query's");
+}
 
 console.log("verify-rules: all checks passed");
 

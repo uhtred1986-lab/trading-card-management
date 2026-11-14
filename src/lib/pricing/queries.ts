@@ -3,10 +3,10 @@
  * (foil/non-foil versions, alt-art listings); we reduce them to one Normal and
  * one Foil USD price per print, using the newest snapshot per product.
  */
-import { inArray, sql } from "drizzle-orm";
+import { and, inArray, isNotNull, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { rows } from "@/db/rows";
-import { tcgProducts } from "@/db/schema";
+import { cardPrints, tcgProducts } from "@/db/schema";
 
 export interface PrintPrice {
   printId: string;
@@ -14,6 +14,11 @@ export interface PrintPrice {
   foilCents: number | null;
   productId: number | null;
   capturedOn: string | null;
+  /**
+   * Pokémon only: the print's Cardmarket market price in integer EUR cents (`card_prints.market_cents`).
+   * Already EUR, so it is never converted; `normalCents` / `foilCents` stay null for such a print.
+   */
+  eurCents?: number | null;
 }
 
 interface Row {
@@ -91,7 +96,31 @@ export async function pricesForPrints(db: Db, printIds: string[]): Promise<Map<s
       capturedOn: newest.captured_on,
     });
   }
+
+  // Pokémon prints have no TCGplayer product: their price is the Cardmarket EUR one stored on the print.
+  const missing = printIds.filter((id) => !out.has(id));
+  if (missing.length) {
+    const eur = await db
+      .select({ id: cardPrints.id, cents: cardPrints.marketCents, currency: cardPrints.marketCurrency, at: cardPrints.marketAt })
+      .from(cardPrints)
+      .where(and(inArray(cardPrints.id, missing), isNotNull(cardPrints.marketCents)));
+    for (const r of eur) {
+      if (r.cents == null || (r.currency ?? "EUR") !== "EUR") continue;
+      out.set(r.id, { printId: r.id, normalCents: null, foilCents: null, productId: null, capturedOn: r.at ? r.at.toISOString().slice(0, 10) : null, eurCents: r.cents });
+    }
+  }
   return out;
+}
+
+/**
+ * One copy's market value: USD cents when the price is TCGplayer's, and EUR cents either way. A
+ * Pokémon print is priced in EUR already (`eurCents`) and is not converted; a Dragon Ball print is
+ * the USD price at `usdEur`, as before. EUR is null when there is no price (or no rate).
+ */
+export function marketValueOf(p: PrintPrice | undefined, finish: string, usdEur: number | null): { usd: number | null; eur: number | null } {
+  if (p?.eurCents != null) return { usd: null, eur: p.eurCents };
+  const usd = priceForFinish(p, finish);
+  return { usd, eur: usd != null && usdEur != null ? Math.round(usd * usdEur) : null };
 }
 
 /** Convenience: base-print Normal price per card (for grids). */

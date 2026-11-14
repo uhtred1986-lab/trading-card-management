@@ -109,7 +109,7 @@ assert.equal(joined.name, "Carla");
 assert.equal(await redeemJoinCode(db, second.code, "Android · Browser", NOW), null, "single use");
 assert.equal(await previewJoinCode(db, second.code, NOW), null);
 const claims = { playerId: joined.playerId, deviceId: joined.deviceId, tok: joined.tok };
-assert.deepEqual(await resolvePlayerDevice(db, claims, NOW), { role: "player", playerId: carla, deviceId: joined.deviceId, name: "Carla", owner: "Carla" });
+assert.deepEqual(await resolvePlayerDevice(db, claims, NOW), { role: "player", playerId: carla, deviceId: joined.deviceId, name: "Carla", owner: "Carla", homeGame: null });
 assert.equal(await resolvePlayerDevice(db, { ...claims, tok: joined.tok.replace(/.$/, "x") }, NOW), null, "wrong token");
 assert.equal(await resolvePlayerDevice(db, { ...claims, playerId: migrated[0].id }, NOW), null, "another player's id");
 const [device] = await db.select().from(schema.playerDevices);

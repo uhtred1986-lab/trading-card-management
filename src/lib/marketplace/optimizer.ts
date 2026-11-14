@@ -18,6 +18,8 @@ export interface Listing {
   shippingCents: number;
   country: string;
   condition?: string;
+  /** Card language as the seller lists it (shown only; the optimiser never reads it). */
+  language?: string;
   url?: string;
 }
 

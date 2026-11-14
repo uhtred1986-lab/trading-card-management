@@ -1,11 +1,13 @@
 import type { MetadataRoute } from "next";
 
 /**
- * What makes the arena installable to an Android or iPhone home screen — no store, no
- * listing, just "Add to home screen" from the browser (design proposal §13).
+ * What makes the app installable to an Android or iPhone home screen — no store, no listing, just
+ * "Add to home screen" from the browser (design proposal §13).
  *
- * `start_url` is the arena rather than the dashboard: this is installed to
- * play, and the rest of the app is a tap away inside it.
+ * The name is neutral: the same app holds the Dragon Ball games and Pokémon. `start_url` is `/` with
+ * a launch marker, and `/` sends each person to their own start screen (src/app/page.tsx): a player
+ * whose home game is Pokémon opens on their collection, everyone else on the arena as before. A
+ * plain visit to `/` (the desktop dashboard) never redirects a Dragon Ball user.
  *
  * Served at `/manifest.webmanifest`, which `src/proxy.ts` exempts from Basic
  * Auth along with the icons — a name and a picture are not secrets, and the
@@ -14,10 +16,10 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "DBS Card Companion",
-    short_name: "DBS Arena",
-    description: "Collection, decks, prices and the arena for the Dragon Ball Super Card Game.",
-    start_url: "/arena",
+    name: "Card Companion",
+    short_name: "Card Companion",
+    description: "Collection, decks, prices and the arena for your trading card games.",
+    start_url: "/?source=pwa",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

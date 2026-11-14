@@ -18,6 +18,7 @@ export function CardFaces({
   sizes,
   priority = false,
   className = "",
+  frontPhotoId = null,
 }: {
   front: string | null | undefined;
   back: string | null | undefined;
@@ -27,9 +28,11 @@ export function CardFaces({
   sizes?: string;
   priority?: boolean;
   className?: string;
+  /** The viewer's own photo, shown in place of the front (card page only). */
+  frontPhotoId?: number | null;
 }) {
   const [showBack, setShowBack] = useState(false);
-  if (!back) return <CardImage src={front} alt={name} sizes={sizes} priority={priority} className={className} />;
+  if (!back) return <CardImage src={front} photoId={frontPhotoId} alt={name} sizes={sizes} priority={priority} className={className} />;
 
   if (layout === "flip") {
     return (
@@ -45,7 +48,7 @@ export function CardFaces({
   return (
     <div className={`grid grid-cols-2 gap-2 ${className}`}>
       <figure className="space-y-1">
-        <CardImage src={front} alt={name} sizes={sizes} priority={priority} />
+        <CardImage src={front} photoId={frontPhotoId} alt={name} sizes={sizes} priority={priority} />
         <figcaption className="text-center text-[10px] uppercase tracking-wide text-space-400">Front</figcaption>
       </figure>
       <figure className="space-y-1">

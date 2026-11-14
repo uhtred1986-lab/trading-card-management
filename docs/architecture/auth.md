@@ -21,6 +21,12 @@ what exists today; what is still to come is at the end.*
   or the player on `/me` for their other devices) and "Sign out of this device" revoke the device row;
   its next request is refused and it needs a new code. Removing a player deletes their codes and
   devices (cascade); their cards and decks stay, listed under Unassigned.
+- **Home game.** A player's `players.home_game` is `pokemon`, or null for Dragon Ball. An SL sets it in
+  Settings → Users & access (`/settings/access`, `setPlayerHomeGameAction` in `src/app/settings/access/actions.ts`,
+  which calls `setPlayerHomeGame` in `access.ts`). It reaches the viewer on each request (`currentHomeGame()` in
+  `src/lib/auth/index.ts`). It decides where the app opens (`/` sends a Pokémon player to `/pokemon`) and which
+  navigation they see (`usesPokemonNav`, `src/lib/navigation.ts`). It grants nothing: a player still sees only
+  their own data. Detail: `pokemon.md`.
 - **Basic Auth still works beside both** while everyone moves: the `BASIC_AUTH_USER` /
   `BASIC_AUTH_PASSWORD` pair is an SL; an `app_users` login is a player, or an SL when listed in
   `ARENA_ADMINS`. With Google set up, a signed-out page goes to `/login`, whose "Sign in with password"
@@ -36,6 +42,7 @@ what exists today; what is still to come is at the end.*
 | Collection, cards, decks, add, scan, leaders, cart, wants, dashboard | everyone's (owner filter on the collection) | **their own only** |
 | AI features (deck analysis, wizard, scan, "Build a deck with Claude", cart explainer) | yes | yes, on their own decks and cards |
 | Arena: play, 1 v 1, report a bug | yes | yes, with their own decks; games whose first deck is theirs, and their 1 v 1 seats |
+| Pokémon (`/pokemon/*`, `/cart?for=`): collection, decks, wishes, add | An SL's collection and decks are everyone's; an SL's search and viewer show the SL's own copies | **their own only** |
 | Settings (sync, AI providers, locations, users & access), the arena Rules screens (`/arena/rules`, the card page, sandbox, reference), rule review, feedback, debug, set review, cart shipping settings | yes | no — `/me` instead of Settings |
 
 **Owner names are the boundary.** Every lot, deck, scan batch and want carries an `owner` name. A
@@ -77,6 +84,7 @@ trusted from the proxy — and re-reads the device row (and touches `last_seen_a
 | `src/lib/auth/access.ts` | The database half: SL accounts, players, codes (issue, preview, redeem), devices (resolve, revoke, list), the admin overview, unassigned owners, `reassignOwner`, the rate limit. Tested on PGlite by `scripts/verify-access-db.mts`. |
 | `src/lib/auth/index.ts` | `getViewer()`, `currentUser/Owner/Scope()`, `isArenaAdmin()`, and the guards. |
 | `src/lib/auth/ownership.ts` | "Is this yours?" for ids from the browser, and `canOpenGame`. |
+| `src/lib/auth/who.ts` | The `x-card-who` value (`whoKey`), stamped by `src/proxy.ts`. See "The `x-card-who` header". |
 | `src/lib/auth/proxy-checks.ts` | The proxy's cached database checks (added SLs, live devices), 30 s per instance. |
 | `src/lib/auth/google-oauth.ts` | Google on `openid-client`: PKCE S256, `state`, `nonce`, the ID token's claims, then the SL check. |
 | `src/lib/auth/basic.ts` | The old Basic Auth check, for the proxy and `/password-login`. |
@@ -87,6 +95,17 @@ trusted from the proxy — and re-reads the device row (and touches `last_seen_a
 
 Libraries: `openid-client` 6, `jose` 6 and `uqr` (the QR, as SVG), the same as gullet-cove-dm. No OAuth,
 JWT or QR code is written by hand.
+
+## The `x-card-who` header
+
+Every response the proxy lets through carries `x-card-who` (`src/proxy.ts`, `src/lib/auth/who.ts`). Its value is a
+salted SHA-256 of the identity (an SL's address, a player's id, the Basic Auth header, or "open"), cut to 24 hex
+characters. It contains no email and cannot be reversed to one: the salt is `AUTH_SECRET`.
+
+It exists for the service worker. `public/sw.js` keeps a copy of the collection, decks and wishes for the page it
+was made for, so a phone can read them offline. A worker cannot read the HttpOnly session cookie, so it takes the
+`who` from this header: it keeps its page cache for one `who` at a time and clears it when a response carries
+another one, or none. Detail: `collection-and-decks.md`, "Offline reading".
 
 ## The cookies
 

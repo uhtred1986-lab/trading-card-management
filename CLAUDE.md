@@ -5,23 +5,29 @@ says which file to open before touching which area. Read the one you need, not a
 
 ## What this is
 
-A single-user Next.js companion app for Bandai's two **Dragon Ball Super Card Game** products: the
-original game (legacy BT1–BT25 plus the Masters line, `game = "dbs"`) and **Fusion World**
-(`"fusion"`). Collection tracking with market values, virtual vs. built decks with a reservation
+A single-user Next.js companion app for three trading-card games. Bandai's two **Dragon Ball Super Card
+Game** products: the original game (legacy BT1–BT25 plus the Masters line, `game = "dbs"`) and **Fusion
+World** (`"fusion"`). And the **Pokémon Trading Card Game** (`"pokemon"`), for collection, decks, wishes and
+buying only. Collection tracking with market values, virtual vs. built decks with a reservation
 system, Claude-powered deck analysis and card scanning, TCGplayer pricing, a read-only CardTrader
 integration with a cart optimiser, and the **arena** (an engine that plays `dbs` decks by the
 Masters rule manual). `dbs-tcg-app-feature-summary.md` is the original spec (before Fusion World).
 
-- **The two games are kept apart by `game`** (`src/lib/catalog/games.ts`, `GAME_INFO`): on
+- **The games are kept apart by `game`** (`src/lib/catalog/games.ts`, `GAME_INFO`): on
   `card_sets`, denormalised onto `cards`, chosen once per deck. Nothing is mixed within a deck;
-  lists default to both with a `GameFilter` chip row. The arena plays the games flagged `arena` in `GAME_INFO` (`dbs` and `fusion`), each by its own ruleset directory.
+  lists default to all games with a `GameFilter` chip row. The arena plays the games flagged `arena` in `GAME_INFO` (`dbs` and `fusion`), each by its own ruleset directory.
+- **Pokémon** has a live catalog: cards are searched at TCGdex and stored only when a lot, a deck line or
+  a wish refers to them. Its screens are German, under `/pokemon`, and it has no arena. Anything Pokémon:
+  `docs/architecture/pokemon.md` (plan and design: `docs/pokemon/`).
 - Owner is in Austria: display currency EUR; TCGplayer prices are USD, converted at the ECB rate in
   `fx_rates`. Price paid is entered in EUR.
 - **Auth** (`docs/architecture/auth.md`): SLs (admins) sign in with Google at `/login`; players join
   with a one-time code (`/join?c=CODE`). HTTP Basic Auth still works beside it (`BASIC_AUTH_*`,
   `app_users`, `/password-login`) until it is removed. With nothing configured (local dev) the app
   runs open and everyone is an SL. `/api/sync/*` and `/api/ai/agent-sdk` skip the proxy and check
-  their own bearer secret; the manifest, `/icons/*` and `/sw.js` are exempt.
+  their own bearer secret; the manifest, `/icons/*` and `/sw.js` are exempt. A player's **home game**
+  (`players.home_game`, set by an SL in Settings → Users & access) decides where the app opens and which
+  navigation they see.
 - **Deploys:** only `main` builds on Vercel (`vercel.json`); a production deploy runs the migrations
   (`scripts/vercel-build.mjs`). Functions are pinned to `fra1`, next to the Neon database in
   `eu-central-1`; keep them together. Env names: `.env.example`; AI provider variables:
@@ -53,7 +59,13 @@ Masters rule manual). `dbs-tcg-app-feature-summary.md` is the original spec (bef
   `currentScope()`; `scripts/verify/guards.ts` fails `npm test` on a missing guard. `auth.md`
 - **Reservations are computed, never stored**; over-reserving a *built* deck is the one thing
   refused; a built deck reserves only its owner's copies. `collection-and-decks.md`
-- **Legality is a flag, never a block**: `legality(rows, game)` labels, it never refuses.
+- **Legality is a flag, never a block**: `legality(rows, game, format)` labels, it never refuses.
+- **`ensurePokemonCard` is the only writer of Pokémon rows** in `card_sets`, `cards` and `card_prints`,
+  and it expires the catalog tag. The sync jobs iterate `SYNCED_GAMES`, never `GAMES`. `pokemon.md`
+- **Pokémon money is EUR cents from `card_prints.market_cents`**; never convert it from USD.
+- **Pokémon screens are German**; their strings live in `src/lib/pokemon/copy.ts` and `copy-input.ts`.
+- **Claude features go through the per-game adapter** (`src/lib/ai/games/`); never branch on the game there.
+- **The offline page cache holds one person at a time** (`x-card-who`, `public/sw.js`). `auth.md`
 - **Stamp `owned_cards.owner` and `decks.owner`** on every path that creates them.
 - **Errata are fixed in `errata.ts`, never by UPDATE**; keep `coalesce` on `image_url` and
   `cards.specified_cost` in the catalog upsert, or a sync erases them. `catalog-and-sync.md`
@@ -93,7 +105,8 @@ framework, only `assert` scripts run with `tsx`. Arena tooling and its scripts: 
 | Ownership, reservations, legality, deck/lot owners, add-to-deck, voice entry, quick capture, scan batches | `docs/architecture/collection-and-decks.md` |
 | Deck analysis, wizard, card scanning, cart explainer, "Build a deck with Claude" | `docs/architecture/ai.md` |
 | AI providers (API vs subscription, routing, ledger, the agent-sdk route, `AI_AGENT_SDK`) | `docs/architecture/ai-providers.md` |
-| Sign-in and access: Google, join codes, guards, private collections, admin page, MCP connector | `docs/architecture/auth.md` |
+| Sign-in and access: Google, join codes, guards, private collections, admin page, MCP connector, home game | `docs/architecture/auth.md` |
+| Anything Pokémon: live TCGdex catalog, German screens, decks, wishes, CardTrader by blueprint id, voice and photo | `docs/architecture/pokemon.md`; the decisions and design: `docs/pokemon/plan.md`, `docs/pokemon/design.md` |
 | Server actions, raw SQL, `DB_DRIVER`, the SessionStart hook | `docs/architecture/db.md` |
 | The arena: engines, compiler, rules language, Rules screens, UI, scripts | skill `arena-work`, then `docs/architecture/arena.md`, `docs/arena-tooling.md`, `docs/arena-code-map.md` |
 | Arena rule batches: research order, rulings ledger (`src/lib/arena/rulings.ts`), what an agent runs, integration | `docs/arena-batch-process.md` |

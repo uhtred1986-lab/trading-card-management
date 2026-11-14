@@ -7,10 +7,13 @@ import { GameFilter } from "@/components/GameFilter";
 import { collectionCards, collectionCopies, summarise, valuedLots } from "@/lib/collection/queries";
 import { ownerOptions } from "@/lib/collection/owners";
 import { listLocations } from "@/lib/collection/locations";
+import { cardPhotoIds } from "@/lib/collection/photos";
 import { currentOwner, currentScope, requireSignedInPage } from "@/lib/auth";
 import { formatCents } from "@/lib/money";
 import { parseViewMode } from "@/lib/view-mode";
 import { CardTile } from "@/components/CardTile";
+import { CardViewerProvider } from "@/components/CardViewer";
+import { cardStats } from "@/lib/catalog/card-stats";
 import { CollectionList } from "@/components/CollectionList";
 import { CopiesPopover } from "@/components/CopiesPopover";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -69,7 +72,13 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
     currentOwner().then((me) => ownerOptions(db, me, viewer.kind === "player")),
   ]);
   const grid = view === "grid" ? await collectionCards(db, { ...filters, valued: all }) : null;
-  const gamesPresent = GAMES.filter((g) => allSets.some((s) => s.game === g));
+  // Own photos replace the catalog picture: one batched read for the page, never one per tile.
+  const photos = await cardPhotoIds(db, scope, {
+    printIds: list?.rows.map((r) => r.printId),
+    cardIds: grid?.rows.map((r) => r.card.id),
+    prefer: viewer.owner,
+  });
+  const gamesPresent =GAMES.filter((g) => allSets.some((s) => s.game === g));
   const s = summarise(all.lots, all.usdEur);
   const shown = grid?.rows.length ?? list?.rows.length ?? 0;
   const select = "tap rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
@@ -251,13 +260,32 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
           {s.lots === 0 ? "Nothing here yet." : finish === "foil" ? "No foils match that filter." : "No cards match that filter."}
         </p>
       ) : list ? (
-        <CollectionList rows={list.rows} owners={owners} decks={decks} locations={locations} />
+        <CollectionList rows={list.rows.map((r) => ({ ...r, photoId: photos.byPrint.get(r.printId) ?? null }))} owners={owners} decks={decks} locations={locations} />
       ) : (
+        <CardViewerProvider
+          cards={grid!.rows.map((r) => ({
+            id: r.card.id,
+            name: r.card.name,
+            setCode: r.card.setCode,
+            cardType: r.card.cardType,
+            colors: r.card.colors,
+            rarityCode: r.card.rarityCode,
+            imageUrl: r.card.imageUrl,
+            photoId: photos.byCard.get(r.card.id) ?? null,
+            isBanned: r.card.isBanned,
+            isLimited: r.card.isLimited,
+            priceLabel: r.valueEur ? formatCents(r.valueEur) : r.unpriced ? "unpriced" : null,
+            ownedQty: r.qty,
+            foilQty: r.foilQty,
+            stats: cardStats(r.card),
+          }))}
+        >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {grid!.rows.map((r) => (
             <CardTile
               key={r.card.id}
-              card={r.card}
+              viewable
+              card={{ ...r.card, photoId: photos.byCard.get(r.card.id) ?? null }}
               badge={<CopiesPopover cardId={r.card.id} name={r.card.name} ownedQty={r.qty} foilQty={r.foilQty} decks={decks} locations={locations} />}
               priceLabel={r.valueEur ? formatCents(r.valueEur) : r.unpriced ? "unpriced" : null}
               footer={
@@ -271,6 +299,7 @@ export default async function CollectionPage({ searchParams }: { searchParams: P
             />
           ))}
         </div>
+        </CardViewerProvider>
       )}
     </div>
   );

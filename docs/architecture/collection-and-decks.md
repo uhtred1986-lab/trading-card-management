@@ -36,6 +36,29 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
   and pooled limits ("up to 7 ≪Dark Dragon Ball≫"). A broken one is an `illegal` flag naming the
   Leader's rule and the card; a clause the parser cannot read is reported in `unread`, never guessed.
   Original game only. The arena shares the parser (a deck-building clause is read-and-empty).
+- **Pokémon decks** have their own checker (`pokemonLegality.ts`, chosen by `GAME_INFO.pokemon.deck.ruleset`,
+  not by `game ===` tests; German texts): exactly 60 cards, no Leader or Z-Deck, at most 4 per
+  **name** (`details.names.en`, else the card name; basic Energy unlimited, `copiesBy: "name"`), one
+  ACE SPEC and one Radiant per deck (`details.onePerDeck`), at least one Basic Pokémon. **Format** is
+  `decks.format` (`standard` by default, `expanded`; `legality(rows, game, format)`; `setDeckFormatAction`
+  stores it, `GAME_INFO[game].deck.formats` says which are valid): a card whose `details.legal[format]`
+  is `false` is flagged illegal, a card with no legality data is a `warning` ("unknown"), never a
+  guess. Every Pokémon card lands in `main`; `getDeck` orders Pokémon (by stage, then name), Trainer,
+  Energy. Reservations and the over-reserve refusal are unchanged. Library code asks `GAME_INFO` /
+  `DeckRules` (`leader`, `zMax`, `printedRules`, `copiesBy`, `formats`) rather than testing for a game;
+  `strictGame()` is for write paths (an unknown game is an error), `gameOr()` for reads.
+  **Her decks' screens** (`/pokemon/decks`, `/pokemon/decks/[id]`, `/pokemon/decks/new`; German copy in
+  `PK.decks` / `PK.newDeck` / `PK.importList`): pure logic in `src/lib/pokemon/deck-logic.ts` (size text,
+  `summariseIssues` collapses many cards failing one format rule into one line and shows at most four,
+  `missingCopies`, `builtRefusal`, the German sentence of the one refusal), data in `deck-data.ts` (list,
+  `wishMissing` writes the *deck owner's* wishes with `addWant`, idempotent; `importPokemonDeckList`).
+  "Owned" on a row is `alloc.owned` of the deck owner, as a built deck reserves it. The Server Functions
+  (`src/app/pokemon/decks/actions.ts`) check `assertPokemonDeck` (owner or SL, and the game). **Pasted deck
+  lists** (`decklist.ts`, "4 Charizard ex OBF 125", English and German sections): a line with set code and
+  number is searched in that set (`deck-source.ts` turns "OBF" into TCGdex's set id through
+  `sets?abbreviation.official=`), else by name and number (several prints: the newest, listed as a guess),
+  else by name; lines nothing matches are returned, never dropped. A Pokémon deck opened under `/decks/[id]`
+  shows no Leader or Z-Deck tiles, groups by card type and links to the Pokémon page.
 - **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck.
   `addCardsToDeck` sorts by zone and **never caps or replaces** — an over-limit add is flagged
   rather than dropped.
@@ -47,4 +70,74 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
   immediately (nothing stored) → quantity with big ± buttons → `addLot` → the camera re-opens.
 - **Scan batches** (`src/lib/scan/batches.ts`): a scan is persisted as it happens so a batch
   started on the phone can be finished on the PC. `POST /api/scan` stores the photo *before*
-  identifying so a retry never needs the phone again.
+  identifying so a retry never needs the phone again. Rows carry `scan_batches.game` (`dbs`, the default and the only
+  kind these lists, the review and `completeBatch` handle). A Pokémon binder page ("Ganze Seite") is a batch with
+  `game = "pokemon"` kept by `src/lib/pokemon/scan-batch.ts`: same tables, items hold live TCGdex hits instead of local
+  prints (`scan_items.variant`, `language`, `saved_at`), completion goes through the Pokémon add path and keeps the items as
+  saved. Detail: `pokemon.md`, "Input".
+
+- **Own card photos** (`src/lib/collection/photos.ts`, `card_photos`; every game): a person can replace
+  a card's picture with a phone photo. `PhotoOverride` crops it to 63:88, shrinks it to 750 px WebP (JPEG
+  fallback) in the browser; `saveCardPhotoAction` stamps `owner` from the viewer and the library refuses
+  over 400 KB, other mimes than WebP/JPEG and more than 1,000 photos per owner. One photo per print and
+  owner; replacing deletes and re-inserts, so the id (and the cached URL) changes. Scope works as for lots:
+  a player sees only their own, an SL every owner's (preferring their own per print). `GET /api/card-photo/[id]`
+  serves it (`private, immutable`, 404 when not visible); `CardImage` takes `photoId` and shows a camera
+  badge. Pages fetch ids in one batched `cardPhotoIds` call (card page: base print; collection: grid by
+  card, list by print). Photos are not in the catalog cache, nothing to expire. Deck and arena screens
+  still show the catalog picture.
+
+## Offline reading
+
+A phone is often without signal, so the pages a person reads (not edits) keep working from what the
+device last saw (`public/sw.js`, job 0 in its header; `scripts/verify/offline-reading.mts`). Read this
+before touching that list, the worker's page cache, `src/proxy.ts`' `x-card-who` stamp or the sign-in pages.
+
+- **Which pages** (`readableArea` in the worker, `src/lib/offline-pages.ts` the same list for the page;
+  the proof fails when they differ): `/pokemon`, `/pokemon/wishes`, `/pokemon/decks` and
+  `/pokemon/decks/<x>`, `/collection`, `/decks`, `/decks/<id>`. Nothing else: no `/settings`, `/cart`,
+  `/login`, `/join`, no `/api/` but `GET /api/card-photo/<id>`.
+- **Strategy.** Network first, copy second. A navigation or a followed link (Next's `_rsc` fetch, which
+  is not a prefetch) goes to the network; a 200 with the stamp is kept; the kept copy is shown when the
+  fetch fails, takes over 8 s, answers 5xx, or the browser says it is offline. A 404, a redirect or a 4xx is
+  the truth and is shown. A query string keeps its own copy and also becomes the page's "last seen" copy,
+  which stands in for a filter this device never saw. The payload of a followed link is kept under its exact
+  `_rsc` URL (Next hashes its router headers into it), so it is only ever shown to the request it was
+  made for; a miss makes Next load the page itself, which the HTML copy answers. After a payload is kept
+  the page's HTML is fetched too (a page reached only by tapping would have none for a cold start).
+  Pictures: card art on a CDN is the old art cache (`ART_HOSTS`); `/_next/image` (what the Dragon Ball
+  grids use) and `/api/card-photo/<id>` go in the per-person cache; with no network a big picture never
+  fetched falls back to the optimiser copy or `low.webp`. `/_next/static/` files that no arena shell holds
+  go to `dbs-offline-static-v1` so a cold start has its JavaScript.
+- **Privacy: one person's copy at a time.** The worker cannot read the HttpOnly session cookie, so the
+  proxy stamps every response it lets through with `x-card-who` (`src/lib/auth/who.ts`: a salted SHA-256
+  of the identity, 24 hex characters, no email). `dbs-offline-pages-v1` records the `who` it belongs to
+  and holds only that person's pages, payloads and pictures. The whole cache is deleted when a response
+  carries another `who` or none, on a 401/403, on any request for `/login`, `/join` or `/password-login`
+  by the worker, and from the page itself (`ServiceWorker.tsx`) when it lands on one of them (signing out
+  is a Server Function redirect the worker never sees as a request). Chosen over keying every URL by
+  person because there is exactly one signed-in person per browser profile, and "nothing of the last
+  person survives" is simpler to prove than "the right key is always used". Basic Auth has no sign-out:
+  its copy goes when the credentials change. Not covered: card art on a CDN (the shared art cache has
+  always held public art), and a person's copy stays on the device until one of the events above.
+- **The start URL.** `/?source=pwa` is a 200 with a meta-refresh (the root `loading.tsx` makes
+  `redirect()` stream), not a 3xx, so the worker leaves it alone online and reads the redirect target
+  from the first 64 KB of a copy (`__next-page-redirect`), remembered in the person's cache. Offline it
+  goes where it went last: the arena's shell for `/arena` (a prepared device), the kept `/pokemon` for a
+  Pokémon player; with nothing remembered, the shell if there is one, else a kept `/pokemon`, else the
+  plain notice. A fetch that fails with the browser reporting online is still never an offline launch.
+- **Honest when offline.** `OfflineNotice` (root layout) shows a line on these pages while
+  `navigator.onLine` is false: "Kein Internet. Du siehst den letzten Stand." under `/pokemon`, English
+  elsewhere. Any form submit there and any click on `[data-needs-network]` is stopped with "Kein
+  Internet. Das geht erst wieder mit Verbindung." / "You are offline. This needs a connection."; the
+  `LiveSearch` box says so instead of navigating; the Pokémon screens already say it when a heart, an add
+  or a search fails. A page never seen answers 503 with a notice (German under `/pokemon`), other
+  `/pokemon/*` pages (add, discover) say they need the server. Limits: a Server Function started by an
+  unmarked click, outside a form, is not caught by the notice (it fails as before); `navigator.onLine` is
+  true on a phone with a bar of signal and no data, where the notice does not show but the copy still
+  is (the fetch fails).
+- **Updating.** No `skipWaiting`, no `clients.claim`, as for the arena (its tests pin that and the art
+  cache name `dbs-card-art-v1`): a new worker waits until every window is closed, and a page opened
+  before the worker existed is not controlled until its next full load. The worker is a new file byte
+  for byte, so a registered device gets it from the browser's own update check; the page registers
+  `/sw.js?v=<shell version>` on a prepared device as before.

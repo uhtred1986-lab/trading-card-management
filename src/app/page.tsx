@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { breakdown, movers, summarise, valuedLots } from "@/lib/collection/queries";
 import { cachedPriceSource } from "@/lib/cache/reads";
@@ -11,8 +12,15 @@ import { PageHeader, EmptyState, Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  await requireSignedInPage();
+/**
+ * Home. A player whose home game is Pokémon is sent to `/pokemon` (after sign-in, from the wordmark,
+ * from the installed app). Everyone else keeps the dashboard, except for a launch from the home
+ * screen (`start_url` carries `?source=pwa`), which opens the arena as it always did.
+ */
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ source?: string }> }) {
+  const viewer = await requireSignedInPage();
+  if (viewer.kind === "player" && viewer.homeGame === "pokemon") redirect("/pokemon");
+  if ((await searchParams).source === "pwa") redirect("/arena");
   // Valued once (the heavy price join) and handed to movers and breakdown.
   // Prices from the cache (held until the next price sync); the lots themselves are read fresh.
   const [valued, sync] = await Promise.all([valuedLots(db, { prices: cachedPriceSource, scope: await currentScope() }), lastSyncRuns(db)]);

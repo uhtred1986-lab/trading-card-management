@@ -13,6 +13,7 @@ import { rows } from "@/db/rows";
 import { cardPrints, ctBlueprints, ctExpansions, ctListings, tcgProducts } from "@/db/schema";
 import { baseNumber } from "@/lib/catalog/deckplanet";
 import { gameOr, type Game } from "@/lib/catalog/games";
+import { isPokemonCardId } from "@/lib/pokemon/types";
 
 const BASE = "https://api.cardtrader.com/api/v2";
 
@@ -86,6 +87,8 @@ export interface CtProduct {
   properties_hash: Record<string, unknown>;
   user: { id: number; username: string; country_code: string; can_sell_via_hub: boolean; max_sellable_in24h_quantity: number | null };
   on_vacation?: boolean;
+  /** Present on marketplace products per the API reference; the Pokémon check reads the expansion from it. */
+  expansion?: { id: number; code?: string | null; name_en?: string | null } | null;
   graded?: boolean;
   bundle_size?: number;
 }
@@ -111,7 +114,7 @@ export const shippingMethods = (username: string) => get<CtShippingMethod[]>("sh
 // ── catalog crosswalk ──────────────────────────────────────────────────────
 
 /** Sleep helper for the 200 req / 10 s ceiling. */
-const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export const pause = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export interface CtSyncSummary {
   game: string;
@@ -305,34 +308,45 @@ export interface CachedListing {
   fetchedAt: Date;
 }
 
-/** Fetch live listings for every blueprint of a card and replace the cache for it. */
+/** One CardTrader product as a `ct_listings` row for `cardId`. Language is whichever `*language` property the product carries. */
+export function listingRowOf(p: CtProduct, cardId: string, fetchedAt: Date = new Date()): typeof ctListings.$inferInsert {
+  const ph = p.properties_hash ?? {};
+  return {
+    id: p.id,
+    blueprintId: p.blueprint_id,
+    cardId,
+    sellerId: p.user.id,
+    seller: p.user.username,
+    countryCode: p.user.country_code ?? null,
+    canSellViaHub: !!p.user.can_sell_via_hub,
+    onVacation: !!p.on_vacation,
+    priceCents: p.price.cents,
+    currency: p.price.currency,
+    quantity: p.quantity,
+    condition: ph.condition == null ? null : String(ph.condition),
+    language: (Object.entries(ph).find(([k]) => /language$/.test(k))?.[1] as string | undefined) ?? null,
+    foil: !!Object.entries(ph).find(([k]) => /foil$/.test(k))?.[1],
+    fetchedAt,
+  };
+}
+
+/**
+ * Fetch live listings for every blueprint of a card and replace the cache for it. A Pokémon card
+ * (`PKM-…`) has no synced blueprints: it is fetched by the blueprint ids on its prints, with the
+ * expansion-and-number fallback (`cardtrader-pokemon.ts`).
+ */
 export async function refreshListingsForCard(db: Db, cardId: string): Promise<CachedListing[]> {
+  if (isPokemonCardId(cardId)) {
+    const { refreshPokemonListings } = await import("./cardtrader-pokemon");
+    return (await refreshPokemonListings(db, cardId)).listings;
+  }
   const bps = await db.select({ id: ctBlueprints.id }).from(ctBlueprints).where(eq(ctBlueprints.cardId, cardId));
   if (bps.length === 0) return [];
   const fresh: (typeof ctListings.$inferInsert)[] = [];
   for (const bp of bps) {
     const res = await productsForBlueprint(bp.id);
     await pause(110); // 10 req/s ceiling on this endpoint
-    for (const p of Object.values(res).flat()) {
-      const ph = p.properties_hash ?? {};
-      fresh.push({
-        id: p.id,
-        blueprintId: p.blueprint_id,
-        cardId,
-        sellerId: p.user.id,
-        seller: p.user.username,
-        countryCode: p.user.country_code ?? null,
-        canSellViaHub: !!p.user.can_sell_via_hub,
-        onVacation: !!p.on_vacation,
-        priceCents: p.price.cents,
-        currency: p.price.currency,
-        quantity: p.quantity,
-        condition: ph.condition == null ? null : String(ph.condition),
-        language: (Object.entries(ph).find(([k]) => /language$/.test(k))?.[1] as string | undefined) ?? null,
-        foil: !!Object.entries(ph).find(([k]) => /foil$/.test(k))?.[1],
-        fetchedAt: new Date(),
-      });
-    }
+    for (const p of Object.values(res).flat()) fresh.push(listingRowOf(p, cardId));
   }
   await db.transaction(async (tx) => {
     await tx.delete(ctListings).where(eq(ctListings.cardId, cardId));
@@ -370,17 +384,21 @@ export async function blueprintsFor(db: Db, cardId: string) {
 const TCG_SEARCH_SLUG: Record<Game, string> = {
   dbs: "dragon-ball-super-ccg",
   fusion: "dragon-ball-super-fusion-world",
+  pokemon: "pokemon",
 };
 
-export function externalLinks(card: { id: string; name: string; game?: string | null }, tcgUrl?: string | null, cardMarketIds?: unknown) {
-  const q = encodeURIComponent(`${card.name} ${card.id}`);
+export function externalLinks(card: { id: string; name: string; game?: string | null; localId?: string | null }, tcgUrl?: string | null, cardMarketIds?: unknown) {
+  const game = gameOr(card.game);
+  // A Pokémon card's id is `PKM-sv03.5-006`, which no shop knows: search by its name and printed number.
+  const q = encodeURIComponent(game === "pokemon" ? `${card.name}${card.localId ? ` ${card.localId}` : ""}` : `${card.name} ${card.id}`);
+  const cmGame = game === "pokemon" ? "Pokemon" : "DragonBallSuper";
   const cm =
     Array.isArray(cardMarketIds) && cardMarketIds.length
-      ? `https://www.cardmarket.com/en/DragonBallSuper/Products/Singles?idProduct=${cardMarketIds[0]}`
-      : `https://www.cardmarket.com/en/DragonBallSuper/Products/Search?searchString=${encodeURIComponent(card.name)}`;
+      ? `https://www.cardmarket.com/en/${cmGame}/Products/Singles?idProduct=${cardMarketIds[0]}`
+      : `https://www.cardmarket.com/en/${cmGame}/Products/Search?searchString=${encodeURIComponent(card.name)}`;
   return {
     cardtrader: `https://www.cardtrader.com/en/search?q=${q}`,
-    tcgplayer: tcgUrl ?? `https://www.tcgplayer.com/search/${TCG_SEARCH_SLUG[gameOr(card.game)]}/product?q=${q}`,
+    tcgplayer: tcgUrl ?? `https://www.tcgplayer.com/search/${TCG_SEARCH_SLUG[game]}/product?q=${q}`,
     cardmarket: cm,
   };
 }

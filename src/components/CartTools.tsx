@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react";
 import { explainCartAction, refreshWantsAction } from "@/app/cart/actions";
 import type { CartExplanation } from "@/lib/ai/cart";
+import type { ListingFilter } from "@/lib/marketplace/cart";
 import type { Want } from "@/lib/marketplace/optimizer";
 
-export function CartTools({ wants, aiEnabled, listingsCached, fetchedAt }: { wants: Want[]; aiEnabled: boolean; listingsCached: number; fetchedAt: string | null }) {
+export function CartTools({ wants, aiEnabled, listingsCached, fetchedAt, filter }: { wants: Want[]; aiEnabled: boolean; listingsCached: number; fetchedAt: string | null; filter?: ListingFilter }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<CartExplanation | null>(null);
@@ -19,7 +20,7 @@ export function CartTools({ wants, aiEnabled, listingsCached, fetchedAt }: { wan
   const explain = () =>
     start(async () => {
       setMsg(null);
-      const r = await explainCartAction(wants);
+      const r = await explainCartAction(wants, filter);
       if (r.ok) setExplanation(r.explanation);
       else setMsg(r.error);
     });

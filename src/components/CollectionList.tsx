@@ -22,7 +22,7 @@ const NEW = "__new";
  * else. Here the row is the copy, and every bulk action takes lot ids.
  */
 /** `owners` empty means the looker may not reassign owners (a player): the bulk owner control is hidden. */
-export function CollectionList({ rows, owners, decks, locations }: { rows: CollectionCopy[]; owners: string[]; decks: DeckOption[]; locations: StorageLocation[] }) {
+export function CollectionList({ rows, owners, decks, locations }: { rows: (CollectionCopy & { photoId?: number | null })[]; owners: string[]; decks: DeckOption[]; locations: StorageLocation[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const [note, setNote] = useState<string | null>(null);
@@ -133,7 +133,7 @@ export function CollectionList({ rows, owners, decks, locations }: { rows: Colle
                   </td>
                   <td className={cell}>
                     <Link href={`/cards/${encodeURIComponent(r.cardId)}`} className="block w-9">
-                      <CardImage src={r.imageUrl} alt={r.name} sizes="36px" />
+                      <CardImage src={r.imageUrl} photoId={r.photoId} alt={r.name} sizes="36px" />
                     </Link>
                   </td>
                   <td className={cell}>

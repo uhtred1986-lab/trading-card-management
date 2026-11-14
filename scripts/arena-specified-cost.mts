@@ -27,7 +27,7 @@ import { fetchDeckplanet, shapeCatalog } from "../src/lib/catalog/deckplanet";
 import { cardDefFrom } from "../src/lib/arena/load";
 import { specifiedCostUnknown } from "../src/lib/arena/text/cards";
 import { parseSpecifiedCost, SPECIFIED_CLAUSE, specifiedCostWords, staleSpecifiedCosts } from "../src/lib/arena/specified-cost";
-import type { Game } from "../src/lib/catalog/games";
+import type { SyncedGame } from "../src/lib/catalog/games";
 
 const args = process.argv.slice(2);
 const value = (name: string) => {
@@ -35,7 +35,7 @@ const value = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const all = args.includes("--all");
-const game = (value("game") ?? "dbs") as Game;
+const game = (value("game") ?? "dbs") as SyncedGame;
 
 /** A cost field that carries orbs would have to say so somehow. These are the ways it could. */
 const ORB_MARKUP = /\{[a-z0-9]\}|colorCostBall|_ball\.png|[⚫🔴🔵🟢🟡⚪]/i;

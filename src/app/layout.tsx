@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Semi_Condensed, Kanit } from "next/font/google";
 import { cookies } from "next/headers";
 import { AppShell } from "@/components/AppShell";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { getViewer } from "@/lib/auth";
@@ -21,11 +22,11 @@ const impact = Kanit({ subsets: ["latin"], weight: ["800", "900"], style: ["ital
 const arenaText = Barlow_Semi_Condensed({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-arena", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "DBS Card Companion",
-  description: "Collection, decks, prices and AI analysis for the Dragon Ball Super Card Game.",
+  title: "Card Companion",
+  description: "Collection, decks, prices and AI analysis for your trading card games.",
   manifest: "/manifest.webmanifest",
   icons: { apple: { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" } },
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "DBS Arena" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Card Companion" },
 };
 
 export const viewport: Viewport = {
@@ -44,8 +45,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={`h-full antialiased ${impact.variable} ${arenaText.variable}`} data-skin={skin}>
       <body className="flex min-h-full flex-col">
-        <AppShell skin={skin} isSl={viewer?.kind !== "player"}>{children}</AppShell>
+        <AppShell skin={skin} isSl={viewer?.kind !== "player"} homeGame={viewer?.kind === "player" ? (viewer.homeGame ?? null) : null}>{children}</AppShell>
         <ServiceWorker />
+        <OfflineNotice />
       </body>
     </html>
   );

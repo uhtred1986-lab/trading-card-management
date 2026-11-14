@@ -37,8 +37,8 @@ export function GameMark({ game, size = "chip", className = "" }: { game: unknow
   );
   if (size === "logo") {
     return (
-      <span className={`inline-flex h-10 items-center rounded-lg bg-space-900 px-3 ${failed ? "" : "py-1"}`} data-game-mark={info.id}>
-        {failed ? fallback : (
+      <span className={`inline-flex h-10 items-center rounded-lg bg-space-900 px-3 ${failed || !info.art.logo ? "" : "py-1"}`} data-game-mark={info.id}>
+        {failed || !info.art.logo ? fallback : (
           <Image src={info.art.logo} alt={info.label} width={120} height={44} onError={() => setFailed(true)} className={`h-full w-auto object-contain ${className}`} />
         )}
       </span>
@@ -46,7 +46,7 @@ export function GameMark({ game, size = "chip", className = "" }: { game: unknow
   }
   return (
     <span className={`relative block aspect-[470/400] w-full overflow-hidden rounded-xl ${className}`} data-game-mark={info.id}>
-      {failed ? fallback : (
+      {failed || !info.art.tile ? fallback : (
         <Image src={info.art.tile} alt={info.label} fill sizes="(min-width: 640px) 320px, 45vw" onError={() => setFailed(true)} className="object-cover object-top" />
       )}
     </span>
