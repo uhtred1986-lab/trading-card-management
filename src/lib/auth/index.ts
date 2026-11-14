@@ -24,7 +24,7 @@ export { parseBasicAuth, parseBasicUser } from "@/lib/auth-header";
  */
 export type Viewer =
   | { kind: "sl"; via: "google" | "basic" | "open"; email: string | null; login: string | null; owner: string | null }
-  | { kind: "player"; via: "code" | "basic"; playerId: number | null; deviceId: number | null; name: string; login: string; owner: string };
+  | { kind: "player"; via: "code" | "basic"; playerId: number | null; deviceId: number | null; name: string; login: string; owner: string; homeGame?: string | null };
 
 async function lazyDb() {
   const { db } = await import("@/db");
@@ -62,7 +62,7 @@ async function viewerUncached(): Promise<Viewer | null> {
       try {
         const { resolvePlayerDevice } = await import("./access");
         const p = await resolvePlayerDevice(await lazyDb(), verified.claims, now);
-        if (p) return { kind: "player", via: "code", playerId: p.playerId, deviceId: p.deviceId, name: p.name, login: p.owner, owner: p.owner };
+        if (p) return { kind: "player", via: "code", playerId: p.playerId, deviceId: p.deviceId, name: p.name, login: p.owner, owner: p.owner, homeGame: p.homeGame };
       } catch {
         // Fail closed: an unreadable device is no session.
       }
@@ -84,7 +84,7 @@ async function viewerUncached(): Promise<Viewer | null> {
     if (envPair || parseAdmins(env.ARENA_ADMINS).includes(username.trim().toLowerCase())) {
       return { kind: "sl", via: "basic", email: null, login: username, owner };
     }
-    return { kind: "player", via: "basic", playerId: null, deviceId: null, name: username, login: username, owner };
+    return { kind: "player", via: "basic", playerId: null, deviceId: null, name: username, login: username, owner, homeGame: null };
   }
 
   // No credentials at all got past the proxy only when nothing is configured: local dev, everyone is the SL.
@@ -106,6 +106,15 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     return null;
   }
 });
+
+/**
+ * The game this person's app opens on: a player's `players.home_game` (null is Dragon Ball), and
+ * always null for an SL, who keeps the full navigation. Only for choosing links and the landing page.
+ */
+export async function currentHomeGame(): Promise<string | null> {
+  const v = await getViewer();
+  return v?.kind === "player" ? (v.homeGame ?? null) : null;
+}
 
 /** The SL signed in with Google on this request, or null. */
 export async function currentSession(): Promise<{ email: string } | null> {

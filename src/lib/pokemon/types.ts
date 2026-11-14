@@ -70,7 +70,8 @@ export interface PokemonHit {
   setName: string;
   localId: string;
   setTotal: number | null;
-  category: PokemonCategory;
+  /** Null when the search entry says nothing and the search did not filter on it: a list entry carries no category, so it is never guessed. */
+  category: PokemonCategory | null;
   types: string[];
   /** Image base URL at the source; `pokemonImage(hit.image, "low" | "high")` makes it loadable. Null when the source has no scan. */
   image: string | null;

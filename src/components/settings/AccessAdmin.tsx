@@ -10,6 +10,7 @@ import {
   disconnectDeviceAction,
   giveToPlayerAction,
   newJoinCodeAction,
+  setPlayerHomeGameAction,
   removeSlAction,
   setSlOwnerAction,
   updatePlayerAction,
@@ -26,6 +27,7 @@ interface PlayerRow {
   id: number;
   name: string;
   owner: string;
+  homeGame: string | null;
   createdAt: string;
   lots: number;
   decks: number;
@@ -165,6 +167,19 @@ export function AccessAdmin({ isOwner, myEmail, players, sls, unassigned }: { is
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-xs text-space-300">
+                    Opens on
+                    <select
+                      value={p.homeGame === "pokemon" ? "pokemon" : "dbs"}
+                      disabled={pending}
+                      onChange={(e) => run(() => setPlayerHomeGameAction(p.id, e.target.value))}
+                      aria-label={`Home game of ${p.name}`}
+                      className={input}
+                    >
+                      <option value="dbs">Dragon Ball</option>
+                      <option value="pokemon">Pokémon</option>
+                    </select>
+                  </label>
                   <button type="button" disabled={pending} onClick={() => makeCode(p.id)} className={primary}>
                     {p.openCodeExpiresAt || code ? "New code" : "Make join code"}
                   </button>

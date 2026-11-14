@@ -122,6 +122,11 @@ export async function updatePlayer(db: Db, id: number, patch: { name?: string; o
   await db.update(players).set(patch).where(eq(players.id, id));
 }
 
+/** Sets the game a player's app opens on. `null` is the Dragon Ball default. */
+export async function setPlayerHomeGame(db: Db, id: number, game: "pokemon" | null): Promise<void> {
+  await db.update(players).set({ homeGame: game }).where(eq(players.id, id));
+}
+
 /** Deletes the player with their codes and devices (cascade), which signs every device out. Their cards and decks stay. */
 export async function deletePlayer(db: Db, id: number): Promise<void> {
   await db.delete(players).where(eq(players.id, id));
@@ -195,7 +200,7 @@ export async function redeemJoinCode(db: Db, input: string, label: string, now: 
 
 // ── Devices ────────────────────────────────────────────────────────────────
 
-export type ResolvedPlayer = { role: "player"; playerId: number; deviceId: number; name: string; owner: string };
+export type ResolvedPlayer = { role: "player"; playerId: number; deviceId: number; name: string; owner: string; homeGame: string | null };
 
 /**
  * The player a verified cookie stands for, or `null`: the device must exist,
@@ -213,6 +218,7 @@ export async function resolvePlayerDevice(db: Db, claims: PlayerClaims, now: Dat
       lastSeenAt: playerDevices.lastSeenAt,
       name: players.name,
       owner: players.owner,
+      homeGame: players.homeGame,
     })
     .from(playerDevices)
     .innerJoin(players, eq(players.id, playerDevices.playerId))
@@ -223,7 +229,7 @@ export async function resolvePlayerDevice(db: Db, claims: PlayerClaims, now: Dat
   if (touch && (!row.lastSeenAt || now.getTime() - row.lastSeenAt.getTime() >= LAST_SEEN_THROTTLE_MS)) {
     await db.update(playerDevices).set({ lastSeenAt: now }).where(eq(playerDevices.id, row.id));
   }
-  return { role: "player", playerId: row.playerId, deviceId: row.id, name: row.name, owner: row.owner };
+  return { role: "player", playerId: row.playerId, deviceId: row.id, name: row.name, owner: row.owner, homeGame: row.homeGame };
 }
 
 /** Disconnects a device; its next request is refused. `playerId` narrows it to that player's own device when given. */
@@ -259,6 +265,8 @@ export interface PlayerOverview {
   id: number;
   name: string;
   owner: string;
+  /** The game the player's app opens on; null is the Dragon Ball default. */
+  homeGame: string | null;
   createdAt: Date;
   lots: number;
   decks: number;
@@ -295,6 +303,7 @@ export async function playersOverview(db: Db, now: Date): Promise<PlayerOverview
     id: p.id,
     name: p.name,
     owner: p.owner,
+    homeGame: p.homeGame,
     createdAt: p.createdAt,
     lots: lotsBy.get(p.owner) ?? 0,
     decks: decksBy.get(p.owner) ?? 0,

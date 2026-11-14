@@ -26,6 +26,7 @@ import {
   hitFromTcgdex,
   listPokemonSets,
   mergeSearchHits,
+  orderHits,
   parseSearchQuery,
   pokemonCategoryOf,
   pokemonTypeOf,
@@ -37,6 +38,11 @@ import {
   type TcgdexCard,
 } from "../../src/lib/pokemon/tcgdex.ts";
 import { ensurePokemonCard, refreshPokemonCards, sortKeyOf } from "../../src/lib/pokemon/store.ts";
+import { formatCents } from "../../src/lib/money.ts";
+import { cardStats } from "../../src/lib/catalog/card-stats.ts";
+import { lowImage, numberLabel, tileFromHit } from "../../src/lib/pokemon/client.ts";
+import { PK, stageLabel } from "../../src/lib/pokemon/copy.ts";
+import { pokemonCollection, pokemonDecks, pokemonWishes } from "../../src/lib/pokemon/views.ts";
 import { PokemonInputError, addPokemonLots, addPokemonToDeck, ownedCountsFor, ownedLinesFor, setPokemonOwned, togglePokemonWish, wishedAmong } from "../../src/lib/pokemon/collection.ts";
 
 // ── Fixtures and the stubbed source ──────────────────────────────────────────
@@ -82,7 +88,8 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     return respond(file && exists(file) ? fixture(file) : []);
   }
   if (kind === "sets" && rest) return exists(`set-${decodeURIComponent(rest)}.${lang}.json`) ? respond(fixture(`set-${decodeURIComponent(rest)}.${lang}.json`)) : respond({ error: "not found" }, 404);
-  if (kind === "sets") return respond(fixture(`sets-${lang}.json`));
+  // The recorded list is in the source's plain order (oldest first); asked "newest first" the stub reverses it.
+  if (kind === "sets") return respond(p.get("sort:order") === "DESC" ? [...fixture<unknown[]>(`sets-${lang}.json`)].reverse() : fixture(`sets-${lang}.json`));
   if (kind === "series" && !rest) return respond(fixture("series-de.json"));
   if (kind === "series") return exists(`series-${rest}.de.json`) ? respond(fixture(`series-${rest}.de.json`)) : respond({ id: rest, sets: [] });
   return respond({ error: "unexpected" }, 500);
@@ -236,18 +243,35 @@ mainCalls();
   const merged = mergeSearchHits(de, en, { sets });
   assert.deepEqual(
     merged.map((h) => h.tcgdexId),
-    ["basep-1", "2024sv-2", "basep-4", "2017sm-5", "cel25-5", "tk-ex-latio-6", "fut2020-1", "tk-hs-r-2", "2018sm-4"],
-    "German order first, then the cards only English found, each id once",
+    ["cel25-5", "basep-1", "basep-4", "fut2020-1", "2024sv-2", "2017sm-5", "tk-ex-latio-6", "tk-hs-r-2", "2018sm-4"],
+    "hits with a picture first, the newest set first among them (cel25 before basep, a set the list does not know last), the rest after them, each id once",
   );
+  assert.equal(merged.length, new Set(merged.map((h) => h.tcgdexId)).size);
+  assert.ok(merged.every((h) => h.category === null), "a list entry says no category and the search did not filter on it: null, not a guess");
   const onTheBall = merged.find((h) => h.tcgdexId === "fut2020-1")!;
   assert.equal(onTheBall.name, "Pikachu on the Ball", "found in English only: the English name");
-  assert.equal(merged[0].name, "Pikachu");
-  assert.equal(merged[0].altName, null, "equal names are not shown twice");
-  assert.equal(merged[0].setName, "Wizards Black Star Promos", "the set name comes from the cached set list");
-  assert.equal(merged[0].image, "https://assets.tcgdex.net/en/base/basep/1", "no German picture: the English one");
-  assert.equal(merged[0].priceCents, null, "a list entry carries no price");
-  assert.deepEqual(merged[0].variants, []);
-  assert.equal(merged[0].legal, null);
+  const first = merged.find((h) => h.tcgdexId === "basep-1")!;
+  assert.equal(first.name, "Pikachu");
+  assert.equal(first.altName, null, "equal names are not shown twice");
+  assert.equal(first.setName, "Wizards Black Star Promos", "the set name comes from the cached set list");
+  assert.equal(first.image, "https://assets.tcgdex.net/en/base/basep/1", "no German picture: the English one");
+  assert.equal(first.priceCents, null, "a list entry carries no price");
+  assert.deepEqual(first.variants, []);
+  assert.equal(first.legal, null);
+}
+
+// Newest set first, picture first, stable otherwise.
+{
+  const set = (id: string) => [id, { id, name: id, names: {}, logo: null, symbol: null, official: null, total: null, releaseDate: null }] as const;
+  const ordered = new Map([set("sv09"), set("sv03.5"), set("base1")]);
+  const mk = (tcgdexId: string, localId: string, image: string | null) => hitFromTcgdex(null, { id: tcgdexId, localId, name: tcgdexId, ...(image ? { image } : {}) });
+  const hits = [mk("base1-4", "4", "x"), mk("zzz-1", "1", "x"), mk("sv03.5-006", "006", "x"), mk("sv09-001", "001", null), mk("sv09-002", "002", "x"), mk("sv03.5-007", "007", "x")];
+  assert.deepEqual(
+    orderHits(hits, ordered).map((h) => h.tcgdexId),
+    ["sv09-002", "sv03.5-006", "sv03.5-007", "base1-4", "zzz-1", "sv09-001"],
+    "picture first, then newest set first (sv09, sv03.5, base1), an unknown set after the known ones, equal sets in the source's order",
+  );
+  assert.deepEqual(orderHits(hits).map((h) => h.tcgdexId), ["base1-4", "zzz-1", "sv03.5-006", "sv09-002", "sv03.5-007", "sv09-001"], "without a set list only the pictures move");
 }
 
 // "Glurak" and "Charizard" find the same cards.
@@ -560,6 +584,94 @@ const lotsOf = async (owner: string | null, printId: string, language?: string) 
   // A time budget of nothing reads nothing and says so.
   const none = await refreshPokemonCards(db, { budgetMs: -1, fetchCard: rotate });
   assert.deepEqual([none.refreshed, none.skipped], [0, 3]);
+}
+
+// ── What the Pokémon pages read (lane D): local rows only, scoped to the looker ───────────────
+
+{
+  const zoe: Viewer = { kind: "player", via: "code", playerId: 3, deviceId: 3, name: "Zoe", login: "zoe", owner: "zoe" };
+  const max: Viewer = { kind: "player", via: "code", playerId: 4, deviceId: 4, name: "Max", login: "max", owner: "max" };
+  const [zoeDeck] = await db.insert(decks).values({ name: "Zoes Deck", game: "pokemon", owner: "zoe", format: "standard" }).returning({ id: decks.id });
+  await addPokemonLots(db, zoe, { tcgdexId: "sv01-001", variant: "reverse", language: "DE", quantity: 2, deckId: zoeDeck.id });
+  await addPokemonLots(db, zoe, { tcgdexId: "sv05-157", variant: "holo", language: "EN", quantity: 1 });
+  await addPokemonLots(db, max, { tcgdexId: "sv01-001", variant: "normal", language: "EN", quantity: 1 });
+  const price = async (id: string) => (await db.select().from(cardPrints).where(eq(cardPrints.id, id)))[0].marketCents ?? 0;
+
+  const mine = await pokemonCollection(db, "zoe", "zoe");
+  assert.deepEqual(mine.entries.map((e) => [e.id, e.owner, e.quantity, e.languages, e.inDecks]).sort(), [["PKM-sv01-001", "zoe", 2, ["DE"], 2], ["PKM-sv05-157", "zoe", 1, ["EN"], 0]], "a player's collection: their own lots, grouped by card, with the language and the copies in their decks");
+  assert.equal(mine.copies, 3);
+  assert.equal(mine.valueCents, 2 * (await price("PKM-sv01-001_reverse")) + (await price("PKM-sv05-157_holo")), "the value is the stored Cardmarket trend times the copies, in integer cents");
+  const e = mine.entries.find((x) => x.id === "PKM-sv01-001")!;
+  assert.match(e.imageHigh!, /^https:\/\/assets\.tcgdex\.net\/(de|en)\/sv\/sv01\/001\/high\.webp$/);
+  assert.equal(e.imageLow, e.imageHigh!.replace("high.webp", "low.webp"), "a stored card's tile picture is the low size");
+  assert.equal(e.tcgdexId, "sv01-001");
+  assert.equal(e.localId, "001");
+  assert.ok(e.newest > 0 && e.photoId === null);
+  assert.deepEqual(mine.owners, ["zoe"]);
+
+  const everyone = await pokemonCollection(db, undefined, "papa");
+  assert.ok(["zoe", "max", "mia", "tom"].every((o) => everyone.owners.includes(o)), "an SL sees every player's Pokémon lots");
+  assert.ok(everyone.entries.every((x) => x.id.startsWith("PKM-")), "...and only Pokémon cards");
+  const maxOnly = await pokemonCollection(db, "max", "max");
+  assert.deepEqual(maxOnly.entries.map((x) => [x.id, x.owner, x.inDecks]), [["PKM-sv01-001", "max", 0]], "another player's copies and decks never count for this one");
+  const nobody = await pokemonCollection(db, "nobody", "nobody");
+  assert.deepEqual([nobody.entries.length, nobody.copies, nobody.valueCents], [0, 0, 0]);
+
+  assert.deepEqual((await pokemonDecks(db, "zoe")).map((d) => [d.name, d.count, d.format]), [["Zoes Deck", 2, "standard"]]);
+  assert.deepEqual(await pokemonDecks(db, "max"), []);
+  assert.ok((await pokemonDecks(db, undefined)).length >= 3, "an SL sees every player's Pokémon decks, and no Dragon Ball deck");
+  assert.ok((await pokemonDecks(db, undefined)).every((d) => d.name !== "Goku"));
+
+  await togglePokemonWish(db, zoe, "sv03.5-006");
+  const wishes = await pokemonWishes(db, "zoe", "zoe");
+  assert.deepEqual(wishes.entries.map((w) => [w.id, w.wanted, w.priceCents]), [["PKM-sv03.5-006", 1, 776]]);
+  assert.equal(wishes.totalCents, 776);
+  assert.deepEqual((await pokemonWishes(db, "max", "max")).entries, [], "a player's wishes are their own");
+  assert.deepEqual((await pokemonWishes(db, undefined, "papa")).entries.map((w) => w.id).includes("PKM-sv03.5-006"), false, "an SL's page is the SL's own list");
+
+  // The pure helpers the screens share.
+  assert.equal(lowImage("https://assets.tcgdex.net/de/sv/sv03.5/006/high.webp"), "https://assets.tcgdex.net/de/sv/sv03.5/006/low.webp");
+  assert.equal(lowImage(null), null);
+  assert.equal(numberLabel({ localId: "006", setTotal: 165 }), "006/165");
+  assert.equal(numberLabel({ localId: "006", setTotal: null }), "006");
+  const tile = tileFromHit((await searchPokemon({ q: "Glurak", setId: "sv03.5" }))[0]);
+  assert.deepEqual([tile.id, tile.imageLow, tile.imageHigh], ["PKM-sv03.5-006", "https://assets.tcgdex.net/de/sv/sv03.5/006/low.webp", "https://assets.tcgdex.net/de/sv/sv03.5/006/high.webp"]);
+  assert.equal(stageLabel("Stage1"), "Phase 1");
+  assert.equal(stageLabel("Basic"), "Basis");
+  assert.equal(stageLabel(null), null);
+  assert.equal(PK.verbs.haveCount(3), "Hab ich ×3");
+  assert.equal(PK.collection.count(1), "1 Karte");
+  assert.equal(PK.collection.count(2), "2 Karten");
+}
+
+// ── The per-game stat list of the shared card page ───────────────────────────────────────────
+
+{
+  const dbsCard = { game: "dbs", energyCost: "4", power: 15000, comboCost: 1, comboPower: 5000, zEnergyCost: null, characters: ["Son Goku"], traits: ["Saiyan"], eras: ["Dragon Ball Z"], limitedTo: null, colors: ["Red"], details: null };
+  assert.deepEqual(
+    cardStats(dbsCard),
+    [
+      { label: "Energy", value: "4" },
+      { label: "Power", value: (15000).toLocaleString() },
+      { label: "Combo", value: `1 / ${(5000).toLocaleString()}` },
+      { label: "Z-Energy", value: "—" },
+      { label: "Character", value: "Son Goku" },
+      { label: "Traits", value: "Saiyan" },
+      { label: "Era", value: "Dragon Ball Z" },
+      { label: "Copy limit", value: "—" },
+    ],
+    "a Dragon Ball card shows the same eight stats as before",
+  );
+  assert.deepEqual(cardStats({ ...dbsCard, game: "fusion" }), cardStats(dbsCard));
+  const [row] = await db.select().from(cards).where(eq(cards.id, "PKM-sv03.5-006"));
+  const stats = Object.fromEntries(cardStats({ ...row, energyCost: row.energyCost, zEnergyCost: row.zEnergyCost }, { market: { trendCents: 776, lowCents: 399 } }).map((s) => [s.label, s.value]));
+  assert.equal(stats["HP"], "330");
+  assert.equal(stats["Types"], "Feuer");
+  assert.match(stats["Attacks"], /Explosiver Wirbel \(330\)/, "the attacks, with their damage");
+  assert.equal(stats["Legality"], "Standard not legal · Expanded legal");
+  assert.equal(stats["Cardmarket"], `${formatCents(776, "EUR")} (low ${formatCents(399, "EUR")})`, "the Cardmarket price in EUR from the stored print");
+  assert.equal(Object.keys(stats).includes("Energy"), false, "no Dragon Ball field on a Pokémon card");
+  assert.equal(cardStats({ ...row, energyCost: null, zEnergyCost: null }, {}).find((s) => s.label === "Cardmarket")!.value, "—", "no stored price: a dash");
 }
 
 globalThis.fetch = realFetch;
