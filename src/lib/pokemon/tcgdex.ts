@@ -611,7 +611,7 @@ export async function listPokemonSets(): Promise<PokemonSetInfo[]> {
   ]);
   const deById = new Map([...de, ...dated].map((s) => [s.id, s]));
   const enById = new Map(en.map((s) => [s.id, s]));
-  const ids = [...new Set([...dated.map((s) => s.id), ...de.map((s) => s.id), ...en.map((s) => s.id)])];
+  const ids = [...new Set([...dated.map((s) => s.id), ...de.map((s) => s.id), ...en.map((s) => s.id)])].filter((id) => !isPocketSetId(id));
   return ids.map((id) => {
     const e = enById.get(id);
     const s = deById.get(id) ?? e!;
@@ -734,7 +734,25 @@ async function searchBySetCode(q: CardIdQuery): Promise<PokemonHit[]> {
  * Nothing to ask (no text, number or filter) answers an empty list: that screen shows the sets.
  * Throws `PokemonSourceError` when neither language could be read.
  */
+/**
+ * TCGdex also lists the cards of the mobile game Pokémon TCG Pocket (its series `tcgp`: sets `A1`,
+ * `A2b`, `B1a`, `P-A`, …). They are not printed cards: nobody can own, play or buy one, so they never
+ * reach a search result, the set list or a stored card. Seen in the live Claude run of 14 Nov 2026,
+ * where a Trainer looked up by name came back as its Pocket version. The printed game's set ids are
+ * lower case (`sv03.5`, `swsh12tg`, `me01`), so the shape of the id tells the two apart.
+ */
+export function isPocketCardId(tcgdexId: string): boolean {
+  return /^(P-[A-Z]|[A-Z]\d+[a-z]?)-/.test(tcgdexId);
+}
+export function isPocketSetId(setId: string): boolean {
+  return isPocketCardId(`${setId}-`);
+}
+
 export async function searchPokemon(params: PokemonSearchParams): Promise<PokemonHit[]> {
+  return (await searchPrinted(params)).filter((h) => !isPocketCardId(h.tcgdexId));
+}
+
+async function searchPrinted(params: PokemonSearchParams): Promise<PokemonHit[]> {
   // A code printed on the card ("MEW 6", "SWSH062", "TG12/TG30") finds that card; failing that the text is a name after all.
   const idq = parseCardIdQuery(params.q);
   if (idq && !params.type && !params.category && !params.setId?.trim() && !((params.page ?? 1) > 1)) {
@@ -782,6 +800,7 @@ async function searchByName(params: PokemonSearchParams): Promise<PokemonHit[]> 
  * reads the English record only (the nightly refresh needs nothing else).
  */
 export async function getPokemonCard(tcgdexId: string, opts: { fresh?: boolean; langs?: readonly PokemonLang[] } = {}): Promise<PokemonCardRecord> {
+  if (isPocketCardId(tcgdexId)) throw new PokemonSourceError(`${tcgdexId} is a Pokémon TCG Pocket card, not a printed one`, "not_found", 404);
   const langs = opts.langs ?? LANGS;
   const get = (lang: PokemonLang) => (langs.includes(lang) ? getJson<TcgdexCard>(`${lang}/cards/${encodeURIComponent(tcgdexId)}`, { allow404: true, fresh: opts.fresh }) : Promise.resolve(null));
   const [de, en] = await Promise.all([get("de"), get("en")]);
