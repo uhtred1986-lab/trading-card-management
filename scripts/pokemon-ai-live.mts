@@ -10,7 +10,8 @@
  * database. Cards come from the live card source (TCGdex, free). The photos are built from the
  * source's own card scans, so they are clean pictures, not a phone photograph.
  *
- * Providers: the text features run on `AI_PROVIDER` (default: the app's default, `anthropic-api`);
+ * Providers: the text features run on `AI_PROVIDER` (default: the app's default, `anthropic-api`),
+ * or with `--provider openrouter` everything runs on OpenRouter's Claude models (same models, paid);
  * `--scan-provider openrouter` sends the two photo reads to OpenRouter's Claude models, for a
  * session that has no Anthropic key (the plan adapter does not read images).
  *
@@ -41,9 +42,14 @@ const out = flag("out") ?? fs.mkdtempSync(path.join(os.tmpdir(), "pokemon-ai-liv
 fs.mkdirSync(out, { recursive: true });
 const scanProvider = flag("scan-provider");
 
-const settings: AiSettings = scanProvider === "openrouter"
-  ? { ...NO_SETTINGS, taskOverrides: { scan_identify: { provider: "openrouter" } }, tiers: { openrouter: { standard: "anthropic/claude-sonnet-5.5", best: "anthropic/claude-opus-5" } } }
-  : NO_SETTINGS;
+// OpenRouter has no tier table of its own: these are the models the app's own tiers name (models.ts).
+const OPENROUTER_TIERS = { openrouter: { fast: "anthropic/claude-haiku-4.5", standard: "anthropic/claude-sonnet-5.5", best: "anthropic/claude-opus-5" } };
+const settings: AiSettings =
+  flag("provider") === "openrouter"
+    ? { ...NO_SETTINGS, provider: "openrouter", tiers: OPENROUTER_TIERS }
+    : scanProvider === "openrouter"
+      ? { ...NO_SETTINGS, taskOverrides: { scan_identify: { provider: "openrouter" } }, tiers: OPENROUTER_TIERS }
+      : NO_SETTINGS;
 setSettingsLoader(async () => settings);
 
 const OWNER = "Mila";
