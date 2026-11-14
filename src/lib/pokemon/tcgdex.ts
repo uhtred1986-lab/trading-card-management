@@ -35,6 +35,7 @@ import {
   type PokemonLang,
   type PokemonVariant,
 } from "./types";
+import { localIdCandidates, numberCandidates, parseCardIdQuery, readingOrder, type CardIdQuery } from "./card-id";
 
 const BASE = "https://api.tcgdex.net/v2";
 /** Every outbound read is reused for about a day (the card text and the set list barely move; prices are refreshed nightly by `refreshPokemonCards`). */
@@ -665,12 +666,89 @@ export async function getPokemonSet(setId: string): Promise<PokemonSetInfo | nul
 }
 
 /**
+ * The sets whose printed code is `code` ("MEW" is "151", sv03.5). The set list does not carry the
+ * code, but the source filters on it, so one cached read answers for one code. Case matters to the
+ * source, so the code is upper-cased here. Empty when no set has it (older sets and promos often
+ * have none) or when the source cannot answer: a code is a guess, never a reason to fail.
+ */
+export async function findPokemonSetsByCode(code: string): Promise<{ id: string; name: string; official: number | null }[]> {
+  const c = code.trim().toUpperCase();
+  if (!/^[A-Z]{2,5}$/.test(c)) return [];
+  try {
+    const sets = await getJson<RawSetBrief[]>(`en/sets${query([["abbreviation.official", `eq:${c}`]])}`);
+    return sets.map((s) => ({ id: s.id, name: s.name ?? s.id, official: s.cardCount?.official ?? null }));
+  } catch {
+    return [];
+  }
+}
+
+/** One list read in both languages, merged. Throws when neither answered. */
+async function listBothLanguages(params: [string, string | number][], sets: Map<string, PokemonSetInfo> | undefined): Promise<PokemonHit[]> {
+  const [deR, enR] = await Promise.allSettled(LANGS.map((l) => getJson<TcgdexBrief[]>(`${l}/cards${query(params)}`)));
+  if (deR.status === "rejected" && enR.status === "rejected") throw deR.reason;
+  return mergeSearchHits(deR.status === "fulfilled" ? deR.value : [], enR.status === "fulfilled" ? enR.value : [], { sets });
+}
+
+const setMap = async (): Promise<Map<string, PokemonSetInfo> | undefined> => {
+  try {
+    return new Map((await listPokemonSets()).map((s) => [s.id, s]));
+  } catch {
+    return undefined;
+  }
+};
+
+/** "SWSH062", "TG12", "TG12/TG30": the exact `localId`, in the spellings the source uses ("SWSH62" finds SWSH062). Several sets can share one ("TG12"); a size narrows them. */
+async function searchByLetterId(q: CardIdQuery): Promise<PokemonHit[]> {
+  const sets = await setMap();
+  for (const localId of localIdCandidates(q.letters, q.digits)) {
+    const params: [string, string | number][] = [["localId", `eq:${localId}`]];
+    if (q.size !== null) params.push(["set.cardCount.official", `eq:${q.size}`]);
+    const hits = await listBothLanguages(params, sets);
+    if (hits.length) return hits;
+  }
+  return [];
+}
+
+/** "MEW 6", "MEW 006": the set whose printed code it is, then the card with that number in it. */
+async function searchBySetCode(q: CardIdQuery): Promise<PokemonHit[]> {
+  const found = await findPokemonSetsByCode(q.letters);
+  if (found.length === 0) return [];
+  const sets = await setMap();
+  const out: PokemonHit[] = [];
+  for (const set of found) {
+    for (const n of numberCandidates(q.digits)) {
+      // The source filters a numeric `localId` badly ("eq:006" finds nothing), the whole card id it does right.
+      const hits = await listBothLanguages([["id", `eq:${set.id}-${n}`]], sets);
+      if (hits.length) {
+        out.push(...hits);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Cards by name or number, in both languages, merged by id. One page is up to `PAGE_SIZE` cards per
  * language, so a page can hold more than 40 hits when the two languages found different cards.
  * Nothing to ask (no text, number or filter) answers an empty list: that screen shows the sets.
  * Throws `PokemonSourceError` when neither language could be read.
  */
 export async function searchPokemon(params: PokemonSearchParams): Promise<PokemonHit[]> {
+  // A code printed on the card ("MEW 6", "SWSH062", "TG12/TG30") finds that card; failing that the text is a name after all.
+  const idq = parseCardIdQuery(params.q);
+  if (idq && !params.type && !params.category && !params.setId?.trim() && !((params.page ?? 1) > 1)) {
+    let byName: PokemonHit[] | null = null;
+    for (const reading of readingOrder(idq)) {
+      const hits = reading === "name" ? (byName = await searchByName(params)) : reading === "id" ? await searchByLetterId(idq) : await searchBySetCode(idq);
+      if (hits.length) return hits;
+    }
+    return byName ?? searchByName(params);
+  }
+  return searchByName(params);
+}
+
+async function searchByName(params: PokemonSearchParams): Promise<PokemonHit[]> {
   const parsed = parseSearchQuery(params.q);
   const category = pokemonCategoryOf(params.category);
   const type = pokemonTypeOf(params.type);

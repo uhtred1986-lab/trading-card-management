@@ -81,6 +81,19 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const id = decodeURIComponent(rest);
     return exists(`card-${id}.${lang}.json`) ? respond(card(id, lang as "de" | "en")) : respond({ error: "not found" }, 404);
   }
+  // Exact reads by the printed codes (recorded by scripts/pokemon-record-card-id-fixtures.mts); an unrecorded one is an empty answer.
+  if (kind === "cards" && p.get("id")?.startsWith("eq:")) {
+    const file = `list-${lang}-id-${p.get("id")!.slice(3)}.json`;
+    return respond(exists(file) ? fixture(file) : []);
+  }
+  if (kind === "cards" && p.get("localId")?.startsWith("eq:")) {
+    const file = `list-${lang}-localid-${p.get("localId")!.slice(3)}.json`;
+    return respond(exists(file) ? fixture(file) : []);
+  }
+  if (kind === "sets" && p.get("abbreviation.official")?.startsWith("eq:")) {
+    const file = `sets-abbr-${p.get("abbreviation.official")!.slice(3)}.${lang}.json`;
+    return respond(exists(file) ? fixture(file) : []);
+  }
   if (kind === "cards") {
     const name = p.get("name")?.toLowerCase();
     const set = p.get("set.id")?.replace("eq:", "");
@@ -329,6 +342,79 @@ assert.equal(mainCalls().length, 0, "...without a request");
   const noSize = await searchPokemon({ q: "006" });
   assert.deepEqual(noSize.map((h) => h.tcgdexId), ["sv03.5-006", "ecard1-6"]);
   assert.equal(mainCalls().filter((c) => c.url.pathname.endsWith("/cards"))[0].url.searchParams.get("set.cardCount.official"), null);
+}
+
+// The codes printed on the card: a set code with the number, and collector IDs with letters.
+{
+  const cardCalls = () => mainCalls().filter((c) => c.url.pathname.endsWith("/cards"));
+  const ids = (hits: { tcgdexId: string }[]) => hits.map((h) => h.tcgdexId);
+
+  // "MEW 6": the set whose printed code is MEW (sv03.5, "151"), then its card 006.
+  const mew = await searchPokemon({ q: "MEW 6" });
+  const mewCalls = mainCalls();
+  assert.deepEqual(ids(mew), ["sv03.5-006"]);
+  assert.equal(mew[0].name, "Glurak-ex");
+  assert.equal(mew[0].setName, "151", "the set name comes from the set list");
+  const lookup = mewCalls.find((c) => c.url.pathname === "/v2/en/sets" && c.url.searchParams.has("abbreviation.official"));
+  assert.equal(lookup?.url.searchParams.get("abbreviation.official"), "eq:MEW", "the source filters the set list by the printed code, in capitals");
+  const byId = mewCalls.filter((c) => c.url.pathname.endsWith("/cards"));
+  assert.ok(byId.length > 0 && byId.every((c) => c.url.searchParams.get("id") === "eq:sv03.5-006" && !c.url.searchParams.has("name")), "the card is asked by its whole id (a numeric localId filter finds nothing at the source)");
+  assert.deepEqual(ids(await searchPokemon({ q: "MEW 006" })), ["sv03.5-006"]);
+  assert.deepEqual(ids(await searchPokemon({ q: "MEW 006/165" })), ["sv03.5-006"], "the size is not needed once the set is known");
+  assert.deepEqual(ids(await searchPokemon({ q: "MEW EN 006/165" })), ["sv03.5-006"], "a language between code and number, as the newer cards print it");
+  mainCalls();
+
+  // "Mew 6" is the name until it finds nothing: only capitals say "code".
+  await searchPokemon({ q: "Mew 6" });
+  assert.equal(cardCalls()[0].url.searchParams.get("name"), "Mew", "a name written as a name is searched as a name first");
+  await searchPokemon({ q: "mew 6" });
+  assert.equal(cardCalls()[0].url.searchParams.get("name"), "mew");
+
+  // An unknown code is a name after all, and costs one cached read.
+  await searchPokemon({ q: "ZZZ 6" });
+  const zzz = mainCalls();
+  assert.equal(zzz.find((c) => c.url.pathname === "/v2/en/sets" && c.url.searchParams.has("abbreviation.official"))?.url.searchParams.get("abbreviation.official"), "eq:ZZZ");
+  assert.ok(zzz.some((c) => c.url.pathname.endsWith("/cards") && c.url.searchParams.get("name") === "ZZZ"), "...then the name search");
+
+  // A collector ID with letters: the exact localId.
+  const swsh = await searchPokemon({ q: "SWSH062" });
+  assert.deepEqual(ids(swsh), ["swshp-SWSH062"]);
+  assert.equal(swsh[0].name, "Pikachu VMAX");
+  const swshCalls = cardCalls();
+  assert.ok(swshCalls.every((c) => c.url.searchParams.get("localId") === "eq:SWSH062" && !c.url.searchParams.has("name")));
+  assert.deepEqual(ids(await searchPokemon({ q: "swsh062" })), ["swshp-SWSH062"], "case does not matter to the search (the source's eq: does, so it is upper-cased)");
+  mainCalls();
+  assert.deepEqual(ids(await searchPokemon({ q: "SWSH62" })), ["swshp-SWSH062"], "the zero-padded spelling is tried when the bare one finds nothing");
+  const pads = cardCalls().filter((c) => c.lang === "en").map((c) => c.url.searchParams.get("localId"));
+  assert.deepEqual(pads, ["eq:SWSH62", "eq:SWSH062"]);
+  assert.deepEqual(ids(await searchPokemon({ q: "GG01" })), ["swsh12.5gg-GG01"]);
+  assert.deepEqual(ids(await searchPokemon({ q: "SV001" })), ["swsh4.5sv-SV001"]);
+  mainCalls();
+
+  // Several sets share TG12; the printed "/TG30" is passed on as the set size, and a code with no hits falls back to the name.
+  const tg = await searchPokemon({ q: "TG12" });
+  assert.deepEqual(ids(tg).sort(), ["swsh10tg-TG12", "swsh11tg-TG12", "swsh12tg-TG12", "swsh9tg-TG12"]);
+  mainCalls();
+  const tgSized = await searchPokemon({ q: "TG12/TG30" });
+  assert.equal(tgSized.length, 4);
+  const tgCalls = cardCalls();
+  assert.ok(tgCalls.length > 0 && tgCalls.every((c) => c.url.searchParams.get("localId") === "eq:TG12" && c.url.searchParams.get("set.cardCount.official") === "eq:30"));
+  assert.ok(!tgCalls.some((c) => c.url.searchParams.has("name")), "a size with letters is an ID, never a name");
+
+  // Not a code: a name, a name with a number, a number alone.
+  for (const q of ["Glurak", "Glurak 6/165", "6/165", "Porygon2", "Pikachu 25"]) {
+    await searchPokemon({ q });
+    assert.ok(!mainCalls().some((c) => c.url.pathname === "/v2/en/sets" && c.url.searchParams.has("abbreviation.official")), `"${q}" looks up no set code`);
+  }
+  // With a filter the text stays a name.
+  await searchPokemon({ q: "MEW 6", setId: "sv03.5" });
+  assert.ok(cardCalls().every((c) => c.url.searchParams.get("name") === "MEW"));
+
+  // The set look-up failing must not break the search.
+  outage = "503";
+  await rejects(() => searchPokemon({ q: "MEW 6" }), "unavailable");
+  outage = null;
+  mainCalls();
 }
 
 // The set list: newest first as the source orders it, with logos from the series pages.
