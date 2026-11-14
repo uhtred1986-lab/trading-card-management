@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Semi_Condensed, Kanit } from "next/font/google";
 import { cookies } from "next/headers";
 import { AppShell } from "@/components/AppShell";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { SKIN_COOKIE, skinFrom } from "@/lib/arena/skin";
 import { getViewer } from "@/lib/auth";
@@ -46,6 +47,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="flex min-h-full flex-col">
         <AppShell skin={skin} isSl={viewer?.kind !== "player"} homeGame={viewer?.kind === "player" ? (viewer.homeGame ?? null) : null}>{children}</AppShell>
         <ServiceWorker />
+        <OfflineNotice />
       </body>
     </html>
   );

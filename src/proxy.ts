@@ -16,6 +16,7 @@ import {
 } from "@/lib/auth/core";
 import { basicChallenge, checkBasicAuth } from "@/lib/auth/basic";
 import { checkAddedSl, checkPlayerDevice } from "@/lib/auth/proxy-checks";
+import { WHO_HEADER, whoKey } from "@/lib/auth/who";
 
 /**
  * The lock in front of every request the matcher sends here. Three ways in while
@@ -88,16 +89,29 @@ export async function proxy(request: NextRequest) {
     now,
   );
 
+  // Every response this proxy lets through says who it was made for (`x-card-who`), so the service
+  // worker keeps its copy of a page for one person at a time (docs/architecture/collection-and-decks.md, "Offline reading").
+  const stamped = async () => {
+    const authorization = request.headers.get("authorization");
+    const who = await whoKey(
+      verified ? { kind: "sl", email: verified.session.email } : player ? { kind: "player", playerId: player.claims.playerId } : basic.ok && authorization ? { kind: "basic", header: authorization } : { kind: "open" },
+      env.AUTH_SECRET,
+    );
+    const response = NextResponse.next();
+    response.headers.set(WHO_HEADER, who);
+    return response;
+  };
+
   switch (decision.kind) {
     case "pass":
-      return NextResponse.next();
+      return stamped();
     case "pass-refresh": {
-      const response = NextResponse.next();
+      const response = await stamped();
       response.cookies.set(SESSION_COOKIE, await signSession(decision.email, env.AUTH_SECRET, now), sessionCookieOptions(env));
       return response;
     }
     case "pass-refresh-player": {
-      const response = NextResponse.next();
+      const response = await stamped();
       response.cookies.set(PLAYER_COOKIE, await signPlayer(player!.claims, env.AUTH_SECRET, now), playerCookieOptions(env));
       return response;
     }

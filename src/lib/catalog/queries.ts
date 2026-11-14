@@ -97,6 +97,15 @@ export async function searchCards(db: Db, s: CardSearch, withAbility: (ability: 
         imageUrl: cards.imageUrl,
         energyCost: cards.energyCost,
         power: cards.power,
+        // The rest of the card page's stat list (`cardStats`), for the swipe viewer's Details sheet.
+        comboCost: cards.comboCost,
+        comboPower: cards.comboPower,
+        zEnergyCost: cards.zEnergyCost,
+        characters: cards.characters,
+        traits: cards.traits,
+        eras: cards.eras,
+        limitedTo: cards.limitedTo,
+        details: cards.details,
         isBanned: cards.isBanned,
         isLimited: cards.isLimited,
       })

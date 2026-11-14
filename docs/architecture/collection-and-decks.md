@@ -70,3 +70,58 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
   badge. Pages fetch ids in one batched `cardPhotoIds` call (card page: base print; collection: grid by
   card, list by print). Photos are not in the catalog cache, nothing to expire. Deck and arena screens
   still show the catalog picture.
+
+## Offline reading
+
+A phone is often without signal, so the pages a person reads (not edits) keep working from what the
+device last saw (`public/sw.js`, job 0 in its header; `scripts/verify/offline-reading.mts`). Read this
+before touching that list, the worker's page cache, `src/proxy.ts`' `x-card-who` stamp or the sign-in pages.
+
+- **Which pages** (`readableArea` in the worker, `src/lib/offline-pages.ts` the same list for the page;
+  the proof fails when they differ): `/pokemon`, `/pokemon/wishes`, `/pokemon/decks` and
+  `/pokemon/decks/<x>`, `/collection`, `/decks`, `/decks/<id>`. Nothing else: no `/settings`, `/cart`,
+  `/login`, `/join`, no `/api/` but `GET /api/card-photo/<id>`.
+- **Strategy.** Network first, copy second. A navigation or a followed link (Next's `_rsc` fetch, which
+  is not a prefetch) goes to the network; a 200 with the stamp is kept; the kept copy is shown when the
+  fetch fails, takes over 8 s, answers 5xx, or the browser says it is offline. A 404, a redirect or a 4xx is
+  the truth and is shown. A query string keeps its own copy and also becomes the page's "last seen" copy,
+  which stands in for a filter this device never saw. The payload of a followed link is kept under its exact
+  `_rsc` URL (Next hashes its router headers into it), so it is only ever shown to the request it was
+  made for; a miss makes Next load the page itself, which the HTML copy answers. After a payload is kept
+  the page's HTML is fetched too (a page reached only by tapping would have none for a cold start).
+  Pictures: card art on a CDN is the old art cache (`ART_HOSTS`); `/_next/image` (what the Dragon Ball
+  grids use) and `/api/card-photo/<id>` go in the per-person cache; with no network a big picture never
+  fetched falls back to the optimiser copy or `low.webp`. `/_next/static/` files that no arena shell holds
+  go to `dbs-offline-static-v1` so a cold start has its JavaScript.
+- **Privacy: one person's copy at a time.** The worker cannot read the HttpOnly session cookie, so the
+  proxy stamps every response it lets through with `x-card-who` (`src/lib/auth/who.ts`: a salted SHA-256
+  of the identity, 24 hex characters, no email). `dbs-offline-pages-v1` records the `who` it belongs to
+  and holds only that person's pages, payloads and pictures. The whole cache is deleted when a response
+  carries another `who` or none, on a 401/403, on any request for `/login`, `/join` or `/password-login`
+  by the worker, and from the page itself (`ServiceWorker.tsx`) when it lands on one of them (signing out
+  is a Server Function redirect the worker never sees as a request). Chosen over keying every URL by
+  person because there is exactly one signed-in person per browser profile, and "nothing of the last
+  person survives" is simpler to prove than "the right key is always used". Basic Auth has no sign-out:
+  its copy goes when the credentials change. Not covered: card art on a CDN (the shared art cache has
+  always held public art), and a person's copy stays on the device until one of the events above.
+- **The start URL.** `/?source=pwa` is a 200 with a meta-refresh (the root `loading.tsx` makes
+  `redirect()` stream), not a 3xx, so the worker leaves it alone online and reads the redirect target
+  from the first 64 KB of a copy (`__next-page-redirect`), remembered in the person's cache. Offline it
+  goes where it went last: the arena's shell for `/arena` (a prepared device), the kept `/pokemon` for a
+  Pokémon player; with nothing remembered, the shell if there is one, else a kept `/pokemon`, else the
+  plain notice. A fetch that fails with the browser reporting online is still never an offline launch.
+- **Honest when offline.** `OfflineNotice` (root layout) shows a line on these pages while
+  `navigator.onLine` is false: "Kein Internet. Du siehst den letzten Stand." under `/pokemon`, English
+  elsewhere. Any form submit there and any click on `[data-needs-network]` is stopped with "Kein
+  Internet. Das geht erst wieder mit Verbindung." / "You are offline. This needs a connection."; the
+  `LiveSearch` box says so instead of navigating; the Pokémon screens already say it when a heart, an add
+  or a search fails. A page never seen answers 503 with a notice (German under `/pokemon`), other
+  `/pokemon/*` pages (add, discover) say they need the server. Limits: a Server Function started by an
+  unmarked click, outside a form, is not caught by the notice (it fails as before); `navigator.onLine` is
+  true on a phone with a bar of signal and no data, where the notice does not show but the copy still
+  is (the fetch fails).
+- **Updating.** No `skipWaiting`, no `clients.claim`, as for the arena (its tests pin that and the art
+  cache name `dbs-card-art-v1`): a new worker waits until every window is closed, and a page opened
+  before the worker existed is not controlled until its next full load. The worker is a new file byte
+  for byte, so a registered device gets it from the browser's own update check; the page registers
+  `/sw.js?v=<shell version>` on a prepared device as before.

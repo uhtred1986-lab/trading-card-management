@@ -1,7 +1,9 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { SHELL_MANIFEST_PATH, SHELL_VERSION_PATTERN, isPreparedDevice } from "@/lib/arena/local/shell";
+import { OFFLINE_PAGES_CACHE } from "@/lib/offline-pages";
 
 /**
  * Registers `public/sw.js`: the card-art cache and the offline shell (#659, `src/lib/arena/local/shell.ts`).
@@ -21,6 +23,14 @@ import { SHELL_MANIFEST_PATH, SHELL_VERSION_PATTERN, isPreparedDevice } from "@/
  * learn from it locally that the deployed app will not show.
  */
 export function ServiceWorker() {
+  // Signing out lands on a sign-in page by a Server Function redirect, which the worker never sees as a
+  // request. What the worker kept for the person who just left goes here (docs/architecture/collection-and-decks.md, "Offline reading").
+  const pathname = usePathname();
+  useEffect(() => {
+    if (!["/login", "/join", "/password-login"].includes(pathname)) return;
+    if (typeof caches !== "undefined") void caches.delete(OFFLINE_PAGES_CACHE).catch(() => {});
+  }, [pathname]);
+
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
