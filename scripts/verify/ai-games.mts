@@ -574,6 +574,24 @@ resetProviders();
   const two = { ...source, search: async () => [...all.map((r) => r.hit), { ...all[1].hit, tcgdexId: "x-1", name: "Sonderbonbon Deluxe", altName: null }] } as unknown as PokemonDeps["source"];
   assert.equal(await cardForName(two, "Sonderbon", "standard"), null, "two different cards fit: no guess");
 
+  // A busy source is asked again; "no such card" is not; a source that stays down is an error, never "not found".
+  {
+    const { withSourceRetry, sourceIsDown } = await import("../../src/lib/ai/games/pokemon-names.ts");
+    const { PokemonSourceError: SourceError } = await import("../../src/lib/pokemon/tcgdex.ts");
+    let n = 0;
+    assert.equal(await withSourceRetry(async () => { if (++n < 3) throw new SourceError("busy", "unavailable", 503); return "ok"; }, [1, 1]), "ok");
+    assert.equal(n, 3, "two failures, then the answer");
+    n = 0;
+    await assert.rejects(() => withSourceRetry(async () => { n++; throw new SourceError("gone", "not_found", 404); }, [1, 1]));
+    assert.equal(n, 1, "not found is final");
+    n = 0;
+    await assert.rejects(() => withSourceRetry(async () => { n++; throw new SourceError("down", "timeout"); }, [1, 1]), sourceIsDown);
+    assert.equal(n, 3, "three tries, then the error");
+    const down = { ...source, search: async () => { throw new SourceError("down", "unavailable", 503); } } as unknown as PokemonDeps["source"];
+    await assert.rejects(() => cardForName(down, "Rare Candy", "standard"), sourceIsDown, "a name cannot be called unknown while the source is down");
+    assert.deepEqual((await verifySwapNames(db, { source: down, ensure: deps.ensure }, [{ outCardId: "PKM-sv03.5-025", inCardId: "", inName: "Rare Candy" }], "standard")).length, 0, "the wizard leaves out what it cannot check");
+  }
+
   // The wizard's swaps: the live case (Sonderbonbon given Rossana-ex's id) is put right, a right pair is kept, an unknown name is dropped.
   const swaps = [
     { outCardId: "PKM-sv03.5-025", inCardId: "PKM-sv03.5-191", inName: "Sonderbonbon", rationale: "entwickelt sofort" },

@@ -15,6 +15,27 @@ import { PokemonSourceError, type PokemonCardRecord } from "@/lib/pokemon/tcgdex
 import { pokemonDetails, type PokemonFormat } from "@/lib/pokemon/types";
 import type { PokemonSource } from "./pokemon-source";
 
+/**
+ * A read of the live source, tried up to three times when the source is down or slow (not when it says
+ * "no such card"). Seen live (14 Nov 2026): during one deck build the source refused several reads in a
+ * row, real card ids came back as "not found" and the deck was created half empty.
+ */
+export async function withSourceRetry<T>(read: () => Promise<T>, waits: readonly number[] = [600, 1800]): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await read();
+    } catch (err) {
+      if (!(err instanceof PokemonSourceError) || err.kind === "not_found" || attempt >= waits.length) throw err;
+      await new Promise((r) => setTimeout(r, waits[attempt]));
+    }
+  }
+}
+
+/** Whether an error says the source could not be reached, as opposed to "no such card". */
+export function sourceIsDown(err: unknown): boolean {
+  return err instanceof PokemonSourceError && err.kind !== "not_found";
+}
+
 /** Lower case, accents and everything but letters and digits removed: "Glurak-ex" and "glurak ex" are one name. */
 export function foldCardName(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss").toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -43,16 +64,17 @@ export function nameAgrees(said: string, names: string[]): boolean {
 /**
  * The card a name stands for, read from the live source: an exact name match (either language),
  * preferring one that is legal in the deck's format, then the first found (the source's order is
- * picture first, newest set first). A name that is slightly off ("Professors Forschung" for
+ * picture first, newest set first). Reads are retried (`withSourceRetry`). A name that is slightly off ("Professors Forschung" for
  * "Forschung des Professors" is not, "Ultra Ball" for "Ultraball" is) still counts when every card the
  * search finds that contains it, or is contained in it, has one and the same name: an unambiguous near
- * match, never a guess between two cards. Null when nothing fits or the source is down.
+ * match, never a guess between two cards. Null when nothing fits; a source that stays down throws
+ * (`sourceIsDown`), because "not found" would then be a wrong answer.
  */
 export async function cardForName(source: PokemonSource, said: string, format: PokemonFormat | string): Promise<PokemonCardRecord | null> {
   const want = foldCardName(said);
   if (want.length < 3) return null;
   try {
-    const found = await source.search({ q: said });
+    const found = await withSourceRetry(() => source.search({ q: said }));
     const namesOf = (h: (typeof found)[number]) => [h.name, h.altName].filter((n): n is string => !!n).map(foldCardName);
     let hits = found.filter((h) => namesOf(h).includes(want));
     if (!hits.length && want.length >= 5) {
@@ -62,13 +84,13 @@ export async function cardForName(source: PokemonSource, said: string, format: P
     hits = hits.slice(0, 5);
     let first: PokemonCardRecord | null = null;
     for (const h of hits) {
-      const rec = await source.get(h.tcgdexId);
+      const rec = await withSourceRetry(() => source.get(h.tcgdexId));
       first ??= rec;
       if (rec.details.legal?.[format as PokemonFormat] === true) return rec;
     }
     return first;
   } catch (err) {
-    if (err instanceof PokemonSourceError) return null;
+    if (err instanceof PokemonSourceError && err.kind === "not_found") return null;
     throw err;
   }
 }

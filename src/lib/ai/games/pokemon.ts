@@ -15,7 +15,7 @@ import { ensurePokemonCard } from "@/lib/pokemon/store";
 import { PokemonSourceError } from "@/lib/pokemon/tcgdex";
 import { isPokemonCardId, pokemonCardId, tcgdexIdOf } from "@/lib/pokemon/types";
 import { answerLanguageLine } from "./language";
-import { cardForName, cardNames, nameAgrees } from "./pokemon-names";
+import { cardForName, cardNames, nameAgrees, sourceIsDown, withSourceRetry } from "./pokemon-names";
 import { describePokemonCard, liveSource, ownedLines, ownedPokemonCards, pokemonLookupTools, type PokemonSource } from "./pokemon-source";
 import { PokemonWizardSchema } from "./schemas";
 import type { AnalysisContext, GameAdapter, WizardSource } from "./types";
@@ -79,7 +79,7 @@ export async function verifySwapNames<S extends { inCardId: string }>(db: Db, de
     let known = id ? names.get(id) : undefined;
     if (id && !known) {
       try {
-        const rec = await deps.source.get(tcgdexIdOf(id)!);
+        const rec = await withSourceRetry(() => deps.source.get(tcgdexIdOf(id)!));
         known = cardNames({ name: rec.hit.name, details: rec.details });
         names.set(id, known);
       } catch (err) {
@@ -90,7 +90,11 @@ export async function verifySwapNames<S extends { inCardId: string }>(db: Db, de
       kept.push({ ...s, inCardId: id });
       continue;
     }
-    const rec = await cardForName(deps.source, said, fmt);
+    // A swap that cannot be checked because the source stays down is left out: better one suggestion fewer than a wrong card.
+    const rec = await cardForName(deps.source, said, fmt).catch((err) => {
+      if (sourceIsDown(err)) return null;
+      throw err;
+    });
     if (rec) kept.push({ ...s, inCardId: pokemonCardId(rec.tcgdexId) });
   }
   // A deck that is far from finished draws more swaps than a page should show: the most important ten.

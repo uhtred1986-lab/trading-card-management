@@ -20,7 +20,7 @@ import { pokemonCardId, pokemonDetails, tcgdexIdOf } from "@/lib/pokemon/types";
 import { recordRun } from "../client";
 import { generateWithLookups } from "../tools";
 import { answerLanguageLine } from "./language";
-import { cardForName, cardNames, nameAgrees } from "./pokemon-names";
+import { cardForName, cardNames, nameAgrees, sourceIsDown, withSourceRetry } from "./pokemon-names";
 import { describeRecord, ownedLines, ownedPokemonCards, pokemonLookupTools } from "./pokemon-source";
 import { liveDeps, pokemonAdapter, pokemonRulesText, type PokemonDeps } from "./pokemon";
 
@@ -81,6 +81,9 @@ export interface PokemonBuildResult {
   legality: DeckLegality;
   lookups: number;
 }
+
+/** What the player reads when the card source stays down while a draft is checked: no half deck is created. */
+export const SOURCE_DOWN = "Die Kartensuche ist gerade nicht erreichbar, darum konnte ich das Deck nicht fertig prüfen. Versuch es gleich noch einmal.";
 
 // ── Cleaning the draft ───────────────────────────────────────────────────────
 
@@ -155,16 +158,18 @@ async function resolveKnown(db: Db, deps: PokemonDeps, ids: string[]): Promise<{
   const stored = ids.length ? await db.select({ id: cards.id, name: cards.name, cardType: cards.cardType, details: cards.details }).from(cards).where(inArray(cards.id, ids)) : [];
   for (const r of stored) known.set(r.id, { name: r.name, cardType: r.cardType, details: r.details });
   const missing = ids.filter((id) => !known.has(id));
-  for (let i = 0; i < missing.length; i += 6) {
+  // Three at a time, each read retried: a source that is busy must not turn real cards into "not found".
+  for (let i = 0; i < missing.length; i += 3) {
     await Promise.all(
-      missing.slice(i, i + 6).map(async (id) => {
+      missing.slice(i, i + 3).map(async (id) => {
         const tcgdexId = tcgdexIdOf(id);
         if (!tcgdexId) return;
         try {
-          const rec = await deps.source.get(tcgdexId);
+          const rec = await withSourceRetry(() => deps.source.get(tcgdexId));
           records.set(id, rec);
           known.set(id, { name: rec.hit.name, cardType: rec.category, details: rec.details });
         } catch (err) {
+          if (sourceIsDown(err)) throw new Error(SOURCE_DOWN);
           if (!(err instanceof PokemonSourceError)) throw err;
         }
       }),
@@ -242,7 +247,13 @@ export async function buildPokemonDeckWithClaude(db: Db, input: PokemonBuildInpu
     const id = normaliseCardId(c.cardId);
     const k = id ? known.get(id) : undefined;
     if (!c.name?.trim() || (k && nameAgrees(c.name, cardNames(k)))) continue;
-    const rec = await cardForName(deps.source, c.name, format);
+    let rec: PokemonCardRecord | null;
+    try {
+      rec = await cardForName(deps.source, c.name, format);
+    } catch (err) {
+      if (sourceIsDown(err)) throw new Error(SOURCE_DOWN);
+      throw err;
+    }
     if (!rec) continue;
     const right = pokemonCardId(rec.tcgdexId);
     if (!known.has(right)) {
