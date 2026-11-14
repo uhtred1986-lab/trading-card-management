@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { requireSl } from "@/lib/auth";
-import { cleanName, createPlayer, deleteOpenCodes, deletePlayer, isPlausibleEmail, issueJoinCode, reassignOwner, removeSl, revokeDevice, updatePlayer, upsertSl } from "@/lib/auth/access";
+import { cleanName, createPlayer, deleteOpenCodes, deletePlayer, isPlausibleEmail, issueJoinCode, reassignOwner, removeSl, revokeDevice, setPlayerHomeGame, updatePlayer, upsertSl } from "@/lib/auth/access";
 import { isSlEmail, normaliseEmail, publicOrigin } from "@/lib/auth/core";
 import { joinUrl } from "@/lib/auth/join-url";
 import { forgetAccessCache } from "@/lib/auth/proxy-checks";
@@ -50,6 +50,15 @@ export async function updatePlayerAction(id: number, rawName: string, rawOwner: 
   await updatePlayer(db, id, { name, owner });
   forgetAccessCache();
   return done(`Saved ${name}.`);
+}
+
+/** Which game the player's app opens on: Pokémon or the Dragon Ball default. */
+export async function setPlayerHomeGameAction(id: number, game: string): Promise<AccessResult> {
+  await requireSl();
+  if (game !== "pokemon" && game !== "dbs") return { ok: false, error: "Pick Dragon Ball or Pokémon." };
+  await setPlayerHomeGame(db, id, game === "pokemon" ? "pokemon" : null);
+  forgetAccessCache();
+  return done(game === "pokemon" ? "That player's app now opens on Pokémon." : "That player's app now opens on Dragon Ball.");
 }
 
 export async function deletePlayerAction(id: number): Promise<AccessResult> {
