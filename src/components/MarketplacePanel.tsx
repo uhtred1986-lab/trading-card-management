@@ -1,4 +1,7 @@
+import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
+import { cardPrints, cards } from "@/db/schema";
+import { isPokemonCardId, pokemonDetails } from "@/lib/pokemon/types";
 import { blueprintsFor, cachedListings, cardTraderConfigured, cardTraderEnabled, externalLinks } from "@/lib/marketplace/cardtrader";
 import { formatCents } from "@/lib/money";
 import { refreshListingsForm } from "@/app/cards/marketplace-actions";
@@ -7,7 +10,16 @@ import { SubmitButton } from "@/components/SubmitButton";
 /** CardTrader section on the card page: cached listings, refresh, deep links. */
 export async function MarketplacePanel({ card, tcgUrl }: { card: { id: string; name: string; game?: string | null }; tcgUrl: string | null }) {
   const [bps, listings] = await Promise.all([blueprintsFor(db, card.id), cachedListings(db, [card.id])]);
-  const links = externalLinks(card, tcgUrl, bps[0]?.cardMarketIds);
+  // A Pokémon card is not in the synced blueprint tables: it is fetched by the CardTrader ids on its prints.
+  const pokemon = isPokemonCardId(card.id);
+  const [pokemonPrints, pokemonCard] = pokemon
+    ? await Promise.all([
+        db.select({ bp: cardPrints.ctBlueprintId }).from(cardPrints).where(and(eq(cardPrints.cardId, card.id), isNotNull(cardPrints.ctBlueprintId))),
+        db.select({ details: cards.details }).from(cards).where(eq(cards.id, card.id)).limit(1),
+      ])
+    : [[], []];
+  const linked = pokemon ? Math.max(bps.length, pokemonPrints.length) : bps.length;
+  const links = externalLinks({ ...card, localId: pokemon ? (pokemonDetails(pokemonCard[0]?.details).localId ?? null) : null }, tcgUrl, bps[0]?.cardMarketIds);
   const fetchedAt = listings[0]?.fetchedAt ?? null;
 
   return (
@@ -28,13 +40,13 @@ export async function MarketplacePanel({ card, tcgUrl }: { card: { id: string; n
       </h2>
       {!cardTraderConfigured() ? (
         <p className="text-xs text-space-400">Add a CardTrader token to see EU listings here.</p>
-      ) : bps.length === 0 ? (
+      ) : linked === 0 ? (
         <p className="text-xs text-space-400">Not linked to a CardTrader blueprint yet — run the CardTrader catalog sync in Settings{cardTraderEnabled() ? "" : " (live calls are disabled)"}.</p>
       ) : (
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2 text-xs text-space-300">
             <span>
-              {bps.length} blueprint{bps.length === 1 ? "" : "s"} · {listings.length} cached listing{listings.length === 1 ? "" : "s"}
+              {linked} blueprint{linked === 1 ? "" : "s"} ·{listings.length} cached listing{listings.length === 1 ? "" : "s"}
               {fetchedAt ? ` · fetched ${fetchedAt.toISOString().replace("T", " ").slice(0, 16)}` : ""}
             </span>
             <form action={refreshListingsForm} className="ml-auto">
