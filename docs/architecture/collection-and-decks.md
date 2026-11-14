@@ -48,3 +48,14 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
 - **Scan batches** (`src/lib/scan/batches.ts`): a scan is persisted as it happens so a batch
   started on the phone can be finished on the PC. `POST /api/scan` stores the photo *before*
   identifying so a retry never needs the phone again.
+
+- **Own card photos** (`src/lib/collection/photos.ts`, `card_photos`; every game): a person can replace
+  a card's picture with a phone photo. `PhotoOverride` crops it to 63:88, shrinks it to 750 px WebP (JPEG
+  fallback) in the browser; `saveCardPhotoAction` stamps `owner` from the viewer and the library refuses
+  over 400 KB, other mimes than WebP/JPEG and more than 1,000 photos per owner. One photo per print and
+  owner; replacing deletes and re-inserts, so the id (and the cached URL) changes. Scope works as for lots:
+  a player sees only their own, an SL every owner's (preferring their own per print). `GET /api/card-photo/[id]`
+  serves it (`private, immutable`, 404 when not visible); `CardImage` takes `photoId` and shows a camera
+  badge. Pages fetch ids in one batched `cardPhotoIds` call (card page: base print; collection: grid by
+  card, list by print). Photos are not in the catalog cache, nothing to expire. Deck and arena screens
+  still show the catalog picture.

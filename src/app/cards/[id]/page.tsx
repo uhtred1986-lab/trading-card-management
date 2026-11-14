@@ -12,6 +12,8 @@ import { decksForCard } from "@/lib/decks/queries";
 import { allocationForCards, decksReserving } from "@/lib/decks/reservations";
 import { formatCents } from "@/lib/money";
 import { CardFaces } from "@/components/CardFaces";
+import { PhotoOverride } from "@/components/PhotoOverride";
+import { cardPhotoIds } from "@/lib/collection/photos";
 import { LotFinishToggle } from "@/components/LotFinishToggle";
 import { LotPrintPicker } from "@/components/LotPrintPicker";
 import { ColorPill, RarityBadge, TypeBadge } from "@/components/ColorPill";
@@ -37,7 +39,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   if (!card) notFound();
 
   const printIds = card.prints.map((p) => p.id);
-  const [prices, alloc, lots, reservedBy, usdEur, decks, ownersUsed, me, locations, inDecks, tcgUrl] = await Promise.all([
+  // The photo control works on the base print (the one whose picture the page shows).
+  const photoPrint = card.prints.find((p) => p.isBase) ?? card.prints[0];
+  const [prices, alloc, lots, reservedBy, usdEur, decks, ownersUsed, me, locations, inDecks, tcgUrl, photos] = await Promise.all([
     cachedPricesForPrints(printIds),
     allocationForCards(db, [id], scope),
     lotsForCard(db, id, scope),
@@ -51,7 +55,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     listLocations(db, true, scope),
     decksForCard(db, id, scope),
     cachedTcgUrl(id),
+    cardPhotoIds(db, scope, { printIds: photoPrint ? [photoPrint.id] : [], prefer: viewer.owner }),
   ]);
+  const photoId = photoPrint ? (photos.byPrint.get(photoPrint.id) ?? null) : null;
   // The arena rules chip is SL-only (a player sees no rules UI) and for the original game only.
   const ruleHealth = viewer.kind === "sl" ? (await cardHealthsFor(db, [id])).get(id) : undefined;
   const owners = viewer.kind === "player" ? [] : [...new Set([...ownersUsed, ...(me ? [me] : [])])];
@@ -63,7 +69,8 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(220px,300px)_1fr]">
       <div className="space-y-3">
-        <CardFaces front={card.imageUrl} back={card.backImageUrl} name={card.name} backName={card.backName} priority sizes="(min-width: 768px) 300px, 90vw" />
+        <CardFaces front={card.imageUrl} back={card.backImageUrl} name={card.name} backName={card.backName} frontPhotoId={photoId} priority sizes="(min-width: 768px) 300px, 90vw" />
+        {photoPrint ? <PhotoOverride printId={photoPrint.id} photoId={photoId} imageUrl={card.imageUrl} alt={card.name} /> : null}
         <div className="rounded-xl border border-space-700/70 bg-space-900/60 p-3 text-sm">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-space-300">Allocation</div>
           <dl className="grid grid-cols-3 gap-2 text-center">

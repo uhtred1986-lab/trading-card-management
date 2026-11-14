@@ -10,6 +10,8 @@ export interface CardTileData {
   colors: string[];
   rarityCode: string;
   imageUrl: string | null;
+  /** The looker's own photo of this card (`card_photos`), shown instead of `imageUrl`. */
+  photoId?: number | null;
   isBanned?: boolean;
   isLimited?: boolean;
 }
@@ -44,7 +46,7 @@ export function CardTile({
     <div className="group relative rounded-xl border border-space-700/70 bg-space-900/60 p-2 transition hover:border-ki-500/50 hover:bg-space-800/70">
       <Link href={href ?? `/cards/${encodeURIComponent(card.id)}`} className="flex flex-col gap-1.5">
         <div className="relative">
-          <CardImage src={card.imageUrl} alt={`${card.name} (${card.id})`} />
+          <CardImage src={card.imageUrl} photoId={card.photoId} alt={`${card.name} (${card.id})`} />
           {card.isBanned ? (
             <span className="absolute left-1 top-1 rounded bg-dbs-red px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">Banned</span>
           ) : card.isLimited ? (
