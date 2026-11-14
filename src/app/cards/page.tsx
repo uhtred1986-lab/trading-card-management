@@ -8,6 +8,8 @@ import { allocationForCards } from "@/lib/decks/reservations";
 import { priceForFinish } from "@/lib/pricing/queries";
 import { formatCents } from "@/lib/money";
 import { CardTile } from "@/components/CardTile";
+import { CardViewerProvider } from "@/components/CardViewer";
+import { cardStats } from "@/lib/catalog/card-stats";
 import { CardList } from "@/components/CardList";
 import { ViewToggle } from "@/components/ViewToggle";
 import { parseViewMode } from "@/lib/view-mode";
@@ -172,11 +174,28 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
       ) : view === "list" ? (
         <CardList rows={result.rows.map((c) => ({ card: c, priceLabel: label(c.id), ownedQty: alloc.get(c.id)?.owned }))} />
       ) : (
+        <CardViewerProvider
+          cards={result.rows.map((c) => ({
+            id: c.id,
+            name: c.name,
+            setCode: c.setCode,
+            cardType: c.cardType,
+            colors: c.colors,
+            rarityCode: c.rarityCode,
+            imageUrl: c.imageUrl,
+            isBanned: c.isBanned,
+            isLimited: c.isLimited,
+            priceLabel: label(c.id),
+            ownedQty: alloc.get(c.id)?.owned,
+            stats: cardStats(c),
+          }))}
+        >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {result.rows.map((c) => (
-            <CardTile key={c.id} card={c} priceLabel={label(c.id)} ownedQty={alloc.get(c.id)?.owned} />
+            <CardTile key={c.id} viewable card={c} priceLabel={label(c.id)} ownedQty={alloc.get(c.id)?.owned} />
           ))}
         </div>
+        </CardViewerProvider>
       )}
 
       {result.pages > 1 ? (
