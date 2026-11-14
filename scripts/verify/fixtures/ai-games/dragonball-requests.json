@@ -1,0 +1,2981 @@
+{
+  "dbs": {
+    "summary": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-sonnet-5-5",
+            "max_tokens": 8000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "medium",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "string"
+                    },
+                    "__schema1": {
+                      "type": "string"
+                    },
+                    "__schema2": {
+                      "type": "string"
+                    },
+                    "__schema3": {
+                      "type": "string"
+                    },
+                    "__schema4": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "why": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "why"
+                      ]
+                    },
+                    "__schema5": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "archetype": {
+                      "type": "string",
+                      "description": "Short archetype name, e.g. 'Yellow Vegeta aggro'"
+                    },
+                    "gamePlan": {
+                      "type": "string",
+                      "description": "2–4 sentences on how the deck wins"
+                    },
+                    "strengths": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "description": "{maxItems: 5}"
+                    },
+                    "weaknesses": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      },
+                      "description": "{maxItems: 5}"
+                    },
+                    "goodAgainst": {
+                      "type": "array",
+                      "description": "Archetypes or strategies it beats\n\n{maxItems: 4}",
+                      "items": {
+                        "$ref": "#/$defs/__schema2"
+                      }
+                    },
+                    "badAgainst": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema3"
+                      },
+                      "description": "{maxItems: 4}"
+                    },
+                    "keyCards": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema4"
+                      },
+                      "description": "{maxItems: 6}"
+                    },
+                    "legalityNotes": {
+                      "type": "array",
+                      "description": "Rule problems you notice: banned cards, wrong counts, colour clashes",
+                      "items": {
+                        "$ref": "#/$defs/__schema5"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "archetype",
+                    "gamePlan",
+                    "strengths",
+                    "weaknesses",
+                    "goodAgainst",
+                    "badAgainst",
+                    "keyCards",
+                    "legalityNotes"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": "You are an expert Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line — NOT Fusion World) deck analyst.\nReason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.\nRefer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.\nDeck rules for this game: 1 Leader, 50–60 cards in the main deck, at most 4 copies of a card number, and a Z-Deck of up to 10 Z- cards. Off-colour cards are legal but usually a mistake.",
+            "messages": [
+              {
+                "role": "user",
+                "content": "DECKLIST:\n# Leader\n1 BT18-001 Test Leader\n# Main deck\n4 BT18-012 Fighter 12\n4 BT18-018 Fighter 18\n2 BT18-060 Colourless Tool\n4 BT18-013 Fighter 13\n4 BT18-019 Fighter 19\n4 BT18-014 Fighter 14\n4 BT18-020 Fighter 20\n4 BT18-015 Fighter 15\n4 BT18-021 Fighter 21\n4 BT18-010 Fighter 10\n4 BT18-016 Fighter 16\n4 BT18-011 Fighter 11\n4 BT18-017 Fighter 17\n\nCARD TEXT:\nBT18-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nBT18-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nBT18-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nBT18-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nBT18-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nBT18-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nBT18-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nBT18-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBT18-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\n\nPLAYER'S META NOTES:\nLots of blockers around.\n\nSummarise this deck."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "summary": {
+          "archetype": "Red Saiyan",
+          "gamePlan": "Hit hard.",
+          "strengths": [
+            "Fast"
+          ],
+          "weaknesses": [
+            "Fragile"
+          ],
+          "goodAgainst": [],
+          "badAgainst": [],
+          "keyCards": [
+            {
+              "cardId": "BT18-010",
+              "why": "Core"
+            }
+          ],
+          "legalityNotes": []
+        }
+      }
+    },
+    "wizard": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "outCardId": {
+                          "type": "string",
+                          "description": "Card number currently in the deck to remove"
+                        },
+                        "outQuantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "inCardId": {
+                          "type": "string",
+                          "description": "Card number from the CANDIDATE POOL to add"
+                        },
+                        "inQuantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "rationale": {
+                          "type": "string"
+                        },
+                        "priority": {
+                          "type": "string",
+                          "description": "{enum: [\"high\",\"medium\",\"low\"]}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "outCardId",
+                        "outQuantity",
+                        "inCardId",
+                        "inQuantity",
+                        "rationale",
+                        "priority"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "assessment": {
+                      "type": "string",
+                      "description": "One paragraph on the deck's biggest gaps"
+                    },
+                    "swaps": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "description": "{maxItems: 10}"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "assessment",
+                    "swaps"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": [
+              {
+                "type": "text",
+                "text": "You are an expert Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line — NOT Fusion World) deck analyst.\nReason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.\nRefer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.\nDeck rules for this game: 1 Leader, 50–60 cards in the main deck, at most 4 copies of a card number, and a Z-Deck of up to 10 Z- cards. Off-colour cards are legal but usually a mistake."
+              },
+              {
+                "type": "text",
+                "text": "CANDIDATE POOL (legal cards; only suggest additions from this list):\nBT18-022 | Fighter 22 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-023 | Fighter 23 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-024 | Fighter 24 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 24} <Saiyan>\nBT18-025 | Fighter 25 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | R | [Blitz]\nBT18-026 | Fighter 26 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-027 | Fighter 27 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 27} <Saiyan>\nBT18-028 | Fighter 28 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-029 | Fighter 29 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nBT18-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-033 | Fighter 33 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 33} <Saiyan>\nBT18-034 | Fighter 34 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-035 | Fighter 35 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | R | [Blitz]\nBT18-036 | Fighter 36 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 36} <Saiyan>\nBT18-037 | Fighter 37 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-038 | Fighter 38 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-039 | Fighter 39 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 39} <Saiyan>\nBT18-040 | Fighter 40 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBT18-041 | Fighter 41 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-042 | Fighter 42 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 42} <Saiyan>\nBT18-043 | Fighter 43 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-044 | Fighter 44 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-045 | Fighter 45 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 45} <Saiyan>\nBT18-046 | Fighter 46 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-047 | Fighter 47 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-048 | Fighter 48 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 48} <Saiyan>\nBT18-049 | Fighter 49 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-061 | Colourless Tool 2 | EXTRA | Colorless | cost 2 | C | [Main] Draw 2 cards.\nBT18-070 | Z Strike | Z-BATTLE | cost 0 | pow 3000 | C | [Z] Something.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": "DECKLIST:\n# Leader\n1 BT18-001 Test Leader\n# Main deck\n4 BT18-012 Fighter 12\n4 BT18-018 Fighter 18\n2 BT18-060 Colourless Tool\n4 BT18-013 Fighter 13\n4 BT18-019 Fighter 19\n4 BT18-014 Fighter 14\n4 BT18-020 Fighter 20\n4 BT18-015 Fighter 15\n4 BT18-021 Fighter 21\n4 BT18-010 Fighter 10\n4 BT18-016 Fighter 16\n4 BT18-011 Fighter 11\n4 BT18-017 Fighter 17\n\nCARD TEXT:\nBT18-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nBT18-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nBT18-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nBT18-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nBT18-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nBT18-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nBT18-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nBT18-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBT18-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\n\nPLAYER'S META NOTES:\nLots of blockers around.\n\nWHAT THE PLAYER WANTS FROM THIS PASS:\nMake it faster\n\nPropose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly 50 cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the 4-copy limit. Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3. Weigh the player's request above over general improvements."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "assessment": "Needs draw.",
+        "swaps": [
+          {
+            "outCardId": "BT18-021",
+            "outQuantity": 2,
+            "inCardId": "BT18-030",
+            "inQuantity": 2,
+            "rationale": "More draw.",
+            "priority": "high",
+            "outName": "Fighter 21",
+            "outImageUrl": null,
+            "inName": "Fighter 30",
+            "inImageUrl": null,
+            "inCardType": "BATTLE",
+            "inColors": [
+              "Red"
+            ],
+            "inOwned": 2,
+            "inAvailable": 2
+          }
+        ]
+      }
+    },
+    "wizardOwned": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "outCardId": {
+                          "type": "string",
+                          "description": "Card number currently in the deck to remove"
+                        },
+                        "outQuantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "inCardId": {
+                          "type": "string",
+                          "description": "Card number from the CANDIDATE POOL to add"
+                        },
+                        "inQuantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "rationale": {
+                          "type": "string"
+                        },
+                        "priority": {
+                          "type": "string",
+                          "description": "{enum: [\"high\",\"medium\",\"low\"]}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "outCardId",
+                        "outQuantity",
+                        "inCardId",
+                        "inQuantity",
+                        "rationale",
+                        "priority"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "assessment": {
+                      "type": "string",
+                      "description": "One paragraph on the deck's biggest gaps"
+                    },
+                    "swaps": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "description": "{maxItems: 10}"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "assessment",
+                    "swaps"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": [
+              {
+                "type": "text",
+                "text": "You are an expert Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line — NOT Fusion World) deck analyst.\nReason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.\nRefer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.\nDeck rules for this game: 1 Leader, 50–60 cards in the main deck, at most 4 copies of a card number, and a Z-Deck of up to 10 Z- cards. Off-colour cards are legal but usually a mistake."
+              },
+              {
+                "type": "text",
+                "text": "CANDIDATE POOL (cards the player owns; only suggest additions from this list):\nBT18-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nBT18-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": "DECKLIST:\n# Leader\n1 BT18-001 Test Leader\n# Main deck\n4 BT18-012 Fighter 12\n4 BT18-018 Fighter 18\n2 BT18-060 Colourless Tool\n4 BT18-013 Fighter 13\n4 BT18-019 Fighter 19\n4 BT18-014 Fighter 14\n4 BT18-020 Fighter 20\n4 BT18-015 Fighter 15\n4 BT18-021 Fighter 21\n4 BT18-010 Fighter 10\n4 BT18-016 Fighter 16\n4 BT18-011 Fighter 11\n4 BT18-017 Fighter 17\n\nCARD TEXT:\nBT18-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nBT18-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nBT18-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nBT18-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nBT18-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nBT18-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nBT18-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nBT18-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBT18-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\n\nPLAYER'S META NOTES:\nLots of blockers around.\n\nPropose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly 50 cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the 4-copy limit. Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "assessment": "Fine.",
+        "swaps": []
+      }
+    },
+    "setReview": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "why": {
+                          "type": "string"
+                        },
+                        "rating": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 5}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "why",
+                        "rating"
+                      ]
+                    },
+                    "__schema1": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "colors": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "impact": {
+                          "type": "string"
+                        },
+                        "keyCards": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/__schema2"
+                          },
+                          "description": "{maxItems: 6}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "name",
+                        "colors",
+                        "impact",
+                        "keyCards"
+                      ]
+                    },
+                    "__schema2": {
+                      "type": "string"
+                    },
+                    "__schema3": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "why": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "why"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "overview": {
+                      "type": "string",
+                      "description": "2–4 sentences: what the set is about and its overall power level"
+                    },
+                    "standouts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "description": "{maxItems: 15}"
+                    },
+                    "archetypes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      },
+                      "description": "{maxItems: 8}"
+                    },
+                    "sleepers": {
+                      "type": "array",
+                      "description": "Underrated cards worth picking up early\n\n{maxItems: 5}",
+                      "items": {
+                        "$ref": "#/$defs/__schema3"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "overview",
+                    "standouts",
+                    "archetypes",
+                    "sleepers"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": "You are an expert Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line — NOT Fusion World) deck analyst.\nReason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.\nRefer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.\nDeck rules for this game: 1 Leader, 50–60 cards in the main deck, at most 4 copies of a card number, and a Z-Deck of up to 10 Z- cards. Off-colour cards are legal but usually a mistake.",
+            "messages": [
+              {
+                "role": "user",
+                "content": "NEW SET: dbs test set (46 cards)\nBT18-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nBT18-002 | Red Blue Leader | LEADER | Red/Blue | pow 15000 | <Saiyan> | C | [Leader] Draw 1 card at the start of your turn.\nBT18-003 | Blue Leader | LEADER | Blue | pow 15000 | <Android> | C | [Leader] Nothing.\nBT18-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBT18-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nBT18-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nBT18-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nBT18-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nBT18-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nBT18-022 | Fighter 22 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-023 | Fighter 23 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-024 | Fighter 24 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 24} <Saiyan>\nBT18-025 | Fighter 25 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | R | [Blitz]\nBT18-026 | Fighter 26 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-027 | Fighter 27 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 27} <Saiyan>\nBT18-028 | Fighter 28 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-029 | Fighter 29 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nBT18-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-033 | Fighter 33 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 33} <Saiyan>\nBT18-034 | Fighter 34 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-035 | Fighter 35 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | R | [Blitz]\nBT18-036 | Fighter 36 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 36} <Saiyan>\nBT18-037 | Fighter 37 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-038 | Fighter 38 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-039 | Fighter 39 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 39} <Saiyan>\nBT18-040 | Fighter 40 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBT18-041 | Fighter 41 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-042 | Fighter 42 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 42} <Saiyan>\nBT18-043 | Fighter 43 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-044 | Fighter 44 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBT18-045 | Fighter 45 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 45} <Saiyan>\nBT18-046 | Fighter 46 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBT18-047 | Fighter 47 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBT18-048 | Fighter 48 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 48} <Saiyan>\nBT18-049 | Fighter 49 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBT18-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nBT18-061 | Colourless Tool 2 | EXTRA | Colorless | cost 2 | C | [Main] Draw 2 cards.\nBT18-070 | Z Strike | Z-BATTLE | cost 0 | pow 3000 | C | [Z] Something.\n\nReview this set: standout cards, the archetypes it enables or upgrades, and sleepers."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "review": {
+          "overview": "A set.",
+          "standouts": [
+            {
+              "cardId": "BT18-010",
+              "why": "Good",
+              "rating": 4
+            }
+          ],
+          "archetypes": [],
+          "sleepers": []
+        }
+      }
+    },
+    "builder": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity"
+                      ]
+                    },
+                    "__schema1": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity"
+                      ]
+                    },
+                    "__schema2": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "why": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity",
+                        "why"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Short deck name, e.g. 'Yellow Launch Tournament Aggro'"
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "description": "3–5 sentences: game plan, key interactions, how it wins"
+                    },
+                    "main": {
+                      "type": "array",
+                      "description": "Exactly 50 cards in total",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "zDeck": {
+                      "type": "array",
+                      "description": "Z-Deck cards (Z-BATTLE/Z-EXTRA/Z-UNISON/Z-LEADER), up to 8 total; empty if none fit, and ALWAYS empty for a game with no Z-Deck\n\n{maxItems: 8}",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    },
+                    "purchases": {
+                      "type": "array",
+                      "description": "Every card used that is NOT owned, with a one-line reason it's worth buying",
+                      "items": {
+                        "$ref": "#/$defs/__schema2"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "name",
+                    "strategy",
+                    "main",
+                    "zDeck",
+                    "purchases"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": [
+              {
+                "type": "text",
+                "text": "You are an expert Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line — NOT Fusion World) deck builder.\nBuild a competitive, coherent 50-card main deck for the given Leader. Card text uses [brackets] for keywords, {braces} for card names, <angle brackets> for traits.\nRules: exactly 50 main-deck cards (the legal range is 50–60, but build 50); at most 4 copies of any card number (fewer if the pool row says a lower limit); only Z- type cards go in the Z-Deck (max 10); all cards must come from the pool below; refer to cards by exact card number.\nSTRONGLY prefer OWN cards (the player already has them, up to the quantity shown). Use BUY cards only where they meaningfully improve the deck — a key engine piece, a finisher, or to fix a real gap — and list every BUY card used in `purchases` with a reason."
+              },
+              {
+                "type": "text",
+                "text": "CARD POOL (OWN×n = owned copies, BUY = would need buying):\nOWN×2 | BT18-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nOWN×2 | BT18-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nOWN×2 | BT18-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nOWN×2 | BT18-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nOWN×2 | BT18-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nOWN×2 | BT18-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nBUY | BT18-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nBUY | BT18-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | BT18-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nBUY | BT18-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nBUY | BT18-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nBUY | BT18-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nBUY | BT18-022 | Fighter 22 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-023 | Fighter 23 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-024 | Fighter 24 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 24} <Saiyan>\nBUY | BT18-025 | Fighter 25 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | R | [Blitz]\nBUY | BT18-026 | Fighter 26 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | BT18-027 | Fighter 27 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 27} <Saiyan>\nBUY | BT18-028 | Fighter 28 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-029 | Fighter 29 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-033 | Fighter 33 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 33} <Saiyan>\nBUY | BT18-034 | Fighter 34 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-035 | Fighter 35 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | R | [Blitz]\nBUY | BT18-036 | Fighter 36 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 36} <Saiyan>\nBUY | BT18-037 | Fighter 37 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-038 | Fighter 38 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | BT18-039 | Fighter 39 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 39} <Saiyan>\nBUY | BT18-040 | Fighter 40 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBUY | BT18-041 | Fighter 41 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-042 | Fighter 42 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 42} <Saiyan>\nBUY | BT18-043 | Fighter 43 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-044 | Fighter 44 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | BT18-045 | Fighter 45 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 45} <Saiyan>\nBUY | BT18-046 | Fighter 46 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-047 | Fighter 47 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-048 | Fighter 48 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 48} <Saiyan>\nBUY | BT18-049 | Fighter 49 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-061 | Colourless Tool 2 | EXTRA | Colorless | cost 2 | C | [Main] Draw 2 cards.\nBUY | BT18-070 | Z Strike | Z-BATTLE | cost 0 | pow 3000 | C | [Z] Something.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": "LEADER: BT18-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nLEADER BACK: Test Leader Awakened — [Auto] When this attacks, draw 1.\n\nDraft the deck."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "draft": {
+          "name": "Red Test",
+          "strategy": "Beat down.",
+          "main": [
+            {
+              "cardId": "BT18-010",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-011",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-012",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-013",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-014",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-015",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-016",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-017",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-018",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-019",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-020",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-021",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-060",
+              "quantity": 2
+            }
+          ],
+          "zDeck": [
+            {
+              "cardId": "BT18-070",
+              "quantity": 2
+            }
+          ],
+          "purchases": [
+            {
+              "cardId": "BT18-020",
+              "quantity": 4,
+              "why": "Engine"
+            }
+          ]
+        },
+        "sanitised": {
+          "main": [
+            {
+              "cardId": "BT18-010",
+              "quantity": 4,
+              "owned": 2,
+              "needToBuy": 2
+            },
+            {
+              "cardId": "BT18-011",
+              "quantity": 4,
+              "owned": 2,
+              "needToBuy": 2
+            },
+            {
+              "cardId": "BT18-012",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-013",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-014",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-015",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-016",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-017",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-018",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-019",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-020",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-021",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "BT18-060",
+              "quantity": 2,
+              "owned": 2,
+              "needToBuy": 0
+            }
+          ],
+          "z": [
+            {
+              "cardId": "BT18-070",
+              "quantity": 2,
+              "owned": 0,
+              "needToBuy": 2
+            }
+          ],
+          "dropped": [],
+          "mainCount": 50
+        }
+      }
+    },
+    "fromCard": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity"
+                      ]
+                    },
+                    "__schema1": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity"
+                      ]
+                    },
+                    "__schema2": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "why": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity",
+                        "why"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "leaderId": {
+                      "type": "string",
+                      "description": "Card number of the chosen Leader, from the LEADER CANDIDATES list"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Short deck name, e.g. 'Yellow Launch Tournament Aggro'"
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "description": "3–5 sentences: game plan, key interactions, how it wins, and why this Leader suits the seed card"
+                    },
+                    "main": {
+                      "type": "array",
+                      "description": "Exactly 50 cards in total, including the seed card",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "zDeck": {
+                      "type": "array",
+                      "description": "Z-Deck cards (Z-BATTLE/Z-EXTRA/Z-UNISON/Z-LEADER), up to 8 total; empty if none fit, and ALWAYS empty for a game with no Z-Deck\n\n{maxItems: 8}",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    },
+                    "purchases": {
+                      "type": "array",
+                      "description": "Every card used that is NOT owned, with a one-line reason it's worth buying",
+                      "items": {
+                        "$ref": "#/$defs/__schema2"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "leaderId",
+                    "name",
+                    "strategy",
+                    "main",
+                    "zDeck",
+                    "purchases"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": [
+              {
+                "type": "text",
+                "text": "You are an expert Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line — NOT Fusion World) deck builder.\nA player likes one specific card and wants a whole deck built around it. First choose a Leader for it from the LEADER CANDIDATES list — every one listed is legal for this card's colours. Then build a competitive, coherent 50-card main deck. Card text uses [brackets] for keywords, {braces} for card names, <angle brackets> for traits.\nThe seed card, BT18-030 (Fighter 30), MUST appear in the deck (in the main deck) with at least 1 copy — it is the reason this deck exists.\nRules: exactly 50 main-deck cards (the legal range is 50–60, but build 50); at most 4 copies of any card number (fewer if the pool row says a lower limit); only Z- type cards go in the Z-Deck (max 10); all cards must come from the pool below; refer to cards by exact card number.\nSTRONGLY prefer OWN cards (the player already has them, up to the quantity shown) for both the Leader and the deck. Use BUY cards only where they meaningfully improve the deck, and list every BUY card used in `purchases` with a reason."
+              },
+              {
+                "type": "text",
+                "text": "LEADER CANDIDATES (OWN = owned, BUY = would need buying):\nOWN | BT18-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nBUY | BT18-002 | Red Blue Leader | LEADER | Red/Blue | pow 15000 | <Saiyan> | C | [Leader] Draw 1 card at the start of your turn.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              },
+              {
+                "type": "text",
+                "text": "CARD POOL (OWN×n = owned copies, BUY = would need buying):\nOWN×2 | BT18-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nOWN×2 | BT18-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nOWN×2 | BT18-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nOWN×2 | BT18-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nOWN×2 | BT18-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nOWN×2 | BT18-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nBUY | BT18-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nBUY | BT18-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | BT18-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nBUY | BT18-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nBUY | BT18-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nBUY | BT18-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nBUY | BT18-022 | Fighter 22 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-023 | Fighter 23 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-024 | Fighter 24 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 24} <Saiyan>\nBUY | BT18-025 | Fighter 25 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | R | [Blitz]\nBUY | BT18-026 | Fighter 26 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | BT18-027 | Fighter 27 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 27} <Saiyan>\nBUY | BT18-028 | Fighter 28 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-029 | Fighter 29 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-033 | Fighter 33 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 33} <Saiyan>\nBUY | BT18-034 | Fighter 34 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-035 | Fighter 35 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | R | [Blitz]\nBUY | BT18-036 | Fighter 36 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 36} <Saiyan>\nBUY | BT18-037 | Fighter 37 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-038 | Fighter 38 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | BT18-039 | Fighter 39 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 39} <Saiyan>\nBUY | BT18-040 | Fighter 40 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBUY | BT18-041 | Fighter 41 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-042 | Fighter 42 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 42} <Saiyan>\nBUY | BT18-043 | Fighter 43 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-044 | Fighter 44 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | BT18-045 | Fighter 45 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 45} <Saiyan>\nBUY | BT18-046 | Fighter 46 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | BT18-047 | Fighter 47 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | BT18-048 | Fighter 48 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 48} <Saiyan>\nBUY | BT18-049 | Fighter 49 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | BT18-061 | Colourless Tool 2 | EXTRA | Colorless | cost 2 | C | [Main] Draw 2 cards.\nBUY | BT18-070 | Z Strike | Z-BATTLE | cost 0 | pow 3000 | C | [Z] Something.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": "SEED CARD: BT18-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\n\nPick a Leader and draft the deck around this card."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "leaderId": "BT18-002",
+        "leaderName": "Red Blue Leader",
+        "mainCount": 51,
+        "toBuy": 47,
+        "draft": {
+          "leaderId": "BT18-002",
+          "name": "Seeded",
+          "strategy": "Beat down.",
+          "main": [
+            {
+              "cardId": "BT18-010",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-011",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-012",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-013",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-014",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-015",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-016",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-017",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-018",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-019",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-020",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-021",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-060",
+              "quantity": 2
+            }
+          ],
+          "zDeck": [
+            {
+              "cardId": "BT18-070",
+              "quantity": 2
+            }
+          ],
+          "purchases": [
+            {
+              "cardId": "BT18-020",
+              "quantity": 4,
+              "why": "Engine"
+            }
+          ]
+        }
+      }
+    },
+    "aiRuns": [
+      {
+        "kind": "deck_summary",
+        "model": "claude-sonnet-5-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "deckId": 1
+        },
+        "output": {
+          "gamePlan": "Hit hard.",
+          "keyCards": [
+            {
+              "why": "Core",
+              "cardId": "BT18-010"
+            }
+          ],
+          "archetype": "Red Saiyan",
+          "strengths": [
+            "Fast"
+          ],
+          "badAgainst": [],
+          "weaknesses": [
+            "Fragile"
+          ],
+          "goodAgainst": [],
+          "legalityNotes": []
+        },
+        "deckIndex": 0
+      },
+      {
+        "kind": "deck_wizard",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "scope": "any",
+          "deckId": 1,
+          "context": "Make it faster",
+          "poolSize": 30
+        },
+        "output": {
+          "swaps": [
+            {
+              "inCardId": "BT18-030",
+              "priority": "high",
+              "outCardId": "BT18-021",
+              "rationale": "More draw.",
+              "inQuantity": 2,
+              "outQuantity": 2
+            }
+          ],
+          "assessment": "Needs draw."
+        },
+        "deckIndex": 0
+      },
+      {
+        "kind": "deck_wizard",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "scope": "owned",
+          "deckId": 1,
+          "context": null,
+          "poolSize": 3
+        },
+        "output": {
+          "swaps": [],
+          "assessment": "Fine."
+        },
+        "deckIndex": 0
+      },
+      {
+        "kind": "set_review",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "setCode": "BT18"
+        },
+        "output": {
+          "overview": "A set.",
+          "sleepers": [],
+          "standouts": [
+            {
+              "why": "Good",
+              "cardId": "BT18-010",
+              "rating": 4
+            }
+          ],
+          "archetypes": []
+        },
+        "deckIndex": null
+      },
+      {
+        "kind": "deck_builder",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "game": "dbs",
+          "mode": "build",
+          "buyPool": 37,
+          "leaderId": "BT18-001",
+          "ownedPool": 6
+        },
+        "output": {
+          "main": [
+            {
+              "cardId": "BT18-010",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-011",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-012",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-013",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-014",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-015",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-016",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-017",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-018",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-019",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-020",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-021",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-060",
+              "quantity": 2
+            }
+          ],
+          "name": "Red Test",
+          "zDeck": [
+            {
+              "cardId": "BT18-070",
+              "quantity": 2
+            }
+          ],
+          "strategy": "Beat down.",
+          "purchases": [
+            {
+              "why": "Engine",
+              "cardId": "BT18-020",
+              "quantity": 4
+            }
+          ]
+        },
+        "deckIndex": null
+      },
+      {
+        "kind": "deck_from_card",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "game": "dbs",
+          "mode": "from-card",
+          "cardId": "BT18-030",
+          "buyPool": 37,
+          "ownedPool": 6,
+          "leaderPool": 2
+        },
+        "output": {
+          "main": [
+            {
+              "cardId": "BT18-010",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-011",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-012",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-013",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-014",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-015",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-016",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-017",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-018",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-019",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-020",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-021",
+              "quantity": 4
+            },
+            {
+              "cardId": "BT18-060",
+              "quantity": 2
+            }
+          ],
+          "name": "Seeded",
+          "zDeck": [
+            {
+              "cardId": "BT18-070",
+              "quantity": 2
+            }
+          ],
+          "leaderId": "BT18-002",
+          "strategy": "Beat down.",
+          "purchases": [
+            {
+              "why": "Engine",
+              "cardId": "BT18-020",
+              "quantity": 4
+            }
+          ]
+        },
+        "deckIndex": null
+      }
+    ],
+    "createdDecks": [
+      {
+        "name": "Red Test (Claude draft)",
+        "game": "dbs",
+        "description": "Beat down.\n\nTo buy (13 cards):\n- 2× Fighter 10 (BT18-010)\n- 2× Fighter 11 (BT18-011)\n- 4× Fighter 12 (BT18-012)\n- 4× Fighter 13 (BT18-013)\n- 4× Fighter 14 (BT18-014)\n- 4× Fighter 15 (BT18-015)\n- 4× Fighter 16 (BT18-016)\n- 4× Fighter 17 (BT18-017)\n- 4× Fighter 18 (BT18-018)\n- 4× Fighter 19 (BT18-019)\n- 4× Fighter 20 (BT18-020): Engine\n- 4× Fighter 21 (BT18-021)\n- 2× Z Strike (BT18-070)",
+        "owner": null,
+        "aiSummary": "Beat down.",
+        "cards": [
+          [
+            "leader",
+            "BT18-001",
+            1
+          ],
+          [
+            "main",
+            "BT18-010",
+            4
+          ],
+          [
+            "main",
+            "BT18-011",
+            4
+          ],
+          [
+            "main",
+            "BT18-012",
+            4
+          ],
+          [
+            "main",
+            "BT18-013",
+            4
+          ],
+          [
+            "main",
+            "BT18-014",
+            4
+          ],
+          [
+            "main",
+            "BT18-015",
+            4
+          ],
+          [
+            "main",
+            "BT18-016",
+            4
+          ],
+          [
+            "main",
+            "BT18-017",
+            4
+          ],
+          [
+            "main",
+            "BT18-018",
+            4
+          ],
+          [
+            "main",
+            "BT18-019",
+            4
+          ],
+          [
+            "main",
+            "BT18-020",
+            4
+          ],
+          [
+            "main",
+            "BT18-021",
+            4
+          ],
+          [
+            "main",
+            "BT18-060",
+            2
+          ],
+          [
+            "z",
+            "BT18-070",
+            2
+          ]
+        ]
+      },
+      {
+        "name": "Seeded (Claude draft)",
+        "game": "dbs",
+        "description": "Beat down.\nLeader to buy: Red Blue Leader (BT18-002)\nTo buy (13 cards):\n- 2× Fighter 10 (BT18-010)\n- 2× Fighter 11 (BT18-011)\n- 4× Fighter 12 (BT18-012)\n- 4× Fighter 13 (BT18-013)\n- 4× Fighter 14 (BT18-014)\n- 4× Fighter 15 (BT18-015)\n- 4× Fighter 16 (BT18-016)\n- 4× Fighter 17 (BT18-017)\n- 4× Fighter 18 (BT18-018)\n- 4× Fighter 19 (BT18-019)\n- 4× Fighter 20 (BT18-020): Engine\n- 4× Fighter 21 (BT18-021)\n- 2× Z Strike (BT18-070)",
+        "owner": null,
+        "aiSummary": "Beat down.",
+        "cards": [
+          [
+            "leader",
+            "BT18-002",
+            1
+          ],
+          [
+            "main",
+            "BT18-010",
+            4
+          ],
+          [
+            "main",
+            "BT18-011",
+            4
+          ],
+          [
+            "main",
+            "BT18-012",
+            4
+          ],
+          [
+            "main",
+            "BT18-013",
+            4
+          ],
+          [
+            "main",
+            "BT18-014",
+            4
+          ],
+          [
+            "main",
+            "BT18-015",
+            4
+          ],
+          [
+            "main",
+            "BT18-016",
+            4
+          ],
+          [
+            "main",
+            "BT18-017",
+            4
+          ],
+          [
+            "main",
+            "BT18-018",
+            4
+          ],
+          [
+            "main",
+            "BT18-019",
+            4
+          ],
+          [
+            "main",
+            "BT18-020",
+            4
+          ],
+          [
+            "main",
+            "BT18-021",
+            4
+          ],
+          [
+            "main",
+            "BT18-030",
+            1
+          ],
+          [
+            "main",
+            "BT18-060",
+            2
+          ],
+          [
+            "z",
+            "BT18-070",
+            2
+          ]
+        ]
+      }
+    ],
+    "analysedDeck": {
+      "aiSummary": "**Red Saiyan** — Hit hard.\n\nStrong: Fast\n\nWeak: Fragile"
+    }
+  },
+  "fusion": {
+    "summary": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-sonnet-5-5",
+            "max_tokens": 8000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "medium",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "string"
+                    },
+                    "__schema1": {
+                      "type": "string"
+                    },
+                    "__schema2": {
+                      "type": "string"
+                    },
+                    "__schema3": {
+                      "type": "string"
+                    },
+                    "__schema4": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "why": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "why"
+                      ]
+                    },
+                    "__schema5": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "archetype": {
+                      "type": "string",
+                      "description": "Short archetype name, e.g. 'Yellow Vegeta aggro'"
+                    },
+                    "gamePlan": {
+                      "type": "string",
+                      "description": "2–4 sentences on how the deck wins"
+                    },
+                    "strengths": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "description": "{maxItems: 5}"
+                    },
+                    "weaknesses": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      },
+                      "description": "{maxItems: 5}"
+                    },
+                    "goodAgainst": {
+                      "type": "array",
+                      "description": "Archetypes or strategies it beats\n\n{maxItems: 4}",
+                      "items": {
+                        "$ref": "#/$defs/__schema2"
+                      }
+                    },
+                    "badAgainst": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema3"
+                      },
+                      "description": "{maxItems: 4}"
+                    },
+                    "keyCards": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema4"
+                      },
+                      "description": "{maxItems: 6}"
+                    },
+                    "legalityNotes": {
+                      "type": "array",
+                      "description": "Rule problems you notice: banned cards, wrong counts, colour clashes",
+                      "items": {
+                        "$ref": "#/$defs/__schema5"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "archetype",
+                    "gamePlan",
+                    "strengths",
+                    "weaknesses",
+                    "goodAgainst",
+                    "badAgainst",
+                    "keyCards",
+                    "legalityNotes"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": "You are an expert Dragon Ball Super Card Game Fusion World (Bandai; the FB/FS/FP/SB/ST sets — NOT the original Masters/legacy game) deck analyst.\nReason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.\nRefer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.\nDeck rules for this game: 1 Leader, 50–60 cards in the main deck, at most 4 copies of a card number, and no Z-Deck at all. Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak.",
+            "messages": [
+              {
+                "role": "user",
+                "content": "DECKLIST:\n# Leader\n1 FB01-001 Test Leader\n# Main deck\n4 FB01-012 Fighter 12\n4 FB01-018 Fighter 18\n2 FB01-060 Colourless Tool\n4 FB01-013 Fighter 13\n4 FB01-019 Fighter 19\n4 FB01-014 Fighter 14\n4 FB01-020 Fighter 20\n4 FB01-015 Fighter 15\n4 FB01-021 Fighter 21\n4 FB01-010 Fighter 10\n4 FB01-016 Fighter 16\n4 FB01-011 Fighter 11\n4 FB01-017 Fighter 17\n\nCARD TEXT:\nFB01-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nFB01-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nFB01-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nFB01-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nFB01-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nFB01-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nFB01-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nFB01-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nFB01-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\n\nPLAYER'S META NOTES:\nLots of blockers around.\n\nSummarise this deck."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "summary": {
+          "archetype": "Red Saiyan",
+          "gamePlan": "Hit hard.",
+          "strengths": [
+            "Fast"
+          ],
+          "weaknesses": [
+            "Fragile"
+          ],
+          "goodAgainst": [],
+          "badAgainst": [],
+          "keyCards": [
+            {
+              "cardId": "FB01-010",
+              "why": "Core"
+            }
+          ],
+          "legalityNotes": []
+        }
+      }
+    },
+    "wizard": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "outCardId": {
+                          "type": "string",
+                          "description": "Card number currently in the deck to remove"
+                        },
+                        "outQuantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "inCardId": {
+                          "type": "string",
+                          "description": "Card number from the CANDIDATE POOL to add"
+                        },
+                        "inQuantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "rationale": {
+                          "type": "string"
+                        },
+                        "priority": {
+                          "type": "string",
+                          "description": "{enum: [\"high\",\"medium\",\"low\"]}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "outCardId",
+                        "outQuantity",
+                        "inCardId",
+                        "inQuantity",
+                        "rationale",
+                        "priority"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "assessment": {
+                      "type": "string",
+                      "description": "One paragraph on the deck's biggest gaps"
+                    },
+                    "swaps": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "description": "{maxItems: 10}"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "assessment",
+                    "swaps"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": [
+              {
+                "type": "text",
+                "text": "You are an expert Dragon Ball Super Card Game Fusion World (Bandai; the FB/FS/FP/SB/ST sets — NOT the original Masters/legacy game) deck analyst.\nReason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.\nRefer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.\nDeck rules for this game: 1 Leader, 50–60 cards in the main deck, at most 4 copies of a card number, and no Z-Deck at all. Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak."
+              },
+              {
+                "type": "text",
+                "text": "CANDIDATE POOL (legal cards; only suggest additions from this list):\nFB01-022 | Fighter 22 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-023 | Fighter 23 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-024 | Fighter 24 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 24} <Saiyan>\nFB01-025 | Fighter 25 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | R | [Blitz]\nFB01-026 | Fighter 26 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-027 | Fighter 27 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 27} <Saiyan>\nFB01-028 | Fighter 28 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-029 | Fighter 29 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nFB01-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-033 | Fighter 33 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 33} <Saiyan>\nFB01-034 | Fighter 34 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-035 | Fighter 35 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | R | [Blitz]\nFB01-036 | Fighter 36 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 36} <Saiyan>\nFB01-037 | Fighter 37 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-038 | Fighter 38 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-039 | Fighter 39 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 39} <Saiyan>\nFB01-040 | Fighter 40 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nFB01-041 | Fighter 41 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-042 | Fighter 42 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 42} <Saiyan>\nFB01-043 | Fighter 43 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-044 | Fighter 44 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-045 | Fighter 45 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 45} <Saiyan>\nFB01-046 | Fighter 46 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-047 | Fighter 47 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-048 | Fighter 48 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 48} <Saiyan>\nFB01-049 | Fighter 49 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-061 | Colourless Tool 2 | EXTRA | Colorless | cost 2 | C | [Main] Draw 2 cards.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": "DECKLIST:\n# Leader\n1 FB01-001 Test Leader\n# Main deck\n4 FB01-012 Fighter 12\n4 FB01-018 Fighter 18\n2 FB01-060 Colourless Tool\n4 FB01-013 Fighter 13\n4 FB01-019 Fighter 19\n4 FB01-014 Fighter 14\n4 FB01-020 Fighter 20\n4 FB01-015 Fighter 15\n4 FB01-021 Fighter 21\n4 FB01-010 Fighter 10\n4 FB01-016 Fighter 16\n4 FB01-011 Fighter 11\n4 FB01-017 Fighter 17\n\nCARD TEXT:\nFB01-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nFB01-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nFB01-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nFB01-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nFB01-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nFB01-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nFB01-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nFB01-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nFB01-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\n\nPLAYER'S META NOTES:\nLots of blockers around.\n\nWHAT THE PLAYER WANTS FROM THIS PASS:\nMake it faster\n\nPropose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly 50 cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the 4-copy limit. Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3. Weigh the player's request above over general improvements."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "assessment": "Needs draw.",
+        "swaps": [
+          {
+            "outCardId": "FB01-021",
+            "outQuantity": 2,
+            "inCardId": "FB01-030",
+            "inQuantity": 2,
+            "rationale": "More draw.",
+            "priority": "high",
+            "outName": "Fighter 21",
+            "outImageUrl": null,
+            "inName": "Fighter 30",
+            "inImageUrl": null,
+            "inCardType": "BATTLE",
+            "inColors": [
+              "Red"
+            ],
+            "inOwned": 2,
+            "inAvailable": 2
+          }
+        ]
+      }
+    },
+    "wizardOwned": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "outCardId": {
+                          "type": "string",
+                          "description": "Card number currently in the deck to remove"
+                        },
+                        "outQuantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "inCardId": {
+                          "type": "string",
+                          "description": "Card number from the CANDIDATE POOL to add"
+                        },
+                        "inQuantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "rationale": {
+                          "type": "string"
+                        },
+                        "priority": {
+                          "type": "string",
+                          "description": "{enum: [\"high\",\"medium\",\"low\"]}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "outCardId",
+                        "outQuantity",
+                        "inCardId",
+                        "inQuantity",
+                        "rationale",
+                        "priority"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "assessment": {
+                      "type": "string",
+                      "description": "One paragraph on the deck's biggest gaps"
+                    },
+                    "swaps": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "description": "{maxItems: 10}"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "assessment",
+                    "swaps"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": [
+              {
+                "type": "text",
+                "text": "You are an expert Dragon Ball Super Card Game Fusion World (Bandai; the FB/FS/FP/SB/ST sets — NOT the original Masters/legacy game) deck analyst.\nReason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.\nRefer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.\nDeck rules for this game: 1 Leader, 50–60 cards in the main deck, at most 4 copies of a card number, and no Z-Deck at all. Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak."
+              },
+              {
+                "type": "text",
+                "text": "CANDIDATE POOL (cards the player owns; only suggest additions from this list):\nFB01-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nFB01-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": "DECKLIST:\n# Leader\n1 FB01-001 Test Leader\n# Main deck\n4 FB01-012 Fighter 12\n4 FB01-018 Fighter 18\n2 FB01-060 Colourless Tool\n4 FB01-013 Fighter 13\n4 FB01-019 Fighter 19\n4 FB01-014 Fighter 14\n4 FB01-020 Fighter 20\n4 FB01-015 Fighter 15\n4 FB01-021 Fighter 21\n4 FB01-010 Fighter 10\n4 FB01-016 Fighter 16\n4 FB01-011 Fighter 11\n4 FB01-017 Fighter 17\n\nCARD TEXT:\nFB01-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nFB01-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nFB01-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nFB01-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nFB01-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nFB01-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nFB01-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nFB01-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nFB01-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\n\nPLAYER'S META NOTES:\nLots of blockers around.\n\nPropose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the candidate pool. Keep the main deck at exactly 50 cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the 4-copy limit. Replace the full played count of a card you are cutting — if the deck runs 3 copies and all 3 should go, say outQuantity 3."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "assessment": "Fine.",
+        "swaps": []
+      }
+    },
+    "setReview": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "why": {
+                          "type": "string"
+                        },
+                        "rating": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 5}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "why",
+                        "rating"
+                      ]
+                    },
+                    "__schema1": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "colors": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "impact": {
+                          "type": "string"
+                        },
+                        "keyCards": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/__schema2"
+                          },
+                          "description": "{maxItems: 6}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "name",
+                        "colors",
+                        "impact",
+                        "keyCards"
+                      ]
+                    },
+                    "__schema2": {
+                      "type": "string"
+                    },
+                    "__schema3": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "why": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "why"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "overview": {
+                      "type": "string",
+                      "description": "2–4 sentences: what the set is about and its overall power level"
+                    },
+                    "standouts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "description": "{maxItems: 15}"
+                    },
+                    "archetypes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      },
+                      "description": "{maxItems: 8}"
+                    },
+                    "sleepers": {
+                      "type": "array",
+                      "description": "Underrated cards worth picking up early\n\n{maxItems: 5}",
+                      "items": {
+                        "$ref": "#/$defs/__schema3"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "overview",
+                    "standouts",
+                    "archetypes",
+                    "sleepers"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": "You are an expert Dragon Ball Super Card Game Fusion World (Bandai; the FB/FS/FP/SB/ST sets — NOT the original Masters/legacy game) deck analyst.\nReason only from the card data given to you. Card text uses [brackets] for keywords, {braces} for card names and <angle brackets> for traits.\nRefer to cards by their exact card number (e.g. BT18-020) as given. Be concrete and concise.\nDeck rules for this game: 1 Leader, 50–60 cards in the main deck, at most 4 copies of a card number, and no Z-Deck at all. Every card in the deck MUST share a colour with the Leader — an off-colour card is illegal, not merely weak.",
+            "messages": [
+              {
+                "role": "user",
+                "content": "NEW SET: fusion test set (45 cards)\nFB01-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nFB01-002 | Red Blue Leader | LEADER | Red/Blue | pow 15000 | <Saiyan> | C | [Leader] Draw 1 card at the start of your turn.\nFB01-003 | Blue Leader | LEADER | Blue | pow 15000 | <Android> | C | [Leader] Nothing.\nFB01-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nFB01-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nFB01-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nFB01-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nFB01-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nFB01-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nFB01-022 | Fighter 22 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-023 | Fighter 23 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-024 | Fighter 24 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 24} <Saiyan>\nFB01-025 | Fighter 25 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | R | [Blitz]\nFB01-026 | Fighter 26 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-027 | Fighter 27 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 27} <Saiyan>\nFB01-028 | Fighter 28 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-029 | Fighter 29 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nFB01-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-033 | Fighter 33 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 33} <Saiyan>\nFB01-034 | Fighter 34 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-035 | Fighter 35 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | R | [Blitz]\nFB01-036 | Fighter 36 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 36} <Saiyan>\nFB01-037 | Fighter 37 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-038 | Fighter 38 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-039 | Fighter 39 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 39} <Saiyan>\nFB01-040 | Fighter 40 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nFB01-041 | Fighter 41 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-042 | Fighter 42 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 42} <Saiyan>\nFB01-043 | Fighter 43 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-044 | Fighter 44 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nFB01-045 | Fighter 45 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 45} <Saiyan>\nFB01-046 | Fighter 46 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nFB01-047 | Fighter 47 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nFB01-048 | Fighter 48 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 48} <Saiyan>\nFB01-049 | Fighter 49 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nFB01-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nFB01-061 | Colourless Tool 2 | EXTRA | Colorless | cost 2 | C | [Main] Draw 2 cards.\n\nReview this set: standout cards, the archetypes it enables or upgrades, and sleepers."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "review": {
+          "overview": "A set.",
+          "standouts": [
+            {
+              "cardId": "FB01-010",
+              "why": "Good",
+              "rating": 4
+            }
+          ],
+          "archetypes": [],
+          "sleepers": []
+        }
+      }
+    },
+    "builder": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity"
+                      ]
+                    },
+                    "__schema1": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity"
+                      ]
+                    },
+                    "__schema2": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "why": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity",
+                        "why"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Short deck name, e.g. 'Yellow Launch Tournament Aggro'"
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "description": "3–5 sentences: game plan, key interactions, how it wins"
+                    },
+                    "main": {
+                      "type": "array",
+                      "description": "Exactly 50 cards in total",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "zDeck": {
+                      "type": "array",
+                      "description": "Z-Deck cards (Z-BATTLE/Z-EXTRA/Z-UNISON/Z-LEADER), up to 8 total; empty if none fit, and ALWAYS empty for a game with no Z-Deck\n\n{maxItems: 8}",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    },
+                    "purchases": {
+                      "type": "array",
+                      "description": "Every card used that is NOT owned, with a one-line reason it's worth buying",
+                      "items": {
+                        "$ref": "#/$defs/__schema2"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "name",
+                    "strategy",
+                    "main",
+                    "zDeck",
+                    "purchases"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": [
+              {
+                "type": "text",
+                "text": "You are an expert Dragon Ball Super Card Game Fusion World (Bandai; the FB/FS/FP/SB/ST sets — NOT the original Masters/legacy game) deck builder.\nBuild a competitive, coherent 50-card main deck for the given Leader. Card text uses [brackets] for keywords, {braces} for card names, <angle brackets> for traits.\nRules: exactly 50 main-deck cards (the legal range is 50–60, but build 50); at most 4 copies of any card number (fewer if the pool row says a lower limit); this game has NO Z-Deck — leave `zDeck` empty; all cards must come from the pool below; refer to cards by exact card number.\nEvery card in the deck must share a colour with the Leader. The pool below is already filtered to legal colours, so simply do not invent cards.\nSTRONGLY prefer OWN cards (the player already has them, up to the quantity shown). Use BUY cards only where they meaningfully improve the deck — a key engine piece, a finisher, or to fix a real gap — and list every BUY card used in `purchases` with a reason."
+              },
+              {
+                "type": "text",
+                "text": "CARD POOL (OWN×n = owned copies, BUY = would need buying):\nOWN×2 | FB01-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nOWN×2 | FB01-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nOWN×2 | FB01-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nOWN×2 | FB01-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nOWN×2 | FB01-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nOWN×2 | FB01-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nBUY | FB01-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nBUY | FB01-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | FB01-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nBUY | FB01-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nBUY | FB01-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nBUY | FB01-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nBUY | FB01-022 | Fighter 22 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-023 | Fighter 23 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-024 | Fighter 24 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 24} <Saiyan>\nBUY | FB01-025 | Fighter 25 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | R | [Blitz]\nBUY | FB01-026 | Fighter 26 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | FB01-027 | Fighter 27 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 27} <Saiyan>\nBUY | FB01-028 | Fighter 28 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-029 | Fighter 29 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-033 | Fighter 33 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 33} <Saiyan>\nBUY | FB01-034 | Fighter 34 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-035 | Fighter 35 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | R | [Blitz]\nBUY | FB01-036 | Fighter 36 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 36} <Saiyan>\nBUY | FB01-037 | Fighter 37 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-038 | Fighter 38 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | FB01-039 | Fighter 39 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 39} <Saiyan>\nBUY | FB01-040 | Fighter 40 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBUY | FB01-041 | Fighter 41 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-042 | Fighter 42 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 42} <Saiyan>\nBUY | FB01-043 | Fighter 43 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-044 | Fighter 44 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | FB01-045 | Fighter 45 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 45} <Saiyan>\nBUY | FB01-046 | Fighter 46 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-047 | Fighter 47 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-048 | Fighter 48 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 48} <Saiyan>\nBUY | FB01-049 | Fighter 49 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-061 | Colourless Tool 2 | EXTRA | Colorless | cost 2 | C | [Main] Draw 2 cards.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": "LEADER: FB01-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nLEADER BACK: Test Leader Awakened — [Auto] When this attacks, draw 1.\n\nDraft the deck."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "draft": {
+          "name": "Red Test",
+          "strategy": "Beat down.",
+          "main": [
+            {
+              "cardId": "FB01-010",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-011",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-012",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-013",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-014",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-015",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-016",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-017",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-018",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-019",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-020",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-021",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-060",
+              "quantity": 2
+            }
+          ],
+          "zDeck": [],
+          "purchases": [
+            {
+              "cardId": "FB01-020",
+              "quantity": 4,
+              "why": "Engine"
+            }
+          ]
+        },
+        "sanitised": {
+          "main": [
+            {
+              "cardId": "FB01-010",
+              "quantity": 4,
+              "owned": 2,
+              "needToBuy": 2
+            },
+            {
+              "cardId": "FB01-011",
+              "quantity": 4,
+              "owned": 2,
+              "needToBuy": 2
+            },
+            {
+              "cardId": "FB01-012",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-013",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-014",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-015",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-016",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-017",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-018",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-019",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-020",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-021",
+              "quantity": 4,
+              "owned": 0,
+              "needToBuy": 4
+            },
+            {
+              "cardId": "FB01-060",
+              "quantity": 2,
+              "owned": 2,
+              "needToBuy": 0
+            }
+          ],
+          "z": [],
+          "dropped": [],
+          "mainCount": 50
+        }
+      }
+    },
+    "fromCard": {
+      "wire": [
+        {
+          "url": "https://api.anthropic.com/v1/messages",
+          "body": {
+            "model": "claude-opus-5",
+            "max_tokens": 12000,
+            "thinking": {
+              "type": "adaptive"
+            },
+            "output_config": {
+              "effort": "high",
+              "format": {
+                "type": "json_schema",
+                "schema": {
+                  "$defs": {
+                    "__schema0": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity"
+                      ]
+                    },
+                    "__schema1": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity"
+                      ]
+                    },
+                    "__schema2": {
+                      "type": "object",
+                      "properties": {
+                        "cardId": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "{minimum: 1, maximum: 4}"
+                        },
+                        "why": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "cardId",
+                        "quantity",
+                        "why"
+                      ]
+                    }
+                  },
+                  "type": "object",
+                  "properties": {
+                    "leaderId": {
+                      "type": "string",
+                      "description": "Card number of the chosen Leader, from the LEADER CANDIDATES list"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Short deck name, e.g. 'Yellow Launch Tournament Aggro'"
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "description": "3–5 sentences: game plan, key interactions, how it wins, and why this Leader suits the seed card"
+                    },
+                    "main": {
+                      "type": "array",
+                      "description": "Exactly 50 cards in total, including the seed card",
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "zDeck": {
+                      "type": "array",
+                      "description": "Z-Deck cards (Z-BATTLE/Z-EXTRA/Z-UNISON/Z-LEADER), up to 8 total; empty if none fit, and ALWAYS empty for a game with no Z-Deck\n\n{maxItems: 8}",
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      }
+                    },
+                    "purchases": {
+                      "type": "array",
+                      "description": "Every card used that is NOT owned, with a one-line reason it's worth buying",
+                      "items": {
+                        "$ref": "#/$defs/__schema2"
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "leaderId",
+                    "name",
+                    "strategy",
+                    "main",
+                    "zDeck",
+                    "purchases"
+                  ],
+                  "description": "{$schema: \"https://json-schema.org/draft/2020-12/schema\"}"
+                }
+              }
+            },
+            "system": [
+              {
+                "type": "text",
+                "text": "You are an expert Dragon Ball Super Card Game Fusion World (Bandai; the FB/FS/FP/SB/ST sets — NOT the original Masters/legacy game) deck builder.\nA player likes one specific card and wants a whole deck built around it. First choose a Leader for it from the LEADER CANDIDATES list — every one listed is legal for this card's colours. Then build a competitive, coherent 50-card main deck. Card text uses [brackets] for keywords, {braces} for card names, <angle brackets> for traits.\nThe seed card, FB01-030 (Fighter 30), MUST appear in the deck (in the main deck) with at least 1 copy — it is the reason this deck exists.\nRules: exactly 50 main-deck cards (the legal range is 50–60, but build 50); at most 4 copies of any card number (fewer if the pool row says a lower limit); this game has NO Z-Deck — leave `zDeck` empty; all cards must come from the pool below; refer to cards by exact card number.\nEvery card in the deck must share a colour with the Leader. The pool below is already filtered to legal colours, so simply do not invent cards.\nSTRONGLY prefer OWN cards (the player already has them, up to the quantity shown) for both the Leader and the deck. Use BUY cards only where they meaningfully improve the deck, and list every BUY card used in `purchases` with a reason."
+              },
+              {
+                "type": "text",
+                "text": "LEADER CANDIDATES (OWN = owned, BUY = would need buying):\nOWN | FB01-001 | Test Leader | LEADER | Red | pow 15000 | <Saiyan> | C | [Leader] Your Battle cards gain +5000 power. / [Awakening] Draw 1 card.\nBUY | FB01-002 | Red Blue Leader | LEADER | Red/Blue | pow 15000 | <Saiyan> | C | [Leader] Draw 1 card at the start of your turn.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              },
+              {
+                "type": "text",
+                "text": "CARD POOL (OWN×n = owned copies, BUY = would need buying):\nOWN×2 | FB01-010 | Fighter 10 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nOWN×2 | FB01-011 | Fighter 11 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nOWN×2 | FB01-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\nOWN×2 | FB01-031 | Fighter 31 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nOWN×2 | FB01-032 | Fighter 32 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nOWN×2 | FB01-060 | Colourless Tool | EXTRA | Colorless | cost 1 | C | [Main] Draw 1 card.\nBUY | FB01-012 | Fighter 12 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 12} <Saiyan>\nBUY | FB01-013 | Fighter 13 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-014 | Fighter 14 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | FB01-015 | Fighter 15 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 15} <Saiyan>\nBUY | FB01-016 | Fighter 16 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-017 | Fighter 17 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-018 | Fighter 18 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 18} <Saiyan>\nBUY | FB01-019 | Fighter 19 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-020 | Fighter 20 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | R | [Blitz]\nBUY | FB01-021 | Fighter 21 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 21} <Saiyan>\nBUY | FB01-022 | Fighter 22 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-023 | Fighter 23 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-024 | Fighter 24 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 24} <Saiyan>\nBUY | FB01-025 | Fighter 25 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | R | [Blitz]\nBUY | FB01-026 | Fighter 26 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | FB01-027 | Fighter 27 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 27} <Saiyan>\nBUY | FB01-028 | Fighter 28 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-029 | Fighter 29 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-033 | Fighter 33 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 33} <Saiyan>\nBUY | FB01-034 | Fighter 34 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-035 | Fighter 35 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | R | [Blitz]\nBUY | FB01-036 | Fighter 36 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 36} <Saiyan>\nBUY | FB01-037 | Fighter 37 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-038 | Fighter 38 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | FB01-039 | Fighter 39 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | C | [Auto] When this attacks, draw 2 card. {Fighter 39} <Saiyan>\nBUY | FB01-040 | Fighter 40 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | R | [Blitz]\nBUY | FB01-041 | Fighter 41 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-042 | Fighter 42 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 42} <Saiyan>\nBUY | FB01-043 | Fighter 43 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-044 | Fighter 44 | BATTLE | Red | cost 2 | pow 7000 | <Namekian> | C | [Blitz]\nBUY | FB01-045 | Fighter 45 | BATTLE | Red | cost 3 | pow 8000 | <Saiyan> | R | [Auto] When this attacks, draw 2 card. {Fighter 45} <Saiyan>\nBUY | FB01-046 | Fighter 46 | BATTLE | Red | cost 4 | pow 9000 | <Namekian> | C | [Blitz]\nBUY | FB01-047 | Fighter 47 | BATTLE | Red | cost 5 | pow 10000 | <Saiyan> | C | [Blitz]\nBUY | FB01-048 | Fighter 48 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | C | [Auto] When this attacks, draw 1 card. {Fighter 48} <Saiyan>\nBUY | FB01-049 | Fighter 49 | BATTLE | Red | cost 1 | pow 6000 | <Saiyan> | C | [Blitz]\nBUY | FB01-061 | Colourless Tool 2 | EXTRA | Colorless | cost 2 | C | [Main] Draw 2 cards.",
+                "cache_control": {
+                  "type": "ephemeral"
+                }
+              }
+            ],
+            "messages": [
+              {
+                "role": "user",
+                "content": "SEED CARD: FB01-030 | Fighter 30 | BATTLE | Red | cost 0 | pow 5000 | <Namekian> | R | [Auto] When this attacks, draw 1 card. {Fighter 30} <Saiyan>\n\nPick a Leader and draft the deck around this card."
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "leaderId": "FB01-002",
+        "leaderName": "Red Blue Leader",
+        "mainCount": 51,
+        "toBuy": 45,
+        "draft": {
+          "leaderId": "FB01-002",
+          "name": "Seeded",
+          "strategy": "Beat down.",
+          "main": [
+            {
+              "cardId": "FB01-010",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-011",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-012",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-013",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-014",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-015",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-016",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-017",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-018",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-019",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-020",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-021",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-060",
+              "quantity": 2
+            }
+          ],
+          "zDeck": [],
+          "purchases": [
+            {
+              "cardId": "FB01-020",
+              "quantity": 4,
+              "why": "Engine"
+            }
+          ]
+        }
+      }
+    },
+    "aiRuns": [
+      {
+        "kind": "deck_summary",
+        "model": "claude-sonnet-5-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "deckId": 1
+        },
+        "output": {
+          "gamePlan": "Hit hard.",
+          "keyCards": [
+            {
+              "why": "Core",
+              "cardId": "FB01-010"
+            }
+          ],
+          "archetype": "Red Saiyan",
+          "strengths": [
+            "Fast"
+          ],
+          "badAgainst": [],
+          "weaknesses": [
+            "Fragile"
+          ],
+          "goodAgainst": [],
+          "legalityNotes": []
+        },
+        "deckIndex": 0
+      },
+      {
+        "kind": "deck_wizard",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "scope": "any",
+          "deckId": 1,
+          "context": "Make it faster",
+          "poolSize": 29
+        },
+        "output": {
+          "swaps": [
+            {
+              "inCardId": "FB01-030",
+              "priority": "high",
+              "outCardId": "FB01-021",
+              "rationale": "More draw.",
+              "inQuantity": 2,
+              "outQuantity": 2
+            }
+          ],
+          "assessment": "Needs draw."
+        },
+        "deckIndex": 0
+      },
+      {
+        "kind": "deck_wizard",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "scope": "owned",
+          "deckId": 1,
+          "context": null,
+          "poolSize": 3
+        },
+        "output": {
+          "swaps": [],
+          "assessment": "Fine."
+        },
+        "deckIndex": 0
+      },
+      {
+        "kind": "set_review",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "setCode": "FB01"
+        },
+        "output": {
+          "overview": "A set.",
+          "sleepers": [],
+          "standouts": [
+            {
+              "why": "Good",
+              "cardId": "FB01-010",
+              "rating": 4
+            }
+          ],
+          "archetypes": []
+        },
+        "deckIndex": null
+      },
+      {
+        "kind": "deck_builder",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "game": "fusion",
+          "mode": "build",
+          "buyPool": 36,
+          "leaderId": "FB01-001",
+          "ownedPool": 6
+        },
+        "output": {
+          "main": [
+            {
+              "cardId": "FB01-010",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-011",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-012",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-013",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-014",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-015",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-016",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-017",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-018",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-019",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-020",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-021",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-060",
+              "quantity": 2
+            }
+          ],
+          "name": "Red Test",
+          "zDeck": [],
+          "strategy": "Beat down.",
+          "purchases": [
+            {
+              "why": "Engine",
+              "cardId": "FB01-020",
+              "quantity": 4
+            }
+          ]
+        },
+        "deckIndex": null
+      },
+      {
+        "kind": "deck_from_card",
+        "model": "claude-opus-5",
+        "provider": "anthropic-api",
+        "billed": true,
+        "input": {
+          "game": "fusion",
+          "mode": "from-card",
+          "cardId": "FB01-030",
+          "buyPool": 36,
+          "ownedPool": 6,
+          "leaderPool": 2
+        },
+        "output": {
+          "main": [
+            {
+              "cardId": "FB01-010",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-011",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-012",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-013",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-014",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-015",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-016",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-017",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-018",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-019",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-020",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-021",
+              "quantity": 4
+            },
+            {
+              "cardId": "FB01-060",
+              "quantity": 2
+            }
+          ],
+          "name": "Seeded",
+          "zDeck": [],
+          "leaderId": "FB01-002",
+          "strategy": "Beat down.",
+          "purchases": [
+            {
+              "why": "Engine",
+              "cardId": "FB01-020",
+              "quantity": 4
+            }
+          ]
+        },
+        "deckIndex": null
+      }
+    ],
+    "createdDecks": [
+      {
+        "name": "Red Test (Claude draft)",
+        "game": "fusion",
+        "description": "Beat down.\n\nTo buy (12 cards):\n- 2× Fighter 10 (FB01-010)\n- 2× Fighter 11 (FB01-011)\n- 4× Fighter 12 (FB01-012)\n- 4× Fighter 13 (FB01-013)\n- 4× Fighter 14 (FB01-014)\n- 4× Fighter 15 (FB01-015)\n- 4× Fighter 16 (FB01-016)\n- 4× Fighter 17 (FB01-017)\n- 4× Fighter 18 (FB01-018)\n- 4× Fighter 19 (FB01-019)\n- 4× Fighter 20 (FB01-020): Engine\n- 4× Fighter 21 (FB01-021)",
+        "owner": null,
+        "aiSummary": "Beat down.",
+        "cards": [
+          [
+            "leader",
+            "FB01-001",
+            1
+          ],
+          [
+            "main",
+            "FB01-010",
+            4
+          ],
+          [
+            "main",
+            "FB01-011",
+            4
+          ],
+          [
+            "main",
+            "FB01-012",
+            4
+          ],
+          [
+            "main",
+            "FB01-013",
+            4
+          ],
+          [
+            "main",
+            "FB01-014",
+            4
+          ],
+          [
+            "main",
+            "FB01-015",
+            4
+          ],
+          [
+            "main",
+            "FB01-016",
+            4
+          ],
+          [
+            "main",
+            "FB01-017",
+            4
+          ],
+          [
+            "main",
+            "FB01-018",
+            4
+          ],
+          [
+            "main",
+            "FB01-019",
+            4
+          ],
+          [
+            "main",
+            "FB01-020",
+            4
+          ],
+          [
+            "main",
+            "FB01-021",
+            4
+          ],
+          [
+            "main",
+            "FB01-060",
+            2
+          ]
+        ]
+      },
+      {
+        "name": "Seeded (Claude draft)",
+        "game": "fusion",
+        "description": "Beat down.\nLeader to buy: Red Blue Leader (FB01-002)\nTo buy (12 cards):\n- 2× Fighter 10 (FB01-010)\n- 2× Fighter 11 (FB01-011)\n- 4× Fighter 12 (FB01-012)\n- 4× Fighter 13 (FB01-013)\n- 4× Fighter 14 (FB01-014)\n- 4× Fighter 15 (FB01-015)\n- 4× Fighter 16 (FB01-016)\n- 4× Fighter 17 (FB01-017)\n- 4× Fighter 18 (FB01-018)\n- 4× Fighter 19 (FB01-019)\n- 4× Fighter 20 (FB01-020): Engine\n- 4× Fighter 21 (FB01-021)",
+        "owner": null,
+        "aiSummary": "Beat down.",
+        "cards": [
+          [
+            "leader",
+            "FB01-002",
+            1
+          ],
+          [
+            "main",
+            "FB01-010",
+            4
+          ],
+          [
+            "main",
+            "FB01-011",
+            4
+          ],
+          [
+            "main",
+            "FB01-012",
+            4
+          ],
+          [
+            "main",
+            "FB01-013",
+            4
+          ],
+          [
+            "main",
+            "FB01-014",
+            4
+          ],
+          [
+            "main",
+            "FB01-015",
+            4
+          ],
+          [
+            "main",
+            "FB01-016",
+            4
+          ],
+          [
+            "main",
+            "FB01-017",
+            4
+          ],
+          [
+            "main",
+            "FB01-018",
+            4
+          ],
+          [
+            "main",
+            "FB01-019",
+            4
+          ],
+          [
+            "main",
+            "FB01-020",
+            4
+          ],
+          [
+            "main",
+            "FB01-021",
+            4
+          ],
+          [
+            "main",
+            "FB01-030",
+            1
+          ],
+          [
+            "main",
+            "FB01-060",
+            2
+          ]
+        ]
+      }
+    ],
+    "analysedDeck": {
+      "aiSummary": "**Red Saiyan** — Hit hard.\n\nStrong: Fast\n\nWeak: Fragile"
+    }
+  }
+}
