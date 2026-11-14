@@ -52,7 +52,8 @@ function place(scale: number, x: number, y: number, box: ZoomBox, jump: boolean)
   if (s <= ZOOM_MIN) return { ...ZOOM_REST, jump };
   const lx = panLimit(box.w, s);
   const ly = panLimit(box.h, s);
-  return { scale: s, x: clamp(x, -lx, lx), y: clamp(y, -ly, ly), jump };
+  // `+ 0` turns a -0 into 0.
+  return { scale: s, x: clamp(x, -lx, lx) + 0, y: clamp(y, -ly, ly) + 0, jump };
 }
 
 /** Scale to `next` keeping the point (px, py) of the screen where it is: x' = p - (p - x) * next / scale. */

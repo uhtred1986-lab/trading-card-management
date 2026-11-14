@@ -161,6 +161,7 @@ html:is([data-skin="night"], [data-skin="instinct"]) .ds-color-blue { background
 .pk-heart[data-pulse="1"] span{animation:pk-pulse .15s ease-out}
 .pk-cap{padding:6px 2px 0;font-size:14px;line-height:1.2;min-width:0}
 .pk-cap b{display:block;font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-cap .pk-reason{white-space:normal;color:var(--ds-ink);font-size:13px;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .pk-cap span{display:block;color:var(--ds-muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pk-owner{font-style:normal;color:var(--ds-link)}
 @keyframes pk-pulse{50%{transform:scale(1.2)}}

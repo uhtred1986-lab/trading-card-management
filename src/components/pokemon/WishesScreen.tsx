@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { formatCents } from "@/lib/money";
 import { PK } from "@/lib/pokemon/copy";
+import { reasonLine } from "@/lib/pokemon/deck-logic";
 import type { PokemonDeckRow, WishEntry } from "@/lib/pokemon/views";
 import { PageTop } from "./PageTop";
 import { PokemonTileCard } from "./PokemonTileCard";
@@ -44,7 +45,12 @@ export function WishesScreen({ entries, decks }: { entries: WishEntry[]; decks: 
                 onOpen={() => setOpen(i)}
                 wished={wished.has(e.id)}
                 onToggleWish={toggle}
-                caption={e.wanted > 1 ? <span>{PK.wishes.wantCopies(e.wanted)}</span> : undefined}
+                caption={
+                  <>
+                    {e.wanted > 1 ? <span>{PK.wishes.wantCopies(e.wanted)}</span> : null}
+                    {reasonLine(e.lackingDecks) ? <span className="pk-reason">{reasonLine(e.lackingDecks)}</span> : null}
+                  </>
+                }
               />
             ))}
           </div>

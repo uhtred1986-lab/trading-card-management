@@ -9,6 +9,7 @@ import { NewDeckFromCard } from "@/components/NewDeckFromCard";
 import { hasAnthropic } from "@/lib/ai/client";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeckDiscovery } from "@/components/DeckDiscovery";
+import { deckListLink } from "@/lib/decks/discovery";
 import { PageHeader, SectionTabs } from "@/components/ui";
 import { createDeckForm } from "./actions";
 
@@ -92,7 +93,7 @@ export default async function DecksPage({ searchParams }: { searchParams: Promis
         id: String(d.id), name: d.name, description: d.description, leaderName: d.leader?.name ?? null,
         leaderId: d.leaderId, colors: d.leader?.colors ?? [], leaderImage: d.leader?.imageUrl,
         group: d.isBuilt ? "Built" : "Virtual", mainCount: d.mainCount, status: d.legality.status,
-        note: [d.isTesting ? "Testing deck · hidden from Arena play pickers by default" : null, d.locationName, ...d.legality.issues.map((i) => i.message)].filter(Boolean).join(" · "), href: `/decks/${d.id}`,
+        note: [d.isTesting ? "Testing deck · hidden from Arena play pickers by default" : null, d.locationName, ...d.legality.issues.map((i) => i.message)].filter(Boolean).join(" · "), ...deckListLink(d.game, d.id, d.format),
       }))} />}
 
     </div>
