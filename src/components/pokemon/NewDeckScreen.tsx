@@ -64,16 +64,21 @@ export function NewDeckScreen({ seed, claudeEnabled }: { seed: NewDeckSeed | nul
           <span>{PK.newDeck.nameLabel}</span>
           <input className="pk-input" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} placeholder={PK.newDeck.namePlaceholder} autoComplete="off" enterKeyHint="done" />
         </label>
-        <div className="pk-lbl" style={{ marginTop: 0 }} id="pk-newfmt">
-          {PK.newDeck.formatLabel}
-        </div>
-        <div className="pk-chips" role="group" aria-labelledby="pk-newfmt">
-          {POKEMON_FORMATS.map((f) => (
-            <button key={f} type="button" className="pk-chip" aria-pressed={format === f} onClick={() => setFormat(f)}>
-              {PK.decks.formatNames[f]}
-            </button>
-          ))}
-        </div>
+        {/* With a card, the panel above already asks for the format; an empty deck then starts in the default one. */}
+        {seed ? null : (
+          <>
+            <div className="pk-lbl" style={{ marginTop: 0 }} id="pk-newfmt">
+              {PK.newDeck.formatLabel}
+            </div>
+            <div className="pk-chips" role="group" aria-labelledby="pk-newfmt">
+              {POKEMON_FORMATS.map((f) => (
+                <button key={f} type="button" className="pk-chip" aria-pressed={format === f} onClick={() => setFormat(f)}>
+                  {PK.decks.formatNames[f]}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <button type="button" className="pk-cta" onClick={create} disabled={creating}>
           {creating ? PK.newDeck.creating : seed ? `＋ ${PK.newDeck.create}` : `＋ ${PK.newDeck.create}`}
         </button>
