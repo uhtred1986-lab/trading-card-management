@@ -55,7 +55,7 @@ const VERSION = (() => {
 const shellCache = (v) => SHELL_PREFIX + v;
 
 /** The hosts in `next.config.ts` — the only cross-origin ones this worker will touch. */
-const ART_HOSTS = new Set(["storage.googleapis.com", "www.dbs-cardgame.com", "tcgplayer-cdn.tcgplayer.com", "www.cardtrader.com", "cardtrader.com"]);
+const ART_HOSTS = new Set(["storage.googleapis.com", "www.dbs-cardgame.com", "tcgplayer-cdn.tcgplayer.com", "www.cardtrader.com", "cardtrader.com", "assets.tcgdex.net"]);
 
 /** `isShellAsset` of `shell.ts`: the build's public static files, the manifest and its icons. Never a page, an API or a query. */
 function isShellAsset(path) {
