@@ -74,7 +74,7 @@ props for each, are listed at the top of `games/index.ts`.
   type, Trainers the viewer owns that are legal in the format, owned cards first; it never pads and says it is a
   draft. Both stamp `decks.owner`. The Server Functions are `buildDeckWithClaudeAction` and
   `buildDeckAroundCardAction` (`src/app/decks/claude-actions.ts`).
-- **Components**: `NewDeckWithClaude`, `NewDeckFromCard` and `DeckAI` take the game (`games` / `game`) and a
+- **Components**: `NewDeckWithClaude` (`games`), `NewDeckFromCard` (`game`) and `DeckAI` take the game and a
   `labels` object (English by default, so the Dragon Ball screens do not change; German sets in
   `games/labels-de.ts`).
 - **Testing without a model**: a request is read off the recorded transport or the scripted fake provider

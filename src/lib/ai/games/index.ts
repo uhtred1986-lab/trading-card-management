@@ -11,7 +11,7 @@
  * ## For the Pokémon screens (another lane, German): the three entry points
  *
  * 1. **"Deck mit Claude bauen"** (a new deck from a wish and / or a card)
- *    `<NewDeckWithClaude enabled={hasAnthropic()} game="pokemon" labels={NEW_DECK_WITH_CLAUDE_LABELS_DE} />`
+ *    `<NewDeckWithClaude enabled={hasAnthropic()} games={["pokemon"]} labels={NEW_DECK_WITH_CLAUDE_LABELS_DE} deckHref="/pokemon/decks/{id}" />`
  *    from `@/components/NewDeckWithClaude`, labels from `@/lib/ai/games/labels-de`. A free-text wish and a
  *    format select; optional `seed={{ id, name, imageUrl }}` builds around a known card (the picker is the
  *    caller's: pass `renderSeedPicker` to put a live Pokémon search in). Calls `buildDeckWithClaudeAction`
