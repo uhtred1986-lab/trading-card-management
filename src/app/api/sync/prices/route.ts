@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { syncFx } from "@/lib/pricing/fx";
+import { refreshPokemonCards } from "@/lib/pokemon/store";
 import { syncPrices } from "@/lib/pricing/tcgcsv";
 import { runSync } from "@/lib/sync";
 import { expireTagsFromRoute } from "@/lib/cache/tags";
@@ -22,7 +23,10 @@ export async function GET(req: Request) {
   try {
     const fx = await runSync(db, "fx", () => syncFx(db));
     const prices = await runSync(db, "prices", () => syncPrices(db));
-    return NextResponse.json({ fx, prices });
+    // Pokémon cards something refers to: legality, regulation mark and Cardmarket prices from TCGdex.
+    // Its failure never fails the Dragon Ball sync above (lib/pokemon/store.ts, docs/pokemon/plan.md §4).
+    const pokemon = await refreshPokemonCards(db, { budgetMs: 90_000 }).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }));
+    return NextResponse.json({ fx, prices, pokemon });
   } finally {
     // Even a sync that failed part-way may have written. `catalog` too: the
     // price sync backfills `cards.image_url` / `card_prints.image_url` and

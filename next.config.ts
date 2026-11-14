@@ -53,6 +53,8 @@ const nextConfig: NextConfig = {
       // CardTrader blueprint images — leader back sides for Masters-era sets.
       { protocol: "https", hostname: "www.cardtrader.com", pathname: "/uploads/**" },
       { protocol: "https", hostname: "cardtrader.com", pathname: "/uploads/**" },
+      // Pokémon card art and set logos from TCGdex, searched live (see src/lib/pokemon/tcgdex.ts). Keep public/sw.js ART_HOSTS in step: scripts/verify/image-hosts.ts fails when they differ.
+      { protocol: "https", hostname: "assets.tcgdex.net" },
     ],
   },
   // The Claude Agent SDK (the "Claude plan" provider, #518) finds its native `claude` binary with

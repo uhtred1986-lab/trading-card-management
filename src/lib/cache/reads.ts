@@ -24,7 +24,8 @@
  *   (`src/app/settings/actions.ts` — the price sync backfills card art
  *   and `card_sets.released_on`, CardTrader writes leader faces), the price cron
  *   (`/api/sync/prices`, same reason), and `setSpecifiedCostAction`
- *   (`src/app/arena/actions.ts`, the one hand-written `cards` column).
+ *   (`src/app/arena/actions.ts`, the one hand-written `cards` column), and `ensurePokemonCard`
+ *   (`src/lib/pokemon/store.ts`, which writes Pokémon cards and prints at request time).
  * - `prices`: `/api/sync/prices` and the Settings price sync.
  * - `meta`: `/api/sync/meta` and the Settings meta sync.
  * - All three: the 24 h TTL, for `npm run sync:*`, which run outside Next.
