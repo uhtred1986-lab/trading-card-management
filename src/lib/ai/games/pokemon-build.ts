@@ -115,7 +115,8 @@ export function cleanPokemonDraft(list: { cardId: string; quantity: number }[], 
   for (const e of list) {
     const id = normaliseCardId(e.cardId);
     if (!id || !known.has(id)) {
-      dropped.push(e.cardId);
+      // A card given by name only has no id to show: its name says what was left out.
+      dropped.push(e.cardId.trim() || (e as { name?: string }).name?.trim() || "?");
       continue;
     }
     merged.set(id, (merged.get(id) ?? 0) + Math.max(0, Math.floor(e.quantity)));

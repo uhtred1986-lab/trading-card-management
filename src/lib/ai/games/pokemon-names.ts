@@ -43,13 +43,23 @@ export function nameAgrees(said: string, names: string[]): boolean {
 /**
  * The card a name stands for, read from the live source: an exact name match (either language),
  * preferring one that is legal in the deck's format, then the first found (the source's order is
- * picture first, newest set first). Null when nothing by that name exists or the source is down.
+ * picture first, newest set first). A name that is slightly off ("Professors Forschung" for
+ * "Forschung des Professors" is not, "Ultra Ball" for "Ultraball" is) still counts when every card the
+ * search finds that contains it, or is contained in it, has one and the same name: an unambiguous near
+ * match, never a guess between two cards. Null when nothing fits or the source is down.
  */
 export async function cardForName(source: PokemonSource, said: string, format: PokemonFormat | string): Promise<PokemonCardRecord | null> {
   const want = foldCardName(said);
   if (want.length < 3) return null;
   try {
-    const hits = (await source.search({ q: said })).filter((h) => [h.name, h.altName].some((n) => n && foldCardName(n) === want)).slice(0, 5);
+    const found = await source.search({ q: said });
+    const namesOf = (h: (typeof found)[number]) => [h.name, h.altName].filter((n): n is string => !!n).map(foldCardName);
+    let hits = found.filter((h) => namesOf(h).includes(want));
+    if (!hits.length && want.length >= 5) {
+      const near = found.filter((h) => namesOf(h).some((n) => n.length >= 5 && (n.includes(want) || want.includes(n))));
+      if (new Set(near.map((h) => foldCardName(h.name))).size === 1) hits = near;
+    }
+    hits = hits.slice(0, 5);
     let first: PokemonCardRecord | null = null;
     for (const h of hits) {
       const rec = await source.get(h.tcgdexId);

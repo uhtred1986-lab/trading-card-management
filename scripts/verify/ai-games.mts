@@ -567,6 +567,12 @@ resetProviders();
   assert.equal((await cardForName(source, "Rare Candy", "standard"))?.tcgdexId, "sv01-191", "the printing that is legal in the deck's format");
   assert.equal((await cardForName(source, "Rare Candy", "nonsense"))?.tcgdexId, "old-1", "else the first the source lists");
   assert.equal(await cardForName(source, "Gibt es nicht", "standard"), null);
+  // A near name counts only when it is unambiguous among what the search finds.
+  const loose = { ...source, search: async () => all.map((r) => r.hit) } as unknown as PokemonDeps["source"];
+  assert.equal((await cardForName(loose, "Sonder-Bonbon!", "standard"))?.tcgdexId, "sv01-191", "punctuation and case do not matter");
+  assert.equal((await cardForName(loose, "Sonderbonbon Karte", "standard"))?.tcgdexId, "sv01-191", "one card's name inside what was said");
+  const two = { ...source, search: async () => [...all.map((r) => r.hit), { ...all[1].hit, tcgdexId: "x-1", name: "Sonderbonbon Deluxe", altName: null }] } as unknown as PokemonDeps["source"];
+  assert.equal(await cardForName(two, "Sonderbon", "standard"), null, "two different cards fit: no guess");
 
   // The wizard's swaps: the live case (Sonderbonbon given Rossana-ex's id) is put right, a right pair is kept, an unknown name is dropped.
   const swaps = [
