@@ -13,8 +13,9 @@
  * The result is a draft deck she edits: flagged by `legality` like any deck, and it never claims to be
  * complete (the description says so; a draft short of 60 shows "Noch n Karten").
  */
+import { inArray } from "drizzle-orm";
 import type { Db } from "@/db";
-import { deckCards, decks } from "@/db/schema";
+import { cards, deckCards, decks } from "@/db/schema";
 import { gameInfo } from "@/lib/catalog/games";
 import type { DeckLegality } from "@/lib/decks/legality";
 import { pokemonFormatOf, pokemonNameKey } from "@/lib/decks/pokemonLegality";
@@ -197,7 +198,9 @@ export async function draftAroundPokemonCard(db: Db, seedCardId: string, opts: P
   let energy: { pick: Pick; quantity: number } | null = null;
   if (!type) notes.push("Welche Energie zu dieser Karte passt, konnte ich nicht erkennen. Such die Energie selbst aus.");
   else {
-    const isMine = (p: Pick) => p.details.basicEnergy === true && sameName(pokemonTypeOf(p.details.display?.types?.[0] ?? null)?.en ?? "", type!.en);
+    // A basic Energy card carries its type only in its name ("Fire Energy", "Basic Fire Energy"), not in a `types` field.
+    const named = new RegExp(`^(basic )?${type.en} energy$`, "i");
+    const isMine = (p: Pick) => p.details.basicEnergy === true && named.test(p.en.trim());
     let pick = best([...ownedByEn.values()].flat().filter(isMine)) ?? [...ownedList.map(fromOwned)].find(isMine) ?? null;
     if (!pick) {
       try {
@@ -239,7 +242,8 @@ export async function draftAroundPokemonCard(db: Db, seedCardId: string, opts: P
 
   // Store what only the source knows, then the deck.
   const all = [...planned.values(), ...(energy ? [energy] : []), ...trainers];
-  for (const { pick } of all) if (pick.record) await deps.ensure(db, pick.tcgdexId, { record: pick.record });
+  const have = new Set((await db.select({ id: cards.id }).from(cards).where(inArray(cards.id, all.map((a) => a.pick.cardId)))).map((r) => r.id));
+  for (const { pick } of all) if (pick.record && !have.has(pick.cardId)) await deps.ensure(db, pick.tcgdexId, { record: pick.record });
   const mainTotal = all.reduce((n, p) => n + p.quantity, 0);
   const toBuy = [...planned.values(), ...trainers].reduce((n, { pick, quantity }) => n + Math.max(0, quantity - pick.owned), 0);
   const description = [

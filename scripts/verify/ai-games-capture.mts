@@ -30,11 +30,11 @@ export async function pgliteDb(): Promise<Db> {
   return drizzle(client, { schema }) as unknown as Db;
 }
 
-type GameKey = "dbs" | "fusion";
+export type GameKey = "dbs" | "fusion";
 const SET: Record<GameKey, { code: string; line: string }> = { dbs: { code: "BT18", line: "masters" }, fusion: { code: "FB01", line: "fusion" } };
 
 /** A small, fixed catalog for one game: two leaders, 40 red battle cards, two extras (and Z cards for dbs). */
-async function seed(db: Db, game: GameKey) {
+export async function seed(db: Db, game: GameKey) {
   const { code, line } = SET[game];
   await db.insert(schema.cardSets).values({ code, name: `${game} test set`, game, line, sortKey: 18 });
   const base = { setCode: code, game, rarity: "Common[C]", rarityCode: "C" };

@@ -82,7 +82,7 @@ export async function generateWithLookups<S extends ZodType>(req: JsonRequest<S>
 
   for (let round = 0; round <= opts.maxRounds; round++) {
     const last = round === opts.maxRounds;
-    const res = await generateJson({ ...rest, system: sys, messages: convo, schema: env });
+    const res = await generateJson({ ...rest, system: sys, messages: [...convo], schema: env });
     usage = usage ? add(usage, res.usage) : res.usage;
     latencyMs += res.latencyMs;
     const out = res.parsed as { lookups: { tool: string; name: string | null; type: string | null; category: string | null; id: string | null }[]; answer: z.infer<S> | null };
