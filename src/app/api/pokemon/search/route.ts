@@ -4,7 +4,7 @@ import { ownedCountsFor, wishedAmong } from "@/lib/pokemon/collection";
 import { PRIVATE, pokemonErrorResponse } from "@/lib/pokemon/http";
 import { searchPokemon } from "@/lib/pokemon/tcgdex";
 
-export const dynamic = "force-dynamic";
+// No `dynamic = "force-dynamic"`: it would turn every fetch into no-store and defeat the day cache of the TCGdex reads. Reading the session (cookies) already makes the route dynamic.
 export const maxDuration = 30;
 
 /**

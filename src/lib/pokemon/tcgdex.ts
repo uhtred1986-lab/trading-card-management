@@ -576,22 +576,30 @@ async function getJson<T>(path: string, opts: GetOptions = {}): Promise<T | null
 
 const LANGS: readonly PokemonLang[] = ["de", "en"];
 
-/** The sets, newest first, with logos. Names in both languages. Cached a day. */
+/**
+ * The sets, newest first, with logos. Names in both languages. Cached a day. The source sorts by
+ * release date but leaves out the sets that have none (some promo and trainer-kit sets), so those
+ * come last, in the source's own order; the plain list is what the names and sizes are read from.
+ */
 export async function listPokemonSets(): Promise<PokemonSetInfo[]> {
-  const [de, en, series] = await Promise.all([
-    getJson<RawSetBrief[]>(`de/sets${query([["sort:field", "releaseDate"], ["sort:order", "DESC"]])}`),
-    getJson<RawSetBrief[]>(`en/sets${query([["sort:field", "releaseDate"], ["sort:order", "DESC"]])}`).catch(() => [] as RawSetBrief[]),
+  const [dated, de, en, series] = await Promise.all([
+    getJson<RawSetBrief[]>(`de/sets${query([["sort:field", "releaseDate"], ["sort:order", "DESC"]])}`).catch(() => [] as RawSetBrief[]),
+    getJson<RawSetBrief[]>("de/sets"),
+    getJson<RawSetBrief[]>("en/sets").catch(() => [] as RawSetBrief[]),
     seriesLogos(),
   ]);
+  const deById = new Map([...de, ...dated].map((s) => [s.id, s]));
   const enById = new Map(en.map((s) => [s.id, s]));
-  return de.map((s) => {
-    const e = enById.get(s.id);
+  const ids = [...new Set([...dated.map((s) => s.id), ...de.map((s) => s.id), ...en.map((s) => s.id)])];
+  return ids.map((id) => {
+    const e = enById.get(id);
+    const s = deById.get(id) ?? e!;
     return {
-      id: s.id,
-      name: s.name ?? e?.name ?? s.id,
-      names: { ...(s.name ? { de: s.name } : {}), ...(e?.name ? { en: e.name } : {}) },
-      logo: s.logo ?? series.logos.get(s.id) ?? null,
-      symbol: s.symbol ?? series.symbols.get(s.id) ?? null,
+      id,
+      name: s.name ?? e?.name ?? id,
+      names: { ...(deById.get(id)?.name ? { de: deById.get(id)!.name! } : {}), ...(e?.name ? { en: e.name } : {}) },
+      logo: s.logo ?? series.logos.get(id) ?? null,
+      symbol: s.symbol ?? series.symbols.get(id) ?? null,
       official: s.cardCount?.official ?? null,
       total: s.cardCount?.total ?? null,
       releaseDate: null,
