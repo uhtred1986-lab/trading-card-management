@@ -425,11 +425,13 @@ function PokemonDetail({ tile, info, onRetry }: { tile: PokemonTile; info: InfoS
         </ul>
       )}
 
-      <div className="pk-lbl">{PK.detail.ownPhoto}</div>
       {photoPrint ? (
-        <PhotoOverride printId={photoPrint} photoId={info.photos?.[photoPrint] ?? tile.photoId ?? null} imageUrl={tile.imageLow ?? tile.imageHigh} alt={tile.name} labels={PK.photo} />
+        <PhotoOverride className="mt-3" printId={photoPrint} photoId={info.photos?.[photoPrint] ?? tile.photoId ?? null} imageUrl={tile.imageLow ?? tile.imageHigh} alt={tile.name} labels={PK.photo} />
       ) : (
-        <p className="pk-note" style={{ marginTop: 0 }}>{PK.detail.ownPhotoNeedsCard}</p>
+        <>
+          <div className="pk-lbl">{PK.detail.ownPhoto}</div>
+          <p className="pk-note" style={{ marginTop: 0 }}>{PK.detail.ownPhotoNeedsCard}</p>
+        </>
       )}
     </div>
   );

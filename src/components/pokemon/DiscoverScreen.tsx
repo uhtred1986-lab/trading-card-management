@@ -268,6 +268,26 @@ export function DiscoverScreen({ decks }: { decks: PokemonDeckRow[] }) {
   );
 }
 
+/** The set's logo with its name and size under it; a set without a logo (or one that does not load) shows its name large. */
+function SetLogo({ set }: { set: PokemonSetInfo }) {
+  const [failed, setFailed] = useState(false);
+  if (!set.logo || failed) {
+    return (
+      <>
+        <b className="pk-set-name">{set.name}</b>
+        {set.official ? <b>{set.official}</b> : null}
+      </>
+    );
+  }
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`${set.logo}.webp`} alt={set.name} loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      <b>{set.official ? `${set.name} · ${set.official}` : set.name}</b>
+    </>
+  );
+}
+
 /** The empty search: the newest sets as logo tiles, each opening that set's cards. */
 function NewestSets({ onPick }: { onPick: (s: { id: string; name: string }) => void }) {
   const [sets, setSets] = useState<PokemonSetInfo[] | "loading" | "unavailable">("loading");
@@ -306,13 +326,7 @@ function NewestSets({ onPick }: { onPick: (s: { id: string; name: string }) => v
       <div className="pk-sets">
         {shown.map((s) => (
           <button key={s.id} type="button" className="pk-set" onClick={() => onPick({ id: s.id, name: s.name })}>
-            {s.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={`${s.logo}.webp`} alt={s.name} loading="lazy" decoding="async" />
-            ) : (
-              <b className="pk-set-name">{s.name}</b>
-            )}
-            {s.logo ? <b>{s.official ? `${s.name} · ${s.official}` : s.name}</b> : s.official ? <b>{s.official}</b> : null}
+            <SetLogo set={s} />
           </button>
         ))}
       </div>

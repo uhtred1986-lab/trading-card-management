@@ -86,7 +86,7 @@ export const PK = {
     title: "Entdecken",
     subtitle: "Live-Suche",
     searchLabel: "Karte suchen",
-    searchPlaceholder: "Name oder Nummer, Deutsch oder Englisch",
+    searchPlaceholder: "Name oder Nummer",
     searchClear: "Suche leeren",
     voice: "Vorlesen",
     typeChips: "Typ",

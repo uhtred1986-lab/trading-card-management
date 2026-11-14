@@ -64,6 +64,7 @@ export function PokemonTileCard({
   const line = [tile.setName, numberLabel(tile)].filter(Boolean).join(" · ");
   return (
     <div className="pk-tilewrap">
+      <div className="pk-artbox">
       <button type="button" className="pk-tile" onClick={onOpen} aria-label={`${tile.name}, ${line}`}>
         <PokemonArt tile={tile}>
           {photo ? <span className="pk-cam">{PK.collection.ownPhoto}</span> : null}
@@ -89,6 +90,7 @@ export function PokemonTileCard({
           </span>
         </button>
       ) : null}
+      </div>
       <div className="pk-cap">
         <b>{tile.name}</b>
         <span>
