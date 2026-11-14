@@ -26,6 +26,7 @@ import {
   hitFromTcgdex,
   listPokemonSets,
   mergeSearchHits,
+  orderHits,
   parseSearchQuery,
   pokemonCategoryOf,
   pokemonTypeOf,
@@ -82,7 +83,8 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     return respond(file && exists(file) ? fixture(file) : []);
   }
   if (kind === "sets" && rest) return exists(`set-${decodeURIComponent(rest)}.${lang}.json`) ? respond(fixture(`set-${decodeURIComponent(rest)}.${lang}.json`)) : respond({ error: "not found" }, 404);
-  if (kind === "sets") return respond(fixture(`sets-${lang}.json`));
+  // The recorded list is in the source's plain order (oldest first); asked "newest first" the stub reverses it.
+  if (kind === "sets") return respond(p.get("sort:order") === "DESC" ? [...fixture<unknown[]>(`sets-${lang}.json`)].reverse() : fixture(`sets-${lang}.json`));
   if (kind === "series" && !rest) return respond(fixture("series-de.json"));
   if (kind === "series") return exists(`series-${rest}.de.json`) ? respond(fixture(`series-${rest}.de.json`)) : respond({ id: rest, sets: [] });
   return respond({ error: "unexpected" }, 500);
@@ -236,18 +238,35 @@ mainCalls();
   const merged = mergeSearchHits(de, en, { sets });
   assert.deepEqual(
     merged.map((h) => h.tcgdexId),
-    ["basep-1", "2024sv-2", "basep-4", "2017sm-5", "cel25-5", "tk-ex-latio-6", "fut2020-1", "tk-hs-r-2", "2018sm-4"],
-    "German order first, then the cards only English found, each id once",
+    ["cel25-5", "basep-1", "basep-4", "fut2020-1", "2024sv-2", "2017sm-5", "tk-ex-latio-6", "tk-hs-r-2", "2018sm-4"],
+    "hits with a picture first, the newest set first among them (cel25 before basep, a set the list does not know last), the rest after them, each id once",
   );
+  assert.equal(merged.length, new Set(merged.map((h) => h.tcgdexId)).size);
+  assert.ok(merged.every((h) => h.category === null), "a list entry says no category and the search did not filter on it: null, not a guess");
   const onTheBall = merged.find((h) => h.tcgdexId === "fut2020-1")!;
   assert.equal(onTheBall.name, "Pikachu on the Ball", "found in English only: the English name");
-  assert.equal(merged[0].name, "Pikachu");
-  assert.equal(merged[0].altName, null, "equal names are not shown twice");
-  assert.equal(merged[0].setName, "Wizards Black Star Promos", "the set name comes from the cached set list");
-  assert.equal(merged[0].image, "https://assets.tcgdex.net/en/base/basep/1", "no German picture: the English one");
-  assert.equal(merged[0].priceCents, null, "a list entry carries no price");
-  assert.deepEqual(merged[0].variants, []);
-  assert.equal(merged[0].legal, null);
+  const first = merged.find((h) => h.tcgdexId === "basep-1")!;
+  assert.equal(first.name, "Pikachu");
+  assert.equal(first.altName, null, "equal names are not shown twice");
+  assert.equal(first.setName, "Wizards Black Star Promos", "the set name comes from the cached set list");
+  assert.equal(first.image, "https://assets.tcgdex.net/en/base/basep/1", "no German picture: the English one");
+  assert.equal(first.priceCents, null, "a list entry carries no price");
+  assert.deepEqual(first.variants, []);
+  assert.equal(first.legal, null);
+}
+
+// Newest set first, picture first, stable otherwise.
+{
+  const set = (id: string) => [id, { id, name: id, names: {}, logo: null, symbol: null, official: null, total: null, releaseDate: null }] as const;
+  const ordered = new Map([set("sv09"), set("sv03.5"), set("base1")]);
+  const mk = (tcgdexId: string, localId: string, image: string | null) => hitFromTcgdex(null, { id: tcgdexId, localId, name: tcgdexId, ...(image ? { image } : {}) });
+  const hits = [mk("base1-4", "4", "x"), mk("zzz-1", "1", "x"), mk("sv03.5-006", "006", "x"), mk("sv09-001", "001", null), mk("sv09-002", "002", "x"), mk("sv03.5-007", "007", "x")];
+  assert.deepEqual(
+    orderHits(hits, ordered).map((h) => h.tcgdexId),
+    ["sv09-002", "sv03.5-006", "sv03.5-007", "base1-4", "zzz-1", "sv09-001"],
+    "picture first, then newest set first (sv09, sv03.5, base1), an unknown set after the known ones, equal sets in the source's order",
+  );
+  assert.deepEqual(orderHits(hits).map((h) => h.tcgdexId), ["base1-4", "zzz-1", "sv03.5-006", "sv09-002", "sv03.5-007", "sv09-001"], "without a set list only the pictures move");
 }
 
 // "Glurak" and "Charizard" find the same cards.

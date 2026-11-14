@@ -20,8 +20,8 @@
  * So a hit from a search carries no price, no variant list and no legality (`priceCents` /
  * `lowCents` null, `variants` empty, `legal` null; the card read, `getPokemonCard`, fills them).
  * `category` and the first of `types` are known only when the search filtered on them (otherwise
- * the category is a guess from the name: an Energy by its name, anything else Pokémon) and the set
- * name and size come from the cached set list, never from one request per hit.
+ * `category` is null, never a guess) and the set name and size come from the cached set list, never
+ * from one request per hit. A page is ordered picture first, newest set first (`orderHits`).
  */
 import {
   POKEMON_VARIANTS,
@@ -410,7 +410,7 @@ export function hitFromTcgdex(de: TcgdexCard | TcgdexBrief | null, en: TcgdexCar
   const name = main.name ?? other?.name ?? any.id;
   const altRaw = other?.name && other.name !== name ? other.name : null;
   const hasCategory = !!(d?.category || e?.category);
-  const category: PokemonCategory = hasCategory ? categoryOfRecord(d, e) : (opts.category ?? (/\b(energy|energie)$/i.test(name) ? "ENERGY" : "POKEMON"));
+  const category: PokemonCategory | null = hasCategory ? categoryOfRecord(d, e) : (opts.category ?? null);
   const tcgdexId = any.id;
   const localId = any.localId ?? "";
   const variants = opts.variants ?? [];
@@ -519,7 +519,27 @@ export function mergeSearchHits(
       }),
     );
   }
-  return hits;
+  return orderHits(hits, ctx.sets);
+}
+
+/**
+ * TCGdex lists old sets first and many hits have no scan in the matched language. A child looks at
+ * pictures, so within one page: hits with a picture first, and among them the newest set first
+ * (the cached set list is newest first, `sets` keeps that order; a set it does not know goes
+ * last). The sort is stable, so equal hits keep the source's order. Only one page is ordered: the
+ * source offers no sort by release date, so page 2 is not newer than page 1.
+ */
+export function orderHits(hits: PokemonHit[], sets?: Map<string, PokemonSetInfo>): PokemonHit[] {
+  const rank = new Map<string, number>();
+  if (sets) {
+    let i = 0;
+    for (const id of sets.keys()) rank.set(id, i++);
+  }
+  const setRank = (h: PokemonHit) => rank.get(setIdOf(h.tcgdexId, h.localId)) ?? Number.MAX_SAFE_INTEGER;
+  return hits
+    .map((h, i) => ({ h, i }))
+    .sort((a, b) => Number(a.h.image === null) - Number(b.h.image === null) || setRank(a.h) - setRank(b.h) || a.i - b.i)
+    .map((x) => x.h);
 }
 
 // ── Reads ────────────────────────────────────────────────────────────────────
