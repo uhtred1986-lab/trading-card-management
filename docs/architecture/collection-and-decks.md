@@ -70,7 +70,11 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
   immediately (nothing stored) → quantity with big ± buttons → `addLot` → the camera re-opens.
 - **Scan batches** (`src/lib/scan/batches.ts`): a scan is persisted as it happens so a batch
   started on the phone can be finished on the PC. `POST /api/scan` stores the photo *before*
-  identifying so a retry never needs the phone again.
+  identifying so a retry never needs the phone again. Rows carry `scan_batches.game` (`dbs`, the default and the only
+  kind these lists, the review and `completeBatch` handle). A Pokémon binder page ("Ganze Seite") is a batch with
+  `game = "pokemon"` kept by `src/lib/pokemon/scan-batch.ts`: same tables, items hold live TCGdex hits instead of local
+  prints (`scan_items.variant`, `language`, `saved_at`), completion goes through the Pokémon add path and keeps the items as
+  saved. Detail: `pokemon.md`, "Input".
 
 - **Own card photos** (`src/lib/collection/photos.ts`, `card_photos`; every game): a person can replace
   a card's picture with a phone photo. `PhotoOverride` crops it to 63:88, shrinks it to 750 px WebP (JPEG

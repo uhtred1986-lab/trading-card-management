@@ -94,7 +94,7 @@ function cellLabel(i: PokemonBatchItem): string {
  * takes the photo, the PC finishes it). Several photos can join one page. "Speichern" writes the
  * confirmed cards through the normal Pokémon add path and closes the page. Nothing is written by a read.
  */
-export function PokemonPageBatch({ decks, initialDeck, initial }: { decks: DeckChoice[]; initialDeck: number | null; initial: PokemonBatchState | null }) {
+export function PokemonPageBatch({ decks, initialDeck, initial, initialGone = false }: { decks: DeckChoice[]; initialDeck: number | null; initial: PokemonBatchState | null; initialGone?: boolean }) {
   const [state, setState] = useState<PokemonBatchState | null>(initial);
   const [deckId, setDeckId] = useState<number | null>(initial?.batch.deckId ?? initialDeck);
   const [reading, setReading] = useState<string | null>(null);
@@ -106,7 +106,7 @@ export function PokemonPageBatch({ decks, initialDeck, initial }: { decks: DeckC
   const [failed, setFailed] = useState<PokemonCompleteResult["failed"]>([]);
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
-  const [gone, setGone] = useState(false);
+  const [gone, setGone] = useState(initialGone);
   const fileRef = useRef<HTMLInputElement>(null);
   const pending = useRef(0);
   const loading = useRef(new Set<string>());
@@ -303,12 +303,12 @@ export function PokemonPageBatch({ decks, initialDeck, initial }: { decks: DeckC
       <div className="mx-auto max-w-md space-y-4">
         <DeckSelect decks={decks} value={deckId} onChange={changeDeck} label={INPUT_COPY.hub.deck.label} none={INPUT_COPY.hub.deck.none} />
         {error ? (
-          <p role="alert" className="rounded-lg border border-loss/40 bg-loss/5 p-3 text-sm text-loss">
+          <p role="alert" className="rounded-lg border border-loss/40 bg-space-900/85 p-3 text-sm text-loss">
             {error}
           </p>
         ) : null}
         {message ? (
-          <p role="status" className="rounded-lg border border-gain/40 bg-gain/5 p-3 text-sm text-gain">
+          <p role="status" className="rounded-lg border border-gain/40 bg-space-900/85 p-3 text-sm font-semibold text-gain">
             {message}
           </p>
         ) : null}
@@ -361,7 +361,7 @@ export function PokemonPageBatch({ decks, initialDeck, initial }: { decks: DeckC
 
       {state ? (
         <div className="space-y-6">
-          <p className="mx-auto max-w-md text-sm text-space-300">{B.kept}</p>
+          <p className="mx-auto max-w-md rounded-lg border border-space-700/70 bg-space-900/85 p-3 text-sm text-space-200">{B.kept}</p>
           {state.photos.map((photo, n) => (
             <PhotoSection
               key={photo.id}
@@ -470,9 +470,9 @@ function PhotoSection({
   const placed = useMemo(() => gridCells(items.map((i) => ({ box: i.detection.seen.box, i }))), [items]);
   const failedRead = photo.status === "error";
   return (
-    <section aria-label={B.photoOf(n)} className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-6">
-      <div className="mx-auto w-full max-w-md space-y-2 lg:sticky lg:top-4 lg:max-w-none">
-        <div className="flex items-baseline justify-between gap-2">
+    <section aria-label={B.photoOf(n)} className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-6">
+      <div className="mx-auto w-full min-w-0 max-w-md space-y-2 lg:sticky lg:top-4 lg:max-w-none">
+        <div className="flex items-baseline justify-between gap-2 rounded-lg border border-space-700/70 bg-space-900/85 p-3 py-2">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-space-300">{B.photoOf(n)}</h2>
           <span className="text-xs text-space-400">{photo.status === "reading" ? B.readingNow : failedRead ? "" : B.foundN(items.length)}</span>
         </div>
@@ -493,10 +493,10 @@ function PhotoSection({
           </button>
         ) : null}
       </div>
-      <div className="mx-auto w-full max-w-md space-y-3 lg:max-w-none">
+      <div className="mx-auto w-full min-w-0 max-w-md space-y-3 lg:max-w-none">
         {items.length > 0 ? (
           <>
-            <p className="text-sm text-space-200">{C.pageIntro(items.length)}</p>
+            <p className="rounded-lg border border-space-700/70 bg-space-900/85 p-3 text-sm text-space-200">{C.pageIntro(items.length)}</p>
             <ul className="grid grid-cols-3 gap-2" aria-label={C.page}>
               {[...placed.cells, ...placed.extra.map((e) => e)].map((c, k) => {
                 if (!c) return <li key={`e${k}`} className="card-aspect rounded-lg border border-dashed border-space-700" aria-hidden />;

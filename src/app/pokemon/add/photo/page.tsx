@@ -21,6 +21,7 @@ export default async function PokemonPhotoPage({ searchParams }: { searchParams:
   const byId = Number.isInteger(asked) && asked > 0;
   const wantsPage = byId || (Array.isArray(query.mode) ? query.mode[0] : query.mode) === "page";
   let batch: PokemonBatchState | null = null;
+  let closed = false;
   let offer = await pokemonBatchOffer(db, viewer);
   if (byId) {
     try {
@@ -29,11 +30,15 @@ export default async function PokemonPhotoPage({ searchParams }: { searchParams:
       if (e instanceof PokemonBatchNotFound) notFound();
       throw e;
     }
-    // A page that is already saved is not opened again.
-    if (batch.batch.status !== "open") notFound();
+    // A page that is already saved is not opened again: the screen says so (and a save that has just
+    // finished re-renders this page, which must not replace the screen with a 404).
+    if (batch.batch.status !== "open") {
+      closed = true;
+      batch = null;
+    }
   } else if (offer) {
     batch = await getPokemonBatch(db, viewer, offer.id);
   }
   if (batch && !offer) offer = { id: batch.batch.id, cards: batch.items.filter((i) => !i.saved).length, photos: batch.photos.length, updatedAt: batch.batch.updatedAt };
-  return <PokemonPhotoAdd decks={decks} initialDeck={batch?.batch.deckId ?? deckFromParam(query.deck, decks)} initialMode={wantsPage ? "page" : "single"} offer={offer} initialBatch={batch} />;
+  return <PokemonPhotoAdd decks={decks} initialDeck={batch?.batch.deckId ?? deckFromParam(query.deck, decks)} initialMode={wantsPage ? "page" : "single"} offer={offer} initialBatch={batch} initialClosed={closed} />;
 }

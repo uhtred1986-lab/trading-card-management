@@ -63,6 +63,7 @@ export function PokemonPhotoAdd({
   initialMode = "single",
   offer,
   initialBatch,
+  initialClosed = false,
 }: {
   decks: DeckChoice[];
   initialDeck: number | null;
@@ -70,6 +71,8 @@ export function PokemonPhotoAdd({
   /** The viewer's open page, if any (also given when `initialBatch` is). */
   offer: PokemonBatchOffer | null;
   initialBatch: PokemonBatchState | null;
+  /** The page asked for by `?batch=` is already saved or discarded. */
+  initialClosed?: boolean;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -226,7 +229,7 @@ export function PokemonPhotoAdd({
             />
           </div>
         </div>
-        <PokemonPageBatch decks={decks} initialDeck={initialDeck} initial={offerGone ? null : initialBatch} />
+        <PokemonPageBatch decks={decks} initialDeck={initialDeck} initial={offerGone ? null : initialBatch} initialGone={initialClosed} />
       </div>
     );
   }
