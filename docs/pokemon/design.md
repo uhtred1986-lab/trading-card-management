@@ -285,7 +285,21 @@ The owner, as SL, in `/cart`:
   `prefers-reduced-motion`.
 - Text for a 12-year-old: short sentences, "du", no jargon ("Wunsch", not "Want-Liste").
 
-## 11. Still open
+## 11. Skin and prototype
+
+- **Scene:** `public/themes/route-meadow.webp` (1672×941, like the other theme plates), an original
+  generated illustration made on the owner's request (14 Nov 2026): a sunny route through tall grass
+  with a lakeside town. No characters, creatures or logos. A second variant exists and was not kept.
+- **Tokens for the Pokémon skin** (to become a `[data-skin]` block in `design-system.css`): canvas
+  `#e6f4dc`, surface `#fffef8`, raised `#eef6e6`, ink `#1d3944`, muted `#4f6770`, line `#b4c9b0`,
+  accent `#ffc93c`, link `#1f66b3`; heart `#e0434b` and the legality colours are semantic, not skin.
+  Type stays Kanit and Barlow Semi Condensed.
+- **Phone crop:** the scene fills the top of the screen behind the page title and fades into the
+  canvas, so card grids sit on a calm ground.
+- **Clickable prototype:** https://claude.ai/artifact/LVHoG6BgT1VfmFXBegiBkV (private to the owner).
+  Real card data and prices from TCGdex; collection, deck, voice and photo recognition are examples.
+
+## 12. Still open
 
 Nothing on the design side. The run waits for the owner's go-ahead. A clickable phone prototype of §3 and §5 can be made
 before any worker starts, if the owner wants to see it first.
