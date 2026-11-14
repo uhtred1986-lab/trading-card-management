@@ -22,6 +22,7 @@ import { MarketplacePanel } from "@/components/MarketplacePanel";
 import { DeckPicker } from "@/components/DeckPicker";
 import { deckOptions } from "@/lib/decks/add";
 import { GAME_INFO, gameOr } from "@/lib/catalog/games";
+import { cardStats } from "@/lib/catalog/card-stats";
 import { SubmitButton } from "@/components/SubmitButton";
 import { addLotForm, deleteLotForm } from "@/app/collection/actions";
 import { PageHeader, SectionTabs } from "@/components/ui";
@@ -63,6 +64,10 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   const owners = viewer.kind === "player" ? [] : [...new Set([...ownersUsed, ...(me ? [me] : [])])];
   const a = alloc.get(id)!;
   const eur = (usd: number | null) => (usd == null ? "—" : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD"));
+  // Stats come from a per-game list (Energy, Power ... for Dragon Ball; HP, attacks, legality, price for Pokémon).
+  const basePrint = card.prints.find((p) => p.isBase) ?? card.prints[0];
+  const stats = cardStats(card, { market: basePrint ? { trendCents: basePrint.marketCents, lowCents: basePrint.marketLowCents } : null });
+  const isLive = GAME_INFO[gameOr(card.game)].catalog === "live";
   const printOptions = card.prints.map((p) => ({ id: p.id, label: p.label, rarity: p.rarity }));
   const input = "tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1.5 text-sm text-space-100";
 
@@ -134,14 +139,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
-          <Stat label="Energy" value={card.energyCost ?? "—"} />
-          <Stat label="Power" value={card.power?.toLocaleString() ?? "—"} />
-          <Stat label="Combo" value={card.comboCost != null ? `${card.comboCost} / ${card.comboPower?.toLocaleString() ?? "—"}` : "—"} />
-          <Stat label="Z-Energy" value={card.zEnergyCost ?? "—"} />
-          <Stat label="Character" value={card.characters.join(", ") || "—"} />
-          <Stat label="Traits" value={card.traits.join(", ") || "—"} />
-          <Stat label="Era" value={card.eras.join(", ") || "—"} />
-          <Stat label="Copy limit" value={card.limitedTo?.toString() ?? "—"} />
+          {stats.map((st) => (
+            <Stat key={st.label} label={st.label} value={st.value} />
+          ))}
         </dl>
 
         {card.skill ? (
@@ -167,8 +167,8 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                 <tr>
                   <th className="px-3 py-2">Print</th>
                   <th className="px-3 py-2">Rarity</th>
-                  <th className="px-3 py-2 text-right">Normal</th>
-                  <th className="px-3 py-2 text-right">Foil</th>
+                  <th className="px-3 py-2 text-right">{isLive ? "Cardmarket" : "Normal"}</th>
+                  <th className="px-3 py-2 text-right">{isLive ? "Low" : "Foil"}</th>
                   <th className="px-3 py-2 text-right">As of</th>
                 </tr>
               </thead>
@@ -181,16 +181,18 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                         <span className="font-medium text-space-50">{p.label}</span> <span className="font-mono text-xs text-space-300">{p.id}</span>
                       </td>
                       <td className="px-3 py-2 text-space-200">{p.rarity}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{eur(pr?.normalCents ?? null)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{eur(pr?.foilCents ?? null)}</td>
-                      <td className="px-3 py-2 text-right text-xs text-space-300">{pr?.capturedOn ?? "no data"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{isLive ? formatCents(p.marketCents, "EUR") : eur(pr?.normalCents ?? null)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{isLive ? formatCents(p.marketLowCents, "EUR") : eur(pr?.foilCents ?? null)}</td>
+                      <td className="px-3 py-2 text-right text-xs text-space-300">{isLive ? (p.marketAt ? new Date(p.marketAt).toISOString().slice(0, 10) : "no data") : (pr?.capturedOn ?? "no data")}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <p className="mt-1 text-xs text-space-400">TCGplayer market price{usdEur ? ` converted at 1 USD = ${usdEur.toFixed(4)} EUR` : " in USD"}.</p>
+          <p className="mt-1 text-xs text-space-400">
+            {isLive ? "Cardmarket trend and low in EUR, as TCGdex reports them when the card is stored and at the nightly refresh." : `TCGplayer market price${usdEur ? ` converted at 1 USD = ${usdEur.toFixed(4)} EUR` : " in USD"}.`}
+          </p>
         </section>
 
         <MarketplacePanel card={{ id: card.id, name: card.name, game: card.game }} tcgUrl={tcgUrl} />
