@@ -46,6 +46,7 @@ export function PokemonTileCard({
   photo = false,
   onAdd,
   addLabel,
+  inTarget = 0,
 }: {
   tile: PokemonTile;
   onOpen: () => void;
@@ -65,6 +66,8 @@ export function PokemonTileCard({
   onAdd?: (tile: PokemonTile) => void;
   /** Its spoken label ("Glurak ins Deck „Feuer“ legen"). */
   addLabel?: string;
+  /** Copies already in the deck Entdecken was opened for. */
+  inTarget?: number;
 }) {
   const [pulse, setPulse] = useState(false);
   const line = [tile.setName, numberLabel(tile)].filter(Boolean).join(" · ");
@@ -76,6 +79,7 @@ export function PokemonTileCard({
           {photo ? <span className="pk-cam">{PK.collection.ownPhoto}</span> : null}
           {owned > 0 ? <span className="pk-badge">{(ownedLabel ?? PK.discover.ownedBadge)(owned)}</span> : null}
           {deckCount > 0 ? <span className="pk-badge pk-badge-deck">{PK.collection.inDecks(deckCount)}</span> : null}
+          {inTarget > 0 ? <span className="pk-badge pk-badge-in">{PK.discover.inTargetDeck(inTarget)}</span> : null}
         </PokemonArt>
       </button>
       {onAdd ? (

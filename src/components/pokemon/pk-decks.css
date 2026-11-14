@@ -121,6 +121,8 @@ textarea.pk-input{min-height:140px;font-size:15px;line-height:1.35;resize:vertic
 .pk-addbtn span{min-width:34px;height:34px;padding:0 8px;border-radius:999px;background:var(--ds-accent);color:var(--ds-accent-ink);display:grid;place-items:center;font-weight:800;font-size:17px;box-shadow:0 1px 4px #0005;font-variant-numeric:tabular-nums}
 .pk-addbtn:focus-visible{outline:3px solid var(--ds-focus);outline-offset:-4px;border-radius:12px}
 .pk-addbtn[data-pulse="1"] span{animation:pk-pulse .15s ease-out}
+.pk-art .pk-badge-in{left:6px;top:6px;bottom:auto;background:var(--ds-ink)}
+.pk-cta svg{width:22px;height:22px;flex:none}
 .pk-toggle{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-weight:600;cursor:pointer}
 .pk-toggle input{width:22px;height:22px;accent-color:var(--ds-ink)}
 

@@ -20,8 +20,8 @@ import { addWant } from "@/lib/decks/swaps";
 import type { OwnerScope } from "@/lib/collection/scope";
 import { lowImage } from "./client";
 import { missingCopies, wishesToAdd } from "./deck-logic";
-import { parseDeckListPokemon, resolveDeckList, type DeckListResolution, type DeckListSearch } from "./decklist";
-import { ensurePokemonCard, loadPokemonCard } from "./store";
+import { parseDeckListPokemon, resolveDeckList, type DeckListResolution, type DeckListSearch, type SetIdForCode } from "./decklist";
+import { ensurePokemonCard } from "./store";
 import type { PokemonCardRecord, PokemonSetInfo } from "./tcgdex";
 import { pokemonDetails } from "./types";
 
@@ -135,6 +135,8 @@ export async function wishMissing(db: Db, deckId: number, only?: string): Promis
 export interface DeckListSource {
   /** `searchPokemon` in production. */
   search: DeckListSearch;
+  /** The source's set id for a printed set code ("OBF" gives "sv03"); without it set codes are ignored and ties are guesses. */
+  setIdForCode?: SetIdForCode;
   /** `loadPokemonCard` in production (the live read of one card); a stub in the test. */
   load: (tcgdexId: string) => Promise<{ record: PokemonCardRecord; set: PokemonSetInfo | null }>;
 }
@@ -160,7 +162,7 @@ export async function importPokemonDeckList(
   source: DeckListSource,
 ): Promise<ImportResult> {
   const parsed = parseDeckListPokemon(input.text);
-  const resolution = await resolveDeckList(parsed, source.search);
+  const resolution = await resolveDeckList(parsed, source.search, source.setIdForCode);
   const asked = parsed.total;
   if (resolution.cards.length === 0) return { deckId: null, added: 0, resolution, asked };
 
@@ -188,6 +190,3 @@ export async function importPokemonDeckList(
     return { deckId, added, resolution, asked };
   });
 }
-
-/** The loader the page uses: one live read of a card and its set. */
-export const liveDeckListLoader = loadPokemonCard;

@@ -86,6 +86,7 @@ export default async function PokemonDeckPage({ params }: { params: Promise<{ id
       missingTotal={missing.total}
       viewerDecks={decks}
       viewerWishedIds={viewerWishes}
+      suggestions={Object.fromEntries(suggestions)}
       claude={{ enabled: hasAnthropic(), aiSummary: deck.aiSummary, aiSummaryAt: deck.aiSummaryAt?.toISOString() ?? null, openSuggestions: [...suggestions.values()].reduce((n, l) => n + l.length, 0) }}
     />
   );

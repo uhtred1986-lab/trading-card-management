@@ -11,6 +11,8 @@ import { deckProgress, type IssueLine, type IssueSummary } from "@/lib/pokemon/d
 import { POKEMON_FORMATS } from "@/lib/pokemon/types";
 import type { PokemonDeckRow } from "@/lib/pokemon/views";
 import type { Zone } from "@/lib/decks/queries";
+import { SwapSuggestions } from "@/components/SwapSuggestions";
+import type { SwapSuggestion } from "@/lib/decks/swaps";
 import { PokemonDeckClaude } from "./ClaudeBuild";
 import { MiniArt, StatusPill } from "./DeckParts";
 import { HeartIcon } from "./icons";
@@ -59,6 +61,7 @@ export function DeckScreen({
   missingTotal,
   viewerDecks,
   viewerWishedIds,
+  suggestions,
   claude,
 }: {
   deck: DeckScreenDeck;
@@ -68,6 +71,8 @@ export function DeckScreen({
   missingTotal: number;
   viewerDecks: PokemonDeckRow[];
   viewerWishedIds: string[];
+  /** Claude's stored swap suggestions, by the card they would replace. */
+  suggestions: Record<string, SwapSuggestion[]>;
   claude: { enabled: boolean; aiSummary: string | null; aiSummaryAt: string | null; openSuggestions: number };
 }) {
   const router = useRouter();
@@ -327,6 +332,11 @@ export function DeckScreen({
                         +
                       </button>
                     </div>
+                    {suggestions[r.cardId]?.length ? (
+                      <div className="pk-claude" style={{ gridColumn: "1 / -1" }}>
+                        <SwapSuggestions deckId={deck.id} zone={r.zone} suggestions={suggestions[r.cardId]} labels={PK.swaps} />
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}

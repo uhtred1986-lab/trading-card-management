@@ -115,21 +115,20 @@ Total Cards: 60`);
 const hitOf = (id: string): PokemonHit => record(id).hit;
 const charizardPaf: PokemonHit = { ...hitOf(CHARIZARD), id: "PKM-sv04.5-006", tcgdexId: "sv04.5-006", setName: "Paldeas Schicksale" };
 const HITS: PokemonHit[] = [hitOf(CHARMANDER), hitOf(CHARIZARD), charizardPaf, hitOf(FIRE), hitOf(ULTRA), hitOf(CATCHER)];
-/** Set codes the stub's "set code search" knows (the other lane adds this to the real search). */
+/** Set codes the stub's "set id for code" knows (TCGdex answers `sets?abbreviation.official=`). */
 const SET_CODES: Record<string, string> = { MEW: "sv03.5", PAF: "sv04.5", SVE: "sve", SVI: "sv01", TEF: "sv05" };
+const setIdForCode = async (code: string) => SET_CODES[code] ?? null;
 
-/** Stand-in for `searchPokemon`: names contain-match in both languages, the number is exact, "CODE n" asks by set. */
-function stubSearch(opts: { setCodes: boolean }): { search: DeckListSearch; asked: string[] } {
+/** Stand-in for `searchPokemon`: names contain-match in both languages, the number is exact, `setId` limits it to one set. */
+function stubSearch(): { search: DeckListSearch; asked: string[] } {
   const asked: string[] = [];
-  const search: DeckListSearch = async ({ q, category }) => {
-    asked.push(q);
+  const search: DeckListSearch = async ({ q, category, setId }) => {
+    asked.push(`${q}@${setId ?? "*"}`);
     const parsed = parseSearchQuery(q);
-    const code = /^[A-Z][A-Z0-9]{1,5}$/.test(parsed.name) ? SET_CODES[parsed.name] : undefined;
-    if (parsed.name && /^[A-Z][A-Z0-9]{1,5}$/.test(parsed.name) && !opts.setCodes) return [];
     return HITS.filter((h) => {
       if (category && h.category && h.category !== category) return false;
+      if (setId && !h.tcgdexId.startsWith(`${setId}-`)) return false;
       if (parsed.number !== null && Number(h.localId) !== parsed.number) return false;
-      if (code) return h.tcgdexId.startsWith(`${code}-`);
       if (!parsed.name) return true;
       return [h.name, h.altName ?? ""].some((n) => foldName(n).includes(foldName(parsed.name)));
     });
@@ -151,24 +150,36 @@ function stubSearch(opts: { setCodes: boolean }): { search: DeckListSearch; aske
     "12 Basic {R} Energy SVE 2",
     "garbage line",
   ].join("\n");
-  const stub = stubSearch({ setCodes: true });
-  const r = await resolveDeckList(parseDeckListPokemon(text), stub.search);
+  const stub = stubSearch();
+  const r = await resolveDeckList(parseDeckListPokemon(text), stub.search, setIdForCode);
   const byId = Object.fromEntries(r.cards.map((c) => [c.tcgdexId, c.count]));
   assert.deepEqual(byId, { [CHARIZARD]: 5, "sv04.5-006": 2, [CHARMANDER]: 3, [ULTRA]: 4, [FIRE]: 12 }, "the guessed line took the first print, which is the same card as line 1");
-  assert.deepEqual(r.cards.map((c) => c.at), [[2, 4], [3], [5], [8], [10]].map((a) => a), "lines per card");
+  assert.deepEqual(r.cards.map((c) => c.at), [[2, 4], [3], [5], [8], [10]], "lines per card");
   assert.deepEqual(r.unresolved.map((u) => [u.at, u.reason]), [[6, "notFound"], [11, "unreadable"]]);
   assert.deepEqual(r.guessed.map((g) => g.at), [4], "only the line the set code could not settle is a guess");
   assert.match(r.guessed[0].took, /Glurak-ex|Charizard/);
-  assert.ok(!stub.asked.includes("SVI 196"), "a single hit by name and number needs no set-code search");
-  assert.ok(stub.asked.includes("PAF 6") && stub.asked.includes("MEW 6"), "several hits ask by set code");
+  assert.ok(stub.asked.includes("6@sv03.5") && stub.asked.includes("6@sv04.5"), "a set code asks that set for the number");
+  assert.equal(stub.asked.filter((q) => q.endsWith("@sv01")).length, 1, "one search in the set for the Ultra Ball line");
+  assert.ok(!stub.asked.includes("Ultra Ball 196@*"), "...and when the set settles it the name search is not needed");
 }
 {
-  // Until the set-code search exists the same list still resolves by name and number; the tie is a guess.
-  const stub = stubSearch({ setCodes: false });
+  // The same list without a way to turn set codes into sets: it still resolves by name and number; the tie is a guess.
+  const stub = stubSearch();
   const r = await resolveDeckList(parseDeckListPokemon("2 Charizard ex PAF 6\n4 Ultra Ball SVI 196"), stub.search);
   assert.deepEqual(r.cards.map((c) => [c.tcgdexId, c.count]), [[CHARIZARD, 2], [ULTRA, 4]]);
   assert.deepEqual(r.guessed.map((g) => g.at), [1]);
   assert.deepEqual(r.unresolved, []);
+}
+{
+  // A set lookup that fails is no worse than no lookup; a set whose number holds another card falls back to the name, said as a guess.
+  const r = await resolveDeckList(parseDeckListPokemon("3 Charmander MEW 6\n1 Ultra Ball SVI 196"), stubSearch().search, async () => {
+    throw new Error("set lookup failed");
+  });
+  assert.deepEqual(r.cards.map((c) => [c.tcgdexId, c.count]), [[CHARMANDER, 3], [ULTRA, 1]]);
+  assert.deepEqual(r.guessed.map((g) => g.at), [1], "number 6 holds no Charmander: the name alone settled it");
+  const withSets = await resolveDeckList(parseDeckListPokemon("3 Charmander MEW 6"), stubSearch().search, setIdForCode);
+  assert.deepEqual(withSets.cards.map((c) => c.tcgdexId), [CHARMANDER]);
+  assert.deepEqual(withSets.guessed.map((g) => g.at), [1]);
 }
 {
   // A source that cannot be reached is an error for the caller, not forty "not found" lines.
@@ -377,10 +388,11 @@ await giveLots("Lena", CHARMANDER, 4);
 // ── 6. Pasting a deck list ───────────────────────────────────────────────────
 
 {
-  const stub = stubSearch({ setCodes: true });
+  const stub = stubSearch();
   const loads: string[] = [];
   const source: DeckListSource = {
     search: stub.search,
+    setIdForCode,
     load: async (id) => {
       loads.push(id);
       return { record: record(id), set: null };

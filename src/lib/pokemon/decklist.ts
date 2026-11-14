@@ -148,8 +148,11 @@ export function parseDeckListPokemon(text: string): ParsedDeckList {
 
 // ── Resolving ────────────────────────────────────────────────────────────────
 
-/** What the resolver needs of the card source: `searchPokemon` in production, a stub in the test. */
-export type DeckListSearch = (params: { q: string; category?: DeckListSection }) => Promise<PokemonHit[]>;
+/** What the resolver needs of the card source: `searchPokemon` in production, a stub in the test. `setId` limits the search to one set. */
+export type DeckListSearch = (params: { q: string; category?: DeckListSection; setId?: string }) => Promise<PokemonHit[]>;
+
+/** The source's set id for a printed set code ("OBF" gives "sv03"), or null when it does not know the code. */
+export type SetIdForCode = (code: string) => Promise<string | null>;
 
 export interface ResolvedCard {
   tcgdexId: string;
@@ -187,50 +190,52 @@ export function nameVariants(name: string): string[] {
 const sameName = (hitName: string, variant: string) => foldName(hitName) === foldName(variant);
 
 /**
- * Looks every line up. By name and number first (works with any source), then, when that leaves more
- * than one print and the line has a set code, by "set code + number" (the source's set-code search),
- * then by name alone. Lines run four at a time. A source that cannot be reached throws (the caller
- * says so); a line with no match is `unresolved`.
+ * Looks every line up. A line with a set code and a number is asked of that set (the set code becomes the
+ * source's set id) and accepted when the name agrees: that names one print. Otherwise by name and number
+ * across all sets, where several prints are settled by taking the newest and said out loud in `guessed`;
+ * then by name alone. Lines run four at a time. A source that cannot be reached throws (the caller says so);
+ * a line with no match is `unresolved`.
  */
-export async function resolveDeckList(parsed: ParsedDeckList, search: DeckListSearch, concurrency = 4): Promise<DeckListResolution> {
+export async function resolveDeckList(parsed: ParsedDeckList, search: DeckListSearch, setIdForCode: SetIdForCode = async () => null, concurrency = 4): Promise<DeckListResolution> {
   const unresolved: UnresolvedLine[] = parsed.unreadable.map((u) => ({ raw: u.raw, at: u.at, reason: "unreadable" }));
   const guessed: DeckListResolution["guessed"] = [];
   const found = new Map<string, ResolvedCard>();
+  // One lookup per set code, however many lines use it.
+  const setIds = new Map<string, Promise<string | null>>();
+  const setIdOf = (code: string) => {
+    const key = code.toUpperCase();
+    if (!setIds.has(key)) setIds.set(key, setIdForCode(key).catch(() => null));
+    return setIds.get(key)!;
+  };
+  const named = (h: PokemonHit, variants: string[]) => variants.some((v) => sameName(h.name, v) || (h.altName !== null && sameName(h.altName, v)));
 
   const settle = async (line: DeckListLine): Promise<{ hit: PokemonHit; guess: boolean } | null> => {
     const variants = nameVariants(line.name);
     const category = line.section ?? undefined;
 
     if (line.number !== null) {
+      // The set and the number name one card; the name has to agree (a reprint can sit under another number).
+      if (line.setCode) {
+        const setId = await setIdOf(line.setCode);
+        if (setId) {
+          const inSet = (await search({ q: String(line.number), category, setId })).filter((h) => named(h, variants));
+          if (inSet.length === 1) return { hit: inSet[0], guess: false };
+        }
+      }
       for (const v of variants) {
         const hits = await search({ q: `${v} ${line.number}`, category });
         if (hits.length === 1) return { hit: hits[0], guess: false };
-        if (hits.length > 1) {
-          // Several sets print this number for this name: the set code decides, when the source can search by it.
-          if (line.setCode) {
-            const bySet = await search({ q: `${line.setCode} ${line.number}`, category });
-            const ids = new Set(hits.map((h) => h.tcgdexId));
-            const both = bySet.filter((h) => ids.has(h.tcgdexId));
-            if (both.length === 1) return { hit: both[0], guess: false };
-          }
-          return { hit: hits[0], guess: true };
-        }
-      }
-      if (line.setCode) {
-        // The name may differ in language or spelling; the set and number alone name one card.
-        const bySet = await search({ q: `${line.setCode} ${line.number}`, category });
-        const named = bySet.filter((h) => variants.some((v) => sameName(h.name, v) || (h.altName !== null && sameName(h.altName, v))));
-        if (named.length === 1) return { hit: named[0], guess: false };
+        // Several sets print this number for this name and the set code did not settle it: the newest.
+        if (hits.length > 1) return { hit: hits[0], guess: true };
       }
     }
 
     // Name only: an exact name, preferring a card with a picture (the source orders newest set first).
     for (const v of variants) {
       const hits = await search({ q: v, category });
-      const exact = hits.filter((h) => sameName(h.name, v) || (h.altName !== null && sameName(h.altName, v)));
-      const pool = exact.length > 0 ? exact : [];
-      if (pool.length === 0) continue;
-      const withPicture = pool.find((h) => h.image) ?? pool[0];
+      const exact = hits.filter((h) => named(h, [v]));
+      if (exact.length === 0) continue;
+      const withPicture = exact.find((h) => h.image) ?? exact[0];
       // A number was given but no print had it: the name alone settled it, which is a guess. A bare name is just the newest print.
       return { hit: withPicture, guess: line.number !== null };
     }

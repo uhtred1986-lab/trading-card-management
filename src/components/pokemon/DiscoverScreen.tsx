@@ -169,7 +169,7 @@ export function DiscoverScreen({ decks, target = null }: { decks: PokemonDeckRow
   const shownHits = useMemo(() => (ownFirst ? [...hits].sort((a, b) => Number((seenOwned[b.id] ?? 0) > 0) - Number((seenOwned[a.id] ?? 0) > 0)) : hits), [ownFirst, hits, seenOwned]);
   const showOwn = !active && ownFirst && target !== null;
   const list = showOwn && target ? target.own : shownHits;
-  const addProps = (t: PokemonTile) => (target ? { onAdd: addToTarget, addLabel: PK.discover.addToDeckAria(t.name, target.name), deckCount: inDeck[t.id] ?? 0 } : {});
+  const addProps = (t: PokemonTile) => (target ? { onAdd: addToTarget, addLabel: PK.discover.addToDeckAria(t.name, target.name), inTarget: inDeck[t.id] ?? 0 } : {});
 
   return (
     <div className="pk-area">

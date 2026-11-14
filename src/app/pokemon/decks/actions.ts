@@ -9,9 +9,10 @@ import { setBuilt, setDeckCard } from "@/app/decks/actions";
 import { builtRefusal } from "@/lib/pokemon/deck-logic";
 import { PK } from "@/lib/pokemon/copy";
 import { assertPokemonDeck, PokemonInputError } from "@/lib/pokemon/collection";
-import { createPokemonDeck, importPokemonDeckList, liveDeckListLoader, wishMissing, type WishMissingResult } from "@/lib/pokemon/deck-data";
+import { createPokemonDeck, importPokemonDeckList, wishMissing, type WishMissingResult } from "@/lib/pokemon/deck-data";
+import { liveDeckListSource } from "@/lib/pokemon/deck-source";
 import type { UnresolvedLine } from "@/lib/pokemon/decklist";
-import { isPokemonSourceError, searchPokemon } from "@/lib/pokemon/tcgdex";
+import { isPokemonSourceError } from "@/lib/pokemon/tcgdex";
 import type { Zone } from "@/lib/decks/queries";
 
 /** The longest list we read: a deck is 60 cards, so a long text is not a deck list. */
@@ -103,7 +104,7 @@ export async function importPokemonDeckListAction(input: { text: string; name?: 
   if (text.length > MAX_LIST_CHARS) return { ok: false, error: PK.importList.failed };
   try {
     const name = String(input.name ?? "").trim().slice(0, 120) || PK.importList.deckNameDefault;
-    const r = await importPokemonDeckList(db, viewer, { text, name, format: input.format }, { search: (p) => searchPokemon({ q: p.q, category: p.category }), load: liveDeckListLoader });
+    const r = await importPokemonDeckList(db, viewer, { text, name, format: input.format }, liveDeckListSource);
     if (r.deckId === null) return { ok: false, error: PK.importList.nothingFound, unresolved: r.resolution.unresolved };
     refresh(r.deckId);
     return { ok: true, deckId: r.deckId, name, added: r.added, asked: r.asked, unresolved: r.resolution.unresolved, guessed: r.resolution.guessed };
