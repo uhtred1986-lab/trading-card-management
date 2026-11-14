@@ -6,8 +6,12 @@ import { pokemonCardId, tcgdexIdOf } from "@/lib/pokemon/types";
 import { NewDeckScreen, type NewDeckSeed } from "@/components/pokemon/NewDeckScreen";
 
 export const dynamic = "force-dynamic";
-/** Pasting a deck list reads every line at the card source (a Server Function of this page). */
-export const maxDuration = 60;
+/**
+ * The Server Functions of this page run in its function: pasting a deck list reads every line at the
+ * card source, and "Mit Claude" looks cards up over several rounds (117 s for one deck in the live run
+ * of 14 Nov 2026). 60 s cut the Claude build off; 300 is what the arena page uses.
+ */
+export const maxDuration = 300;
 
 export const metadata = { title: "Neues Deck" };
 

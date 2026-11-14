@@ -14,6 +14,9 @@ Built 14 Nov 2026; what the plan changed is at the end of `plan.md`.
 
 ## The live source (TCGdex)
 
+TCGdex also lists the mobile game Pokémon TCG Pocket (series `tcgp`). Those are not printed cards and never
+reach a search result, the set list, an evolution row or a stored card (`isPocketCardId`, `isPocketSetId`).
+
 Source, cache and error handling: `catalog-and-sync.md`, "Pokémon: live source (TCGdex)". Code:
 `src/lib/pokemon/tcgdex.ts`. The limits that matter when changing a screen:
 
@@ -234,6 +237,16 @@ viewer so the scripts can run them on PGlite. Every Server Function opens with `
   and stores any new card with `ensurePokemonCard`. `pokemon-around.ts` builds the free deterministic draft
   "Neues Deck mit dieser Karte" without a model.
 - The shared screen is `src/components/NewDeckWithClaude.tsx`. Detail: `ai.md`, "Per-game adapter".
+- **A card the model adds comes with its name, and the id is checked against it**
+  (`src/lib/ai/games/pokemon-names.ts`): a real id that is another card is resolved by name at the live source
+  (`cardForName`, preferring a printing legal in the deck's format) or the entry is dropped. The model may give
+  a well-known card by its English name and an empty id. Reads of the source in these paths are retried
+  (`withSourceRetry`); a source that stays down ends a build with `SOURCE_DOWN`, never a half deck.
+- A draft up to six cards short is topped up with its basic Energy (`topUpEnergy`); the wizard keeps the ten
+  most important swaps (`MAX_SWAPS`). Lookups run in three rounds of eight (`src/lib/ai/tools.ts`); the deck
+  pages allow 300 s.
+- `scripts/pokemon-ai-live.mts --yes` is the live run of all of this against real models (paid; the owner's to
+  ask for). What the first one found: `docs/pokemon/plan.md` §13.
 
 ## Tests
 

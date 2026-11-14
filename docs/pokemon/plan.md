@@ -327,9 +327,38 @@ Written after the build (14 Nov 2026). Each line names the file that shows the d
 28. **Undo on the voice screen also takes back the deck copies** that line added, never below what the deck held before.
     `undoPokemonDeckAdd` in `src/lib/pokemon/collection.ts`; the photo screen's single-card undo does the same.
 
+**The live Claude run of 14 Nov 2026** (owner's request; `scripts/pokemon-ai-live.mts`, real models on a PGlite
+database seeded from the live source; text on the Claude plan and on OpenRouter's Opus 5 and Sonnet 5.5, photos
+on OpenRouter's Sonnet 5.5; about 2 USD)
+
+- **Photo read:** one German card and a nine-card page built from the source's own scans: 10 of 10 exact, with
+  language, number, set code and finish right, twice. Clean pictures, not a phone photograph.
+- **Deck summary:** correct against the card texts, plain German.
+- **Wizard and deck builds:** usable after the fixes below; before them every one of these was seen live.
+  29. A real card id paired with another card's name ("Wunderbonbon" with the id of Rossana-ex). The model now
+      names each card it adds and the id is checked against the name; a mismatch is resolved by name or the
+      entry is dropped. `src/lib/ai/games/pokemon-names.ts`.
+  30. The new-deck page allowed its Server Functions 60 s; a Claude build took 92 to 199 s. Both deck pages now
+      allow 300 s, and the lookup loop is three fuller rounds instead of five. `src/lib/ai/tools.ts`.
+  31. Answers rejected whole for a detail: a swap of 25 cards (limit 20), eleven swaps (limit 10), more lookups
+      than a round runs. The limits are wide now and the answer is trimmed; a rejection keeps its reason.
+  32. Decks of 59 cards, of 60 with 28 Energy, of 40. A draft up to six short is topped up with its basic
+      Energy; the model may give a well-known card by its English name and the app finds the printing legal in
+      the format, so staples need no lookup round.
+  33. The mobile game's cards (TCGdex series `tcgp`, Pokémon TCG Pocket) in a deck. They are excluded from
+      search, the set list, evolutions and storage. `isPocketCardId` in `src/lib/pokemon/tcgdex.ts`.
+  34. A busy source read as "no such card": a 30-card deck with no Pokémon. Reads are retried, and a source that
+      stays down ends the build with a message instead of a half deck.
+- **Still true after the run:** results vary from run to run (the last wish build was 60 cards with a sound
+  line; an earlier one, before the fixes, 40). A build takes 90 to 200 s. Asked for Standard, the model still
+  picked staples the source lists as rotated (Iono, Nest Ball, Earthen Vessel); the app flags them, it does not
+  replace them. OpenRouter answered "no choices" twice in about fifteen calls. The Claude plan adapter times a
+  single answer out at 110 s, which the wish build exceeded.
+
 **Not checked in this delivery**
 
-- A real phone, real speech recognition, a real model run on a Pokémon photo or deck, and a real CardTrader
+- A real phone, real speech recognition, a phone photograph of cards, the Anthropic API itself (the key is not
+  in a cloud session; the same models were reached through OpenRouter and the plan), and a real CardTrader
   call. The tests use recorded TCGdex responses (`scripts/verify/fixtures/pokemon/`), a stubbed `fetch` and a
   synthetic CardTrader fixture (`scripts/verify/pokemon-cart.mts`).
 - Pinch and double tap on a real phone: they were driven with synthetic touch events in Chromium (items 21),

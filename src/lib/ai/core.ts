@@ -76,6 +76,7 @@ export async function generateJson<S extends ZodType>(req: JsonRequest<S>): Prom
   const latencyMs = first.latencyMs + second.latencyMs;
   if (second.stop === "refusal") throw new AiError("refusal", "The model declined this request.", { provider: second.provider });
   const b = check(schema, second.text);
-  if (!b.ok) throw new AiError("bad_output", "The model's answer did not match the expected format — try again.", { provider: second.provider });
+  // The reason goes along as the cause (never shown to a player): without it a rejected answer cannot be diagnosed.
+  if (!b.ok) throw new AiError("bad_output", "The model's answer did not match the expected format — try again.", { provider: second.provider, cause: new Error(b.why.slice(0, 600)) });
   return { ...second, parsed: b.value, usage, latencyMs };
 }

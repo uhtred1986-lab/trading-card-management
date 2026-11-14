@@ -13,8 +13,9 @@ import { pokemonFormatOf } from "@/lib/decks/pokemonLegality";
 import { deckToText } from "@/lib/decks/queries";
 import { ensurePokemonCard } from "@/lib/pokemon/store";
 import { PokemonSourceError } from "@/lib/pokemon/tcgdex";
-import { isPokemonCardId, tcgdexIdOf } from "@/lib/pokemon/types";
+import { isPokemonCardId, pokemonCardId, tcgdexIdOf } from "@/lib/pokemon/types";
 import { answerLanguageLine } from "./language";
+import { cardForName, cardNames, nameAgrees, sourceIsDown, withSourceRetry } from "./pokemon-names";
 import { describePokemonCard, liveSource, ownedLines, ownedPokemonCards, pokemonLookupTools, type PokemonSource } from "./pokemon-source";
 import { PokemonWizardSchema } from "./schemas";
 import type { AnalysisContext, GameAdapter, WizardSource } from "./types";
@@ -57,6 +58,59 @@ async function materialise(db: Db, deps: PokemonDeps, ids: string[]): Promise<vo
   }
 }
 
+/**
+ * The name check of `pokemon-names.ts` for the wizard's swaps: an added card whose id is another card
+ * than the one the model named is looked up by that name; found, the swap takes the right id; not
+ * found, the swap is dropped. A swap that names no card (an old answer shape) is left alone.
+ */
+export async function verifySwapNames<S extends { inCardId: string }>(db: Db, deps: PokemonDeps, swaps: S[], format: string | null): Promise<S[]> {
+  const fmt = pokemonFormatOf(format);
+  const ids = [...new Set(swaps.map((s) => normaliseSwapId(s.inCardId)).filter((x): x is string => !!x))];
+  const stored = ids.length ? await db.select({ id: cards.id, name: cards.name, details: cards.details }).from(cards).where(inArray(cards.id, ids)) : [];
+  const names = new Map(stored.map((r) => [r.id, cardNames(r)]));
+  const kept: S[] = [];
+  for (const s of swaps) {
+    const said = (s as { inName?: unknown }).inName;
+    const id = normaliseSwapId(s.inCardId);
+    if (typeof said !== "string" || !said.trim()) {
+      kept.push(s);
+      continue;
+    }
+    let known = id ? names.get(id) : undefined;
+    if (id && !known) {
+      try {
+        const rec = await withSourceRetry(() => deps.source.get(tcgdexIdOf(id)!));
+        known = cardNames({ name: rec.hit.name, details: rec.details });
+        names.set(id, known);
+      } catch (err) {
+        if (!(err instanceof PokemonSourceError)) throw err;
+      }
+    }
+    if (id && known && nameAgrees(said, known)) {
+      kept.push({ ...s, inCardId: id });
+      continue;
+    }
+    // A swap that cannot be checked because the source stays down is left out: better one suggestion fewer than a wrong card.
+    const rec = await cardForName(deps.source, said, fmt).catch((err) => {
+      if (sourceIsDown(err)) return null;
+      throw err;
+    });
+    if (rec) kept.push({ ...s, inCardId: pokemonCardId(rec.tcgdexId) });
+  }
+  // A deck that is far from finished draws more swaps than a page should show: the most important ten.
+  const rank = (s: S) => ({ high: 0, medium: 1, low: 2 })[(s as { priority?: string }).priority ?? "low"] ?? 2;
+  return kept.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).slice(0, MAX_SWAPS).map((x) => x.s);
+}
+
+/** Most swaps one wizard run shows. */
+export const MAX_SWAPS = 10;
+
+const normaliseSwapId = (raw: string): string | null => {
+  const t = raw.trim();
+  const id = isPokemonCardId(t) ? tcgdexIdOf(t) : null;
+  return id ? pokemonCardId(id) : null;
+};
+
 export function pokemonAdapter(deps: PokemonDeps = liveDeps): GameAdapter {
   const info = gameInfo("pokemon");
   const language = answerLanguageLine("pokemon");
@@ -88,7 +142,7 @@ export function pokemonAdapter(deps: PokemonDeps = liveDeps): GameAdapter {
     },
     swapInstruction() {
       const r = info.deck;
-      return `Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the player's own cards or one you looked up with the tools (use the PKM-… card id exactly as given). Keep the deck at exactly ${r.main} cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the ${r.copies}-copy limit counted by card NAME (basic Energy is unlimited; one ACE SPEC, one Radiant).`;
+      return `Propose card-for-card swaps that improve this deck. Each swap removes a card that is in the deck and adds one from the player's own cards or one you looked up with the tools (use the PKM-… card id exactly as given). For a well-known card you have no id for (a staple Trainer, a basic Energy), you need no lookup: give its exact official ENGLISH name (never a translation of your own: German card names often differ from what a translation would give) in inName and an empty string as inCardId; the app finds the printing that is legal in the format of the deck. Use lookups for cards whose text you need to read. Keep the deck at exactly ${r.main} cards (outQuantity should equal inQuantity unless fixing a count problem) and respect the ${r.copies}-copy limit counted by card NAME (basic Energy is unlimited; one ACE SPEC, one Radiant).`;
     },
     wizardSchema: PokemonWizardSchema,
     async wizardSource(db, deck, scope): Promise<WizardSource> {
@@ -103,6 +157,7 @@ export function pokemonAdapter(deps: PokemonDeps = liveDeps): GameAdapter {
         poolBlock: `${head}\n${owned.length ? ownedLines(owned, 240).join("\n") : "(none)"}`,
         tools: lookups ? pokemonLookupTools(deps.source) : [],
         materialise: (db2, ids) => materialise(db2, deps, ids),
+        verify: (db2, swaps, format) => verifySwapNames(db2, deps, swaps, format),
       };
     },
     validate: (rows, format) => legality(rows, "pokemon", format),

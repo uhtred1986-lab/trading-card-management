@@ -14,6 +14,7 @@
  *    a draft, and the deterministic draft around a card.
  */
 import assert from "node:assert/strict";
+import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
@@ -293,7 +294,7 @@ calls();
     id: "anthropic-api",
     script: [
       { json: { lookups: [lookup("get_card", { id: "PKM-sv04.5-008" })], answer: null } },
-      { json: { lookups: [], answer: { assessment: "Dir fehlt eine Zwischenstufe.", swaps: [{ outCardId: "PKM-sve-002", outQuantity: 3, inCardId: "PKM-sv04.5-008", inQuantity: 3, rationale: "Glutexo bringt dich zu Glurak.", priority: "high" }, { outCardId: "PKM-sve-002", outQuantity: 1, inCardId: "PKM-nope-9", inQuantity: 1, rationale: "gibt es nicht", priority: "low" }] } } },
+      { json: { lookups: [], answer: { assessment: "Dir fehlt eine Zwischenstufe.", swaps: [{ outCardId: "PKM-sve-002", outQuantity: 3, inCardId: "PKM-sv04.5-008", inName: "Glutexo", inQuantity: 3, rationale: "Glutexo bringt dich zu Glurak.", priority: "high" }, { outCardId: "PKM-sve-002", outQuantity: 1, inCardId: "PKM-nope-9", inName: "Zz", inQuantity: 1, rationale: "gibt es nicht", priority: "low" }] } } },
     ],
   });
   registerProvider(wizard);
@@ -380,12 +381,12 @@ console.log("ai-games: Pokémon analysis and wizard (German instruction, owned f
     name: "Glurak Feuersturm",
     strategy: "Glutexo und Glumanda bringen Glurak-ex ins Spiel.",
     cards: [
-      { cardId: "PKM-sv03.5-004", quantity: 4 },
-      { cardId: "PKM-sv03.5-005", quantity: 3 },
-      { cardId: "PKM-sv03.5-006", quantity: 6 },
-      { cardId: "PKM-sve-002", quantity: 14 },
-      { cardId: "PKM-test-001", quantity: 3 },
-      { cardId: "PKM-sv03.5-099", quantity: 2 },
+      { cardId: "PKM-sv03.5-004", name: "Glumanda", quantity: 4 },
+      { cardId: "PKM-sv03.5-005", name: "Charmeleon", quantity: 3 },
+      { cardId: "PKM-sv03.5-006", name: "Glurak-ex", quantity: 6 },
+      { cardId: "PKM-sve-002", name: "Feuer-Energie", quantity: 14 },
+      { cardId: "PKM-test-001", name: "Rare Candy", quantity: 3 },
+      { cardId: "PKM-sv03.5-099", name: "Zz", quantity: 2 },
     ],
     purchases: [{ cardId: "PKM-sv03.5-005", quantity: 3, why: "Die Zwischenstufe." }],
   };
@@ -531,5 +532,104 @@ console.log("ai-games: deterministic draft around a card (line, Energy, owned Tr
 assert.ok(pokemonAdapter(deps).validate([], "standard").status);
 globalThis.fetch = realFetch;
 resetProviders();
+// ── 5. What the first live run taught (14 Nov 2026) ──────────────────────────
+{
+  const { cardForName, cardNames, foldCardName, nameAgrees } = await import("../../src/lib/ai/games/pokemon-names.ts");
+  const { verifySwapNames } = await import("../../src/lib/ai/games/pokemon.ts");
+  const { topUpEnergy, TOP_UP_LIMIT } = await import("../../src/lib/ai/games/pokemon-build.ts");
+
+  assert.equal(foldCardName("Glurak-ex"), foldCardName("glurak EX"));
+  assert.equal(foldCardName("Überreste"), "uberreste");
+  const glurak = cardNames({ name: "Glurak-ex", details: { names: { de: "Glurak-ex", en: "Charizard ex" } } });
+  assert.ok(nameAgrees("Charizard ex", glurak) && nameAgrees("glurak ex", glurak) && nameAgrees("Glurak-ex (151)", glurak));
+  assert.ok(!nameAgrees("Wunderbonbon", glurak), "another card's name does not agree");
+  assert.ok(!nameAgrees("Glurak", ["Glurak-ex"]), "the bare name is not the ex card");
+  assert.ok(!nameAgrees("Glurak-ex", ["Glurak"]), "a card named Glurak is not Glurak-ex");
+  assert.ok(!nameAgrees("", glurak));
+
+  // A source with three cards: Rossana-ex under the id the model used, and Sonderbonbon twice (one rotated).
+  const rec = (tcgdexId: string, de: string, en: string, standard: boolean) =>
+    ({ tcgdexId, category: "TRAINER", hit: { id: `PKM-${tcgdexId}`, tcgdexId, name: de, altName: en }, details: { names: { de, en }, legal: { standard, expanded: true } } }) as unknown as PokemonCardRecord;
+  const all = [rec("sv03.5-191", "Rossana-ex", "Jynx ex", false), rec("old-1", "Sonderbonbon", "Rare Candy", false), rec("sv01-191", "Sonderbonbon", "Rare Candy", true)];
+  const asked: string[] = [];
+  const source = {
+    search: async ({ q }: { q?: string }) => {
+      asked.push(q ?? "");
+      return all.filter((r) => [r.hit.name, r.hit.altName].some((n) => n && foldCardName(n) === foldCardName(q ?? ""))).map((r) => r.hit);
+    },
+    get: async (id: string) => {
+      const r = all.find((x) => x.tcgdexId === id);
+      if (!r) throw new (await import("../../src/lib/pokemon/tcgdex.ts")).PokemonSourceError("no such card", "not_found", 404);
+      return r;
+    },
+    evolvesInto: async () => [],
+  } as unknown as PokemonDeps["source"];
+  assert.equal((await cardForName(source, "Rare Candy", "standard"))?.tcgdexId, "sv01-191", "the printing that is legal in the deck's format");
+  assert.equal((await cardForName(source, "Rare Candy", "nonsense"))?.tcgdexId, "old-1", "else the first the source lists");
+  assert.equal(await cardForName(source, "Gibt es nicht", "standard"), null);
+  // A near name counts only when it is unambiguous among what the search finds.
+  const loose = { ...source, search: async () => all.map((r) => r.hit) } as unknown as PokemonDeps["source"];
+  assert.equal((await cardForName(loose, "Sonder-Bonbon!", "standard"))?.tcgdexId, "sv01-191", "punctuation and case do not matter");
+  assert.equal((await cardForName(loose, "Sonderbonbon Karte", "standard"))?.tcgdexId, "sv01-191", "one card's name inside what was said");
+  const two = { ...source, search: async () => [...all.map((r) => r.hit), { ...all[1].hit, tcgdexId: "x-1", name: "Sonderbonbon Deluxe", altName: null }] } as unknown as PokemonDeps["source"];
+  assert.equal(await cardForName(two, "Sonderbon", "standard"), null, "two different cards fit: no guess");
+
+  // A busy source is asked again; "no such card" is not; a source that stays down is an error, never "not found".
+  {
+    const { withSourceRetry, sourceIsDown } = await import("../../src/lib/ai/games/pokemon-names.ts");
+    const { PokemonSourceError: SourceError } = await import("../../src/lib/pokemon/tcgdex.ts");
+    let n = 0;
+    assert.equal(await withSourceRetry(async () => { if (++n < 3) throw new SourceError("busy", "unavailable", 503); return "ok"; }, [1, 1]), "ok");
+    assert.equal(n, 3, "two failures, then the answer");
+    n = 0;
+    await assert.rejects(() => withSourceRetry(async () => { n++; throw new SourceError("gone", "not_found", 404); }, [1, 1]));
+    assert.equal(n, 1, "not found is final");
+    n = 0;
+    await assert.rejects(() => withSourceRetry(async () => { n++; throw new SourceError("down", "timeout"); }, [1, 1]), sourceIsDown);
+    assert.equal(n, 3, "three tries, then the error");
+    const down = { ...source, search: async () => { throw new SourceError("down", "unavailable", 503); } } as unknown as PokemonDeps["source"];
+    await assert.rejects(() => cardForName(down, "Rare Candy", "standard"), sourceIsDown, "a name cannot be called unknown while the source is down");
+    assert.deepEqual((await verifySwapNames(db, { source: down, ensure: deps.ensure }, [{ outCardId: "PKM-sv03.5-025", inCardId: "", inName: "Rare Candy" }], "standard")).length, 0, "the wizard leaves out what it cannot check");
+  }
+
+  // The wizard's swaps: the live case (Sonderbonbon given Rossana-ex's id) is put right, a right pair is kept, an unknown name is dropped.
+  const swaps = [
+    { outCardId: "PKM-sv03.5-025", inCardId: "PKM-sv03.5-191", inName: "Sonderbonbon", rationale: "entwickelt sofort" },
+    { outCardId: "PKM-sv03.5-025", inCardId: "PKM-sv03.5-191", inName: "Jynx ex", rationale: "richtig benannt" },
+    { outCardId: "PKM-sv03.5-025", inCardId: "PKM-sv03.5-191", inName: "Professors Forschung", rationale: "gibt es hier nicht" },
+    { outCardId: "PKM-sv03.5-025", inCardId: "PKM-sv03.5-004", rationale: "ohne Namen: bleibt wie es ist" },
+  ];
+  const checked = await verifySwapNames(db, { source, ensure: deps.ensure }, swaps, "standard");
+  assert.deepEqual(checked.map((s) => s.inCardId), ["PKM-sv01-191", "PKM-sv03.5-191", "PKM-sv03.5-004"]);
+  assert.equal(checked[0].rationale, "entwickelt sofort", "the swap keeps its reason and gets the card the reason is about");
+
+  // A list a few cards short gets basic Energy; one far short, or without basic Energy, is left alone.
+  const known = new Map<string, KnownCard>([
+    ["PKM-a", { name: "Glurak-ex", cardType: "POKEMON", details: {} }],
+    ["PKM-c", { name: "Feuer-Energie", cardType: "ENERGY", details: { basicEnergy: true } }],
+    ["PKM-w", { name: "Wasser-Energie", cardType: "ENERGY", details: { basicEnergy: true } }],
+  ]);
+  const short = [{ cardId: "PKM-a", quantity: 45 }, { cardId: "PKM-w", quantity: 2 }, { cardId: "PKM-c", quantity: 12 }];
+  assert.equal(topUpEnergy(short, known), 1, "59 cards: one more of the Energy it plays most of");
+  assert.deepEqual(short.map((l) => l.quantity), [45, 2, 13]);
+  assert.equal(topUpEnergy(short, known), 0, "60 is 60");
+  assert.equal(topUpEnergy([{ cardId: "PKM-a", quantity: 60 - TOP_UP_LIMIT - 1 }, { cardId: "PKM-c", quantity: 0 }], known), 0, "too far short: left for the checker to say");
+  assert.equal(topUpEnergy([{ cardId: "PKM-a", quantity: 58 }], known), 0, "no basic Energy in the list: nothing is invented");
+
+  // A reply that asks for more lookups than a round runs is trimmed and told so, not rejected.
+  const many = Array.from({ length: 9 }, (_, i) => lookup("get_card", { id: `PKM-x-${i}` }));
+  const fake = createFakeProvider({ id: "anthropic-api", script: [{ json: { lookups: many, answer: null } }, { json: { lookups: [], answer: { ok: true } } }] });
+  registerProvider(fake);
+  const ran: string[] = [];
+  const tool = { name: "get_card", description: "one card", run: async (a: { id?: string | null }) => (ran.push(a.id ?? ""), "ok") };
+  const res = await generateWithLookups({ task: "deck_wizard", tier: "best", maxTokens: 1000, schema: z.object({ ok: z.boolean() }), system: [{ text: "RULES" }], messages: [{ role: "user", parts: [{ type: "text", text: "go" }] }] }, [tool]);
+  assert.deepEqual(res.parsed, { ok: true });
+  assert.equal(ran.length, 8, "the first eight of nine lookups ran");
+  assert.ok((fake.requests[1].messages[2].parts[0] as { text: string }).text.includes("your other 1 were not"));
+  resetProviders();
+  void asked;
+}
+console.log("ai-games: card ids checked against the names the model gives, Energy top-up, lookups over the limit");
+
 console.log("ai-games: ok");
 process.exit(0);

@@ -18,6 +18,8 @@ import { pokemonDetails, tcgdexIdOf } from "@/lib/pokemon/types";
 import { DeckScreen, type DeckRowData } from "@/components/pokemon/DeckScreen";
 
 export const dynamic = "force-dynamic";
+/** The wizard looks cards up over several rounds (109 s in the live run of 14 Nov 2026); see the new-deck page. */
+export const maxDuration = 300;
 
 /**
  * Ein Deck: the legality panel, the cards by group with what she owns, and the verbs (search, wish what is

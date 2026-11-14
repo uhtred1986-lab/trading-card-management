@@ -12,7 +12,7 @@
  * The choice (`pickPrinting`, `intoCards`) is pure and checked in `scripts/verify/pokemon-polish.mts`;
  * `loadEvolutions` takes its source as an argument so that check runs on recorded answers.
  */
-import { hitFromTcgdex, listPokemonSets, PokemonSourceError, searchPokemon, setIdOf, type PokemonSearchParams, type PokemonSetInfo } from "./tcgdex";
+import { hitFromTcgdex, isPocketCardId, listPokemonSets, PokemonSourceError, searchPokemon, setIdOf, type PokemonSearchParams, type PokemonSetInfo } from "./tcgdex";
 import type { PokemonDetails, PokemonHit } from "./types";
 
 const BASE = "https://api.tcgdex.net/v2";
@@ -48,6 +48,7 @@ export async function evolvesIntoBriefs(englishName: string): Promise<EvolutionB
   if (!Array.isArray(body)) throw new PokemonSourceError("TCGdex sent something unexpected", "bad_response", res.status);
   return body
     .filter((c): c is { id: string; name?: string; localId?: string; image?: string } => !!c && typeof (c as { id?: unknown }).id === "string")
+    .filter((c) => !isPocketCardId(c.id))
     .map((c) => ({ tcgdexId: c.id, name: c.name ?? c.id, localId: c.localId ?? "", image: c.image ?? null }));
 }
 

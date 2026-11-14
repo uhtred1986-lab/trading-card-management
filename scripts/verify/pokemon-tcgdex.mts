@@ -762,4 +762,13 @@ const lotsOf = async (owner: string | null, printId: string, language?: string) 
 
 globalThis.fetch = realFetch;
 await client.close();
+// The mobile game's cards (TCGdex series `tcgp`) are not printed cards: never a hit, a set or a stored card.
+{
+  const { isPocketCardId, isPocketSetId, getPokemonCard: getCard } = await import("../../src/lib/pokemon/tcgdex.ts");
+  for (const id of ["A2b-069", "A1-001", "A1a-012", "B2a-004", "P-A-001"]) assert.ok(isPocketCardId(id), `${id} is a Pocket card`);
+  for (const id of ["sv03.5-006", "swshp-SWSH062", "swsh12tg-TG12", "me01-048", "30th-023", "sve-002", "base1-4", "ecard1-6", "2024sv-1", "xy12-88"]) assert.ok(!isPocketCardId(id), `${id} is a printed card`);
+  assert.ok(isPocketSetId("A2b") && isPocketSetId("P-A") && !isPocketSetId("sv03.5") && !isPocketSetId("me06"));
+  await assert.rejects(() => getCard("A2b-069"), (e: unknown) => (e as { kind?: string }).kind === "not_found");
+}
+
 console.log("pokemon-tcgdex: ok");
