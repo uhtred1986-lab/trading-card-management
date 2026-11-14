@@ -181,7 +181,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                         <span className="font-medium text-space-50">{p.label}</span> <span className="font-mono text-xs text-space-300">{p.id}</span>
                       </td>
                       <td className="px-3 py-2 text-space-200">{p.rarity}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{eur(pr?.normalCents ?? null)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{pr?.eurCents != null ? formatCents(pr.eurCents, "EUR") : eur(pr?.normalCents ?? null)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{eur(pr?.foilCents ?? null)}</td>
                       <td className="px-3 py-2 text-right text-xs text-space-300">{pr?.capturedOn ?? "no data"}</td>
                     </tr>
@@ -190,7 +190,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
               </tbody>
             </table>
           </div>
-          <p className="mt-1 text-xs text-space-400">TCGplayer market price{usdEur ? ` converted at 1 USD = ${usdEur.toFixed(4)} EUR` : " in USD"}.</p>
+          <p className="mt-1 text-xs text-space-400">
+            {card.game === "pokemon" ? "Cardmarket price in EUR, per variant (no conversion)." : <>TCGplayer market price{usdEur ? ` converted at 1 USD = ${usdEur.toFixed(4)} EUR` : " in USD"}.</>}
+          </p>
         </section>
 
         <MarketplacePanel card={{ id: card.id, name: card.name, game: card.game }} tcgUrl={tcgUrl} />

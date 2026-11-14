@@ -68,7 +68,9 @@ export default async function CardsPage({ searchParams }: { searchParams: Promis
 
   const label = (id: string) => {
     // SR+ cards only exist as foils on TCGplayer, so `priceForFinish` falls back to the foil price.
-    const usd = priceForFinish(prices.get(id), "normal");
+    const pr = prices.get(id);
+    if (pr?.eurCents != null) return formatCents(pr.eurCents, "EUR"); // Pokémon: Cardmarket EUR, not converted
+    const usd = priceForFinish(pr, "normal");
     return usd == null ? null : usdEur != null ? formatCents(Math.round(usd * usdEur), "EUR") : formatCents(usd, "USD");
   };
 
