@@ -63,6 +63,16 @@ export interface DeckRules {
   copiesBy: "number" | "name";
   /** Formats a deck can be built for, the first being the default; empty when the game has one. */
   formats: readonly string[];
+  /**
+   * Which rule checker labels a deck: Bandai's (Leader, Z-Deck, colours, clauses printed on cards)
+   * or Pokémon's own (`src/lib/decks/pokemonLegality.ts`).
+   */
+  ruleset: "bandai" | "pokemon";
+  /**
+   * Whether cards print deck-building clauses and pooled keyword limits the checker reads ("can't
+   * include …", [Dragon Ball], [Ultimate]). The original game only; Fusion World prints none.
+   */
+  printedRules: boolean;
 }
 
 export interface GameInfo {
@@ -81,6 +91,13 @@ export interface GameInfo {
   uiLang: "en" | "de";
   /** The card-type names of this game, for filters and deck groups, in display order. */
   cardTypes: readonly string[];
+  /**
+   * The `card_sets.line` holding this game's current cards (what the AI pools mean by "worth buying
+   * today"), and whether the game's sets split into older lines by number or date (the original game's
+   * legacy / masters split). A game with one line never splits.
+   */
+  currentLine: "masters" | "fusion" | "pokemon";
+  lineByDate: boolean;
   /** How to describe the game to Claude, so it never reasons across the two. */
   promptName: string;
   deck: DeckRules;
@@ -107,9 +124,11 @@ export const GAME_INFO: Record<Game, GameInfo> = {
     tcgCategoryId: 27,
     uiLang: "en",
     cardTypes: ["LEADER", "BATTLE", "EXTRA", "UNISON", "Z-LEADER", "Z-BATTLE", "Z-EXTRA", "Z-UNISON"],
+    currentLine: "masters",
+    lineByDate: true,
     promptName: "Dragon Ball Super Card Game (Bandai; legacy sets BT1–BT25 and the current Masters line — NOT Fusion World)",
     // Rule Manual v4.00 §6-1: 1 leader, 50–60 main, up to 10 Z-cards, 4 copies.
-    deck: { main: 50, mainMax: 60, zMax: 10, copies: 4, colorStrict: false, leader: true, copiesBy: "number", formats: [] },
+    deck: { main: 50, mainMax: 60, zMax: 10, copies: 4, colorStrict: false, leader: true, copiesBy: "number", formats: [], ruleset: "bandai", printedRules: true },
     art: {
       tile: "https://www.dbs-cardgame.com/gameselect/images/btn_master.jpg",
       logo: "https://www.dbs-cardgame.com/gameselect/images/logo.png",
@@ -128,6 +147,8 @@ export const GAME_INFO: Record<Game, GameInfo> = {
     tcgCategoryId: 80,
     uiLang: "en",
     cardTypes: ["LEADER", "BATTLE", "EXTRA"],
+    currentLine: "fusion",
+    lineByDate: false,
     promptName: "Dragon Ball Super Card Game Fusion World (Bandai; the FB/FS/FP/SB/ST sets — NOT the original Masters/legacy game)",
     /*
      * Fusion World Rule Manual v1.20 and the official deck-building FAQ:
@@ -136,7 +157,7 @@ export const GAME_INFO: Record<Game, GameInfo> = {
      * certain color, you can't include a card with that color in your deck").
      * There is no Z-Deck.
      */
-    deck: { main: 50, mainMax: 60, zMax: 0, copies: 4, colorStrict: true, leader: true, copiesBy: "number", formats: [] },
+    deck: { main: 50, mainMax: 60, zMax: 0, copies: 4, colorStrict: true, leader: true, copiesBy: "number", formats: [], ruleset: "bandai", printedRules: false },
     art: {
       tile: "https://www.dbs-cardgame.com/gameselect/images/btn_fw.jpg",
       logo: "https://www.dbs-cardgame.com/fw/renewal01/images/common/logo_fw_w.png",
@@ -155,6 +176,8 @@ export const GAME_INFO: Record<Game, GameInfo> = {
     tcgCategoryId: null,
     uiLang: "de",
     cardTypes: ["POKEMON", "TRAINER", "ENERGY"],
+    currentLine: "pokemon",
+    lineByDate: false,
     promptName: "Pokémon Trading Card Game (The Pokémon Company; NOT a Dragon Ball game: no Leader, no energy colours of Bandai's games)",
     /*
      * Pokémon TCG rules: exactly 60 cards, no Leader, at most 4 cards with the
@@ -163,7 +186,7 @@ export const GAME_INFO: Record<Game, GameInfo> = {
      * cards each allows comes from the source's legality flags, never from a
      * list kept here.
      */
-    deck: { main: 60, mainMax: 60, zMax: 0, copies: 4, colorStrict: false, leader: false, copiesBy: "name", formats: ["standard", "expanded"] },
+    deck: { main: 60, mainMax: 60, zMax: 0, copies: 4, colorStrict: false, leader: false, copiesBy: "name", formats: ["standard", "expanded"], ruleset: "pokemon", printedRules: false },
     // The accent of the Pokémon skin (docs/pokemon/design.md §11).
     art: { tile: null, logo: null, accent: "#ffc93c" },
     nonDeckTypes: [],
@@ -198,6 +221,20 @@ export function parseGame(v: string | null | undefined): Game | undefined {
 /** A game id from anywhere (a database column, a form field), never undefined. */
 export function gameOr(v: unknown, fallback: Game = DEFAULT_GAME): Game {
   return isGame(v) ? v : fallback;
+}
+
+/**
+ * A game id for a write path (creating a deck, a set): an unknown value is an error, never quietly
+ * Dragon Ball. Reads keep `gameOr`.
+ */
+export function strictGame(v: unknown): Game {
+  if (isGame(v)) return v;
+  throw new Error(`Unknown game: ${typeof v === "string" ? JSON.stringify(v) : String(v)}`);
+}
+
+/** The format a new deck of this game starts in, or null for a game without formats. */
+export function defaultFormat(game: unknown): string | null {
+  return deckRules(game).formats[0] ?? null;
 }
 
 export function gameInfo(v: unknown): GameInfo {

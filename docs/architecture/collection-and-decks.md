@@ -36,6 +36,17 @@ Read before touching ownership, reservations, deck legality, deck owners, add-to
   and pooled limits ("up to 7 ≪Dark Dragon Ball≫"). A broken one is an `illegal` flag naming the
   Leader's rule and the card; a clause the parser cannot read is reported in `unread`, never guessed.
   Original game only. The arena shares the parser (a deck-building clause is read-and-empty).
+- **Pokémon decks** have their own checker (`pokemonLegality.ts`, chosen by `GAME_INFO.pokemon.deck.ruleset`,
+  not by `game ===` tests; German texts): exactly 60 cards, no Leader or Z-Deck, at most 4 per
+  **name** (`details.names.en`, else the card name; basic Energy unlimited, `copiesBy: "name"`), one
+  ACE SPEC and one Radiant per deck (`details.onePerDeck`), at least one Basic Pokémon. **Format** is
+  `decks.format` (`standard` by default, `expanded`; `legality(rows, game, format)`; `setDeckFormatAction`
+  stores it, `GAME_INFO[game].deck.formats` says which are valid): a card whose `details.legal[format]`
+  is `false` is flagged illegal, a card with no legality data is a `warning` ("unknown"), never a
+  guess. Every Pokémon card lands in `main`; `getDeck` orders Pokémon (by stage, then name), Trainer,
+  Energy. Reservations and the over-reserve refusal are unchanged. Library code asks `GAME_INFO` /
+  `DeckRules` (`leader`, `zMax`, `printedRules`, `copiesBy`, `formats`) rather than testing for a game;
+  `strictGame()` is for write paths (an unknown game is an error), `gameOr()` for reads.
 - **"Also add to deck"** (`DeckPicker`, `src/lib/decks/add.ts`): every add path can target a deck.
   `addCardsToDeck` sorts by zone and **never caps or replaces** — an over-limit add is flagged
   rather than dropped.

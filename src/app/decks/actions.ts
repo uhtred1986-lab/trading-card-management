@@ -8,11 +8,12 @@ import { cards, deckCards, decks } from "@/db/schema";
 import { currentOwner, currentScope, requireSignedIn, requireSl } from "@/lib/auth";
 import { assertOwnDeck } from "@/lib/auth/ownership";
 import { cardTypesFor, COLORS, quickSearch } from "@/lib/catalog/queries";
-import { DEFAULT_GAME, gameOr, type Game } from "@/lib/catalog/games";
+import { DEFAULT_GAME, defaultFormat, deckRules, gameOr, strictGame, type Game } from "@/lib/catalog/games";
 import { decksForCard, parseDeckList, ZONES, type CardDeckMembership, type Zone } from "@/lib/decks/queries";
 import { zoneForType, type DeckOption } from "@/lib/decks/add";
 import { buildConflicts, type BuildConflict } from "@/lib/decks/reservations";
 import { fileDeckAtLocation, type FilingResult } from "@/lib/decks/filing";
+import { setDeckFormat, type SetFormatResult } from "@/lib/decks/format";
 import { describeAiError, hasAnthropic } from "@/lib/ai/client";
 import { suggestDeckFromCard } from "@/lib/ai/deck-from-card";
 
@@ -35,7 +36,7 @@ export async function createDeckAction(name: string, game: Game = DEFAULT_GAME, 
   const clean = name.trim().slice(0, 120) || "Untitled deck";
   const [row] = await db
     .insert(decks)
-    .values({ name: clean, game: gameOr(game), isTesting, owner: await currentOwner() })
+    .values({ name: clean, game: strictGame(game), format: defaultFormat(game), isTesting, owner: await currentOwner() })
     .returning({ id: decks.id, name: decks.name, isBuilt: decks.isBuilt, isTesting: decks.isTesting, game: decks.game });
   revalidate();
   if (isTesting) revalidateTestingPickers();
@@ -45,12 +46,12 @@ export async function createDeckAction(name: string, game: Game = DEFAULT_GAME, 
 export async function createDeckForm(formData: FormData) {
   await requireSignedIn();
   const name = String(formData.get("name") ?? "").trim() || "Untitled deck";
-  const game = gameOr(formData.get("game"));
+  const game = strictGame(formData.get("game") ?? DEFAULT_GAME);
   const isTesting = formData.get("isTesting") === "on";
   if (isTesting) await requireSl();
   const [row] = await db
     .insert(decks)
-    .values({ name, game, isTesting, owner: await currentOwner() })
+    .values({ name, game, format: defaultFormat(game), isTesting, owner: await currentOwner() })
     .returning({ id: decks.id });
   revalidate();
   if (isTesting) revalidateTestingPickers();
@@ -60,10 +61,15 @@ export async function createDeckForm(formData: FormData) {
 export async function updateDeck(id: number, patch: { name?: string; game?: Game; description?: string | null; metaNotes?: string | null; locationId?: number | null; isTesting?: boolean }) {
   const viewer = patch.isTesting === undefined ? await requireSignedIn() : await requireSl();
   await assertOwnDeck(viewer, id);
-  await db
-    .update(decks)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(eq(decks.id, id));
+  const set: Partial<typeof decks.$inferInsert> = { ...patch, updatedAt: new Date() };
+  if (patch.game !== undefined) {
+    // The format follows the game: kept when the new game has it, else the new game's default (null for Dragon Ball).
+    const game = strictGame(patch.game);
+    const current = await db.query.decks.findFirst({ where: eq(decks.id, id), columns: { format: true } });
+    set.game = game;
+    set.format = current?.format && deckRules(game).formats.includes(current.format) ? current.format : defaultFormat(game);
+  }
+  await db.update(decks).set(set).where(eq(decks.id, id));
   // Moving a built deck to another box moves the cards in it.
   if (patch.locationId !== undefined) await fileDeckAtLocation(db, id);
   revalidate(id);
@@ -81,6 +87,18 @@ export async function setDeckShareableAction(deckId: number, shareable: boolean)
   await db.update(decks).set({ shareable, updatedAt: new Date() }).where(eq(decks.id, deckId));
   revalidate(deckId);
   return { ok: true };
+}
+
+/**
+ * The format a deck is built for (Pokémon: Standard or Expanded). Saved on the spot like the filing
+ * location. Only a format the deck's game has is accepted; the legality flags follow it.
+ */
+export async function setDeckFormatAction(deckId: number, format: string): Promise<SetFormatResult> {
+  const viewer = await requireSignedIn();
+  await assertOwnDeck(viewer, deckId);
+  const result = await setDeckFormat(db, deckId, format);
+  if (result.ok) revalidate(deckId);
+  return result;
 }
 
 export async function updateDeckForm(formData: FormData) {
@@ -137,7 +155,7 @@ export async function duplicateDeck(id: number): Promise<number> {
   if (!src) throw new Error("Deck not found");
   const [row] = await db
     .insert(decks)
-    .values({ name: `${src.name} (copy)`, game: src.game, description: src.description, metaNotes: src.metaNotes, isTesting: src.isTesting, owner: await currentOwner() })
+    .values({ name: `${src.name} (copy)`, game: src.game, format: src.format, description: src.description, metaNotes: src.metaNotes, isTesting: src.isTesting, owner: await currentOwner() })
     .returning({ id: decks.id });
   await db.execute(sql`insert into deck_cards (deck_id, card_id, zone, quantity) select ${row.id}, card_id, zone, quantity from deck_cards where deck_id = ${id}`);
   revalidate();
