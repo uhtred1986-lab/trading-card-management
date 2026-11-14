@@ -61,13 +61,19 @@ export function OfflineNotice() {
     : german
       ? "Kein Internet. Du siehst den letzten Stand."
       : "You are offline. You are seeing what this device saw last.";
+  // Fixed colours, not theme classes: the Pokémon skin repaints the theme ones, and this must read on every skin.
   return (
-    <p
-      role="status"
-      aria-live="polite"
-      className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-30 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-full border border-amber-400/60 bg-space-950/95 px-4 py-1.5 text-center text-sm text-amber-200 shadow-lg sm:bottom-4"
-    >
-      {text}
-    </p>
+    <>
+      {/* The swipe viewer has the whole screen; the line waits behind it. */}
+      <style>{"body:has(.csv) .offline-notice{display:none}"}</style>
+      <p
+        role="status"
+        aria-live="polite"
+        className="offline-notice pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-30 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-full border px-4 py-1.5 text-center text-sm shadow-lg sm:bottom-4"
+        style={{ background: "#1d3944", color: "#fff4d6", borderColor: "#ffc93c" }}
+      >
+        {text}
+      </p>
+    </>
   );
 }

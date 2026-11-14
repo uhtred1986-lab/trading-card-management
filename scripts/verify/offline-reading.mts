@@ -14,7 +14,7 @@
  *      /join or /password-login each delete everything kept: the next person never sees the last one's pages.
  *   5. Nothing else is kept: /settings, /cart, /api/*, a POST, a prefetch; card photos and the
  *      optimiser's pictures only while a person's cache exists, and only for that person.
- *   6. Followed links (RSC): kept per page it was followed from, served offline, never when prefetching; a miss offline
+ *   6. Followed links (RSC): kept under the exact request (the `_rsc` hash is Next's hash of its router headers), served offline, never when prefetching; a miss offline
  *      is a network error (Next then does a full page load, which the page copy answers). After a
  *      payload is kept the page's HTML is fetched too, so a page reached only by tapping is openable.
  *   7. A slow or failing network with a copy shows the copy; a 500 with a copy shows the copy; a 404 or
@@ -100,7 +100,7 @@ function world() {
   const caches = new FakeCaches();
   const state = { online: true, report: undefined as boolean | undefined, who: "alice" as string | null, routes: {} as Record<string, Route>, hits: [] as string[], timers: [] as { fn: () => void; ms: number }[] };
   const handlers: Record<string, (e: unknown) => void> = {};
-  const fetch = async (input: unknown, init?: RequestInit) => {
+  const fetch = async (input: unknown) => {
     const url = keyOf(input);
     const path = url.slice(ORIGIN.length);
     state.hits.push(path);
@@ -307,7 +307,7 @@ await check("5. nothing else is kept: settings, cart, other APIs, POSTs; photos 
   assert.equal(await w.request("/settings", nav).then((r) => (r === "pass" ? 0 : (r as Response).status)), 503, "settings is never served from the cache");
 });
 
-await check("6. followed links (RSC): kept per page it was followed from, served offline, never prefetches; HTML follows", async () => {
+await check("6. followed links (RSC): kept per exact request, served offline, never prefetches; HTML follows", async () => {
   const w = world();
   w.state.routes = { "/decks": { body: "<html>decks</html>" } };
   const rsc = (from: string, extra: Record<string, string> = {}) => ({ headers: { rsc: "1", "next-url": from, "next-router-state-tree": `tree-${Math.random()}`, ...extra } });
@@ -318,7 +318,7 @@ await check("6. followed links (RSC): kept per page it was followed from, served
   assert.ok(kept.some((p) => p.startsWith("/__dbs-offline/rsc/decks")), "the payload is kept");
   assert.ok(kept.includes("/decks"), "and the page's HTML, which a followed link never asks for");
   w.state.online = false;
-  assert.equal(await text(await w.request("/decks?_rsc=zzzz", rsc("/from-a"))), "0:flight-a", "the per-request hash and the state tree do not matter");
+  assert.equal(await text(await w.request("/decks?_rsc=h1", rsc("/from-a"))), "0:flight-a", "the same request (Next hashes its router headers into _rsc) finds its copy");
   const other = await w.request("/decks?_rsc=zzzz", rsc("/from-b"));
   assert.ok(other !== "pass" && other.type === "error", "another starting point has no copy: network error, so Next loads the page");
   assert.equal(await text(await w.request("/decks", nav)), "<html>decks</html>");
@@ -437,6 +437,20 @@ await check("9. build files: kept when no shell holds them, served offline", asy
   const hit = (await w.request("/_next/static/chunks/a.js?dpl=abc")) as Response;
   assert.equal(await hit.text(), "console.log(1)");
   await assert.rejects((w.request("/_next/static/chunks/never.js") as Promise<Response>), /Failed to fetch/);
+});
+
+await check("9b. card art at a size never fetched: offline, the optimiser copy of that picture or the small TCGdex file stands in", async () => {
+  const w = world();
+  w.state.routes = { "/collection": {}, "/_next/image?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fa%2Fb%2F1%2Fhigh.webp&w=256&q=75": { body: "optimised", type: "image/webp" } };
+  await w.request("/collection", nav);
+  await w.request("/_next/image?url=https%3A%2F%2Fassets.tcgdex.net%2Fen%2Fa%2Fb%2F1%2Fhigh.webp&w=256&q=75");
+  const art = await w.caches.open("dbs-card-art-v1");
+  await art.put("https://assets.tcgdex.net/en/a/b/2/low.webp", new Response("small"));
+  w.state.online = false;
+  assert.equal(await text(await w.request("https://assets.tcgdex.net/en/a/b/1/high.webp", { mode: "no-cors" })), "optimised");
+  assert.equal(await text(await w.request("https://assets.tcgdex.net/en/a/b/2/high.webp", { mode: "no-cors" })), "small");
+  const none = await w.request("https://assets.tcgdex.net/en/a/b/3/high.webp", { mode: "no-cors" });
+  assert.ok(none !== "pass" && none.type === "error", "nothing near: a network error, as before");
 });
 
 await check("10. the worker still never skips waiting or claims, and its art cache name is the one the arena tests pin", () => {

@@ -371,8 +371,37 @@ async function cacheFirstArt(request) {
     if (response.ok || response.type === "opaque") await cache.put(request, response.clone());
     return response;
   } catch {
-    return Response.error();
+    return (await artWithoutNetwork(request)) || Response.error();
   }
+}
+
+/**
+ * Card art asked for at a size this device never fetched (the swipe viewer wants the big picture, the
+ * grid showed a small one): with no network, the nearest copy it has. The same person's optimiser copy
+ * of that picture (`/_next/image?url=...`, kept by `personalMedia`), or the small TCGdex file for the
+ * large one (`high.webp` -> `low.webp`). A softer picture beats a broken one.
+ */
+async function artWithoutNetwork(request) {
+  try {
+    const pages = await currentPages();
+    if (pages) {
+      for (const key of await pages.keys()) {
+        const u = new URL(key.url);
+        if (u.pathname === "/_next/image" && u.searchParams.get("url") === request.url) {
+          const hit = await pages.match(key, { ignoreVary: true });
+          if (hit) return hit;
+        }
+      }
+    }
+    if (/\/high\.(webp|png|jpg)$/.test(request.url)) {
+      const art = await caches.open(ART_CACHE);
+      const hit = await art.match(request.url.replace(/\/high\.(webp|png|jpg)$/, "/low.$1"));
+      if (hit) return hit;
+    }
+  } catch {
+    // Nothing nearer to show.
+  }
+  return null;
 }
 
 // ── offline reading ────────────────────────────────────────────────────────────────────────────
@@ -405,19 +434,16 @@ function isPersonalMedia(path) {
 }
 
 /**
- * The key of a followed link's payload: the page without Next's per-request `_rsc` hash, and the page
- * the person is coming from (`next-url`), because that decides which layouts the payload leaves out
- * (Pokémon pages share the /pokemon layout, a Dragon Ball page does not). The state tree header is NOT
- * part of it: it also records which prefetches finished, so it differs between a connected page and
- * the same page opened from a cached copy.
+ * The key of a followed link's payload: the URL as Next asked for it, `_rsc` included. That value is
+ * Next's own hash of the request's router headers (the state tree the client holds, the page it is on),
+ * so one key is one exact request, and the copy is only ever shown to the request it was made for. A
+ * looser key (the page and where it was followed from) showed the wrong page under the right address
+ * in the browser check: the payload is a patch against the client's tree, and the tree of a page opened
+ * from a copy differs from the one of a connected page (it records which prefetches finished).
+ * A request with another hash simply finds nothing, which makes Next load the page itself (`readablePage`).
  */
 function rscKey(request, url) {
-  const u = new URL(url.href);
-  u.searchParams.delete("_rsc");
-  const held = request.headers.get("next-url") || "";
-  let h = 5381;
-  for (let i = 0; i < held.length; i++) h = ((h * 33) ^ held.charCodeAt(i)) >>> 0;
-  return `${RSC_PREFIX}${u.pathname}${u.search}${u.search ? "&" : "?"}t=${h.toString(36)}`;
+  return RSC_PREFIX + url.pathname + url.search;
 }
 
 const isMediaKey = (path) => isPersonalMedia(path);
