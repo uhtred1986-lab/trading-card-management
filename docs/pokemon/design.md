@@ -1,7 +1,7 @@
 # Pokémon screens: design
 
 Status: **updated with the owner's decisions, 14 Nov 2026** (`plan.md` §9). Companion to `plan.md`. Wireframes are 390 px phone
-frames; desktop notes follow each. Copy is shown in German, the one assumption still to confirm (`plan.md` §9, 2). The user is 12 with
+frames; desktop notes follow each. Copy is German, as decided (`plan.md` §9, 2). The user is 12 with
 her own phone: plain language, but no need for a simplified child mode.
 Tokens, type and components come from `docs/design/design-system.md`; nothing here adds a colour or
 a font except one accent for the game mark.
@@ -287,5 +287,5 @@ The owner, as SL, in `/cart`:
 
 ## 11. Still open
 
-Only the screen language (German assumed). A clickable phone prototype of §3 and §5 can be made
+Nothing on the design side. The run waits for the owner's go-ahead. A clickable phone prototype of §3 and §5 can be made
 before any worker starts, if the owner wants to see it first.

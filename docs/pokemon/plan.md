@@ -153,8 +153,7 @@ Size: a few hundred to a few thousand rows for one child's collection, against 2
 
 1. **User:** she is 12 and has her own phone; she gets a player account of her own by join code.
 2. **Language:** her cards are German and English mixed, so search, voice and buying handle both.
-   The owner did not say which language the Pokémon screens speak; **German is assumed** and is the
-   one point still to confirm.
+   The Pokémon screens speak **German**; the Dragon Ball screens stay English.
 3. **Money:** she may see prices.
 4. **Photo override:** "local" meant stored in the app's database, not live from the API.
 5. **Trading:** meant buying only. No trading feature.
@@ -224,7 +223,8 @@ for every touched route at 390 and 1440, a live read against TCGdex, the CardTra
 (§3), and the migration SQL read for anything destructive. Merging deploys and migrates production,
 so the PR stays a draft until the owner has seen the screenshots.
 
-Needs the owner's say-so before the run: only the screen language (§9, 2). No new npm dependency, no
+Needs the owner's say-so before the run: the go-ahead itself. The owner is reading the plan and
+design first (14 Nov 2026). No new npm dependency, no
 destructive migration and no Vercel setting. A paid photo-scan test only if the owner asks for it.
 
 ## 12. Risks
