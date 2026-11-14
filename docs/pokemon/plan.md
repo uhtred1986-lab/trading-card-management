@@ -1,8 +1,8 @@
 # Pokémon in the collection, deck and buying screens: plan
 
-Status: **decisions taken, 14 Nov 2026** (owner's answers are in §9; the **(Q n)** marks point at
-them). Nothing is built. The look and the flows are in `design.md` beside
-this file.
+Status: **built, 14 Nov 2026**. The decisions were taken the same day, before the build (owner's
+answers are in §9; the **(Q n)** marks point at them). The look and the flows are in `design.md` beside
+this file. What the build changed is in §13; the code map is `docs/architecture/pokemon.md`.
 
 ## 1. Goal
 
@@ -252,3 +252,69 @@ destructive migration and no Vercel setting. A paid photo-scan test only if the 
   the Pokémon exception in `catalog-and-sync.md`.
 - **Database size** from photos: about 100 KB each. A thousand overrides is 100 MB on Neon; the
   upload action counts and refuses beyond a ceiling the owner can raise.
+
+## 13. Built: what differs from this plan
+
+Written after the build (14 Nov 2026). Each line names the file that shows the difference. Lines marked
+*partly* did not reach the whole of the plan item.
+
+**Differences in the build**
+
+1. **`ensurePokemonCard` takes `(db, tcgdexId, opts)`**, not `(tcgdexId, lang)`. It reads both languages
+   and also writes the set row `card_sets` (`PKM-<setId>`, `line = "pokemon"`), which §4 did not list.
+   `src/lib/pokemon/store.ts`.
+2. **`legality(rows, game, format)`** takes the deck's format. §7 kept `legality(rows, game)`.
+   `src/lib/decks/legality.ts`.
+3. **The Pokémon scan prompt** is in `src/lib/ai/scan-prompts.ts` (`scanPromptFor`), not in `src/lib/ai/scan.ts`,
+   which carries only the Pokémon read (`readPokemonPhoto`). §6 put it in `scan.ts`.
+   `src/lib/ai/scan-prompts.ts`, `src/lib/ai/scan.ts`.
+4. **A binder-page photo is not kept as a scan batch.** Nothing is stored by the Pokémon scan, and the
+   scan-batch tables are not used. §6 said the page goes through the existing scan batch.
+   `src/components/pokemon/PokemonPhotoAdd.tsx` (header comment), `src/lib/pokemon/scan.ts`.
+5. **CardTrader has two paths**, a direct blueprint id and a fallback by expansion and collector number that
+   stores the corrected id on the print. §3 step 1 asked for the id to be proved first. **The mapping is
+   unproven**: `scripts/pokemon-ct-check.mts` has not been run with a token. `src/lib/marketplace/cardtrader-pokemon.ts`.
+6. **Printed set codes and letter collector IDs** ("MEW 006/165", "SWSH062", "TG12/TG30") are understood in
+   search, voice and the photo match. §3 and §6 did not list them. `src/lib/pokemon/card-id.ts`,
+   `src/lib/pokemon/voice.ts` (`spokenCodeLetters`), `src/lib/pokemon/scan-match.ts` (`parsePrintedNumber`).
+7. **The photo ceiling is a constant**: `MAX_PHOTOS_PER_OWNER = 1000` in `src/lib/collection/photos.ts`. §12
+   said the owner could raise it; no screen does that. The browser still scales the photo to 750 px wide
+   (`src/components/PhotoOverride.tsx`) and the server refuses over 400 KB.
+8. **The Claude card source adds a tool**: the model gets the viewer's own cards plus three TCGdex lookups
+   (`search_cards`, `evolves_from`, `get_card`). §7 named only a live search. `src/lib/ai/games/pokemon-source.ts`.
+9. **Language on the lot** is as §4 planned (`owned_cards.language`, `DE` or `EN`); the print id carries only
+   the variant. `src/lib/pokemon/types.ts`, `src/lib/pokemon/collection.ts` (`PokemonLotLanguage`).
+
+**§10 improvements, as built**
+
+10. Item 1, per-game fields in `GAME_INFO`: *partly*. `GAME_INFO` holds the game's catalog kind, screen
+    language, card types, deck rules and art. Game tests remain in `src/lib/marketplace/cardtrader.ts`,
+    `src/lib/pricing/tcgcsv.ts`, `src/lib/catalog/deckplanet.ts`, `src/app/decks/[id]/page.tsx` and the arena
+    files (`grep -rn 'game === "' src`).
+11. Item 2, sync loops over `SYNCED_GAMES`, and `catalog: "sync" | "live"`: done. `src/lib/catalog/games.ts`,
+    `src/lib/catalog/deckplanet.ts`, `src/lib/pricing/tcgcsv.ts`, `src/lib/meta/sync.ts`.
+12. Item 3, unknown game: *partly*. `strictGame` throws on unknown values for write paths; `gameOr` still falls
+    back to Dragon Ball on reads. `src/lib/catalog/games.ts`.
+13. Item 4, per-game stat list: *partly*. `cardStats` (per game) drives the shared card page;
+    the tile components were not part of this check. `src/lib/catalog/card-stats.ts`,
+    `src/app/cards/[id]/page.tsx`.
+14. Item 5, SLs open a player's wishes: done. `src/app/cart/page.tsx` (`?for=`), `src/lib/marketplace/wishes.ts`.
+15. Item 6, image hosts listed once: *partly*. The list is still written twice by hand; a test fails when
+    `next.config.ts` and `ART_HOSTS` in `public/sw.js` differ. `scripts/verify/image-hosts.ts`.
+16. Item 7, voice language: *partly*. The default follows the game's screen language and the last choice is
+    remembered per device, not per user. `src/lib/scan/speech-lang.ts`.
+17. Item 8, PWA name and start URL: done. The name is "Card Companion" and the start URL is `/?source=pwa`.
+    The root `/` sends a Pokémon player to `/pokemon`; a `?source=pwa` launch goes to `/arena` for everyone
+    else. `src/app/manifest.ts`, `src/app/page.tsx`.
+18. Item 9, one game-neutral Claude layer: done. `src/lib/ai/games/index.ts`, `src/lib/ai/games/pokemon.ts`.
+19. Item 10, one swipe viewer: done. `src/components/CardSwipeViewer.tsx`, used by `src/components/CardViewer.tsx`
+    on `/cards` and `/collection`, and by `src/components/pokemon/PokemonViewer.tsx`.
+20. Item 11, offline reading: done, with the limits in `docs/architecture/collection-and-decks.md`
+    ("Offline reading"). `public/sw.js`, `src/lib/offline-pages.ts`, `scripts/verify/offline-reading.mts`.
+
+**Not checked in this delivery**
+
+- A real phone, real speech recognition, a real model run on a Pokémon photo or deck, and a real CardTrader
+  call. The tests use recorded TCGdex responses (`scripts/verify/fixtures/pokemon/`), a stubbed `fetch` and a
+  synthetic CardTrader fixture (`scripts/verify/pokemon-cart.mts`).
+- The mapping of TCGdex's CardTrader number to a blueprint id (item 5).

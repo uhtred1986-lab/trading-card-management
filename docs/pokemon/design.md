@@ -298,6 +298,15 @@ The owner, as SL, in `/cart`:
   canvas, so card grids sit on a calm ground.
 - **Clickable prototype:** https://claude.ai/artifact/LVHoG6BgT1VfmFXBegiBkV (private to the owner).
   Real card data and prices from TCGdex; collection, deck, voice and photo recognition are examples.
+- **Screenshots of the built screens:** `docs/pokemon/shots/`, 29 WebP files. Most are 390 px phone
+  frames; `card-page-pokemon-1100.webp`, `entdecken-1280.webp` and `sammlung-1280.webp` are desktop widths.
+  Files: `card-page-pokemon-1100`, `deck-claude-bauen-390`, `deck-claude-panel-390`, `deck-entwurf-390`,
+  `deck-erweitert-390`, `deck-gebaut-abgelehnt-390`, `deck-liste-einfuegen-390`, `deck-loeschen-390`,
+  `deck-neu-karte-390`, `deck-standard-390`, `deck-tauschvorschlag-390`, `decks-leer-390`, `decks-liste-390`,
+  `detail-390`, `dragonball-seite-pokemon-deck-390`, `entdecken-1280`, `entdecken-empty-390`,
+  `entdecken-fuer-deck-390`, `entdecken-search-390`, `entdecken-sets-390`, `hab-ich-390`, `ins-deck-390`,
+  `mia-sammlung-390`, `sammlung-1280`, `sammlung-390`, `sammlung-leer-390`, `settings-home-game-390`,
+  `viewer-390`, `wuensche-390` (all `.webp`). This note did not re-shoot them.
 
 ## 12. Still open
 
