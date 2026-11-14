@@ -31,6 +31,7 @@ export function LiveSearch({
   const pathname = usePathname();
   const [value, setValue] = useState(defaultValue ?? "");
   const [pending, start] = useTransition();
+  const [offline, setOffline] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Read in the debounce callback rather than closed over, so the timer never
   // fires with a stale filter set. Written from an effect, not during render.
@@ -42,6 +43,12 @@ export function LiveSearch({
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
   const go = (next: string) => {
+    // No network: a new search would only show the last page this device kept, filter ignored.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setOffline(true);
+      return;
+    }
+    setOffline(false);
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(latest.current ?? {})) {
       if (Array.isArray(v)) for (const one of v) p.append(k, one);
@@ -78,6 +85,11 @@ export function LiveSearch({
         className="tap w-full rounded-md border border-space-600 bg-space-900 px-2 py-1.5 pr-7 text-sm text-space-100"
       />
       {pending ? <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-space-400">…</span> : null}
+      {offline ? (
+        <span role="status" className="absolute left-0 top-full z-10 mt-1 rounded bg-space-950 px-2 py-0.5 text-xs text-amber-200">
+          You are offline. Search needs a connection.
+        </span>
+      ) : null}
     </div>
   );
 }

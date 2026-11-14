@@ -74,6 +74,8 @@ const WHO_META = "/__dbs-offline/who";
 const START_META = "/__dbs-offline/start";
 /** A cached RSC payload lives under this prefix, so it can never be mistaken for the page's HTML. */
 const RSC_PREFIX = "/__dbs-offline/rsc";
+/** The last copy of a page seen with a query string (a filter), under its bare path: what is shown for a filter this device never saw. */
+const LAST_PREFIX = "/__dbs-offline/last";
 const SIGN_IN_PATHS = ["/login", "/join", "/password-login"];
 const PAGE_LIMIT = 60;
 const MEDIA_LIMIT = 800;
@@ -220,8 +222,9 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     if (url.pathname === SHELL_PATH) event.respondWith(shellPage(request, url));
-    else if (url.pathname === "/" && url.searchParams.get("source") === "pwa") event.respondWith(startPage(request, url));
+    else if (url.pathname === "/" && url.searchParams.get("source") === "pwa") event.respondWith(startPage(event, request, url));
     else if (readableArea(url.pathname)) event.respondWith(readablePage(event, request, url));
+    else if (isPokemonPath(url.pathname)) event.respondWith(pokemonNeedsNetwork(request, url));
     else event.respondWith(networkOrShell(request, url));
     return;
   }
@@ -401,11 +404,17 @@ function isPersonalMedia(path) {
   return path === "/_next/image" || /^\/api\/card-photo\/\d+$/.test(path);
 }
 
-/** The key of a followed link's payload: the page, without Next's per-request `_rsc` hash, plus what the client already holds (the state tree decides what the payload leaves out). */
+/**
+ * The key of a followed link's payload: the page without Next's per-request `_rsc` hash, and the page
+ * the person is coming from (`next-url`), because that decides which layouts the payload leaves out
+ * (Pokémon pages share the /pokemon layout, a Dragon Ball page does not). The state tree header is NOT
+ * part of it: it also records which prefetches finished, so it differs between a connected page and
+ * the same page opened from a cached copy.
+ */
 function rscKey(request, url) {
   const u = new URL(url.href);
   u.searchParams.delete("_rsc");
-  const held = (request.headers.get("next-router-state-tree") || "") + "|" + (request.headers.get("next-url") || "");
+  const held = request.headers.get("next-url") || "";
   let h = 5381;
   for (let i = 0; i < held.length; i++) h = ((h * 33) ^ held.charCodeAt(i)) >>> 0;
   return `${RSC_PREFIX}${u.pathname}${u.search}${u.search ? "&" : "?"}t=${h.toString(36)}`;
@@ -471,14 +480,34 @@ async function storePage(response, key, type, alias) {
   if (!cache) return;
   const second = alias && alias !== key ? response.clone() : null;
   await cache.put(at(key), response);
-  if (second) await cache.put(at(alias), second);
+  if (second) await cache.put(at(LAST_PREFIX + alias), second);
   await trim(cache, isPageKey, PAGE_LIMIT);
 }
 
 /** Keep a copy without making the person wait for it. `response.clone()` is taken now, before the page reads the body. */
-function keepLater(event, response, key, type, alias) {
-  const job = storePage(response.clone(), key, type, alias).catch(() => {});
+function keepLater(event, response, key, type, alias, then) {
+  const job = storePage(response.clone(), key, type, alias)
+    .then(then)
+    .catch(() => {});
   if (event && typeof event.waitUntil === "function") event.waitUntil(job);
+}
+
+/**
+ * Followed links never ask for the page's HTML, so a page reached only that way would have a payload
+ * kept and nothing to open from a cold start. After a payload is kept, the page's HTML is fetched
+ * too unless a copy under five minutes old is there (one more render of one of the readable pages).
+ */
+async function ensureHtml(event, url) {
+  const cache = await currentPages();
+  if (!cache) return;
+  const bare = new URL(url.href);
+  bare.searchParams.delete("_rsc");
+  const key = bare.pathname + bare.search;
+  const have = await cache.match(at(key), { ignoreVary: true });
+  const date = have ? Date.parse(have.headers.get("date") || "") : NaN;
+  if (have && Number.isFinite(date) && Date.now() - date < 5 * 60 * 1000) return;
+  const response = await fetch(key, { credentials: "same-origin", headers: { accept: "text/html" } });
+  await storePage(response, key, "text/html", bare.pathname);
 }
 
 /**
@@ -506,15 +535,10 @@ async function networkFirst(event, load, hit) {
 async function pageHit(key, path) {
   const cache = await currentPages();
   if (!cache) return null;
-  return (await cache.match(at(key), { ignoreVary: true })) || (await cache.match(at(path), { ignoreVary: true })) || null;
+  return (await cache.match(at(key), { ignoreVary: true })) || (await cache.match(at(LAST_PREFIX + path), { ignoreVary: true })) || null;
 }
 
-function neverSeenPage(path, withShell) {
-  const de = path === "/pokemon" || path.startsWith("/pokemon/");
-  const lead = de ? "Kein Internet" : "No connection";
-  const body = de ? "Diese Seite hast du auf diesem Gerät noch nicht geöffnet, darum gibt es noch nichts zu zeigen. Mit Internet geht es wieder." : "This page has not been opened on this device yet, so there is nothing saved to show. It works again with a connection.";
-  const back = de ? '<a href="/pokemon">Zur Sammlung</a>' : '<a href="/collection">Collection</a>';
-  const arena = withShell && !de ? ` · <a href="${SHELL_PATH}">Play on this device</a>` : "";
+function noticePage(de, lead, body, links) {
   return `<!doctype html><html lang="${de ? "de" : "en"}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${lead}</title><style>
@@ -523,8 +547,33 @@ font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 div{height:100%;display:grid;place-content:center;text-align:center;padding:2rem;gap:.5rem}
 b{color:#ffa733;font-size:1.1rem}small{color:#7d8bb0}a{color:#ffa733}
 </style></head><body><div><b>${lead}</b>
-<small>${body}</small><small>${back}${arena}</small>
+<small>${body}</small><small>${links}</small>
 </div></body></html>`;
+}
+
+const isPokemonPath = (path) => path === "/pokemon" || path.startsWith("/pokemon/");
+
+/** A readable page this device has no copy of. */
+function neverSeenPage(path, withShell, here) {
+  const de = isPokemonPath(path);
+  const back = (de ? '<a href="/pokemon">Zur Sammlung</a>' : '<a href="/collection">Collection</a>') + ` · <a href="${here}">${de ? "Nochmal versuchen" : "Try again"}</a>`;
+  const arena = withShell && !de ? ` · <a href="${SHELL_PATH}">Play on this device</a>` : "";
+  return noticePage(
+    de,
+    de ? "Kein Internet" : "No connection",
+    de ? "Diese Seite hast du auf diesem Gerät noch nicht geöffnet, darum gibt es noch nichts zu zeigen. Mit Internet geht es wieder." : "This page has not been opened on this device yet, so there is nothing saved to show. It works again with a connection.",
+    back + arena,
+  );
+}
+
+/** Any other Pokémon page (adding, searching): it needs the server, and says so in the area's language. */
+async function pokemonNeedsNetwork(request, url) {
+  try {
+    return await fetch(request);
+  } catch {
+    const here = url.pathname + url.search;
+    return new Response(noticePage(true, "Kein Internet", "Das geht nur mit Internet. Deine Sammlung kannst du trotzdem ansehen.", `<a href="/pokemon">Zur Sammlung</a> · <a href="${here}">Nochmal versuchen</a>`), { status: 503, headers: { "content-type": "text/html; charset=utf-8" } });
+  }
 }
 
 /** A readable page: the network first (and the answer kept), the last-seen copy when there is none. */
@@ -536,12 +585,18 @@ async function readablePage(event, request, url) {
     return response;
   };
   const hit = await pageHit(key, url.pathname);
-  if (browserOffline()) {
-    if (hit) return hit;
-    return new Response(neverSeenPage(url.pathname, (await completeShells()).length > 0), { status: 503, headers: { "content-type": "text/html; charset=utf-8" } });
+  const never = async () => new Response(neverSeenPage(url.pathname, (await completeShells()).length > 0, key), { status: 503, headers: { "content-type": "text/html; charset=utf-8" } });
+  if (browserOffline()) return hit || never();
+  if (hit) return networkFirst(event, load, hit);
+  // Nothing kept for this page: the network, once more on a failure, then the notice (never the arena).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await load();
+    } catch {
+      // Try again, then say so.
+    }
   }
-  if (!hit) return networkOrShell(request, url, load);
-  return networkFirst(event, load, hit);
+  return never();
 }
 
 /** The payload of a followed link. With none to show, the failure sends Next to a full page load, which `readablePage` answers. */
@@ -549,7 +604,7 @@ async function readableRsc(event, request, url) {
   const key = rscKey(request, url);
   const load = async () => {
     const response = await fetch(request);
-    keepLater(event, response, key, "text/x-component");
+    keepLater(event, response, key, "text/x-component", undefined, () => ensureHtml(event, url));
     return response;
   };
   const cache = await currentPages();
@@ -584,36 +639,53 @@ async function personalMedia(request) {
 
 /**
  * The installed app's start URL, `/?source=pwa`, which the server turns into `/arena` or `/pokemon`
- * per person (src/app/page.tsx). Online the worker asks, follows the redirect itself and remembers
- * where it went (for this person only); offline it sends the cold launch where it went last:
- * the arena's shell for the arena, the kept page for `/pokemon`. With nothing remembered a device that
- * has an arena shell goes to the arena (that was the start page before), else to a kept `/pokemon`.
+ * per person (src/app/page.tsx). Online it is the network, untouched, and the worker only watches
+ * where the page sends the person: the redirect cannot be read from the response of a navigation
+ * (`opaqueredirect`), and with the root `loading.tsx` the server answers 200 and Next writes the
+ * redirect into the stream as `<meta id="__next-page-redirect" http-equiv="refresh" content="1;url=...">`,
+ * which is what is read here (from a copy, the first 64 KB). It is remembered for this person only.
+ * Offline, the cold launch goes where it went last: the arena's shell for the arena, the kept page
+ * for `/pokemon`. With nothing remembered a device that has an arena shell goes to the arena (the
+ * start page before this), else to a kept `/pokemon`, else the notice.
  */
-async function startPage(request, url) {
+async function startPage(event, request, url) {
   if (browserOffline()) return offlineStart();
-  let response;
+  return networkOrShell(request, url, async () => {
+    const response = await fetch(request);
+    const copy = response.clone();
+    const job = rememberStart(copy).catch(() => {});
+    if (event && typeof event.waitUntil === "function") event.waitUntil(job);
+    return response;
+  });
+}
+
+/** Where a page response sends the person, from Next's redirect meta (null when it sends nobody). */
+async function redirectTarget(response) {
+  if (response.status !== 200 || !response.body) return null;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let seen = "";
   try {
-    response = await fetch(url.href, { credentials: "same-origin", redirect: "follow" });
-  } catch {
-    return networkOrShell(request, url);
-  }
-  if (!response.redirected) return response;
-  const to = new URL(response.url);
-  try {
-    if (response.body) void response.body.cancel();
-  } catch {
-    // The body was never going to be used.
-  }
-  if (to.origin !== self.location.origin || to.pathname === "/") return networkOrShell(request, url);
-  if (!SIGN_IN_PATHS.includes(to.pathname)) {
-    try {
-      const cache = await pagesFor(response.headers.get(WHO_HEADER));
-      if (cache) await cache.put(at(START_META), new Response(to.pathname + to.search));
-    } catch {
-      // Not remembering is not a reason to fail the launch.
+    while (seen.length < 65536) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      seen += decoder.decode(value, { stream: true });
+      const found = /<meta[^>]*id="__next-page-redirect"[^>]*content="\d+;url=([^"]+)"/.exec(seen);
+      if (found) return found[1];
     }
+    return null;
+  } finally {
+    // Not awaited: this body is one branch of a tee, and its cancel() settles only when the page's branch is done too.
+    reader.cancel().catch(() => {});
   }
-  return Response.redirect(to.href, 302);
+}
+
+async function rememberStart(response) {
+  const target = await redirectTarget(response);
+  if (!target || !target.startsWith("/") || target.startsWith("//")) return;
+  if (SIGN_IN_PATHS.includes(new URL(target, self.location.origin).pathname)) return;
+  const cache = await pagesFor(response.headers.get(WHO_HEADER));
+  if (cache) await cache.put(at(START_META), new Response(target));
 }
 
 async function offlineStart() {
